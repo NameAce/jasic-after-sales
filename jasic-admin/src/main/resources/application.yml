@@ -1,0 +1,57 @@
+spring:
+  application:
+    name: jasic-after-sales
+  profiles:
+    active: dev
+
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+    generator:
+      write-numbers-as-strings: true
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.jasic.aftersales.system.domain.entity,com.jasic.aftersales.customer.domain.entity
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: isDeleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+      table-underline: true
+    banner: false
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+sa-token:
+  token-name: Authorization
+  timeout: 86400
+  active-timeout: -1
+  is-concurrent: true
+  is-share: true
+  token-style: uuid
+  is-log: false
+  is-print: false
+
+knife4j:
+  enable: true
+  openapi:
+    title: 佳士售后系统 API
+    description: 佳士售后服务系统接口文档
+    version: 1.0.0
+    group:
+      default:
+        group-name: 全部接口
+        api-rule: package
+        api-rule-resources:
+          - com.jasic.aftersales

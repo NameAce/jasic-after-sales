@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.jasic</groupId>
+        <artifactId>jasic-after-sales</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>jasic-customer</artifactId>
+    <packaging>jar</packaging>
+    <name>jasic-customer</name>
+    <description>C端客户模块 - 客户登录注册、客户信息管理</description>
+
+    <dependencies>
+        <!-- jasic-framework -->
+        <dependency>
+            <groupId>com.jasic</groupId>
+            <artifactId>jasic-framework</artifactId>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+</project>

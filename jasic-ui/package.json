@@ -1,0 +1,30 @@
+{
+  "name": "jasic-ui",
+  "version": "1.0.0",
+  "description": "佳士售后系统 - PC管理后台",
+  "private": true,
+  "scripts": {
+    "serve": "vue-cli-service serve",
+    "build": "vue-cli-service build",
+    "lint": "vue-cli-service lint"
+  },
+  "dependencies": {
+    "axios": "^0.27.2",
+    "element-ui": "^2.15.14",
+    "js-cookie": "^3.0.5",
+    "nprogress": "^0.2.0",
+    "path-to-regexp": "^6.2.1",
+    "vue": "^2.7.16",
+    "vue-router": "^3.6.5",
+    "vuex": "^3.6.2"
+  },
+  "devDependencies": {
+    "@vue/cli-plugin-babel": "~5.0.8",
+    "@vue/cli-plugin-eslint": "~5.0.8",
+    "@vue/cli-service": "~5.0.8",
+    "babel-plugin-component": "^1.1.1",
+    "sass": "^1.56.1",
+    "sass-loader": "^13.2.0",
+    "vue-template-compiler": "^2.7.16"
+  }
+}

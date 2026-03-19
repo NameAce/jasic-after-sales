@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jasic.aftersales.system.mapper.SysMenuMapper">
+
+    <!-- 根据用户ID和公司ID查询权限标识集合 -->
+    <select id="selectPermsByUserIdAndCompanyId" resultType="java.lang.String">
+        SELECT DISTINCT m.perms
+        FROM sys_menu m
+        INNER JOIN sys_role_menu rm ON m.id = rm.menu_id
+        INNER JOIN sys_role r ON rm.role_id = r.id
+        INNER JOIN sys_user_role ur ON r.id = ur.role_id
+        WHERE ur.user_id = #{userId}
+          AND r.company_id = #{companyId}
+          AND r.status = 1
+          AND m.status = 1
+          AND m.perms IS NOT NULL
+          AND m.perms != ''
+    </select>
+
+    <!-- 根据用户ID和公司ID查询菜单树（不含按钮） -->
+    <select id="selectMenuTreeByUserIdAndCompanyId" resultType="com.jasic.aftersales.system.domain.entity.SysMenu">
+        SELECT DISTINCT m.id, m.subject_type, m.menu_name, m.parent_id, m.menu_type,
+                        m.path, m.component, m.perms, m.icon, m.order_num,
+                        m.is_visible, m.status, m.create_time
+        FROM sys_menu m
+        INNER JOIN sys_role_menu rm ON m.id = rm.menu_id
+        INNER JOIN sys_role r ON rm.role_id = r.id
+        INNER JOIN sys_user_role ur ON r.id = ur.role_id
+        WHERE ur.user_id = #{userId}
+          AND r.company_id = #{companyId}
+          AND r.status = 1
+          AND m.status = 1
+          AND m.menu_type IN ('M', 'C')
+          AND m.is_visible = 1
+        ORDER BY m.parent_id, m.order_num
+    </select>
+
+</mapper>

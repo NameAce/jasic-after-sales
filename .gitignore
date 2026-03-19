@@ -1,0 +1,13 @@
+target/
+*.class
+*.jar
+*.war
+*.log
+.idea/
+*.iml
+.settings/
+.classpath
+.project
+.DS_Store
+jasic-ui/node_modules/
+jasic-ui/dist/
