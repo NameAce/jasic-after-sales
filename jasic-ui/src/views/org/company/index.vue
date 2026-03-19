@@ -30,6 +30,7 @@
       <el-table v-loading="loading" :data="companyList" border stripe>
         <el-table-column label="ID" prop="id" width="70" />
         <el-table-column label="公司名称" prop="companyName" width="200" />
+        <el-table-column label="公司编码" prop="companyCode" width="120" />
         <el-table-column label="公司类型" prop="typeCode" width="120" />
         <el-table-column label="主体类型" width="100">
           <template slot-scope="{ row }">
@@ -72,6 +73,9 @@
         <el-form-item label="公司名称" prop="companyName">
           <el-input v-model="form.companyName" placeholder="请输入公司名称" />
         </el-form-item>
+        <el-form-item label="公司编码" prop="companyCode">
+          <el-input v-model="form.companyCode" placeholder="请输入公司编码" :disabled="!!form.id" />
+        </el-form-item>
         <el-form-item label="公司类型" prop="typeCode">
           <el-select v-model="form.typeCode" placeholder="请选择" :disabled="!!form.id">
             <el-option v-for="t in typeCodeOptions" :key="t.value" :label="t.label" :value="t.value" />
@@ -85,6 +89,9 @@
         </el-form-item>
         <el-form-item label="地址" prop="address">
           <el-input v-model="form.address" placeholder="请输入地址" />
+        </el-form-item>
+        <el-form-item v-if="!form.id" label="管理员用户名" prop="adminUsername">
+          <el-input v-model="form.adminUsername" placeholder="新增公司时必填，用于创建默认管理员账号" />
         </el-form-item>
         <el-form-item label="状态" prop="status">
           <el-radio-group v-model="form.status">
@@ -121,7 +128,18 @@ export default {
       submitLoading: false,
       rules: {
         companyName: [{ required: true, message: '请输入公司名称', trigger: 'blur' }],
-        typeCode: [{ required: true, message: '请选择公司类型', trigger: 'change' }]
+        companyCode: [{ required: true, message: '请输入公司编码', trigger: 'blur' }],
+        typeCode: [{ required: true, message: '请选择公司类型', trigger: 'change' }],
+        adminUsername: [{
+          validator: (rule, value, callback) => {
+            if (!this.form.id && !value) {
+              callback(new Error('请输入管理员用户名'))
+            } else {
+              callback()
+            }
+          },
+          trigger: 'blur'
+        }]
       }
     }
   },

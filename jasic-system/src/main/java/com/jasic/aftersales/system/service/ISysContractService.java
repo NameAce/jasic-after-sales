@@ -7,6 +7,8 @@ import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
 import com.jasic.aftersales.system.domain.entity.HqFirstContract;
 import com.jasic.aftersales.system.domain.query.FirstSecondRelationQuery;
 import com.jasic.aftersales.system.domain.query.HqFirstContractQuery;
+import com.jasic.aftersales.system.domain.vo.FirstSecondRelationVO;
+import com.jasic.aftersales.system.domain.vo.HqFirstContractVO;
 
 /**
  * 签约管理 Service 接口
@@ -22,7 +24,7 @@ public interface ISysContractService {
      * @param query 查询参数
      * @return 分页结果
      */
-    PageResult<HqFirstContract> listHqFirstPage(HqFirstContractQuery query);
+    PageResult<HqFirstContractVO> listHqFirstPage(HqFirstContractQuery query);
 
     /**
      * 新增总部-一级签约
@@ -52,7 +54,7 @@ public interface ISysContractService {
      * @param query 查询参数
      * @return 分页结果
      */
-    PageResult<FirstSecondRelation> listFirstSecondPage(FirstSecondRelationQuery query);
+    PageResult<FirstSecondRelationVO> listFirstSecondPage(FirstSecondRelationQuery query);
 
     /**
      * 新增一级-二级从属

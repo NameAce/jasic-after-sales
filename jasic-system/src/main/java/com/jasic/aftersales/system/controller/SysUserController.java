@@ -6,6 +6,7 @@ import com.jasic.aftersales.common.core.controller.BaseController;
 import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.common.core.domain.Result;
 import com.jasic.aftersales.common.enums.OperTypeEnum;
+import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.dto.ResetPwdDTO;
 import com.jasic.aftersales.system.domain.dto.SysUserDTO;
 import com.jasic.aftersales.system.domain.query.SysUserQuery;
@@ -46,6 +47,9 @@ public class SysUserController extends BaseController {
     @SaCheckPermission("system:user:list")
     @GetMapping("/list")
     public Result<PageResult<SysUserVO>> list(SysUserQuery query) {
+        if (query.getCompanyId() == null) {
+            query.setCompanyId(SecurityContext.getCurrentCompanyId());
+        }
         PageResult<SysUserVO> page = userService.listPage(query);
         return Result.ok(page);
     }

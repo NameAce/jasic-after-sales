@@ -77,7 +77,7 @@
         show-checkbox
         node-key="id"
         :default-checked-keys="checkedMenuIds"
-        check-strictly
+        :check-strictly="menuCheckStrictly"
         default-expand-all
       />
       <div slot="footer">
@@ -117,7 +117,8 @@ export default {
       menuSaveLoading: false,
       currentAssignTypeCode: '',
       currentAssignSubjectType: '',
-      subjectTypeLabel: ''
+      subjectTypeLabel: '',
+      menuCheckStrictly: true
     }
   },
   created() { this.getList() },
@@ -170,6 +171,7 @@ export default {
       this.checkedMenuIds = []
       this.menuTreeData = []
       this.menuTreeLoading = true
+      this.menuCheckStrictly = true
       this.menuDialogVisible = true
       Promise.all([
         menuTree(row.subjectType),
@@ -181,6 +183,9 @@ export default {
         this.$nextTick(() => {
           if (this.$refs.menuTree) {
             this.$refs.menuTree.setCheckedKeys(this.checkedMenuIds)
+            this.$nextTick(() => {
+              this.menuCheckStrictly = false
+            })
           }
         })
       }).finally(() => { this.menuTreeLoading = false })

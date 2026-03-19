@@ -34,6 +34,12 @@ public class DataScopeAspect {
     private static final ThreadLocal<String> DATA_SCOPE_SQL = new ThreadLocal<>();
 
     /**
+     * 标记当前线程是否由 @DataScope 接管数据过滤，
+     * 为 true 时 TenantLineInnerInterceptor 应让路，避免重复/冲突注入。
+     */
+    private static final ThreadLocal<Boolean> DATA_SCOPE_ACTIVE = new ThreadLocal<>();
+
+    /**
      * 方法执行前设置数据过滤条件
      *
      * @param joinPoint 切入点
@@ -42,6 +48,7 @@ public class DataScopeAspect {
     @Before("@annotation(dataScope)")
     public void doBefore(JoinPoint joinPoint, DataScope dataScope) {
         clearDataScope();
+        DATA_SCOPE_ACTIVE.set(true);
 
         String subjectType = SecurityContext.getCurrentSubjectType();
         Long companyId = SecurityContext.getCurrentCompanyId();
@@ -83,6 +90,7 @@ public class DataScopeAspect {
     @After("@annotation(dataScope)")
     public void doAfter(JoinPoint joinPoint, DataScope dataScope) {
         clearDataScope();
+        DATA_SCOPE_ACTIVE.remove();
     }
 
     /**
@@ -162,6 +170,15 @@ public class DataScopeAspect {
      */
     public static String getDataScopeSql() {
         return DATA_SCOPE_SQL.get();
+    }
+
+    /**
+     * 当前线程是否由 @DataScope 接管数据过滤
+     *
+     * @return true 表示 @DataScope 已激活
+     */
+    public static boolean isDataScopeActive() {
+        return Boolean.TRUE.equals(DATA_SCOPE_ACTIVE.get());
     }
 
     /**

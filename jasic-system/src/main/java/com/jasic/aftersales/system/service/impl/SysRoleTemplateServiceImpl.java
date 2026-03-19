@@ -69,8 +69,10 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
     @Override
     public List<SysRoleTemplateVO> listByTypeCode(String typeCode) {
         LambdaQueryWrapper<SysRoleTemplate> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysRoleTemplate::getTypeCode, typeCode)
-                .orderByAsc(SysRoleTemplate::getOrderNum);
+        if (typeCode != null && !typeCode.isEmpty()) {
+            wrapper.eq(SysRoleTemplate::getTypeCode, typeCode);
+        }
+        wrapper.orderByAsc(SysRoleTemplate::getOrderNum);
         List<SysRoleTemplate> list = sysRoleTemplateMapper.selectList(wrapper);
         if (list == null || list.isEmpty()) {
             return Collections.emptyList();
@@ -173,7 +175,7 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
     }
 
     /**
-     * 同步模板到已有公司（取交集策略：仅移除模板已删除的菜单，不自动新增）
+     * 同步模板到已有公司（完全同步：移除模板已删除的菜单，并补充模板新增的菜单）
      *
      * @param templateId 模板ID
      */
@@ -214,23 +216,34 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
                 continue;
             }
 
-            // 取交集：移除不在模板菜单中的 role_menu 记录
+            // 移除：删除不在模板菜单中的 role_menu 记录
+            Set<Long> roleMenuIdSet = new HashSet<>();
             List<Long> toRemove = new ArrayList<>();
             for (SysRoleMenu rm : roleMenus) {
+                roleMenuIdSet.add(rm.getMenuId());
                 if (!templateMenuIdSet.contains(rm.getMenuId())) {
                     toRemove.add(rm.getId());
                 }
             }
-            if (toRemove.isEmpty()) {
-                continue;
-            }
-
             for (Long rmId : toRemove) {
                 sysRoleMenuMapper.deleteById(rmId);
             }
 
-            // 踢出受影响用户
-            kickAffectedUsers(role.getId());
+            // 新增：补充模板有而角色没有的菜单
+            boolean hasChanges = !toRemove.isEmpty();
+            for (Long menuId : templateMenuIds) {
+                if (!roleMenuIdSet.contains(menuId)) {
+                    SysRoleMenu rm = new SysRoleMenu();
+                    rm.setRoleId(role.getId());
+                    rm.setMenuId(menuId);
+                    sysRoleMenuMapper.insert(rm);
+                    hasChanges = true;
+                }
+            }
+
+            if (hasChanges) {
+                kickAffectedUsers(role.getId());
+            }
         }
     }
 

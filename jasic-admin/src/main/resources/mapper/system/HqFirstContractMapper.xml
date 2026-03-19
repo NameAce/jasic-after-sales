@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jasic.aftersales.system.mapper.HqFirstContractMapper">
+
+    <!-- 总部-一级签约分页列表（关联查询公司、大区名称） -->
+    <select id="selectHqFirstPage" resultType="com.jasic.aftersales.system.domain.vo.HqFirstContractVO">
+        SELECT
+            hfc.id,
+            hfc.hq_company_id AS hqCompanyId,
+            hfc.first_company_id AS firstCompanyId,
+            hfc.region_id AS regionId,
+            hq.company_name AS hqCompanyName,
+            fc.company_name AS firstCompanyName,
+            r.region_name AS regionName,
+            hfc.contract_no AS contractNo,
+            hfc.status,
+            hfc.remark,
+            hfc.create_time AS contractTime,
+            hfc.create_time AS createTime
+        FROM hq_first_contract hfc
+        LEFT JOIN sys_company hq ON hfc.hq_company_id = hq.id
+        LEFT JOIN sys_company fc ON hfc.first_company_id = fc.id
+        LEFT JOIN sys_region r ON hfc.region_id = r.id
+        <where>
+            <if test="query.hqCompanyId != null">
+                AND hfc.hq_company_id = #{query.hqCompanyId}
+            </if>
+            <if test="query.firstCompanyId != null">
+                AND hfc.first_company_id = #{query.firstCompanyId}
+            </if>
+            <if test="query.regionId != null">
+                AND hfc.region_id = #{query.regionId}
+            </if>
+        </where>
+        ORDER BY hfc.id DESC
+    </select>
+
+</mapper>

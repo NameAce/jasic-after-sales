@@ -4,6 +4,7 @@
       <el-form :inline="true" size="small">
         <el-form-item label="公司类型">
           <el-select v-model="queryTypeCode" placeholder="请选择" @change="handleQuery">
+            <el-option label="全部" value="" />
             <el-option v-for="t in typeCodeOptions" :key="t.value" :label="t.label" :value="t.value" />
           </el-select>
         </el-form-item>
@@ -22,6 +23,12 @@
         <el-table-column label="角色名称" prop="roleName" width="180" />
         <el-table-column label="角色标识" prop="roleKey" width="160" />
         <el-table-column label="所属类型" prop="typeCode" width="130" />
+        <el-table-column label="管理员" prop="isAdmin" width="80" align="center">
+          <template slot-scope="{ row }">
+            <el-tag v-if="row.isAdmin === 1" type="danger" size="mini">是</el-tag>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
         <el-table-column label="数据范围" prop="dataScope" width="100" />
         <el-table-column label="备注" prop="remark" />
         <el-table-column label="创建时间" prop="createTime" width="160" />
@@ -57,6 +64,10 @@
             <el-option label="仅本人" value="SELF" />
           </el-select>
         </el-form-item>
+        <el-form-item label="管理员模板" prop="isAdmin">
+          <el-switch v-model="form.isAdmin" :active-value="1" :inactive-value="0" />
+          <span class="form-tip">每种公司类型需有一个管理员模板，创建公司时用于初始化管理员角色</span>
+        </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="form.remark" type="textarea" />
         </el-form-item>
@@ -76,7 +87,7 @@
         show-checkbox
         node-key="id"
         :default-checked-keys="checkedMenuIds"
-        check-strictly
+        :check-strictly="menuCheckStrictly"
       />
       <div slot="footer">
         <el-button @click="menuDialogVisible = false">取 消</el-button>
@@ -114,8 +125,9 @@ export default {
       menuDialogVisible: false,
       menuTreeData: [],
       checkedMenuIds: [],
-      currentTemplateId: null,
-      menuLoading: false
+      currentAssignRow: null,
+      menuLoading: false,
+      menuCheckStrictly: true
     }
   },
   created() {
@@ -126,14 +138,10 @@ export default {
       listCompanyType().then(res => {
         if (!res) return
         this.typeCodeOptions = (res.data || []).map(t => ({ value: t.typeCode, label: t.typeName }))
-        if (this.typeCodeOptions.length > 0 && !this.queryTypeCode) {
-          this.queryTypeCode = this.typeCodeOptions[0].value
-          this.handleQuery()
-        }
+        this.handleQuery()
       })
     },
     handleQuery() {
-      if (!this.queryTypeCode) return
       this.loading = true
       listRoleTemplate(this.queryTypeCode).then(res => {
         if (!res) return
@@ -142,7 +150,7 @@ export default {
     },
     handleAdd() {
       this.dialogTitle = '新增模板'
-      this.form = { typeCode: this.queryTypeCode, dataScope: 'SELF', roleName: '', roleKey: '' }
+      this.form = { typeCode: this.queryTypeCode || (this.typeCodeOptions[0]?.value), dataScope: 'SELF', isAdmin: 0, roleName: '', roleKey: '' }
       this.dialogVisible = true
       this.$nextTick(() => this.$refs.form && this.$refs.form.clearValidate())
     },
@@ -150,7 +158,11 @@ export default {
       this.dialogTitle = '编辑模板'
       getRoleTemplate(row.id).then(res => {
         if (!res) return
-        this.form = res.data
+        const data = res.data
+        this.form = {
+          ...data,
+          isAdmin: data.isAdmin === 1 ? 1 : 0
+        }
         this.dialogVisible = true
       })
     },
@@ -158,8 +170,12 @@ export default {
       this.$refs.form.validate(valid => {
         if (!valid) return
         this.submitLoading = true
+        const payload = {
+          ...this.form,
+          isAdmin: this.form.isAdmin === 1 ? 1 : 0
+        }
         const api = this.form.id ? updateRoleTemplate : addRoleTemplate
-        api(this.form).then(res => {
+        api(payload).then(res => {
           if (!res) return
           this.$message.success('操作成功')
           this.dialogVisible = false
@@ -177,24 +193,45 @@ export default {
       }).catch(() => {})
     },
     handleAssignMenu(row) {
-      this.currentTemplateId = row.id
-      this.checkedMenuIds = []
+      this.currentAssignRow = row
+      this.checkedMenuIds = row.menuIds || []
+      this.menuCheckStrictly = true
       typeCodeMenuTree(row.typeCode).then(res => {
         if (!res) return
         this.menuTreeData = res.data || []
         this.menuDialogVisible = true
+        this.$nextTick(() => {
+          if (this.$refs.menuTree) {
+            this.$refs.menuTree.setCheckedKeys(this.checkedMenuIds)
+            this.$nextTick(() => {
+              this.menuCheckStrictly = false
+            })
+          }
+        })
       })
     },
     submitAssignMenu() {
       const checkedKeys = this.$refs.menuTree.getCheckedKeys()
       const halfCheckedKeys = this.$refs.menuTree.getHalfCheckedKeys()
       const menuIds = checkedKeys.concat(halfCheckedKeys)
+      const row = this.currentAssignRow
+      if (!row) return
       this.menuLoading = true
-      // 复用角色模板的菜单分配API（需后端支持）
-      updateRoleTemplate({ id: this.currentTemplateId, menuIds }).then(res => {
+      updateRoleTemplate({
+        id: row.id,
+        typeCode: row.typeCode,
+        roleName: row.roleName,
+        roleKey: row.roleKey,
+        dataScope: row.dataScope,
+        isAdmin: row.isAdmin === 1 ? 1 : 0,
+        orderNum: row.orderNum,
+        remark: row.remark,
+        menuIds
+      }).then(res => {
         if (!res) return
         this.$message.success('分配成功')
         this.menuDialogVisible = false
+        this.handleQuery()
       }).finally(() => { this.menuLoading = false })
     },
     handleSync(row) {
@@ -213,4 +250,5 @@ export default {
 .app-container { padding: 0; }
 .search-card { margin-bottom: 0; }
 .table-toolbar { margin-bottom: 12px; }
+.form-tip { margin-left: 8px; color: #909399; font-size: 12px; }
 </style>

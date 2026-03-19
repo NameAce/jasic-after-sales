@@ -43,7 +43,7 @@ public class SysRoleTemplateController extends BaseController {
      */
     @SaCheckPermission("system:roleTemplate:list")
     @GetMapping("/list")
-    public Result<List<SysRoleTemplateVO>> list(@RequestParam String typeCode) {
+    public Result<List<SysRoleTemplateVO>> list(@RequestParam(value = "typeCode", required = false) String typeCode) {
         List<SysRoleTemplateVO> list = roleTemplateService.listByTypeCode(typeCode);
         return Result.ok(list);
     }

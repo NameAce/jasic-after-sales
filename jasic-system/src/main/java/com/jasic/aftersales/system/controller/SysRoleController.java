@@ -47,6 +47,9 @@ public class SysRoleController extends BaseController {
     @SaCheckPermission("system:role:list")
     @GetMapping("/list")
     public Result<PageResult<SysRoleVO>> list(SysRoleQuery query) {
+        if (query.getCompanyId() == null) {
+            query.setCompanyId(SecurityContext.getCurrentCompanyId());
+        }
         PageResult<SysRoleVO> page = roleService.listPage(query);
         return Result.ok(page);
     }

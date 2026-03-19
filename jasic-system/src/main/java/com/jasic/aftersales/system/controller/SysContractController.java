@@ -8,8 +8,8 @@ import com.jasic.aftersales.common.core.domain.Result;
 import com.jasic.aftersales.common.enums.OperTypeEnum;
 import com.jasic.aftersales.system.domain.dto.FirstSecondRelationDTO;
 import com.jasic.aftersales.system.domain.dto.HqFirstContractDTO;
-import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
-import com.jasic.aftersales.system.domain.entity.HqFirstContract;
+import com.jasic.aftersales.system.domain.vo.FirstSecondRelationVO;
+import com.jasic.aftersales.system.domain.vo.HqFirstContractVO;
 import com.jasic.aftersales.system.domain.query.FirstSecondRelationQuery;
 import com.jasic.aftersales.system.domain.query.HqFirstContractQuery;
 import com.jasic.aftersales.system.service.ISysContractService;
@@ -46,8 +46,8 @@ public class SysContractController extends BaseController {
      */
     @SaCheckPermission("org:contract:list")
     @GetMapping("/hq-first/list")
-    public Result<PageResult<HqFirstContract>> listHqFirstPage(HqFirstContractQuery query) {
-        PageResult<HqFirstContract> page = contractService.listHqFirstPage(query);
+    public Result<PageResult<HqFirstContractVO>> listHqFirstPage(HqFirstContractQuery query) {
+        PageResult<HqFirstContractVO> page = contractService.listHqFirstPage(query);
         return Result.ok(page);
     }
 
@@ -101,8 +101,8 @@ public class SysContractController extends BaseController {
      */
     @SaCheckPermission("org:contract:list")
     @GetMapping("/first-second/list")
-    public Result<PageResult<FirstSecondRelation>> listFirstSecondPage(FirstSecondRelationQuery query) {
-        PageResult<FirstSecondRelation> page = contractService.listFirstSecondPage(query);
+    public Result<PageResult<FirstSecondRelationVO>> listFirstSecondPage(FirstSecondRelationQuery query) {
+        PageResult<FirstSecondRelationVO> page = contractService.listFirstSecondPage(query);
         return Result.ok(page);
     }
 

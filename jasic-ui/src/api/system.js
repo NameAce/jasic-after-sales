@@ -83,7 +83,9 @@ export function copyMenus(data) {
 
 // --- 角色模板 ---
 export function listRoleTemplate(typeCode) {
-  return request({ url: '/system/role-template/list', method: 'get', params: { typeCode } })
+  // typeCode 为空时不传该参数，后端返回全部数据
+  const params = typeCode ? { typeCode } : {}
+  return request({ url: '/system/role-template/list', method: 'get', params })
 }
 export function getRoleTemplate(templateId) {
   return request({ url: `/system/role-template/${templateId}`, method: 'get' })

@@ -75,9 +75,9 @@ export default {
         this.$store.dispatch('user/login', this.loginForm)
           .then(data => {
             if (data.needChooseCompany) {
-              this.$router.push('/choose-company')
+              this.$router.push('/choose-company').catch(() => {})
             } else {
-              this.$router.push(this.redirect || '/')
+              this.$router.push(this.redirect || '/').catch(() => {})
             }
           })
           .catch(() => {})

@@ -2,6 +2,7 @@ package com.jasic.aftersales.framework.security;
 
 import cn.dev33.satoken.session.SaSession;
 import cn.dev33.satoken.stp.StpUtil;
+import com.jasic.aftersales.common.enums.SubjectTypeEnum;
 
 import java.util.Collections;
 import java.util.List;
@@ -124,6 +125,15 @@ public class SecurityContext {
      */
     public static void setEffectiveDataScope(String dataScope) {
         getSession().set("effectiveDataScope", dataScope);
+    }
+
+    /**
+     * 判断当前登录用户是否为平台管理员
+     *
+     * @return true 是平台管理员
+     */
+    public static boolean isPlatformUser() {
+        return SubjectTypeEnum.PLATFORM.getCode().equals(getCurrentSubjectType());
     }
 
     /**

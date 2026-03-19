@@ -3,6 +3,7 @@ package com.jasic.aftersales.system.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.common.exception.ServiceException;
@@ -13,6 +14,8 @@ import com.jasic.aftersales.system.domain.entity.HqFirstContract;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
 import com.jasic.aftersales.system.domain.query.FirstSecondRelationQuery;
 import com.jasic.aftersales.system.domain.query.HqFirstContractQuery;
+import com.jasic.aftersales.system.domain.vo.FirstSecondRelationVO;
+import com.jasic.aftersales.system.domain.vo.HqFirstContractVO;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
 import com.jasic.aftersales.system.mapper.HqFirstContractMapper;
 import com.jasic.aftersales.system.mapper.SysCompanyMapper;
@@ -46,20 +49,9 @@ public class SysContractServiceImpl implements ISysContractService {
      * @return 分页结果
      */
     @Override
-    public PageResult<HqFirstContract> listHqFirstPage(HqFirstContractQuery query) {
-        Page<HqFirstContract> page = new Page<>(query.getPageNum(), query.getPageSize());
-        LambdaQueryWrapper<HqFirstContract> wrapper = new LambdaQueryWrapper<>();
-        if (query.getHqCompanyId() != null) {
-            wrapper.eq(HqFirstContract::getHqCompanyId, query.getHqCompanyId());
-        }
-        if (query.getFirstCompanyId() != null) {
-            wrapper.eq(HqFirstContract::getFirstCompanyId, query.getFirstCompanyId());
-        }
-        if (query.getRegionId() != null) {
-            wrapper.eq(HqFirstContract::getRegionId, query.getRegionId());
-        }
-        wrapper.orderByDesc(HqFirstContract::getId);
-        Page<HqFirstContract> result = hqFirstContractMapper.selectPage(page, wrapper);
+    public PageResult<HqFirstContractVO> listHqFirstPage(HqFirstContractQuery query) {
+        Page<HqFirstContractVO> page = new Page<>(query.getPageNum(), query.getPageSize());
+        IPage<HqFirstContractVO> result = hqFirstContractMapper.selectHqFirstPage(page, query);
         return PageResult.of(result.getRecords(), result.getTotal(), query.getPageNum(), query.getPageSize());
     }
 
@@ -129,17 +121,9 @@ public class SysContractServiceImpl implements ISysContractService {
      * @return 分页结果
      */
     @Override
-    public PageResult<FirstSecondRelation> listFirstSecondPage(FirstSecondRelationQuery query) {
-        Page<FirstSecondRelation> page = new Page<>(query.getPageNum(), query.getPageSize());
-        LambdaQueryWrapper<FirstSecondRelation> wrapper = new LambdaQueryWrapper<>();
-        if (query.getFirstCompanyId() != null) {
-            wrapper.eq(FirstSecondRelation::getFirstCompanyId, query.getFirstCompanyId());
-        }
-        if (query.getSecondCompanyId() != null) {
-            wrapper.eq(FirstSecondRelation::getSecondCompanyId, query.getSecondCompanyId());
-        }
-        wrapper.orderByDesc(FirstSecondRelation::getId);
-        Page<FirstSecondRelation> result = firstSecondRelationMapper.selectPage(page, wrapper);
+    public PageResult<FirstSecondRelationVO> listFirstSecondPage(FirstSecondRelationQuery query) {
+        Page<FirstSecondRelationVO> page = new Page<>(query.getPageNum(), query.getPageSize());
+        IPage<FirstSecondRelationVO> result = firstSecondRelationMapper.selectFirstSecondPage(page, query);
         return PageResult.of(result.getRecords(), result.getTotal(), query.getPageNum(), query.getPageSize());
     }
 

@@ -203,9 +203,12 @@ export default {
     handleAssignRole(row) {
       this.currentUserId = row.id
       this.selectedRoleIds = []
-      fetchRoleOptions().then(res => {
-        if (!res) return
-        this.roleOptions = res.data || []
+      Promise.all([fetchRoleOptions(), getUser(row.id)]).then(([roleRes, userRes]) => {
+        if (!roleRes) return
+        this.roleOptions = roleRes.data || []
+        if (userRes && userRes.data && userRes.data.roles && userRes.data.roles.length) {
+          this.selectedRoleIds = userRes.data.roles.map(r => r.id)
+        }
         this.roleDialogVisible = true
       })
     },

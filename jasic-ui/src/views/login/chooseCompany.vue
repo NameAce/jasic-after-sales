@@ -56,7 +56,7 @@ export default {
       this.loading = true
       this.$store.dispatch('user/chooseCompany', this.selected)
         .then(() => {
-          this.$router.push('/')
+          this.$router.push('/').catch(() => {})
         })
         .catch(() => {})
         .finally(() => { this.loading = false })

@@ -19,6 +19,7 @@
       </div>
       <el-table v-loading="loading" :data="regionList" border stripe>
         <el-table-column label="ID" prop="id" width="70" />
+        <el-table-column label="大区编码" prop="regionCode" width="120" />
         <el-table-column label="大区名称" prop="regionName" width="200" />
         <el-table-column label="备注" prop="remark" />
         <el-table-column label="创建时间" prop="createTime" width="160" />
@@ -33,6 +34,9 @@
 
     <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="460px" append-to-body>
       <el-form ref="form" :model="form" :rules="rules" label-width="90px">
+        <el-form-item label="大区编码" prop="regionCode">
+          <el-input v-model="form.regionCode" placeholder="如：HD" maxlength="32" show-word-limit />
+        </el-form-item>
         <el-form-item label="大区名称" prop="regionName">
           <el-input v-model="form.regionName" placeholder="如：华东大区" />
         </el-form-item>
@@ -50,7 +54,7 @@
 
 <script>
 import { listRegion, addRegion, updateRegion, deleteRegion } from '@/api/system'
-import { listCompany, listCompanyType } from '@/api/org'
+import { listCompany } from '@/api/org'
 
 export default {
   name: 'RegionManage',
@@ -74,19 +78,13 @@ export default {
   },
   methods: {
     loadHqOptions() {
-      const typeCodeMap = {}
-      listCompanyType().then(res => {
+      listCompany({ pageNum: 1, pageSize: 999, category: 'HQ' }).then(res => {
         if (!res) return
-        (res.data || []).forEach(t => { typeCodeMap[t.typeCode] = t.subjectType })
-      }).then(() => {
-        listCompany({ pageNum: 1, pageSize: 999 }).then(res => {
-          if (!res) return
-          this.hqOptions = (res.data.records || []).filter(c => typeCodeMap[c.typeCode] === 'HQ')
-          if (this.hqOptions.length > 0 && !this.queryCompanyId) {
-            this.queryCompanyId = this.hqOptions[0].id
-            this.getList()
-          }
-        })
+        this.hqOptions = res.data.records || []
+        if (this.hqOptions.length > 0 && !this.queryCompanyId) {
+          this.queryCompanyId = this.hqOptions[0].id
+          this.getList()
+        }
       })
     },
     getList() {

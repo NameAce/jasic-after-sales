@@ -13,6 +13,9 @@ import com.jasic.aftersales.system.domain.entity.SysRoleTemplate;
 import com.jasic.aftersales.system.domain.entity.SysUser;
 import com.jasic.aftersales.system.domain.entity.SysUserCompany;
 import com.jasic.aftersales.system.domain.entity.SysUserRole;
+import com.jasic.aftersales.common.enums.CompanyCategoryEnum;
+import com.jasic.aftersales.common.enums.SubjectTypeEnum;
+import com.jasic.aftersales.system.domain.entity.SysCompanyType;
 import com.jasic.aftersales.system.domain.query.SysCompanyQuery;
 import com.jasic.aftersales.system.mapper.SysCompanyMapper;
 import com.jasic.aftersales.system.mapper.SysRoleTemplateMapper;
@@ -20,11 +23,14 @@ import com.jasic.aftersales.system.mapper.SysUserCompanyMapper;
 import com.jasic.aftersales.system.mapper.SysUserMapper;
 import com.jasic.aftersales.system.mapper.SysUserRoleMapper;
 import com.jasic.aftersales.system.service.ISysCompanyService;
+import com.jasic.aftersales.system.service.ISysCompanyTypeService;
 import com.jasic.aftersales.system.service.ISysRoleTemplateService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 公司管理 Service 实现类
@@ -55,6 +61,9 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
     @Resource
     private ISysRoleTemplateService roleTemplateService;
 
+    @Resource
+    private ISysCompanyTypeService companyTypeService;
+
     /**
      * 分页查询公司列表
      *
@@ -68,7 +77,10 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         if (StrUtil.isNotBlank(query.getCompanyName())) {
             wrapper.like(SysCompany::getCompanyName, query.getCompanyName());
         }
-        if (StrUtil.isNotBlank(query.getTypeCode())) {
+        // 业务分类优先于 typeCode
+        if (StrUtil.isNotBlank(query.getCategory())) {
+            applyCategoryFilter(wrapper, query.getCategory());
+        } else if (StrUtil.isNotBlank(query.getTypeCode())) {
             wrapper.eq(SysCompany::getTypeCode, query.getTypeCode());
         }
         if (query.getStatus() != null) {
@@ -77,6 +89,41 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         wrapper.orderByDesc(SysCompany::getId);
         Page<SysCompany> result = sysCompanyMapper.selectPage(page, wrapper);
         return PageResult.of(result.getRecords(), result.getTotal(), query.getPageNum(), query.getPageSize());
+    }
+
+    /**
+     * 按业务分类过滤公司
+     *
+     * @param wrapper 查询条件
+     * @param category 分类编码（HQ/FIRST_LEVEL/SECOND_LEVEL）
+     */
+    private void applyCategoryFilter(LambdaQueryWrapper<SysCompany> wrapper, String category) {
+        CompanyCategoryEnum categoryEnum = CompanyCategoryEnum.getByCode(category);
+        if (categoryEnum == null) {
+            return;
+        }
+        switch (categoryEnum) {
+            case HQ:
+                List<SysCompanyType> allTypes = companyTypeService.listAll();
+                List<String> hqTypeCodes = allTypes.stream()
+                        .filter(t -> SubjectTypeEnum.HQ.getCode().equals(t.getSubjectType()))
+                        .map(SysCompanyType::getTypeCode)
+                        .collect(Collectors.toList());
+                if (!hqTypeCodes.isEmpty()) {
+                    wrapper.in(SysCompany::getTypeCode, hqTypeCodes);
+                } else {
+                    wrapper.eq(SysCompany::getTypeCode, "__none__"); // 无匹配类型时返回空
+                }
+                break;
+            case FIRST_LEVEL:
+                wrapper.in(SysCompany::getTypeCode, CompanyCategoryEnum.getFirstLevelTypeCodes());
+                break;
+            case SECOND_LEVEL:
+                wrapper.in(SysCompany::getTypeCode, CompanyCategoryEnum.getSecondLevelTypeCodes());
+                break;
+            default:
+                break;
+        }
     }
 
     /**

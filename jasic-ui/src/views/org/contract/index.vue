@@ -149,7 +149,7 @@
 import {
   listHqFirstContract, addHqFirstContract, updateHqFirstContract, deleteHqFirstContract,
   listFirstSecondRelation, addFirstSecondRelation, deleteFirstSecondRelation,
-  listCompany, listCompanyType
+  listCompany
 } from '@/api/org'
 import { listRegion } from '@/api/system'
 
@@ -170,7 +170,6 @@ export default {
       firstOptions: [],
       secondOptions: [],
       regionOptions: [],
-      typeCodeMap: {},
       hqDialogVisible: false,
       hqDialogTitle: '新增签约',
       hqForm: {},
@@ -194,16 +193,15 @@ export default {
   },
   methods: {
     loadCompanyOptions() {
-      listCompanyType().then(res => {
-        if (!res) return
-        (res.data || []).forEach(t => { this.typeCodeMap[t.typeCode] = t.subjectType })
-      })
-      listCompany({ pageNum: 1, pageSize: 999 }).then(res => {
-        if (!res) return
-        const all = res.data.records || []
-        this.hqOptions = all.filter(c => (this.typeCodeMap[c.typeCode] || '').includes('HQ'))
-        this.firstOptions = all.filter(c => c.typeCode === 'FIRST')
-        this.secondOptions = all.filter(c => c.typeCode === 'SECOND')
+      const baseParams = { pageNum: 1, pageSize: 999 }
+      Promise.all([
+        listCompany({ ...baseParams, category: 'HQ' }),
+        listCompany({ ...baseParams, category: 'FIRST_LEVEL' }),
+        listCompany({ ...baseParams, category: 'SECOND_LEVEL' })
+      ]).then(([hqRes, firstRes, secondRes]) => {
+        if (hqRes) this.hqOptions = hqRes.data.records || []
+        if (firstRes) this.firstOptions = firstRes.data.records || []
+        if (secondRes) this.secondOptions = secondRes.data.records || []
       })
     },
     handleTabClick() {

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jasic.aftersales.system.mapper.FirstSecondRelationMapper">
+
+    <!-- 一级-二级从属分页列表（关联查询公司名称） -->
+    <select id="selectFirstSecondPage" resultType="com.jasic.aftersales.system.domain.vo.FirstSecondRelationVO">
+        SELECT
+            fsr.id,
+            fsr.first_company_id AS firstCompanyId,
+            fsr.second_company_id AS secondCompanyId,
+            fc.company_name AS firstCompanyName,
+            sc.company_name AS secondCompanyName,
+            fsr.status,
+            fsr.remark,
+            fsr.create_time AS createTime
+        FROM first_second_relation fsr
+        LEFT JOIN sys_company fc ON fsr.first_company_id = fc.id
+        LEFT JOIN sys_company sc ON fsr.second_company_id = sc.id
+        <where>
+            <if test="query.firstCompanyId != null">
+                AND fsr.first_company_id = #{query.firstCompanyId}
+            </if>
+            <if test="query.secondCompanyId != null">
+                AND fsr.second_company_id = #{query.secondCompanyId}
+            </if>
+        </where>
+        ORDER BY fsr.id DESC
+    </select>
+
+</mapper>
