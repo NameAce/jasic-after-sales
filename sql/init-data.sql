@@ -63,7 +63,10 @@ INSERT INTO `sys_menu` (`id`, `subject_type`, `menu_name`, `parent_id`, `menu_ty
 (101, 'PLATFORM', '用户管理',     1, 'C', 'user',         'system/user/index',         NULL, 'el-icon-user',     1, 1, 1, NOW(), NOW()),
 (102, 'PLATFORM', '角色管理',     1, 'C', 'role',         'system/role/index',         NULL, 'el-icon-s-custom', 2, 1, 1, NOW(), NOW()),
 (103, 'PLATFORM', '菜单管理',     1, 'C', 'menu',         'system/menu/index',         NULL, 'el-icon-menu',     3, 1, 1, NOW(), NOW()),
-(104, 'PLATFORM', '角色模板管理', 1, 'C', 'roleTemplate', 'system/roleTemplate/index', NULL, 'el-icon-s-tools',  4, 1, 1, NOW(), NOW());
+(104, 'PLATFORM', '角色模板管理', 1, 'C', 'roleTemplate', 'system/roleTemplate/index', NULL, 'el-icon-s-tools',  4, 1, 1, NOW(), NOW()),
+(105, 'PLATFORM', '字典管理',     1, 'C', 'dictType',     'system/dictType/index',     NULL, 'el-icon-collection-tag', 5, 1, 1, NOW(), NOW()),
+(106, 'PLATFORM', '字典数据',     1, 'C', 'dictData/:dictId', 'system/dictData/index', NULL, 'el-icon-document', 99, 0, 1, NOW(), NOW()),
+(107, 'PLATFORM', '参数设置',     1, 'C', 'config',       'system/config/index',       NULL, 'el-icon-setting',  6, 1, 1, NOW(), NOW());
 
 -- 二级菜单 - 组织管理
 INSERT INTO `sys_menu` (`id`, `subject_type`, `menu_name`, `parent_id`, `menu_type`, `path`, `component`, `perms`, `icon`, `order_num`, `is_visible`, `status`, `create_time`, `update_time`) VALUES
@@ -106,6 +109,29 @@ INSERT INTO `sys_menu` (`id`, `subject_type`, `menu_name`, `parent_id`, `menu_ty
 (1033, 'PLATFORM', '模板修改', 104, 'F', NULL, NULL, 'system:roleTemplate:update', NULL, 3, 1, 1, NOW(), NOW()),
 (1034, 'PLATFORM', '模板删除', 104, 'F', NULL, NULL, 'system:roleTemplate:remove', NULL, 4, 1, 1, NOW(), NOW()),
 (1035, 'PLATFORM', '模板同步', 104, 'F', NULL, NULL, 'system:roleTemplate:sync',   NULL, 5, 1, 1, NOW(), NOW());
+
+-- 三级按钮 - 字典管理
+INSERT INTO `sys_menu` (`id`, `subject_type`, `menu_name`, `parent_id`, `menu_type`, `path`, `component`, `perms`, `icon`, `order_num`, `is_visible`, `status`, `create_time`, `update_time`) VALUES
+(1041, 'PLATFORM', '字典类型查询', 105, 'F', NULL, NULL, 'system:dictType:list',    NULL, 1, 1, 1, NOW(), NOW()),
+(1042, 'PLATFORM', '字典类型新增', 105, 'F', NULL, NULL, 'system:dictType:add',     NULL, 2, 1, 1, NOW(), NOW()),
+(1043, 'PLATFORM', '字典类型修改', 105, 'F', NULL, NULL, 'system:dictType:update',  NULL, 3, 1, 1, NOW(), NOW()),
+(1044, 'PLATFORM', '字典类型删除', 105, 'F', NULL, NULL, 'system:dictType:remove',  NULL, 4, 1, 1, NOW(), NOW()),
+(1045, 'PLATFORM', '字典缓存刷新', 105, 'F', NULL, NULL, 'system:dictType:refresh', NULL, 5, 1, 1, NOW(), NOW());
+
+-- 三级按钮 - 字典数据
+INSERT INTO `sys_menu` (`id`, `subject_type`, `menu_name`, `parent_id`, `menu_type`, `path`, `component`, `perms`, `icon`, `order_num`, `is_visible`, `status`, `create_time`, `update_time`) VALUES
+(1051, 'PLATFORM', '字典数据查询', 106, 'F', NULL, NULL, 'system:dictData:list',   NULL, 1, 1, 1, NOW(), NOW()),
+(1052, 'PLATFORM', '字典数据新增', 106, 'F', NULL, NULL, 'system:dictData:add',    NULL, 2, 1, 1, NOW(), NOW()),
+(1053, 'PLATFORM', '字典数据修改', 106, 'F', NULL, NULL, 'system:dictData:update', NULL, 3, 1, 1, NOW(), NOW()),
+(1054, 'PLATFORM', '字典数据删除', 106, 'F', NULL, NULL, 'system:dictData:remove', NULL, 4, 1, 1, NOW(), NOW());
+
+-- 三级按钮 - 参数设置
+INSERT INTO `sys_menu` (`id`, `subject_type`, `menu_name`, `parent_id`, `menu_type`, `path`, `component`, `perms`, `icon`, `order_num`, `is_visible`, `status`, `create_time`, `update_time`) VALUES
+(1061, 'PLATFORM', '参数查询', 107, 'F', NULL, NULL, 'system:config:list',    NULL, 1, 1, 1, NOW(), NOW()),
+(1062, 'PLATFORM', '参数新增', 107, 'F', NULL, NULL, 'system:config:add',     NULL, 2, 1, 1, NOW(), NOW()),
+(1063, 'PLATFORM', '参数修改', 107, 'F', NULL, NULL, 'system:config:update',  NULL, 3, 1, 1, NOW(), NOW()),
+(1064, 'PLATFORM', '参数删除', 107, 'F', NULL, NULL, 'system:config:remove',  NULL, 4, 1, 1, NOW(), NOW()),
+(1065, 'PLATFORM', '参数缓存刷新', 107, 'F', NULL, NULL, 'system:config:refresh', NULL, 5, 1, 1, NOW(), NOW());
 
 -- 三级按钮 - 公司类型管理
 INSERT INTO `sys_menu` (`id`, `subject_type`, `menu_name`, `parent_id`, `menu_type`, `path`, `component`, `perms`, `icon`, `order_num`, `is_visible`, `status`, `create_time`, `update_time`) VALUES
@@ -152,3 +178,38 @@ SELECT 1, `id`, NOW(), NOW() FROM `sys_menu` WHERE `subject_type` = 'PLATFORM';
 -- -------------------------------------------
 INSERT INTO `sys_type_code_menu` (`type_code`, `menu_id`, `create_time`, `update_time`)
 SELECT 'PLATFORM', `id`, NOW(), NOW() FROM `sys_menu` WHERE `subject_type` = 'PLATFORM';
+
+-- -------------------------------------------
+-- 10. 初始化字典类型
+-- -------------------------------------------
+INSERT INTO `sys_dict_type` (`id`, `dict_name`, `dict_type`, `status`, `remark`, `create_time`, `update_time`) VALUES
+(1, '是否字典', 'sys_yes_no', 1, '是/否通用字典', NOW(), NOW()),
+(2, '状态字典', 'sys_normal_disable', 1, '启用/停用通用字典', NOW(), NOW()),
+(3, '显示字典', 'sys_show_hide', 1, '显示/隐藏通用字典', NOW(), NOW()),
+(4, '操作类型', 'sys_oper_type', 1, '操作日志类型字典', NOW(), NOW());
+
+-- -------------------------------------------
+-- 11. 初始化字典数据
+-- -------------------------------------------
+INSERT INTO `sys_dict_data` (`id`, `dict_type`, `dict_label`, `dict_value`, `dict_sort`, `css_class`, `list_class`, `is_default`, `status`, `remark`, `create_time`, `update_time`) VALUES
+(1,  'sys_yes_no',         '是',   '1', 1, NULL, 'primary', 1, 1, '系统默认是', NOW(), NOW()),
+(2,  'sys_yes_no',         '否',   '0', 2, NULL, 'info',    0, 1, '系统默认否', NOW(), NOW()),
+(3,  'sys_normal_disable', '启用', '1', 1, NULL, 'success', 1, 1, '启用状态', NOW(), NOW()),
+(4,  'sys_normal_disable', '停用', '0', 2, NULL, 'danger',  0, 1, '停用状态', NOW(), NOW()),
+(5,  'sys_show_hide',      '显示', '1', 1, NULL, 'primary', 1, 1, '显示状态', NOW(), NOW()),
+(6,  'sys_show_hide',      '隐藏', '0', 2, NULL, 'info',    0, 1, '隐藏状态', NOW(), NOW()),
+(7,  'sys_oper_type',      '其他',     '0', 1, NULL, 'info',    0, 1, '其他操作', NOW(), NOW()),
+(8,  'sys_oper_type',      '新增',     '1', 2, NULL, 'primary', 0, 1, '新增操作', NOW(), NOW()),
+(9,  'sys_oper_type',      '修改',     '2', 3, NULL, 'warning', 0, 1, '修改操作', NOW(), NOW()),
+(10, 'sys_oper_type',      '删除',     '3', 4, NULL, 'danger',  0, 1, '删除操作', NOW(), NOW()),
+(11, 'sys_oper_type',      '授权',     '4', 5, NULL, 'success', 0, 1, '授权操作', NOW(), NOW()),
+(12, 'sys_oper_type',      '导出',     '5', 6, NULL, 'warning', 0, 1, '导出操作', NOW(), NOW()),
+(13, 'sys_oper_type',      '登录',     '6', 7, NULL, 'success', 0, 1, '登录操作', NOW(), NOW()),
+(14, 'sys_oper_type',      '登出',     '7', 8, NULL, 'info',    0, 1, '登出操作', NOW(), NOW()),
+(15, 'sys_oper_type',      '强制下线', '8', 9, NULL, 'danger',  0, 1, '强制下线操作', NOW(), NOW());
+
+-- -------------------------------------------
+-- 12. 初始化参数设置
+-- -------------------------------------------
+INSERT INTO `sys_config` (`id`, `config_name`, `config_key`, `config_value`, `config_type`, `remark`, `create_time`, `update_time`) VALUES
+(1, '公司管理员初始密码', 'org.company.adminInitPassword', 'Jasic@123', 1, '创建公司时默认管理员账号的初始密码', NOW(), NOW());

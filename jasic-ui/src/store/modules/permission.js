@@ -55,6 +55,9 @@ const viewModules = {
   'system/user/index': () => import('@/views/system/user/index.vue'),
   'system/role/index': () => import('@/views/system/role/index.vue'),
   'system/menu/index': () => import('@/views/system/menu/index.vue'),
+  'system/dictType/index': () => import('@/views/system/dictType/index.vue'),
+  'system/dictData/index': () => import('@/views/system/dictData/index.vue'),
+  'system/config/index': () => import('@/views/system/config/index.vue'),
   'system/roleTemplate/index': () => import('@/views/system/roleTemplate/index.vue'),
   'org/companyType/index': () => import('@/views/org/companyType/index.vue'),
   'org/company/index': () => import('@/views/org/company/index.vue'),
@@ -96,6 +99,7 @@ function filterAsyncRoutes(menus, parentPath = '') {
 
     route.name = menu.path.replace(/\//g, '_') || menu.menuName
     route.meta = { title: menu.menuName, icon: menu.icon }
+    route.hidden = menu.isVisible === 0
     
     if (isMenuFolder) {
       if (parentPath === '') {
@@ -146,6 +150,7 @@ function filterChildrenRoutes(children, parentPath) {
       name: (parentPath + '/' + childPath).replace(/\//g, '_'),
       meta: { title: child.menuName, icon: child.icon }
     }
+    route.hidden = child.isVisible === 0
     
     // 我们如果是在 Layout 下面显示，那么子组件如果没有 component，就不能使用 Layout 了，应该使用一个空的 router-view
     const isMenuFolder = !child.component

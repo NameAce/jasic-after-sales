@@ -25,4 +25,10 @@ public class CacheConstants {
 
     /** 大区下网点ID列表前缀，完整 key: region:companies:{regionId} */
     public static final String REGION_COMPANIES_KEY = "region:companies:";
+
+    /** 字典数据缓存前缀，完整 key: dict:data:{dictType} */
+    public static final String DICT_DATA_KEY = "dict:data:";
+
+    /** 参数缓存前缀，完整 key: config:key:{configKey} */
+    public static final String CONFIG_KEY = "config:key:";
 }

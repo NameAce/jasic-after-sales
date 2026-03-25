@@ -24,6 +24,7 @@ import com.jasic.aftersales.system.mapper.SysUserMapper;
 import com.jasic.aftersales.system.mapper.SysUserRoleMapper;
 import com.jasic.aftersales.system.service.ISysCompanyService;
 import com.jasic.aftersales.system.service.ISysCompanyTypeService;
+import com.jasic.aftersales.system.service.ISysConfigService;
 import com.jasic.aftersales.system.service.ISysRoleTemplateService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -63,6 +64,9 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
 
     @Resource
     private ISysCompanyTypeService companyTypeService;
+
+    @Resource
+    private ISysConfigService configService;
 
     /**
      * 分页查询公司列表
@@ -201,9 +205,11 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         Long adminRoleId = roleTemplateService.initCompanyRoles(company.getId(), dto.getTypeCode());
 
         // 7. 创建默认管理员用户
+        String initPassword = StrUtil.blankToDefault(
+                configService.getValueByKey("org.company.adminInitPassword"), DEFAULT_PASSWORD);
         SysUser adminUser = new SysUser();
         adminUser.setUsername(dto.getAdminUsername());
-        adminUser.setPassword(BCrypt.hashpw(DEFAULT_PASSWORD, BCrypt.gensalt()));
+        adminUser.setPassword(BCrypt.hashpw(initPassword, BCrypt.gensalt()));
         adminUser.setRealName(dto.getContactName());
         adminUser.setPhone(dto.getContactPhone());
         adminUser.setStatus(1);

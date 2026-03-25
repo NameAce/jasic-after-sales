@@ -3,7 +3,7 @@
 -- 数据库：jasic_after_sales
 -- 字符集：utf8mb4
 -- 排序规则：utf8mb4_general_ci
--- 共17张表
+-- 共20张表
 -- =============================================
 
 SET NAMES utf8mb4;
@@ -304,7 +304,62 @@ CREATE TABLE `sys_user_region` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用户-大区关联表';
 
 -- -------------------------------------------
--- 17. 操作日志表
+-- 17. 字典类型表
+-- -------------------------------------------
+DROP TABLE IF EXISTS `sys_dict_type`;
+CREATE TABLE `sys_dict_type` (
+  `id`          bigint unsigned  NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `dict_name`   varchar(100)     NOT NULL                COMMENT '字典名称',
+  `dict_type`   varchar(100)     NOT NULL                COMMENT '字典类型',
+  `status`      tinyint unsigned DEFAULT 1               COMMENT '状态（1=启用，0=停用）',
+  `remark`      varchar(256)     DEFAULT NULL            COMMENT '备注',
+  `create_time` datetime         NOT NULL                COMMENT '创建时间',
+  `update_time` datetime         NOT NULL                COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_dict_type` (`dict_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='字典类型表';
+
+-- -------------------------------------------
+-- 18. 字典数据表
+-- -------------------------------------------
+DROP TABLE IF EXISTS `sys_dict_data`;
+CREATE TABLE `sys_dict_data` (
+  `id`          bigint unsigned  NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `dict_type`   varchar(100)     NOT NULL                COMMENT '字典类型',
+  `dict_label`  varchar(100)     NOT NULL                COMMENT '字典标签',
+  `dict_value`  varchar(100)     NOT NULL                COMMENT '字典键值',
+  `dict_sort`   int              DEFAULT 0               COMMENT '排序',
+  `css_class`   varchar(100)     DEFAULT NULL            COMMENT '自定义样式',
+  `list_class`  varchar(100)     DEFAULT NULL            COMMENT '标签样式',
+  `is_default`  tinyint unsigned DEFAULT 0               COMMENT '是否默认（1=是，0=否）',
+  `status`      tinyint unsigned DEFAULT 1               COMMENT '状态（1=启用，0=停用）',
+  `remark`      varchar(256)     DEFAULT NULL            COMMENT '备注',
+  `create_time` datetime         NOT NULL                COMMENT '创建时间',
+  `update_time` datetime         NOT NULL                COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_dict_value` (`dict_type`, `dict_value`),
+  KEY `idx_dict_type` (`dict_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='字典数据表';
+
+-- -------------------------------------------
+-- 19. 参数设置表
+-- -------------------------------------------
+DROP TABLE IF EXISTS `sys_config`;
+CREATE TABLE `sys_config` (
+  `id`           bigint unsigned  NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `config_name`  varchar(100)     NOT NULL                COMMENT '参数名称',
+  `config_key`   varchar(100)     NOT NULL                COMMENT '参数键名',
+  `config_value` text             NOT NULL                COMMENT '参数键值',
+  `config_type`  tinyint unsigned DEFAULT 0               COMMENT '是否内置（1=是，0=否）',
+  `remark`       varchar(256)     DEFAULT NULL            COMMENT '备注',
+  `create_time`  datetime         NOT NULL                COMMENT '创建时间',
+  `update_time`  datetime         NOT NULL                COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_config_key` (`config_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='参数设置表';
+
+-- -------------------------------------------
+-- 20. 操作日志表
 -- -------------------------------------------
 DROP TABLE IF EXISTS `sys_oper_log`;
 CREATE TABLE `sys_oper_log` (

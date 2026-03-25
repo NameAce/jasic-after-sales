@@ -31,7 +31,6 @@
           AND r.status = 1
           AND m.status = 1
           AND m.menu_type IN ('M', 'C')
-          AND m.is_visible = 1
         ORDER BY m.parent_id, m.order_num
     </select>
 

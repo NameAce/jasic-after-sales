@@ -81,6 +81,69 @@ export function copyMenus(data) {
   return request({ url: '/system/menu/copy', method: 'post', data })
 }
 
+// --- 字典类型管理 ---
+export function listDictType(params) {
+  return request({ url: '/system/dict/type/list', method: 'get', params })
+}
+export function getDictType(id) {
+  return request({ url: `/system/dict/type/${id}`, method: 'get' })
+}
+export function addDictType(data) {
+  return request({ url: '/system/dict/type', method: 'post', data })
+}
+export function updateDictType(data) {
+  return request({ url: '/system/dict/type', method: 'put', data })
+}
+export function deleteDictType(id) {
+  return request({ url: `/system/dict/type/${id}`, method: 'delete' })
+}
+export function refreshDictTypeCache() {
+  return request({ url: '/system/dict/type/refresh-cache', method: 'delete' })
+}
+
+// --- 字典数据管理 ---
+export function listDictData(params) {
+  return request({ url: '/system/dict/data/list', method: 'get', params })
+}
+export function getDictData(id) {
+  return request({ url: `/system/dict/data/${id}`, method: 'get' })
+}
+export function listDictDataByType(dictType) {
+  return request({ url: `/system/dict/data/type/${dictType}`, method: 'get' })
+}
+export function addDictData(data) {
+  return request({ url: '/system/dict/data', method: 'post', data })
+}
+export function updateDictData(data) {
+  return request({ url: '/system/dict/data', method: 'put', data })
+}
+export function deleteDictData(id) {
+  return request({ url: `/system/dict/data/${id}`, method: 'delete' })
+}
+
+// --- 参数设置 ---
+export function listConfig(params) {
+  return request({ url: '/system/config/list', method: 'get', params })
+}
+export function getConfig(id) {
+  return request({ url: `/system/config/${id}`, method: 'get' })
+}
+export function getConfigByKey(configKey) {
+  return request({ url: `/system/config/key/${configKey}`, method: 'get' })
+}
+export function addConfig(data) {
+  return request({ url: '/system/config', method: 'post', data })
+}
+export function updateConfig(data) {
+  return request({ url: '/system/config', method: 'put', data })
+}
+export function deleteConfig(id) {
+  return request({ url: `/system/config/${id}`, method: 'delete' })
+}
+export function refreshConfigCache() {
+  return request({ url: '/system/config/refresh-cache', method: 'delete' })
+}
+
 // --- 角色模板 ---
 export function listRoleTemplate(typeCode) {
   // typeCode 为空时不传该参数，后端返回全部数据
