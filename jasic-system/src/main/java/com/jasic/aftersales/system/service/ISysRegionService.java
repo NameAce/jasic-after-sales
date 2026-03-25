@@ -60,10 +60,27 @@ public interface ISysRegionService {
     void assignUserRegions(Long userId, List<Long> regionIds);
 
     /**
+     * 查询用户在当前公司的大区ID列表。
+     *
+     * @param userId 用户ID
+     * @return 大区ID列表
+     */
+    List<Long> listCurrentCompanyRegionIdsByUserId(Long userId);
+
+    /**
      * 根据用户ID查询大区ID列表
      *
      * @param userId 用户ID
      * @return 大区ID列表
      */
     List<Long> listRegionIdsByUserId(Long userId);
+
+    /**
+     * 根据用户ID和公司ID查询大区ID列表。
+     *
+     * @param userId    用户ID
+     * @param companyId 公司ID
+     * @return 大区ID列表
+     */
+    List<Long> listRegionIdsByUserIdAndCompanyId(Long userId, Long companyId);
 }

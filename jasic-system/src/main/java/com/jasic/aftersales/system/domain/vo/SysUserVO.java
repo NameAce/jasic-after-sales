@@ -55,6 +55,9 @@ public class SysUserVO implements Serializable {
     /** 当前公司类型编码 */
     private String currentTypeCode;
 
+    /** 当前主体类型 */
+    private String currentSubjectType;
+
     /** 权限标识集合 */
     private Set<String> perms;
 

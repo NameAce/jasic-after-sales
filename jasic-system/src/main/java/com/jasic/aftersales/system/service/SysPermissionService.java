@@ -90,19 +90,32 @@ public class SysPermissionService {
     }
 
     /**
-     * 获取用户在指定公司下的有效 data_scope（多角色取最小范围）
+     * 获取用户在指定公司下的有效 data_scope，多个角色取最小范围。
      *
      * @param userId    用户ID
      * @param companyId 公司ID
      * @return 有效数据范围
      */
     public DataScopeEnum getEffectiveDataScope(Long userId, Long companyId) {
+        return getEffectiveDataScope(userId, companyId, null);
+    }
+
+    /**
+     * 获取用户在指定公司下的有效 data_scope，并按主体类型收敛到合法值。
+     *
+     * @param userId      用户ID
+     * @param companyId   公司ID
+     * @param subjectType 主体类型编码
+     * @return 有效数据范围
+     */
+    public DataScopeEnum getEffectiveDataScope(Long userId, Long companyId, String subjectType) {
         LambdaQueryWrapper<SysUserRole> userRoleQuery = new LambdaQueryWrapper<>();
         userRoleQuery.eq(SysUserRole::getUserId, userId);
         List<SysUserRole> userRoles = sysUserRoleMapper.selectList(userRoleQuery);
         if (userRoles == null || userRoles.isEmpty()) {
             return DataScopeEnum.SELF;
         }
+
         List<Long> roleIds = userRoles.stream()
                 .map(SysUserRole::getRoleId)
                 .collect(Collectors.toList());
@@ -113,11 +126,19 @@ public class SysPermissionService {
         if (roles == null || roles.isEmpty()) {
             return DataScopeEnum.SELF;
         }
+
         DataScopeEnum result = DataScopeEnum.SELF;
         for (SysRole role : roles) {
-            DataScopeEnum scope = DataScopeEnum.getByCode(role.getDataScope());
+            DataScopeEnum scope = resolveRoleDataScope(role.getDataScope(), subjectType);
             result = result.min(scope);
         }
         return result;
+    }
+
+    private DataScopeEnum resolveRoleDataScope(String scopeCode, String subjectType) {
+        if (subjectType == null) {
+            return DataScopeEnum.getByCode(scopeCode);
+        }
+        return DataScopeEnum.normalize(scopeCode, subjectType);
     }
 }

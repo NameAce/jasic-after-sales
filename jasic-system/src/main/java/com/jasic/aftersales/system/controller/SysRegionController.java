@@ -44,8 +44,7 @@ public class SysRegionController extends BaseController {
     @SaCheckPermission("system:region:list")
     @GetMapping("/list")
     public Result<List<SysRegion>> listByCompanyId(@RequestParam Long companyId) {
-        List<SysRegion> list = regionService.listByCompanyId(companyId);
-        return Result.ok(list);
+        return Result.ok(regionService.listByCompanyId(companyId));
     }
 
     /**
@@ -57,8 +56,7 @@ public class SysRegionController extends BaseController {
     @SaCheckPermission("system:region:list")
     @GetMapping("/{id}")
     public Result<SysRegion> getById(@PathVariable Long id) {
-        SysRegion entity = regionService.getById(id);
-        return Result.ok(entity);
+        return Result.ok(regionService.getById(id));
     }
 
     /**
@@ -71,8 +69,7 @@ public class SysRegionController extends BaseController {
     @OperLog(title = "大区管理", operType = OperTypeEnum.INSERT)
     @PostMapping
     public Result<Long> save(@Validated @RequestBody SysRegionDTO dto) {
-        Long id = regionService.save(dto);
-        return Result.ok(id);
+        return Result.ok(regionService.save(dto));
     }
 
     /**
@@ -101,6 +98,18 @@ public class SysRegionController extends BaseController {
     public Result<Void> remove(@PathVariable Long id) {
         regionService.remove(id);
         return Result.ok();
+    }
+
+    /**
+     * 查询用户在当前公司的大区绑定
+     *
+     * @param userId 用户ID
+     * @return 大区ID列表
+     */
+    @SaCheckPermission("system:region:assign")
+    @GetMapping("/{userId}/regions")
+    public Result<List<Long>> listUserRegions(@PathVariable Long userId) {
+        return Result.ok(regionService.listCurrentCompanyRegionIdsByUserId(userId));
     }
 
     /**

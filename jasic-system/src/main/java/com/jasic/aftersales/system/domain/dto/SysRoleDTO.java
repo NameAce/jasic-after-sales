@@ -30,6 +30,7 @@ public class SysRoleDTO implements Serializable {
     private String roleKey;
 
     /** 数据范围（ALL/REGION/SELF） */
+    @NotBlank(message = "数据范围不能为空")
     private String dataScope;
 
     /** 排序 */

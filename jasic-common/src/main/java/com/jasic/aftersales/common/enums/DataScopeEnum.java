@@ -12,7 +12,10 @@ import lombok.Getter;
 public enum DataScopeEnum {
 
     /** 全部数据 */
-    ALL("ALL", "全部数据", 3),
+    ALL("ALL", "全部数据", 4),
+
+    /** 当前公司数据 */
+    COMPANY("COMPANY", "当前公司数据", 3),
 
     /** 大区数据 */
     REGION("REGION", "大区数据", 2),
@@ -26,7 +29,7 @@ public enum DataScopeEnum {
     /** 描述 */
     private final String desc;
 
-    /** 权重（越小范围越小，冲突时取最小） */
+    /** 权重，值越小表示范围越小 */
     private final int weight;
 
     DataScopeEnum(String code, String desc, int weight) {
@@ -51,7 +54,41 @@ public enum DataScopeEnum {
     }
 
     /**
-     * 取两个范围中更小的那个（多角色冲突时使用）
+     * 按主体类型将数据范围收敛到合法值。
+     *
+     * @param scopeCode    数据范围编码
+     * @param subjectType  主体类型编码
+     * @return 合法化后的数据范围
+     */
+    public static DataScopeEnum normalize(String scopeCode, String subjectType) {
+        return getByCode(scopeCode).normalizeForSubject(subjectType);
+    }
+
+    /**
+     * 按主体类型将当前数据范围收敛到合法值。
+     *
+     * @param subjectType 主体类型编码
+     * @return 合法化后的数据范围
+     */
+    public DataScopeEnum normalizeForSubject(String subjectType) {
+        SubjectTypeEnum subjectTypeEnum = SubjectTypeEnum.getByCode(subjectType);
+        if (subjectTypeEnum == null) {
+            return SELF;
+        }
+        switch (subjectTypeEnum) {
+            case PLATFORM:
+                return ALL;
+            case HQ:
+                return (this == ALL || this == REGION || this == SELF) ? this : SELF;
+            case SERVICE:
+                return (this == ALL || this == COMPANY || this == SELF) ? this : SELF;
+            default:
+                return SELF;
+        }
+    }
+
+    /**
+     * 取两个范围中更小的那个，多角色冲突时使用。
      *
      * @param other 另一个范围
      * @return 更小的范围

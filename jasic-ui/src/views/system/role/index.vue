@@ -1,7 +1,7 @@
 <template>
   <div class="app-container">
     <el-card shadow="never" class="search-card">
-      <el-form :model="queryParams" ref="queryForm" :inline="true" size="small">
+      <el-form ref="queryForm" :model="queryParams" :inline="true" size="small">
         <el-form-item label="角色名称" prop="roleName">
           <el-input v-model="queryParams.roleName" placeholder="请输入" clearable />
         </el-form-item>
@@ -26,7 +26,7 @@
         <el-table-column label="ID" prop="id" width="70" />
         <el-table-column label="角色名称" prop="roleName" width="160" />
         <el-table-column label="角色标识" prop="roleKey" width="160" />
-        <el-table-column label="数据范围" prop="dataScope" width="100">
+        <el-table-column label="数据范围" prop="dataScope" min-width="140">
           <template slot-scope="{ row }">
             <span>{{ dataScopeMap[row.dataScope] || row.dataScope }}</span>
           </template>
@@ -49,7 +49,16 @@
           <template slot-scope="{ row }">
             <el-button type="text" size="mini" v-hasPerms="['system:role:update']" @click="handleEdit(row)">编辑</el-button>
             <el-button type="text" size="mini" v-hasPerms="['system:role:update']" @click="handleAssignMenu(row)">分配菜单</el-button>
-            <el-button type="text" size="mini" style="color: #F56C6C;" v-hasPerms="['system:role:remove']" @click="handleDelete(row)" :disabled="row.isSystem === 1">删除</el-button>
+            <el-button
+              type="text"
+              size="mini"
+              style="color: #F56C6C;"
+              v-hasPerms="['system:role:remove']"
+              :disabled="row.isSystem === 1"
+              @click="handleDelete(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -64,20 +73,23 @@
       />
     </el-card>
 
-    <!-- 新增/编辑弹窗 -->
     <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="500px" append-to-body>
       <el-form ref="form" :model="form" :rules="rules" label-width="90px">
         <el-form-item label="角色名称" prop="roleName">
           <el-input v-model="form.roleName" placeholder="请输入角色名称" />
         </el-form-item>
         <el-form-item label="角色标识" prop="roleKey">
-          <el-input v-model="form.roleKey" placeholder="如 admin、editor" />
+          <el-input v-model="form.roleKey" placeholder="如：admin、editor" />
         </el-form-item>
         <el-form-item label="数据范围" prop="dataScope">
           <el-select v-model="form.dataScope" placeholder="请选择">
-            <el-option label="全部数据" value="ALL" />
-            <el-option label="大区数据" value="REGION" />
-            <el-option label="仅本人" value="SELF" />
+            <el-option
+              v-for="option in formDataScopeOptions"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+              :disabled="option.disabled === true"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="排序" prop="orderNum">
@@ -94,12 +106,11 @@
         </el-form-item>
       </el-form>
       <div slot="footer">
-        <el-button @click="dialogVisible = false">取 消</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="submitForm">确 定</el-button>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitLoading" @click="submitForm">确定</el-button>
       </div>
     </el-dialog>
 
-    <!-- 分配菜单弹窗 -->
     <el-dialog title="分配菜单权限" :visible.sync="menuDialogVisible" width="500px" append-to-body>
       <el-tree
         ref="menuTree"
@@ -111,15 +122,24 @@
         check-strictly
       />
       <div slot="footer">
-        <el-button @click="menuDialogVisible = false">取 消</el-button>
-        <el-button type="primary" :loading="menuLoading" @click="submitAssignMenu">确 定</el-button>
+        <el-button @click="menuDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="menuLoading" @click="submitAssignMenu">确定</el-button>
       </div>
     </el-dialog>
   </div>
 </template>
 
 <script>
-import { listRole, getRole, addRole, updateRole, deleteRole, assignRoleMenus, typeCodeMenuTree } from '@/api/system'
+import {
+  addRole,
+  assignRoleMenus,
+  deleteRole,
+  getRole,
+  listRole,
+  roleDataScopeOptions,
+  typeCodeMenuTree,
+  updateRole
+} from '@/api/system'
 
 export default {
   name: 'RoleManage',
@@ -138,7 +158,9 @@ export default {
         roleKey: [{ required: true, message: '请输入角色标识', trigger: 'blur' }],
         dataScope: [{ required: true, message: '请选择数据范围', trigger: 'change' }]
       },
-      dataScopeMap: { ALL: '全部数据', REGION: '大区数据', SELF: '仅本人' },
+      dataScopeOptions: [],
+      formDataScopeOptions: [],
+      dataScopeMap: {},
       menuDialogVisible: false,
       menuTreeData: [],
       checkedMenuIds: [],
@@ -146,25 +168,74 @@ export default {
       menuLoading: false
     }
   },
-  created() { this.getList() },
+  created() {
+    this.initPage()
+  },
   methods: {
+    initPage() {
+      this.loadDataScopeOptions().finally(() => {
+        this.getList()
+      })
+    },
+    loadDataScopeOptions(currentValue) {
+      return roleDataScopeOptions().then(res => {
+        if (!res) return
+        this.dataScopeOptions = res.data || []
+        this.dataScopeMap = this.buildDataScopeMap(this.dataScopeOptions)
+        this.syncFormDataScopeOptions(currentValue)
+      })
+    },
+    buildDataScopeMap(options) {
+      return (options || []).reduce((map, option) => {
+        map[option.value] = option.label
+        return map
+      }, {})
+    },
+    syncFormDataScopeOptions(currentValue = this.form.dataScope) {
+      this.formDataScopeOptions = this.mergeLegacyOption(this.dataScopeOptions, currentValue)
+    },
+    mergeLegacyOption(options, currentValue) {
+      const result = [...(options || [])]
+      if (currentValue && !result.some(option => option.value === currentValue)) {
+        result.push({
+          value: currentValue,
+          label: `${currentValue}（历史值）`,
+          disabled: true
+        })
+      }
+      return result
+    },
+    getDefaultDataScope() {
+      const defaultOption = (this.dataScopeOptions || []).find(option => option.defaultOption)
+      return defaultOption ? defaultOption.value : 'SELF'
+    },
+    isValidDataScope(dataScope) {
+      return (this.dataScopeOptions || []).some(option => option.value === dataScope)
+    },
     getList() {
       this.loading = true
       listRole(this.queryParams).then(res => {
         if (!res) return
         this.roleList = res.data.records
         this.total = res.data.total
-      }).finally(() => { this.loading = false })
+      }).finally(() => {
+        this.loading = false
+      })
     },
-    handleQuery() { this.queryParams.pageNum = 1; this.getList() },
+    handleQuery() {
+      this.queryParams.pageNum = 1
+      this.getList()
+    },
     resetQuery() {
       this.$refs.queryForm.resetFields()
       this.queryParams = { pageNum: 1, pageSize: 10, roleName: '', status: undefined }
       this.getList()
     },
     handleAdd() {
+      const defaultDataScope = this.getDefaultDataScope()
       this.dialogTitle = '新增角色'
-      this.form = { status: 1, orderNum: 0, dataScope: 'SELF' }
+      this.form = { status: 1, orderNum: 0, dataScope: defaultDataScope }
+      this.syncFormDataScopeOptions(defaultDataScope)
       this.dialogVisible = true
       this.$nextTick(() => this.$refs.form && this.$refs.form.clearValidate())
     },
@@ -173,12 +244,18 @@ export default {
       getRole(row.id).then(res => {
         if (!res) return
         this.form = res.data
+        this.syncFormDataScopeOptions(this.form.dataScope)
         this.dialogVisible = true
+        this.$nextTick(() => this.$refs.form && this.$refs.form.clearValidate())
       })
     },
     submitForm() {
       this.$refs.form.validate(valid => {
         if (!valid) return
+        if (!this.isValidDataScope(this.form.dataScope)) {
+          this.$message.error('请选择当前公司允许的数据范围')
+          return
+        }
         this.submitLoading = true
         const api = this.form.id ? updateRole : addRole
         api(this.form).then(res => {
@@ -186,11 +263,13 @@ export default {
           this.$message.success('操作成功')
           this.dialogVisible = false
           this.getList()
-        }).finally(() => { this.submitLoading = false })
+        }).finally(() => {
+          this.submitLoading = false
+        })
       })
     },
     handleDelete(row) {
-      this.$confirm(`确认删除角色"${row.roleName}"？`, '提示', { type: 'warning' }).then(() => {
+      this.$confirm(`确认删除角色“${row.roleName}”吗？`, '提示', { type: 'warning' }).then(() => {
         deleteRole(row.id).then(res => {
           if (!res) return
           this.$message.success('删除成功')
@@ -221,7 +300,9 @@ export default {
         if (!res) return
         this.$message.success('分配成功')
         this.menuDialogVisible = false
-      }).finally(() => { this.menuLoading = false })
+      }).finally(() => {
+        this.menuLoading = false
+      })
     }
   }
 }

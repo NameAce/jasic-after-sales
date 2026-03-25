@@ -9,8 +9,10 @@ import com.jasic.aftersales.common.enums.OperTypeEnum;
 import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.dto.SysRoleDTO;
 import com.jasic.aftersales.system.domain.query.SysRoleQuery;
+import com.jasic.aftersales.system.domain.vo.DataScopeOptionVO;
 import com.jasic.aftersales.system.domain.vo.SysRoleVO;
 import com.jasic.aftersales.system.service.ISysRoleService;
+import com.jasic.aftersales.system.service.SysDataScopeRuleService;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -38,6 +40,9 @@ public class SysRoleController extends BaseController {
     @Resource
     private ISysRoleService roleService;
 
+    @Resource
+    private SysDataScopeRuleService dataScopeRuleService;
+
     /**
      * 分页查询角色列表
      *
@@ -64,6 +69,18 @@ public class SysRoleController extends BaseController {
         Long companyId = SecurityContext.getCurrentCompanyId();
         List<SysRoleVO> list = roleService.listByCompanyId(companyId);
         return Result.ok(list);
+    }
+
+    /**
+     * 查询当前公司的数据范围选项。
+     *
+     * @return 数据范围选项
+     */
+    @SaCheckPermission("system:role:list")
+    @GetMapping("/data-scope-options")
+    public Result<List<DataScopeOptionVO>> dataScopeOptions() {
+        Long companyId = SecurityContext.getCurrentCompanyId();
+        return Result.ok(dataScopeRuleService.listOptionsByCompanyId(companyId));
     }
 
     /**

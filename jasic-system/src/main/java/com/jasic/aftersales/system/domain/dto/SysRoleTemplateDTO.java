@@ -33,6 +33,7 @@ public class SysRoleTemplateDTO implements Serializable {
     private String roleKey;
 
     /** 数据范围 */
+    @NotBlank(message = "数据范围不能为空")
     private String dataScope;
 
     /** 是否管理员角色模板（1=是，每种类型最多一个） */

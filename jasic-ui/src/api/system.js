@@ -1,6 +1,6 @@
 import request from '@/utils/request'
 
-// --- 用户管理 ---
+// --- User ---
 export function listUser(params) {
   return request({ url: '/system/user/list', method: 'get', params })
 }
@@ -25,8 +25,11 @@ export function kickoutUser(userId) {
 export function assignUserRoles(userId, data) {
   return request({ url: `/system/user/${userId}/roles`, method: 'put', data })
 }
+export function getUserRegions(userId) {
+  return request({ url: `/system/region/${userId}/regions`, method: 'get' })
+}
 
-// --- 角色管理 ---
+// --- Role ---
 export function listRole(params) {
   return request({ url: '/system/role/list', method: 'get', params })
 }
@@ -35,6 +38,9 @@ export function roleOptions() {
 }
 export function getRole(roleId) {
   return request({ url: `/system/role/${roleId}`, method: 'get' })
+}
+export function roleDataScopeOptions() {
+  return request({ url: '/system/role/data-scope-options', method: 'get' })
 }
 export function addRole(data) {
   return request({ url: '/system/role', method: 'post', data })
@@ -49,7 +55,7 @@ export function assignRoleMenus(roleId, data) {
   return request({ url: `/system/role/${roleId}/menus`, method: 'put', data })
 }
 
-// --- 菜单管理 ---
+// --- Menu ---
 export function menuTree(subjectType) {
   return request({ url: '/system/menu/tree', method: 'get', params: { subjectType } })
 }
@@ -81,7 +87,7 @@ export function copyMenus(data) {
   return request({ url: '/system/menu/copy', method: 'post', data })
 }
 
-// --- 字典类型管理 ---
+// --- Dict Type ---
 export function listDictType(params) {
   return request({ url: '/system/dict/type/list', method: 'get', params })
 }
@@ -101,7 +107,7 @@ export function refreshDictTypeCache() {
   return request({ url: '/system/dict/type/refresh-cache', method: 'delete' })
 }
 
-// --- 字典数据管理 ---
+// --- Dict Data ---
 export function listDictData(params) {
   return request({ url: '/system/dict/data/list', method: 'get', params })
 }
@@ -121,7 +127,7 @@ export function deleteDictData(id) {
   return request({ url: `/system/dict/data/${id}`, method: 'delete' })
 }
 
-// --- 参数设置 ---
+// --- Config ---
 export function listConfig(params) {
   return request({ url: '/system/config/list', method: 'get', params })
 }
@@ -144,11 +150,16 @@ export function refreshConfigCache() {
   return request({ url: '/system/config/refresh-cache', method: 'delete' })
 }
 
-// --- 角色模板 ---
+// --- Role Template ---
 export function listRoleTemplate(typeCode) {
-  // typeCode 为空时不传该参数，后端返回全部数据
   const params = typeCode ? { typeCode } : {}
   return request({ url: '/system/role-template/list', method: 'get', params })
+}
+export function roleTemplateDataScopeOptions(typeCode) {
+  return request({ url: '/system/role-template/data-scope-options', method: 'get', params: { typeCode } })
+}
+export function roleTemplateDataScopeOptionMap() {
+  return request({ url: '/system/role-template/data-scope-option-map', method: 'get' })
 }
 export function getRoleTemplate(templateId) {
   return request({ url: `/system/role-template/${templateId}`, method: 'get' })
@@ -166,7 +177,7 @@ export function syncRoleTemplate(templateId) {
   return request({ url: `/system/role-template/${templateId}/sync`, method: 'post' })
 }
 
-// --- 大区管理 ---
+// --- Region ---
 export function listRegion(companyId) {
   return request({ url: '/system/region/list', method: 'get', params: { companyId } })
 }

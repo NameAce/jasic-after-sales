@@ -5,6 +5,8 @@ import cn.hutool.crypto.digest.BCrypt;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.jasic.aftersales.common.constant.CacheConstants;
+import com.jasic.aftersales.common.enums.DataScopeEnum;
+import com.jasic.aftersales.common.enums.SubjectTypeEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.framework.web.ResultCode;
@@ -22,6 +24,7 @@ import com.jasic.aftersales.system.mapper.SysMenuMapper;
 import com.jasic.aftersales.system.mapper.SysUserCompanyMapper;
 import com.jasic.aftersales.system.mapper.SysUserMapper;
 import com.jasic.aftersales.system.service.ISysAuthService;
+import com.jasic.aftersales.system.service.ISysRegionService;
 import com.jasic.aftersales.system.service.SysPermissionService;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -60,6 +63,9 @@ public class SysAuthServiceImpl implements ISysAuthService {
 
     @Resource
     private SysPermissionService sysPermissionService;
+
+    @Resource
+    private ISysRegionService regionService;
 
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
@@ -163,6 +169,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
         SecurityContext.setCurrentCompanyId(companyId);
         SecurityContext.setCurrentSubjectType(companyType != null ? companyType.getSubjectType() : null);
         SecurityContext.setCurrentTypeCode(company.getTypeCode());
+        initDataScopeContext(userId, companyId, companyType);
 
         // 4. 加载权限到缓存
         Set<String> perms = sysPermissionService.loadPermsToCache(userId, companyId);
@@ -202,6 +209,9 @@ public class SysAuthServiceImpl implements ISysAuthService {
                 LambdaQueryWrapper<SysCompanyType> typeQuery = new LambdaQueryWrapper<>();
                 typeQuery.eq(SysCompanyType::getTypeCode, company.getTypeCode());
                 SysCompanyType companyType = sysCompanyTypeMapper.selectOne(typeQuery);
+                if (companyType != null) {
+                    vo.setCurrentSubjectType(companyType.getSubjectType());
+                }
 
                 // 从 Redis 加载权限
                 String permsKey = CacheConstants.USER_PERMS_KEY + userId + ":" + companyId;
@@ -243,6 +253,58 @@ public class SysAuthServiceImpl implements ISysAuthService {
         }
 
         StpUtil.logout();
+    }
+
+    /**
+     * 初始化当前公司下的数据权限上下文。
+     *
+     * @param userId      用户ID
+     * @param companyId   公司ID
+     * @param companyType 公司类型
+     */
+    private void initDataScopeContext(Long userId, Long companyId, SysCompanyType companyType) {
+        String subjectType = companyType != null ? companyType.getSubjectType() : null;
+        DataScopeEnum effectiveDataScope = resolveEffectiveDataScope(userId, companyId, subjectType);
+        SecurityContext.setEffectiveDataScope(effectiveDataScope.getCode());
+        SecurityContext.setCurrentRegionIds(resolveCurrentRegionIds(userId, companyId, subjectType, effectiveDataScope));
+    }
+
+    /**
+     * 计算当前公司下的有效数据范围。
+     *
+     * @param userId      用户ID
+     * @param companyId   公司ID
+     * @param subjectType 主体类型
+     * @return 有效数据范围
+     */
+    private DataScopeEnum resolveEffectiveDataScope(Long userId, Long companyId, String subjectType) {
+        if (subjectType == null) {
+            return DataScopeEnum.SELF;
+        }
+        if (SubjectTypeEnum.PLATFORM.getCode().equals(subjectType)) {
+            return DataScopeEnum.ALL;
+        }
+        return sysPermissionService.getEffectiveDataScope(userId, companyId, subjectType);
+    }
+
+    /**
+     * 计算当前公司下的负责大区列表。
+     *
+     * @param userId             用户ID
+     * @param companyId          公司ID
+     * @param subjectType        主体类型
+     * @param effectiveDataScope 有效数据范围
+     * @return 大区ID列表
+     */
+    private List<Long> resolveCurrentRegionIds(Long userId, Long companyId, String subjectType,
+                                               DataScopeEnum effectiveDataScope) {
+        if (!SubjectTypeEnum.HQ.getCode().equals(subjectType)) {
+            return Collections.emptyList();
+        }
+        if (effectiveDataScope != DataScopeEnum.REGION) {
+            return Collections.emptyList();
+        }
+        return regionService.listRegionIdsByUserIdAndCompanyId(userId, companyId);
     }
 
     /**
@@ -303,6 +365,9 @@ public class SysAuthServiceImpl implements ISysAuthService {
             vo.setCurrentCompanyId(company.getId());
             vo.setCurrentCompanyName(company.getCompanyName());
             vo.setCurrentTypeCode(company.getTypeCode());
+        }
+        if (companyType != null) {
+            vo.setCurrentSubjectType(companyType.getSubjectType());
         }
         vo.setPerms(perms);
 

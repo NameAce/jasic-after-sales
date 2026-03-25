@@ -19,6 +19,7 @@ import com.jasic.aftersales.system.mapper.SysRoleTemplateMapper;
 import com.jasic.aftersales.system.mapper.SysRoleTemplateMenuMapper;
 import com.jasic.aftersales.system.mapper.SysUserRoleMapper;
 import com.jasic.aftersales.system.service.ISysRoleTemplateService;
+import com.jasic.aftersales.system.service.SysDataScopeRuleService;
 import com.jasic.aftersales.system.service.SysPermissionService;
 import org.springframework.stereotype.Service;
 
@@ -59,6 +60,9 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
 
     @Resource
     private SysPermissionService sysPermissionService;
+
+    @Resource
+    private SysDataScopeRuleService dataScopeRuleService;
 
     /**
      * 根据公司类型编码查询角色模板列表
@@ -111,6 +115,7 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
      */
     @Override
     public Long save(SysRoleTemplateDTO dto) {
+        dataScopeRuleService.validateByTypeCode(dto.getTypeCode(), dto.getDataScope());
         LambdaQueryWrapper<SysRoleTemplate> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysRoleTemplate::getTypeCode, dto.getTypeCode())
                 .eq(SysRoleTemplate::getRoleKey, dto.getRoleKey());
@@ -147,8 +152,9 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
         if (template == null) {
             throw new ServiceException("角色模板不存在");
         }
-        validateAdminUnique(dto.getTypeCode() != null ? dto.getTypeCode() : template.getTypeCode(),
-                dto.getIsAdmin(), dto.getId());
+        String typeCode = dto.getTypeCode() != null ? dto.getTypeCode() : template.getTypeCode();
+        validateAdminUnique(typeCode, dto.getIsAdmin(), dto.getId());
+        dataScopeRuleService.validateByTypeCode(typeCode, dto.getDataScope());
         BeanUtil.copyProperties(dto, template);
         sysRoleTemplateMapper.updateById(template);
         if (dto.getMenuIds() != null) {
@@ -186,6 +192,7 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
             throw new ServiceException("角色模板不存在");
         }
         String typeCode = template.getTypeCode();
+        dataScopeRuleService.validateByTypeCode(typeCode, template.getDataScope());
         List<Long> templateMenuIds = loadMenuIdsByTemplateId(templateId);
         Set<Long> templateMenuIdSet = new HashSet<>(templateMenuIds);
 
@@ -267,6 +274,7 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
         Long adminRoleId = null;
         for (SysRoleTemplate template : templates) {
             boolean isAdminTemplate = template.getIsAdmin() != null && template.getIsAdmin() == 1;
+            dataScopeRuleService.validateByTypeCode(typeCode, template.getDataScope());
 
             SysRole role = new SysRole();
             role.setCompanyId(companyId);

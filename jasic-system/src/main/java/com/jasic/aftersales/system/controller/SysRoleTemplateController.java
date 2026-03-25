@@ -6,8 +6,10 @@ import com.jasic.aftersales.common.core.controller.BaseController;
 import com.jasic.aftersales.common.core.domain.Result;
 import com.jasic.aftersales.common.enums.OperTypeEnum;
 import com.jasic.aftersales.system.domain.dto.SysRoleTemplateDTO;
+import com.jasic.aftersales.system.domain.vo.DataScopeOptionVO;
 import com.jasic.aftersales.system.domain.vo.SysRoleTemplateVO;
 import com.jasic.aftersales.system.service.ISysRoleTemplateService;
+import com.jasic.aftersales.system.service.SysDataScopeRuleService;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 角色模板管理控制器（平台管理员使用）
@@ -35,6 +38,9 @@ public class SysRoleTemplateController extends BaseController {
     @Resource
     private ISysRoleTemplateService roleTemplateService;
 
+    @Resource
+    private SysDataScopeRuleService dataScopeRuleService;
+
     /**
      * 查询角色模板列表
      *
@@ -46,6 +52,29 @@ public class SysRoleTemplateController extends BaseController {
     public Result<List<SysRoleTemplateVO>> list(@RequestParam(value = "typeCode", required = false) String typeCode) {
         List<SysRoleTemplateVO> list = roleTemplateService.listByTypeCode(typeCode);
         return Result.ok(list);
+    }
+
+    /**
+     * 查询指定公司类型的数据范围选项。
+     *
+     * @param typeCode 公司类型编码
+     * @return 数据范围选项
+     */
+    @SaCheckPermission("system:roleTemplate:list")
+    @GetMapping("/data-scope-options")
+    public Result<List<DataScopeOptionVO>> dataScopeOptions(@RequestParam("typeCode") String typeCode) {
+        return Result.ok(dataScopeRuleService.listOptionsByTypeCode(typeCode));
+    }
+
+    /**
+     * 查询全部公司类型的数据范围选项映射。
+     *
+     * @return 数据范围选项映射
+     */
+    @SaCheckPermission("system:roleTemplate:list")
+    @GetMapping("/data-scope-option-map")
+    public Result<Map<String, List<DataScopeOptionVO>>> dataScopeOptionMap() {
+        return Result.ok(dataScopeRuleService.listOptionMap());
     }
 
     /**

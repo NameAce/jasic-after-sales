@@ -18,9 +18,8 @@ import java.util.stream.Collectors;
 /**
  * 数据权限 AOP 切面
  * <p>
- * 在标记了 @DataScope 的方法执行前，根据当前用户的 subjectType 和 dataScope
- * 拼接 SQL WHERE 条件并写入 ThreadLocal，供 DataScopeHandler 读取。
- * 方法执行后自动清理 ThreadLocal。
+ * 在标记了 @DataScope 的方法执行前，根据当前用户的主体类型和数据范围
+ * 生成 SQL WHERE 条件并写入 ThreadLocal，供 DataPermissionInterceptor 读取。
  * </p>
  *
  * @author Zoro
@@ -34,8 +33,7 @@ public class DataScopeAspect {
     private static final ThreadLocal<String> DATA_SCOPE_SQL = new ThreadLocal<>();
 
     /**
-     * 标记当前线程是否由 @DataScope 接管数据过滤，
-     * 为 true 时 TenantLineInnerInterceptor 应让路，避免重复/冲突注入。
+     * 标记当前线程是否由 @DataScope 接管数据过滤。
      */
     private static final ThreadLocal<Boolean> DATA_SCOPE_ACTIVE = new ThreadLocal<>();
 
@@ -66,14 +64,13 @@ public class DataScopeAspect {
         StringBuilder sql = new StringBuilder();
 
         if (SubjectTypeEnum.PLATFORM.getCode().equals(subjectType)) {
-            // 平台管理员：不限制数据，可看所有
             return;
         }
 
         if (SubjectTypeEnum.HQ.getCode().equals(subjectType)) {
             buildHqSql(sql, prefix, userPrefix, companyId, userId);
         } else if (SubjectTypeEnum.SERVICE.getCode().equals(subjectType)) {
-            buildServiceSql(sql, prefix, companyId);
+            buildServiceSql(sql, prefix, userPrefix, companyId, userId);
         }
 
         if (sql.length() > 0) {
@@ -94,7 +91,7 @@ public class DataScopeAspect {
     }
 
     /**
-     * 构建总部数据权限SQL
+     * 构建总部数据权限 SQL。
      *
      * @param sql        SQL构建器
      * @param prefix     公司字段别名前缀
@@ -103,16 +100,7 @@ public class DataScopeAspect {
      * @param userId     当前用户ID
      */
     private void buildHqSql(StringBuilder sql, String prefix, String userPrefix, Long companyId, Long userId) {
-        DataScopeEnum effectiveScope = DataScopeEnum.ALL;
-        try {
-            String scopeCode = SecurityContext.getEffectiveDataScope();
-            if (StrUtil.isNotBlank(scopeCode)) {
-                effectiveScope = DataScopeEnum.getByCode(scopeCode);
-            }
-        } catch (Exception e) {
-            log.warn("获取有效数据范围失败，使用默认ALL", e);
-        }
-
+        DataScopeEnum effectiveScope = resolveEffectiveScope(SubjectTypeEnum.HQ.getCode());
         switch (effectiveScope) {
             case ALL:
                 sql.append(prefix).append("hq_company_id = ").append(companyId);
@@ -122,49 +110,107 @@ public class DataScopeAspect {
                 if (regionIds != null && !regionIds.isEmpty()) {
                     String idStr = regionIds.stream().map(String::valueOf).collect(Collectors.joining(","));
                     sql.append(prefix).append("hq_company_id = ").append(companyId)
-                       .append(" AND ").append(prefix).append("company_id IN (")
-                       .append("SELECT first_company_id FROM hq_first_contract WHERE region_id IN (").append(idStr).append(")")
-                       .append(" UNION ")
-                       .append("SELECT fsr.second_company_id FROM first_second_relation fsr ")
-                       .append("INNER JOIN hq_first_contract hfc ON fsr.first_company_id = hfc.first_company_id ")
-                       .append("WHERE hfc.region_id IN (").append(idStr).append(")")
-                       .append(")");
+                            .append(" AND ").append(prefix).append("company_id IN (")
+                            .append("SELECT first_company_id FROM hq_first_contract WHERE region_id IN (").append(idStr).append(")")
+                            .append(" UNION ")
+                            .append("SELECT fsr.second_company_id FROM first_second_relation fsr ")
+                            .append("INNER JOIN hq_first_contract hfc ON fsr.first_company_id = hfc.first_company_id ")
+                            .append("WHERE hfc.region_id IN (").append(idStr).append(")")
+                            .append(")");
                 } else {
                     sql.append("1 = 0");
                 }
                 break;
             case SELF:
-                sql.append(prefix).append("hq_company_id = ").append(companyId)
-                   .append(" AND ").append(userPrefix).append("assigned_user_id = ").append(userId);
-                break;
             default:
+                sql.append(prefix).append("hq_company_id = ").append(companyId)
+                        .append(" AND ").append(userPrefix).append("assigned_user_id = ").append(userId);
                 break;
         }
     }
 
     /**
-     * 构建服务网点数据权限SQL
+     * 构建服务网点数据权限 SQL。
+     *
+     * @param sql        SQL构建器
+     * @param prefix     公司字段别名前缀
+     * @param userPrefix 用户字段别名前缀
+     * @param companyId  当前公司ID
+     * @param userId     当前用户ID
+     */
+    private void buildServiceSql(StringBuilder sql, String prefix, String userPrefix, Long companyId, Long userId) {
+        DataScopeEnum effectiveScope = resolveEffectiveScope(SubjectTypeEnum.SERVICE.getCode());
+        String typeCode = SecurityContext.getCurrentTypeCode();
+        if ("FIRST".equals(typeCode)) {
+            buildFirstServiceSql(sql, prefix, userPrefix, companyId, userId, effectiveScope);
+            return;
+        }
+
+        sql.append(prefix).append("company_id = ").append(companyId);
+        if (effectiveScope == DataScopeEnum.SELF) {
+            sql.append(" AND ").append(userPrefix).append("assigned_user_id = ").append(userId);
+        }
+    }
+
+    /**
+     * 构建一级网点数据权限 SQL。
+     *
+     * @param sql            SQL构建器
+     * @param prefix         公司字段别名前缀
+     * @param userPrefix     用户字段别名前缀
+     * @param companyId      当前公司ID
+     * @param userId         当前用户ID
+     * @param effectiveScope 有效数据范围
+     */
+    private void buildFirstServiceSql(StringBuilder sql, String prefix, String userPrefix, Long companyId, Long userId,
+                                      DataScopeEnum effectiveScope) {
+        switch (effectiveScope) {
+            case ALL:
+                appendFirstCompanyScope(sql, prefix, companyId);
+                break;
+            case COMPANY:
+                sql.append(prefix).append("company_id = ").append(companyId);
+                break;
+            case SELF:
+            default:
+                appendFirstCompanyScope(sql, prefix, companyId);
+                sql.append(" AND ").append(userPrefix).append("assigned_user_id = ").append(userId);
+                break;
+        }
+    }
+
+    /**
+     * 追加一级网点及下属二级的数据范围。
      *
      * @param sql       SQL构建器
      * @param prefix    公司字段别名前缀
      * @param companyId 当前公司ID
      */
-    private void buildServiceSql(StringBuilder sql, String prefix, Long companyId) {
-        String typeCode = SecurityContext.getCurrentTypeCode();
-        if ("FIRST".equals(typeCode)) {
-            sql.append("(").append(prefix).append("company_id = ").append(companyId)
-               .append(" OR ").append(prefix).append("company_id IN (")
-               .append("SELECT second_company_id FROM first_second_relation WHERE first_company_id = ").append(companyId)
-               .append(" AND status = 1")
-               .append("))");
-        } else if ("SECOND".equals(typeCode)) {
-            sql.append("(").append(prefix).append("company_id = ").append(companyId)
-               .append(" OR ").append(prefix).append("origin_company_id = ").append(companyId).append(")");
+    private void appendFirstCompanyScope(StringBuilder sql, String prefix, Long companyId) {
+        sql.append("(").append(prefix).append("company_id = ").append(companyId)
+                .append(" OR ").append(prefix).append("company_id IN (")
+                .append("SELECT second_company_id FROM first_second_relation WHERE first_company_id = ").append(companyId)
+                .append(" AND status = 1")
+                .append("))");
+    }
+
+    /**
+     * 解析当前登录态中的有效数据范围。
+     *
+     * @param subjectType 主体类型
+     * @return 合法化后的数据范围
+     */
+    private DataScopeEnum resolveEffectiveScope(String subjectType) {
+        try {
+            return DataScopeEnum.normalize(SecurityContext.getEffectiveDataScope(), subjectType);
+        } catch (Exception e) {
+            log.warn("获取有效数据范围失败，使用默认 SELF", e);
+            return DataScopeEnum.SELF.normalizeForSubject(subjectType);
         }
     }
 
     /**
-     * 获取当前线程的数据过滤SQL
+     * 获取当前线程的数据过滤 SQL
      *
      * @return SQL条件片段
      */
@@ -182,10 +228,9 @@ public class DataScopeAspect {
     }
 
     /**
-     * 清除数据过滤SQL
+     * 清除数据过滤 SQL
      */
     public static void clearDataScope() {
         DATA_SCOPE_SQL.remove();
     }
-
 }

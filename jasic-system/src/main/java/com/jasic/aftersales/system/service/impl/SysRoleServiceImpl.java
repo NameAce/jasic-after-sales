@@ -17,6 +17,7 @@ import com.jasic.aftersales.system.mapper.SysRoleMapper;
 import com.jasic.aftersales.system.mapper.SysRoleMenuMapper;
 import com.jasic.aftersales.system.mapper.SysUserRoleMapper;
 import com.jasic.aftersales.system.service.ISysRoleService;
+import com.jasic.aftersales.system.service.SysDataScopeRuleService;
 import com.jasic.aftersales.system.service.SysPermissionService;
 import org.springframework.stereotype.Service;
 
@@ -45,6 +46,9 @@ public class SysRoleServiceImpl implements ISysRoleService {
 
     @Resource
     private SysPermissionService sysPermissionService;
+
+    @Resource
+    private SysDataScopeRuleService dataScopeRuleService;
 
     /**
      * 分页查询角色列表
@@ -123,6 +127,7 @@ public class SysRoleServiceImpl implements ISysRoleService {
      */
     @Override
     public Long save(Long companyId, SysRoleDTO dto) {
+        dataScopeRuleService.validateByCompanyId(companyId, dto.getDataScope());
         // 校验角色标识唯一性
         LambdaQueryWrapper<SysRole> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysRole::getCompanyId, companyId)
@@ -159,6 +164,7 @@ public class SysRoleServiceImpl implements ISysRoleService {
         if (role == null) {
             throw new ServiceException("角色不存在");
         }
+        dataScopeRuleService.validateByCompanyId(role.getCompanyId(), dto.getDataScope());
         BeanUtil.copyProperties(dto, role);
         // 保持 companyId、isSystem 不变（DTO 无此字段，copyProperties 不会覆盖）
         sysRoleMapper.updateById(role);
