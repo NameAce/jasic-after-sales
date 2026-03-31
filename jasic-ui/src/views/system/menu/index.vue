@@ -31,7 +31,7 @@
         <el-table-column label="菜单名称" prop="menuName" width="200" />
         <el-table-column label="图标" prop="icon" width="80" align="center">
           <template slot-scope="{ row }">
-            <i :class="row.icon" v-if="row.icon" />
+            <i v-if="row.icon" :class="row.icon" />
           </template>
         </el-table-column>
         <el-table-column label="排序" prop="orderNum" width="70" align="center" />
@@ -58,17 +58,17 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template slot-scope="{ row }">
             <el-button type="text" size="mini" v-hasPerms="['system:menu:update']" @click="handleEdit(row)">编辑</el-button>
             <el-button type="text" size="mini" v-hasPerms="['system:menu:add']" @click="handleAdd(row)">新增子级</el-button>
+            <el-button type="text" size="mini" style="color: #409EFF;" v-hasPerms="['system:menu:publish']" @click="handlePublish(row)">发布</el-button>
             <el-button type="text" size="mini" style="color: #F56C6C;" v-hasPerms="['system:menu:remove']" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
 
-    <!-- 新增/编辑弹窗 -->
     <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="600px" append-to-body>
       <el-form ref="form" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="上级菜单">
@@ -89,7 +89,7 @@
           </el-radio-group>
         </el-form-item>
         <el-form-item label="主体类型" prop="subjectType">
-          <el-select v-model="form.subjectType" placeholder="请选择">
+          <el-select v-model="form.subjectType" placeholder="请选择" @change="loadMenuOptions">
             <el-option v-for="t in subjectTypeOptions" :key="t.value" :label="t.label" :value="t.value" />
           </el-select>
         </el-form-item>
@@ -132,11 +132,17 @@
       </el-form>
       <div slot="footer">
         <el-button @click="dialogVisible = false">取 消</el-button>
+        <el-button
+          v-hasPerms="['system:menu:publish']"
+          :loading="publishPrepLoading"
+          @click="handleSaveAndPublish"
+        >
+          保存并发布
+        </el-button>
         <el-button type="primary" :loading="submitLoading" @click="submitForm">确 定</el-button>
       </div>
     </el-dialog>
 
-    <!-- 菜单拷贝弹窗 -->
     <el-dialog title="菜单拷贝" :visible.sync="copyDialogVisible" width="560px" append-to-body @open="onCopyDialogOpen">
       <el-form ref="copyForm" :model="copyForm" label-width="100px">
         <el-form-item label="源主体类型" prop="sourceSubjectType">
@@ -167,11 +173,87 @@
         <el-button type="primary" :loading="copySubmitLoading" @click="submitCopy">开始拷贝</el-button>
       </div>
     </el-dialog>
+
+    <el-dialog
+      :title="publishDialogTitle"
+      :visible.sync="publishDialogVisible"
+      width="680px"
+      append-to-body
+      :close-on-click-modal="false"
+      :show-close="false"
+    >
+      <el-alert
+        type="info"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 16px;"
+      >
+        <template slot="title">
+          发布只做追加：会补充公司类型菜单上限、模板菜单，并可把本次菜单追加到已有公司的系统角色，不会回收公司已有额外菜单。
+        </template>
+      </el-alert>
+
+      <div v-loading="publishOptionsLoading">
+        <el-form label-width="110px">
+          <el-form-item label="菜单名称">
+            <span>{{ publishForm.menu && publishForm.menu.menuName }}</span>
+          </el-form-item>
+          <el-form-item label="主体类型">
+            <span>{{ subjectTypeLabelMap[publishForm.menu && publishForm.menu.subjectType] || '-' }}</span>
+          </el-form-item>
+          <el-form-item label="目标公司类型">
+            <el-checkbox-group v-model="publishForm.targetTypeCodes" @change="handlePublishTypeChange">
+              <el-checkbox v-for="item in publishOptions.typeOptions" :key="item.typeCode" :label="item.typeCode">
+                {{ item.typeName }}（{{ item.typeCode }}）
+              </el-checkbox>
+            </el-checkbox-group>
+          </el-form-item>
+          <el-form-item label="目标角色模板">
+            <div v-if="groupedPublishTemplates.length === 0" class="publish-empty">
+              当前所选主体下暂无角色模板，本次发布仅处理公司类型菜单上限。
+            </div>
+            <div v-else class="publish-template-list">
+              <div v-for="group in groupedPublishTemplates" :key="group.typeCode" class="publish-template-group">
+                <div class="publish-template-title">{{ group.typeName }}（{{ group.typeCode }}）</div>
+                <el-checkbox-group v-model="publishForm.targetTemplateIds">
+                  <el-checkbox v-for="item in group.templates" :key="item.id" :label="item.id">
+                    {{ item.roleName }}（{{ item.roleKey }}）
+                  </el-checkbox>
+                </el-checkbox-group>
+              </div>
+            </div>
+          </el-form-item>
+          <el-form-item label="同步已有公司">
+            <el-switch v-model="publishForm.syncExistingCompanies" :active-value="true" :inactive-value="false" />
+            <span class="publish-tip">仅向匹配模板 `roleKey` 的系统角色追加当前菜单。</span>
+          </el-form-item>
+        </el-form>
+      </div>
+      <div slot="footer">
+        <el-button @click="closePublishDialog">取 消</el-button>
+        <el-button type="primary" :loading="publishLoading" @click="submitPublish">确认发布</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import { menuTree, getMenu, addMenu, updateMenu, deleteMenu, copyMenus } from '@/api/system'
+import {
+  menuTree,
+  getMenu,
+  addMenu,
+  updateMenu,
+  deleteMenu,
+  copyMenus,
+  menuPublishOptions,
+  publishMenu
+} from '@/api/system'
+
+const SUBJECT_TYPE_MAP = {
+  PLATFORM: '平台',
+  HQ: '总部',
+  SERVICE: '服务网点'
+}
 
 export default {
   name: 'MenuManage',
@@ -185,6 +267,7 @@ export default {
         { value: 'HQ', label: '总部' },
         { value: 'SERVICE', label: '服务网点' }
       ],
+      subjectTypeLabelMap: SUBJECT_TYPE_MAP,
       isExpandAll: true,
       refreshTable: true,
       dialogVisible: false,
@@ -192,6 +275,7 @@ export default {
       form: {},
       menuOptions: [],
       submitLoading: false,
+      publishPrepLoading: false,
       rules: {
         menuName: [{ required: true, message: '请输入菜单名称', trigger: 'blur' }],
         menuType: [{ required: true, message: '请选择类型', trigger: 'change' }],
@@ -204,7 +288,46 @@ export default {
       },
       copySourceTree: [],
       copyTreeLoading: false,
-      copySubmitLoading: false
+      copySubmitLoading: false,
+      publishDialogVisible: false,
+      publishDialogTitle: '菜单发布',
+      publishOptionsLoading: false,
+      publishLoading: false,
+      publishReturnToForm: false,
+      publishForm: {
+        menu: null,
+        targetTypeCodes: [],
+        targetTemplateIds: [],
+        syncExistingCompanies: true
+      },
+      publishOptions: {
+        typeOptions: [],
+        templateOptions: []
+      }
+    }
+  },
+  computed: {
+    filteredPublishTemplates() {
+      const selectedTypeCodes = new Set(this.publishForm.targetTypeCodes || [])
+      return (this.publishOptions.templateOptions || []).filter(item => selectedTypeCodes.has(item.typeCode))
+    },
+    groupedPublishTemplates() {
+      const typeLabelMap = (this.publishOptions.typeOptions || []).reduce((map, item) => {
+        map[item.typeCode] = item.typeName
+        return map
+      }, {})
+      const groupMap = {}
+      this.filteredPublishTemplates.forEach(item => {
+        if (!groupMap[item.typeCode]) {
+          groupMap[item.typeCode] = {
+            typeCode: item.typeCode,
+            typeName: typeLabelMap[item.typeCode] || item.typeCode,
+            templates: []
+          }
+        }
+        groupMap[item.typeCode].templates.push(item)
+      })
+      return Object.keys(groupMap).map(key => groupMap[key])
     }
   },
   created() {
@@ -265,6 +388,17 @@ export default {
         }).finally(() => { this.submitLoading = false })
       })
     },
+    handleSaveAndPublish() {
+      this.$refs.form.validate(valid => {
+        if (!valid) return
+        this.publishPrepLoading = true
+        const menu = { ...this.form }
+        this.dialogVisible = false
+        this.openPublishDialog(menu, true).finally(() => {
+          this.publishPrepLoading = false
+        })
+      })
+    },
     handleDelete(row) {
       this.$confirm(`确认删除菜单"${row.menuName}"？`, '提示', { type: 'warning' }).then(() => {
         deleteMenu(row.id).then(res => {
@@ -300,21 +434,110 @@ export default {
       }
       let menuIds = []
       if (this.$refs.copyMenuTree) {
-        // 仅取勾选节点，不取半选父节点（半选是勾选子节点时的 UI 状态，非用户意图）
         menuIds = this.$refs.copyMenuTree.getCheckedKeys()
       }
       this.copySubmitLoading = true
-        copyMenus({
-          sourceSubjectType: this.copyForm.sourceSubjectType,
-          targetSubjectType: this.copyForm.targetSubjectType,
-          menuIds: menuIds.length > 0 ? menuIds : null
-        }).then(res => {
-          if (!res) return
-          this.$message.success(`拷贝成功，共 ${res.data || 0} 个菜单`)
-          this.copyDialogVisible = false
-          this.querySubjectType = this.copyForm.targetSubjectType
-          this.handleQuery()
-        }).finally(() => { this.copySubmitLoading = false })
+      copyMenus({
+        sourceSubjectType: this.copyForm.sourceSubjectType,
+        targetSubjectType: this.copyForm.targetSubjectType,
+        menuIds: menuIds.length > 0 ? menuIds : null
+      }).then(res => {
+        if (!res) return
+        this.$message.success(`拷贝成功，共 ${res.data || 0} 个菜单`)
+        this.copyDialogVisible = false
+        this.querySubjectType = this.copyForm.targetSubjectType
+        this.handleQuery()
+      }).finally(() => { this.copySubmitLoading = false })
+    },
+    handlePublish(row) {
+      getMenu(row.id).then(res => {
+        if (!res) return
+        this.openPublishDialog(res.data, false)
+      })
+    },
+    openPublishDialog(menu, returnToForm) {
+      this.publishDialogTitle = menu.id ? `发布菜单 - ${menu.menuName}` : `保存并发布 - ${menu.menuName}`
+      this.publishReturnToForm = !!returnToForm
+      this.publishForm = {
+        menu: { ...menu },
+        targetTypeCodes: [],
+        targetTemplateIds: [],
+        syncExistingCompanies: true
+      }
+      this.publishOptions = {
+        typeOptions: [],
+        templateOptions: []
+      }
+      this.publishDialogVisible = true
+      this.publishOptionsLoading = true
+      return menuPublishOptions(menu.subjectType).then(res => {
+        if (!res) return
+        this.publishOptions = res.data || { typeOptions: [], templateOptions: [] }
+        this.publishForm.targetTypeCodes = (this.publishOptions.typeOptions || []).map(item => item.typeCode)
+        this.resetPublishTemplatesByType()
+      }).finally(() => {
+        this.publishOptionsLoading = false
+      })
+    },
+    handlePublishTypeChange() {
+      this.resetPublishTemplatesByType()
+    },
+    resetPublishTemplatesByType() {
+      const typeCodeSet = new Set(this.publishForm.targetTypeCodes || [])
+      this.publishForm.targetTemplateIds = (this.publishOptions.templateOptions || [])
+        .filter(item => typeCodeSet.has(item.typeCode))
+        .map(item => item.id)
+    },
+    closePublishDialog() {
+      const shouldReturn = this.publishReturnToForm
+      this.publishDialogVisible = false
+      this.publishLoading = false
+      this.publishOptionsLoading = false
+      this.publishReturnToForm = false
+      if (shouldReturn) {
+        this.dialogVisible = true
+        this.$nextTick(() => this.$refs.form && this.$refs.form.clearValidate())
+      }
+    },
+    submitPublish() {
+      if (!this.publishForm.menu) {
+        this.$message.error('菜单信息不存在')
+        return
+      }
+      if (!this.publishForm.targetTypeCodes || this.publishForm.targetTypeCodes.length === 0) {
+        this.$message.error('请选择至少一个目标公司类型')
+        return
+      }
+      if (this.filteredPublishTemplates.length > 0 && this.publishForm.targetTemplateIds.length === 0) {
+        this.$message.error('请选择至少一个目标角色模板')
+        return
+      }
+      this.publishLoading = true
+      publishMenu({
+        menu: { ...this.publishForm.menu },
+        targetTypeCodes: [...this.publishForm.targetTypeCodes],
+        targetTemplateIds: [...this.publishForm.targetTemplateIds],
+        syncExistingCompanies: this.publishForm.syncExistingCompanies
+      }).then(res => {
+        if (!res) return
+        const data = res.data || {}
+        this.publishReturnToForm = false
+        this.publishDialogVisible = false
+        this.handleQuery()
+        this.$alert([
+          `菜单ID：${data.menuId || '-'}`,
+          `新增公司类型菜单：${data.addedTypeCodeCount || 0}`,
+          `新增模板菜单：${data.addedTemplateCount || 0}`,
+          `追加公司系统角色：${data.updatedRoleCount || 0}`,
+          `强制下线用户：${data.kickedUserCount || 0}`,
+          `跳过公司：${data.skippedCompanyCount || 0}`
+        ].join('<br/>'), '发布完成', {
+          confirmButtonText: '知道了',
+          dangerouslyUseHTMLString: true
+        })
+      }).finally(() => {
+        this.publishLoading = false
+      })
     }
   }
 }
@@ -325,4 +548,9 @@ export default {
 .search-card { margin-bottom: 0; }
 .table-toolbar { margin-bottom: 12px; }
 .copy-tree-tip { font-size: 12px; color: #909399; margin-bottom: 4px; }
+.publish-template-list { max-height: 300px; overflow-y: auto; }
+.publish-template-group + .publish-template-group { margin-top: 12px; }
+.publish-template-title { font-weight: 600; margin-bottom: 8px; color: #303133; }
+.publish-tip { margin-left: 8px; color: #909399; font-size: 12px; }
+.publish-empty { color: #909399; font-size: 12px; }
 </style>

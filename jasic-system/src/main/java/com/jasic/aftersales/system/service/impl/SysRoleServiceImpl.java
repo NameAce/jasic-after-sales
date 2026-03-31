@@ -5,6 +5,7 @@ import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.jasic.aftersales.common.constant.RoleConstants;
 import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.system.domain.dto.SysRoleDTO;
@@ -128,13 +129,8 @@ public class SysRoleServiceImpl implements ISysRoleService {
     @Override
     public Long save(Long companyId, SysRoleDTO dto) {
         dataScopeRuleService.validateByCompanyId(companyId, dto.getDataScope());
-        // 校验角色标识唯一性
-        LambdaQueryWrapper<SysRole> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysRole::getCompanyId, companyId)
-                .eq(SysRole::getRoleKey, dto.getRoleKey());
-        if (sysRoleMapper.selectCount(wrapper) > 0) {
-            throw new ServiceException("角色标识已存在");
-        }
+        validateCustomRoleKey(dto.getRoleKey());
+        validateRoleKeyUnique(companyId, dto.getRoleKey(), null);
         SysRole role = new SysRole();
         BeanUtil.copyProperties(dto, role);
         role.setCompanyId(companyId);
@@ -165,6 +161,9 @@ public class SysRoleServiceImpl implements ISysRoleService {
             throw new ServiceException("角色不存在");
         }
         dataScopeRuleService.validateByCompanyId(role.getCompanyId(), dto.getDataScope());
+        validateRoleKeyEditable(role, dto.getRoleKey());
+        validateCustomRoleKey(role.getIsSystem(), dto.getRoleKey());
+        validateRoleKeyUnique(role.getCompanyId(), dto.getRoleKey(), role.getId());
         BeanUtil.copyProperties(dto, role);
         // 保持 companyId、isSystem 不变（DTO 无此字段，copyProperties 不会覆盖）
         sysRoleMapper.updateById(role);
@@ -222,7 +221,7 @@ public class SysRoleServiceImpl implements ISysRoleService {
     }
 
     /**
-     * 实体转 VO（不含 menuIds）
+     * 实体转VO（不含menuIds）
      */
     private SysRoleVO convertToVO(SysRole role) {
         SysRoleVO vo = new SysRoleVO();
@@ -243,7 +242,65 @@ public class SysRoleServiceImpl implements ISysRoleService {
     }
 
     /**
+     * 校验系统角色标识不可修改。
+     *
+     * @param role    角色实体
+     * @param roleKey 角色标识
+     */
+    private void validateRoleKeyEditable(SysRole role, String roleKey) {
+        if (role.getIsSystem() != null && role.getIsSystem() == 1
+                && StrUtil.isNotBlank(roleKey) && !roleKey.equals(role.getRoleKey())) {
+            throw new ServiceException("系统角色标识不允许修改");
+        }
+    }
+
+    /**
+     * 校验自定义角色不允许占用系统保留标识。
+     *
+     * @param roleKey 角色标识
+     */
+    private void validateCustomRoleKey(String roleKey) {
+        validateCustomRoleKey(0, roleKey);
+    }
+
+    /**
+     * 校验自定义角色不允许占用系统保留标识。
+     *
+     * @param isSystem 是否系统角色
+     * @param roleKey  角色标识
+     */
+    private void validateCustomRoleKey(Integer isSystem, String roleKey) {
+        if (isSystem != null && isSystem == 1) {
+            return;
+        }
+        if (RoleConstants.RESERVED_ROLE_KEYS.contains(roleKey)) {
+            throw new ServiceException("该角色标识为系统保留值，请更换后重试");
+        }
+    }
+
+    /**
+     * 校验角色标识在公司内唯一。
+     *
+     * @param companyId     公司ID
+     * @param roleKey       角色标识
+     * @param excludeRoleId 排除的角色ID
+     */
+    private void validateRoleKeyUnique(Long companyId, String roleKey, Long excludeRoleId) {
+        LambdaQueryWrapper<SysRole> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysRole::getCompanyId, companyId)
+                .eq(SysRole::getRoleKey, roleKey);
+        if (excludeRoleId != null) {
+            wrapper.ne(SysRole::getId, excludeRoleId);
+        }
+        if (sysRoleMapper.selectCount(wrapper) > 0) {
+            throw new ServiceException("角色标识已存在");
+        }
+    }
+
+    /**
      * 踢出受影响的用户（角色变更后需重新登录）
+     *
+     * @param roleId 角色ID
      */
     private void kickAffectedUsers(Long roleId) {
         LambdaQueryWrapper<SysUserRole> wrapper = new LambdaQueryWrapper<>();

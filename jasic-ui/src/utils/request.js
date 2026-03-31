@@ -4,17 +4,56 @@ import { getToken } from '@/utils/auth'
 import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
 
+let reloginPromptVisible = false
+
 const service = axios.create({
   baseURL: '/api',
   timeout: 30000
 })
+
+function buildLoginHash() {
+  const currentHash = window.location.hash || '#/'
+  const currentPath = currentHash.replace(/^#/, '')
+  if (!currentPath || currentPath === '/' || currentPath.startsWith('/login')) {
+    return '#/login'
+  }
+  return `#/login?redirect=${encodeURIComponent(currentPath)}`
+}
+
+function redirectToLogin() {
+  const loginHash = buildLoginHash()
+  if (window.location.hash === loginHash) {
+    window.location.reload()
+    return
+  }
+  window.location.replace(loginHash)
+}
+
+function handleAuthExpired() {
+  if (reloginPromptVisible) {
+    return
+  }
+  reloginPromptVisible = true
+  const store = require('@/store').default
+  MessageBox.confirm('登录已过期，请重新登录', '提示', {
+    confirmButtonText: '重新登录',
+    cancelButtonText: '取消',
+    type: 'warning'
+  })
+    .catch(() => null)
+    .then(() => store.dispatch('user/resetToken'))
+    .finally(() => {
+      reloginPromptVisible = false
+      redirectToLogin()
+    })
+}
 
 service.interceptors.request.use(
   config => {
     NProgress.start()
     const token = getToken()
     if (token) {
-      config.headers['Authorization'] = token
+      config.headers.Authorization = token
     }
     return config
   },
@@ -30,21 +69,11 @@ service.interceptors.response.use(
     const res = response.data
 
     if (res.code !== '00000') {
-      // 未登录或Token过期 —— 需要中断流程，仍然 reject
       if (res.code === 'A0100') {
-        MessageBox.confirm('登录已过期，请重新登录', '提示', {
-          confirmButtonText: '重新登录',
-          cancelButtonText: '取消',
-          type: 'warning'
-        }).then(() => {
-          require('@/store').default.dispatch('user/logout').then(() => {
-            location.reload()
-          })
-        })
-        return Promise.reject(res)
+        handleAuthExpired()
+        return null
       }
 
-      // 其他业务错误：Message 提示后 resolve null，调用方用 if (!res) return 守卫
       const msg = res.code === 'A0200' ? '没有操作权限' : (res.msg || '操作失败')
       const type = res.code === 'A0200' ? 'warning' : 'error'
       Message({ message: msg, type })

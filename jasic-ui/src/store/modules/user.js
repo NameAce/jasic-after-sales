@@ -1,4 +1,4 @@
-import { login, chooseCompany, getUserInfo, logout } from '@/api/auth'
+import { login, chooseCompany, getUserInfo, logout as logoutApi } from '@/api/auth'
 import { getToken, setToken, removeToken, setCompanyId, removeCompanyId } from '@/utils/auth'
 
 const state = {
@@ -29,6 +29,17 @@ const mutations = {
   SET_NEED_CHOOSE_COMPANY(state, val) {
     state.needChooseCompany = val
   }
+}
+
+function clearAuthState(commit) {
+  commit('SET_TOKEN', '')
+  commit('SET_USER_INFO', {})
+  commit('SET_PERMS', [])
+  commit('SET_COMPANIES', [])
+  commit('SET_CURRENT_COMPANY_ID', null)
+  commit('SET_NEED_CHOOSE_COMPANY', false)
+  removeToken()
+  removeCompanyId()
 }
 
 const actions = {
@@ -86,30 +97,17 @@ const actions = {
   },
 
   logout({ commit }) {
-    return new Promise((resolve, reject) => {
-      logout().then(() => {
-        commit('SET_TOKEN', '')
-        commit('SET_USER_INFO', {})
-        commit('SET_PERMS', [])
-        commit('SET_CURRENT_COMPANY_ID', null)
-        removeToken()
-        removeCompanyId()
+    return new Promise(resolve => {
+      logoutApi().finally(() => {
+        clearAuthState(commit)
         resolve()
-      }).catch(error => {
-        commit('SET_TOKEN', '')
-        removeToken()
-        removeCompanyId()
-        reject(error)
       })
     })
   },
 
   resetToken({ commit }) {
     return new Promise(resolve => {
-      commit('SET_TOKEN', '')
-      commit('SET_PERMS', [])
-      removeToken()
-      removeCompanyId()
+      clearAuthState(commit)
       resolve()
     })
   }

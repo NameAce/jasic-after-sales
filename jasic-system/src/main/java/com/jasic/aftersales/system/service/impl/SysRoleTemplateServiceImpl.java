@@ -22,12 +22,14 @@ import com.jasic.aftersales.system.service.ISysRoleTemplateService;
 import com.jasic.aftersales.system.service.SysDataScopeRuleService;
 import com.jasic.aftersales.system.service.SysPermissionService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -64,12 +66,6 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
     @Resource
     private SysDataScopeRuleService dataScopeRuleService;
 
-    /**
-     * 根据公司类型编码查询角色模板列表
-     *
-     * @param typeCode 公司类型编码
-     * @return 模板列表
-     */
     @Override
     public List<SysRoleTemplateVO> listByTypeCode(String typeCode) {
         LambdaQueryWrapper<SysRoleTemplate> wrapper = new LambdaQueryWrapper<>();
@@ -90,12 +86,6 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
         return voList;
     }
 
-    /**
-     * 查询模板详情（含菜单ID列表）
-     *
-     * @param templateId 模板ID
-     * @return 模板详情
-     */
     @Override
     public SysRoleTemplateVO getById(Long templateId) {
         SysRoleTemplate template = sysRoleTemplateMapper.selectById(templateId);
@@ -107,12 +97,6 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
         return vo;
     }
 
-    /**
-     * 新增角色模板
-     *
-     * @param dto 模板参数
-     * @return 模板ID
-     */
     @Override
     public Long save(SysRoleTemplateDTO dto) {
         dataScopeRuleService.validateByTypeCode(dto.getTypeCode(), dto.getDataScope());
@@ -138,11 +122,6 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
         return template.getId();
     }
 
-    /**
-     * 修改角色模板
-     *
-     * @param dto 模板参数
-     */
     @Override
     public void update(SysRoleTemplateDTO dto) {
         if (dto.getId() == null) {
@@ -167,11 +146,6 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
         }
     }
 
-    /**
-     * 删除角色模板
-     *
-     * @param templateId 模板ID
-     */
     @Override
     public void remove(Long templateId) {
         LambdaQueryWrapper<SysRoleTemplateMenu> menuWrapper = new LambdaQueryWrapper<>();
@@ -180,11 +154,7 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
         sysRoleTemplateMapper.deleteById(templateId);
     }
 
-    /**
-     * 同步模板到已有公司（完全同步：移除模板已删除的菜单，并补充模板新增的菜单）
-     *
-     * @param templateId 模板ID
-     */
+    @Transactional(rollbackFor = Exception.class)
     @Override
     public void syncToCompanies(Long templateId) {
         SysRoleTemplate template = sysRoleTemplateMapper.selectById(templateId);
@@ -196,7 +166,6 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
         List<Long> templateMenuIds = loadMenuIdsByTemplateId(templateId);
         Set<Long> templateMenuIdSet = new HashSet<>(templateMenuIds);
 
-        // 查询该类型下的所有公司
         LambdaQueryWrapper<SysCompany> companyWrapper = new LambdaQueryWrapper<>();
         companyWrapper.eq(SysCompany::getTypeCode, typeCode);
         List<SysCompany> companies = sysCompanyMapper.selectList(companyWrapper);
@@ -204,63 +173,33 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
             return;
         }
 
+        Set<Long> updatedRoleIds = new HashSet<>();
         for (SysCompany company : companies) {
-            // 查找该公司下与模板 roleKey 匹配的系统角色
             LambdaQueryWrapper<SysRole> roleWrapper = new LambdaQueryWrapper<>();
             roleWrapper.eq(SysRole::getCompanyId, company.getId())
                     .eq(SysRole::getRoleKey, template.getRoleKey())
                     .eq(SysRole::getIsSystem, 1);
             SysRole role = sysRoleMapper.selectOne(roleWrapper);
+
+            boolean hasChanges;
             if (role == null) {
-                continue;
+                role = createMissingSystemRole(company, template);
+                hasChanges = true;
+            } else {
+                hasChanges = syncRoleBaseInfo(role, template);
             }
 
-            // 获取角色当前菜单ID
-            LambdaQueryWrapper<SysRoleMenu> roleMenuWrapper = new LambdaQueryWrapper<>();
-            roleMenuWrapper.eq(SysRoleMenu::getRoleId, role.getId());
-            List<SysRoleMenu> roleMenus = sysRoleMenuMapper.selectList(roleMenuWrapper);
-            if (roleMenus == null || roleMenus.isEmpty()) {
-                continue;
+            if (syncRoleMenus(role.getId(), templateMenuIds, templateMenuIdSet)) {
+                hasChanges = true;
             }
-
-            // 移除：删除不在模板菜单中的 role_menu 记录
-            Set<Long> roleMenuIdSet = new HashSet<>();
-            List<Long> toRemove = new ArrayList<>();
-            for (SysRoleMenu rm : roleMenus) {
-                roleMenuIdSet.add(rm.getMenuId());
-                if (!templateMenuIdSet.contains(rm.getMenuId())) {
-                    toRemove.add(rm.getId());
-                }
-            }
-            for (Long rmId : toRemove) {
-                sysRoleMenuMapper.deleteById(rmId);
-            }
-
-            // 新增：补充模板有而角色没有的菜单
-            boolean hasChanges = !toRemove.isEmpty();
-            for (Long menuId : templateMenuIds) {
-                if (!roleMenuIdSet.contains(menuId)) {
-                    SysRoleMenu rm = new SysRoleMenu();
-                    rm.setRoleId(role.getId());
-                    rm.setMenuId(menuId);
-                    sysRoleMenuMapper.insert(rm);
-                    hasChanges = true;
-                }
-            }
-
             if (hasChanges) {
-                kickAffectedUsers(role.getId());
+                updatedRoleIds.add(role.getId());
             }
         }
+
+        kickAffectedUsers(updatedRoleIds);
     }
 
-    /**
-     * 根据公司类型编码初始化公司角色（创建公司时调用）
-     *
-     * @param companyId 公司ID
-     * @param typeCode  公司类型编码
-     * @return 管理员角色ID（is_admin=1 的模板生成的角色），无则返回 null
-     */
     @Override
     public Long initCompanyRoles(Long companyId, String typeCode) {
         LambdaQueryWrapper<SysRoleTemplate> wrapper = new LambdaQueryWrapper<>();
@@ -273,22 +212,12 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
 
         Long adminRoleId = null;
         for (SysRoleTemplate template : templates) {
-            boolean isAdminTemplate = template.getIsAdmin() != null && template.getIsAdmin() == 1;
             dataScopeRuleService.validateByTypeCode(typeCode, template.getDataScope());
 
-            SysRole role = new SysRole();
-            role.setCompanyId(companyId);
-            role.setRoleName(template.getRoleName());
-            role.setRoleKey(template.getRoleKey());
-            role.setDataScope(template.getDataScope());
-            role.setRoleType(isAdminTemplate ? 1 : 2);
-            role.setIsSystem(1);
-            role.setStatus(1);
-            role.setOrderNum(template.getOrderNum() != null ? template.getOrderNum() : 0);
-            role.setRemark(template.getRemark());
+            SysRole role = buildSystemRole(companyId, template);
             sysRoleMapper.insert(role);
 
-            if (isAdminTemplate) {
+            if (isAdminTemplate(template)) {
                 adminRoleId = role.getId();
             }
 
@@ -305,18 +234,12 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
         return adminRoleId;
     }
 
-    /**
-     * 实体转 VO（不含 menuIds）
-     */
     private SysRoleTemplateVO convertToVO(SysRoleTemplate template) {
         SysRoleTemplateVO vo = new SysRoleTemplateVO();
         BeanUtil.copyProperties(template, vo);
         return vo;
     }
 
-    /**
-     * 根据模板ID加载菜单ID列表
-     */
     private List<Long> loadMenuIdsByTemplateId(Long templateId) {
         LambdaQueryWrapper<SysRoleTemplateMenu> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysRoleTemplateMenu::getTemplateId, templateId);
@@ -329,9 +252,6 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * 批量插入模板-菜单关联
-     */
     private void batchInsertTemplateMenu(Long templateId, List<Long> menuIds) {
         for (Long menuId : menuIds) {
             SysRoleTemplateMenu rm = new SysRoleTemplateMenu();
@@ -341,13 +261,102 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
         }
     }
 
-    /**
-     * 校验同一 type_code 下只能有一个 is_admin=1 的模板
-     *
-     * @param typeCode   公司类型编码
-     * @param isAdmin    当前设置的 is_admin 值
-     * @param excludeId  排除的模板ID（修改时传自身ID）
-     */
+    private SysRole createMissingSystemRole(SysCompany company, SysRoleTemplate template) {
+        LambdaQueryWrapper<SysRole> duplicateWrapper = new LambdaQueryWrapper<>();
+        duplicateWrapper.eq(SysRole::getCompanyId, company.getId())
+                .eq(SysRole::getRoleKey, template.getRoleKey());
+        if (sysRoleMapper.selectCount(duplicateWrapper) > 0) {
+            throw new ServiceException("公司【" + company.getCompanyName()
+                    + "】已存在相同角色标识（" + template.getRoleKey()
+                    + "）的角色，无法按模板补建系统角色");
+        }
+        SysRole role = buildSystemRole(company.getId(), template);
+        sysRoleMapper.insert(role);
+        return role;
+    }
+
+    private boolean syncRoleBaseInfo(SysRole role, SysRoleTemplate template) {
+        boolean changed = false;
+        Integer templateRoleType = isAdminTemplate(template) ? 1 : 2;
+        Integer templateOrderNum = template.getOrderNum() != null ? template.getOrderNum() : 0;
+
+        if (!Objects.equals(role.getRoleName(), template.getRoleName())) {
+            role.setRoleName(template.getRoleName());
+            changed = true;
+        }
+        if (!Objects.equals(role.getDataScope(), template.getDataScope())) {
+            role.setDataScope(template.getDataScope());
+            changed = true;
+        }
+        if (!Objects.equals(role.getRoleType(), templateRoleType)) {
+            role.setRoleType(templateRoleType);
+            changed = true;
+        }
+        if (!Objects.equals(role.getOrderNum(), templateOrderNum)) {
+            role.setOrderNum(templateOrderNum);
+            changed = true;
+        }
+        if (!Objects.equals(role.getRemark(), template.getRemark())) {
+            role.setRemark(template.getRemark());
+            changed = true;
+        }
+        if (changed) {
+            sysRoleMapper.updateById(role);
+        }
+        return changed;
+    }
+
+    private boolean syncRoleMenus(Long roleId, List<Long> templateMenuIds, Set<Long> templateMenuIdSet) {
+        LambdaQueryWrapper<SysRoleMenu> roleMenuWrapper = new LambdaQueryWrapper<>();
+        roleMenuWrapper.eq(SysRoleMenu::getRoleId, roleId);
+        List<SysRoleMenu> roleMenus = sysRoleMenuMapper.selectList(roleMenuWrapper);
+        if (roleMenus == null) {
+            roleMenus = Collections.emptyList();
+        }
+
+        Set<Long> roleMenuIdSet = new HashSet<>();
+        List<Long> toRemove = new ArrayList<>();
+        for (SysRoleMenu rm : roleMenus) {
+            roleMenuIdSet.add(rm.getMenuId());
+            if (!templateMenuIdSet.contains(rm.getMenuId())) {
+                toRemove.add(rm.getId());
+            }
+        }
+        for (Long rmId : toRemove) {
+            sysRoleMenuMapper.deleteById(rmId);
+        }
+
+        boolean changed = !toRemove.isEmpty();
+        for (Long menuId : templateMenuIds) {
+            if (!roleMenuIdSet.contains(menuId)) {
+                SysRoleMenu rm = new SysRoleMenu();
+                rm.setRoleId(roleId);
+                rm.setMenuId(menuId);
+                sysRoleMenuMapper.insert(rm);
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    private SysRole buildSystemRole(Long companyId, SysRoleTemplate template) {
+        SysRole role = new SysRole();
+        role.setCompanyId(companyId);
+        role.setRoleName(template.getRoleName());
+        role.setRoleKey(template.getRoleKey());
+        role.setDataScope(template.getDataScope());
+        role.setRoleType(isAdminTemplate(template) ? 1 : 2);
+        role.setIsSystem(1);
+        role.setStatus(1);
+        role.setOrderNum(template.getOrderNum() != null ? template.getOrderNum() : 0);
+        role.setRemark(template.getRemark());
+        return role;
+    }
+
+    private boolean isAdminTemplate(SysRoleTemplate template) {
+        return template.getIsAdmin() != null && template.getIsAdmin() == 1;
+    }
+
     private void validateAdminUnique(String typeCode, Integer isAdmin, Long excludeId) {
         if (isAdmin == null || isAdmin != 1) {
             return;
@@ -363,12 +372,12 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
         }
     }
 
-    /**
-     * 踢出受影响的用户（角色变更后需重新登录）
-     */
-    private void kickAffectedUsers(Long roleId) {
+    private void kickAffectedUsers(Set<Long> roleIds) {
+        if (roleIds == null || roleIds.isEmpty()) {
+            return;
+        }
         LambdaQueryWrapper<SysUserRole> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysUserRole::getRoleId, roleId);
+        wrapper.in(SysUserRole::getRoleId, roleIds);
         List<SysUserRole> userRoles = sysUserRoleMapper.selectList(wrapper);
         if (userRoles == null || userRoles.isEmpty()) {
             return;

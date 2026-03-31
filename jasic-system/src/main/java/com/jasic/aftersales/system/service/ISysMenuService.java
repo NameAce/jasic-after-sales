@@ -1,8 +1,11 @@
 package com.jasic.aftersales.system.service;
 
 import com.jasic.aftersales.system.domain.dto.SysMenuDTO;
+import com.jasic.aftersales.system.domain.dto.SysMenuPublishDTO;
 import com.jasic.aftersales.system.domain.entity.SysMenu;
 import com.jasic.aftersales.system.domain.vo.SysMenuVO;
+import com.jasic.aftersales.system.domain.vo.SysMenuPublishOptionsVO;
+import com.jasic.aftersales.system.domain.vo.SysMenuPublishResultVO;
 
 import java.util.List;
 import java.util.Set;
@@ -102,6 +105,22 @@ public interface ISysMenuService {
      * @return 菜单树
      */
     List<SysMenuVO> listMenuTreeByTypeCode(String typeCode);
+
+    /**
+     * 查询菜单发布可选项。
+     *
+     * @param subjectType 主体类型
+     * @return 发布可选项
+     */
+    SysMenuPublishOptionsVO getPublishOptions(String subjectType);
+
+    /**
+     * 保存并发布菜单。
+     *
+     * @param dto 发布参数
+     * @return 发布结果
+     */
+    SysMenuPublishResultVO publishMenu(SysMenuPublishDTO dto);
 
     /**
      * 从源主体类型拷贝菜单到目标主体类型

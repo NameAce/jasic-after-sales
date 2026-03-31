@@ -133,7 +133,7 @@ public class SysRoleTemplateController extends BaseController {
     }
 
     /**
-     * 同步模板到已有公司
+     * 全量同步模板到已有公司
      *
      * @param templateId 模板ID
      * @return 操作结果

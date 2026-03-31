@@ -22,6 +22,12 @@
             <artifactId>jasic-framework</artifactId>
         </dependency>
 
+        <!-- jasic-system -->
+        <dependency>
+            <groupId>com.jasic</groupId>
+            <artifactId>jasic-system</artifactId>
+        </dependency>
+
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>

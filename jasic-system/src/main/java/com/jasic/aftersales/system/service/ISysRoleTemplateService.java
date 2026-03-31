@@ -52,7 +52,7 @@ public interface ISysRoleTemplateService {
     void remove(Long templateId);
 
     /**
-     * 同步模板到已有公司（取交集策略）
+     * 全量同步模板到已有公司（移除模板外菜单并补充模板新增菜单）
      *
      * @param templateId 模板ID
      */

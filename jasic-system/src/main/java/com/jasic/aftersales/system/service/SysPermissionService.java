@@ -90,7 +90,7 @@ public class SysPermissionService {
     }
 
     /**
-     * 获取用户在指定公司下的有效 data_scope，多个角色取最小范围。
+     * 获取用户在指定公司下的有效 data_scope，多个角色取最大范围。
      *
      * @param userId    用户ID
      * @param companyId 公司ID
@@ -127,12 +127,12 @@ public class SysPermissionService {
             return DataScopeEnum.SELF;
         }
 
-        DataScopeEnum result = DataScopeEnum.SELF;
+        DataScopeEnum result = null;
         for (SysRole role : roles) {
             DataScopeEnum scope = resolveRoleDataScope(role.getDataScope(), subjectType);
-            result = result.min(scope);
+            result = result == null ? scope : result.max(scope);
         }
-        return result;
+        return result == null ? DataScopeEnum.SELF : result;
     }
 
     private DataScopeEnum resolveRoleDataScope(String scopeCode, String subjectType) {

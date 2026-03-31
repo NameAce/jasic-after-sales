@@ -29,7 +29,7 @@ public enum DataScopeEnum {
     /** 描述 */
     private final String desc;
 
-    /** 权重，值越小表示范围越小 */
+    /** 权重，值越大表示范围越大 */
     private final int weight;
 
     DataScopeEnum(String code, String desc, int weight) {
@@ -56,8 +56,8 @@ public enum DataScopeEnum {
     /**
      * 按主体类型将数据范围收敛到合法值。
      *
-     * @param scopeCode    数据范围编码
-     * @param subjectType  主体类型编码
+     * @param scopeCode   数据范围编码
+     * @param subjectType 主体类型编码
      * @return 合法化后的数据范围
      */
     public static DataScopeEnum normalize(String scopeCode, String subjectType) {
@@ -88,15 +88,15 @@ public enum DataScopeEnum {
     }
 
     /**
-     * 取两个范围中更小的那个，多角色冲突时使用。
+     * 取两个范围中更大的那个，多角色冲突时使用。
      *
      * @param other 另一个范围
-     * @return 更小的范围
+     * @return 更大的范围
      */
-    public DataScopeEnum min(DataScopeEnum other) {
+    public DataScopeEnum max(DataScopeEnum other) {
         if (other == null) {
             return this;
         }
-        return this.weight <= other.weight ? this : other;
+        return this.weight >= other.weight ? this : other;
     }
 }

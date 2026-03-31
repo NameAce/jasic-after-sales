@@ -51,7 +51,7 @@
               v-hasPerms="['system:roleTemplate:sync']"
               @click="handleSync(row)"
             >
-              同步至公司
+              全量同步到公司
             </el-button>
             <el-button
               type="text"
@@ -367,10 +367,10 @@ export default {
       })
     },
     handleSync(row) {
-      this.$confirm(`确认将模板“${row.roleName}”同步到所有关联公司吗？此操作不可撤销。`, '同步确认', { type: 'warning' }).then(() => {
+      this.$confirm(`确认将模板“${row.roleName}”全量同步到所有关联公司吗？此操作会移除公司系统角色中不在模板内的菜单。`, '全量同步确认', { type: 'warning' }).then(() => {
         syncRoleTemplate(row.id).then(res => {
           if (!res) return
-          this.$message.success('同步成功')
+          this.$message.success('全量同步成功')
         })
       }).catch(() => {})
     }

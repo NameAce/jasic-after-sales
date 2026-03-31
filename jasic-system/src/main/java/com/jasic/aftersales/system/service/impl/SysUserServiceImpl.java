@@ -28,11 +28,13 @@ import com.jasic.aftersales.system.mapper.SysUserMapper;
 import com.jasic.aftersales.system.service.ISysUserService;
 import com.jasic.aftersales.system.service.SysPermissionService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -171,6 +173,7 @@ public class SysUserServiceImpl implements ISysUserService {
      * @param dto 用户参数
      * @return 用户ID
      */
+    @Transactional(rollbackFor = Exception.class)
     @Override
     public Long save(SysUserDTO dto) {
         LambdaQueryWrapper<SysUser> usernameWrapper = new LambdaQueryWrapper<>();
@@ -185,15 +188,7 @@ public class SysUserServiceImpl implements ISysUserService {
         user.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
         sysUserMapper.insert(user);
 
-        if (dto.getCompanyIds() != null && !dto.getCompanyIds().isEmpty()) {
-            for (int i = 0; i < dto.getCompanyIds().size(); i++) {
-                SysUserCompany uc = new SysUserCompany();
-                uc.setUserId(user.getId());
-                uc.setCompanyId(dto.getCompanyIds().get(i));
-                uc.setIsDefault(i == 0 ? 1 : 0);
-                sysUserCompanyMapper.insert(uc);
-            }
-        }
+        saveUserCompanies(user.getId(), Collections.singletonList(requireCurrentCompanyIdForSave()));
 
         if (dto.getRoleIds() != null && !dto.getRoleIds().isEmpty()) {
             for (Long roleId : dto.getRoleIds()) {
@@ -212,6 +207,7 @@ public class SysUserServiceImpl implements ISysUserService {
      *
      * @param dto 用户参数
      */
+    @Transactional(rollbackFor = Exception.class)
     @Override
     public void update(SysUserDTO dto) {
         if (dto.getId() == null) {
@@ -230,14 +226,9 @@ public class SysUserServiceImpl implements ISysUserService {
             LambdaQueryWrapper<SysUserCompany> delWrapper = new LambdaQueryWrapper<>();
             delWrapper.eq(SysUserCompany::getUserId, user.getId());
             sysUserCompanyMapper.delete(delWrapper);
-            if (!dto.getCompanyIds().isEmpty()) {
-                for (int i = 0; i < dto.getCompanyIds().size(); i++) {
-                    SysUserCompany uc = new SysUserCompany();
-                    uc.setUserId(user.getId());
-                    uc.setCompanyId(dto.getCompanyIds().get(i));
-                    uc.setIsDefault(i == 0 ? 1 : 0);
-                    sysUserCompanyMapper.insert(uc);
-                }
+            List<Long> companyIds = sanitizeCompanyIds(dto.getCompanyIds());
+            if (!companyIds.isEmpty()) {
+                saveUserCompanies(user.getId(), companyIds);
             }
         }
 
@@ -264,6 +255,7 @@ public class SysUserServiceImpl implements ISysUserService {
      *
      * @param userId 用户ID
      */
+    @Transactional(rollbackFor = Exception.class)
     @Override
     public void remove(Long userId) {
         sysUserMapper.deleteById(userId);
@@ -313,6 +305,7 @@ public class SysUserServiceImpl implements ISysUserService {
      * @param userId  用户ID
      * @param roleIds 角色ID列表
      */
+    @Transactional(rollbackFor = Exception.class)
     @Override
     public void assignRoles(Long userId, List<Long> roleIds) {
         LambdaQueryWrapper<SysUserRole> delWrapper = new LambdaQueryWrapper<>();
@@ -362,6 +355,34 @@ public class SysUserServiceImpl implements ISysUserService {
      * @param companyIds 公司ID列表
      * @return 公司简要信息列表
      */
+    private Long requireCurrentCompanyIdForSave() {
+        Long currentCompanyId = SecurityContext.getCurrentCompanyId();
+        if (currentCompanyId == null) {
+            throw new ServiceException("Current company is required when creating a user");
+        }
+        return currentCompanyId;
+    }
+
+    private List<Long> sanitizeCompanyIds(List<Long> companyIds) {
+        if (companyIds == null || companyIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return companyIds.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    private void saveUserCompanies(Long userId, List<Long> companyIds) {
+        for (int i = 0; i < companyIds.size(); i++) {
+            SysUserCompany uc = new SysUserCompany();
+            uc.setUserId(userId);
+            uc.setCompanyId(companyIds.get(i));
+            uc.setIsDefault(i == 0 ? 1 : 0);
+            sysUserCompanyMapper.insert(uc);
+        }
+    }
+
     private List<SysCompanySimpleVO> buildCompanySimpleList(List<Long> companyIds) {
         if (companyIds == null || companyIds.isEmpty()) {
             return Collections.emptyList();

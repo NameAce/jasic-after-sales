@@ -100,7 +100,8 @@ INSERT INTO `sys_menu` (`id`, `subject_type`, `menu_name`, `parent_id`, `menu_ty
 (1021, 'PLATFORM', '菜单查询', 103, 'F', NULL, NULL, 'system:menu:list',   NULL, 1, 1, 1, NOW(), NOW()),
 (1022, 'PLATFORM', '菜单新增', 103, 'F', NULL, NULL, 'system:menu:add',    NULL, 2, 1, 1, NOW(), NOW()),
 (1023, 'PLATFORM', '菜单修改', 103, 'F', NULL, NULL, 'system:menu:update', NULL, 3, 1, 1, NOW(), NOW()),
-(1024, 'PLATFORM', '菜单删除', 103, 'F', NULL, NULL, 'system:menu:remove', NULL, 4, 1, 1, NOW(), NOW());
+(1024, 'PLATFORM', '菜单删除', 103, 'F', NULL, NULL, 'system:menu:remove', NULL, 4, 1, 1, NOW(), NOW()),
+(1025, 'PLATFORM', '菜单发布', 103, 'F', NULL, NULL, 'system:menu:publish', NULL, 5, 1, 1, NOW(), NOW());
 
 -- 三级按钮 - 角色模板管理
 INSERT INTO `sys_menu` (`id`, `subject_type`, `menu_name`, `parent_id`, `menu_type`, `path`, `component`, `perms`, `icon`, `order_num`, `is_visible`, `status`, `create_time`, `update_time`) VALUES

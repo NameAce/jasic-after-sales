@@ -59,6 +59,7 @@ const viewModules = {
   'system/dictData/index': () => import('@/views/system/dictData/index.vue'),
   'system/config/index': () => import('@/views/system/config/index.vue'),
   'system/roleTemplate/index': () => import('@/views/system/roleTemplate/index.vue'),
+  'workOrder/index': () => import('@/views/workOrder/index.vue'),
   'org/companyType/index': () => import('@/views/org/companyType/index.vue'),
   'org/company/index': () => import('@/views/org/company/index.vue'),
   'org/contract/index': () => import('@/views/org/contract/index.vue'),

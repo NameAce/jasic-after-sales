@@ -7,8 +7,11 @@ import com.jasic.aftersales.common.core.domain.Result;
 import com.jasic.aftersales.common.enums.OperTypeEnum;
 import com.jasic.aftersales.system.domain.dto.SysMenuCopyDTO;
 import com.jasic.aftersales.system.domain.dto.SysMenuDTO;
+import com.jasic.aftersales.system.domain.dto.SysMenuPublishDTO;
 import com.jasic.aftersales.system.domain.entity.SysMenu;
 import com.jasic.aftersales.system.domain.vo.SysMenuVO;
+import com.jasic.aftersales.system.domain.vo.SysMenuPublishOptionsVO;
+import com.jasic.aftersales.system.domain.vo.SysMenuPublishResultVO;
 import com.jasic.aftersales.system.service.ISysMenuService;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -158,6 +161,31 @@ public class SysMenuController extends BaseController {
                                             @RequestBody List<Long> menuIds) {
         menuService.assignTypeCodeMenus(typeCode, menuIds);
         return Result.ok();
+    }
+
+    /**
+     * 查询菜单发布可选项
+     *
+     * @param subjectType 主体类型
+     * @return 发布可选项
+     */
+    @SaCheckPermission("system:menu:publish")
+    @GetMapping("/publish-options")
+    public Result<SysMenuPublishOptionsVO> publishOptions(@RequestParam String subjectType) {
+        return Result.ok(menuService.getPublishOptions(subjectType));
+    }
+
+    /**
+     * 保存并发布菜单
+     *
+     * @param dto 发布参数
+     * @return 发布结果
+     */
+    @SaCheckPermission("system:menu:publish")
+    @OperLog(title = "菜单发布", operType = OperTypeEnum.GRANT)
+    @PostMapping("/publish")
+    public Result<SysMenuPublishResultVO> publish(@Validated @RequestBody SysMenuPublishDTO dto) {
+        return Result.ok(menuService.publishMenu(dto));
     }
 
     /**

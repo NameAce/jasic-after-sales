@@ -83,6 +83,12 @@ export function typeCodeMenuIds(typeCode) {
 export function assignTypeCodeMenus(typeCode, menuIds) {
   return request({ url: '/system/menu/assign-type-code-menus', method: 'put', params: { typeCode }, data: menuIds })
 }
+export function menuPublishOptions(subjectType) {
+  return request({ url: '/system/menu/publish-options', method: 'get', params: { subjectType } })
+}
+export function publishMenu(data) {
+  return request({ url: '/system/menu/publish', method: 'post', data })
+}
 export function copyMenus(data) {
   return request({ url: '/system/menu/copy', method: 'post', data })
 }

@@ -19,6 +19,14 @@ public interface ICUserService {
     CUser getByOpenid(String openid);
 
     /**
+     * 根据手机号查询客户
+     *
+     * @param phone 手机号
+     * @return 客户信息
+     */
+    CUser getByPhone(String phone);
+
+    /**
      * 微信登录（自动注册）
      *
      * @param openid 微信openid
