@@ -8,7 +8,7 @@
         </el-radio-group>
       </div>
       <div class="status-tabs">
-        <el-radio-group :value="activeMainStatus" size="small" @change="handleMainStatusChange">
+        <el-radio-group v-model="activeMainStatus" size="small" @change="handleMainStatusChange">
           <el-radio-button v-for="item in statusTabOptions" :key="item.value" :label="item.value">
             {{ item.label }}（{{ item.count }}）
           </el-radio-button>
@@ -52,7 +52,7 @@
         <el-table-column label="状态" min-width="110" align="center">
           <template slot-scope="{ row }">
             <el-tag :type="statusTag(row.mainStatus)" size="mini">
-              {{ statusLabel(row.displayStatus || row.mainStatus) }}
+              {{ row.mainStatusLabel || statusLabel(row.mainStatus) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -196,7 +196,7 @@
           <div class="section-title">基础信息</div>
           <el-descriptions :column="2" border size="small">
             <el-descriptions-item label="工单号">{{ textValue(detail.orderNo) }}</el-descriptions-item>
-            <el-descriptions-item label="主状态">{{ statusLabel(detail.mainStatus) }}</el-descriptions-item>
+            <el-descriptions-item label="主状态">{{ textValue(detail.mainStatusLabel || statusLabel(detail.mainStatus)) }}</el-descriptions-item>
             <el-descriptions-item label="客户姓名">{{ textValue(detail.customerName) }}</el-descriptions-item>
             <el-descriptions-item label="客户手机号">{{ textValue(detail.customerMobile) }}</el-descriptions-item>
             <el-descriptions-item label="条码">{{ textValue(detail.barcode) }}</el-descriptions-item>
@@ -210,7 +210,7 @@
             <el-descriptions-item label="建单公司">{{ textValue(detail.createCompanyName) }}</el-descriptions-item>
             <el-descriptions-item label="归属总部">{{ textValue(detail.hqCompanyName) }}</el-descriptions-item>
             <el-descriptions-item label="转单次数">{{ detail.transferCount || 0 }}</el-descriptions-item>
-            <el-descriptions-item label="评价状态">{{ textValue(detail.evaluateStatus) }}</el-descriptions-item>
+            <el-descriptions-item label="评价状态">{{ textValue(detail.evaluateStatusLabel || evaluateStatusLabel(detail.evaluateStatus)) }}</el-descriptions-item>
             <el-descriptions-item label="故障描述" :span="2">{{ textValue(detail.faultDesc) }}</el-descriptions-item>
           </el-descriptions>
 
@@ -463,11 +463,18 @@ const REVIEW_RESULT_PASS = '通过'
 const REVIEW_RESULT_CONTINUE = '继续维修'
 
 const STATUS_LABELS = {
+  WAIT_ACCEPT: '待接单',
   PENDING_ASSIGN: '待派单',
-  PENDING_TECH_ACCEPT: '待维修员接单',
+  PENDING_TECH_ACCEPT: '待接单',
   IN_PROGRESS: '维修中',
   COMPLETED: '已完成',
   CLOSED: '已关闭'
+}
+
+const EVALUATE_STATUS_LABELS = {
+  NOT_OPEN: '未开启评价',
+  PENDING_EVALUATE: '待评价',
+  EVALUATED: '已评价'
 }
 
 const ACTION_META = {
@@ -568,7 +575,7 @@ export default {
       },
       mainStatusOptions: [
         { label: '待派单', value: 'PENDING_ASSIGN' },
-        { label: '待维修员接单', value: 'PENDING_TECH_ACCEPT' },
+        { label: '待接单', value: 'PENDING_TECH_ACCEPT' },
         { label: '维修中', value: 'IN_PROGRESS' },
         { label: '已完成', value: 'COMPLETED' },
         { label: '已关闭', value: 'CLOSED' }
@@ -607,8 +614,13 @@ export default {
     isCreateMailMode() {
       return this.createForm.serviceMode === SERVICE_MODE_MAIL
     },
-    activeMainStatus() {
-      return this.queryParams.mainStatus || 'ALL'
+    activeMainStatus: {
+      get() {
+        return this.queryParams.mainStatus || 'ALL'
+      },
+      set(value) {
+        this.queryParams.mainStatus = value === 'ALL' ? '' : value
+      }
     },
     statusTabOptions() {
       return [
@@ -701,8 +713,7 @@ export default {
       this.queryParams.pageNum = 1
       this.getList()
     },
-    handleMainStatusChange(value) {
-      this.queryParams.mainStatus = value === 'ALL' ? '' : value
+    handleMainStatusChange() {
       this.queryParams.pageNum = 1
       this.getList()
     },
@@ -1029,6 +1040,9 @@ export default {
     },
     statusLabel(status) {
       return STATUS_LABELS[status] || status || '-'
+    },
+    evaluateStatusLabel(status) {
+      return EVALUATE_STATUS_LABELS[status] || status || '-'
     },
     statusTag(status) {
       if (status === 'COMPLETED') {

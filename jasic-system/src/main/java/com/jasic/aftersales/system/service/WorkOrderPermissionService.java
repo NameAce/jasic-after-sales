@@ -3,6 +3,7 @@ package com.jasic.aftersales.system.service;
 import cn.dev33.satoken.stp.StpUtil;
 import com.jasic.aftersales.common.enums.DataScopeEnum;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
 import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
 import com.jasic.aftersales.system.domain.entity.HqFirstContract;
@@ -148,16 +149,18 @@ public class WorkOrderPermissionService {
         String relationType = resolveRelationType(workOrder);
         String mainStatus = workOrder.getMainStatus();
         if ("CURRENT_OWNER_MANAGER".equals(relationType)) {
-            if ("PENDING_ASSIGN".equals(mainStatus) && StpUtil.hasPermission("workorder:assign")) {
+            if (WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN.equals(mainStatus)
+                    && StpUtil.hasPermission("workorder:assign")) {
                 actions.add("ASSIGN");
             }
             if (canUpdateSendExpress(workOrder)) {
                 actions.add("UPLOAD_SEND_EXPRESS");
             }
-            if ("IN_PROGRESS".equals(mainStatus) && StpUtil.hasPermission("workorder:transfer")) {
+            if (WorkOrderStatusConstants.MainStatus.IN_PROGRESS.equals(mainStatus)
+                    && StpUtil.hasPermission("workorder:transfer")) {
                 actions.add("TRANSFER");
             }
-            if ("COMPLETED".equals(mainStatus)) {
+            if (WorkOrderStatusConstants.MainStatus.COMPLETED.equals(mainStatus)) {
                 if (StpUtil.hasPermission("workorder:review")) {
                     actions.add("REVIEW");
                 }
@@ -171,10 +174,11 @@ public class WorkOrderPermissionService {
             }
         }
         if ("CURRENT_ASSIGNEE".equals(relationType)) {
-            if ("PENDING_TECH_ACCEPT".equals(mainStatus) && StpUtil.hasPermission("workorder:accept")) {
+            if (WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT.equals(mainStatus)
+                    && StpUtil.hasPermission("workorder:accept")) {
                 actions.add("TECH_ACCEPT");
             }
-            if ("IN_PROGRESS".equals(mainStatus)) {
+            if (WorkOrderStatusConstants.MainStatus.IN_PROGRESS.equals(mainStatus)) {
                 if (StpUtil.hasPermission("workorder:quote")) {
                     actions.add("QUOTE");
                 }
@@ -195,7 +199,7 @@ public class WorkOrderPermissionService {
      */
     public boolean canAssign(WorkOrder workOrder) {
         return "CURRENT_OWNER_MANAGER".equals(resolveRelationType(workOrder))
-                && "PENDING_ASSIGN".equals(workOrder.getMainStatus())
+                && WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN.equals(workOrder.getMainStatus())
                 && StpUtil.hasPermission("workorder:assign");
     }
 
@@ -207,7 +211,7 @@ public class WorkOrderPermissionService {
      */
     public boolean canTechAccept(WorkOrder workOrder) {
         return "CURRENT_ASSIGNEE".equals(resolveRelationType(workOrder))
-                && "PENDING_TECH_ACCEPT".equals(workOrder.getMainStatus())
+                && WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT.equals(workOrder.getMainStatus())
                 && StpUtil.hasPermission("workorder:accept");
     }
 
@@ -219,7 +223,7 @@ public class WorkOrderPermissionService {
      */
     public boolean canTransfer(WorkOrder workOrder) {
         return "CURRENT_OWNER_MANAGER".equals(resolveRelationType(workOrder))
-                && ("IN_PROGRESS".equals(workOrder.getMainStatus()) || "COMPLETED".equals(workOrder.getMainStatus()))
+                && WorkOrderStatusConstants.canTransfer(workOrder.getMainStatus())
                 && StpUtil.hasPermission("workorder:transfer");
     }
 
@@ -231,7 +235,7 @@ public class WorkOrderPermissionService {
      */
     public boolean canQuote(WorkOrder workOrder) {
         return "CURRENT_ASSIGNEE".equals(resolveRelationType(workOrder))
-                && "IN_PROGRESS".equals(workOrder.getMainStatus())
+                && WorkOrderStatusConstants.MainStatus.IN_PROGRESS.equals(workOrder.getMainStatus())
                 && StpUtil.hasPermission("workorder:quote");
     }
 
@@ -243,7 +247,7 @@ public class WorkOrderPermissionService {
      */
     public boolean canSaveRepair(WorkOrder workOrder) {
         return "CURRENT_ASSIGNEE".equals(resolveRelationType(workOrder))
-                && "IN_PROGRESS".equals(workOrder.getMainStatus())
+                && WorkOrderStatusConstants.MainStatus.IN_PROGRESS.equals(workOrder.getMainStatus())
                 && StpUtil.hasPermission("workorder:repair");
     }
 
@@ -255,7 +259,7 @@ public class WorkOrderPermissionService {
      */
     public boolean canReview(WorkOrder workOrder) {
         return "CURRENT_OWNER_MANAGER".equals(resolveRelationType(workOrder))
-                && "COMPLETED".equals(workOrder.getMainStatus())
+                && WorkOrderStatusConstants.MainStatus.COMPLETED.equals(workOrder.getMainStatus())
                 && StpUtil.hasPermission("workorder:review");
     }
 
@@ -272,14 +276,13 @@ public class WorkOrderPermissionService {
         if (!"\u5bc4\u4fee".equals(workOrder.getServiceMode())) {
             return false;
         }
-        return ("PENDING_ASSIGN".equals(workOrder.getMainStatus())
-                || "PENDING_TECH_ACCEPT".equals(workOrder.getMainStatus()))
+        return WorkOrderStatusConstants.isWaitAcceptMainStatus(workOrder.getMainStatus())
                 && StpUtil.hasPermission("workorder:assign");
     }
 
     public boolean canClose(WorkOrder workOrder) {
         return "CURRENT_OWNER_MANAGER".equals(resolveRelationType(workOrder))
-                && "COMPLETED".equals(workOrder.getMainStatus())
+                && WorkOrderStatusConstants.MainStatus.COMPLETED.equals(workOrder.getMainStatus())
                 && StpUtil.hasPermission("workorder:close");
     }
 

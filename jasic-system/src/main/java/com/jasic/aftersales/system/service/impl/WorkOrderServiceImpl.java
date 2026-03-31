@@ -6,6 +6,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jasic.aftersales.common.constant.RoleConstants;
+import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
+import com.jasic.aftersales.common.constant.WorkOrderStatusFlow;
 import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.framework.security.SecurityContext;
@@ -169,7 +171,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         IPage<WorkOrderListVO> result = workOrderMapper.selectWorkOrderPage(page, query);
         List<WorkOrderListVO> records = result.getRecords();
         for (WorkOrderListVO record : records) {
-            record.setDisplayStatus(resolveDisplayStatus(record.getMainStatus()));
+            fillListStatus(record);
         }
         return PageResult.of(records, result.getTotal(), query.getPageNum(), query.getPageSize());
     }
@@ -189,11 +191,31 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
         List<WorkOrderStatusCountVO> result = new ArrayList<>();
         result.add(buildStatusCountVo("ALL", "\u5168\u90e8", countMap.values().stream().mapToLong(Long::longValue).sum()));
-        result.add(buildStatusCountVo("PENDING_ASSIGN", resolveDisplayStatus("PENDING_ASSIGN"), countMap.getOrDefault("PENDING_ASSIGN", 0L)));
-        result.add(buildStatusCountVo("PENDING_TECH_ACCEPT", resolveDisplayStatus("PENDING_TECH_ACCEPT"), countMap.getOrDefault("PENDING_TECH_ACCEPT", 0L)));
-        result.add(buildStatusCountVo("IN_PROGRESS", resolveDisplayStatus("IN_PROGRESS"), countMap.getOrDefault("IN_PROGRESS", 0L)));
-        result.add(buildStatusCountVo("COMPLETED", resolveDisplayStatus("COMPLETED"), countMap.getOrDefault("COMPLETED", 0L)));
-        result.add(buildStatusCountVo("CLOSED", resolveDisplayStatus("CLOSED"), countMap.getOrDefault("CLOSED", 0L)));
+        result.add(buildStatusCountVo(
+                WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN,
+                resolveMainStatusLabel(WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN),
+                countMap.getOrDefault(WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN, 0L)
+        ));
+        result.add(buildStatusCountVo(
+                WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT,
+                resolveMainStatusLabel(WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT),
+                countMap.getOrDefault(WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT, 0L)
+        ));
+        result.add(buildStatusCountVo(
+                WorkOrderStatusConstants.MainStatus.IN_PROGRESS,
+                resolveMainStatusLabel(WorkOrderStatusConstants.MainStatus.IN_PROGRESS),
+                countMap.getOrDefault(WorkOrderStatusConstants.MainStatus.IN_PROGRESS, 0L)
+        ));
+        result.add(buildStatusCountVo(
+                WorkOrderStatusConstants.MainStatus.COMPLETED,
+                resolveMainStatusLabel(WorkOrderStatusConstants.MainStatus.COMPLETED),
+                countMap.getOrDefault(WorkOrderStatusConstants.MainStatus.COMPLETED, 0L)
+        ));
+        result.add(buildStatusCountVo(
+                WorkOrderStatusConstants.MainStatus.CLOSED,
+                resolveMainStatusLabel(WorkOrderStatusConstants.MainStatus.CLOSED),
+                countMap.getOrDefault(WorkOrderStatusConstants.MainStatus.CLOSED, 0L)
+        ));
         return result;
     }
 
@@ -224,7 +246,8 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         detail.setEvaluation(getEvaluationVo(workOrderId));
         detail.setNotifyEvents(listNotifyEventVos(workOrderId));
         detail.setAvailableActions(workOrderPermissionService.listAvailableActions(entity));
-        detail.setDisplayStatus(resolveDisplayStatus(detail.getMainStatus()));
+        fillListStatus(detail);
+        detail.setEvaluateStatusLabel(resolveEvaluateStatusLabel(detail.getEvaluateStatus()));
         return detail;
     }
 
@@ -256,8 +279,8 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         entity.setSenderMobile(resolveSendField(dto.getServiceMode(), dto.getSenderMobile()));
         entity.setSenderAddress(resolveSendField(dto.getServiceMode(), dto.getSenderAddress()));
         entity.setSendExpressNo(resolveSendField(dto.getServiceMode(), dto.getSendExpressNo()));
-        entity.setMainStatus("PENDING_ASSIGN");
-        entity.setEvaluateStatus("NOT_OPEN");
+        entity.setMainStatus(WorkOrderStatusFlow.afterCreate());
+        entity.setEvaluateStatus(WorkOrderStatusFlow.afterCreateEvaluateStatus());
         entity.setCurrentAcceptSubjectType(SecurityContext.getCurrentSubjectType());
         entity.setCurrentAcceptCompanyId(currentCompanyId);
         entity.setCreateCompanyId(currentCompanyId);
@@ -286,7 +309,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         validateAssignedRepairer(dto.getAssignedUserId(), workOrder.getCurrentAcceptCompanyId());
         String beforeStatus = workOrder.getMainStatus();
         workOrder.setAssignedUserId(dto.getAssignedUserId());
-        workOrder.setMainStatus("PENDING_TECH_ACCEPT");
+        workOrder.setMainStatus(WorkOrderStatusFlow.afterAssign());
         workOrderMapper.updateById(workOrder);
         saveFlow(workOrder.getId(), "ASSIGN", beforeStatus, workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
@@ -305,7 +328,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u63a5\u5355");
         }
         String beforeStatus = workOrder.getMainStatus();
-        workOrder.setMainStatus("IN_PROGRESS");
+        workOrder.setMainStatus(WorkOrderStatusFlow.afterTechAccept());
         workOrderMapper.updateById(workOrder);
         saveFlow(workOrder.getId(), "TECH_ACCEPT", beforeStatus, workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
@@ -333,7 +356,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         workOrder.setCurrentAcceptCompanyId(dto.getTargetCompanyId());
         workOrder.setCurrentAcceptSubjectType(targetSubjectType);
         workOrder.setAssignedUserId(null);
-        workOrder.setMainStatus("PENDING_ASSIGN");
+        workOrder.setMainStatus(WorkOrderStatusFlow.afterTransfer());
         workOrder.setHasTransfer(1);
         workOrder.setTransferCount(workOrder.getTransferCount() == null ? 1 : workOrder.getTransferCount() + 1);
         workOrderMapper.updateById(workOrder);
@@ -404,7 +427,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
 
         if (repair.getIsFinished() == 1) {
             String beforeStatus = workOrder.getMainStatus();
-            workOrder.setMainStatus("COMPLETED");
+            workOrder.setMainStatus(WorkOrderStatusFlow.afterRepairFinish());
             workOrder.setCompletedTime(LocalDateTime.now());
             workOrderMapper.updateById(workOrder);
             saveFlow(workOrder.getId(), "REPAIR_FINISH", beforeStatus, workOrder.getMainStatus(),
@@ -441,7 +464,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
 
         String beforeStatus = workOrder.getMainStatus();
         if (review.getIsContinueRepair() == 1) {
-            workOrder.setMainStatus("IN_PROGRESS");
+            workOrder.setMainStatus(WorkOrderStatusFlow.afterReview(true));
             workOrder.setCompletedTime(null);
             workOrderMapper.updateById(workOrder);
         }
@@ -484,8 +507,8 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         workOrder.setReturnMethod(dto.getReturnMethod());
         workOrder.setReturnExpressNo(resolveReturnExpressNo(dto));
         workOrder.setCloseReason(dto.getCloseReason());
-        workOrder.setMainStatus("CLOSED");
-        workOrder.setEvaluateStatus("PENDING_EVALUATE");
+        workOrder.setMainStatus(WorkOrderStatusFlow.afterClose());
+        workOrder.setEvaluateStatus(WorkOrderStatusFlow.afterCloseEvaluateStatus());
         workOrder.setClosedTime(LocalDateTime.now());
         workOrderMapper.updateById(workOrder);
         saveFlow(workOrder.getId(), "CLOSE", beforeStatus, workOrder.getMainStatus(),
@@ -600,22 +623,23 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
     private String resolveDisplayStatus(String mainStatus) {
-        if ("PENDING_ASSIGN".equals(mainStatus)) {
-            return "\u5f85\u6d3e\u5355";
+        return WorkOrderStatusConstants.resolveDisplayStatus(mainStatus);
+    }
+
+    private String resolveMainStatusLabel(String mainStatus) {
+        return WorkOrderStatusConstants.resolveMainStatusLabel(mainStatus);
+    }
+
+    private String resolveEvaluateStatusLabel(String evaluateStatus) {
+        return WorkOrderStatusConstants.resolveEvaluateStatusLabel(evaluateStatus);
+    }
+
+    private void fillListStatus(WorkOrderListVO target) {
+        if (target == null) {
+            return;
         }
-        if ("PENDING_TECH_ACCEPT".equals(mainStatus)) {
-            return "\u5f85\u63a5\u5355";
-        }
-        if ("IN_PROGRESS".equals(mainStatus)) {
-            return "\u7ef4\u4fee\u4e2d";
-        }
-        if ("COMPLETED".equals(mainStatus)) {
-            return "\u5df2\u5b8c\u6210";
-        }
-        if ("CLOSED".equals(mainStatus)) {
-            return "\u5df2\u5173\u95ed";
-        }
-        return mainStatus;
+        target.setMainStatusLabel(resolveMainStatusLabel(target.getMainStatus()));
+        target.setDisplayStatus(resolveDisplayStatus(target.getMainStatus()));
     }
 
     private List<WorkOrderQuoteVO> listQuoteVos(Long workOrderId) {

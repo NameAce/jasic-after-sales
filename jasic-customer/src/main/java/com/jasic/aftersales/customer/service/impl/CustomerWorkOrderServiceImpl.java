@@ -2,6 +2,8 @@ package com.jasic.aftersales.customer.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
+import com.jasic.aftersales.common.constant.WorkOrderStatusFlow;
 import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderEvaluateDTO;
@@ -128,10 +130,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         Long customerId = requireCustomerId();
         CustomerWorkOrderStatusCountVO vo = new CustomerWorkOrderStatusCountVO();
         vo.setAllCount(countByStatuses(customerId));
-        vo.setWaitAcceptCount(countByStatuses(customerId, "PENDING_ASSIGN", "PENDING_TECH_ACCEPT"));
-        vo.setInProgressCount(countByStatuses(customerId, "IN_PROGRESS"));
-        vo.setCompletedCount(countByStatuses(customerId, "COMPLETED"));
-        vo.setClosedCount(countByStatuses(customerId, "CLOSED"));
+        vo.setWaitAcceptCount(countByStatuses(customerId,
+                WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN,
+                WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT));
+        vo.setInProgressCount(countByStatuses(customerId, WorkOrderStatusConstants.MainStatus.IN_PROGRESS));
+        vo.setCompletedCount(countByStatuses(customerId, WorkOrderStatusConstants.MainStatus.COMPLETED));
+        vo.setClosedCount(countByStatuses(customerId, WorkOrderStatusConstants.MainStatus.CLOSED));
         return vo;
     }
 
@@ -165,6 +169,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         detail.setMainStatus(workOrder.getMainStatus());
         detail.setDisplayStatus(resolveCustomerDisplayStatus(workOrder.getMainStatus()));
         detail.setEvaluateStatus(workOrder.getEvaluateStatus());
+        detail.setEvaluateStatusLabel(WorkOrderStatusConstants.resolveEvaluateStatusLabel(workOrder.getEvaluateStatus()));
         detail.setHqCompanyId(workOrder.getHqCompanyId());
         detail.setReturnMethod(workOrder.getReturnMethod());
         detail.setReturnExpressNo(workOrder.getReturnExpressNo());
@@ -216,10 +221,10 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     public void evaluate(CustomerWorkOrderEvaluateDTO dto) {
         Long customerId = requireCustomerId();
         WorkOrder workOrder = requireCustomerWorkOrder(dto.getWorkOrderId(), customerId);
-        if (!"CLOSED".equals(workOrder.getMainStatus())) {
+        if (!WorkOrderStatusConstants.MainStatus.CLOSED.equals(workOrder.getMainStatus())) {
             throw new ServiceException("当前工单未关闭，不能评价");
         }
-        if (!"PENDING_EVALUATE".equals(workOrder.getEvaluateStatus())) {
+        if (!WorkOrderStatusConstants.EvaluateStatus.PENDING_EVALUATE.equals(workOrder.getEvaluateStatus())) {
             throw new ServiceException("当前工单不可重复评价");
         }
         LambdaQueryWrapper<WorkOrderEvaluation> wrapper = new LambdaQueryWrapper<>();
@@ -237,7 +242,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         evaluation.setContent(dto.getContent());
         workOrderEvaluationMapper.insert(evaluation);
 
-        workOrder.setEvaluateStatus("EVALUATED");
+        workOrder.setEvaluateStatus(WorkOrderStatusFlow.afterEvaluate());
         workOrderMapper.updateById(workOrder);
 
         WorkOrderFlow flow = new WorkOrderFlow();
@@ -275,20 +280,22 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         if (tabStatus == null || tabStatus.trim().isEmpty()) {
             return;
         }
-        if ("WAIT_ACCEPT".equals(tabStatus)) {
-            wrapper.in(WorkOrder::getMainStatus, "PENDING_ASSIGN", "PENDING_TECH_ACCEPT");
+        if (WorkOrderStatusConstants.DisplayStatus.WAIT_ACCEPT.equals(tabStatus)) {
+            wrapper.in(WorkOrder::getMainStatus,
+                    WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN,
+                    WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT);
             return;
         }
-        if ("IN_PROGRESS".equals(tabStatus)) {
-            wrapper.eq(WorkOrder::getMainStatus, "IN_PROGRESS");
+        if (WorkOrderStatusConstants.DisplayStatus.IN_PROGRESS.equals(tabStatus)) {
+            wrapper.eq(WorkOrder::getMainStatus, WorkOrderStatusConstants.MainStatus.IN_PROGRESS);
             return;
         }
-        if ("COMPLETED".equals(tabStatus)) {
-            wrapper.eq(WorkOrder::getMainStatus, "COMPLETED");
+        if (WorkOrderStatusConstants.DisplayStatus.COMPLETED.equals(tabStatus)) {
+            wrapper.eq(WorkOrder::getMainStatus, WorkOrderStatusConstants.MainStatus.COMPLETED);
             return;
         }
-        if ("CLOSED".equals(tabStatus)) {
-            wrapper.eq(WorkOrder::getMainStatus, "CLOSED");
+        if (WorkOrderStatusConstants.DisplayStatus.CLOSED.equals(tabStatus)) {
+            wrapper.eq(WorkOrder::getMainStatus, WorkOrderStatusConstants.MainStatus.CLOSED);
         }
     }
 
@@ -313,6 +320,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         vo.setMainStatus(workOrder.getMainStatus());
         vo.setDisplayStatus(resolveCustomerDisplayStatus(workOrder.getMainStatus()));
         vo.setEvaluateStatus(workOrder.getEvaluateStatus());
+        vo.setEvaluateStatusLabel(WorkOrderStatusConstants.resolveEvaluateStatusLabel(workOrder.getEvaluateStatus()));
         vo.setCurrentAcceptCompanyName(companyNameMap.get(workOrder.getCurrentAcceptCompanyId()));
         vo.setAssignedUserName(userNameMap.get(workOrder.getAssignedUserId()));
         vo.setHasTransfer(workOrder.getHasTransfer());
@@ -324,31 +332,18 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
 
     private boolean canEvaluate(WorkOrder workOrder) {
         return workOrder != null
-                && "CLOSED".equals(workOrder.getMainStatus())
-                && "PENDING_EVALUATE".equals(workOrder.getEvaluateStatus());
+                && WorkOrderStatusConstants.MainStatus.CLOSED.equals(workOrder.getMainStatus())
+                && WorkOrderStatusConstants.EvaluateStatus.PENDING_EVALUATE.equals(workOrder.getEvaluateStatus());
     }
 
     private boolean canEditSendInfo(WorkOrder workOrder) {
         return workOrder != null
                 && "寄修".equals(workOrder.getServiceMode())
-                && ("PENDING_ASSIGN".equals(workOrder.getMainStatus())
-                || "PENDING_TECH_ACCEPT".equals(workOrder.getMainStatus()));
+                && WorkOrderStatusConstants.isWaitAcceptMainStatus(workOrder.getMainStatus());
     }
 
     private String resolveCustomerDisplayStatus(String mainStatus) {
-        if ("PENDING_ASSIGN".equals(mainStatus) || "PENDING_TECH_ACCEPT".equals(mainStatus)) {
-            return "待接单";
-        }
-        if ("IN_PROGRESS".equals(mainStatus)) {
-            return "维修中";
-        }
-        if ("COMPLETED".equals(mainStatus)) {
-            return "已完成";
-        }
-        if ("CLOSED".equals(mainStatus)) {
-            return "已关闭";
-        }
-        return mainStatus;
+        return WorkOrderStatusConstants.resolveDisplayStatusLabel(mainStatus);
     }
 
     private Map<Long, String> buildCompanyNameMap(Set<Long> companyIds) {

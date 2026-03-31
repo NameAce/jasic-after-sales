@@ -38,6 +38,9 @@ public class WorkOrderListVO implements Serializable {
     /** 主状态 */
     private String mainStatus;
 
+    /** 主状态名称 */
+    private String mainStatusLabel;
+
     /** 展示状态 */
     private String displayStatus;
 

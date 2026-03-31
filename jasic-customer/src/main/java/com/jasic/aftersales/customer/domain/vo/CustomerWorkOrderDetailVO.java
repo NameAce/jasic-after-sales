@@ -59,6 +59,8 @@ public class CustomerWorkOrderDetailVO implements Serializable {
 
     private String evaluateStatus;
 
+    private String evaluateStatusLabel;
+
     private String currentAcceptCompanyName;
 
     private String assignedUserName;

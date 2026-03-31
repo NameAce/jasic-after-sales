@@ -52,6 +52,9 @@ public class WorkOrderDetailVO extends WorkOrderListVO {
     /** 评价状态 */
     private String evaluateStatus;
 
+    /** 评价状态名称 */
+    private String evaluateStatusLabel;
+
     /** 当前受理主体类型 */
     private String currentAcceptSubjectType;
 
