@@ -3,6 +3,7 @@ package com.jasic.aftersales.framework.config;
 import cn.dev33.satoken.interceptor.SaInterceptor;
 import cn.dev33.satoken.router.SaRouter;
 import cn.dev33.satoken.stp.StpUtil;
+import com.jasic.aftersales.framework.security.StpCustomerUtil;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -24,11 +25,23 @@ public class SaTokenConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(new SaInterceptor(handle -> {
+            SaRouter.match("/customer/**")
+                    .notMatch(
+                            "/customer/auth/login",
+                            "/doc.html",
+                            "/webjars/**",
+                            "/swagger-resources/**",
+                            "/v2/api-docs/**",
+                            "/favicon.ico"
+                    )
+                    .check(r -> StpCustomerUtil.checkLogin());
+
             SaRouter.match("/**")
                     .notMatch(
                             "/auth/login",
                             "/auth/mp-login",
                             "/customer/auth/login",
+                            "/customer/**",
                             "/doc.html",
                             "/webjars/**",
                             "/swagger-resources/**",

@@ -1,6 +1,7 @@
 package com.jasic.aftersales.customer.service;
 
 import com.jasic.aftersales.common.core.domain.PageResult;
+import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderCreateDTO;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderEvaluateDTO;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderSendInfoDTO;
 import com.jasic.aftersales.customer.domain.query.CustomerWorkOrderQuery;
@@ -15,6 +16,14 @@ import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderStatusCountVO;
  * @date 2026/03/26
  */
 public interface ICustomerWorkOrderService {
+
+    /**
+     * 创建我的工单
+     *
+     * @param dto 建单参数
+     * @return 工单ID
+     */
+    Long create(CustomerWorkOrderCreateDTO dto);
 
     /**
      * 分页查询我的工单

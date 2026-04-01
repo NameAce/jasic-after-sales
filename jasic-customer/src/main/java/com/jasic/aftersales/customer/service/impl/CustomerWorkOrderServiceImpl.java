@@ -1,19 +1,25 @@
 package com.jasic.aftersales.customer.service.impl;
 
+import cn.hutool.core.util.IdUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
 import com.jasic.aftersales.common.constant.WorkOrderStatusFlow;
 import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.common.exception.ServiceException;
+import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderCreateDTO;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderEvaluateDTO;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderSendInfoDTO;
+import com.jasic.aftersales.customer.domain.entity.CUser;
 import com.jasic.aftersales.customer.domain.query.CustomerWorkOrderQuery;
 import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderDetailVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderListVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderStatusCountVO;
+import com.jasic.aftersales.customer.mapper.CUserMapper;
 import com.jasic.aftersales.customer.service.ICustomerWorkOrderService;
 import com.jasic.aftersales.framework.security.StpCustomerUtil;
+import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
+import com.jasic.aftersales.system.domain.entity.HqFirstContract;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
 import com.jasic.aftersales.system.domain.entity.SysUser;
 import com.jasic.aftersales.system.domain.entity.WorkOrder;
@@ -28,6 +34,8 @@ import com.jasic.aftersales.system.domain.vo.WorkOrderFaultVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderQuoteVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderReviewVO;
+import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
+import com.jasic.aftersales.system.mapper.HqFirstContractMapper;
 import com.jasic.aftersales.system.mapper.SysCompanyMapper;
 import com.jasic.aftersales.system.mapper.SysUserMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderEvaluationMapper;
@@ -38,10 +46,13 @@ import com.jasic.aftersales.system.mapper.WorkOrderQuoteMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderRepairMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderReviewMapper;
 import com.jasic.aftersales.system.service.WorkOrderNotifyEventService;
+import com.jasic.aftersales.system.service.WorkOrderParticipantService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -59,8 +70,13 @@ import java.util.stream.Collectors;
 @Service
 public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
 
+    private static final DateTimeFormatter ORDER_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
+
     @Resource
     private WorkOrderMapper workOrderMapper;
+
+    @Resource
+    private CUserMapper cUserMapper;
 
     @Resource
     private WorkOrderQuoteMapper workOrderQuoteMapper;
@@ -88,6 +104,61 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
 
     @Resource
     private WorkOrderNotifyEventService workOrderNotifyEventService;
+
+    @Resource
+    private WorkOrderParticipantService workOrderParticipantService;
+
+    @Resource
+    private HqFirstContractMapper hqFirstContractMapper;
+
+    @Resource
+    private FirstSecondRelationMapper firstSecondRelationMapper;
+
+    /**
+     * 创建我的工单
+     *
+     * @param dto 建单参数
+     * @return 工单ID
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long create(CustomerWorkOrderCreateDTO dto) {
+        Long customerId = requireCustomerId();
+        CUser customer = requireCustomer(customerId);
+        validateCreateRequest(dto);
+        SysCompany serviceCompany = requireServiceCompany(dto.getServiceCompanyId());
+        validateServiceHqRelation(serviceCompany, dto.getHqCompanyId());
+
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setOrderNo(generateOrderNo());
+        workOrder.setCustomerId(customerId);
+        workOrder.setCustomerName(normalizeRequiredText(dto.getCustomerName(), "报修人姓名不能为空"));
+        workOrder.setCustomerMobile(normalizeRequiredText(customer.getPhone(), "当前客户手机号不能为空"));
+        workOrder.setBarcode(normalizeRequiredText(dto.getBarcode(), "机器条码不能为空"));
+        workOrder.setProductCode(normalizeText(dto.getProductCode()));
+        workOrder.setProductModel(normalizeText(dto.getProductModel()));
+        workOrder.setBrandCode(resolveBrandCode(dto.getBrandCode()));
+        workOrder.setServiceMode(normalizeRequiredText(dto.getServiceMode(), "服务方式不能为空"));
+        workOrder.setWarrantyStatus(normalizeText(dto.getWarrantyStatus()));
+        workOrder.setFaultDesc(normalizeText(dto.getFaultDesc()));
+        workOrder.setSenderName(resolveSendField(dto.getServiceMode(), dto.getSenderName()));
+        workOrder.setSenderMobile(resolveSendField(dto.getServiceMode(), dto.getSenderMobile()));
+        workOrder.setSenderAddress(resolveSendField(dto.getServiceMode(), dto.getSenderAddress()));
+        workOrder.setSendExpressNo(resolveSendField(dto.getServiceMode(), dto.getSendExpressNo()));
+        workOrder.setMainStatus(WorkOrderStatusFlow.afterCreate());
+        workOrder.setEvaluateStatus(WorkOrderStatusFlow.afterCreateEvaluateStatus());
+        workOrder.setCurrentAcceptSubjectType("SERVICE");
+        workOrder.setCurrentAcceptCompanyId(serviceCompany.getId());
+        workOrder.setCreateCompanyId(serviceCompany.getId());
+        workOrder.setHqCompanyId(dto.getHqCompanyId());
+        workOrder.setHasTransfer(0);
+        workOrder.setTransferCount(0);
+        workOrderMapper.insert(workOrder);
+
+        saveCreateFlow(workOrder.getId(), customerId, serviceCompany.getId(), workOrder.getMainStatus());
+        workOrderParticipantService.initParticipants(workOrder);
+        return workOrder.getId();
+    }
 
     /**
      * 分页查询我的工单
@@ -274,6 +345,129 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
             throw new ServiceException("无权查看该工单");
         }
         return workOrder;
+    }
+
+    private CUser requireCustomer(Long customerId) {
+        CUser customer = cUserMapper.selectById(customerId);
+        if (customer == null) {
+            throw new ServiceException("客户不存在");
+        }
+        if (customer.getStatus() != null && customer.getStatus() == 0) {
+            throw new ServiceException("当前客户已停用");
+        }
+        return customer;
+    }
+
+    private void validateCreateRequest(CustomerWorkOrderCreateDTO dto) {
+        if (dto == null) {
+            throw new ServiceException("建单参数不能为空");
+        }
+        String serviceMode = normalizeRequiredText(dto.getServiceMode(), "服务方式不能为空");
+        if (!"寄修".equals(serviceMode) && !"到店维修".equals(serviceMode)) {
+            throw new ServiceException("服务方式仅支持寄修或到店维修");
+        }
+        validateSendInfo(dto);
+    }
+
+    private void validateSendInfo(CustomerWorkOrderCreateDTO dto) {
+        if (dto == null || !"寄修".equals(normalizeText(dto.getServiceMode()))) {
+            return;
+        }
+        if (normalizeText(dto.getSenderName()) == null) {
+            throw new ServiceException("寄修工单必须填写寄件人姓名");
+        }
+        if (normalizeText(dto.getSenderMobile()) == null) {
+            throw new ServiceException("寄修工单必须填写寄件人手机号");
+        }
+        if (normalizeText(dto.getSenderAddress()) == null) {
+            throw new ServiceException("寄修工单必须填写寄件地址");
+        }
+    }
+
+    private SysCompany requireServiceCompany(Long serviceCompanyId) {
+        SysCompany company = sysCompanyMapper.selectById(serviceCompanyId);
+        if (company == null) {
+            throw new ServiceException("服务网点不存在");
+        }
+        if (company.getStatus() != null && company.getStatus() == 0) {
+            throw new ServiceException("服务网点已停用");
+        }
+        if (!"FIRST".equals(company.getTypeCode()) && !"SECOND".equals(company.getTypeCode())) {
+            throw new ServiceException("当前公司不是可选服务网点");
+        }
+        return company;
+    }
+
+    private SysCompany requireHqCompany(Long hqCompanyId) {
+        SysCompany company = sysCompanyMapper.selectById(hqCompanyId);
+        if (company == null) {
+            throw new ServiceException("归属总部不存在");
+        }
+        if (company.getStatus() != null && company.getStatus() == 0) {
+            throw new ServiceException("归属总部已停用");
+        }
+        if ("FIRST".equals(company.getTypeCode()) || "SECOND".equals(company.getTypeCode())) {
+            throw new ServiceException("归属总部类型不正确");
+        }
+        return company;
+    }
+
+    private void validateServiceHqRelation(SysCompany serviceCompany, Long hqCompanyId) {
+        requireHqCompany(hqCompanyId);
+        if ("FIRST".equals(serviceCompany.getTypeCode())) {
+            LambdaQueryWrapper<HqFirstContract> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(HqFirstContract::getFirstCompanyId, serviceCompany.getId())
+                    .eq(HqFirstContract::getHqCompanyId, hqCompanyId)
+                    .eq(HqFirstContract::getStatus, 1);
+            if (hqFirstContractMapper.selectCount(wrapper) == 0) {
+                throw new ServiceException("当前服务网点不支持归属到该总部");
+            }
+            return;
+        }
+
+        LambdaQueryWrapper<FirstSecondRelation> relationWrapper = new LambdaQueryWrapper<>();
+        relationWrapper.eq(FirstSecondRelation::getSecondCompanyId, serviceCompany.getId())
+                .eq(FirstSecondRelation::getStatus, 1);
+        List<FirstSecondRelation> relations = firstSecondRelationMapper.selectList(relationWrapper);
+        if (relations.isEmpty()) {
+            throw new ServiceException("当前二级网点未关联上级网点");
+        }
+        List<Long> firstCompanyIds = relations.stream()
+                .map(FirstSecondRelation::getFirstCompanyId)
+                .filter(id -> id != null)
+                .distinct()
+                .collect(Collectors.toList());
+        if (firstCompanyIds.isEmpty()) {
+            throw new ServiceException("当前二级网点未关联有效上级网点");
+        }
+        LambdaQueryWrapper<HqFirstContract> contractWrapper = new LambdaQueryWrapper<>();
+        contractWrapper.in(HqFirstContract::getFirstCompanyId, firstCompanyIds)
+                .eq(HqFirstContract::getHqCompanyId, hqCompanyId)
+                .eq(HqFirstContract::getStatus, 1);
+        if (hqFirstContractMapper.selectCount(contractWrapper) == 0) {
+            throw new ServiceException("当前服务网点不支持归属到该总部");
+        }
+    }
+
+    private String resolveSendField(String serviceMode, String value) {
+        if (!"寄修".equals(normalizeText(serviceMode))) {
+            return null;
+        }
+        return normalizeText(value);
+    }
+
+    private void saveCreateFlow(Long workOrderId, Long customerId, Long serviceCompanyId, String afterStatus) {
+        WorkOrderFlow flow = new WorkOrderFlow();
+        flow.setWorkOrderId(workOrderId);
+        flow.setActionType("CREATE");
+        flow.setBeforeStatus(null);
+        flow.setAfterStatus(afterStatus);
+        flow.setFromCompanyId(null);
+        flow.setToCompanyId(serviceCompanyId);
+        flow.setOperatorCompanyId(serviceCompanyId);
+        flow.setOperatorUserId(customerId);
+        flow.setRemark("客户提交报修");
+        workOrderFlowMapper.insert(flow);
     }
 
     private void applyTabStatusFilter(LambdaQueryWrapper<WorkOrder> wrapper, String tabStatus) {
@@ -527,6 +721,26 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         vo.setContent(evaluation.getContent());
         vo.setCreateTime(evaluation.getCreateTime());
         return vo;
+    }
+
+    private String generateOrderNo() {
+        String datePart = LocalDateTime.now().format(ORDER_DATE_FORMATTER);
+        String suffix = IdUtil.getSnowflakeNextIdStr();
+        suffix = suffix.substring(Math.max(0, suffix.length() - 5));
+        return "WO" + datePart + "-" + suffix;
+    }
+
+    private String resolveBrandCode(String brandCode) {
+        String value = normalizeText(brandCode);
+        return value == null ? "JASIC" : value;
+    }
+
+    private String normalizeRequiredText(String value, String message) {
+        String text = normalizeText(value);
+        if (text == null) {
+            throw new ServiceException(message);
+        }
+        return text;
     }
 
     private String normalizeText(String value) {

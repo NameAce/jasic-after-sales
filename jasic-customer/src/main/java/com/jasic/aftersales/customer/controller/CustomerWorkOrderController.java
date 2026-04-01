@@ -2,6 +2,7 @@ package com.jasic.aftersales.customer.controller;
 
 import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.common.core.domain.Result;
+import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderCreateDTO;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderEvaluateDTO;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderSendInfoDTO;
 import com.jasic.aftersales.customer.domain.query.CustomerWorkOrderQuery;
@@ -32,6 +33,17 @@ public class CustomerWorkOrderController {
 
     @Resource
     private ICustomerWorkOrderService customerWorkOrderService;
+
+    /**
+     * 创建我的工单
+     *
+     * @param dto 建单参数
+     * @return 工单ID
+     */
+    @PostMapping
+    public Result<Long> create(@Validated @RequestBody CustomerWorkOrderCreateDTO dto) {
+        return Result.ok(customerWorkOrderService.create(dto));
+    }
 
     /**
      * 分页查询我的工单
