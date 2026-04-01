@@ -2,6 +2,28 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.jasic.aftersales.system.mapper.WorkOrderMapper">
 
+    <sql id="RelatedCompanyScopeCondition">
+        (
+            w.create_company_id IN
+            <foreach collection="query.relatedCompanyIds" item="companyId" open="(" separator="," close=")">
+                #{companyId}
+            </foreach>
+            OR w.current_accept_company_id IN
+            <foreach collection="query.relatedCompanyIds" item="companyId" open="(" separator="," close=")">
+                #{companyId}
+            </foreach>
+            OR EXISTS (
+                SELECT 1
+                FROM work_order_participant rp
+                WHERE rp.work_order_id = w.id
+                  AND rp.company_id IN
+                  <foreach collection="query.relatedCompanyIds" item="companyId" open="(" separator="," close=")">
+                      #{companyId}
+                  </foreach>
+            )
+        )
+    </sql>
+
     <!-- 工单分页列表 -->
     <select id="selectWorkOrderPage" resultType="com.jasic.aftersales.system.domain.vo.WorkOrderListVO">
         SELECT
@@ -31,16 +53,70 @@
             <if test="query.companyId != null">
                 <choose>
                     <when test="query.viewScope == 'HISTORY'">
-                        AND (
-                            (p.company_id = #{query.companyId} AND p.is_current_handler = 0)
-                            <if test="query.relatedCompanyIds != null and query.relatedCompanyIds.size() > 0">
-                                OR (
-                                    w.current_accept_company_id &lt;&gt; #{query.companyId}
-                                    AND (
-                                        w.create_company_id IN
-                                        <foreach collection="query.relatedCompanyIds" item="companyId" open="(" separator="," close=")">
-                                            #{companyId}
-                                        </foreach>
+                        <choose>
+                            <when test="query.subjectType == 'HQ'">
+                                AND w.hq_company_id = #{query.companyId}
+                                AND w.current_accept_company_id &lt;&gt; #{query.companyId}
+                                <choose>
+                                    <when test="query.dataScope == 'REGION'">
+                                        <choose>
+                                            <when test="query.relatedCompanyIds != null and query.relatedCompanyIds.size() > 0">
+                                                AND <include refid="RelatedCompanyScopeCondition" />
+                                            </when>
+                                            <otherwise>
+                                                AND 1 = 0
+                                            </otherwise>
+                                        </choose>
+                                    </when>
+                                    <otherwise>
+                                        AND p.company_id = #{query.companyId}
+                                    </otherwise>
+                                </choose>
+                            </when>
+                            <otherwise>
+                                AND (
+                                    (p.company_id = #{query.companyId} AND p.is_current_handler = 0)
+                                    <if test="query.relatedCompanyIds != null and query.relatedCompanyIds.size() > 0">
+                                        OR (
+                                            w.current_accept_company_id &lt;&gt; #{query.companyId}
+                                            AND <include refid="RelatedCompanyScopeCondition" />
+                                        )
+                                    </if>
+                                )
+                            </otherwise>
+                        </choose>
+                    </when>
+                    <when test="query.viewScope == 'ALL'">
+                        <choose>
+                            <when test="query.subjectType == 'HQ'">
+                                <choose>
+                                    <when test="query.dataScope == 'REGION'">
+                                        <choose>
+                                            <when test="query.relatedCompanyIds != null and query.relatedCompanyIds.size() > 0">
+                                                AND w.hq_company_id = #{query.companyId}
+                                                AND <include refid="RelatedCompanyScopeCondition" />
+                                            </when>
+                                            <otherwise>
+                                                AND 1 = 0
+                                            </otherwise>
+                                        </choose>
+                                    </when>
+                                    <otherwise>
+                                        AND (
+                                            w.hq_company_id = #{query.companyId}
+                                            AND (
+                                            w.current_accept_company_id = #{query.companyId}
+                                            OR p.company_id = #{query.companyId}
+                                            )
+                                        )
+                                    </otherwise>
+                                </choose>
+                            </when>
+                            <otherwise>
+                                AND (
+                                    w.current_accept_company_id = #{query.companyId}
+                                    OR p.company_id = #{query.companyId}
+                                    <if test="query.relatedCompanyIds != null and query.relatedCompanyIds.size() > 0">
                                         OR w.current_accept_company_id IN
                                         <foreach collection="query.relatedCompanyIds" item="companyId" open="(" separator="," close=")">
                                             #{companyId}
@@ -54,34 +130,24 @@
                                                   #{companyId}
                                               </foreach>
                                         )
-                                    )
+                                    </if>
                                 )
-                            </if>
-                        )
-                    </when>
-                    <when test="query.viewScope == 'ALL'">
-                        AND (
-                            w.current_accept_company_id = #{query.companyId}
-                            OR p.company_id = #{query.companyId}
-                            <if test="query.relatedCompanyIds != null and query.relatedCompanyIds.size() > 0">
-                                OR w.current_accept_company_id IN
-                                <foreach collection="query.relatedCompanyIds" item="companyId" open="(" separator="," close=")">
-                                    #{companyId}
-                                </foreach>
-                                OR EXISTS (
-                                    SELECT 1
-                                    FROM work_order_participant sp
-                                    WHERE sp.work_order_id = w.id
-                                      AND sp.company_id IN
-                                      <foreach collection="query.relatedCompanyIds" item="companyId" open="(" separator="," close=")">
-                                          #{companyId}
-                                      </foreach>
-                                )
-                            </if>
-                        )
+                            </otherwise>
+                        </choose>
                     </when>
                     <otherwise>
                         AND w.current_accept_company_id = #{query.companyId}
+                        <if test="query.subjectType == 'HQ' and query.dataScope == 'REGION'">
+                            <choose>
+                                <when test="query.relatedCompanyIds != null and query.relatedCompanyIds.size() > 0">
+                                    AND w.hq_company_id = #{query.companyId}
+                                    AND <include refid="RelatedCompanyScopeCondition" />
+                                </when>
+                                <otherwise>
+                                    AND 1 = 0
+                                </otherwise>
+                            </choose>
+                        </if>
                     </otherwise>
                 </choose>
             </if>
@@ -105,40 +171,6 @@
             </if>
             <if test="query.dataScope == 'SELF' and query.currentUserId != null">
                 AND w.assigned_user_id = #{query.currentUserId}
-            </if>
-            <if test="query.subjectType == 'HQ' and query.dataScope == 'REGION'">
-                <choose>
-                    <when test="query.relatedCompanyIds != null and query.relatedCompanyIds.size() > 0">
-                        AND (
-                            w.current_accept_company_id = #{query.companyId}
-                            OR p.company_id = #{query.companyId}
-                            OR
-                            w.create_company_id IN
-                            <foreach collection="query.relatedCompanyIds" item="companyId" open="(" separator="," close=")">
-                                #{companyId}
-                            </foreach>
-                            OR w.current_accept_company_id IN
-                            <foreach collection="query.relatedCompanyIds" item="companyId" open="(" separator="," close=")">
-                                #{companyId}
-                            </foreach>
-                            OR EXISTS (
-                                SELECT 1
-                                FROM work_order_participant rp
-                                WHERE rp.work_order_id = w.id
-                                  AND rp.company_id IN
-                                  <foreach collection="query.relatedCompanyIds" item="companyId" open="(" separator="," close=")">
-                                      #{companyId}
-                                  </foreach>
-                            )
-                        )
-                    </when>
-                    <otherwise>
-                        AND (
-                            w.current_accept_company_id = #{query.companyId}
-                            OR p.company_id = #{query.companyId}
-                        )
-                    </otherwise>
-                </choose>
             </if>
         </where>
         ORDER BY w.id DESC
@@ -220,16 +252,70 @@
             <if test="query.companyId != null">
                 <choose>
                     <when test="query.viewScope == 'HISTORY'">
-                        AND (
-                            (p.company_id = #{query.companyId} AND p.is_current_handler = 0)
-                            <if test="query.relatedCompanyIds != null and query.relatedCompanyIds.size() > 0">
-                                OR (
-                                    w.current_accept_company_id &lt;&gt; #{query.companyId}
-                                    AND (
-                                        w.create_company_id IN
-                                        <foreach collection="query.relatedCompanyIds" item="companyId" open="(" separator="," close=")">
-                                            #{companyId}
-                                        </foreach>
+                        <choose>
+                            <when test="query.subjectType == 'HQ'">
+                                AND w.hq_company_id = #{query.companyId}
+                                AND w.current_accept_company_id &lt;&gt; #{query.companyId}
+                                <choose>
+                                    <when test="query.dataScope == 'REGION'">
+                                        <choose>
+                                            <when test="query.relatedCompanyIds != null and query.relatedCompanyIds.size() > 0">
+                                                AND <include refid="RelatedCompanyScopeCondition" />
+                                            </when>
+                                            <otherwise>
+                                                AND 1 = 0
+                                            </otherwise>
+                                        </choose>
+                                    </when>
+                                    <otherwise>
+                                        AND p.company_id = #{query.companyId}
+                                    </otherwise>
+                                </choose>
+                            </when>
+                            <otherwise>
+                                AND (
+                                    (p.company_id = #{query.companyId} AND p.is_current_handler = 0)
+                                    <if test="query.relatedCompanyIds != null and query.relatedCompanyIds.size() > 0">
+                                        OR (
+                                            w.current_accept_company_id &lt;&gt; #{query.companyId}
+                                            AND <include refid="RelatedCompanyScopeCondition" />
+                                        )
+                                    </if>
+                                )
+                            </otherwise>
+                        </choose>
+                    </when>
+                    <when test="query.viewScope == 'ALL'">
+                        <choose>
+                            <when test="query.subjectType == 'HQ'">
+                                <choose>
+                                    <when test="query.dataScope == 'REGION'">
+                                        <choose>
+                                            <when test="query.relatedCompanyIds != null and query.relatedCompanyIds.size() > 0">
+                                                AND w.hq_company_id = #{query.companyId}
+                                                AND <include refid="RelatedCompanyScopeCondition" />
+                                            </when>
+                                            <otherwise>
+                                                AND 1 = 0
+                                            </otherwise>
+                                        </choose>
+                                    </when>
+                                    <otherwise>
+                                        AND (
+                                            w.hq_company_id = #{query.companyId}
+                                            AND (
+                                            w.current_accept_company_id = #{query.companyId}
+                                            OR p.company_id = #{query.companyId}
+                                            )
+                                        )
+                                    </otherwise>
+                                </choose>
+                            </when>
+                            <otherwise>
+                                AND (
+                                    w.current_accept_company_id = #{query.companyId}
+                                    OR p.company_id = #{query.companyId}
+                                    <if test="query.relatedCompanyIds != null and query.relatedCompanyIds.size() > 0">
                                         OR w.current_accept_company_id IN
                                         <foreach collection="query.relatedCompanyIds" item="companyId" open="(" separator="," close=")">
                                             #{companyId}
@@ -243,34 +329,24 @@
                                                   #{companyId}
                                               </foreach>
                                         )
-                                    )
+                                    </if>
                                 )
-                            </if>
-                        )
-                    </when>
-                    <when test="query.viewScope == 'ALL'">
-                        AND (
-                            w.current_accept_company_id = #{query.companyId}
-                            OR p.company_id = #{query.companyId}
-                            <if test="query.relatedCompanyIds != null and query.relatedCompanyIds.size() > 0">
-                                OR w.current_accept_company_id IN
-                                <foreach collection="query.relatedCompanyIds" item="companyId" open="(" separator="," close=")">
-                                    #{companyId}
-                                </foreach>
-                                OR EXISTS (
-                                    SELECT 1
-                                    FROM work_order_participant sp
-                                    WHERE sp.work_order_id = w.id
-                                      AND sp.company_id IN
-                                      <foreach collection="query.relatedCompanyIds" item="companyId" open="(" separator="," close=")">
-                                          #{companyId}
-                                      </foreach>
-                                )
-                            </if>
-                        )
+                            </otherwise>
+                        </choose>
                     </when>
                     <otherwise>
                         AND w.current_accept_company_id = #{query.companyId}
+                        <if test="query.subjectType == 'HQ' and query.dataScope == 'REGION'">
+                            <choose>
+                                <when test="query.relatedCompanyIds != null and query.relatedCompanyIds.size() > 0">
+                                    AND w.hq_company_id = #{query.companyId}
+                                    AND <include refid="RelatedCompanyScopeCondition" />
+                                </when>
+                                <otherwise>
+                                    AND 1 = 0
+                                </otherwise>
+                            </choose>
+                        </if>
                     </otherwise>
                 </choose>
             </if>
@@ -291,40 +367,6 @@
             </if>
             <if test="query.dataScope == 'SELF' and query.currentUserId != null">
                 AND w.assigned_user_id = #{query.currentUserId}
-            </if>
-            <if test="query.subjectType == 'HQ' and query.dataScope == 'REGION'">
-                <choose>
-                    <when test="query.relatedCompanyIds != null and query.relatedCompanyIds.size() > 0">
-                        AND (
-                            w.current_accept_company_id = #{query.companyId}
-                            OR p.company_id = #{query.companyId}
-                            OR
-                            w.create_company_id IN
-                            <foreach collection="query.relatedCompanyIds" item="companyId" open="(" separator="," close=")">
-                                #{companyId}
-                            </foreach>
-                            OR w.current_accept_company_id IN
-                            <foreach collection="query.relatedCompanyIds" item="companyId" open="(" separator="," close=")">
-                                #{companyId}
-                            </foreach>
-                            OR EXISTS (
-                                SELECT 1
-                                FROM work_order_participant rp
-                                WHERE rp.work_order_id = w.id
-                                  AND rp.company_id IN
-                                  <foreach collection="query.relatedCompanyIds" item="companyId" open="(" separator="," close=")">
-                                      #{companyId}
-                                  </foreach>
-                            )
-                        )
-                    </when>
-                    <otherwise>
-                        AND (
-                            w.current_accept_company_id = #{query.companyId}
-                            OR p.company_id = #{query.companyId}
-                        )
-                    </otherwise>
-                </choose>
             </if>
         </where>
         GROUP BY w.main_status

@@ -58,8 +58,13 @@ public class WorkOrderPermissionService {
         if (currentCompanyId == null) {
             return false;
         }
+        if ("HQ".equals(SecurityContext.getCurrentSubjectType())
+                && !currentCompanyId.equals(workOrder.getHqCompanyId())) {
+            return false;
+        }
         List<Long> relatedCompanyIds = resolveRelatedCompanyIds();
         boolean matchRelatedCompanyScope = !relatedCompanyIds.isEmpty() && matchRelatedCompanyScope(workOrder, relatedCompanyIds);
+        boolean requiresRelatedCompanyLimit = requiresRelatedCompanyLimit();
         if (DataScopeEnum.SELF == resolveCurrentDataScope()) {
             Long currentUserId = SecurityContext.getCurrentUserId();
             if (currentUserId == null || !currentUserId.equals(workOrder.getAssignedUserId())) {
@@ -67,14 +72,11 @@ public class WorkOrderPermissionService {
             }
         }
         if (currentCompanyId.equals(workOrder.getCurrentAcceptCompanyId())) {
-            return true;
+            return !requiresRelatedCompanyLimit || matchRelatedCompanyScope;
         }
         WorkOrderParticipant participant = getParticipant(workOrder.getId(), currentCompanyId);
         if (participant != null) {
-            return true;
-        }
-        if (requiresRelatedCompanyLimit() && !matchRelatedCompanyScope) {
-            return false;
+            return !requiresRelatedCompanyLimit || matchRelatedCompanyScope;
         }
         return matchRelatedCompanyScope;
     }

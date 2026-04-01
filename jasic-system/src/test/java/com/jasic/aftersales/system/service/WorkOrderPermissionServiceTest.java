@@ -1,0 +1,449 @@
+package com.jasic.aftersales.system.service;
+
+import cn.dev33.satoken.SaManager;
+import cn.dev33.satoken.context.SaTokenContextForThreadLocal;
+import cn.dev33.satoken.context.SaTokenContextForThreadLocalStorage;
+import cn.dev33.satoken.context.model.SaRequest;
+import cn.dev33.satoken.context.model.SaResponse;
+import cn.dev33.satoken.context.model.SaStorage;
+import cn.dev33.satoken.stp.StpUtil;
+import com.jasic.aftersales.framework.security.SecurityContext;
+import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
+import com.jasic.aftersales.system.domain.entity.HqFirstContract;
+import com.jasic.aftersales.system.domain.entity.WorkOrder;
+import com.jasic.aftersales.system.domain.entity.WorkOrderParticipant;
+import com.jasic.aftersales.system.domain.query.WorkOrderQuery;
+import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
+import com.jasic.aftersales.system.mapper.HqFirstContractMapper;
+import com.jasic.aftersales.system.mapper.WorkOrderParticipantMapper;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * 工单权限服务测试。
+ *
+ * @author Codex
+ * @date 2026/04/01
+ */
+public class WorkOrderPermissionServiceTest {
+
+    private WorkOrderPermissionService service;
+
+    @Before
+    public void setUp() {
+        SaManager.setSaTokenContext(new SaTokenContextForThreadLocal());
+        SaTokenContextForThreadLocalStorage.setBox(new MockSaRequest(), new MockSaResponse(), new MockSaStorage());
+        StpUtil.login(101L);
+        service = new WorkOrderPermissionService();
+    }
+
+    @After
+    public void tearDown() {
+        try {
+            StpUtil.logout();
+        } finally {
+            SaTokenContextForThreadLocalStorage.clearBox();
+        }
+    }
+
+    @Test
+    public void shouldAllowRegionManagerViewCurrentHqWorkOrderWithinRegion() throws Exception {
+        setCurrentHqRegionContext();
+        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(null, 0L));
+        setField(service, "hqFirstContractMapper", createContractMapperProxy(
+                Collections.singletonList(buildContract(900L, 1001L, 10L))
+        ));
+        setField(service, "firstSecondRelationMapper", createRelationMapperProxy(
+                Collections.singletonList(buildRelation(1001L, 1002L))
+        ));
+
+        WorkOrder workOrder = buildWorkOrder(1L, 900L, 900L, 1001L, null);
+
+        Assert.assertTrue(service.canView(workOrder));
+    }
+
+    @Test
+    public void shouldAllowAllScopeUserViewCurrentHqWorkOrder() throws Exception {
+        setCurrentHqAllContext();
+        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(null, 0L));
+        setField(service, "hqFirstContractMapper", createContractMapperProxy(Collections.emptyList()));
+        setField(service, "firstSecondRelationMapper", createRelationMapperProxy(Collections.emptyList()));
+
+        WorkOrder workOrder = buildWorkOrder(11L, 900L, 900L, 1001L, null);
+
+        Assert.assertTrue(service.canView(workOrder));
+    }
+
+    @Test
+    public void shouldAllowAllScopeUserViewReadonlyNetworkWorkOrder() throws Exception {
+        setCurrentHqAllContext();
+        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(buildParticipant(12L, 900L), 0L));
+        setField(service, "hqFirstContractMapper", createContractMapperProxy(Collections.emptyList()));
+        setField(service, "firstSecondRelationMapper", createRelationMapperProxy(Collections.emptyList()));
+
+        WorkOrder workOrder = buildWorkOrder(12L, 900L, 1001L, 1001L, null);
+
+        Assert.assertTrue(service.canView(workOrder));
+    }
+
+    @Test
+    public void shouldRejectAllScopeUserViewWorkOrderFromAnotherHq() throws Exception {
+        setCurrentHqAllContext();
+        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(buildParticipant(13L, 900L), 0L));
+        setField(service, "hqFirstContractMapper", createContractMapperProxy(Collections.emptyList()));
+        setField(service, "firstSecondRelationMapper", createRelationMapperProxy(Collections.emptyList()));
+
+        WorkOrder workOrder = buildWorkOrder(13L, 901L, 1001L, 1001L, null);
+
+        Assert.assertFalse(service.canView(workOrder));
+    }
+
+    @Test
+    public void shouldRejectRegionManagerViewCurrentHqWorkOrderOutsideRegion() throws Exception {
+        setCurrentHqRegionContext();
+        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(null, 0L));
+        setField(service, "hqFirstContractMapper", createContractMapperProxy(
+                Collections.singletonList(buildContract(900L, 1001L, 10L))
+        ));
+        setField(service, "firstSecondRelationMapper", createRelationMapperProxy(
+                Collections.singletonList(buildRelation(1001L, 1002L))
+        ));
+
+        WorkOrder workOrder = buildWorkOrder(2L, 900L, 900L, 2001L, null);
+
+        Assert.assertFalse(service.canView(workOrder));
+    }
+
+    @Test
+    public void shouldRejectRegionManagerReadonlyOrderOutsideRegionEvenIfParticipantExists() throws Exception {
+        setCurrentHqRegionContext();
+        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(buildParticipant(3L, 900L), 0L));
+        setField(service, "hqFirstContractMapper", createContractMapperProxy(
+                Collections.singletonList(buildContract(900L, 1001L, 10L))
+        ));
+        setField(service, "firstSecondRelationMapper", createRelationMapperProxy(
+                Collections.singletonList(buildRelation(1001L, 1002L))
+        ));
+
+        WorkOrder workOrder = buildWorkOrder(3L, 900L, 2001L, 2001L, null);
+
+        Assert.assertFalse(service.canView(workOrder));
+    }
+
+    @Test
+    public void shouldRejectRegionManagerViewWorkOrderFromAnotherHq() throws Exception {
+        setCurrentHqRegionContext();
+        WorkOrder workOrder = buildWorkOrder(4L, 901L, 1001L, 1001L, null);
+
+        Assert.assertFalse(service.canView(workOrder));
+    }
+
+    @Test
+    public void shouldRejectSelfScopeUserViewUnassignedHqWorkOrder() {
+        SecurityContext.setCurrentCompanyId(900L);
+        SecurityContext.setCurrentSubjectType("HQ");
+        SecurityContext.setCurrentTypeCode("HQ_A");
+        SecurityContext.setEffectiveDataScope("SELF");
+        SecurityContext.setCurrentRegionIds(Collections.emptyList());
+
+        WorkOrder workOrder = buildWorkOrder(5L, 900L, 900L, 1001L, 202L);
+
+        Assert.assertFalse(service.canView(workOrder));
+    }
+
+    @Test
+    public void shouldFillQueryScopeWithAllScopeAndEmptyRelatedCompanyIds() throws Exception {
+        setCurrentHqAllContext();
+        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(null, 0L));
+        setField(service, "hqFirstContractMapper", createContractMapperProxy(Collections.emptyList()));
+        setField(service, "firstSecondRelationMapper", createRelationMapperProxy(Collections.emptyList()));
+
+        WorkOrderQuery query = new WorkOrderQuery();
+        service.fillQueryScope(query);
+
+        Assert.assertEquals(Long.valueOf(900L), query.getCompanyId());
+        Assert.assertEquals(Long.valueOf(101L), query.getCurrentUserId());
+        Assert.assertEquals("HQ", query.getSubjectType());
+        Assert.assertEquals("ALL", query.getDataScope());
+        Assert.assertEquals(Collections.emptyList(), query.getRelatedCompanyIds());
+    }
+
+    @Test
+    public void shouldFillQueryScopeWithRegionCompanyIds() throws Exception {
+        setCurrentHqRegionContext();
+        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(null, 0L));
+        setField(service, "hqFirstContractMapper", createContractMapperProxy(
+                Collections.singletonList(buildContract(900L, 1001L, 10L))
+        ));
+        setField(service, "firstSecondRelationMapper", createRelationMapperProxy(
+                Collections.singletonList(buildRelation(1001L, 1002L))
+        ));
+
+        WorkOrderQuery query = new WorkOrderQuery();
+        service.fillQueryScope(query);
+
+        Assert.assertEquals(Long.valueOf(900L), query.getCompanyId());
+        Assert.assertEquals(Long.valueOf(101L), query.getCurrentUserId());
+        Assert.assertEquals("HQ", query.getSubjectType());
+        Assert.assertEquals("REGION", query.getDataScope());
+        Assert.assertEquals(Arrays.asList(1001L, 1002L), query.getRelatedCompanyIds());
+    }
+
+    private void setCurrentHqRegionContext() {
+        SecurityContext.setCurrentCompanyId(900L);
+        SecurityContext.setCurrentSubjectType("HQ");
+        SecurityContext.setCurrentTypeCode("HQ_A");
+        SecurityContext.setEffectiveDataScope("REGION");
+        SecurityContext.setCurrentRegionIds(Collections.singletonList(10L));
+    }
+
+    private void setCurrentHqAllContext() {
+        SecurityContext.setCurrentCompanyId(900L);
+        SecurityContext.setCurrentSubjectType("HQ");
+        SecurityContext.setCurrentTypeCode("HQ_A");
+        SecurityContext.setEffectiveDataScope("ALL");
+        SecurityContext.setCurrentRegionIds(Collections.emptyList());
+    }
+
+    private WorkOrder buildWorkOrder(Long id, Long hqCompanyId, Long currentAcceptCompanyId,
+                                     Long createCompanyId, Long assignedUserId) {
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(id);
+        workOrder.setHqCompanyId(hqCompanyId);
+        workOrder.setCurrentAcceptCompanyId(currentAcceptCompanyId);
+        workOrder.setCreateCompanyId(createCompanyId);
+        workOrder.setAssignedUserId(assignedUserId);
+        return workOrder;
+    }
+
+    private WorkOrderParticipant buildParticipant(Long workOrderId, Long companyId) {
+        WorkOrderParticipant participant = new WorkOrderParticipant();
+        participant.setWorkOrderId(workOrderId);
+        participant.setCompanyId(companyId);
+        participant.setParticipateType("HQ_OBSERVER");
+        participant.setIsCurrentHandler(0);
+        participant.setIsReadonly(1);
+        return participant;
+    }
+
+    private HqFirstContract buildContract(Long hqCompanyId, Long firstCompanyId, Long regionId) {
+        HqFirstContract contract = new HqFirstContract();
+        contract.setHqCompanyId(hqCompanyId);
+        contract.setFirstCompanyId(firstCompanyId);
+        contract.setRegionId(regionId);
+        contract.setStatus(1);
+        return contract;
+    }
+
+    private FirstSecondRelation buildRelation(Long firstCompanyId, Long secondCompanyId) {
+        FirstSecondRelation relation = new FirstSecondRelation();
+        relation.setFirstCompanyId(firstCompanyId);
+        relation.setSecondCompanyId(secondCompanyId);
+        relation.setStatus(1);
+        return relation;
+    }
+
+    private WorkOrderParticipantMapper createParticipantMapperProxy(WorkOrderParticipant participant, Long relatedCount) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectOne".equals(method.getName())) {
+                    return participant;
+                }
+                if ("selectCount".equals(method.getName())) {
+                    return relatedCount == null ? 0L : relatedCount;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (WorkOrderParticipantMapper) Proxy.newProxyInstance(
+                WorkOrderParticipantMapper.class.getClassLoader(),
+                new Class<?>[]{WorkOrderParticipantMapper.class},
+                handler
+        );
+    }
+
+    private HqFirstContractMapper createContractMapperProxy(List<HqFirstContract> contracts) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectList".equals(method.getName())) {
+                    return contracts;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (HqFirstContractMapper) Proxy.newProxyInstance(
+                HqFirstContractMapper.class.getClassLoader(),
+                new Class<?>[]{HqFirstContractMapper.class},
+                handler
+        );
+    }
+
+    private FirstSecondRelationMapper createRelationMapperProxy(List<FirstSecondRelation> relations) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectList".equals(method.getName())) {
+                    return relations;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (FirstSecondRelationMapper) Proxy.newProxyInstance(
+                FirstSecondRelationMapper.class.getClassLoader(),
+                new Class<?>[]{FirstSecondRelationMapper.class},
+                handler
+        );
+    }
+
+    private void setField(Object target, String fieldName, Object value) throws Exception {
+        Field field = WorkOrderPermissionService.class.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(target, value);
+    }
+
+    private Object defaultValue(Class<?> returnType) {
+        if (!returnType.isPrimitive()) {
+            return null;
+        }
+        if (boolean.class.equals(returnType)) {
+            return false;
+        }
+        if (char.class.equals(returnType)) {
+            return '\0';
+        }
+        if (byte.class.equals(returnType) || short.class.equals(returnType)
+                || int.class.equals(returnType) || long.class.equals(returnType)) {
+            return 0;
+        }
+        if (float.class.equals(returnType)) {
+            return 0F;
+        }
+        if (double.class.equals(returnType)) {
+            return 0D;
+        }
+        return null;
+    }
+
+    private static class MockSaRequest implements SaRequest {
+
+        @Override
+        public Object getSource() {
+            return this;
+        }
+
+        @Override
+        public String getParam(String name) {
+            return null;
+        }
+
+        @Override
+        public List<String> getParamNames() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public Map<String, String> getParamMap() {
+            return Collections.emptyMap();
+        }
+
+        @Override
+        public String getHeader(String name) {
+            return null;
+        }
+
+        @Override
+        public String getCookieValue(String name) {
+            return null;
+        }
+
+        @Override
+        public String getRequestPath() {
+            return "/";
+        }
+
+        @Override
+        public String getUrl() {
+            return "http://localhost/test";
+        }
+
+        @Override
+        public String getMethod() {
+            return "GET";
+        }
+
+        @Override
+        public Object forward(String path) {
+            return null;
+        }
+    }
+
+    private static class MockSaResponse implements SaResponse {
+
+        @Override
+        public Object getSource() {
+            return this;
+        }
+
+        @Override
+        public SaResponse setStatus(int sc) {
+            return this;
+        }
+
+        @Override
+        public SaResponse setHeader(String name, String value) {
+            return this;
+        }
+
+        @Override
+        public SaResponse addHeader(String name, String value) {
+            return this;
+        }
+
+        @Override
+        public Object redirect(String url) {
+            return null;
+        }
+    }
+
+    private static class MockSaStorage implements SaStorage {
+
+        private final Map<String, Object> values = new LinkedHashMap<>();
+
+        @Override
+        public Object getSource() {
+            return this;
+        }
+
+        @Override
+        public Object get(String key) {
+            return values.get(key);
+        }
+
+        @Override
+        public SaStorage set(String key, Object value) {
+            values.put(key, value);
+            return this;
+        }
+
+        @Override
+        public SaStorage delete(String key) {
+            values.remove(key);
+            return this;
+        }
+
+    }
+}
