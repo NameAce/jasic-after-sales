@@ -214,3 +214,29 @@ INSERT INTO `sys_dict_data` (`id`, `dict_type`, `dict_label`, `dict_value`, `dic
 -- -------------------------------------------
 INSERT INTO `sys_config` (`id`, `config_name`, `config_key`, `config_value`, `config_type`, `remark`, `create_time`, `update_time`) VALUES
 (1, '公司管理员初始密码', 'org.company.adminInitPassword', 'Jasic@123', 1, '创建公司时默认管理员账号的初始密码', NOW(), NOW());
+-- -------------------------------------------
+-- 13. 条码档案菜单与权限
+-- -------------------------------------------
+INSERT INTO `sys_menu` (`id`, `subject_type`, `menu_name`, `parent_id`, `menu_type`, `path`, `component`, `perms`, `icon`, `order_num`, `is_visible`, `status`, `create_time`, `update_time`) VALUES
+(108, 'PLATFORM', '条码档案', 1, 'C', 'machineBarcode', 'system/machineBarcode/index', NULL, 'el-icon-postcard', 7, 1, 1, NOW(), NOW()),
+(1081, 'PLATFORM', '条码查询', 108, 'F', NULL, NULL, 'system:machineBarcode:list', NULL, 1, 1, 1, NOW(), NOW()),
+(1082, 'PLATFORM', '条码新增', 108, 'F', NULL, NULL, 'system:machineBarcode:add', NULL, 2, 1, 1, NOW(), NOW()),
+(1083, 'PLATFORM', '条码修改', 108, 'F', NULL, NULL, 'system:machineBarcode:update', NULL, 3, 1, 1, NOW(), NOW()),
+(1084, 'PLATFORM', '条码删除', 108, 'F', NULL, NULL, 'system:machineBarcode:remove', NULL, 4, 1, 1, NOW(), NOW()),
+(1085, 'PLATFORM', '条码导入', 108, 'F', NULL, NULL, 'system:machineBarcode:import', NULL, 5, 1, 1, NOW(), NOW());
+
+INSERT INTO `sys_role_menu` (`role_id`, `menu_id`, `create_time`, `update_time`) VALUES
+(1, 108, NOW(), NOW()),
+(1, 1081, NOW(), NOW()),
+(1, 1082, NOW(), NOW()),
+(1, 1083, NOW(), NOW()),
+(1, 1084, NOW(), NOW()),
+(1, 1085, NOW(), NOW());
+
+INSERT INTO `sys_type_code_menu` (`type_code`, `menu_id`, `create_time`, `update_time`) VALUES
+('PLATFORM', 108, NOW(), NOW()),
+('PLATFORM', 1081, NOW(), NOW()),
+('PLATFORM', 1082, NOW(), NOW()),
+('PLATFORM', 1083, NOW(), NOW()),
+('PLATFORM', 1084, NOW(), NOW()),
+('PLATFORM', 1085, NOW(), NOW());

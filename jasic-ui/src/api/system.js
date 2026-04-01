@@ -156,6 +156,29 @@ export function refreshConfigCache() {
   return request({ url: '/system/config/refresh-cache', method: 'delete' })
 }
 
+// --- Machine Barcode ---
+export function listMachineBarcode(params) {
+  return request({ url: '/system/machine-barcode/list', method: 'get', params })
+}
+export function getMachineBarcode(id) {
+  return request({ url: `/system/machine-barcode/${id}`, method: 'get' })
+}
+export function listMachineBarcodeHqOptions() {
+  return request({ url: '/system/machine-barcode/hq-company-options', method: 'get' })
+}
+export function addMachineBarcode(data) {
+  return request({ url: '/system/machine-barcode', method: 'post', data })
+}
+export function updateMachineBarcode(data) {
+  return request({ url: '/system/machine-barcode', method: 'put', data })
+}
+export function deleteMachineBarcode(id) {
+  return request({ url: `/system/machine-barcode/${id}`, method: 'delete' })
+}
+export function importMachineBarcode(data) {
+  return request({ url: '/system/machine-barcode/import', method: 'post', data })
+}
+
 // --- Role Template ---
 export function listRoleTemplate(typeCode) {
   const params = typeCode ? { typeCode } : {}

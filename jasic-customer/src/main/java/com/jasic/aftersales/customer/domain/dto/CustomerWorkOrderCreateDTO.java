@@ -48,10 +48,6 @@ public class CustomerWorkOrderCreateDTO implements Serializable {
     @NotNull(message = "服务网点不能为空")
     private Long serviceCompanyId;
 
-    /** 归属总部ID */
-    @NotNull(message = "归属总部不能为空")
-    private Long hqCompanyId;
-
     /** 寄件人姓名 */
     private String senderName;
 

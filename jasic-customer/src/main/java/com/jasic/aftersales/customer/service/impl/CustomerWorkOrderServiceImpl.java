@@ -6,12 +6,15 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
 import com.jasic.aftersales.common.constant.WorkOrderStatusFlow;
 import com.jasic.aftersales.common.core.domain.PageResult;
+import com.jasic.aftersales.common.enums.CompanyCategoryEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderCreateDTO;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderEvaluateDTO;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderSendInfoDTO;
 import com.jasic.aftersales.customer.domain.entity.CUser;
 import com.jasic.aftersales.customer.domain.query.CustomerWorkOrderQuery;
+import com.jasic.aftersales.customer.domain.vo.CustomerBarcodeInfoVO;
+import com.jasic.aftersales.customer.domain.vo.CustomerServiceCompanyOptionVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderDetailVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderListVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderStatusCountVO;
@@ -20,6 +23,7 @@ import com.jasic.aftersales.customer.service.ICustomerWorkOrderService;
 import com.jasic.aftersales.framework.security.StpCustomerUtil;
 import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
 import com.jasic.aftersales.system.domain.entity.HqFirstContract;
+import com.jasic.aftersales.system.domain.entity.MachineBarcode;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
 import com.jasic.aftersales.system.domain.entity.SysUser;
 import com.jasic.aftersales.system.domain.entity.WorkOrder;
@@ -29,6 +33,7 @@ import com.jasic.aftersales.system.domain.entity.WorkOrderFlow;
 import com.jasic.aftersales.system.domain.entity.WorkOrderQuote;
 import com.jasic.aftersales.system.domain.entity.WorkOrderRepair;
 import com.jasic.aftersales.system.domain.entity.WorkOrderReview;
+import com.jasic.aftersales.system.domain.vo.SysCompanySimpleVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderEvaluationVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderFaultVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderQuoteVO;
@@ -36,6 +41,7 @@ import com.jasic.aftersales.system.domain.vo.WorkOrderRepairVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderReviewVO;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
 import com.jasic.aftersales.system.mapper.HqFirstContractMapper;
+import com.jasic.aftersales.system.mapper.MachineBarcodeMapper;
 import com.jasic.aftersales.system.mapper.SysCompanyMapper;
 import com.jasic.aftersales.system.mapper.SysUserMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderEvaluationMapper;
@@ -51,11 +57,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -71,6 +80,13 @@ import java.util.stream.Collectors;
 public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
 
     private static final DateTimeFormatter ORDER_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private static final int DEFAULT_NEARBY_LIMIT = 20;
+    private static final int MAX_NEARBY_LIMIT = 50;
+    private static final BigDecimal MIN_LONGITUDE = BigDecimal.valueOf(-180);
+    private static final BigDecimal MAX_LONGITUDE = BigDecimal.valueOf(180);
+    private static final BigDecimal MIN_LATITUDE = BigDecimal.valueOf(-90);
+    private static final BigDecimal MAX_LATITUDE = BigDecimal.valueOf(90);
+    private static final double EARTH_RADIUS_KM = 6371.0088D;
 
     @Resource
     private WorkOrderMapper workOrderMapper;
@@ -114,6 +130,9 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     @Resource
     private FirstSecondRelationMapper firstSecondRelationMapper;
 
+    @Resource
+    private MachineBarcodeMapper machineBarcodeMapper;
+
     /**
      * 创建我的工单
      *
@@ -127,19 +146,29 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         CUser customer = requireCustomer(customerId);
         validateCreateRequest(dto);
         SysCompany serviceCompany = requireServiceCompany(dto.getServiceCompanyId());
-        validateServiceHqRelation(serviceCompany, dto.getHqCompanyId());
+        String barcode = normalizeRequiredText(dto.getBarcode(), "机器条码不能为空");
+        MachineBarcode barcodeArchive = findActiveMachineBarcode(barcode);
+        Long hqCompanyId = resolveCreateHqCompanyId(serviceCompany, barcodeArchive);
 
         WorkOrder workOrder = new WorkOrder();
         workOrder.setOrderNo(generateOrderNo());
         workOrder.setCustomerId(customerId);
         workOrder.setCustomerName(normalizeRequiredText(dto.getCustomerName(), "报修人姓名不能为空"));
         workOrder.setCustomerMobile(normalizeRequiredText(customer.getPhone(), "当前客户手机号不能为空"));
-        workOrder.setBarcode(normalizeRequiredText(dto.getBarcode(), "机器条码不能为空"));
-        workOrder.setProductCode(normalizeText(dto.getProductCode()));
-        workOrder.setProductModel(normalizeText(dto.getProductModel()));
-        workOrder.setBrandCode(resolveBrandCode(dto.getBrandCode()));
+        workOrder.setBarcode(barcode);
+        workOrder.setProductCode(resolveArchiveText(
+                barcodeArchive == null ? null : barcodeArchive.getProductCode(), dto.getProductCode()
+        ));
+        workOrder.setProductModel(resolveArchiveText(
+                barcodeArchive == null ? null : barcodeArchive.getProductModel(), dto.getProductModel()
+        ));
+        workOrder.setBrandCode(resolveBrandCode(resolveArchiveText(
+                barcodeArchive == null ? null : barcodeArchive.getBrandCode(), dto.getBrandCode()
+        )));
         workOrder.setServiceMode(normalizeRequiredText(dto.getServiceMode(), "服务方式不能为空"));
-        workOrder.setWarrantyStatus(normalizeText(dto.getWarrantyStatus()));
+        workOrder.setWarrantyStatus(resolveArchiveText(
+                barcodeArchive == null ? null : barcodeArchive.getWarrantyStatus(), dto.getWarrantyStatus()
+        ));
         workOrder.setFaultDesc(normalizeText(dto.getFaultDesc()));
         workOrder.setSenderName(resolveSendField(dto.getServiceMode(), dto.getSenderName()));
         workOrder.setSenderMobile(resolveSendField(dto.getServiceMode(), dto.getSenderMobile()));
@@ -150,7 +179,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         workOrder.setCurrentAcceptSubjectType("SERVICE");
         workOrder.setCurrentAcceptCompanyId(serviceCompany.getId());
         workOrder.setCreateCompanyId(serviceCompany.getId());
-        workOrder.setHqCompanyId(dto.getHqCompanyId());
+        workOrder.setHqCompanyId(hqCompanyId);
         workOrder.setHasTransfer(0);
         workOrder.setTransferCount(0);
         workOrderMapper.insert(workOrder);
@@ -158,6 +187,83 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         saveCreateFlow(workOrder.getId(), customerId, serviceCompany.getId(), workOrder.getMainStatus());
         workOrderParticipantService.initParticipants(workOrder);
         return workOrder.getId();
+    }
+
+    /**
+     * 查询 C 端可选服务网点列表
+     *
+     * @return 服务网点选项
+     */
+    @Override
+    public List<SysCompanySimpleVO> listServiceCompanyOptions() {
+        Set<String> typeCodes = new LinkedHashSet<>();
+        typeCodes.addAll(CompanyCategoryEnum.getFirstLevelTypeCodes());
+        typeCodes.addAll(CompanyCategoryEnum.getSecondLevelTypeCodes());
+        if (typeCodes.isEmpty()) {
+            return Collections.emptyList();
+        }
+        LambdaQueryWrapper<SysCompany> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(SysCompany::getTypeCode, typeCodes)
+                .eq(SysCompany::getStatus, 1)
+                .orderByAsc(SysCompany::getCompanyName)
+                .orderByAsc(SysCompany::getId);
+        List<SysCompany> companies = sysCompanyMapper.selectList(wrapper);
+        if (companies.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<SysCompanySimpleVO> result = new ArrayList<>(companies.size());
+        for (SysCompany company : companies) {
+            result.add(buildServiceCompanyOption(company));
+        }
+        return result;
+    }
+
+    /**
+     * 按定位查询附近服务网点
+     *
+     * @param longitude 经度
+     * @param latitude  纬度
+     * @param limit     返回条数
+     * @return 服务网点选项
+     */
+    @Override
+    public List<CustomerServiceCompanyOptionVO> listNearbyServiceCompanyOptions(BigDecimal longitude, BigDecimal latitude,
+                                                                                Integer limit) {
+        validateCoordinate(longitude, latitude);
+        int normalizedLimit = normalizeNearbyLimit(limit);
+        List<SysCompany> companies = listActiveServiceCompanies();
+        if (companies.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<CustomerServiceCompanyOptionVO> options = companies.stream()
+                .map(company -> buildNearbyServiceCompanyOption(company, longitude, latitude))
+                .sorted((left, right) -> compareDistance(left.getDistanceKm(), right.getDistanceKm(),
+                        left.getCompanyName(), right.getCompanyName(), left.getId(), right.getId()))
+                .limit(normalizedLimit)
+                .collect(Collectors.toList());
+        return options;
+    }
+
+    /**
+     * 查询条码档案信息
+     *
+     * @param barcode 机器条码
+     * @return 条码信息
+     */
+    @Override
+    public CustomerBarcodeInfoVO getBarcodeInfo(String barcode) {
+        String normalizedBarcode = normalizeRequiredText(barcode, "机器条码不能为空");
+        MachineBarcode barcodeArchive = requireActiveMachineBarcode(normalizedBarcode);
+        SysCompany hqCompany = requireHqCompany(barcodeArchive.getHqCompanyId());
+        CustomerBarcodeInfoVO vo = new CustomerBarcodeInfoVO();
+        vo.setBarcode(barcodeArchive.getBarcode());
+        vo.setProductCode(normalizeText(barcodeArchive.getProductCode()));
+        vo.setProductModel(normalizeText(barcodeArchive.getProductModel()));
+        vo.setBrandCode(resolveBrandCode(barcodeArchive.getBrandCode()));
+        vo.setWarrantyStatus(normalizeText(barcodeArchive.getWarrantyStatus()));
+        vo.setHqCompanyId(hqCompany.getId());
+        vo.setHqCompanyName(hqCompany.getCompanyName());
+        return vo;
     }
 
     /**
@@ -412,41 +518,109 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return company;
     }
 
-    private void validateServiceHqRelation(SysCompany serviceCompany, Long hqCompanyId) {
-        requireHqCompany(hqCompanyId);
-        if ("FIRST".equals(serviceCompany.getTypeCode())) {
-            LambdaQueryWrapper<HqFirstContract> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(HqFirstContract::getFirstCompanyId, serviceCompany.getId())
-                    .eq(HqFirstContract::getHqCompanyId, hqCompanyId)
-                    .eq(HqFirstContract::getStatus, 1);
-            if (hqFirstContractMapper.selectCount(wrapper) == 0) {
-                throw new ServiceException("当前服务网点不支持归属到该总部");
-            }
-            return;
-        }
+    // Barcode archives are primary; relation fallback keeps old data usable during backfill.
+    private Long resolveCreateHqCompanyId(String barcode, SysCompany serviceCompany) {
+        return resolveCreateHqCompanyId(serviceCompany, findActiveMachineBarcode(barcode));
+    }
 
-        LambdaQueryWrapper<FirstSecondRelation> relationWrapper = new LambdaQueryWrapper<>();
-        relationWrapper.eq(FirstSecondRelation::getSecondCompanyId, serviceCompany.getId())
-                .eq(FirstSecondRelation::getStatus, 1);
-        List<FirstSecondRelation> relations = firstSecondRelationMapper.selectList(relationWrapper);
-        if (relations.isEmpty()) {
-            throw new ServiceException("当前二级网点未关联上级网点");
+    // Temporary fallback remains for old data until barcode archives are fully backfilled.
+    private Long resolveCreateHqCompanyId(SysCompany serviceCompany, MachineBarcode barcodeArchive) {
+        Long archiveHqCompanyId = resolveBarcodeArchiveHqCompanyId(barcodeArchive);
+        if (archiveHqCompanyId != null) {
+            return archiveHqCompanyId;
         }
-        List<Long> firstCompanyIds = relations.stream()
+        List<Long> firstCompanyIds = resolveFirstCompanyIds(serviceCompany);
+        if (firstCompanyIds.isEmpty()) {
+            throw new ServiceException("当前服务网点暂未关联可用总部，无法提交报修单");
+        }
+        List<Long> hqCompanyIds = resolveActiveHqCompanyIds(firstCompanyIds);
+        if (hqCompanyIds.isEmpty()) {
+            throw new ServiceException("当前机器条码归属总部暂无法自动识别，请联系管理员完善条码归属配置");
+        }
+        if (hqCompanyIds.size() > 1) {
+            throw new ServiceException("当前机器条码归属总部存在多个候选项，暂无法自动识别，请联系管理员完善条码归属配置");
+        }
+        return hqCompanyIds.get(0);
+    }
+
+    private Long resolveBarcodeArchiveHqCompanyId(MachineBarcode barcodeArchive) {
+        if (barcodeArchive == null || barcodeArchive.getHqCompanyId() == null) {
+            return null;
+        }
+        return requireHqCompany(barcodeArchive.getHqCompanyId()).getId();
+    }
+
+    private MachineBarcode requireActiveMachineBarcode(String barcode) {
+        MachineBarcode barcodeArchive = findActiveMachineBarcode(barcode);
+        if (barcodeArchive == null) {
+            throw new ServiceException("当前条码未维护档案信息");
+        }
+        return barcodeArchive;
+    }
+
+    private MachineBarcode findActiveMachineBarcode(String barcode) {
+        String normalizedBarcode = normalizeText(barcode);
+        if (normalizedBarcode == null) {
+            return null;
+        }
+        LambdaQueryWrapper<MachineBarcode> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(MachineBarcode::getBarcode, normalizedBarcode)
+                .eq(MachineBarcode::getStatus, 1)
+                .last("LIMIT 1");
+        return machineBarcodeMapper.selectOne(wrapper);
+    }
+
+    private List<Long> resolveFirstCompanyIds(SysCompany serviceCompany) {
+        if ("FIRST".equals(serviceCompany.getTypeCode())) {
+            return Collections.singletonList(serviceCompany.getId());
+        }
+        LambdaQueryWrapper<FirstSecondRelation> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FirstSecondRelation::getSecondCompanyId, serviceCompany.getId())
+                .eq(FirstSecondRelation::getStatus, 1);
+        List<FirstSecondRelation> relations = firstSecondRelationMapper.selectList(wrapper);
+        if (relations.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return relations.stream()
                 .map(FirstSecondRelation::getFirstCompanyId)
                 .filter(id -> id != null)
                 .distinct()
                 .collect(Collectors.toList());
-        if (firstCompanyIds.isEmpty()) {
-            throw new ServiceException("当前二级网点未关联有效上级网点");
+    }
+
+    private List<Long> resolveActiveHqCompanyIds(List<Long> firstCompanyIds) {
+        if (firstCompanyIds == null || firstCompanyIds.isEmpty()) {
+            return Collections.emptyList();
         }
-        LambdaQueryWrapper<HqFirstContract> contractWrapper = new LambdaQueryWrapper<>();
-        contractWrapper.in(HqFirstContract::getFirstCompanyId, firstCompanyIds)
-                .eq(HqFirstContract::getHqCompanyId, hqCompanyId)
+        LambdaQueryWrapper<HqFirstContract> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(HqFirstContract::getFirstCompanyId, firstCompanyIds)
                 .eq(HqFirstContract::getStatus, 1);
-        if (hqFirstContractMapper.selectCount(contractWrapper) == 0) {
-            throw new ServiceException("当前服务网点不支持归属到该总部");
+        List<HqFirstContract> contracts = hqFirstContractMapper.selectList(wrapper);
+        if (contracts.isEmpty()) {
+            return Collections.emptyList();
         }
+        return contracts.stream()
+                .map(HqFirstContract::getHqCompanyId)
+                .filter(id -> id != null)
+                .distinct()
+                .map(this::requireHqCompany)
+                .map(SysCompany::getId)
+                .collect(Collectors.toList());
+    }
+
+    private List<SysCompany> listActiveServiceCompanies() {
+        Set<String> typeCodes = new LinkedHashSet<>();
+        typeCodes.addAll(CompanyCategoryEnum.getFirstLevelTypeCodes());
+        typeCodes.addAll(CompanyCategoryEnum.getSecondLevelTypeCodes());
+        if (typeCodes.isEmpty()) {
+            return Collections.emptyList();
+        }
+        LambdaQueryWrapper<SysCompany> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(SysCompany::getTypeCode, typeCodes)
+                .eq(SysCompany::getStatus, 1)
+                .orderByAsc(SysCompany::getCompanyName)
+                .orderByAsc(SysCompany::getId);
+        return sysCompanyMapper.selectList(wrapper);
     }
 
     private String resolveSendField(String serviceMode, String value) {
@@ -552,6 +726,116 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
             }
         }
         return map;
+    }
+
+    private CustomerServiceCompanyOptionVO buildNearbyServiceCompanyOption(SysCompany company, BigDecimal longitude,
+                                                                           BigDecimal latitude) {
+        CustomerServiceCompanyOptionVO vo = new CustomerServiceCompanyOptionVO();
+        vo.setId(company.getId());
+        vo.setCompanyName(company.getCompanyName());
+        vo.setCompanyCode(company.getCompanyCode());
+        vo.setTypeCode(company.getTypeCode());
+        vo.setTypeName(resolveServiceCompanyTypeName(company.getTypeCode()));
+        vo.setContactPhone(company.getContactPhone());
+        vo.setAddress(company.getAddress());
+        vo.setLongitude(company.getLongitude());
+        vo.setLatitude(company.getLatitude());
+        vo.setDistanceKm(calculateDistanceKm(longitude, latitude, company.getLongitude(), company.getLatitude()));
+        return vo;
+    }
+
+    private SysCompanySimpleVO buildServiceCompanyOption(SysCompany company) {
+        SysCompanySimpleVO vo = new SysCompanySimpleVO();
+        vo.setId(company.getId());
+        vo.setCompanyName(company.getCompanyName());
+        vo.setCompanyCode(company.getCompanyCode());
+        vo.setTypeCode(company.getTypeCode());
+        vo.setTypeName(resolveServiceCompanyTypeName(company.getTypeCode()));
+        return vo;
+    }
+
+    private String resolveServiceCompanyTypeName(String typeCode) {
+        if (CompanyCategoryEnum.getFirstLevelTypeCodes().contains(typeCode)) {
+            return "一级服务网点";
+        }
+        if (CompanyCategoryEnum.getSecondLevelTypeCodes().contains(typeCode)) {
+            return "二级服务网点";
+        }
+        return typeCode;
+    }
+
+    private String resolveArchiveText(String archiveValue, String requestValue) {
+        String normalizedArchiveValue = normalizeText(archiveValue);
+        return normalizedArchiveValue != null ? normalizedArchiveValue : normalizeText(requestValue);
+    }
+
+    private void validateCoordinate(BigDecimal longitude, BigDecimal latitude) {
+        if (longitude == null || latitude == null) {
+            throw new ServiceException("定位经纬度不能为空");
+        }
+        if (longitude.compareTo(MIN_LONGITUDE) < 0 || longitude.compareTo(MAX_LONGITUDE) > 0) {
+            throw new ServiceException("经度超出有效范围");
+        }
+        if (latitude.compareTo(MIN_LATITUDE) < 0 || latitude.compareTo(MAX_LATITUDE) > 0) {
+            throw new ServiceException("纬度超出有效范围");
+        }
+    }
+
+    private int normalizeNearbyLimit(Integer limit) {
+        if (limit == null) {
+            return DEFAULT_NEARBY_LIMIT;
+        }
+        if (limit <= 0) {
+            throw new ServiceException("返回条数必须大于0");
+        }
+        return Math.min(limit, MAX_NEARBY_LIMIT);
+    }
+
+    private BigDecimal calculateDistanceKm(BigDecimal sourceLongitude, BigDecimal sourceLatitude,
+                                           BigDecimal targetLongitude, BigDecimal targetLatitude) {
+        if (targetLongitude == null || targetLatitude == null) {
+            return null;
+        }
+        double lat1 = Math.toRadians(sourceLatitude.doubleValue());
+        double lng1 = Math.toRadians(sourceLongitude.doubleValue());
+        double lat2 = Math.toRadians(targetLatitude.doubleValue());
+        double lng2 = Math.toRadians(targetLongitude.doubleValue());
+        double deltaLat = lat2 - lat1;
+        double deltaLng = lng2 - lng1;
+        double haversine = Math.pow(Math.sin(deltaLat / 2), 2)
+                + Math.cos(lat1) * Math.cos(lat2) * Math.pow(Math.sin(deltaLng / 2), 2);
+        double distance = 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(haversine));
+        return BigDecimal.valueOf(distance).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private int compareDistance(BigDecimal leftDistance, BigDecimal rightDistance,
+                                String leftName, String rightName, Long leftId, Long rightId) {
+        if (leftDistance == null && rightDistance == null) {
+            return compareCompanyIdentity(leftName, rightName, leftId, rightId);
+        }
+        if (leftDistance == null) {
+            return 1;
+        }
+        if (rightDistance == null) {
+            return -1;
+        }
+        int compareResult = leftDistance.compareTo(rightDistance);
+        if (compareResult != 0) {
+            return compareResult;
+        }
+        return compareCompanyIdentity(leftName, rightName, leftId, rightId);
+    }
+
+    private int compareCompanyIdentity(String leftName, String rightName, Long leftId, Long rightId) {
+        String safeLeftName = leftName == null ? "" : leftName;
+        String safeRightName = rightName == null ? "" : rightName;
+        int compareResult = safeLeftName.compareTo(safeRightName);
+        if (compareResult != 0) {
+            return compareResult;
+        }
+        long safeLeftId = leftId == null ? Long.MAX_VALUE : leftId;
+        long safeRightId = rightId == null ? Long.MAX_VALUE : rightId;
+        return Long.compare(safeLeftId, safeRightId);
     }
 
     private Map<Long, String> buildUserNameMap(Set<Long> userIds) {
