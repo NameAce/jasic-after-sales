@@ -915,6 +915,10 @@ export default {
         this.$message.error('请选择目标公司')
         return false
       }
+      if (this.actionDialogAction === 'QUOTE' && !this.actionForm.faultJudge) {
+        this.$message.error('请输入故障判定')
+        return false
+      }
       if ((this.actionDialogAction === 'REPAIR_SAVE' || this.actionDialogAction === 'REPAIR_FINISH')
         && !this.actionForm.repairSummary
         && !this.actionForm.repairDesc

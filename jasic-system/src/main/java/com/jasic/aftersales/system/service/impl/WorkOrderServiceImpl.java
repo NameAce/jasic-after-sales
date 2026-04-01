@@ -97,6 +97,11 @@ import java.util.stream.Collectors;
 public class WorkOrderServiceImpl implements IWorkOrderService {
 
     private static final DateTimeFormatter ORDER_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private static final String REVIEW_RESULT_PASS = "通过";
+    private static final String REVIEW_RESULT_CONTINUE = "继续维修";
+    private static final String RETURN_METHOD_MAIL = "回寄";
+    private static final String RETURN_METHOD_PICKUP = "自提";
+    private static final String FAULT_JUDGE_NO_FAULT = "无故障";
 
     @Resource
     private WorkOrderMapper workOrderMapper;
@@ -171,7 +176,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         IPage<WorkOrderListVO> result = workOrderMapper.selectWorkOrderPage(page, query);
         List<WorkOrderListVO> records = result.getRecords();
         for (WorkOrderListVO record : records) {
-            fillListStatus(record);
+            fillListSnapshot(record);
         }
         return PageResult.of(records, result.getTotal(), query.getPageNum(), query.getPageSize());
     }
@@ -246,7 +251,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         detail.setEvaluation(getEvaluationVo(workOrderId));
         detail.setNotifyEvents(listNotifyEventVos(workOrderId));
         detail.setAvailableActions(workOrderPermissionService.listAvailableActions(entity));
-        fillListStatus(detail);
+        fillListSnapshot(detail, entity);
         detail.setEvaluateStatusLabel(resolveEvaluateStatusLabel(detail.getEvaluateStatus()));
         return detail;
     }
@@ -379,6 +384,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         if (!workOrderPermissionService.canQuote(workOrder)) {
             throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u62a5\u4ef7");
         }
+        String faultJudge = normalizeRequiredText(dto.getFaultJudge(), "\u6545\u969c\u5224\u5b9a\u4e0d\u80fd\u4e3a\u7a7a");
         LambdaUpdateWrapper<WorkOrderQuote> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(WorkOrderQuote::getWorkOrderId, workOrder.getId())
                 .set(WorkOrderQuote::getIsCurrentValid, 0);
@@ -388,15 +394,15 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         quote.setWorkOrderId(workOrder.getId());
         quote.setCompanyId(workOrder.getCurrentAcceptCompanyId());
         quote.setQuotedBy(SecurityContext.getCurrentUserId());
-        quote.setFaultJudge(dto.getFaultJudge());
+        quote.setFaultJudge(faultJudge);
         quote.setQuoteAmount(dto.getQuoteAmount());
-        quote.setQuoteDesc(dto.getQuoteDesc());
+        quote.setQuoteDesc(normalizeNullableText(dto.getQuoteDesc()));
         quote.setIsCurrentValid(1);
         workOrderQuoteMapper.insert(quote);
 
         saveFlow(workOrder.getId(), "QUOTE", workOrder.getMainStatus(), workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
-                workOrder.getCurrentAcceptCompanyId(), dto.getQuoteDesc());
+                workOrder.getCurrentAcceptCompanyId(), quote.getQuoteDesc());
     }
 
     /**
@@ -411,13 +417,14 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         if (!workOrderPermissionService.canSaveRepair(workOrder)) {
             throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u767b\u8bb0\u7ef4\u4fee");
         }
+        validateRepairContent(dto);
         WorkOrderRepair repair = new WorkOrderRepair();
         repair.setWorkOrderId(workOrder.getId());
         repair.setCompanyId(workOrder.getCurrentAcceptCompanyId());
         repair.setRepairUserId(SecurityContext.getCurrentUserId());
-        repair.setRepairSummary(dto.getRepairSummary());
-        repair.setRepairDesc(dto.getRepairDesc());
-        repair.setOtherDesc(dto.getOtherDesc());
+        repair.setRepairSummary(normalizeNullableText(dto.getRepairSummary()));
+        repair.setRepairDesc(normalizeNullableText(dto.getRepairDesc()));
+        repair.setOtherDesc(normalizeNullableText(dto.getOtherDesc()));
         repair.setIsFinished(dto.getIsFinished() != null && dto.getIsFinished() == 1 ? 1 : 0);
         if (repair.getIsFinished() == 1) {
             repair.setFinishedTime(LocalDateTime.now());
@@ -432,12 +439,12 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             workOrderMapper.updateById(workOrder);
             saveFlow(workOrder.getId(), "REPAIR_FINISH", beforeStatus, workOrder.getMainStatus(),
                     workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
-                    workOrder.getCurrentAcceptCompanyId(), dto.getRepairSummary());
-            workOrderNotifyEventService.recordRepairFinished(workOrder, dto.getRepairSummary());
+                    workOrder.getCurrentAcceptCompanyId(), repair.getRepairSummary());
+            workOrderNotifyEventService.recordRepairFinished(workOrder, repair.getRepairSummary());
         } else {
             saveFlow(workOrder.getId(), "REPAIR_SAVE", workOrder.getMainStatus(), workOrder.getMainStatus(),
                     workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
-                    workOrder.getCurrentAcceptCompanyId(), dto.getRepairSummary());
+                    workOrder.getCurrentAcceptCompanyId(), repair.getRepairSummary());
         }
     }
 
@@ -453,24 +460,26 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         if (!workOrderPermissionService.canReview(workOrder)) {
             throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u590d\u68c0");
         }
+        String reviewResult = normalizeReviewResult(dto.getReviewResult());
+        int continueRepair = resolveContinueRepair(reviewResult);
         WorkOrderReview review = new WorkOrderReview();
         review.setWorkOrderId(workOrder.getId());
         review.setCompanyId(workOrder.getCurrentAcceptCompanyId());
         review.setReviewUserId(SecurityContext.getCurrentUserId());
-        review.setReviewResult(dto.getReviewResult());
-        review.setReviewDesc(dto.getReviewDesc());
-        review.setIsContinueRepair(dto.getIsContinueRepair() != null && dto.getIsContinueRepair() == 1 ? 1 : 0);
+        review.setReviewResult(reviewResult);
+        review.setReviewDesc(normalizeNullableText(dto.getReviewDesc()));
+        review.setIsContinueRepair(continueRepair);
         workOrderReviewMapper.insert(review);
 
         String beforeStatus = workOrder.getMainStatus();
-        if (review.getIsContinueRepair() == 1) {
+        if (continueRepair == 1) {
             workOrder.setMainStatus(WorkOrderStatusFlow.afterReview(true));
             workOrder.setCompletedTime(null);
             workOrderMapper.updateById(workOrder);
         }
         saveFlow(workOrder.getId(), "REVIEW", beforeStatus, workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
-                workOrder.getCurrentAcceptCompanyId(), dto.getReviewDesc());
+                workOrder.getCurrentAcceptCompanyId(), review.getReviewDesc());
     }
 
     /**
@@ -485,7 +494,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         if (!workOrderPermissionService.canUpdateSendExpress(workOrder)) {
             throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u4e0a\u4f20\u5bc4\u4ef6\u5feb\u9012\u5355\u53f7");
         }
-        workOrder.setSendExpressNo(dto.getSendExpressNo().trim());
+        workOrder.setSendExpressNo(normalizeRequiredText(dto.getSendExpressNo(), "\u5bc4\u4ef6\u5feb\u9012\u5355\u53f7\u4e0d\u80fd\u4e3a\u7a7a"));
         workOrderMapper.updateById(workOrder);
         saveFlow(workOrder.getId(), "UPLOAD_SEND_EXPRESS", workOrder.getMainStatus(), workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
@@ -499,22 +508,26 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         if (!workOrderPermissionService.canClose(workOrder)) {
             throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u5173\u95ed");
         }
+        String returnMethod = normalizeReturnMethod(dto.getReturnMethod());
+        String closeReason = normalizeRequiredText(dto.getCloseReason(), "\u5173\u95ed\u539f\u56e0\u4e0d\u80fd\u4e3a\u7a7a");
         validateCloseReturnInfo(dto);
         saveFlow(workOrder.getId(), "RETURN_METHOD", workOrder.getMainStatus(), workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
-                workOrder.getCurrentAcceptCompanyId(), dto.getReturnMethod());
+                workOrder.getCurrentAcceptCompanyId(), returnMethod);
         String beforeStatus = workOrder.getMainStatus();
-        workOrder.setReturnMethod(dto.getReturnMethod());
+        workOrder.setReturnMethod(returnMethod);
         workOrder.setReturnExpressNo(resolveReturnExpressNo(dto));
-        workOrder.setCloseReason(dto.getCloseReason());
+        workOrder.setCloseReason(closeReason);
         workOrder.setMainStatus(WorkOrderStatusFlow.afterClose());
         workOrder.setEvaluateStatus(WorkOrderStatusFlow.afterCloseEvaluateStatus());
         workOrder.setClosedTime(LocalDateTime.now());
         workOrderMapper.updateById(workOrder);
         saveFlow(workOrder.getId(), "CLOSE", beforeStatus, workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
-                workOrder.getCurrentAcceptCompanyId(), dto.getCloseReason());
-        workOrderNotifyEventService.recordEvaluationInvite(workOrder);
+                workOrder.getCurrentAcceptCompanyId(), workOrder.getCloseReason());
+        if (!isNoFaultWorkOrder(workOrder.getId())) {
+            workOrderNotifyEventService.recordEvaluationInvite(workOrder);
+        }
     }
 
     /**
@@ -634,12 +647,22 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return WorkOrderStatusConstants.resolveEvaluateStatusLabel(evaluateStatus);
     }
 
-    private void fillListStatus(WorkOrderListVO target) {
+    private void fillListSnapshot(WorkOrderListVO target) {
+        fillListSnapshot(target, buildWorkOrderSnapshot(target));
+    }
+
+    private void fillListSnapshot(WorkOrderListVO target, WorkOrder workOrder) {
         if (target == null) {
             return;
         }
         target.setMainStatusLabel(resolveMainStatusLabel(target.getMainStatus()));
         target.setDisplayStatus(resolveDisplayStatus(target.getMainStatus()));
+        if (workOrder == null) {
+            return;
+        }
+        String relationType = workOrderPermissionService.resolveRelationType(workOrder);
+        target.setRelationType(relationType);
+        target.setIsReadonly(resolveReadonlyFlag(relationType, target.getIsReadonly()));
     }
 
     private List<WorkOrderQuoteVO> listQuoteVos(Long workOrderId) {
@@ -934,12 +957,42 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
     private void validateCloseReturnInfo(WorkOrderCloseDTO dto) {
-        if (dto == null || !"\u56de\u5bc4".equals(dto.getReturnMethod())) {
+        if (dto == null || !RETURN_METHOD_MAIL.equals(normalizeNullableText(dto.getReturnMethod()))) {
             return;
         }
         if (isBlank(dto.getReturnExpressNo())) {
             throw new ServiceException("\u56de\u5bc4\u65f6\u5fc5\u987b\u586b\u5199\u56de\u5bc4\u5feb\u9012\u5355\u53f7");
         }
+    }
+
+    private void validateRepairContent(WorkOrderRepairDTO dto) {
+        if (dto == null) {
+            throw new ServiceException("\u7ef4\u4fee\u767b\u8bb0\u4e0d\u80fd\u4e3a\u7a7a");
+        }
+        if (!hasRepairContent(dto)) {
+            throw new ServiceException("\u8bf7\u81f3\u5c11\u586b\u5199\u4e00\u9879\u7ef4\u4fee\u5185\u5bb9");
+        }
+    }
+
+    private boolean hasRepairContent(WorkOrderRepairDTO dto) {
+        if (!isBlank(dto.getRepairSummary()) || !isBlank(dto.getRepairDesc()) || !isBlank(dto.getOtherDesc())) {
+            return true;
+        }
+        if (dto.getFaults() == null || dto.getFaults().isEmpty()) {
+            return false;
+        }
+        for (WorkOrderFaultItemDTO fault : dto.getFaults()) {
+            if (fault == null) {
+                continue;
+            }
+            if (!isBlank(fault.getFaultDesc())
+                    || !isBlank(fault.getRepairDesc())
+                    || !isBlank(fault.getPartDesc())
+                    || !isBlank(fault.getImageUrls())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private Long resolveCustomerId(WorkOrderCreateDTO dto) {
@@ -986,15 +1039,20 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
     private String resolveReturnExpressNo(WorkOrderCloseDTO dto) {
-        if (dto == null || !"\u56de\u5bc4".equals(dto.getReturnMethod()) || isBlank(dto.getReturnExpressNo())) {
+        if (dto == null || !RETURN_METHOD_MAIL.equals(normalizeNullableText(dto.getReturnMethod()))
+                || isBlank(dto.getReturnExpressNo())) {
             return null;
         }
         return dto.getReturnExpressNo().trim();
     }
 
     private void validateAssignedRepairer(Long userId, Long companyId) {
-        if (!listCompanyRepairerUserIds(companyId).contains(userId)) {
+        if (userId == null || !listCompanyRepairerUserIds(companyId).contains(userId)) {
             throw new ServiceException("\u6d3e\u5355\u5bf9\u8c61\u5fc5\u987b\u662f\u5f53\u524d\u53d7\u7406\u516c\u53f8\u7684\u7cfb\u7edf\u7ef4\u4fee\u5458");
+        }
+        SysUser user = sysUserMapper.selectById(userId);
+        if (user == null || user.getStatus() == null || user.getStatus() != 1) {
+            throw new ServiceException("\u6d3e\u5355\u5bf9\u8c61\u5fc5\u987b\u662f\u542f\u7528\u72b6\u6001\u7684\u7cfb\u7edf\u7ef4\u4fee\u5458");
         }
     }
 
@@ -1126,11 +1184,77 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return value == null || value.trim().isEmpty();
     }
 
+    private String normalizeRequiredText(String value, String message) {
+        String normalized = normalizeNullableText(value);
+        if (normalized == null) {
+            throw new ServiceException(message);
+        }
+        return normalized;
+    }
+
     private String normalizeNullableText(String value) {
         if (isBlank(value)) {
             return null;
         }
         return value.trim();
+    }
+
+    private String normalizeReviewResult(String reviewResult) {
+        String normalized = normalizeRequiredText(reviewResult, "\u590d\u68c0\u7ed3\u679c\u4e0d\u80fd\u4e3a\u7a7a");
+        if (REVIEW_RESULT_PASS.equals(normalized) || REVIEW_RESULT_CONTINUE.equals(normalized)) {
+            return normalized;
+        }
+        throw new ServiceException("\u590d\u68c0\u7ed3\u679c\u4e0d\u5408\u6cd5");
+    }
+
+    private int resolveContinueRepair(String reviewResult) {
+        return REVIEW_RESULT_CONTINUE.equals(reviewResult) ? 1 : 0;
+    }
+
+    private String normalizeReturnMethod(String returnMethod) {
+        String normalized = normalizeRequiredText(returnMethod, "\u673a\u5668\u8fd4\u56de\u65b9\u5f0f\u4e0d\u80fd\u4e3a\u7a7a");
+        if (RETURN_METHOD_PICKUP.equals(normalized) || RETURN_METHOD_MAIL.equals(normalized)) {
+            return normalized;
+        }
+        throw new ServiceException("\u673a\u5668\u8fd4\u56de\u65b9\u5f0f\u4e0d\u5408\u6cd5");
+    }
+
+    private WorkOrder buildWorkOrderSnapshot(WorkOrderListVO target) {
+        if (target == null || target.getId() == null) {
+            return null;
+        }
+        WorkOrder snapshot = new WorkOrder();
+        snapshot.setId(target.getId());
+        snapshot.setMainStatus(target.getMainStatus());
+        snapshot.setCurrentAcceptCompanyId(target.getCurrentAcceptCompanyId());
+        snapshot.setAssignedUserId(target.getAssignedUserId());
+        return snapshot;
+    }
+
+    private Integer resolveReadonlyFlag(String relationType, Integer currentFlag) {
+        if ("HISTORY_PARTICIPANT_READONLY".equals(relationType) || "HQ_OBSERVER".equals(relationType)) {
+            return 1;
+        }
+        if (relationType != null && !"NONE".equals(relationType)) {
+            return 0;
+        }
+        return currentFlag;
+    }
+
+    private boolean isNoFaultWorkOrder(Long workOrderId) {
+        if (workOrderId == null) {
+            return false;
+        }
+        LambdaQueryWrapper<WorkOrderQuote> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(WorkOrderQuote::getWorkOrderId, workOrderId)
+                .eq(WorkOrderQuote::getIsCurrentValid, 1)
+                .orderByDesc(WorkOrderQuote::getCreateTime);
+        List<WorkOrderQuote> quotes = workOrderQuoteMapper.selectList(wrapper);
+        if (quotes == null || quotes.isEmpty()) {
+            return false;
+        }
+        String faultJudge = normalizeNullableText(quotes.get(0).getFaultJudge());
+        return FAULT_JUDGE_NO_FAULT.equals(faultJudge);
     }
 
     private String generateSystemCustomerOpenid() {

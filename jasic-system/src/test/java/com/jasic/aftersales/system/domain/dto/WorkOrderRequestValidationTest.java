@@ -38,6 +38,18 @@ public class WorkOrderRequestValidationTest {
     }
 
     @Test
+    public void shouldRequireQuoteFaultJudge() {
+        WorkOrderQuoteDTO dto = new WorkOrderQuoteDTO();
+        dto.setWorkOrderId(1L);
+        dto.setFaultJudge("   ");
+
+        Set<ConstraintViolation<WorkOrderQuoteDTO>> violations = validator.validate(dto);
+
+        Assert.assertTrue(violations.stream()
+                .anyMatch(item -> "故障判定不能为空".equals(item.getMessage())));
+    }
+
+    @Test
     public void shouldCascadeValidateFaultItems() {
         WorkOrderFaultItemDTO faultItem = new WorkOrderFaultItemDTO();
         faultItem.setFaultDesc("   ");

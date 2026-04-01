@@ -2,6 +2,7 @@ package com.jasic.aftersales.system.domain.dto;
 
 import lombok.Data;
 
+import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -22,6 +23,7 @@ public class WorkOrderQuoteDTO implements Serializable {
     private Long workOrderId;
 
     /** 故障判定 */
+    @NotBlank(message = "故障判定不能为空")
     private String faultJudge;
 
     /** 报价金额 */
