@@ -2,6 +2,7 @@ package com.jasic.aftersales.system.domain.dto;
 
 import lombok.Data;
 
+import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import java.io.Serializable;
 
@@ -21,6 +22,7 @@ public class WorkOrderReviewDTO implements Serializable {
     private Long workOrderId;
 
     /** 复检结果 */
+    @NotBlank(message = "复检结果不能为空")
     private String reviewResult;
 
     /** 复检说明 */

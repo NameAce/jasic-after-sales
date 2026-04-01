@@ -2,6 +2,7 @@ package com.jasic.aftersales.system.domain.dto;
 
 import lombok.Data;
 
+import javax.validation.constraints.NotBlank;
 import java.io.Serializable;
 
 /**
@@ -16,6 +17,7 @@ public class WorkOrderFaultItemDTO implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 故障描述 */
+    @NotBlank(message = "故障描述不能为空")
     private String faultDesc;
 
     /** 维修说明 */

@@ -572,8 +572,8 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     @Override
     public List<SysCompanySimpleVO> listTransferTargetOptions(Long workOrderId) {
         WorkOrder workOrder = requireWorkOrder(workOrderId);
-        if (!workOrderPermissionService.canView(workOrder)) {
-            throw new ServiceException("\u65e0\u6743\u67e5\u770b\u8be5\u5de5\u5355");
+        if (!workOrderPermissionService.canTransfer(workOrder)) {
+            throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u8f6c\u5355");
         }
         List<Long> targetCompanyIds = resolveTransferTargetCompanyIds(workOrder);
         if (targetCompanyIds.isEmpty()) {
@@ -1126,6 +1126,13 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return value == null || value.trim().isEmpty();
     }
 
+    private String normalizeNullableText(String value) {
+        if (isBlank(value)) {
+            return null;
+        }
+        return value.trim();
+    }
+
     private String generateSystemCustomerOpenid() {
         return "SYS_WO_" + IdUtil.fastSimpleUUID();
     }
@@ -1151,14 +1158,20 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
         int sort = 1;
         for (WorkOrderFaultItemDTO item : faults) {
+            if (item == null) {
+                throw new ServiceException("\u6545\u969c\u70b9\u4fe1\u606f\u4e0d\u80fd\u4e3a\u7a7a");
+            }
+            if (isBlank(item.getFaultDesc())) {
+                throw new ServiceException("\u6545\u969c\u63cf\u8ff0\u4e0d\u80fd\u4e3a\u7a7a");
+            }
             WorkOrderFault fault = new WorkOrderFault();
             fault.setWorkOrderId(workOrderId);
             fault.setRepairId(repairId);
             fault.setCompanyId(companyId);
-            fault.setFaultDesc(item.getFaultDesc());
-            fault.setRepairDesc(item.getRepairDesc());
-            fault.setPartDesc(item.getPartDesc());
-            fault.setImageUrls(item.getImageUrls());
+            fault.setFaultDesc(item.getFaultDesc().trim());
+            fault.setRepairDesc(normalizeNullableText(item.getRepairDesc()));
+            fault.setPartDesc(normalizeNullableText(item.getPartDesc()));
+            fault.setImageUrls(normalizeNullableText(item.getImageUrls()));
             fault.setSortNum(sort++);
             fault.setCreatedBy(SecurityContext.getCurrentUserId());
             workOrderFaultMapper.insert(fault);

@@ -2,6 +2,7 @@ package com.jasic.aftersales.system.domain.dto;
 
 import lombok.Data;
 
+import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.util.List;
@@ -34,5 +35,6 @@ public class WorkOrderRepairDTO implements Serializable {
     private Integer isFinished;
 
     /** 故障点列表 */
+    @Valid
     private List<WorkOrderFaultItemDTO> faults;
 }
