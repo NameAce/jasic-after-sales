@@ -34,3 +34,9 @@ logging:
   level:
     com.jasic.aftersales: debug
     com.baomidou.mybatisplus: debug
+
+jasic:
+  amap:
+    geocode:
+      enabled: true
+      key: b54855e3b1a8896e7931aa6594c47fad

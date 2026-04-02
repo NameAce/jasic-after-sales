@@ -6,22 +6,23 @@ import cn.hutool.crypto.digest.BCrypt;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jasic.aftersales.common.core.domain.PageResult;
+import com.jasic.aftersales.common.enums.CompanyCategoryEnum;
+import com.jasic.aftersales.common.enums.SubjectTypeEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.system.domain.dto.SysCompanyDTO;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
+import com.jasic.aftersales.system.domain.entity.SysCompanyType;
 import com.jasic.aftersales.system.domain.entity.SysRoleTemplate;
 import com.jasic.aftersales.system.domain.entity.SysUser;
 import com.jasic.aftersales.system.domain.entity.SysUserCompany;
 import com.jasic.aftersales.system.domain.entity.SysUserRole;
-import com.jasic.aftersales.common.enums.CompanyCategoryEnum;
-import com.jasic.aftersales.common.enums.SubjectTypeEnum;
-import com.jasic.aftersales.system.domain.entity.SysCompanyType;
 import com.jasic.aftersales.system.domain.query.SysCompanyQuery;
 import com.jasic.aftersales.system.mapper.SysCompanyMapper;
 import com.jasic.aftersales.system.mapper.SysRoleTemplateMapper;
 import com.jasic.aftersales.system.mapper.SysUserCompanyMapper;
 import com.jasic.aftersales.system.mapper.SysUserMapper;
 import com.jasic.aftersales.system.mapper.SysUserRoleMapper;
+import com.jasic.aftersales.system.service.ICompanyGeoResolver;
 import com.jasic.aftersales.system.service.ISysCompanyService;
 import com.jasic.aftersales.system.service.ISysCompanyTypeService;
 import com.jasic.aftersales.system.service.ISysConfigService;
@@ -30,7 +31,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -43,6 +46,8 @@ import java.util.stream.Collectors;
 public class SysCompanyServiceImpl implements ISysCompanyService {
 
     private static final String DEFAULT_PASSWORD = "Jasic@123";
+    private static final Integer STATUS_ENABLED = 1;
+    private static final Integer STATUS_DISABLED = 0;
 
     @Resource
     private SysCompanyMapper sysCompanyMapper;
@@ -68,6 +73,9 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
     @Resource
     private ISysConfigService configService;
 
+    @Resource
+    private ICompanyGeoResolver companyGeoResolver;
+
     /**
      * 分页查询公司列表
      *
@@ -81,7 +89,6 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         if (StrUtil.isNotBlank(query.getCompanyName())) {
             wrapper.like(SysCompany::getCompanyName, query.getCompanyName());
         }
-        // 业务分类优先于 typeCode
         if (StrUtil.isNotBlank(query.getCategory())) {
             applyCategoryFilter(wrapper, query.getCategory());
         } else if (StrUtil.isNotBlank(query.getTypeCode())) {
@@ -99,7 +106,7 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
      * 按业务分类过滤公司
      *
      * @param wrapper 查询条件
-     * @param category 分类编码（HQ/FIRST_LEVEL/SECOND_LEVEL）
+     * @param category 分类编码
      */
     private void applyCategoryFilter(LambdaQueryWrapper<SysCompany> wrapper, String category) {
         CompanyCategoryEnum categoryEnum = CompanyCategoryEnum.getByCode(category);
@@ -116,7 +123,7 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
                 if (!hqTypeCodes.isEmpty()) {
                     wrapper.in(SysCompany::getTypeCode, hqTypeCodes);
                 } else {
-                    wrapper.eq(SysCompany::getTypeCode, "__none__"); // 无匹配类型时返回空
+                    wrapper.eq(SysCompany::getTypeCode, "__none__");
                 }
                 break;
             case FIRST_LEVEL:
@@ -142,18 +149,7 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
     }
 
     /**
-     * 新增公司（自动初始化角色 + 创建默认管理员账号）
-     * <p>
-     * 流程：
-     * 1. 校验公司编码唯一性
-     * 2. 校验该公司类型是否存在管理员角色模板
-     * 3. 校验管理员用户名、手机号唯一性
-     * 4. 插入公司记录
-     * 5. 根据模板初始化角色（管理员角色 + 功能角色）
-     * 6. 创建默认管理员用户
-     * 7. 关联用户-公司
-     * 8. 分配管理员角色
-     * </p>
+     * 新增公司
      *
      * @param dto 公司参数
      * @return 主键ID
@@ -161,75 +157,25 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
     @Transactional(rollbackFor = Exception.class)
     @Override
     public Long save(SysCompanyDTO dto) {
-        // 1. 校验公司编码唯一性
-        LambdaQueryWrapper<SysCompany> companyWrapper = new LambdaQueryWrapper<>();
-        companyWrapper.eq(SysCompany::getCompanyCode, dto.getCompanyCode());
-        if (sysCompanyMapper.selectCount(companyWrapper) > 0) {
-            throw new ServiceException("公司编码已存在");
-        }
+        normalizeDto(dto);
+        validateCompanyType(dto.getTypeCode());
+        validateCompanyStatus(dto.getStatus());
+        validateCompanyCodeUnique(null, dto.getCompanyCode());
+        validateAdminTemplate(dto.getTypeCode());
+        validateAdminUsername(dto.getAdminUsername());
+        validateContactPhoneUnique(dto.getContactPhone());
 
-        // 2. 校验该公司类型是否存在管理员角色模板
-        LambdaQueryWrapper<SysRoleTemplate> adminTplWrapper = new LambdaQueryWrapper<>();
-        adminTplWrapper.eq(SysRoleTemplate::getTypeCode, dto.getTypeCode())
-                .eq(SysRoleTemplate::getIsAdmin, 1);
-        if (sysRoleTemplateMapper.selectCount(adminTplWrapper) == 0) {
-            throw new ServiceException("请先维护该公司类型（" + dto.getTypeCode() + "）的管理员角色模板");
-        }
+        ICompanyGeoResolver.GeoLocation geoLocation = companyGeoResolver.resolve(dto.getAddress());
 
-        // 3. 校验管理员用户名唯一性
-        if (StrUtil.isBlank(dto.getAdminUsername())) {
-            throw new ServiceException("管理员用户名不能为空");
-        }
-        LambdaQueryWrapper<SysUser> usernameWrapper = new LambdaQueryWrapper<>();
-        usernameWrapper.eq(SysUser::getUsername, dto.getAdminUsername());
-        if (sysUserMapper.selectCount(usernameWrapper) > 0) {
-            throw new ServiceException("管理员用户名（" + dto.getAdminUsername() + "）已存在，请修改");
-        }
-
-        // 4. 校验手机号唯一性
-        LambdaQueryWrapper<SysUser> phoneWrapper = new LambdaQueryWrapper<>();
-        phoneWrapper.eq(SysUser::getPhone, dto.getContactPhone());
-        if (sysUserMapper.selectCount(phoneWrapper) > 0) {
-            throw new ServiceException("联系电话（" + dto.getContactPhone() + "）已被其他用户使用，请确认");
-        }
-
-        // 5. 插入公司记录
         SysCompany company = new SysCompany();
         BeanUtil.copyProperties(dto, company);
-        if (company.getStatus() == null) {
-            company.setStatus(1);
-        }
+        applyDefaultStatus(company);
+        company.setLongitude(geoLocation.getLongitude());
+        company.setLatitude(geoLocation.getLatitude());
         sysCompanyMapper.insert(company);
 
-        // 6. 根据模板初始化角色，获取管理员角色ID
         Long adminRoleId = roleTemplateService.initCompanyRoles(company.getId(), dto.getTypeCode());
-
-        // 7. 创建默认管理员用户
-        String initPassword = StrUtil.blankToDefault(
-                configService.getValueByKey("org.company.adminInitPassword"), DEFAULT_PASSWORD);
-        SysUser adminUser = new SysUser();
-        adminUser.setUsername(dto.getAdminUsername());
-        adminUser.setPassword(BCrypt.hashpw(initPassword, BCrypt.gensalt()));
-        adminUser.setRealName(dto.getContactName());
-        adminUser.setPhone(dto.getContactPhone());
-        adminUser.setStatus(1);
-        sysUserMapper.insert(adminUser);
-
-        // 8. 关联用户-公司
-        SysUserCompany userCompany = new SysUserCompany();
-        userCompany.setUserId(adminUser.getId());
-        userCompany.setCompanyId(company.getId());
-        userCompany.setIsDefault(1);
-        sysUserCompanyMapper.insert(userCompany);
-
-        // 9. 分配管理员角色
-        if (adminRoleId != null) {
-            SysUserRole userRole = new SysUserRole();
-            userRole.setUserId(adminUser.getId());
-            userRole.setRoleId(adminRoleId);
-            sysUserRoleMapper.insert(userRole);
-        }
-
+        createDefaultAdmin(dto, company.getId(), adminRoleId);
         return company.getId();
     }
 
@@ -240,6 +186,7 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
      */
     @Override
     public void update(SysCompanyDTO dto) {
+        normalizeDto(dto);
         if (dto.getId() == null) {
             throw new ServiceException("公司ID不能为空");
         }
@@ -247,7 +194,27 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         if (company == null) {
             throw new ServiceException("公司不存在");
         }
+
+        validateCompanyType(dto.getTypeCode());
+        validateCompanyStatus(dto.getStatus());
+        validateCompanyCodeUnique(dto.getId(), dto.getCompanyCode());
+
+        BigDecimal originalLongitude = company.getLongitude();
+        BigDecimal originalLatitude = company.getLatitude();
+        String originalAddress = normalizeNullableText(company.getAddress());
+
         BeanUtil.copyProperties(dto, company);
+        if (shouldResolveAddress(originalAddress, dto.getAddress(), originalLongitude, originalLatitude)) {
+            ICompanyGeoResolver.GeoLocation geoLocation = companyGeoResolver.resolve(dto.getAddress());
+            company.setLongitude(geoLocation.getLongitude());
+            company.setLatitude(geoLocation.getLatitude());
+        } else {
+            company.setLongitude(originalLongitude);
+            company.setLatitude(originalLatitude);
+        }
+        if (company.getStatus() == null) {
+            company.setStatus(STATUS_ENABLED);
+        }
         sysCompanyMapper.updateById(company);
     }
 
@@ -264,5 +231,122 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
             throw new ServiceException("该公司下存在用户，不允许删除");
         }
         sysCompanyMapper.deleteById(id);
+    }
+
+    private void createDefaultAdmin(SysCompanyDTO dto, Long companyId, Long adminRoleId) {
+        String initPassword = StrUtil.blankToDefault(
+                configService.getValueByKey("org.company.adminInitPassword"), DEFAULT_PASSWORD);
+
+        SysUser adminUser = new SysUser();
+        adminUser.setUsername(dto.getAdminUsername());
+        adminUser.setPassword(BCrypt.hashpw(initPassword, BCrypt.gensalt()));
+        adminUser.setRealName(dto.getContactName());
+        adminUser.setPhone(dto.getContactPhone());
+        adminUser.setStatus(STATUS_ENABLED);
+        sysUserMapper.insert(adminUser);
+
+        SysUserCompany userCompany = new SysUserCompany();
+        userCompany.setUserId(adminUser.getId());
+        userCompany.setCompanyId(companyId);
+        userCompany.setIsDefault(1);
+        sysUserCompanyMapper.insert(userCompany);
+
+        if (adminRoleId != null) {
+            SysUserRole userRole = new SysUserRole();
+            userRole.setUserId(adminUser.getId());
+            userRole.setRoleId(adminRoleId);
+            sysUserRoleMapper.insert(userRole);
+        }
+    }
+
+    private void validateCompanyType(String typeCode) {
+        boolean matched = companyTypeService.listAll().stream()
+                .anyMatch(item -> StrUtil.equals(item.getTypeCode(), typeCode));
+        if (!matched) {
+            throw new ServiceException("公司类型不存在");
+        }
+    }
+
+    private void validateCompanyStatus(Integer status) {
+        if (status == null) {
+            return;
+        }
+        if (!Objects.equals(STATUS_ENABLED, status) && !Objects.equals(STATUS_DISABLED, status)) {
+            throw new ServiceException("公司状态不合法");
+        }
+    }
+
+    private void validateCompanyCodeUnique(Long currentId, String companyCode) {
+        LambdaQueryWrapper<SysCompany> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysCompany::getCompanyCode, companyCode);
+        if (currentId != null) {
+            wrapper.ne(SysCompany::getId, currentId);
+        }
+        if (sysCompanyMapper.selectCount(wrapper) > 0) {
+            throw new ServiceException("公司编码已存在");
+        }
+    }
+
+    private void validateAdminTemplate(String typeCode) {
+        LambdaQueryWrapper<SysRoleTemplate> adminTplWrapper = new LambdaQueryWrapper<>();
+        adminTplWrapper.eq(SysRoleTemplate::getTypeCode, typeCode)
+                .eq(SysRoleTemplate::getIsAdmin, 1);
+        if (sysRoleTemplateMapper.selectCount(adminTplWrapper) == 0) {
+            throw new ServiceException("请先维护该公司类型（" + typeCode + "）的管理员角色模板");
+        }
+    }
+
+    private void validateAdminUsername(String adminUsername) {
+        if (StrUtil.isBlank(adminUsername)) {
+            throw new ServiceException("管理员用户名不能为空");
+        }
+        LambdaQueryWrapper<SysUser> usernameWrapper = new LambdaQueryWrapper<>();
+        usernameWrapper.eq(SysUser::getUsername, adminUsername);
+        if (sysUserMapper.selectCount(usernameWrapper) > 0) {
+            throw new ServiceException("管理员用户名（" + adminUsername + "）已存在，请修改");
+        }
+    }
+
+    private void validateContactPhoneUnique(String contactPhone) {
+        LambdaQueryWrapper<SysUser> phoneWrapper = new LambdaQueryWrapper<>();
+        phoneWrapper.eq(SysUser::getPhone, contactPhone);
+        if (sysUserMapper.selectCount(phoneWrapper) > 0) {
+            throw new ServiceException("联系电话（" + contactPhone + "）已被其他用户使用，请确认");
+        }
+    }
+
+    private boolean shouldResolveAddress(String originalAddress, String targetAddress,
+                                         BigDecimal longitude, BigDecimal latitude) {
+        if (longitude == null || latitude == null) {
+            return true;
+        }
+        return !StrUtil.equals(originalAddress, targetAddress);
+    }
+
+    private void applyDefaultStatus(SysCompany company) {
+        if (company.getStatus() == null) {
+            company.setStatus(STATUS_ENABLED);
+        }
+    }
+
+    private void normalizeDto(SysCompanyDTO dto) {
+        dto.setCompanyName(normalizeRequiredText(dto.getCompanyName()));
+        dto.setCompanyCode(normalizeRequiredText(dto.getCompanyCode()));
+        dto.setTypeCode(normalizeRequiredText(dto.getTypeCode()));
+        dto.setContactName(normalizeRequiredText(dto.getContactName()));
+        dto.setContactPhone(normalizeRequiredText(dto.getContactPhone()));
+        dto.setAddress(normalizeRequiredText(dto.getAddress()));
+        dto.setAdminUsername(normalizeNullableText(dto.getAdminUsername()));
+        dto.setRemark(normalizeNullableText(dto.getRemark()));
+    }
+
+    private String normalizeRequiredText(String value) {
+        String normalized = StrUtil.trim(value);
+        return StrUtil.isBlank(normalized) ? null : normalized;
+    }
+
+    private String normalizeNullableText(String value) {
+        String normalized = StrUtil.trim(value);
+        return StrUtil.isBlank(normalized) ? null : normalized;
     }
 }

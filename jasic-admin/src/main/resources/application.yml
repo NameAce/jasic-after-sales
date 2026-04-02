@@ -53,3 +53,11 @@ knife4j:
         api-rule: package
         api-rule-resources:
           - com.jasic.aftersales
+
+jasic:
+  amap:
+    geocode:
+      enabled: true
+      key: b54855e3b1a8896e7931aa6594c47fad
+      url: https://restapi.amap.com/v3/geocode/geo
+      timeout-ms: 6000

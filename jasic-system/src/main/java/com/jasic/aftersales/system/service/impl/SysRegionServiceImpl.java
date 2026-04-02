@@ -6,12 +6,18 @@ import com.jasic.aftersales.common.enums.SubjectTypeEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.dto.SysRegionDTO;
+import com.jasic.aftersales.system.domain.entity.HqFirstContract;
+import com.jasic.aftersales.system.domain.entity.SysCompany;
+import com.jasic.aftersales.system.domain.entity.SysCompanyType;
 import com.jasic.aftersales.system.domain.entity.SysRegion;
 import com.jasic.aftersales.system.domain.entity.SysUserCompany;
 import com.jasic.aftersales.system.domain.entity.SysUserRegion;
+import com.jasic.aftersales.system.mapper.HqFirstContractMapper;
+import com.jasic.aftersales.system.mapper.SysCompanyMapper;
 import com.jasic.aftersales.system.mapper.SysRegionMapper;
 import com.jasic.aftersales.system.mapper.SysUserCompanyMapper;
 import com.jasic.aftersales.system.mapper.SysUserRegionMapper;
+import com.jasic.aftersales.system.service.ISysCompanyTypeService;
 import com.jasic.aftersales.system.service.ISysRegionService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +26,8 @@ import javax.annotation.Resource;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -32,6 +40,8 @@ import java.util.stream.Collectors;
 @Service
 public class SysRegionServiceImpl implements ISysRegionService {
 
+    private static final Integer STATUS_ENABLED = 1;
+
     @Resource
     private SysRegionMapper sysRegionMapper;
 
@@ -40,6 +50,15 @@ public class SysRegionServiceImpl implements ISysRegionService {
 
     @Resource
     private SysUserCompanyMapper sysUserCompanyMapper;
+
+    @Resource
+    private SysCompanyMapper sysCompanyMapper;
+
+    @Resource
+    private HqFirstContractMapper hqFirstContractMapper;
+
+    @Resource
+    private ISysCompanyTypeService companyTypeService;
 
     /**
      * 根据公司ID查询大区列表
@@ -77,9 +96,7 @@ public class SysRegionServiceImpl implements ISysRegionService {
      */
     @Override
     public Long save(SysRegionDTO dto) {
-        if (dto.getCompanyId() == null) {
-            throw new ServiceException("公司ID不能为空");
-        }
+        validateHqCompany(dto.getCompanyId());
         SysRegion entity = new SysRegion();
         BeanUtil.copyProperties(dto, entity);
         sysRegionMapper.insert(entity);
@@ -100,6 +117,7 @@ public class SysRegionServiceImpl implements ISysRegionService {
         if (entity == null) {
             throw new ServiceException("大区不存在");
         }
+        validateHqCompany(dto.getCompanyId());
         BeanUtil.copyProperties(dto, entity);
         sysRegionMapper.updateById(entity);
     }
@@ -115,13 +133,18 @@ public class SysRegionServiceImpl implements ISysRegionService {
         if (entity == null) {
             throw new ServiceException("大区不存在");
         }
+        LambdaQueryWrapper<HqFirstContract> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(HqFirstContract::getRegionId, id);
+        if (hqFirstContractMapper.selectCount(wrapper) > 0) {
+            throw new ServiceException("该大区已被签约关系引用，不允许删除");
+        }
         sysRegionMapper.deleteById(id);
     }
 
     /**
      * 分配用户大区
      *
-     * @param userId    用户ID
+     * @param userId 用户ID
      * @param regionIds 大区ID列表
      */
     @Override
@@ -174,9 +197,9 @@ public class SysRegionServiceImpl implements ISysRegionService {
     }
 
     /**
-     * 根据用户ID和公司ID查询大区ID列表。
+     * 根据用户ID和公司ID查询大区ID列表
      *
-     * @param userId    用户ID
+     * @param userId 用户ID
      * @param companyId 公司ID
      * @return 大区ID列表
      */
@@ -244,6 +267,24 @@ public class SysRegionServiceImpl implements ISysRegionService {
         Long matchedCount = sysRegionMapper.selectCount(wrapper);
         if (matchedCount == null || matchedCount.intValue() != regionIds.size()) {
             throw new ServiceException("存在不属于当前总部的大区");
+        }
+    }
+
+    private void validateHqCompany(Long companyId) {
+        if (companyId == null) {
+            throw new ServiceException("公司ID不能为空");
+        }
+        SysCompany company = sysCompanyMapper.selectById(companyId);
+        if (company == null) {
+            throw new ServiceException("总部公司不存在");
+        }
+        if (!Objects.equals(company.getStatus(), STATUS_ENABLED)) {
+            throw new ServiceException("总部公司已停用");
+        }
+        Map<String, String> subjectTypeMap = companyTypeService.listAll().stream()
+                .collect(Collectors.toMap(SysCompanyType::getTypeCode, SysCompanyType::getSubjectType, (a, b) -> a));
+        if (!SubjectTypeEnum.HQ.getCode().equals(subjectTypeMap.get(company.getTypeCode()))) {
+            throw new ServiceException("所属公司必须是总部类型");
         }
     }
 }
