@@ -6,9 +6,13 @@ import com.jasic.aftersales.common.core.domain.Result;
 import com.jasic.aftersales.common.enums.OperTypeEnum;
 import com.jasic.aftersales.system.domain.dto.ChooseCompanyDTO;
 import com.jasic.aftersales.system.domain.dto.LoginDTO;
+import com.jasic.aftersales.system.domain.dto.MpLoginDTO;
+import com.jasic.aftersales.system.domain.dto.WechatBindConfirmDTO;
 import com.jasic.aftersales.system.domain.vo.LoginVO;
+import com.jasic.aftersales.system.domain.vo.MpLoginVO;
 import com.jasic.aftersales.system.domain.vo.SysMenuVO;
 import com.jasic.aftersales.system.domain.vo.SysUserVO;
+import com.jasic.aftersales.system.domain.vo.WechatBindStatusVO;
 import com.jasic.aftersales.system.service.ISysAuthService;
 import com.jasic.aftersales.system.service.ISysMenuService;
 import com.jasic.aftersales.framework.security.SecurityContext;
@@ -53,6 +57,19 @@ public class SysAuthController {
     }
 
     /**
+     * B端小程序登录
+     *
+     * @param dto 登录参数
+     * @return 登录结果
+     */
+    @SaIgnore
+    @PostMapping("/mp-login")
+    public Result<MpLoginVO> mpLogin(@Validated @RequestBody MpLoginDTO dto) {
+        MpLoginVO vo = authService.mpLogin(dto);
+        return Result.ok(vo);
+    }
+
+    /**
      * 选择/切换公司
      *
      * @param dto 公司选择参数
@@ -74,6 +91,38 @@ public class SysAuthController {
     public Result<SysUserVO> getUserInfo() {
         SysUserVO vo = authService.getUserInfo();
         return Result.ok(vo);
+    }
+
+    /**
+     * 查询当前用户微信绑定状态
+     *
+     * @return 绑定状态
+     */
+    @GetMapping("/wechat-bind/status")
+    public Result<WechatBindStatusVO> getWechatBindStatus() {
+        return Result.ok(authService.getWechatBindStatus());
+    }
+
+    /**
+     * 生成当前用户微信绑定码
+     *
+     * @return 绑定状态
+     */
+    @PostMapping("/wechat-bind/code")
+    public Result<WechatBindStatusVO> createWechatBindCode() {
+        return Result.ok(authService.createWechatBindCode());
+    }
+
+    /**
+     * 小程序侧确认绑定并登录
+     *
+     * @param dto 绑定参数
+     * @return 登录结果
+     */
+    @SaIgnore
+    @PostMapping("/mp-bind-confirm")
+    public Result<MpLoginVO> confirmWechatBind(@Validated @RequestBody WechatBindConfirmDTO dto) {
+        return Result.ok(authService.confirmWechatBind(dto));
     }
 
     /**

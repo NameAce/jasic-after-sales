@@ -19,3 +19,11 @@ export function getMenus() {
 export function logout() {
   return request({ url: '/auth/logout', method: 'post' })
 }
+
+export function getWechatBindStatus() {
+  return request({ url: '/auth/wechat-bind/status', method: 'get' })
+}
+
+export function createWechatBindCode() {
+  return request({ url: '/auth/wechat-bind/code', method: 'post' })
+}

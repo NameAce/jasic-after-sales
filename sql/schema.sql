@@ -115,6 +115,7 @@ CREATE TABLE `sys_user` (
   `avatar`          varchar(256)     DEFAULT NULL            COMMENT '头像URL',
   `openid`          varchar(64)      DEFAULT NULL            COMMENT '微信openid（小程序登录绑定）',
   `unionid`         varchar(64)      DEFAULT NULL            COMMENT '微信unionid',
+  `wechat_phone`    varchar(20)      DEFAULT NULL            COMMENT '微信授权手机号快照',
   `sex`             tinyint unsigned DEFAULT 0               COMMENT '性别（0=未知，1=男，2=女）',
   `status`          tinyint unsigned DEFAULT 1               COMMENT '状态（1=正常，0=停用）',
   `is_deleted`      tinyint unsigned DEFAULT 0               COMMENT '是否删除（逻辑删除）',

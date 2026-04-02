@@ -40,6 +40,7 @@ public class SaTokenConfig implements WebMvcConfigurer {
                     .notMatch(
                             "/auth/login",
                             "/auth/mp-login",
+                            "/auth/mp-bind-confirm",
                             "/customer/auth/login",
                             "/customer/**",
                             "/doc.html",

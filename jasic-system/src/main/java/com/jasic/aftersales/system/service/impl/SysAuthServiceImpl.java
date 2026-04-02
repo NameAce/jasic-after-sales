@@ -1,7 +1,10 @@
 package com.jasic.aftersales.system.service.impl;
 
 import cn.dev33.satoken.stp.StpUtil;
+import cn.hutool.core.util.RandomUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.digest.BCrypt;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.jasic.aftersales.common.constant.CacheConstants;
@@ -11,13 +14,21 @@ import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.framework.web.ResultCode;
 import com.jasic.aftersales.system.domain.dto.LoginDTO;
+import com.jasic.aftersales.system.domain.dto.MpLoginDTO;
+import com.jasic.aftersales.system.domain.dto.WechatBindConfirmDTO;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
 import com.jasic.aftersales.system.domain.entity.SysCompanyType;
 import com.jasic.aftersales.system.domain.entity.SysUser;
 import com.jasic.aftersales.system.domain.entity.SysUserCompany;
+import com.jasic.aftersales.system.domain.enums.WechatMiniProgramScene;
+import com.jasic.aftersales.system.domain.model.WechatAuthSession;
+import com.jasic.aftersales.system.domain.model.WechatBindSession;
+import com.jasic.aftersales.system.domain.model.WechatPhoneInfo;
 import com.jasic.aftersales.system.domain.vo.LoginVO;
+import com.jasic.aftersales.system.domain.vo.MpLoginVO;
 import com.jasic.aftersales.system.domain.vo.SysCompanySimpleVO;
 import com.jasic.aftersales.system.domain.vo.SysUserVO;
+import com.jasic.aftersales.system.domain.vo.WechatBindStatusVO;
 import com.jasic.aftersales.system.mapper.SysCompanyMapper;
 import com.jasic.aftersales.system.mapper.SysCompanyTypeMapper;
 import com.jasic.aftersales.system.mapper.SysMenuMapper;
@@ -26,6 +37,8 @@ import com.jasic.aftersales.system.mapper.SysUserMapper;
 import com.jasic.aftersales.system.service.ISysAuthService;
 import com.jasic.aftersales.system.service.ISysRegionService;
 import com.jasic.aftersales.system.service.SysPermissionService;
+import com.jasic.aftersales.system.service.WechatMiniProgramService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -35,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -43,8 +57,11 @@ import java.util.stream.Collectors;
  * @author Zoro
  * @date 2026/03/18
  */
+@Slf4j
 @Service
 public class SysAuthServiceImpl implements ISysAuthService {
+
+    private static final int BIND_CODE_EXPIRE_MINUTES = 5;
 
     @Resource
     private SysUserMapper sysUserMapper;
@@ -70,6 +87,9 @@ public class SysAuthServiceImpl implements ISysAuthService {
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
 
+    @Resource
+    private WechatMiniProgramService wechatMiniProgramService;
+
     /**
      * B端登录
      *
@@ -78,62 +98,38 @@ public class SysAuthServiceImpl implements ISysAuthService {
      */
     @Override
     public LoginVO login(LoginDTO dto) {
-        // 1. 根据用户名查询用户
         LambdaQueryWrapper<SysUser> userQuery = new LambdaQueryWrapper<>();
         userQuery.eq(SysUser::getUsername, dto.getUsername());
         SysUser user = sysUserMapper.selectOne(userQuery);
         if (user == null) {
             throw new ServiceException(ResultCode.LOGIN_ERROR, "用户名或密码错误");
         }
-
-        // 2. 校验密码
         if (!BCrypt.checkpw(dto.getPassword(), user.getPassword())) {
             throw new ServiceException(ResultCode.LOGIN_ERROR, "用户名或密码错误");
         }
+        ensureUserActive(user);
+        return doLogin(user);
+    }
 
-        // 3. 校验账号状态
-        if (user.getStatus() == null || user.getStatus() == 0) {
-            throw new ServiceException(ResultCode.ACCOUNT_DISABLED, "账号已停用");
+    /**
+     * B端小程序登录
+     *
+     * @param dto 登录参数
+     * @return 登录结果
+     */
+    @Override
+    public MpLoginVO mpLogin(MpLoginDTO dto) {
+        WechatAuthSession session = wechatMiniProgramService.code2Session(WechatMiniProgramScene.B, dto.getCode());
+        SysUser user = findByOpenid(session.getOpenid());
+        if (user == null) {
+            MpLoginVO vo = new MpLoginVO();
+            vo.setStatus("UNBOUND");
+            vo.setNeedChooseCompany(false);
+            return vo;
         }
-
-        // 4. Sa-Token 登录
-        StpUtil.login(user.getId());
-
-        // 5. 更新最后登录时间
-        LambdaUpdateWrapper<SysUser> updateWrapper = new LambdaUpdateWrapper<>();
-        updateWrapper.eq(SysUser::getId, user.getId())
-                .set(SysUser::getLastLoginTime, LocalDateTime.now());
-        sysUserMapper.update(null, updateWrapper);
-
-        // 6. 查询用户关联公司列表
-        LambdaQueryWrapper<SysUserCompany> ucQuery = new LambdaQueryWrapper<>();
-        ucQuery.eq(SysUserCompany::getUserId, user.getId());
-        List<SysUserCompany> userCompanies = sysUserCompanyMapper.selectList(ucQuery);
-
-        if (userCompanies == null || userCompanies.isEmpty()) {
-            throw new ServiceException(ResultCode.USER_ERROR, "用户未关联任何公司");
-        }
-
-        List<SysCompanySimpleVO> companies = buildCompanySimpleList(
-                userCompanies.stream().map(SysUserCompany::getCompanyId).collect(Collectors.toList()));
-
-        LoginVO loginVO = new LoginVO();
-        loginVO.setToken(StpUtil.getTokenValue());
-
-        if (companies.size() == 1) {
-            // 7. 仅一个公司时自动选择
-            SysUserVO userInfo = chooseCompany(companies.get(0).getId());
-            loginVO.setUserInfo(userInfo);
-            loginVO.setNeedChooseCompany(false);
-            loginVO.setCompanies(null);
-        } else {
-            // 8. 多公司时需要选择
-            loginVO.setUserInfo(buildBasicUserVO(user));
-            loginVO.setNeedChooseCompany(true);
-            loginVO.setCompanies(companies);
-        }
-
-        return loginVO;
+        ensureUserActive(user);
+        refreshWechatIdentity(user.getId(), session.getOpenid(), session.getUnionid(), null);
+        return buildMpLoginVO(doLogin(requireActiveUser(user.getId())));
     }
 
     /**
@@ -146,7 +142,6 @@ public class SysAuthServiceImpl implements ISysAuthService {
     public SysUserVO chooseCompany(Long companyId) {
         Long userId = SecurityContext.getCurrentUserId();
 
-        // 1. 校验用户-公司关联
         LambdaQueryWrapper<SysUserCompany> ucQuery = new LambdaQueryWrapper<>();
         ucQuery.eq(SysUserCompany::getUserId, userId)
                 .eq(SysUserCompany::getCompanyId, companyId);
@@ -155,7 +150,6 @@ public class SysAuthServiceImpl implements ISysAuthService {
             throw new ServiceException(ResultCode.NOT_PERMISSION, "无权限操作该公司");
         }
 
-        // 2. 查询公司和公司类型
         SysCompany company = sysCompanyMapper.selectById(companyId);
         if (company == null) {
             throw new ServiceException(ResultCode.DATA_NOT_FOUND, "公司不存在");
@@ -165,19 +159,14 @@ public class SysAuthServiceImpl implements ISysAuthService {
         typeQuery.eq(SysCompanyType::getTypeCode, company.getTypeCode());
         SysCompanyType companyType = sysCompanyTypeMapper.selectOne(typeQuery);
 
-        // 3. 设置 SecurityContext
         SecurityContext.setCurrentCompanyId(companyId);
         SecurityContext.setCurrentSubjectType(companyType != null ? companyType.getSubjectType() : null);
         SecurityContext.setCurrentTypeCode(company.getTypeCode());
         initDataScopeContext(userId, companyId, companyType);
 
-        // 4. 加载权限到缓存
         Set<String> perms = sysPermissionService.loadPermsToCache(userId, companyId);
-
-        // 5. 查询菜单树（用于缓存或后续接口）
         sysMenuMapper.selectMenuTreeByUserIdAndCompanyId(userId, companyId);
 
-        // 6. 构建并返回 SysUserVO
         SysUser user = sysUserMapper.selectById(userId);
         return buildSysUserVO(user, company, companyType, userId, perms);
     }
@@ -198,7 +187,6 @@ public class SysAuthServiceImpl implements ISysAuthService {
         }
 
         SysUserVO vo = buildBasicUserVO(user);
-
         if (companyId != null) {
             SysCompany company = sysCompanyMapper.selectById(companyId);
             if (company != null) {
@@ -213,7 +201,6 @@ public class SysAuthServiceImpl implements ISysAuthService {
                     vo.setCurrentSubjectType(companyType.getSubjectType());
                 }
 
-                // 从 Redis 加载权限
                 String permsKey = CacheConstants.USER_PERMS_KEY + userId + ":" + companyId;
                 Set<Object> permObjects = redisTemplate.opsForSet().members(permsKey);
                 if (permObjects != null && !permObjects.isEmpty()) {
@@ -225,7 +212,6 @@ public class SysAuthServiceImpl implements ISysAuthService {
             }
         }
 
-        // 加载用户关联公司列表
         LambdaQueryWrapper<SysUserCompany> ucQuery = new LambdaQueryWrapper<>();
         ucQuery.eq(SysUserCompany::getUserId, userId);
         List<SysUserCompany> userCompanies = sysUserCompanyMapper.selectList(ucQuery);
@@ -235,8 +221,81 @@ public class SysAuthServiceImpl implements ISysAuthService {
                     .collect(Collectors.toList());
             vo.setCompanies(buildCompanySimpleList(companyIds));
         }
-
         return vo;
+    }
+
+    /**
+     * 生成当前用户的微信绑定码
+     *
+     * @return 绑定状态
+     */
+    @Override
+    public WechatBindStatusVO createWechatBindCode() {
+        Long userId = SecurityContext.getCurrentUserId();
+        SysUser user = requireActiveUser(userId);
+        if (StrUtil.isNotBlank(user.getOpenid())) {
+            throw new ServiceException("当前账号已绑定微信");
+        }
+
+        WechatBindSession oldSession = getBindSession(userId);
+        if (oldSession != null && StrUtil.isNotBlank(oldSession.getBindCode())) {
+            redisTemplate.delete(CacheConstants.WECHAT_BIND_CODE_KEY + oldSession.getBindCode());
+        }
+
+        WechatBindSession session = new WechatBindSession();
+        session.setUserId(userId);
+        session.setBindCode(generateBindCode());
+        session.setExpireAt(LocalDateTime.now().plusMinutes(BIND_CODE_EXPIRE_MINUTES));
+        saveBindSession(session);
+        return buildWechatBindStatus(user, session);
+    }
+
+    /**
+     * 查询当前用户微信绑定状态
+     *
+     * @return 绑定状态
+     */
+    @Override
+    public WechatBindStatusVO getWechatBindStatus() {
+        Long userId = SecurityContext.getCurrentUserId();
+        SysUser user = requireActiveUser(userId);
+        return buildWechatBindStatus(user, getBindSession(userId));
+    }
+
+    /**
+     * 使用绑定码确认微信绑定并登录
+     *
+     * @param dto 绑定参数
+     * @return 登录结果
+     */
+    @Override
+    public MpLoginVO confirmWechatBind(WechatBindConfirmDTO dto) {
+        WechatBindSession bindSession = requireBindSession(dto.getBindCode());
+        SysUser user = requireActiveUser(bindSession.getUserId());
+        if (StrUtil.isNotBlank(user.getOpenid())) {
+            clearBindSession(bindSession);
+            throw new ServiceException("当前账号已绑定微信");
+        }
+
+        WechatAuthSession authSession = wechatMiniProgramService.code2Session(WechatMiniProgramScene.B, dto.getCode());
+        SysUser boundUser = findByOpenid(authSession.getOpenid());
+        if (boundUser != null && !boundUser.getId().equals(user.getId())) {
+            throw new ServiceException("该微信已绑定其他账号");
+        }
+
+        String wechatPhone = null;
+        if (StrUtil.isNotBlank(dto.getPhoneCode())) {
+            try {
+                WechatPhoneInfo phoneInfo = wechatMiniProgramService.getPhoneNumber(WechatMiniProgramScene.B, dto.getPhoneCode());
+                wechatPhone = StrUtil.blankToDefault(phoneInfo.getPhoneNumber(), phoneInfo.getPurePhoneNumber());
+            } catch (Exception ex) {
+                log.warn("获取 B 端微信手机号失败，userId={}", user.getId(), ex);
+            }
+        }
+
+        refreshWechatIdentity(user.getId(), authSession.getOpenid(), authSession.getUnionid(), wechatPhone);
+        clearBindSession(bindSession);
+        return buildMpLoginVO(doLogin(requireActiveUser(user.getId())));
     }
 
     /**
@@ -246,17 +305,14 @@ public class SysAuthServiceImpl implements ISysAuthService {
     public void logout() {
         Long userId = SecurityContext.getCurrentUserId();
         Long companyId = SecurityContext.getCurrentCompanyId();
-
-        // 清除权限缓存
         if (companyId != null) {
             sysPermissionService.clearPermsCache(userId, companyId);
         }
-
         StpUtil.logout();
     }
 
     /**
-     * 初始化当前公司下的数据权限上下文。
+     * 初始化当前公司下的数据权限上下文
      *
      * @param userId      用户ID
      * @param companyId   公司ID
@@ -270,7 +326,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
     }
 
     /**
-     * 计算当前公司下的有效数据范围。
+     * 计算当前公司下的有效数据范围
      *
      * @param userId      用户ID
      * @param companyId   公司ID
@@ -288,7 +344,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
     }
 
     /**
-     * 计算当前公司下的负责大区列表。
+     * 计算当前公司下的负责大区列表
      *
      * @param userId             用户ID
      * @param companyId          公司ID
@@ -371,7 +427,6 @@ public class SysAuthServiceImpl implements ISysAuthService {
         }
         vo.setPerms(perms);
 
-        // 加载用户关联公司列表
         LambdaQueryWrapper<SysUserCompany> ucQuery = new LambdaQueryWrapper<>();
         ucQuery.eq(SysUserCompany::getUserId, userId);
         List<SysUserCompany> userCompanies = sysUserCompanyMapper.selectList(ucQuery);
@@ -381,7 +436,175 @@ public class SysAuthServiceImpl implements ISysAuthService {
                     .collect(Collectors.toList());
             vo.setCompanies(buildCompanySimpleList(companyIds));
         }
+        return vo;
+    }
 
+    private LoginVO doLogin(SysUser user) {
+        StpUtil.login(user.getId());
+        touchLastLoginTime(user.getId());
+
+        List<SysCompanySimpleVO> companies = listUserCompanies(user.getId());
+        if (companies.isEmpty()) {
+            throw new ServiceException(ResultCode.USER_ERROR, "用户未关联任何公司");
+        }
+
+        LoginVO loginVO = new LoginVO();
+        loginVO.setToken(StpUtil.getTokenValue());
+        if (companies.size() == 1) {
+            SysUserVO userInfo = chooseCompany(companies.get(0).getId());
+            loginVO.setUserInfo(userInfo);
+            loginVO.setNeedChooseCompany(false);
+            loginVO.setCompanies(null);
+        } else {
+            loginVO.setUserInfo(buildBasicUserVO(user));
+            loginVO.setNeedChooseCompany(true);
+            loginVO.setCompanies(companies);
+        }
+        return loginVO;
+    }
+
+    private List<SysCompanySimpleVO> listUserCompanies(Long userId) {
+        LambdaQueryWrapper<SysUserCompany> query = new LambdaQueryWrapper<>();
+        query.eq(SysUserCompany::getUserId, userId);
+        List<SysUserCompany> relations = sysUserCompanyMapper.selectList(query);
+        if (relations == null || relations.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return buildCompanySimpleList(relations.stream()
+                .map(SysUserCompany::getCompanyId)
+                .collect(Collectors.toList()));
+    }
+
+    private void touchLastLoginTime(Long userId) {
+        LambdaUpdateWrapper<SysUser> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(SysUser::getId, userId)
+                .set(SysUser::getLastLoginTime, LocalDateTime.now());
+        sysUserMapper.update(null, updateWrapper);
+    }
+
+    private SysUser requireActiveUser(Long userId) {
+        SysUser user = sysUserMapper.selectById(userId);
+        if (user == null) {
+            throw new ServiceException(ResultCode.DATA_NOT_FOUND, "用户不存在");
+        }
+        ensureUserActive(user);
+        return user;
+    }
+
+    private void ensureUserActive(SysUser user) {
+        if (user.getStatus() == null || user.getStatus() == 0) {
+            throw new ServiceException(ResultCode.ACCOUNT_DISABLED, "账号已停用");
+        }
+    }
+
+    private SysUser findByOpenid(String openid) {
+        if (StrUtil.isBlank(openid)) {
+            return null;
+        }
+        LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysUser::getOpenid, openid);
+        return sysUserMapper.selectOne(wrapper);
+    }
+
+    private void refreshWechatIdentity(Long userId, String openid, String unionid, String wechatPhone) {
+        LambdaUpdateWrapper<SysUser> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(SysUser::getId, userId)
+                .set(SysUser::getOpenid, openid)
+                .set(SysUser::getUnionid, unionid);
+        if (StrUtil.isNotBlank(wechatPhone)) {
+            wrapper.set(SysUser::getWechatPhone, wechatPhone);
+        }
+        sysUserMapper.update(null, wrapper);
+    }
+
+    private String generateBindCode() {
+        for (int i = 0; i < 10; i++) {
+            String bindCode = RandomUtil.randomNumbers(6);
+            if (!Boolean.TRUE.equals(redisTemplate.hasKey(CacheConstants.WECHAT_BIND_CODE_KEY + bindCode))) {
+                return bindCode;
+            }
+        }
+        throw new ServiceException("生成绑定码失败，请稍后重试");
+    }
+
+    private void saveBindSession(WechatBindSession session) {
+        String sessionJson = JSONUtil.toJsonStr(session);
+        redisTemplate.opsForValue().set(CacheConstants.WECHAT_BIND_USER_KEY + session.getUserId(), sessionJson,
+                BIND_CODE_EXPIRE_MINUTES, TimeUnit.MINUTES);
+        redisTemplate.opsForValue().set(CacheConstants.WECHAT_BIND_CODE_KEY + session.getBindCode(),
+                String.valueOf(session.getUserId()), BIND_CODE_EXPIRE_MINUTES, TimeUnit.MINUTES);
+    }
+
+    private WechatBindSession getBindSession(Long userId) {
+        Object raw = redisTemplate.opsForValue().get(CacheConstants.WECHAT_BIND_USER_KEY + userId);
+        if (raw == null || StrUtil.isBlank(String.valueOf(raw))) {
+            return null;
+        }
+        try {
+            WechatBindSession session = JSONUtil.toBean(String.valueOf(raw), WechatBindSession.class);
+            if (session == null || session.getExpireAt() == null || session.getExpireAt().isBefore(LocalDateTime.now())) {
+                clearBindSession(session);
+                return null;
+            }
+            return session;
+        } catch (Exception ex) {
+            redisTemplate.delete(CacheConstants.WECHAT_BIND_USER_KEY + userId);
+            return null;
+        }
+    }
+
+    private WechatBindSession requireBindSession(String bindCode) {
+        Object rawUserId = redisTemplate.opsForValue().get(CacheConstants.WECHAT_BIND_CODE_KEY + bindCode);
+        if (rawUserId == null || StrUtil.isBlank(String.valueOf(rawUserId))) {
+            throw new ServiceException("绑定码无效或已过期");
+        }
+        Long userId = Long.valueOf(String.valueOf(rawUserId));
+        WechatBindSession session = getBindSession(userId);
+        if (session == null || !StrUtil.equals(bindCode, session.getBindCode())) {
+            throw new ServiceException("绑定码无效或已过期");
+        }
+        return session;
+    }
+
+    private void clearBindSession(WechatBindSession session) {
+        if (session == null) {
+            return;
+        }
+        redisTemplate.delete(CacheConstants.WECHAT_BIND_USER_KEY + session.getUserId());
+        if (StrUtil.isNotBlank(session.getBindCode())) {
+            redisTemplate.delete(CacheConstants.WECHAT_BIND_CODE_KEY + session.getBindCode());
+        }
+    }
+
+    private WechatBindStatusVO buildWechatBindStatus(SysUser user, WechatBindSession session) {
+        WechatBindStatusVO vo = new WechatBindStatusVO();
+        vo.setBound(StrUtil.isNotBlank(user.getOpenid()));
+        vo.setMaskedOpenid(maskOpenid(user.getOpenid()));
+        vo.setWechatPhone(user.getWechatPhone());
+        if (session != null && Boolean.FALSE.equals(vo.getBound())) {
+            vo.setBindCode(session.getBindCode());
+            vo.setExpireAt(session.getExpireAt());
+        }
+        return vo;
+    }
+
+    private String maskOpenid(String openid) {
+        if (StrUtil.isBlank(openid)) {
+            return null;
+        }
+        if (openid.length() <= 8) {
+            return openid;
+        }
+        return openid.substring(0, 4) + "****" + openid.substring(openid.length() - 4);
+    }
+
+    private MpLoginVO buildMpLoginVO(LoginVO loginVO) {
+        MpLoginVO vo = new MpLoginVO();
+        vo.setStatus("BOUND");
+        vo.setToken(loginVO.getToken());
+        vo.setUserInfo(loginVO.getUserInfo());
+        vo.setCompanies(loginVO.getCompanies());
+        vo.setNeedChooseCompany(loginVO.getNeedChooseCompany());
         return vo;
     }
 }

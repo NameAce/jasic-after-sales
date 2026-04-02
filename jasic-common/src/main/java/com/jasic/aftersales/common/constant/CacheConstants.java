@@ -31,4 +31,13 @@ public class CacheConstants {
 
     /** 参数缓存前缀，完整 key: config:key:{configKey} */
     public static final String CONFIG_KEY = "config:key:";
+
+    /** 微信 access_token 缓存前缀，完整 key: wechat:access-token:{scene} */
+    public static final String WECHAT_ACCESS_TOKEN_KEY = "wechat:access-token:";
+
+    /** 微信绑定码缓存前缀，完整 key: wechat:bind-code:{bindCode} */
+    public static final String WECHAT_BIND_CODE_KEY = "wechat:bind-code:";
+
+    /** 用户待绑定会话缓存前缀，完整 key: wechat:bind-user:{userId} */
+    public static final String WECHAT_BIND_USER_KEY = "wechat:bind-user:";
 }

@@ -51,6 +51,9 @@ public class SysUser extends BaseEntity {
     /** 微信unionid */
     private String unionid;
 
+    /** 微信授权手机号快照 */
+    private String wechatPhone;
+
     /** 性别（0=未知，1=男，2=女） */
     private Integer sex;
 

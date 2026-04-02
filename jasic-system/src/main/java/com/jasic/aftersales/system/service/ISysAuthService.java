@@ -1,8 +1,12 @@
 package com.jasic.aftersales.system.service;
 
 import com.jasic.aftersales.system.domain.dto.LoginDTO;
+import com.jasic.aftersales.system.domain.dto.MpLoginDTO;
+import com.jasic.aftersales.system.domain.dto.WechatBindConfirmDTO;
 import com.jasic.aftersales.system.domain.vo.LoginVO;
+import com.jasic.aftersales.system.domain.vo.MpLoginVO;
 import com.jasic.aftersales.system.domain.vo.SysUserVO;
+import com.jasic.aftersales.system.domain.vo.WechatBindStatusVO;
 
 /**
  * B端认证服务接口
@@ -21,6 +25,14 @@ public interface ISysAuthService {
     LoginVO login(LoginDTO dto);
 
     /**
+     * B端小程序登录
+     *
+     * @param dto 登录参数
+     * @return 登录结果
+     */
+    MpLoginVO mpLogin(MpLoginDTO dto);
+
+    /**
      * 选择/切换公司
      *
      * @param companyId 公司ID
@@ -34,6 +46,28 @@ public interface ISysAuthService {
      * @return 用户信息
      */
     SysUserVO getUserInfo();
+
+    /**
+     * 生成当前用户的微信绑定码
+     *
+     * @return 绑定状态
+     */
+    WechatBindStatusVO createWechatBindCode();
+
+    /**
+     * 查询当前用户微信绑定状态
+     *
+     * @return 绑定状态
+     */
+    WechatBindStatusVO getWechatBindStatus();
+
+    /**
+     * 使用绑定码确认微信绑定并登录
+     *
+     * @param dto 绑定参数
+     * @return 登录结果
+     */
+    MpLoginVO confirmWechatBind(WechatBindConfirmDTO dto);
 
     /**
      * 退出登录
