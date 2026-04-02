@@ -8,15 +8,15 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /**
- * 工单故障点记录实体
+ * 故障与维修配置维修项实体
  *
  * @author Codex
- * @date 2026/03/26
+ * @date 2026/04/01
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("work_order_fault")
-public class WorkOrderFault extends BaseEntity {
+@TableName("fault_repair_config_option")
+public class FaultRepairConfigOption extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 
@@ -24,33 +24,12 @@ public class WorkOrderFault extends BaseEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    /** 工单ID */
-    private Long workOrderId;
-
-    /** 维修登记ID */
-    private Long repairId;
-
-    /** 登记公司ID */
-    private Long companyId;
-
-    /** 故障描述 */
-    private String faultDesc;
+    /** 故障项ID */
+    private Long faultId;
 
     /** 维修说明 */
     private String repairDesc;
 
-    /** 其他维修说明 */
-    private String otherDesc;
-
-    /** 配件信息 */
-    private String partDesc;
-
-    /** 图片地址集合 */
-    private String imageUrls;
-
     /** 排序号 */
     private Integer sortNum;
-
-    /** 登记人ID */
-    private Long createdBy;
 }

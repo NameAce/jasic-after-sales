@@ -309,7 +309,9 @@ public class MachineBarcodeServiceImpl implements IMachineBarcodeService {
     private void normalizeEntity(MachineBarcode entity) {
         entity.setBarcode(normalizeRequiredText(entity.getBarcode()));
         entity.setProductCode(normalizeOptionalText(entity.getProductCode()));
+        entity.setProductName(normalizeOptionalText(entity.getProductName()));
         entity.setProductModel(normalizeOptionalText(entity.getProductModel()));
+        entity.setMachineNo(normalizeOptionalText(entity.getMachineNo()));
         entity.setBrandCode(normalizeOptionalText(entity.getBrandCode()));
         entity.setWarrantyStatus(normalizeOptionalText(entity.getWarrantyStatus()));
         entity.setRemark(normalizeOptionalText(entity.getRemark()));

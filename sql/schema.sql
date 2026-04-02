@@ -399,11 +399,14 @@ CREATE TABLE `work_order` (
   `customer_mobile`             varchar(20)      NOT NULL                COMMENT '客户手机号',
   `barcode`                     varchar(64)      DEFAULT NULL            COMMENT '机器条码',
   `product_code`                varchar(64)      DEFAULT NULL            COMMENT '物料编码',
+  `product_name`                varchar(128)     DEFAULT NULL            COMMENT '商品名称',
   `product_model`               varchar(64)      DEFAULT NULL            COMMENT '机器型号',
+  `machine_no`                  varchar(64)      DEFAULT NULL            COMMENT '机器小号',
   `brand_code`                  varchar(32)      DEFAULT NULL            COMMENT '品牌编码',
   `service_mode`                varchar(16)      NOT NULL                COMMENT '服务方式（寄修/到店）',
   `warranty_status`             varchar(16)      DEFAULT NULL            COMMENT '质保状态',
   `fault_desc`                  text             DEFAULT NULL            COMMENT '客户报修描述',
+  `fault_remark`                varchar(500)     DEFAULT NULL            COMMENT '客户故障备注',
   `sender_name`                 varchar(64)      DEFAULT NULL            COMMENT '寄件人姓名',
   `sender_mobile`               varchar(20)      DEFAULT NULL            COMMENT '寄件人手机号',
   `sender_address`              varchar(255)     DEFAULT NULL            COMMENT '寄件地址',
@@ -532,6 +535,7 @@ CREATE TABLE `work_order_fault` (
   `company_id`    bigint unsigned  NOT NULL                COMMENT '登记公司ID',
   `fault_desc`    varchar(500)     NOT NULL                COMMENT '故障描述',
   `repair_desc`   varchar(500)     DEFAULT NULL            COMMENT '维修说明',
+  `other_desc`    varchar(500)     DEFAULT NULL            COMMENT '其他维修说明',
   `part_desc`     varchar(500)     DEFAULT NULL            COMMENT '配件信息',
   `image_urls`    text             DEFAULT NULL            COMMENT '图片地址集合',
   `sort_num`      int unsigned     DEFAULT 0               COMMENT '排序号',
@@ -617,7 +621,9 @@ CREATE TABLE `machine_barcode` (
   `barcode`         varchar(64)      NOT NULL                COMMENT '机器条码',
   `hq_company_id`   bigint unsigned  NOT NULL                COMMENT '归属总部ID',
   `product_code`    varchar(64)      DEFAULT NULL            COMMENT '物料编码',
+  `product_name`    varchar(128)     DEFAULT NULL            COMMENT '商品名称',
   `product_model`   varchar(64)      DEFAULT NULL            COMMENT '产品型号',
+  `machine_no`      varchar(64)      DEFAULT NULL            COMMENT '机器小号',
   `brand_code`      varchar(32)      DEFAULT NULL            COMMENT '品牌编码',
   `warranty_status` varchar(16)      DEFAULT NULL            COMMENT '质保状态',
   `status`          tinyint unsigned DEFAULT 1               COMMENT '状态（1=启用，0=停用）',
@@ -629,5 +635,53 @@ CREATE TABLE `machine_barcode` (
   KEY `idx_machine_barcode_hq` (`hq_company_id`),
   KEY `idx_machine_barcode_product` (`product_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='机器条码档案表';
+
+-- -------------------------------------------
+-- 28. 故障与维修配置表
+-- -------------------------------------------
+DROP TABLE IF EXISTS `fault_repair_config`;
+CREATE TABLE `fault_repair_config` (
+  `id`            bigint unsigned  NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `company_id`    bigint unsigned  NOT NULL                COMMENT '归属总部ID',
+  `product_code`  varchar(64)      DEFAULT NULL            COMMENT '物料编码',
+  `product_model` varchar(64)      DEFAULT NULL            COMMENT '产品型号',
+  `status`        tinyint unsigned DEFAULT 1               COMMENT '状态（1=启用，0=停用）',
+  `remark`        varchar(256)     DEFAULT NULL            COMMENT '备注',
+  `create_time`   datetime         NOT NULL                COMMENT '创建时间',
+  `update_time`   datetime         NOT NULL                COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_fault_repair_config_product` (`company_id`, `product_code`, `product_model`),
+  KEY `idx_fault_repair_config_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='故障与维修配置表';
+
+-- -------------------------------------------
+-- 29. 故障与维修配置故障项表
+-- -------------------------------------------
+DROP TABLE IF EXISTS `fault_repair_config_fault`;
+CREATE TABLE `fault_repair_config_fault` (
+  `id`          bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `config_id`   bigint unsigned NOT NULL                COMMENT '配置ID',
+  `fault_desc`  varchar(500)    NOT NULL                COMMENT '故障描述',
+  `sort_num`    int unsigned    DEFAULT 0               COMMENT '排序号',
+  `create_time` datetime        NOT NULL                COMMENT '创建时间',
+  `update_time` datetime        NOT NULL                COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_fault_repair_config_fault` (`config_id`, `sort_num`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='故障与维修配置故障项表';
+
+-- -------------------------------------------
+-- 30. 故障与维修配置维修项表
+-- -------------------------------------------
+DROP TABLE IF EXISTS `fault_repair_config_option`;
+CREATE TABLE `fault_repair_config_option` (
+  `id`          bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `fault_id`    bigint unsigned NOT NULL                COMMENT '故障项ID',
+  `repair_desc` varchar(500)    NOT NULL                COMMENT '维修说明',
+  `sort_num`    int unsigned    DEFAULT 0               COMMENT '排序号',
+  `create_time` datetime        NOT NULL                COMMENT '创建时间',
+  `update_time` datetime        NOT NULL                COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_fault_repair_option_fault` (`fault_id`, `sort_num`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='故障与维修配置维修项表';
 
 SET FOREIGN_KEY_CHECKS = 1;

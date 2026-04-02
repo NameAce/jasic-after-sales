@@ -29,6 +29,9 @@ public class WorkOrderFaultVO implements Serializable {
     /** 维修说明 */
     private String repairDesc;
 
+    /** 其他维修说明 */
+    private String otherDesc;
+
     /** 配件信息 */
     private String partDesc;
 

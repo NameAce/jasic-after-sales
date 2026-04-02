@@ -179,6 +179,26 @@ export function importMachineBarcode(data) {
   return request({ url: '/system/machine-barcode/import', method: 'post', data })
 }
 
+// --- Fault Repair Config ---
+export function listFaultRepairConfig(params) {
+  return request({ url: '/system/fault-repair-config/list', method: 'get', params })
+}
+export function getFaultRepairConfig(id) {
+  return request({ url: `/system/fault-repair-config/${id}`, method: 'get' })
+}
+export function listFaultRepairConfigCompanyOptions() {
+  return request({ url: '/system/fault-repair-config/company-options', method: 'get' })
+}
+export function addFaultRepairConfig(data) {
+  return request({ url: '/system/fault-repair-config', method: 'post', data })
+}
+export function updateFaultRepairConfig(data) {
+  return request({ url: '/system/fault-repair-config', method: 'put', data })
+}
+export function deleteFaultRepairConfig(id) {
+  return request({ url: `/system/fault-repair-config/${id}`, method: 'delete' })
+}
+
 // --- Role Template ---
 export function listRoleTemplate(typeCode) {
   const params = typeCode ? { typeCode } : {}

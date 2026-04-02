@@ -4,6 +4,7 @@ import lombok.Data;
 
 import javax.validation.constraints.NotBlank;
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * 工单故障点参数
@@ -22,6 +23,12 @@ public class WorkOrderFaultItemDTO implements Serializable {
 
     /** 维修说明 */
     private String repairDesc;
+
+    /** 维修说明选项 */
+    private List<String> repairItems;
+
+    /** 其他维修说明 */
+    private String otherDesc;
 
     /** 配件信息 */
     private String partDesc;

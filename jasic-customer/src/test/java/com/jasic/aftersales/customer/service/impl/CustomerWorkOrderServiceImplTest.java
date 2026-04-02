@@ -1,16 +1,19 @@
 package com.jasic.aftersales.customer.service.impl;
 
 import com.jasic.aftersales.common.exception.ServiceException;
+import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderCreateDTO;
 import com.jasic.aftersales.customer.domain.vo.CustomerBarcodeInfoVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerServiceCompanyOptionVO;
 import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
 import com.jasic.aftersales.system.domain.entity.HqFirstContract;
 import com.jasic.aftersales.system.domain.entity.MachineBarcode;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
+import com.jasic.aftersales.system.domain.vo.WorkOrderRepairFaultOptionVO;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
 import com.jasic.aftersales.system.mapper.HqFirstContractMapper;
 import com.jasic.aftersales.system.mapper.MachineBarcodeMapper;
 import com.jasic.aftersales.system.mapper.SysCompanyMapper;
+import com.jasic.aftersales.system.service.IFaultRepairConfigService;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -81,16 +84,53 @@ public class CustomerWorkOrderServiceImplTest {
         CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
         setField(service, "sysCompanyMapper", createCompanyMapperProxy(buildHqCompany()));
         setField(service, "machineBarcodeMapper", createMachineBarcodeMapperProxy(buildMachineBarcode(21L)));
+        setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy("焊枪无输出", "电流异常"));
 
         CustomerBarcodeInfoVO barcodeInfo = service.getBarcodeInfo("JASIC-001");
 
         Assert.assertEquals("JASIC-001", barcodeInfo.getBarcode());
         Assert.assertEquals("P-100", barcodeInfo.getProductCode());
+        Assert.assertEquals("ZX7逆变焊机", barcodeInfo.getProductName());
         Assert.assertEquals("MODEL-A", barcodeInfo.getProductModel());
+        Assert.assertEquals("M-001", barcodeInfo.getMachineNo());
         Assert.assertEquals("JASIC", barcodeInfo.getBrandCode());
         Assert.assertEquals("IN_WARRANTY", barcodeInfo.getWarrantyStatus());
         Assert.assertEquals(Long.valueOf(21L), barcodeInfo.getHqCompanyId());
         Assert.assertEquals(buildHqCompany().getCompanyName(), barcodeInfo.getHqCompanyName());
+        Assert.assertEquals(java.util.Arrays.asList("焊枪无输出", "电流异常", "其它故障"), barcodeInfo.getFaultOptions());
+        Assert.assertEquals("其它故障", barcodeInfo.getOtherFaultLabel());
+    }
+
+    @Test
+    public void shouldFallbackLegacyFaultDescToOtherFaultWhenNoConfig() throws Exception {
+        CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
+        setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy());
+
+        CustomerWorkOrderCreateDTO dto = new CustomerWorkOrderCreateDTO();
+        dto.setFaultDesc("面板报错");
+
+        Object selection = invokeResolveCustomerFaultSelection(service, dto, 21L, "P-100", "MODEL-A");
+
+        Assert.assertEquals("其它故障", invokeFaultSelectionGetter(selection, "getFaultDesc"));
+        Assert.assertEquals("面板报错", invokeFaultSelectionGetter(selection, "getFaultRemark"));
+    }
+
+    @Test
+    public void shouldRejectFaultOutsideConfiguredOptions() throws Exception {
+        CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
+        setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy("焊枪无输出"));
+
+        CustomerWorkOrderCreateDTO dto = new CustomerWorkOrderCreateDTO();
+        dto.setFaultItems(Collections.singletonList("未知故障"));
+
+        try {
+            invokeResolveCustomerFaultSelection(service, dto, 21L, "P-100", "MODEL-A");
+            Assert.fail("预期应拒绝配置外故障项");
+        } catch (InvocationTargetException ex) {
+            Throwable target = ex.getTargetException();
+            Assert.assertTrue(target instanceof ServiceException);
+            Assert.assertEquals("故障描述不在可选范围内", target.getMessage());
+        }
     }
 
     @Test
@@ -176,7 +216,9 @@ public class CustomerWorkOrderServiceImplTest {
         barcode.setBarcode("JASIC-001");
         barcode.setHqCompanyId(hqCompanyId);
         barcode.setProductCode("P-100");
+        barcode.setProductName("ZX7逆变焊机");
         barcode.setProductModel("MODEL-A");
+        barcode.setMachineNo("M-001");
         barcode.setBrandCode("JASIC");
         barcode.setWarrantyStatus("IN_WARRANTY");
         barcode.setStatus(1);
@@ -244,6 +286,30 @@ public class CustomerWorkOrderServiceImplTest {
         );
     }
 
+    private IFaultRepairConfigService createFaultRepairConfigServiceProxy(String... faultDescs) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("listRepairFaultOptions".equals(method.getName())) {
+                    List<WorkOrderRepairFaultOptionVO> result = new ArrayList<>();
+                    for (String faultDesc : faultDescs) {
+                        WorkOrderRepairFaultOptionVO option = new WorkOrderRepairFaultOptionVO();
+                        option.setFaultDesc(faultDesc);
+                        option.setRepairOptions(Collections.emptyList());
+                        result.add(option);
+                    }
+                    return result;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (IFaultRepairConfigService) Proxy.newProxyInstance(
+                IFaultRepairConfigService.class.getClassLoader(),
+                new Class<?>[]{IFaultRepairConfigService.class},
+                handler
+        );
+    }
+
     private java.util.List<HqFirstContract> buildContracts(Long... hqCompanyIds) {
         java.util.List<HqFirstContract> result = new java.util.ArrayList<>();
         for (Long hqCompanyId : hqCompanyIds) {
@@ -285,6 +351,25 @@ public class CustomerWorkOrderServiceImplTest {
                 .getDeclaredMethod("resolveCreateHqCompanyId", String.class, SysCompany.class);
         method.setAccessible(true);
         return (Long) method.invoke(service, barcode, company);
+    }
+
+    private Object invokeResolveCustomerFaultSelection(CustomerWorkOrderServiceImpl service, CustomerWorkOrderCreateDTO dto,
+                                                       Long hqCompanyId, String productCode, String productModel) throws Exception {
+        Method method = CustomerWorkOrderServiceImpl.class.getDeclaredMethod(
+                "resolveCustomerFaultSelection",
+                CustomerWorkOrderCreateDTO.class,
+                Long.class,
+                String.class,
+                String.class
+        );
+        method.setAccessible(true);
+        return method.invoke(service, dto, hqCompanyId, productCode, productModel);
+    }
+
+    private String invokeFaultSelectionGetter(Object selection, String methodName) throws Exception {
+        Method method = selection.getClass().getDeclaredMethod(methodName);
+        method.setAccessible(true);
+        return (String) method.invoke(selection);
     }
 
     private Object defaultValue(Class<?> returnType) {

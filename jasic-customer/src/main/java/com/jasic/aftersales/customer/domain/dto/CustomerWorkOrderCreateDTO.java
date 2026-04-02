@@ -5,6 +5,7 @@ import lombok.Data;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * C端工单创建参数
@@ -41,8 +42,14 @@ public class CustomerWorkOrderCreateDTO implements Serializable {
     /** 质保状态 */
     private String warrantyStatus;
 
+    /** 故障描述选项 */
+    private List<String> faultItems;
+
     /** 报修描述 */
     private String faultDesc;
+
+    /** 故障备注 */
+    private String faultRemark;
 
     /** 目标服务网点ID */
     @NotNull(message = "服务网点不能为空")

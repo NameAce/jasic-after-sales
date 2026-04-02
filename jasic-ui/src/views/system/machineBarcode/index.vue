@@ -60,7 +60,9 @@
         <el-table-column label="条码" prop="barcode" min-width="180" />
         <el-table-column label="归属总部" prop="hqCompanyName" min-width="180" />
         <el-table-column label="物料编码" prop="productCode" min-width="120" />
+        <el-table-column label="商品名称" prop="productName" min-width="160" show-overflow-tooltip />
         <el-table-column label="产品型号" prop="productModel" min-width="140" />
+        <el-table-column label="机器小号" prop="machineNo" min-width="140" show-overflow-tooltip />
         <el-table-column label="品牌编码" prop="brandCode" width="110" />
         <el-table-column label="质保状态" prop="warrantyStatus" width="120" />
         <el-table-column label="状态" prop="status" width="90" align="center">
@@ -124,8 +126,14 @@
         <el-form-item label="物料编码" prop="productCode">
           <el-input v-model="form.productCode" placeholder="请输入物料编码" />
         </el-form-item>
+        <el-form-item label="商品名称" prop="productName">
+          <el-input v-model="form.productName" placeholder="请输入商品名称" />
+        </el-form-item>
         <el-form-item label="产品型号" prop="productModel">
           <el-input v-model="form.productModel" placeholder="请输入产品型号" />
+        </el-form-item>
+        <el-form-item label="机器小号" prop="machineNo">
+          <el-input v-model="form.machineNo" placeholder="请输入机器小号" />
         </el-form-item>
         <el-form-item label="品牌编码" prop="brandCode">
           <el-input v-model="form.brandCode" placeholder="请输入品牌编码" />
@@ -253,7 +261,9 @@ export default {
         barcode: '',
         hqCompanyId: undefined,
         productCode: '',
+        productName: '',
         productModel: '',
+        machineNo: '',
         brandCode: '',
         warrantyStatus: '',
         status: 1,
@@ -304,7 +314,9 @@ export default {
           barcode: 'JASIC-001',
           hqCompanyId: exampleCompanyId,
           productCode: 'P-100',
+          productName: 'ZX7逆变焊机',
           productModel: 'MODEL-A',
+          machineNo: 'M-001',
           brandCode: 'JASIC',
           warrantyStatus: 'IN_WARRANTY',
           status: 1,

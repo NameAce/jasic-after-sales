@@ -1,6 +1,7 @@
 package com.jasic.aftersales.system.service.impl;
 
 import cn.hutool.core.util.IdUtil;
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -46,6 +47,7 @@ import com.jasic.aftersales.system.domain.vo.WorkOrderFlowVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderListVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderNotifyEventVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderQuoteVO;
+import com.jasic.aftersales.system.domain.vo.WorkOrderRepairFaultOptionVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderReviewVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderStatusCountVO;
@@ -68,6 +70,7 @@ import com.jasic.aftersales.system.mapper.WorkOrderNotifyEventMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderQuoteMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderRepairMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderReviewMapper;
+import com.jasic.aftersales.system.service.IFaultRepairConfigService;
 import com.jasic.aftersales.system.service.IWorkOrderService;
 import com.jasic.aftersales.system.service.WorkOrderNotifyEventService;
 import com.jasic.aftersales.system.service.WorkOrderParticipantService;
@@ -81,6 +84,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -102,6 +106,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     private static final String RETURN_METHOD_MAIL = "回寄";
     private static final String RETURN_METHOD_PICKUP = "自提";
     private static final String FAULT_JUDGE_NO_FAULT = "无故障";
+    private static final String OTHER_REPAIR_OPTION = "其它维修说明";
 
     @Resource
     private WorkOrderMapper workOrderMapper;
@@ -138,6 +143,9 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
 
     @Resource
     private WorkOrderNotifyEventService workOrderNotifyEventService;
+
+    @Resource
+    private IFaultRepairConfigService faultRepairConfigService;
 
     @Resource
     private SysCompanyMapper sysCompanyMapper;
@@ -417,7 +425,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         if (!workOrderPermissionService.canSaveRepair(workOrder)) {
             throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u767b\u8bb0\u7ef4\u4fee");
         }
-        validateRepairContent(dto);
+        validateRepairContent(workOrder, dto);
         WorkOrderRepair repair = new WorkOrderRepair();
         repair.setWorkOrderId(workOrder.getId());
         repair.setCompanyId(workOrder.getCurrentAcceptCompanyId());
@@ -601,6 +609,19 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public List<WorkOrderRepairFaultOptionVO> listRepairFaultOptions(Long workOrderId) {
+        WorkOrder workOrder = requireWorkOrder(workOrderId);
+        if (!workOrderPermissionService.canSaveRepair(workOrder)) {
+            throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u767b\u8bb0\u7ef4\u4fee");
+        }
+        return faultRepairConfigService.listRepairFaultOptions(
+                workOrder.getHqCompanyId(),
+                workOrder.getProductCode(),
+                workOrder.getProductModel()
+        );
+    }
+
     private void normalizeQuery(WorkOrderQuery query) {
         workOrderPermissionService.fillQueryScope(query);
         if (!SecurityContext.isPlatformUser() && query.getCompanyId() == null) {
@@ -748,6 +769,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             vo.setCompanyId(fault.getCompanyId());
             vo.setFaultDesc(fault.getFaultDesc());
             vo.setRepairDesc(fault.getRepairDesc());
+            vo.setOtherDesc(fault.getOtherDesc());
             vo.setPartDesc(fault.getPartDesc());
             vo.setImageUrls(fault.getImageUrls());
             vo.setSortNum(fault.getSortNum());
@@ -965,13 +987,14 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
     }
 
-    private void validateRepairContent(WorkOrderRepairDTO dto) {
+    private void validateRepairContent(WorkOrder workOrder, WorkOrderRepairDTO dto) {
         if (dto == null) {
             throw new ServiceException("\u7ef4\u4fee\u767b\u8bb0\u4e0d\u80fd\u4e3a\u7a7a");
         }
         if (!hasRepairContent(dto)) {
             throw new ServiceException("\u8bf7\u81f3\u5c11\u586b\u5199\u4e00\u9879\u7ef4\u4fee\u5185\u5bb9");
         }
+        dto.setFaults(normalizeRepairFaults(workOrder, dto.getFaults()));
     }
 
     private boolean hasRepairContent(WorkOrderRepairDTO dto) {
@@ -986,7 +1009,9 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                 continue;
             }
             if (!isBlank(fault.getFaultDesc())
+                    || (fault.getRepairItems() != null && !fault.getRepairItems().isEmpty())
                     || !isBlank(fault.getRepairDesc())
+                    || !isBlank(fault.getOtherDesc())
                     || !isBlank(fault.getPartDesc())
                     || !isBlank(fault.getImageUrls())) {
                 return true;
@@ -1294,12 +1319,134 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             fault.setCompanyId(companyId);
             fault.setFaultDesc(item.getFaultDesc().trim());
             fault.setRepairDesc(normalizeNullableText(item.getRepairDesc()));
+            fault.setOtherDesc(normalizeNullableText(item.getOtherDesc()));
             fault.setPartDesc(normalizeNullableText(item.getPartDesc()));
             fault.setImageUrls(normalizeNullableText(item.getImageUrls()));
             fault.setSortNum(sort++);
             fault.setCreatedBy(SecurityContext.getCurrentUserId());
             workOrderFaultMapper.insert(fault);
         }
+    }
+
+    private List<WorkOrderFaultItemDTO> normalizeRepairFaults(WorkOrder workOrder, List<WorkOrderFaultItemDTO> faults) {
+        if (faults == null || faults.isEmpty()) {
+            return Collections.emptyList();
+        }
+        Map<String, Set<String>> optionMap = buildRepairOptionMap(workOrder);
+        boolean hasConfiguredFaults = !optionMap.isEmpty();
+        List<WorkOrderFaultItemDTO> result = new ArrayList<>();
+        for (WorkOrderFaultItemDTO item : faults) {
+            if (item == null) {
+                throw new ServiceException("\u6545\u969c\u70b9\u4fe1\u606f\u4e0d\u80fd\u4e3a\u7a7a");
+            }
+            if (!hasFaultContent(item)) {
+                continue;
+            }
+            WorkOrderFaultItemDTO normalized = new WorkOrderFaultItemDTO();
+            String faultDesc = normalizeRequiredText(item.getFaultDesc(), "\u6545\u969c\u63cf\u8ff0\u4e0d\u80fd\u4e3a\u7a7a");
+            normalized.setFaultDesc(faultDesc);
+            normalized.setPartDesc(normalizeRequiredText(item.getPartDesc(), "\u914d\u4ef6\u4fe1\u606f\u4e0d\u80fd\u4e3a\u7a7a"));
+            normalized.setImageUrls(normalizeNullableText(item.getImageUrls()));
+            List<String> repairItems = normalizeRepairItems(item.getRepairItems());
+            Set<String> allowedOptions = optionMap.get(faultDesc);
+            String repairDesc = normalizeNullableText(item.getRepairDesc());
+            String otherDesc = normalizeNullableText(item.getOtherDesc());
+            if (hasConfiguredFaults && allowedOptions == null) {
+                throw new ServiceException("\u6545\u969c\u63cf\u8ff0\u4e0d\u5728\u5f53\u524d\u914d\u7f6e\u8303\u56f4\u5185");
+            }
+            if (allowedOptions != null && !allowedOptions.isEmpty()) {
+                if (repairItems.isEmpty()) {
+                    throw new ServiceException("\u8bf7\u9009\u62e9\u914d\u7f6e\u5185\u7684\u7ef4\u4fee\u8bf4\u660e");
+                }
+                validateRepairItems(repairItems, allowedOptions);
+                if (repairItems.contains(OTHER_REPAIR_OPTION) && otherDesc == null) {
+                    throw new ServiceException("\u9009\u62e9\u5176\u5b83\u7ef4\u4fee\u8bf4\u660e\u65f6\uff0c\u5176\u4ed6\u7ef4\u4fee\u8bf4\u660e\u4e0d\u80fd\u4e3a\u7a7a");
+                }
+                repairDesc = String.join("\uff1b", repairItems);
+                normalized.setRepairItems(repairItems);
+            } else if (!repairItems.isEmpty()) {
+                validateRepairItems(repairItems, allowedOptions);
+                if (repairItems.contains(OTHER_REPAIR_OPTION) && otherDesc == null) {
+                    throw new ServiceException("\u9009\u62e9\u5176\u5b83\u7ef4\u4fee\u8bf4\u660e\u65f6\uff0c\u5176\u4ed6\u7ef4\u4fee\u8bf4\u660e\u4e0d\u80fd\u4e3a\u7a7a");
+                }
+                repairDesc = String.join("\uff1b", repairItems);
+                normalized.setRepairItems(repairItems);
+            } else if (repairDesc == null) {
+                throw new ServiceException("\u7ef4\u4fee\u8bf4\u660e\u4e0d\u80fd\u4e3a\u7a7a");
+            }
+            normalized.setRepairDesc(repairDesc);
+            normalized.setOtherDesc(otherDesc);
+            result.add(normalized);
+        }
+        return result;
+    }
+
+    private Map<String, Set<String>> buildRepairOptionMap(WorkOrder workOrder) {
+        List<WorkOrderRepairFaultOptionVO> options = faultRepairConfigService.listRepairFaultOptions(
+                workOrder.getHqCompanyId(),
+                workOrder.getProductCode(),
+                workOrder.getProductModel()
+        );
+        if (options == null || options.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<String, Set<String>> result = new HashMap<>();
+        for (WorkOrderRepairFaultOptionVO option : options) {
+            if (option == null || isBlank(option.getFaultDesc())) {
+                continue;
+            }
+            Set<String> repairOptions = option.getRepairOptions() == null
+                    ? Collections.emptySet()
+                    : option.getRepairOptions().stream()
+                    .filter(StrUtil::isNotBlank)
+                    .map(String::trim)
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            result.put(option.getFaultDesc().trim(), repairOptions);
+        }
+        return result;
+    }
+
+    private List<String> normalizeRepairItems(List<String> repairItems) {
+        if (repairItems == null || repairItems.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<String> result = new ArrayList<>();
+        for (String repairItem : repairItems) {
+            String normalized = normalizeNullableText(repairItem);
+            if (normalized != null) {
+                result.add(normalized);
+            }
+        }
+        return result;
+    }
+
+    private void validateRepairItems(List<String> repairItems, Set<String> allowedOptions) {
+        if (repairItems.isEmpty()) {
+            throw new ServiceException("\u7ef4\u4fee\u8bf4\u660e\u4e0d\u80fd\u4e3a\u7a7a");
+        }
+        Set<String> duplicateCheck = new HashSet<>();
+        for (String repairItem : repairItems) {
+            if (!duplicateCheck.add(repairItem)) {
+                throw new ServiceException("\u7ef4\u4fee\u8bf4\u660e\u4e0d\u80fd\u91cd\u590d");
+            }
+            if (!allowedOptions.isEmpty()
+                    && !allowedOptions.contains(repairItem)
+                    && !OTHER_REPAIR_OPTION.equals(repairItem)) {
+                throw new ServiceException("\u7ef4\u4fee\u8bf4\u660e\u4e0d\u5728\u5f53\u524d\u6545\u969c\u914d\u7f6e\u8303\u56f4\u5185");
+            }
+        }
+    }
+
+    private boolean hasFaultContent(WorkOrderFaultItemDTO fault) {
+        if (fault == null) {
+            return false;
+        }
+        return !isBlank(fault.getFaultDesc())
+                || (fault.getRepairItems() != null && !fault.getRepairItems().isEmpty())
+                || !isBlank(fault.getRepairDesc())
+                || !isBlank(fault.getOtherDesc())
+                || !isBlank(fault.getPartDesc())
+                || !isBlank(fault.getImageUrls());
     }
 
     private Map<Long, String> buildCompanyNameMap(Set<Long> companyIds) {

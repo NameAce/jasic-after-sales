@@ -24,6 +24,10 @@ export function listTransferTargetOptions(workOrderId) {
   return request({ url: `/system/work-order/${workOrderId}/transfer-target-options`, method: 'get' })
 }
 
+export function listRepairFaultOptions(workOrderId) {
+  return request({ url: `/system/work-order/${workOrderId}/repair-fault-options`, method: 'get' })
+}
+
 export function addWorkOrder(data) {
   return request({ url: '/system/work-order', method: 'post', data })
 }

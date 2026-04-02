@@ -31,8 +31,14 @@ public class MachineBarcodeDTO implements Serializable {
     /** 物料编码 */
     private String productCode;
 
+    /** 商品名称 */
+    private String productName;
+
     /** 产品型号 */
     private String productModel;
+
+    /** 机器小号 */
+    private String machineNo;
 
     /** 品牌编码 */
     private String brandCode;

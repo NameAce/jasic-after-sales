@@ -3,6 +3,7 @@ package com.jasic.aftersales.customer.domain.vo;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * C 端条码信息
@@ -21,8 +22,14 @@ public class CustomerBarcodeInfoVO implements Serializable {
     /** 物料编码 */
     private String productCode;
 
+    /** 商品名称 */
+    private String productName;
+
     /** 产品型号 */
     private String productModel;
+
+    /** 机器小号 */
+    private String machineNo;
 
     /** 品牌编码 */
     private String brandCode;
@@ -35,4 +42,10 @@ public class CustomerBarcodeInfoVO implements Serializable {
 
     /** 归属总部名称 */
     private String hqCompanyName;
+
+    /** 故障描述选项 */
+    private List<String> faultOptions;
+
+    /** 其它故障文案 */
+    private String otherFaultLabel;
 }

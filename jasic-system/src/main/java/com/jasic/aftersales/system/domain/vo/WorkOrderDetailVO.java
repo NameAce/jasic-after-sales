@@ -25,6 +25,12 @@ public class WorkOrderDetailVO extends WorkOrderListVO {
     /** 物料编码 */
     private String productCode;
 
+    /** 商品名称 */
+    private String productName;
+
+    /** 机器小号 */
+    private String machineNo;
+
     /** 品牌编码 */
     private String brandCode;
 
@@ -36,6 +42,9 @@ public class WorkOrderDetailVO extends WorkOrderListVO {
 
     /** 客户报修描述 */
     private String faultDesc;
+
+    /** 客户故障备注 */
+    private String faultRemark;
 
     /** 寄件人姓名 */
     private String senderName;

@@ -8,15 +8,15 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /**
- * 机器条码档案实体
+ * 故障与维修配置实体
  *
  * @author Codex
  * @date 2026/04/01
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("machine_barcode")
-public class MachineBarcode extends BaseEntity {
+@TableName("fault_repair_config")
+public class FaultRepairConfig extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 
@@ -24,29 +24,14 @@ public class MachineBarcode extends BaseEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    /** 机器条码 */
-    private String barcode;
-
     /** 归属总部ID */
-    private Long hqCompanyId;
+    private Long companyId;
 
     /** 物料编码 */
     private String productCode;
 
-    /** 商品名称 */
-    private String productName;
-
     /** 产品型号 */
     private String productModel;
-
-    /** 机器小号 */
-    private String machineNo;
-
-    /** 品牌编码 */
-    private String brandCode;
-
-    /** 质保状态 */
-    private String warrantyStatus;
 
     /** 状态 */
     private Integer status;

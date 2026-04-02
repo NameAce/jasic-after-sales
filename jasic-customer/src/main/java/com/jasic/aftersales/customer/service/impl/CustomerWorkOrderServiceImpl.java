@@ -37,6 +37,7 @@ import com.jasic.aftersales.system.domain.vo.SysCompanySimpleVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderEvaluationVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderFaultVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderQuoteVO;
+import com.jasic.aftersales.system.domain.vo.WorkOrderRepairFaultOptionVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderReviewVO;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
@@ -51,6 +52,7 @@ import com.jasic.aftersales.system.mapper.WorkOrderMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderQuoteMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderRepairMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderReviewMapper;
+import com.jasic.aftersales.system.service.IFaultRepairConfigService;
 import com.jasic.aftersales.system.service.WorkOrderNotifyEventService;
 import com.jasic.aftersales.system.service.WorkOrderParticipantService;
 import org.springframework.stereotype.Service;
@@ -87,6 +89,8 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     private static final BigDecimal MIN_LATITUDE = BigDecimal.valueOf(-90);
     private static final BigDecimal MAX_LATITUDE = BigDecimal.valueOf(90);
     private static final double EARTH_RADIUS_KM = 6371.0088D;
+    private static final String OTHER_FAULT_LABEL = "其它故障";
+    private static final String FAULT_DESC_SEPARATOR = "；";
 
     @Resource
     private WorkOrderMapper workOrderMapper;
@@ -133,6 +137,9 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     @Resource
     private MachineBarcodeMapper machineBarcodeMapper;
 
+    @Resource
+    private IFaultRepairConfigService faultRepairConfigService;
+
     /**
      * 创建我的工单
      *
@@ -149,6 +156,9 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         String barcode = normalizeRequiredText(dto.getBarcode(), "机器条码不能为空");
         MachineBarcode barcodeArchive = findActiveMachineBarcode(barcode);
         Long hqCompanyId = resolveCreateHqCompanyId(serviceCompany, barcodeArchive);
+        String productCode = resolveArchiveText(barcodeArchive == null ? null : barcodeArchive.getProductCode(), dto.getProductCode());
+        String productModel = resolveArchiveText(barcodeArchive == null ? null : barcodeArchive.getProductModel(), dto.getProductModel());
+        CustomerFaultSelection faultSelection = resolveCustomerFaultSelection(dto, hqCompanyId, productCode, productModel);
 
         WorkOrder workOrder = new WorkOrder();
         workOrder.setOrderNo(generateOrderNo());
@@ -156,12 +166,10 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         workOrder.setCustomerName(normalizeRequiredText(dto.getCustomerName(), "报修人姓名不能为空"));
         workOrder.setCustomerMobile(normalizeRequiredText(customer.getPhone(), "当前客户手机号不能为空"));
         workOrder.setBarcode(barcode);
-        workOrder.setProductCode(resolveArchiveText(
-                barcodeArchive == null ? null : barcodeArchive.getProductCode(), dto.getProductCode()
-        ));
-        workOrder.setProductModel(resolveArchiveText(
-                barcodeArchive == null ? null : barcodeArchive.getProductModel(), dto.getProductModel()
-        ));
+        workOrder.setProductCode(productCode);
+        workOrder.setProductName(normalizeText(barcodeArchive == null ? null : barcodeArchive.getProductName()));
+        workOrder.setProductModel(productModel);
+        workOrder.setMachineNo(normalizeText(barcodeArchive == null ? null : barcodeArchive.getMachineNo()));
         workOrder.setBrandCode(resolveBrandCode(resolveArchiveText(
                 barcodeArchive == null ? null : barcodeArchive.getBrandCode(), dto.getBrandCode()
         )));
@@ -169,7 +177,8 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         workOrder.setWarrantyStatus(resolveArchiveText(
                 barcodeArchive == null ? null : barcodeArchive.getWarrantyStatus(), dto.getWarrantyStatus()
         ));
-        workOrder.setFaultDesc(normalizeText(dto.getFaultDesc()));
+        workOrder.setFaultDesc(faultSelection.getFaultDesc());
+        workOrder.setFaultRemark(faultSelection.getFaultRemark());
         workOrder.setSenderName(resolveSendField(dto.getServiceMode(), dto.getSenderName()));
         workOrder.setSenderMobile(resolveSendField(dto.getServiceMode(), dto.getSenderMobile()));
         workOrder.setSenderAddress(resolveSendField(dto.getServiceMode(), dto.getSenderAddress()));
@@ -258,11 +267,19 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         CustomerBarcodeInfoVO vo = new CustomerBarcodeInfoVO();
         vo.setBarcode(barcodeArchive.getBarcode());
         vo.setProductCode(normalizeText(barcodeArchive.getProductCode()));
+        vo.setProductName(normalizeText(barcodeArchive.getProductName()));
         vo.setProductModel(normalizeText(barcodeArchive.getProductModel()));
+        vo.setMachineNo(normalizeText(barcodeArchive.getMachineNo()));
         vo.setBrandCode(resolveBrandCode(barcodeArchive.getBrandCode()));
         vo.setWarrantyStatus(normalizeText(barcodeArchive.getWarrantyStatus()));
         vo.setHqCompanyId(hqCompany.getId());
         vo.setHqCompanyName(hqCompany.getCompanyName());
+        vo.setFaultOptions(buildCustomerFaultOptions(
+                hqCompany.getId(),
+                barcodeArchive.getProductCode(),
+                barcodeArchive.getProductModel()
+        ));
+        vo.setOtherFaultLabel(OTHER_FAULT_LABEL);
         return vo;
     }
 
@@ -334,11 +351,14 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         detail.setCustomerMobile(workOrder.getCustomerMobile());
         detail.setBarcode(workOrder.getBarcode());
         detail.setProductCode(workOrder.getProductCode());
+        detail.setProductName(workOrder.getProductName());
         detail.setProductModel(workOrder.getProductModel());
+        detail.setMachineNo(workOrder.getMachineNo());
         detail.setBrandCode(workOrder.getBrandCode());
         detail.setServiceMode(workOrder.getServiceMode());
         detail.setWarrantyStatus(workOrder.getWarrantyStatus());
         detail.setFaultDesc(workOrder.getFaultDesc());
+        detail.setFaultRemark(workOrder.getFaultRemark());
         detail.setSenderName(workOrder.getSenderName());
         detail.setSenderMobile(workOrder.getSenderMobile());
         detail.setSenderAddress(workOrder.getSenderAddress());
@@ -769,6 +789,87 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return normalizedArchiveValue != null ? normalizedArchiveValue : normalizeText(requestValue);
     }
 
+    private CustomerFaultSelection resolveCustomerFaultSelection(CustomerWorkOrderCreateDTO dto, Long hqCompanyId,
+                                                                 String productCode, String productModel) {
+        List<String> configuredFaultOptions = listConfiguredFaultOptions(hqCompanyId, productCode, productModel);
+        List<String> faultItems = normalizeFaultItems(dto == null ? null : dto.getFaultItems());
+        String faultRemark = normalizeText(dto == null ? null : dto.getFaultRemark());
+        String legacyFaultDesc = normalizeText(dto == null ? null : dto.getFaultDesc());
+        boolean useLegacyFaultDesc = false;
+        if (faultItems.isEmpty() && legacyFaultDesc != null) {
+            faultItems = new ArrayList<>(Collections.singletonList(legacyFaultDesc));
+            useLegacyFaultDesc = true;
+        }
+
+        if (configuredFaultOptions.isEmpty()) {
+            if (faultItems.isEmpty()) {
+                faultItems = new ArrayList<>(Collections.singletonList(OTHER_FAULT_LABEL));
+            } else if (useLegacyFaultDesc && faultItems.size() == 1 && !OTHER_FAULT_LABEL.equals(faultItems.get(0))) {
+                faultRemark = faultRemark != null ? faultRemark : faultItems.get(0);
+                faultItems = new ArrayList<>(Collections.singletonList(OTHER_FAULT_LABEL));
+            } else if (faultItems.size() != 1 || !OTHER_FAULT_LABEL.equals(faultItems.get(0))) {
+                throw new ServiceException("当前产品暂未配置故障项，请选择其它故障");
+            }
+        } else {
+            LinkedHashSet<String> allowedFaultOptions = new LinkedHashSet<>(configuredFaultOptions);
+            allowedFaultOptions.add(OTHER_FAULT_LABEL);
+            if (faultItems.isEmpty()) {
+                throw new ServiceException("请选择故障描述");
+            }
+            if (useLegacyFaultDesc && faultItems.size() == 1 && !allowedFaultOptions.contains(faultItems.get(0))) {
+                faultRemark = faultRemark != null ? faultRemark : faultItems.get(0);
+                faultItems = new ArrayList<>(Collections.singletonList(OTHER_FAULT_LABEL));
+            }
+            for (String faultItem : faultItems) {
+                if (!allowedFaultOptions.contains(faultItem)) {
+                    throw new ServiceException("故障描述不在可选范围内");
+                }
+            }
+        }
+
+        if (faultItems.contains(OTHER_FAULT_LABEL) && faultRemark == null) {
+            throw new ServiceException("选择其它故障时必须填写故障说明");
+        }
+        return new CustomerFaultSelection(String.join(FAULT_DESC_SEPARATOR, faultItems), faultRemark);
+    }
+
+    private List<String> buildCustomerFaultOptions(Long hqCompanyId, String productCode, String productModel) {
+        LinkedHashSet<String> faultOptions = new LinkedHashSet<>(listConfiguredFaultOptions(hqCompanyId, productCode, productModel));
+        faultOptions.add(OTHER_FAULT_LABEL);
+        return new ArrayList<>(faultOptions);
+    }
+
+    private List<String> listConfiguredFaultOptions(Long hqCompanyId, String productCode, String productModel) {
+        List<WorkOrderRepairFaultOptionVO> repairFaultOptions = faultRepairConfigService == null
+                ? Collections.emptyList()
+                : faultRepairConfigService.listRepairFaultOptions(hqCompanyId, productCode, productModel);
+        if (repairFaultOptions == null || repairFaultOptions.isEmpty()) {
+            return Collections.emptyList();
+        }
+        LinkedHashSet<String> result = new LinkedHashSet<>();
+        for (WorkOrderRepairFaultOptionVO repairFaultOption : repairFaultOptions) {
+            String faultDesc = normalizeText(repairFaultOption.getFaultDesc());
+            if (faultDesc != null) {
+                result.add(faultDesc);
+            }
+        }
+        return new ArrayList<>(result);
+    }
+
+    private List<String> normalizeFaultItems(List<String> faultItems) {
+        if (faultItems == null || faultItems.isEmpty()) {
+            return new ArrayList<>();
+        }
+        LinkedHashSet<String> result = new LinkedHashSet<>();
+        for (String faultItem : faultItems) {
+            String normalized = normalizeText(faultItem);
+            if (normalized != null) {
+                result.add(normalized);
+            }
+        }
+        return new ArrayList<>(result);
+    }
+
     private void validateCoordinate(BigDecimal longitude, BigDecimal latitude) {
         if (longitude == null || latitude == null) {
             throw new ServiceException("定位经纬度不能为空");
@@ -1012,6 +1113,26 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         String suffix = IdUtil.getSnowflakeNextIdStr();
         suffix = suffix.substring(Math.max(0, suffix.length() - 5));
         return "WO" + datePart + "-" + suffix;
+    }
+
+    private static final class CustomerFaultSelection {
+
+        private final String faultDesc;
+
+        private final String faultRemark;
+
+        private CustomerFaultSelection(String faultDesc, String faultRemark) {
+            this.faultDesc = faultDesc;
+            this.faultRemark = faultRemark;
+        }
+
+        private String getFaultDesc() {
+            return faultDesc;
+        }
+
+        private String getFaultRemark() {
+            return faultRemark;
+        }
     }
 
     private String resolveBrandCode(String brandCode) {

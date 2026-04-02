@@ -20,6 +20,7 @@ import com.jasic.aftersales.system.domain.query.WorkOrderQuery;
 import com.jasic.aftersales.system.domain.vo.SysCompanySimpleVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderDetailVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderListVO;
+import com.jasic.aftersales.system.domain.vo.WorkOrderRepairFaultOptionVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderStatusCountVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderUserOptionVO;
 import com.jasic.aftersales.system.service.IWorkOrderService;
@@ -123,6 +124,18 @@ public class WorkOrderController extends BaseController {
     @GetMapping("/{workOrderId}/transfer-target-options")
     public Result<List<SysCompanySimpleVO>> listTransferTargetOptions(@PathVariable Long workOrderId) {
         return Result.ok(workOrderService.listTransferTargetOptions(workOrderId));
+    }
+
+    /**
+     * 查询维修登记可选故障与维修说明
+     *
+     * @param workOrderId 工单ID
+     * @return 故障与维修说明选项
+     */
+    @SaCheckPermission("workorder:repair")
+    @GetMapping("/{workOrderId}/repair-fault-options")
+    public Result<List<WorkOrderRepairFaultOptionVO>> listRepairFaultOptions(@PathVariable Long workOrderId) {
+        return Result.ok(workOrderService.listRepairFaultOptions(workOrderId));
     }
 
     /**

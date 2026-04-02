@@ -2,19 +2,24 @@ package com.jasic.aftersales.system.service.impl;
 
 import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
 import com.jasic.aftersales.common.exception.ServiceException;
+import com.jasic.aftersales.system.domain.dto.WorkOrderFaultItemDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderRepairDTO;
 import com.jasic.aftersales.system.domain.entity.WorkOrder;
 import com.jasic.aftersales.system.domain.entity.WorkOrderQuote;
+import com.jasic.aftersales.system.domain.vo.WorkOrderRepairFaultOptionVO;
 import com.jasic.aftersales.system.mapper.WorkOrderMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderQuoteMapper;
+import com.jasic.aftersales.system.service.IFaultRepairConfigService;
 import com.jasic.aftersales.system.service.WorkOrderPermissionService;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -118,6 +123,107 @@ public class WorkOrderServiceImplTest {
         Assert.assertTrue(noFault);
     }
 
+    @Test
+    public void shouldRequirePartDescWhenFaultItemHasRepairContent() throws Exception {
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(Collections.emptyList()));
+
+        WorkOrderFaultItemDTO faultItem = new WorkOrderFaultItemDTO();
+        faultItem.setFaultDesc("电源故障");
+        faultItem.setRepairDesc("更换电源板");
+
+        try {
+            invokeNormalizeRepairFaults(service, buildRepairWorkOrder(), Collections.singletonList(faultItem));
+            Assert.fail("预期应拒绝缺少配件信息的故障点");
+        } catch (ServiceException ex) {
+            Assert.assertEquals("配件信息不能为空", ex.getMessage());
+        }
+    }
+
+    @Test
+    public void shouldRequireOtherDescWhenOtherRepairOptionSelected() throws Exception {
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(Collections.singletonList(
+                buildRepairFaultOption("电源故障", Collections.singletonList("更换电源板"))
+        )));
+
+        WorkOrderFaultItemDTO faultItem = new WorkOrderFaultItemDTO();
+        faultItem.setFaultDesc("电源故障");
+        faultItem.setPartDesc("电源板");
+        faultItem.setRepairItems(Arrays.asList("更换电源板", "其它维修说明"));
+
+        try {
+            invokeNormalizeRepairFaults(service, buildRepairWorkOrder(), Collections.singletonList(faultItem));
+            Assert.fail("预期应拒绝缺少其他维修说明的维修登记");
+        } catch (ServiceException ex) {
+            Assert.assertEquals("选择其它维修说明时，其他维修说明不能为空", ex.getMessage());
+        }
+    }
+
+    @Test
+    public void shouldSnapshotRepairItemsWhenRepairConfigMatched() throws Exception {
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(Collections.singletonList(
+                buildRepairFaultOption("电源故障", Arrays.asList("更换电源板", "清洁接线"))
+        )));
+
+        WorkOrderFaultItemDTO faultItem = new WorkOrderFaultItemDTO();
+        faultItem.setFaultDesc("电源故障");
+        faultItem.setPartDesc("电源板");
+        faultItem.setRepairItems(Collections.singletonList("更换电源板"));
+
+        List<WorkOrderFaultItemDTO> result = invokeNormalizeRepairFaults(
+                service,
+                buildRepairWorkOrder(),
+                Collections.singletonList(faultItem)
+        );
+
+        Assert.assertEquals(1, result.size());
+        Assert.assertEquals("电源故障", result.get(0).getFaultDesc());
+        Assert.assertEquals("更换电源板", result.get(0).getRepairDesc());
+        Assert.assertEquals(Collections.singletonList("更换电源板"), result.get(0).getRepairItems());
+    }
+
+    @Test
+    public void shouldRejectManualRepairDescWhenFaultConfigMatched() throws Exception {
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(Collections.singletonList(
+                buildRepairFaultOption("电源故障", Arrays.asList("更换电源板", "清洁接线"))
+        )));
+
+        WorkOrderFaultItemDTO faultItem = new WorkOrderFaultItemDTO();
+        faultItem.setFaultDesc("电源故障");
+        faultItem.setPartDesc("电源板");
+        faultItem.setRepairDesc("手工输入维修说明");
+
+        try {
+            invokeNormalizeRepairFaults(service, buildRepairWorkOrder(), Collections.singletonList(faultItem));
+            Assert.fail("预期应拒绝绕过配置的手工维修说明");
+        } catch (ServiceException ex) {
+            Assert.assertEquals("请选择配置内的维修说明", ex.getMessage());
+        }
+    }
+
+    @Test
+    public void shouldRejectFaultDescOutsideConfiguredRange() throws Exception {
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(Collections.singletonList(
+                buildRepairFaultOption("电源故障", Collections.singletonList("更换电源板"))
+        )));
+
+        WorkOrderFaultItemDTO faultItem = new WorkOrderFaultItemDTO();
+        faultItem.setFaultDesc("非配置故障");
+        faultItem.setPartDesc("电源板");
+        faultItem.setRepairDesc("手工输入维修说明");
+
+        try {
+            invokeNormalizeRepairFaults(service, buildRepairWorkOrder(), Collections.singletonList(faultItem));
+            Assert.fail("预期应拒绝配置范围外的故障描述");
+        } catch (ServiceException ex) {
+            Assert.assertEquals("故障描述不在当前配置范围内", ex.getMessage());
+        }
+    }
+
     private WorkOrderMapper createWorkOrderMapperProxy(WorkOrder workOrder) {
         InvocationHandler handler = new InvocationHandler() {
             @Override
@@ -153,6 +259,56 @@ public class WorkOrderServiceImplTest {
                 new Class<?>[]{WorkOrderQuoteMapper.class},
                 handler
         );
+    }
+
+    private IFaultRepairConfigService createFaultRepairConfigServiceProxy(List<WorkOrderRepairFaultOptionVO> options) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("listRepairFaultOptions".equals(method.getName())) {
+                    return options;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (IFaultRepairConfigService) Proxy.newProxyInstance(
+                IFaultRepairConfigService.class.getClassLoader(),
+                new Class<?>[]{IFaultRepairConfigService.class},
+                handler
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<WorkOrderFaultItemDTO> invokeNormalizeRepairFaults(WorkOrderServiceImpl service,
+                                                                    WorkOrder workOrder,
+                                                                    List<WorkOrderFaultItemDTO> faults) throws Exception {
+        Method method = WorkOrderServiceImpl.class
+                .getDeclaredMethod("normalizeRepairFaults", WorkOrder.class, List.class);
+        method.setAccessible(true);
+        try {
+            return (List<WorkOrderFaultItemDTO>) method.invoke(service, workOrder, faults);
+        } catch (InvocationTargetException ex) {
+            if (ex.getCause() instanceof ServiceException) {
+                throw (ServiceException) ex.getCause();
+            }
+            throw ex;
+        }
+    }
+
+    private WorkOrderRepairFaultOptionVO buildRepairFaultOption(String faultDesc, List<String> repairOptions) {
+        WorkOrderRepairFaultOptionVO option = new WorkOrderRepairFaultOptionVO();
+        option.setFaultDesc(faultDesc);
+        option.setRepairOptions(repairOptions);
+        return option;
+    }
+
+    private WorkOrder buildRepairWorkOrder() {
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(5L);
+        workOrder.setHqCompanyId(9L);
+        workOrder.setProductCode("P-100");
+        workOrder.setProductModel("M-200");
+        return workOrder;
     }
 
     private void setField(Object target, String fieldName, Object value) throws Exception {

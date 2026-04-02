@@ -223,7 +223,12 @@ INSERT INTO `sys_menu` (`id`, `subject_type`, `menu_name`, `parent_id`, `menu_ty
 (1082, 'PLATFORM', '条码新增', 108, 'F', NULL, NULL, 'system:machineBarcode:add', NULL, 2, 1, 1, NOW(), NOW()),
 (1083, 'PLATFORM', '条码修改', 108, 'F', NULL, NULL, 'system:machineBarcode:update', NULL, 3, 1, 1, NOW(), NOW()),
 (1084, 'PLATFORM', '条码删除', 108, 'F', NULL, NULL, 'system:machineBarcode:remove', NULL, 4, 1, 1, NOW(), NOW()),
-(1085, 'PLATFORM', '条码导入', 108, 'F', NULL, NULL, 'system:machineBarcode:import', NULL, 5, 1, 1, NOW(), NOW());
+(1085, 'PLATFORM', '条码导入', 108, 'F', NULL, NULL, 'system:machineBarcode:import', NULL, 5, 1, 1, NOW(), NOW()),
+(109, 'PLATFORM', '故障与维修配置', 1, 'C', 'faultRepairConfig', 'system/faultRepairConfig/index', NULL, 'el-icon-setting', 8, 1, 1, NOW(), NOW()),
+(1091, 'PLATFORM', '配置查询', 109, 'F', NULL, NULL, 'system:faultRepairConfig:list', NULL, 1, 1, 1, NOW(), NOW()),
+(1092, 'PLATFORM', '配置新增', 109, 'F', NULL, NULL, 'system:faultRepairConfig:add', NULL, 2, 1, 1, NOW(), NOW()),
+(1093, 'PLATFORM', '配置修改', 109, 'F', NULL, NULL, 'system:faultRepairConfig:update', NULL, 3, 1, 1, NOW(), NOW()),
+(1094, 'PLATFORM', '配置删除', 109, 'F', NULL, NULL, 'system:faultRepairConfig:remove', NULL, 4, 1, 1, NOW(), NOW());
 
 INSERT INTO `sys_role_menu` (`role_id`, `menu_id`, `create_time`, `update_time`) VALUES
 (1, 108, NOW(), NOW()),
@@ -231,7 +236,12 @@ INSERT INTO `sys_role_menu` (`role_id`, `menu_id`, `create_time`, `update_time`)
 (1, 1082, NOW(), NOW()),
 (1, 1083, NOW(), NOW()),
 (1, 1084, NOW(), NOW()),
-(1, 1085, NOW(), NOW());
+(1, 1085, NOW(), NOW()),
+(1, 109, NOW(), NOW()),
+(1, 1091, NOW(), NOW()),
+(1, 1092, NOW(), NOW()),
+(1, 1093, NOW(), NOW()),
+(1, 1094, NOW(), NOW());
 
 INSERT INTO `sys_type_code_menu` (`type_code`, `menu_id`, `create_time`, `update_time`) VALUES
 ('PLATFORM', 108, NOW(), NOW()),
@@ -239,4 +249,9 @@ INSERT INTO `sys_type_code_menu` (`type_code`, `menu_id`, `create_time`, `update
 ('PLATFORM', 1082, NOW(), NOW()),
 ('PLATFORM', 1083, NOW(), NOW()),
 ('PLATFORM', 1084, NOW(), NOW()),
-('PLATFORM', 1085, NOW(), NOW());
+('PLATFORM', 1085, NOW(), NOW()),
+('PLATFORM', 109, NOW(), NOW()),
+('PLATFORM', 1091, NOW(), NOW()),
+('PLATFORM', 1092, NOW(), NOW()),
+('PLATFORM', 1093, NOW(), NOW()),
+('PLATFORM', 1094, NOW(), NOW());

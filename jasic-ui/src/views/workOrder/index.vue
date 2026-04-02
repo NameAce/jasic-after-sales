@@ -285,6 +285,7 @@
             <el-table v-if="repair.faults && repair.faults.length" :data="repair.faults" border size="small" class="inner-table">
               <el-table-column label="故障点" prop="faultDesc" min-width="160" />
               <el-table-column label="维修说明" prop="repairDesc" min-width="180" show-overflow-tooltip />
+              <el-table-column label="其他维修说明" prop="otherDesc" min-width="180" show-overflow-tooltip />
               <el-table-column label="配件信息" prop="partDesc" min-width="180" show-overflow-tooltip />
               <el-table-column label="图片地址" prop="imageUrls" min-width="200" show-overflow-tooltip />
               <el-table-column label="登记人" prop="createdByName" min-width="110" />
@@ -371,6 +372,30 @@
           <el-form-item label="其他说明">
             <el-input v-model="actionForm.otherDesc" type="textarea" :rows="3" placeholder="请输入其他说明" />
           </el-form-item>
+          <el-alert
+            v-if="actionRepairConfigLoading"
+            title="正在加载故障与维修配置"
+            type="info"
+            :closable="false"
+            show-icon
+            style="margin-bottom: 12px;"
+          />
+          <el-alert
+            v-else-if="!actionRepairFaultOptions.length"
+            title="当前产品未匹配故障与维修配置，可手工填写故障描述和维修说明"
+            type="warning"
+            :closable="false"
+            show-icon
+            style="margin-bottom: 12px;"
+          />
+          <el-alert
+            v-else
+            title="当前产品已匹配故障与维修配置，可直接选择故障描述和维修说明"
+            type="success"
+            :closable="false"
+            show-icon
+            style="margin-bottom: 12px;"
+          />
           <div class="fault-header">
             <span>故障点</span>
             <el-button type="text" @click="addFaultItem">新增故障点</el-button>
@@ -381,10 +406,50 @@
               <el-button v-if="actionForm.faults.length > 1" type="text" style="color: #f56c6c;" @click="removeFaultItem(index)">删除</el-button>
             </div>
             <el-form-item label="故障描述">
-              <el-input v-model="item.faultDesc" placeholder="请输入故障描述" />
+              <el-select
+                v-model="item.faultDesc"
+                placeholder="请选择或输入故障描述"
+                filterable
+                clearable
+                :allow-create="!hasRepairFaultConfig"
+                default-first-option
+                style="width: 100%;"
+                @change="handleFaultDescChange(item)"
+              >
+                <el-option
+                  v-for="option in actionRepairFaultOptions"
+                  :key="option.faultDesc"
+                  :label="option.faultDesc"
+                  :value="option.faultDesc"
+                />
+              </el-select>
             </el-form-item>
-            <el-form-item label="维修说明">
+            <el-form-item v-if="getRepairOptions(item).length" label="维修说明">
+              <el-select
+                v-model="item.repairItems"
+                multiple
+                collapse-tags
+                placeholder="请选择维修说明"
+                filterable
+                style="width: 100%;"
+              >
+                <el-option
+                  v-for="repairOption in getRepairOptions(item)"
+                  :key="`${item.faultDesc}-${repairOption}`"
+                  :label="repairOption"
+                  :value="repairOption"
+                />
+                <el-option :label="otherRepairOption" :value="otherRepairOption" />
+              </el-select>
+            </el-form-item>
+            <el-form-item v-else-if="!hasRepairFaultConfig" label="维修说明">
               <el-input v-model="item.repairDesc" type="textarea" :rows="2" placeholder="请输入维修说明" />
+            </el-form-item>
+            <el-form-item v-else label="维修说明">
+              <el-input value="请先选择配置内的故障描述" disabled />
+            </el-form-item>
+            <el-form-item v-if="isOtherRepairSelected(item)" label="其他维修说明">
+              <el-input v-model="item.otherDesc" type="textarea" :rows="2" placeholder="请输入其他维修说明" />
             </el-form-item>
             <el-form-item label="配件信息">
               <el-input v-model="item.partDesc" placeholder="请输入配件信息" />
@@ -445,6 +510,7 @@ import {
   getWorkOrder,
   listAssignUserOptions,
   listCreateHqOptions,
+  listRepairFaultOptions,
   listTransferTargetOptions,
   listWorkOrder,
   quoteWorkOrder,
@@ -461,6 +527,7 @@ const RETURN_METHOD_MAIL = '回寄'
 const RETURN_METHOD_PICKUP = '自提'
 const REVIEW_RESULT_PASS = '通过'
 const REVIEW_RESULT_CONTINUE = '继续维修'
+const OTHER_REPAIR_OPTION = '其它维修说明'
 
 const STATUS_LABELS = {
   WAIT_ACCEPT: '待接单',
@@ -493,6 +560,8 @@ function createFaultItem() {
   return {
     faultDesc: '',
     repairDesc: '',
+    repairItems: [],
+    otherDesc: '',
     partDesc: '',
     imageUrls: ''
   }
@@ -561,6 +630,7 @@ export default {
   data() {
     return {
       serviceModeMail: SERVICE_MODE_MAIL,
+      otherRepairOption: OTHER_REPAIR_OPTION,
       loading: false,
       workOrderList: [],
       total: 0,
@@ -607,10 +677,15 @@ export default {
       actionSubmitting: false,
       actionForm: buildDefaultActionForm(),
       assignUserOptions: [],
-      transferTargetOptions: []
+      transferTargetOptions: [],
+      actionRepairConfigLoading: false,
+      actionRepairFaultOptions: []
     }
   },
   computed: {
+    hasRepairFaultConfig() {
+      return (this.actionRepairFaultOptions || []).length > 0
+    },
     isCreateMailMode() {
       return this.createForm.serviceMode === SERVICE_MODE_MAIL
     },
@@ -846,6 +921,18 @@ export default {
         this.transferTargetOptions = res.data || []
       })
     },
+    loadRepairFaultOptions(workOrderId) {
+      this.actionRepairConfigLoading = true
+      this.actionRepairFaultOptions = []
+      return listRepairFaultOptions(workOrderId).then(res => {
+        if (!res) {
+          return
+        }
+        this.actionRepairFaultOptions = res.data || []
+      }).finally(() => {
+        this.actionRepairConfigLoading = false
+      })
+    },
     openActionDialog(action, workOrderId) {
       const currentWorkOrderId = workOrderId || (this.detail && this.detail.id)
       if (!currentWorkOrderId) {
@@ -864,10 +951,19 @@ export default {
         form.returnExpressNo = this.detail.returnExpressNo || ''
         form.closeReason = this.detail.closeReason || ''
       }
+      let preparePromise = Promise.resolve()
+      if (action === 'REPAIR_SAVE' || action === 'REPAIR_FINISH') {
+        preparePromise = this.loadRepairFaultOptions(currentWorkOrderId)
+      } else {
+        this.actionRepairFaultOptions = []
+        this.actionRepairConfigLoading = false
+      }
       this.actionForm = form
       this.actionDialogAction = action
       this.actionDialogTitle = ACTION_META[action] ? ACTION_META[action].title : '工单操作'
-      this.actionDialogVisible = true
+      preparePromise.finally(() => {
+        this.actionDialogVisible = true
+      })
     },
     confirmTechAccept() {
       this.$confirm('确认维修员接单吗？', '提示', { type: 'warning' }).then(() => {
@@ -925,6 +1021,10 @@ export default {
         && !this.actionForm.otherDesc
         && this.buildRepairFaults().length === 0) {
         this.$message.error('请至少填写一项维修内容')
+        return false
+      }
+      if ((this.actionDialogAction === 'REPAIR_SAVE' || this.actionDialogAction === 'REPAIR_FINISH')
+        && !this.validateRepairFaultItems()) {
         return false
       }
       if (this.actionDialogAction === 'REVIEW' && !this.actionForm.reviewResult) {
@@ -1023,9 +1123,13 @@ export default {
       return (this.actionForm.faults || []).map(item => ({
         faultDesc: item.faultDesc ? item.faultDesc.trim() : '',
         repairDesc: item.repairDesc ? item.repairDesc.trim() : '',
+        repairItems: (item.repairItems || [])
+          .map(option => (option || '').trim())
+          .filter(option => option),
+        otherDesc: item.otherDesc ? item.otherDesc.trim() : '',
         partDesc: item.partDesc ? item.partDesc.trim() : '',
         imageUrls: item.imageUrls ? item.imageUrls.trim() : ''
-      })).filter(item => item.faultDesc || item.repairDesc || item.partDesc || item.imageUrls)
+      })).filter(item => item.faultDesc || item.repairDesc || (item.repairItems && item.repairItems.length) || item.otherDesc || item.partDesc || item.imageUrls)
     },
     addFaultItem() {
       this.actionForm.faults.push(createFaultItem())
@@ -1033,10 +1137,76 @@ export default {
     removeFaultItem(index) {
       this.actionForm.faults.splice(index, 1)
     },
+    handleFaultDescChange(item) {
+      const repairOptions = this.getRepairOptions(item)
+      if (!repairOptions.length) {
+        item.repairItems = []
+        item.otherDesc = ''
+        if (this.hasRepairFaultConfig) {
+          item.repairDesc = ''
+        }
+        return
+      }
+      item.repairDesc = ''
+      item.repairItems = (item.repairItems || []).filter(option => repairOptions.includes(option) || option === OTHER_REPAIR_OPTION)
+      if (!item.repairItems.includes(OTHER_REPAIR_OPTION)) {
+        item.otherDesc = ''
+      }
+    },
+    getRepairOptions(item) {
+      if (!item || !item.faultDesc) {
+        return []
+      }
+      const matched = (this.actionRepairFaultOptions || []).find(option => option.faultDesc === item.faultDesc)
+      return matched && matched.repairOptions ? matched.repairOptions : []
+    },
+    hasRepairFaultOption(faultDesc) {
+      if (!faultDesc) {
+        return false
+      }
+      return (this.actionRepairFaultOptions || []).some(option => option && option.faultDesc === faultDesc)
+    },
+    isOtherRepairSelected(item) {
+      return !!(item && item.repairItems && item.repairItems.includes(OTHER_REPAIR_OPTION))
+    },
+    validateRepairFaultItems() {
+      const faultItems = this.buildRepairFaults()
+      for (const item of faultItems) {
+        if (!item.faultDesc) {
+          this.$message.error('请输入故障描述')
+          return false
+        }
+        if (this.hasRepairFaultConfig && !this.hasRepairFaultOption(item.faultDesc)) {
+          this.$message.error('璇烽€夋嫨閰嶇疆鍐呯殑鏁呴殰鎻忚堪')
+          return false
+        }
+        const repairOptions = this.getRepairOptions(item)
+        if (repairOptions.length) {
+          if (!item.repairItems || !item.repairItems.length) {
+            this.$message.error('请选择维修说明')
+            return false
+          }
+          if (item.repairItems.includes(OTHER_REPAIR_OPTION) && !item.otherDesc) {
+            this.$message.error('请选择其它维修说明后，必须填写其他维修说明')
+            return false
+          }
+        } else if (!item.repairDesc) {
+          this.$message.error('请输入维修说明')
+          return false
+        }
+        if (!item.partDesc) {
+          this.$message.error('请输入配件信息')
+          return false
+        }
+      }
+      return true
+    },
     refreshAfterAction() {
       const workOrderId = this.resolveActionWorkOrderId()
       const shouldReloadDetail = this.detailVisible && this.detail && String(this.detail.id) === String(workOrderId)
       this.actionDialogVisible = false
+      this.actionRepairFaultOptions = []
+      this.actionRepairConfigLoading = false
       this.getList()
       if (shouldReloadDetail && workOrderId) {
         this.openDetail(workOrderId)

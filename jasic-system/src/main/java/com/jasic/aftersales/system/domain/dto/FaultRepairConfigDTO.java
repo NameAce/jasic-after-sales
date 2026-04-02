@@ -2,50 +2,43 @@ package com.jasic.aftersales.system.domain.dto;
 
 import lombok.Data;
 
-import javax.validation.constraints.NotBlank;
+import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import java.io.Serializable;
+import java.util.List;
 
 /**
- * 条码档案批量导入单项参数
+ * 故障与维修配置新增修改参数
  *
  * @author Codex
  * @date 2026/04/01
  */
 @Data
-public class MachineBarcodeImportItemDTO implements Serializable {
+public class FaultRepairConfigDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** 机器条码 */
-    @NotBlank(message = "机器条码不能为空")
-    private String barcode;
+    /** 主键 */
+    private Long id;
 
     /** 归属总部ID */
     @NotNull(message = "归属总部不能为空")
-    private Long hqCompanyId;
+    private Long companyId;
 
     /** 物料编码 */
     private String productCode;
 
-    /** 商品名称 */
-    private String productName;
-
     /** 产品型号 */
     private String productModel;
 
-    /** 机器小号 */
-    private String machineNo;
-
-    /** 品牌编码 */
-    private String brandCode;
-
-    /** 质保状态 */
-    private String warrantyStatus;
-
     /** 状态 */
+    @NotNull(message = "状态不能为空")
     private Integer status;
 
     /** 备注 */
     private String remark;
+
+    /** 故障配置项 */
+    @Valid
+    private List<FaultRepairConfigFaultDTO> faults;
 }

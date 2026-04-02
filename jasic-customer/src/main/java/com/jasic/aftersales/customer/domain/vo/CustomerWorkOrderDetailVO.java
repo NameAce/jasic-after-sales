@@ -35,7 +35,11 @@ public class CustomerWorkOrderDetailVO implements Serializable {
 
     private String productCode;
 
+    private String productName;
+
     private String productModel;
+
+    private String machineNo;
 
     private String brandCode;
 
@@ -44,6 +48,8 @@ public class CustomerWorkOrderDetailVO implements Serializable {
     private String warrantyStatus;
 
     private String faultDesc;
+
+    private String faultRemark;
 
     private String senderName;
 

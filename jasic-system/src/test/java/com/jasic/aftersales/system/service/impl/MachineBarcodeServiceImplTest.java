@@ -98,6 +98,32 @@ public class MachineBarcodeServiceImplTest {
         }
     }
 
+    @Test
+    public void shouldNormalizeProductSnapshotFieldsWhenSavingBarcode() throws Exception {
+        MachineBarcodeServiceImpl service = new MachineBarcodeServiceImpl();
+        Map<Long, SysCompany> companies = new LinkedHashMap<>();
+        companies.put(21L, buildHqCompany(21L, "总部A", 1));
+        Map<String, MachineBarcode> store = new LinkedHashMap<>();
+
+        setField(service, "sysCompanyMapper", createCompanyMapperProxy(companies));
+        setField(service, "machineBarcodeMapper", createMachineBarcodeMapperProxy(store));
+        setField(service, "companyTypeService", createCompanyTypeService(buildCompanyTypes()));
+
+        MachineBarcodeDTO dto = new MachineBarcodeDTO();
+        dto.setBarcode("JASIC-001");
+        dto.setHqCompanyId(21L);
+        dto.setProductName("  ZX7逆变焊机  ");
+        dto.setMachineNo("  M-001  ");
+        dto.setStatus(1);
+
+        service.save(dto);
+
+        MachineBarcode saved = store.get("JASIC-001");
+        Assert.assertNotNull(saved);
+        Assert.assertEquals("ZX7逆变焊机", saved.getProductName());
+        Assert.assertEquals("M-001", saved.getMachineNo());
+    }
+
     private SysCompany buildServiceCompany() {
         SysCompany company = new SysCompany();
         company.setId(11L);
