@@ -49,6 +49,20 @@ export const constantRoutes = [
       }
     ]
   }
+  ,
+  {
+    path: '/account',
+    component: Layout,
+    hidden: true,
+    children: [
+      {
+        path: 'profile',
+        name: 'AccountProfile',
+        component: () => import('@/views/account/profile.vue'),
+        meta: { title: '账号中心' }
+      }
+    ]
+  }
 ]
 
 const viewModules = {

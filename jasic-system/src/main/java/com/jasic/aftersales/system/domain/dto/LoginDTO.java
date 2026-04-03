@@ -16,8 +16,8 @@ public class LoginDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** 用户名 */
-    @NotBlank(message = "用户名不能为空")
+    /** 用户名或手机号 */
+    @NotBlank(message = "用户名或手机号不能为空")
     private String username;
 
     /** 密码 */

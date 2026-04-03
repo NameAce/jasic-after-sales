@@ -27,6 +27,7 @@ import com.jasic.aftersales.system.service.ISysCompanyService;
 import com.jasic.aftersales.system.service.ISysCompanyTypeService;
 import com.jasic.aftersales.system.service.ISysConfigService;
 import com.jasic.aftersales.system.service.ISysRoleTemplateService;
+import com.jasic.aftersales.system.service.support.SysUserIdentityValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -75,6 +76,9 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
 
     @Resource
     private ICompanyGeoResolver companyGeoResolver;
+
+    @Resource
+    private SysUserIdentityValidator userIdentityValidator;
 
     /**
      * 分页查询公司列表
@@ -162,8 +166,7 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         validateCompanyStatus(dto.getStatus());
         validateCompanyCodeUnique(null, dto.getCompanyCode());
         validateAdminTemplate(dto.getTypeCode());
-        validateAdminUsername(dto.getAdminUsername());
-        validateContactPhoneUnique(dto.getContactPhone());
+        validateAdminLoginIdentity(dto.getAdminUsername(), dto.getContactPhone());
 
         ICompanyGeoResolver.GeoLocation geoLocation = companyGeoResolver.resolve(dto.getAddress());
 
@@ -300,19 +303,11 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         if (StrUtil.isBlank(adminUsername)) {
             throw new ServiceException("管理员用户名不能为空");
         }
-        LambdaQueryWrapper<SysUser> usernameWrapper = new LambdaQueryWrapper<>();
-        usernameWrapper.eq(SysUser::getUsername, adminUsername);
-        if (sysUserMapper.selectCount(usernameWrapper) > 0) {
-            throw new ServiceException("管理员用户名（" + adminUsername + "）已存在，请修改");
-        }
     }
 
-    private void validateContactPhoneUnique(String contactPhone) {
-        LambdaQueryWrapper<SysUser> phoneWrapper = new LambdaQueryWrapper<>();
-        phoneWrapper.eq(SysUser::getPhone, contactPhone);
-        if (sysUserMapper.selectCount(phoneWrapper) > 0) {
-            throw new ServiceException("联系电话（" + contactPhone + "）已被其他用户使用，请确认");
-        }
+    private void validateAdminLoginIdentity(String adminUsername, String contactPhone) {
+        validateAdminUsername(adminUsername);
+        userIdentityValidator.validateLoginIdentityUnique(null, adminUsername, contactPhone);
     }
 
     private boolean shouldResolveAddress(String originalAddress, String targetAddress,

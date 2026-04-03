@@ -8,6 +8,8 @@ import com.jasic.aftersales.system.domain.dto.ChooseCompanyDTO;
 import com.jasic.aftersales.system.domain.dto.LoginDTO;
 import com.jasic.aftersales.system.domain.dto.MpLoginDTO;
 import com.jasic.aftersales.system.domain.dto.WechatBindConfirmDTO;
+import com.jasic.aftersales.system.domain.dto.ChangePasswordDTO;
+import com.jasic.aftersales.system.domain.dto.UpdateProfileDTO;
 import com.jasic.aftersales.system.domain.vo.LoginVO;
 import com.jasic.aftersales.system.domain.vo.MpLoginVO;
 import com.jasic.aftersales.system.domain.vo.SysMenuVO;
@@ -19,6 +21,7 @@ import com.jasic.aftersales.framework.security.SecurityContext;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -91,6 +94,31 @@ public class SysAuthController {
     public Result<SysUserVO> getUserInfo() {
         SysUserVO vo = authService.getUserInfo();
         return Result.ok(vo);
+    }
+
+    /**
+     * 修改当前用户资料
+     *
+     * @param dto 资料参数
+     * @return 用户信息
+     */
+    @OperLog(title = "账号中心", operType = OperTypeEnum.UPDATE)
+    @PutMapping("/profile")
+    public Result<SysUserVO> updateProfile(@Validated @RequestBody UpdateProfileDTO dto) {
+        return Result.ok(authService.updateProfile(dto));
+    }
+
+    /**
+     * 修改当前用户密码
+     *
+     * @param dto 密码参数
+     * @return 操作结果
+     */
+    @OperLog(title = "账号中心", operType = OperTypeEnum.UPDATE)
+    @PutMapping("/change-password")
+    public Result<Void> changePassword(@Validated @RequestBody ChangePasswordDTO dto) {
+        authService.changePassword(dto);
+        return Result.ok();
     }
 
     /**

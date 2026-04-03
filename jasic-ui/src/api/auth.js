@@ -12,6 +12,14 @@ export function getUserInfo() {
   return request({ url: '/auth/user-info', method: 'get' })
 }
 
+export function updateProfile(data) {
+  return request({ url: '/auth/profile', method: 'put', data })
+}
+
+export function changePassword(data) {
+  return request({ url: '/auth/change-password', method: 'put', data })
+}
+
 export function getMenus() {
   return request({ url: '/auth/menus', method: 'get' })
 }

@@ -10,7 +10,7 @@
           <el-input
             v-model="loginForm.username"
             prefix-icon="el-icon-user"
-            placeholder="请输入用户名"
+            placeholder="请输入用户名或手机号"
             @keyup.enter.native="handleLogin"
           />
         </el-form-item>
@@ -52,7 +52,7 @@ export default {
         password: ''
       },
       loginRules: {
-        username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+        username: [{ required: true, message: '请输入用户名或手机号', trigger: 'blur' }],
         password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
       },
       loading: false,

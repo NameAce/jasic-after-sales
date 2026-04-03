@@ -3,6 +3,8 @@ package com.jasic.aftersales.system.service;
 import com.jasic.aftersales.system.domain.dto.LoginDTO;
 import com.jasic.aftersales.system.domain.dto.MpLoginDTO;
 import com.jasic.aftersales.system.domain.dto.WechatBindConfirmDTO;
+import com.jasic.aftersales.system.domain.dto.ChangePasswordDTO;
+import com.jasic.aftersales.system.domain.dto.UpdateProfileDTO;
 import com.jasic.aftersales.system.domain.vo.LoginVO;
 import com.jasic.aftersales.system.domain.vo.MpLoginVO;
 import com.jasic.aftersales.system.domain.vo.SysUserVO;
@@ -46,6 +48,21 @@ public interface ISysAuthService {
      * @return 用户信息
      */
     SysUserVO getUserInfo();
+
+    /**
+     * 修改当前用户资料
+     *
+     * @param dto 资料参数
+     * @return 用户信息
+     */
+    SysUserVO updateProfile(UpdateProfileDTO dto);
+
+    /**
+     * 修改当前用户密码
+     *
+     * @param dto 密码参数
+     */
+    void changePassword(ChangePasswordDTO dto);
 
     /**
      * 生成当前用户的微信绑定码

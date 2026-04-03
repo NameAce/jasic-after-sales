@@ -32,6 +32,7 @@ public class SysUserDTO implements Serializable {
     private String realName;
 
     /** 手机号 */
+    @NotBlank(message = "手机号不能为空")
     private String phone;
 
     /** 邮箱 */

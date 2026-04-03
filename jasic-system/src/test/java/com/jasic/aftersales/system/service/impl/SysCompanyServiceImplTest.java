@@ -15,6 +15,7 @@ import com.jasic.aftersales.system.service.ICompanyGeoResolver;
 import com.jasic.aftersales.system.service.ISysCompanyTypeService;
 import com.jasic.aftersales.system.service.ISysConfigService;
 import com.jasic.aftersales.system.service.ISysRoleTemplateService;
+import com.jasic.aftersales.system.service.support.SysUserIdentityValidator;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -64,6 +65,7 @@ public class SysCompanyServiceImplTest {
         setField(service, "sysCompanyMapper", createCompanyMapperProxy(companyState));
         setField(service, "sysRoleTemplateMapper", createRoleTemplateMapperProxy(1L));
         setField(service, "sysUserMapper", createUserMapperProxy(userState));
+        setField(service, "userIdentityValidator", createIdentityValidator(createUserMapperProxy(userState)));
         setField(service, "sysUserCompanyMapper", createNoopMapperProxy(SysUserCompanyMapper.class));
         setField(service, "sysUserRoleMapper", createNoopMapperProxy(SysUserRoleMapper.class));
         setField(service, "roleTemplateService", createRoleTemplateService());
@@ -212,6 +214,14 @@ public class SysCompanyServiceImplTest {
                 new Class<?>[]{SysUserMapper.class},
                 handler
         );
+    }
+
+    private SysUserIdentityValidator createIdentityValidator(SysUserMapper mapper) throws Exception {
+        SysUserIdentityValidator validator = new SysUserIdentityValidator();
+        Field field = SysUserIdentityValidator.class.getDeclaredField("sysUserMapper");
+        field.setAccessible(true);
+        field.set(validator, mapper);
+        return validator;
     }
 
     private <T> T createNoopMapperProxy(Class<T> mapperClass) {

@@ -27,6 +27,7 @@ import com.jasic.aftersales.system.mapper.SysUserRoleMapper;
 import com.jasic.aftersales.system.mapper.SysUserMapper;
 import com.jasic.aftersales.system.service.ISysUserService;
 import com.jasic.aftersales.system.service.SysPermissionService;
+import com.jasic.aftersales.system.service.support.SysUserIdentityValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,6 +64,9 @@ public class SysUserServiceImpl implements ISysUserService {
 
     @Resource
     private SysRoleMapper sysRoleMapper;
+
+    @Resource
+    private SysUserIdentityValidator userIdentityValidator;
 
     /**
      * 分页查询用户列表
@@ -176,11 +180,8 @@ public class SysUserServiceImpl implements ISysUserService {
     @Transactional(rollbackFor = Exception.class)
     @Override
     public Long save(SysUserDTO dto) {
-        LambdaQueryWrapper<SysUser> usernameWrapper = new LambdaQueryWrapper<>();
-        usernameWrapper.eq(SysUser::getUsername, dto.getUsername());
-        if (sysUserMapper.selectCount(usernameWrapper) > 0) {
-            throw new ServiceException("用户名已存在");
-        }
+        normalizeUserDto(dto);
+        userIdentityValidator.validateLoginIdentityUnique(null, dto.getUsername(), dto.getPhone());
 
         SysUser user = new SysUser();
         BeanUtil.copyProperties(dto, user);
@@ -213,11 +214,14 @@ public class SysUserServiceImpl implements ISysUserService {
         if (dto.getId() == null) {
             throw new ServiceException("用户ID不能为空");
         }
+        normalizeUserDto(dto);
 
         SysUser user = sysUserMapper.selectById(dto.getId());
         if (user == null) {
             throw new ServiceException("用户不存在");
         }
+
+        userIdentityValidator.validateLoginIdentityUnique(user.getId(), dto.getUsername(), dto.getPhone());
 
         BeanUtil.copyProperties(dto, user, "password", "id");
         sysUserMapper.updateById(user);
@@ -347,6 +351,14 @@ public class SysUserServiceImpl implements ISysUserService {
         SysRoleVO vo = new SysRoleVO();
         BeanUtil.copyProperties(role, vo);
         return vo;
+    }
+
+    private void normalizeUserDto(SysUserDTO dto) {
+        dto.setUsername(StrUtil.trim(dto.getUsername()));
+        dto.setRealName(StrUtil.trim(dto.getRealName()));
+        dto.setPhone(StrUtil.trim(dto.getPhone()));
+        dto.setEmail(StrUtil.trim(dto.getEmail()));
+        dto.setRemark(StrUtil.trim(dto.getRemark()));
     }
 
     /**
