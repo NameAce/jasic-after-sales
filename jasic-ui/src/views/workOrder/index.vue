@@ -90,6 +90,20 @@
     </el-card>
 
     <el-dialog title="新增工单" :visible.sync="createDialogVisible" width="720px" append-to-body>
+      <div class="create-entry-tabs">
+        <el-radio-group v-model="createForm.entryMode" size="small" @change="handleCreateEntryModeChange">
+          <el-radio-button v-for="item in createEntryOptions" :key="item.value" :label="item.value">
+            {{ item.label }}
+          </el-radio-button>
+        </el-radio-group>
+      </div>
+      <el-alert
+        title="当前仅支持佳士有码报修，必须先查条码，再允许提交建单。"
+        type="info"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 16px;"
+      />
       <el-form ref="createForm" :model="createForm" :rules="createRules" label-width="96px">
         <el-row :gutter="16">
           <el-col :span="12">
@@ -102,33 +116,79 @@
               <el-input v-model="createForm.customerMobile" placeholder="请输入客户手机号" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
-            <el-form-item label="条码" prop="barcode">
-              <el-input v-model="createForm.barcode" placeholder="请输入条码" />
+          <el-col :span="24">
+            <el-form-item label="机器条码" prop="barcode">
+              <el-input
+                v-model="createForm.barcode"
+                placeholder="请输入机器条码"
+                @keyup.enter.native="queryCreateBarcodeInfo"
+              >
+                <el-button
+                  slot="append"
+                  icon="el-icon-search"
+                  :loading="createBarcodeLoading"
+                  @click="queryCreateBarcodeInfo"
+                >
+                  查条码
+                </el-button>
+              </el-input>
             </el-form-item>
           </el-col>
-          <el-col :span="12">
-            <el-form-item label="归属总部" prop="hqCompanyId">
-              <el-select v-model="createForm.hqCompanyId" placeholder="请选择归属总部" filterable>
-                <el-option v-for="item in createHqOptions" :key="item.id" :label="item.companyName" :value="item.id" />
+          <el-col v-if="showCreateTargetCompany" :span="24">
+            <el-form-item :label="createTargetCompanyLabel" prop="targetCompanyId">
+              <el-select
+                v-model="createForm.targetCompanyId"
+                placeholder="请选择"
+                filterable
+                :disabled="isCreateTargetAutoFilled"
+                @change="handleCreateTargetCompanyChange"
+              >
+                <el-option
+                  v-for="item in createForm.targetCompanyOptions"
+                  :key="item.id"
+                  :label="item.companyName"
+                  :value="item.id"
+                />
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="12">
-            <el-form-item label="物料编码" prop="productCode">
-              <el-input v-model="createForm.productCode" placeholder="请输入物料编码" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="机型" prop="productModel">
-              <el-input v-model="createForm.productModel" placeholder="请输入机型" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="品牌编码" prop="brandCode">
-              <el-input v-model="createForm.brandCode" placeholder="请输入品牌编码" />
-            </el-form-item>
-          </el-col>
+          <template v-if="hasCreateBarcodeResult">
+            <el-col :span="12">
+              <el-form-item label="归属总部">
+                <el-input :value="createForm.hqCompanyName" disabled />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="质保状态">
+                <el-input :value="createForm.warrantyStatus" disabled />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="物料编码">
+                <el-input :value="createForm.productCode" disabled />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="商品名称">
+                <el-input :value="createForm.productName" disabled />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="机型">
+                <el-input :value="createForm.productModel" disabled />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="机器小号">
+                <el-input :value="createForm.machineNo" disabled />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="品牌编码">
+                <el-input :value="createForm.brandCode" disabled />
+              </el-form-item>
+            </el-col>
+          </template>
           <el-col :span="12">
             <el-form-item label="服务方式" prop="serviceMode">
               <el-select v-model="createForm.serviceMode" placeholder="请选择服务方式">
@@ -136,14 +196,27 @@
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="12">
-            <el-form-item label="质保状态" prop="warrantyStatus">
-              <el-input v-model="createForm.warrantyStatus" placeholder="请输入质保状态" />
+          <el-col :span="24">
+            <el-form-item label="故障描述" prop="faultItems">
+              <el-select
+                v-model="createForm.faultItems"
+                multiple
+                collapse-tags
+                :placeholder="hasCreateBarcodeResult && createForm.faultOptions.length ? '请选择故障描述' : '请先完成条码查询并确认目标公司'"
+                :disabled="!hasCreateBarcodeResult || !createForm.faultOptions.length"
+              >
+                <el-option
+                  v-for="item in createForm.faultOptions"
+                  :key="item"
+                  :label="item"
+                  :value="item"
+                />
+              </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="24">
-            <el-form-item label="故障描述" prop="faultDesc">
-              <el-input v-model="createForm.faultDesc" type="textarea" :rows="3" placeholder="请输入故障描述" />
+          <el-col v-if="showCreateFaultRemark" :span="24">
+            <el-form-item label="故障备注" prop="faultRemark">
+              <el-input v-model="createForm.faultRemark" type="textarea" :rows="3" placeholder="请输入故障备注" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -167,7 +240,7 @@
           </el-col>
           <el-col :span="24">
             <el-form-item label="寄件单号" prop="sendExpressNo">
-              <el-input v-model="createForm.sendExpressNo" placeholder="请输入寄件快递单号" />
+              <el-input v-model="createForm.sendExpressNo" placeholder="首次建单可不填，后续可补录" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -208,10 +281,12 @@
             <el-descriptions-item label="当前受理公司">{{ textValue(detail.currentAcceptCompanyName) }}</el-descriptions-item>
             <el-descriptions-item label="当前维修员">{{ textValue(detail.assignedUserName) }}</el-descriptions-item>
             <el-descriptions-item label="建单公司">{{ textValue(detail.createCompanyName) }}</el-descriptions-item>
+            <el-descriptions-item label="建单入口">{{ textValue(createEntryTypeLabel(detail.createEntryType)) }}</el-descriptions-item>
             <el-descriptions-item label="归属总部">{{ textValue(detail.hqCompanyName) }}</el-descriptions-item>
             <el-descriptions-item label="转单次数">{{ detail.transferCount || 0 }}</el-descriptions-item>
             <el-descriptions-item label="评价状态">{{ textValue(detail.evaluateStatusLabel || evaluateStatusLabel(detail.evaluateStatus)) }}</el-descriptions-item>
             <el-descriptions-item label="故障描述" :span="2">{{ textValue(detail.faultDesc) }}</el-descriptions-item>
+            <el-descriptions-item label="故障备注" :span="2">{{ textValue(detail.faultRemark) }}</el-descriptions-item>
           </el-descriptions>
 
           <div v-if="detail.serviceMode === serviceModeMail" class="section-title">寄修信息</div>
@@ -505,13 +580,17 @@
 
 <script>
 import {
-  addWorkOrder,
   assignWorkOrder,
   countWorkOrderStatus,
   closeWorkOrder,
+  createProxyWorkOrder,
+  createUpstreamFirstWorkOrder,
+  createUpstreamHqWorkOrder,
   getWorkOrder,
+  getProxyCreateBarcodeInfo,
+  getUpstreamFirstCreateBarcodeInfo,
+  getUpstreamHqCreateBarcodeInfo,
   listAssignUserOptions,
-  listCreateHqOptions,
   listRepairFaultOptions,
   listTransferTargetOptions,
   listWorkOrder,
@@ -530,6 +609,10 @@ const RETURN_METHOD_PICKUP = '自提'
 const REVIEW_RESULT_PASS = '通过'
 const REVIEW_RESULT_CONTINUE = '继续维修'
 const OTHER_REPAIR_OPTION = '其它维修说明'
+const DEFAULT_OTHER_FAULT_LABEL = '其它故障'
+const CREATE_ENTRY_PROXY = 'PROXY_SELF'
+const CREATE_ENTRY_UPSTREAM_FIRST = 'UPSTREAM_FIRST'
+const CREATE_ENTRY_UPSTREAM_HQ = 'UPSTREAM_HQ'
 
 const STATUS_LABELS = {
   WAIT_ACCEPT: '待接单',
@@ -585,22 +668,36 @@ function buildDefaultQuery() {
 
 function buildDefaultCreateForm() {
   return {
-    customerId: undefined,
+    entryMode: CREATE_ENTRY_PROXY,
     customerName: '',
     customerMobile: '',
     barcode: '',
+    queriedBarcode: '',
+    barcodeQueried: false,
     productCode: '',
+    productName: '',
     productModel: '',
+    machineNo: '',
     brandCode: '',
     serviceMode: SERVICE_MODE_STORE,
     warrantyStatus: '',
-    faultDesc: '',
+    hqCompanyId: undefined,
+    hqCompanyName: '',
+    targetCompanyId: undefined,
+    targetCompanyOptions: [],
+    faultOptions: [],
+    otherFaultLabel: DEFAULT_OTHER_FAULT_LABEL,
+    faultItems: [],
+    faultRemark: '',
     senderName: '',
     senderMobile: '',
     senderAddress: '',
-    sendExpressNo: '',
-    hqCompanyId: undefined
+    sendExpressNo: ''
   }
+}
+
+function normalizeText(value) {
+  return value === null || value === undefined ? '' : String(value).trim()
 }
 
 function buildDefaultActionForm() {
@@ -662,13 +759,13 @@ export default {
       ],
       createDialogVisible: false,
       createSubmitting: false,
+      createBarcodeLoading: false,
       createForm: buildDefaultCreateForm(),
-      createHqOptions: [],
       createRules: {
         customerName: [{ required: true, message: '请输入客户姓名', trigger: 'blur' }],
         customerMobile: [{ required: true, message: '请输入客户手机号', trigger: 'blur' }],
-        serviceMode: [{ required: true, message: '请选择服务方式', trigger: 'change' }],
-        hqCompanyId: [{ required: true, message: '请选择归属总部', trigger: 'change' }]
+        barcode: [{ required: true, message: '请输入机器条码', trigger: 'blur' }],
+        serviceMode: [{ required: true, message: '请选择服务方式', trigger: 'change' }]
       },
       detailVisible: false,
       detailLoading: false,
@@ -688,8 +785,38 @@ export default {
     hasRepairFaultConfig() {
       return (this.actionRepairFaultOptions || []).length > 0
     },
+    currentUserInfo() {
+      return this.$store.getters.userInfo || {}
+    },
+    currentTypeCode() {
+      return this.currentUserInfo.currentTypeCode || ''
+    },
+    createEntryOptions() {
+      const options = [{ value: CREATE_ENTRY_PROXY, label: '代客户填写' }]
+      if (this.currentTypeCode === 'SECOND') {
+        options.push({ value: CREATE_ENTRY_UPSTREAM_FIRST, label: '报修一级' })
+      } else if (this.currentTypeCode === 'FIRST') {
+        options.push({ value: CREATE_ENTRY_UPSTREAM_HQ, label: '报修佳士' })
+      }
+      return options
+    },
     isCreateMailMode() {
       return this.createForm.serviceMode === SERVICE_MODE_MAIL
+    },
+    hasCreateBarcodeResult() {
+      return !!this.createForm.barcodeQueried
+    },
+    showCreateTargetCompany() {
+      return this.createForm.entryMode !== CREATE_ENTRY_PROXY && (this.createForm.targetCompanyOptions || []).length > 0
+    },
+    createTargetCompanyLabel() {
+      return this.createForm.entryMode === CREATE_ENTRY_UPSTREAM_FIRST ? '目标一级' : '目标总部'
+    },
+    isCreateTargetAutoFilled() {
+      return (this.createForm.targetCompanyOptions || []).length <= 1
+    },
+    showCreateFaultRemark() {
+      return (this.createForm.faultItems || []).includes(this.createForm.otherFaultLabel || DEFAULT_OTHER_FAULT_LABEL)
     },
     activeMainStatus: {
       get() {
@@ -724,8 +851,19 @@ export default {
         }))
     }
   },
+  watch: {
+    'createForm.barcode'(value) {
+      const normalizedBarcode = normalizeText(value)
+      if (!normalizedBarcode) {
+        this.resetCreateQueryState()
+        return
+      }
+      if (this.createForm.barcodeQueried && normalizedBarcode !== this.createForm.queriedBarcode) {
+        this.resetCreateQueryState()
+      }
+    }
+  },
   created() {
-    this.loadCreateHqOptions()
     this.getList()
   },
   methods: {
@@ -774,14 +912,6 @@ export default {
       })
       this.statusCountMap = nextMap
     },
-    loadCreateHqOptions() {
-      return listCreateHqOptions().then(res => {
-        if (!res) {
-          return
-        }
-        this.createHqOptions = res.data || []
-      })
-    },
     handleQuery() {
       this.queryParams.pageNum = 1
       this.getList()
@@ -810,13 +940,131 @@ export default {
       this.getList()
     },
     handleAdd() {
+      const defaultEntryMode = (this.createEntryOptions[0] && this.createEntryOptions[0].value) || CREATE_ENTRY_PROXY
       this.createForm = buildDefaultCreateForm()
+      this.createForm.entryMode = defaultEntryMode
       this.createDialogVisible = true
-      this.loadCreateHqOptions()
       this.$nextTick(() => {
         if (this.$refs.createForm) {
           this.$refs.createForm.clearValidate()
         }
+      })
+    },
+    handleCreateEntryModeChange(entryMode) {
+      const nextForm = buildDefaultCreateForm()
+      nextForm.entryMode = entryMode || CREATE_ENTRY_PROXY
+      nextForm.customerName = this.createForm.customerName
+      nextForm.customerMobile = this.createForm.customerMobile
+      nextForm.barcode = this.createForm.barcode
+      nextForm.serviceMode = this.createForm.serviceMode
+      nextForm.senderName = this.createForm.senderName
+      nextForm.senderMobile = this.createForm.senderMobile
+      nextForm.senderAddress = this.createForm.senderAddress
+      nextForm.sendExpressNo = this.createForm.sendExpressNo
+      this.createForm = nextForm
+      this.$nextTick(() => {
+        if (this.$refs.createForm) {
+          this.$refs.createForm.clearValidate()
+        }
+      })
+    },
+    handleCreateTargetCompanyChange() {
+      if (!this.createForm.barcodeQueried) {
+        return
+      }
+      this.queryCreateBarcodeInfo({ preserveTargetSelection: true, silentSuccess: true })
+    },
+    queryCreateBarcodeInfo(options = {}) {
+      const barcode = normalizeText(this.createForm.barcode)
+      if (!barcode) {
+        this.$message.error('请先输入机器条码')
+        return
+      }
+      const request = this.resolveCreateBarcodeInfoRequest(barcode)
+      if (!request) {
+        this.$message.error('当前建单入口不支持查条码')
+        return
+      }
+      this.createBarcodeLoading = true
+      this.resetCreateQueryState({ preserveTargetSelection: !!options.preserveTargetSelection })
+      request.then(res => {
+        if (!res) {
+          return
+        }
+        this.applyCreateBarcodeInfo(res.data || {}, barcode)
+        if (!options.silentSuccess) {
+          this.$message.success('条码查询成功')
+        }
+      }).finally(() => {
+        this.createBarcodeLoading = false
+      })
+    },
+    resolveCreateBarcodeInfoRequest(barcode) {
+      if (this.createForm.entryMode === CREATE_ENTRY_PROXY) {
+        return getProxyCreateBarcodeInfo({ barcode })
+      }
+      if (this.createForm.entryMode === CREATE_ENTRY_UPSTREAM_FIRST) {
+        return getUpstreamFirstCreateBarcodeInfo({ barcode })
+      }
+      if (this.createForm.entryMode === CREATE_ENTRY_UPSTREAM_HQ) {
+        const params = { barcode }
+        if (this.createForm.targetCompanyId) {
+          params.targetCompanyId = this.createForm.targetCompanyId
+        }
+        return getUpstreamHqCreateBarcodeInfo(params)
+      }
+      return null
+    },
+    resetCreateQueryState(options = {}) {
+      const preserveTargetSelection = !!options.preserveTargetSelection
+      Object.assign(this.createForm, {
+        queriedBarcode: '',
+        barcodeQueried: false,
+        productCode: '',
+        productName: '',
+        productModel: '',
+        machineNo: '',
+        brandCode: '',
+        warrantyStatus: '',
+        hqCompanyId: undefined,
+        hqCompanyName: '',
+        targetCompanyId: preserveTargetSelection ? this.createForm.targetCompanyId : undefined,
+        targetCompanyOptions: preserveTargetSelection ? (this.createForm.targetCompanyOptions || []) : [],
+        faultOptions: [],
+        otherFaultLabel: DEFAULT_OTHER_FAULT_LABEL,
+        faultItems: [],
+        faultRemark: ''
+      })
+    },
+    applyCreateBarcodeInfo(data, queriedBarcode) {
+      const targetCompanyOptions = Array.isArray(data.targetCompanyOptions) ? data.targetCompanyOptions : []
+      const currentTargetCompanyId = this.createForm.targetCompanyId
+      const matchedCurrentTarget = targetCompanyOptions.some(item => String(item.id) === String(currentTargetCompanyId))
+      let targetCompanyId = matchedCurrentTarget ? currentTargetCompanyId : undefined
+      if (!targetCompanyId && data.defaultTargetCompanyId !== null && data.defaultTargetCompanyId !== undefined) {
+        targetCompanyId = data.defaultTargetCompanyId
+      }
+      if (!targetCompanyId && targetCompanyOptions.length === 1) {
+        targetCompanyId = targetCompanyOptions[0].id
+      }
+      Object.assign(this.createForm, {
+        barcode: data.barcode || queriedBarcode,
+        queriedBarcode: data.barcode || queriedBarcode,
+        barcodeQueried: true,
+        productCode: data.productCode || '',
+        productName: data.productName || '',
+        productModel: data.productModel || '',
+        machineNo: data.machineNo || '',
+        brandCode: data.brandCode || '',
+        warrantyStatus: data.warrantyStatus || '',
+        hqCompanyId: data.hqCompanyId,
+        hqCompanyName: data.hqCompanyName || '',
+        targetCompanyId,
+        targetCompanyOptions,
+        faultOptions: data.faultOptions || [],
+        otherFaultLabel: data.otherFaultLabel || DEFAULT_OTHER_FAULT_LABEL,
+        faultItems: [],
+        faultRemark: ''
       })
     },
     submitCreate() {
@@ -824,22 +1072,23 @@ export default {
         if (!valid) {
           return
         }
+        if (!this.validateCreateBeforeSubmit()) {
+          return
+        }
         if (this.isCreateMailMode && !this.validateSendInfo(this.createForm)) {
           return
         }
-        const payload = Object.assign({}, this.createForm)
-        if (!this.isCreateMailMode) {
-          payload.senderName = ''
-          payload.senderMobile = ''
-          payload.senderAddress = ''
-          payload.sendExpressNo = ''
+        const payload = this.buildCreatePayload()
+        const request = this.resolveCreateRequest(payload)
+        if (!request) {
+          return
         }
         this.createSubmitting = true
-        addWorkOrder(payload).then(res => {
+        request.then(res => {
           if (!res) {
             return
           }
-          this.$message.success('新增成功')
+          this.$message.success('建单成功')
           this.createDialogVisible = false
           this.getList()
           if (res.data) {
@@ -849,6 +1098,62 @@ export default {
           this.createSubmitting = false
         })
       })
+    },
+    validateCreateBeforeSubmit() {
+      const barcode = normalizeText(this.createForm.barcode)
+      if (!this.createForm.barcodeQueried || this.createForm.queriedBarcode !== barcode) {
+        this.$message.error('请先查条码，再提交建单')
+        return false
+      }
+      if (this.showCreateTargetCompany && !this.createForm.targetCompanyId) {
+        this.$message.error(`请选择${this.createTargetCompanyLabel}`)
+        return false
+      }
+      if (!(this.createForm.faultItems || []).length) {
+        this.$message.error('请选择故障描述')
+        return false
+      }
+      if (this.showCreateFaultRemark && !normalizeText(this.createForm.faultRemark)) {
+        this.$message.error('请输入故障备注')
+        return false
+      }
+      return true
+    },
+    buildCreatePayload() {
+      const payload = {
+        customerName: normalizeText(this.createForm.customerName),
+        customerMobile: normalizeText(this.createForm.customerMobile),
+        barcode: normalizeText(this.createForm.barcode),
+        serviceMode: this.createForm.serviceMode,
+        faultItems: (this.createForm.faultItems || []).map(item => normalizeText(item)).filter(item => item),
+        faultRemark: normalizeText(this.createForm.faultRemark) || '',
+        senderName: '',
+        senderMobile: '',
+        senderAddress: '',
+        sendExpressNo: ''
+      }
+      if (this.isCreateMailMode) {
+        payload.senderName = normalizeText(this.createForm.senderName)
+        payload.senderMobile = normalizeText(this.createForm.senderMobile)
+        payload.senderAddress = normalizeText(this.createForm.senderAddress)
+        payload.sendExpressNo = normalizeText(this.createForm.sendExpressNo)
+      }
+      if (this.createForm.entryMode !== CREATE_ENTRY_PROXY) {
+        payload.targetCompanyId = this.createForm.targetCompanyId
+      }
+      return payload
+    },
+    resolveCreateRequest(payload) {
+      if (this.createForm.entryMode === CREATE_ENTRY_PROXY) {
+        return createProxyWorkOrder(payload)
+      }
+      if (this.createForm.entryMode === CREATE_ENTRY_UPSTREAM_FIRST) {
+        return createUpstreamFirstWorkOrder(payload)
+      }
+      if (this.createForm.entryMode === CREATE_ENTRY_UPSTREAM_HQ) {
+        return createUpstreamHqWorkOrder(payload)
+      }
+      return null
     },
     validateSendInfo(form) {
       if (!form.senderName) {
@@ -1247,6 +1552,18 @@ export default {
       }
       return relationType || '-'
     },
+    createEntryTypeLabel(createEntryType) {
+      if (createEntryType === CREATE_ENTRY_PROXY) {
+        return '代客户填写'
+      }
+      if (createEntryType === CREATE_ENTRY_UPSTREAM_FIRST) {
+        return '报修一级'
+      }
+      if (createEntryType === CREATE_ENTRY_UPSTREAM_HQ) {
+        return '报修佳士'
+      }
+      return createEntryType || '-'
+    },
     yesNoText(value) {
       if (value === 1) {
         return '是'
@@ -1329,6 +1646,10 @@ export default {
 
 .table-toolbar {
   margin-bottom: 12px;
+}
+
+.create-entry-tabs {
+  margin-bottom: 16px;
 }
 
 .pagination {

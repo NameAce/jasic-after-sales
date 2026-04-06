@@ -27,17 +27,26 @@ public class WorkOrderParticipantService {
     /**
      * 建单时初始化参与方快照
      *
-     * @param workOrder 工单主表
+     * @param workOrder          工单主表
+     * @param createSubjectType  建单公司主体类型
      */
     @Transactional(rollbackFor = Exception.class)
-    public void initParticipants(WorkOrder workOrder) {
+    public void initParticipants(WorkOrder workOrder, String createSubjectType) {
         if (workOrder == null || workOrder.getId() == null) {
             throw new ServiceException("工单不存在，不能初始化参与方");
         }
         LocalDateTime now = LocalDateTime.now();
+        boolean sameHandlerCompany = workOrder.getCreateCompanyId() != null
+                && workOrder.getCreateCompanyId().equals(workOrder.getCurrentAcceptCompanyId());
         saveOrUpdateParticipant(workOrder.getId(), workOrder.getCreateCompanyId(),
-                workOrder.getCurrentAcceptSubjectType(), "CREATE", 1, 0, now);
-        if (workOrder.getHqCompanyId() != null && !workOrder.getHqCompanyId().equals(workOrder.getCreateCompanyId())) {
+                createSubjectType, "CREATE", sameHandlerCompany ? 1 : 0, sameHandlerCompany ? 0 : 1, now);
+        if (!sameHandlerCompany) {
+            saveOrUpdateParticipant(workOrder.getId(), workOrder.getCurrentAcceptCompanyId(),
+                    workOrder.getCurrentAcceptSubjectType(), "CURRENT", 1, 0, now);
+        }
+        if (workOrder.getHqCompanyId() != null
+                && !workOrder.getHqCompanyId().equals(workOrder.getCreateCompanyId())
+                && !workOrder.getHqCompanyId().equals(workOrder.getCurrentAcceptCompanyId())) {
             saveOrUpdateParticipant(workOrder.getId(), workOrder.getHqCompanyId(),
                     "HQ", "HQ_OBSERVER", 0, 1, now);
         }

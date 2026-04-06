@@ -9,14 +9,16 @@ import com.jasic.aftersales.common.enums.OperTypeEnum;
 import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.dto.WorkOrderAssignDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderCloseDTO;
-import com.jasic.aftersales.system.domain.dto.WorkOrderCreateDTO;
+import com.jasic.aftersales.system.domain.dto.WorkOrderProxyCreateDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderQuoteDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderRepairDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderSendExpressDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTechAcceptDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderReviewDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTransferDTO;
+import com.jasic.aftersales.system.domain.dto.WorkOrderUpstreamCreateDTO;
 import com.jasic.aftersales.system.domain.query.WorkOrderQuery;
+import com.jasic.aftersales.system.domain.vo.WorkOrderCreateBarcodeInfoVO;
 import com.jasic.aftersales.system.domain.vo.SysCompanySimpleVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderDetailVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderListVO;
@@ -31,6 +33,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
@@ -139,16 +142,79 @@ public class WorkOrderController extends BaseController {
     }
 
     /**
-     * 创建工单
+     * 查询代客户填写条码信息
      *
-     * @param dto 工单参数
+     * @param barcode 机器条码
+     * @return 条码信息
+     */
+    @SaCheckPermission("workorder:add")
+    @GetMapping("/create/proxy/barcode-info")
+    public Result<WorkOrderCreateBarcodeInfoVO> getProxyCreateBarcodeInfo(@RequestParam String barcode) {
+        return Result.ok(workOrderService.getProxyCreateBarcodeInfo(barcode));
+    }
+
+    /**
+     * 查询二级报修一级条码信息
+     *
+     * @param barcode 机器条码
+     * @return 条码信息
+     */
+    @SaCheckPermission("workorder:add")
+    @GetMapping("/create/upstream-first/barcode-info")
+    public Result<WorkOrderCreateBarcodeInfoVO> getUpstreamFirstCreateBarcodeInfo(@RequestParam String barcode) {
+        return Result.ok(workOrderService.getUpstreamFirstCreateBarcodeInfo(barcode));
+    }
+
+    /**
+     * 查询一级报修佳士条码信息
+     *
+     * @param barcode 机器条码
+     * @return 条码信息
+     */
+    @SaCheckPermission("workorder:add")
+    @GetMapping("/create/upstream-hq/barcode-info")
+    public Result<WorkOrderCreateBarcodeInfoVO> getUpstreamHqCreateBarcodeInfo(@RequestParam String barcode,
+                                                                               @RequestParam(required = false) Long targetCompanyId) {
+        return Result.ok(workOrderService.getUpstreamHqCreateBarcodeInfo(barcode, targetCompanyId));
+    }
+
+    /**
+     * 代客户填写创建工单
+     *
+     * @param dto 建单参数
      * @return 工单ID
      */
     @SaCheckPermission("workorder:add")
     @OperLog(title = "工单管理", operType = OperTypeEnum.INSERT)
-    @PostMapping
-    public Result<Long> save(@Validated @RequestBody WorkOrderCreateDTO dto) {
-        return Result.ok(workOrderService.save(dto));
+    @PostMapping("/create/proxy")
+    public Result<Long> createProxy(@Validated @RequestBody WorkOrderProxyCreateDTO dto) {
+        return Result.ok(workOrderService.createProxy(dto));
+    }
+
+    /**
+     * 二级报修一级创建工单
+     *
+     * @param dto 建单参数
+     * @return 工单ID
+     */
+    @SaCheckPermission("workorder:add")
+    @OperLog(title = "工单管理", operType = OperTypeEnum.INSERT)
+    @PostMapping("/create/upstream-first")
+    public Result<Long> createUpstreamFirst(@Validated @RequestBody WorkOrderUpstreamCreateDTO dto) {
+        return Result.ok(workOrderService.createUpstreamFirst(dto));
+    }
+
+    /**
+     * 一级报修佳士创建工单
+     *
+     * @param dto 建单参数
+     * @return 工单ID
+     */
+    @SaCheckPermission("workorder:add")
+    @OperLog(title = "工单管理", operType = OperTypeEnum.INSERT)
+    @PostMapping("/create/upstream-hq")
+    public Result<Long> createUpstreamHq(@Validated @RequestBody WorkOrderUpstreamCreateDTO dto) {
+        return Result.ok(workOrderService.createUpstreamHq(dto));
     }
 
     /**

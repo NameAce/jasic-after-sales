@@ -98,6 +98,9 @@ public class WorkOrder extends BaseEntity {
     /** 建单来源公司ID */
     private Long createCompanyId;
 
+    /** 建单入口类型 */
+    private String createEntryType;
+
     /** 归属总部ID */
     private Long hqCompanyId;
 

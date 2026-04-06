@@ -207,6 +207,7 @@
             su.real_name AS assignedUserName,
             w.create_company_id AS createCompanyId,
             cc.company_name AS createCompanyName,
+            w.create_entry_type AS createEntryType,
             w.hq_company_id AS hqCompanyId,
             hc.company_name AS hqCompanyName,
             w.has_transfer AS hasTransfer,

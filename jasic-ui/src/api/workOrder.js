@@ -16,6 +16,18 @@ export function listCreateHqOptions() {
   return request({ url: '/system/work-order/create-hq-options', method: 'get' })
 }
 
+export function getProxyCreateBarcodeInfo(params) {
+  return request({ url: '/system/work-order/create/proxy/barcode-info', method: 'get', params })
+}
+
+export function getUpstreamFirstCreateBarcodeInfo(params) {
+  return request({ url: '/system/work-order/create/upstream-first/barcode-info', method: 'get', params })
+}
+
+export function getUpstreamHqCreateBarcodeInfo(params) {
+  return request({ url: '/system/work-order/create/upstream-hq/barcode-info', method: 'get', params })
+}
+
 export function listAssignUserOptions(workOrderId) {
   return request({ url: `/system/work-order/${workOrderId}/assign-user-options`, method: 'get' })
 }
@@ -28,8 +40,16 @@ export function listRepairFaultOptions(workOrderId) {
   return request({ url: `/system/work-order/${workOrderId}/repair-fault-options`, method: 'get' })
 }
 
-export function addWorkOrder(data) {
-  return request({ url: '/system/work-order', method: 'post', data })
+export function createProxyWorkOrder(data) {
+  return request({ url: '/system/work-order/create/proxy', method: 'post', data })
+}
+
+export function createUpstreamFirstWorkOrder(data) {
+  return request({ url: '/system/work-order/create/upstream-first', method: 'post', data })
+}
+
+export function createUpstreamHqWorkOrder(data) {
+  return request({ url: '/system/work-order/create/upstream-hq', method: 'post', data })
 }
 
 export function assignWorkOrder(data) {

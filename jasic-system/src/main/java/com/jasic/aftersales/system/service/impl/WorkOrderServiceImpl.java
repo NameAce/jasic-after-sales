@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jasic.aftersales.common.constant.RoleConstants;
+import com.jasic.aftersales.common.constant.WorkOrderCreateEntryConstants;
 import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
 import com.jasic.aftersales.common.constant.WorkOrderStatusFlow;
 import com.jasic.aftersales.common.core.domain.PageResult;
@@ -14,14 +15,15 @@ import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.dto.WorkOrderAssignDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderCloseDTO;
-import com.jasic.aftersales.system.domain.dto.WorkOrderCreateDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderFaultItemDTO;
+import com.jasic.aftersales.system.domain.dto.WorkOrderProxyCreateDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderQuoteDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderRepairDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderSendExpressDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTechAcceptDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderReviewDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTransferDTO;
+import com.jasic.aftersales.system.domain.dto.WorkOrderUpstreamCreateDTO;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
 import com.jasic.aftersales.system.domain.entity.SysCompanyType;
 import com.jasic.aftersales.system.domain.entity.SysRole;
@@ -30,6 +32,7 @@ import com.jasic.aftersales.system.domain.entity.SysUserCompany;
 import com.jasic.aftersales.system.domain.entity.SysUserRole;
 import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
 import com.jasic.aftersales.system.domain.entity.HqFirstContract;
+import com.jasic.aftersales.system.domain.entity.MachineBarcode;
 import com.jasic.aftersales.system.domain.entity.WorkOrder;
 import com.jasic.aftersales.system.domain.entity.WorkOrderCustomer;
 import com.jasic.aftersales.system.domain.entity.WorkOrderEvaluation;
@@ -40,6 +43,7 @@ import com.jasic.aftersales.system.domain.entity.WorkOrderQuote;
 import com.jasic.aftersales.system.domain.entity.WorkOrderRepair;
 import com.jasic.aftersales.system.domain.entity.WorkOrderReview;
 import com.jasic.aftersales.system.domain.query.WorkOrderQuery;
+import com.jasic.aftersales.system.domain.vo.WorkOrderCreateBarcodeInfoVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderDetailVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderEvaluationVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderFaultVO;
@@ -55,6 +59,7 @@ import com.jasic.aftersales.system.domain.vo.WorkOrderUserOptionVO;
 import com.jasic.aftersales.system.domain.vo.SysCompanySimpleVO;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
 import com.jasic.aftersales.system.mapper.HqFirstContractMapper;
+import com.jasic.aftersales.system.mapper.MachineBarcodeMapper;
 import com.jasic.aftersales.system.mapper.SysCompanyMapper;
 import com.jasic.aftersales.system.mapper.SysCompanyTypeMapper;
 import com.jasic.aftersales.system.mapper.SysRoleMapper;
@@ -107,6 +112,8 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     private static final String RETURN_METHOD_PICKUP = "自提";
     private static final String FAULT_JUDGE_NO_FAULT = "无故障";
     private static final String OTHER_REPAIR_OPTION = "其它维修说明";
+    private static final String OTHER_FAULT_LABEL = "其它故障";
+    private static final String FAULT_DESC_SEPARATOR = "；";
 
     @Resource
     private WorkOrderMapper workOrderMapper;
@@ -170,6 +177,9 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
 
     @Resource
     private HqFirstContractMapper hqFirstContractMapper;
+
+    @Resource
+    private MachineBarcodeMapper machineBarcodeMapper;
 
     /**
      * 闁告帒妫濋妴澶愬蓟閵夘煈鍤勭€规悶鍎卞畷鐔煎礆濡ゅ嫨鈧?
@@ -264,47 +274,78 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return detail;
     }
 
-    /**
-     * 创建工单。
-     *
-     * @param dto 工单创建参数
-     * @return 工单 ID
-     */
+    @Override
+    public WorkOrderCreateBarcodeInfoVO getProxyCreateBarcodeInfo(String barcode) {
+        Long currentCompanyId = requireCurrentCompanyId();
+        MachineBarcode barcodeArchive = requireActiveMachineBarcode(barcode);
+        Long hqCompanyId = resolveSingleHqCompanyId(currentCompanyId, barcodeArchive);
+        return buildCreateBarcodeInfo(barcodeArchive, hqCompanyId, Collections.emptyList(), null);
+    }
+
+    @Override
+    public WorkOrderCreateBarcodeInfoVO getUpstreamFirstCreateBarcodeInfo(String barcode) {
+        Long currentCompanyId = requireCurrentCompanyId();
+        validateCurrentCompanyType("SECOND", "当前公司不支持报修一级");
+        MachineBarcode barcodeArchive = requireActiveMachineBarcode(barcode);
+        Long hqCompanyId = resolveSingleHqCompanyId(currentCompanyId, barcodeArchive);
+        List<SysCompanySimpleVO> targetOptions = listUpstreamFirstOptions(currentCompanyId, hqCompanyId);
+        Long defaultTargetCompanyId = resolveDefaultTargetCompanyId(targetOptions);
+        return buildCreateBarcodeInfo(barcodeArchive, hqCompanyId, targetOptions, defaultTargetCompanyId);
+    }
+
+    @Override
+    public WorkOrderCreateBarcodeInfoVO getUpstreamHqCreateBarcodeInfo(String barcode, Long targetCompanyId) {
+        Long currentCompanyId = requireCurrentCompanyId();
+        validateCurrentCompanyType("FIRST", "当前公司不支持报修佳士");
+        MachineBarcode barcodeArchive = requireActiveMachineBarcode(barcode);
+        List<SysCompanySimpleVO> targetOptions = listUpstreamHqOptions(currentCompanyId, barcodeArchive);
+        Long defaultTargetCompanyId = resolveDefaultTargetCompanyId(targetOptions);
+        Long resolvedHqCompanyId = targetCompanyId != null
+                ? resolveSelectedTargetCompanyId(targetCompanyId, targetOptions, "请选择报修佳士")
+                : resolveResolvedHqCompanyId(barcodeArchive, targetOptions);
+        if (resolvedHqCompanyId == null) {
+            resolvedHqCompanyId = defaultTargetCompanyId;
+        }
+        return buildCreateBarcodeInfo(barcodeArchive, resolvedHqCompanyId, targetOptions, defaultTargetCompanyId);
+    }
+
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Long save(WorkOrderCreateDTO dto) {
+    public Long createProxy(WorkOrderProxyCreateDTO dto) {
         Long currentCompanyId = requireCurrentCompanyId();
-        validateCreateHqCompany(currentCompanyId, dto.getHqCompanyId());
-        validateSendInfo(dto);
-        WorkOrder entity = new WorkOrder();
-        entity.setOrderNo(generateOrderNo());
-        entity.setCustomerId(resolveCustomerId(dto));
-        entity.setCustomerName(dto.getCustomerName());
-        entity.setCustomerMobile(dto.getCustomerMobile());
-        entity.setBarcode(dto.getBarcode());
-        entity.setProductCode(dto.getProductCode());
-        entity.setProductModel(dto.getProductModel());
-        entity.setBrandCode(dto.getBrandCode());
-        entity.setServiceMode(dto.getServiceMode());
-        entity.setWarrantyStatus(dto.getWarrantyStatus());
-        entity.setFaultDesc(dto.getFaultDesc());
-        entity.setSenderName(resolveSendField(dto.getServiceMode(), dto.getSenderName()));
-        entity.setSenderMobile(resolveSendField(dto.getServiceMode(), dto.getSenderMobile()));
-        entity.setSenderAddress(resolveSendField(dto.getServiceMode(), dto.getSenderAddress()));
-        entity.setSendExpressNo(resolveSendField(dto.getServiceMode(), dto.getSendExpressNo()));
-        entity.setMainStatus(WorkOrderStatusFlow.afterCreate());
-        entity.setEvaluateStatus(WorkOrderStatusFlow.afterCreateEvaluateStatus());
-        entity.setCurrentAcceptSubjectType(SecurityContext.getCurrentSubjectType());
-        entity.setCurrentAcceptCompanyId(currentCompanyId);
-        entity.setCreateCompanyId(currentCompanyId);
-        entity.setHqCompanyId(dto.getHqCompanyId());
-        entity.setHasTransfer(0);
-        entity.setTransferCount(0);
-        workOrderMapper.insert(entity);
+        MachineBarcode barcodeArchive = requireActiveMachineBarcode(dto.getBarcode());
+        Long hqCompanyId = resolveSingleHqCompanyId(currentCompanyId, barcodeArchive);
+        String currentSubjectType = normalizeNullableText(SecurityContext.getCurrentSubjectType());
+        if (currentSubjectType == null) {
+            currentSubjectType = resolveCompanySubjectType(currentCompanyId);
+        }
+        return saveCreateWorkOrder(dto, barcodeArchive, hqCompanyId, currentCompanyId,
+                currentSubjectType, WorkOrderCreateEntryConstants.PROXY_SELF, true);
+    }
 
-        saveFlow(entity.getId(), "CREATE", null, entity.getMainStatus(), null, currentCompanyId, currentCompanyId, null);
-        workOrderParticipantService.initParticipants(entity);
-        return entity.getId();
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long createUpstreamFirst(WorkOrderUpstreamCreateDTO dto) {
+        Long currentCompanyId = requireCurrentCompanyId();
+        validateCurrentCompanyType("SECOND", "当前公司不支持报修一级");
+        MachineBarcode barcodeArchive = requireActiveMachineBarcode(dto.getBarcode());
+        Long hqCompanyId = resolveSingleHqCompanyId(currentCompanyId, barcodeArchive);
+        List<SysCompanySimpleVO> targetOptions = listUpstreamFirstOptions(currentCompanyId, hqCompanyId);
+        Long targetCompanyId = resolveSelectedTargetCompanyId(dto.getTargetCompanyId(), targetOptions, "请选择报修一级");
+        return saveCreateWorkOrder(dto, barcodeArchive, hqCompanyId, targetCompanyId,
+                "SERVICE", WorkOrderCreateEntryConstants.UPSTREAM_FIRST, false);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long createUpstreamHq(WorkOrderUpstreamCreateDTO dto) {
+        Long currentCompanyId = requireCurrentCompanyId();
+        validateCurrentCompanyType("FIRST", "当前公司不支持报修佳士");
+        MachineBarcode barcodeArchive = requireActiveMachineBarcode(dto.getBarcode());
+        List<SysCompanySimpleVO> targetOptions = listUpstreamHqOptions(currentCompanyId, barcodeArchive);
+        Long targetCompanyId = resolveSelectedTargetCompanyId(dto.getTargetCompanyId(), targetOptions, "请选择报修佳士");
+        return saveCreateWorkOrder(dto, barcodeArchive, targetCompanyId, targetCompanyId,
+                "HQ", WorkOrderCreateEntryConstants.UPSTREAM_HQ, false);
     }
 
     /**
@@ -966,17 +1007,120 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return currentCompanyId;
     }
 
-    private void validateSendInfo(WorkOrderCreateDTO dto) {
-        if (dto == null || !"\u5bc4\u4fee".equals(dto.getServiceMode())) {
+    private void validateCurrentCompanyType(String expectedTypeCode, String message) {
+        String currentTypeCode = SecurityContext.getCurrentTypeCode();
+        if (!expectedTypeCode.equals(currentTypeCode)) {
+            throw new ServiceException(message);
+        }
+    }
+
+    private Long saveCreateWorkOrder(WorkOrderProxyCreateDTO dto, MachineBarcode barcodeArchive, Long hqCompanyId,
+                                     Long targetCompanyId, String targetSubjectType, String createEntryType,
+                                     boolean autoCreateCustomer) {
+        return saveCreateWorkOrder(
+                dto.getCustomerName(),
+                dto.getCustomerMobile(),
+                dto.getBarcode(),
+                dto.getServiceMode(),
+                dto.getFaultItems(),
+                dto.getFaultRemark(),
+                dto.getSenderName(),
+                dto.getSenderMobile(),
+                dto.getSenderAddress(),
+                dto.getSendExpressNo(),
+                barcodeArchive,
+                hqCompanyId,
+                targetCompanyId,
+                targetSubjectType,
+                createEntryType,
+                autoCreateCustomer
+        );
+    }
+
+    private Long saveCreateWorkOrder(WorkOrderUpstreamCreateDTO dto, MachineBarcode barcodeArchive, Long hqCompanyId,
+                                     Long targetCompanyId, String targetSubjectType, String createEntryType,
+                                     boolean autoCreateCustomer) {
+        return saveCreateWorkOrder(
+                dto.getCustomerName(),
+                dto.getCustomerMobile(),
+                dto.getBarcode(),
+                dto.getServiceMode(),
+                dto.getFaultItems(),
+                dto.getFaultRemark(),
+                dto.getSenderName(),
+                dto.getSenderMobile(),
+                dto.getSenderAddress(),
+                dto.getSendExpressNo(),
+                barcodeArchive,
+                hqCompanyId,
+                targetCompanyId,
+                targetSubjectType,
+                createEntryType,
+                autoCreateCustomer
+        );
+    }
+
+    private Long saveCreateWorkOrder(String customerName, String customerMobile, String barcode, String serviceMode,
+                                     List<String> faultItems, String faultRemark, String senderName, String senderMobile,
+                                     String senderAddress, String sendExpressNo, MachineBarcode barcodeArchive,
+                                     Long hqCompanyId, Long targetCompanyId, String targetSubjectType,
+                                     String createEntryType, boolean autoCreateCustomer) {
+        Long currentCompanyId = requireCurrentCompanyId();
+        String normalizedCustomerName = normalizeRequiredText(customerName, "\u5ba2\u6237\u59d3\u540d\u4e0d\u80fd\u4e3a\u7a7a");
+        String normalizedCustomerMobile = normalizeRequiredText(customerMobile, "\u5ba2\u6237\u624b\u673a\u53f7\u4e0d\u80fd\u4e3a\u7a7a");
+        String normalizedBarcode = normalizeRequiredText(barcode, "\u673a\u5668\u6761\u7801\u4e0d\u80fd\u4e3a\u7a7a");
+        String normalizedServiceMode = normalizeRequiredText(serviceMode, "\u670d\u52a1\u65b9\u5f0f\u4e0d\u80fd\u4e3a\u7a7a");
+        validateCreateSendInfo(normalizedServiceMode, senderName, senderMobile, senderAddress);
+        CustomerFaultSelection faultSelection = resolveCreateFaultSelection(
+                faultItems, faultRemark, hqCompanyId, barcodeArchive.getProductCode(), barcodeArchive.getProductModel()
+        );
+
+        WorkOrder entity = new WorkOrder();
+        entity.setOrderNo(generateOrderNo());
+        entity.setCustomerId(resolveCreateCustomerId(normalizedCustomerName, normalizedCustomerMobile, autoCreateCustomer));
+        entity.setCustomerName(normalizedCustomerName);
+        entity.setCustomerMobile(normalizedCustomerMobile);
+        entity.setBarcode(normalizedBarcode);
+        entity.setProductCode(normalizeNullableText(barcodeArchive.getProductCode()));
+        entity.setProductName(normalizeNullableText(barcodeArchive.getProductName()));
+        entity.setProductModel(normalizeNullableText(barcodeArchive.getProductModel()));
+        entity.setMachineNo(normalizeNullableText(barcodeArchive.getMachineNo()));
+        entity.setBrandCode(normalizeNullableText(barcodeArchive.getBrandCode()));
+        entity.setServiceMode(normalizedServiceMode);
+        entity.setWarrantyStatus(normalizeNullableText(barcodeArchive.getWarrantyStatus()));
+        entity.setFaultDesc(faultSelection.getFaultDesc());
+        entity.setFaultRemark(faultSelection.getFaultRemark());
+        entity.setSenderName(resolveSendField(normalizedServiceMode, senderName));
+        entity.setSenderMobile(resolveSendField(normalizedServiceMode, senderMobile));
+        entity.setSenderAddress(resolveSendField(normalizedServiceMode, senderAddress));
+        entity.setSendExpressNo(resolveSendField(normalizedServiceMode, sendExpressNo));
+        entity.setMainStatus(WorkOrderStatusFlow.afterCreate());
+        entity.setEvaluateStatus(WorkOrderStatusFlow.afterCreateEvaluateStatus());
+        entity.setCurrentAcceptSubjectType(targetSubjectType);
+        entity.setCurrentAcceptCompanyId(targetCompanyId);
+        entity.setCreateCompanyId(currentCompanyId);
+        entity.setCreateEntryType(createEntryType);
+        entity.setHqCompanyId(hqCompanyId);
+        entity.setHasTransfer(0);
+        entity.setTransferCount(0);
+        workOrderMapper.insert(entity);
+
+        saveFlow(entity.getId(), "CREATE", null, entity.getMainStatus(), null, targetCompanyId, currentCompanyId, null);
+        workOrderParticipantService.initParticipants(entity, resolveCreateCompanySubjectType(currentCompanyId));
+        return entity.getId();
+    }
+
+    private void validateCreateSendInfo(String serviceMode, String senderName, String senderMobile, String senderAddress) {
+        if (!"\u5bc4\u4fee".equals(serviceMode)) {
             return;
         }
-        if (isBlank(dto.getSenderName())) {
+        if (isBlank(senderName)) {
             throw new ServiceException("\u5bc4\u4fee\u5de5\u5355\u5fc5\u987b\u586b\u5199\u5bc4\u4ef6\u4eba\u59d3\u540d");
         }
-        if (isBlank(dto.getSenderMobile())) {
+        if (isBlank(senderMobile)) {
             throw new ServiceException("\u5bc4\u4fee\u5de5\u5355\u5fc5\u987b\u586b\u5199\u5bc4\u4ef6\u4eba\u624b\u673a\u53f7");
         }
-        if (isBlank(dto.getSenderAddress())) {
+        if (isBlank(senderAddress)) {
             throw new ServiceException("\u5bc4\u4fee\u5de5\u5355\u5fc5\u987b\u586b\u5199\u5bc4\u4ef6\u5730\u5740");
         }
     }
@@ -1023,37 +1167,30 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return false;
     }
 
-    private Long resolveCustomerId(WorkOrderCreateDTO dto) {
-        if (dto.getCustomerId() != null) {
-            WorkOrderCustomer customer = workOrderCustomerMapper.selectById(dto.getCustomerId());
-            if (customer == null) {
-                throw new ServiceException("\u5ba2\u6237\u4e0d\u5b58\u5728");
-            }
-            if (customer.getStatus() != null && customer.getStatus() == 0) {
-                throw new ServiceException("\u5ba2\u6237\u5df2\u505c\u7528");
-            }
-            return customer.getId();
-        }
+    private Long resolveCreateCustomerId(String customerName, String customerMobile, boolean autoCreateCustomer) {
         LambdaQueryWrapper<WorkOrderCustomer> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(WorkOrderCustomer::getPhone, dto.getCustomerMobile())
+        wrapper.eq(WorkOrderCustomer::getPhone, customerMobile)
                 .orderByAsc(WorkOrderCustomer::getId);
         List<WorkOrderCustomer> customers = workOrderCustomerMapper.selectList(wrapper);
-        WorkOrderCustomer customer = customers.isEmpty() ? null : customers.get(0);
+        WorkOrderCustomer customer = customers.stream()
+                .filter(item -> item != null && (item.getStatus() == null || item.getStatus() == 1))
+                .findFirst()
+                .orElse(null);
         if (customer != null) {
-            if (customer.getStatus() != null && customer.getStatus() == 0) {
-                throw new ServiceException("\u5ba2\u6237\u5df2\u505c\u7528");
-            }
             if ((customer.getNickname() == null || customer.getNickname().trim().isEmpty())
-                    && dto.getCustomerName() != null && !dto.getCustomerName().trim().isEmpty()) {
-                customer.setNickname(dto.getCustomerName());
+                    && customerName != null && !customerName.trim().isEmpty()) {
+                customer.setNickname(customerName);
                 workOrderCustomerMapper.updateById(customer);
             }
             return customer.getId();
         }
+        if (!autoCreateCustomer) {
+            return null;
+        }
         WorkOrderCustomer newCustomer = new WorkOrderCustomer();
         newCustomer.setOpenid(generateSystemCustomerOpenid());
-        newCustomer.setPhone(dto.getCustomerMobile());
-        newCustomer.setNickname(dto.getCustomerName());
+        newCustomer.setPhone(customerMobile);
+        newCustomer.setNickname(customerName);
         newCustomer.setStatus(1);
         workOrderCustomerMapper.insert(newCustomer);
         return newCustomer.getId();
@@ -1107,6 +1244,127 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
     }
 
+    private String resolveCreateCompanySubjectType(Long currentCompanyId) {
+        String subjectType = normalizeNullableText(SecurityContext.getCurrentSubjectType());
+        if (subjectType != null) {
+            return subjectType;
+        }
+        return resolveCompanySubjectType(currentCompanyId);
+    }
+
+    private WorkOrderCreateBarcodeInfoVO buildCreateBarcodeInfo(MachineBarcode barcodeArchive, Long hqCompanyId,
+                                                                List<SysCompanySimpleVO> targetOptions,
+                                                                Long defaultTargetCompanyId) {
+        WorkOrderCreateBarcodeInfoVO vo = new WorkOrderCreateBarcodeInfoVO();
+        vo.setBarcode(normalizeNullableText(barcodeArchive.getBarcode()));
+        vo.setProductCode(normalizeNullableText(barcodeArchive.getProductCode()));
+        vo.setProductName(normalizeNullableText(barcodeArchive.getProductName()));
+        vo.setProductModel(normalizeNullableText(barcodeArchive.getProductModel()));
+        vo.setMachineNo(normalizeNullableText(barcodeArchive.getMachineNo()));
+        vo.setBrandCode(normalizeNullableText(barcodeArchive.getBrandCode()));
+        vo.setWarrantyStatus(normalizeNullableText(barcodeArchive.getWarrantyStatus()));
+        if (hqCompanyId != null) {
+            SysCompany hqCompany = requireActiveHqCompany(hqCompanyId);
+            vo.setHqCompanyId(hqCompany.getId());
+            vo.setHqCompanyName(hqCompany.getCompanyName());
+            vo.setFaultOptions(buildCreateFaultOptions(hqCompany.getId(), barcodeArchive.getProductCode(), barcodeArchive.getProductModel()));
+            vo.setOtherFaultLabel(OTHER_FAULT_LABEL);
+        }
+        vo.setTargetCompanyOptions(targetOptions == null ? Collections.emptyList() : targetOptions);
+        vo.setDefaultTargetCompanyId(defaultTargetCompanyId);
+        return vo;
+    }
+
+    private MachineBarcode requireActiveMachineBarcode(String barcode) {
+        MachineBarcode barcodeArchive = findActiveMachineBarcode(barcode);
+        if (barcodeArchive == null) {
+            throw new ServiceException("\u5f53\u524d\u6761\u7801\u672a\u7ef4\u62a4\u6863\u6848\u4fe1\u606f");
+        }
+        return barcodeArchive;
+    }
+
+    private MachineBarcode findActiveMachineBarcode(String barcode) {
+        String normalizedBarcode = normalizeRequiredText(barcode, "\u673a\u5668\u6761\u7801\u4e0d\u80fd\u4e3a\u7a7a");
+        LambdaQueryWrapper<MachineBarcode> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(MachineBarcode::getBarcode, normalizedBarcode)
+                .eq(MachineBarcode::getStatus, 1)
+                .last("LIMIT 1");
+        return machineBarcodeMapper.selectOne(wrapper);
+    }
+
+    private SysCompany requireActiveHqCompany(Long hqCompanyId) {
+        SysCompany company = sysCompanyMapper.selectById(hqCompanyId);
+        if (company == null || (company.getStatus() != null && company.getStatus() == 0)) {
+            throw new ServiceException("\u5f52\u5c5e\u603b\u90e8\u4e0d\u5b58\u5728");
+        }
+        if ("FIRST".equals(company.getTypeCode()) || "SECOND".equals(company.getTypeCode())) {
+            throw new ServiceException("\u5f52\u5c5e\u603b\u90e8\u7c7b\u578b\u4e0d\u6b63\u786e");
+        }
+        return company;
+    }
+
+    private Long resolveSingleHqCompanyId(Long currentCompanyId, MachineBarcode barcodeArchive) {
+        Long archiveHqCompanyId = resolveBarcodeArchiveHqCompanyId(barcodeArchive);
+        if (archiveHqCompanyId != null) {
+            validateCreateHqCompany(currentCompanyId, archiveHqCompanyId);
+            return archiveHqCompanyId;
+        }
+        List<Long> hqCompanyIds = resolveCreateHqCompanyIds(currentCompanyId);
+        if (hqCompanyIds.isEmpty()) {
+            throw new ServiceException("\u5f53\u524d\u6761\u7801\u5f52\u5c5e\u603b\u90e8\u6682\u65e0\u6cd5\u81ea\u52a8\u8bc6\u522b\uff0c\u8bf7\u8054\u7cfb\u7ba1\u7406\u5458\u5b8c\u5584\u6761\u7801\u914d\u7f6e");
+        }
+        if (hqCompanyIds.size() > 1) {
+            throw new ServiceException("\u5f53\u524d\u6761\u7801\u5f52\u5c5e\u603b\u90e8\u5b58\u5728\u591a\u4e2a\u5019\u9009\u9879\uff0c\u8bf7\u8054\u7cfb\u7ba1\u7406\u5458\u5b8c\u5584\u6761\u7801\u914d\u7f6e");
+        }
+        return hqCompanyIds.get(0);
+    }
+
+    private Long resolveBarcodeArchiveHqCompanyId(MachineBarcode barcodeArchive) {
+        if (barcodeArchive == null || barcodeArchive.getHqCompanyId() == null) {
+            return null;
+        }
+        return requireActiveHqCompany(barcodeArchive.getHqCompanyId()).getId();
+    }
+
+    private Long resolveResolvedHqCompanyId(MachineBarcode barcodeArchive, List<SysCompanySimpleVO> targetOptions) {
+        Long archiveHqCompanyId = resolveBarcodeArchiveHqCompanyId(barcodeArchive);
+        if (archiveHqCompanyId != null) {
+            return archiveHqCompanyId;
+        }
+        if (targetOptions != null && targetOptions.size() == 1) {
+            return targetOptions.get(0).getId();
+        }
+        return null;
+    }
+
+    private Long resolveDefaultTargetCompanyId(List<SysCompanySimpleVO> targetOptions) {
+        if (targetOptions == null || targetOptions.size() != 1) {
+            return null;
+        }
+        return targetOptions.get(0).getId();
+    }
+
+    private Long resolveSelectedTargetCompanyId(Long selectedTargetCompanyId, List<SysCompanySimpleVO> targetOptions,
+                                               String emptyMessage) {
+        if (targetOptions == null || targetOptions.isEmpty()) {
+            throw new ServiceException("\u5f53\u524d\u6ca1\u6709\u53ef\u9009\u7684\u4e0a\u6e38\u53d7\u7406\u516c\u53f8");
+        }
+        Set<Long> allowedIds = targetOptions.stream()
+                .map(SysCompanySimpleVO::getId)
+                .filter(id -> id != null)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (selectedTargetCompanyId == null) {
+            if (allowedIds.size() == 1) {
+                return allowedIds.iterator().next();
+            }
+            throw new ServiceException(emptyMessage);
+        }
+        if (!allowedIds.contains(selectedTargetCompanyId)) {
+            throw new ServiceException("\u9009\u62e9\u7684\u4e0a\u6e38\u53d7\u7406\u516c\u53f8\u4e0d\u5728\u5141\u8bb8\u8303\u56f4\u5185");
+        }
+        return selectedTargetCompanyId;
+    }
+
     private List<Long> resolveCreateHqCompanyIds(Long currentCompanyId) {
         if (currentCompanyId == null) {
             return Collections.emptyList();
@@ -1153,6 +1411,131 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                 .filter(id -> id != null)
                 .distinct()
                 .collect(Collectors.toList());
+    }
+
+    private List<SysCompanySimpleVO> listUpstreamFirstOptions(Long currentCompanyId, Long hqCompanyId) {
+        LambdaQueryWrapper<FirstSecondRelation> relationWrapper = new LambdaQueryWrapper<>();
+        relationWrapper.eq(FirstSecondRelation::getSecondCompanyId, currentCompanyId)
+                .eq(FirstSecondRelation::getStatus, 1)
+                .orderByAsc(FirstSecondRelation::getId);
+        List<Long> firstCompanyIds = firstSecondRelationMapper.selectList(relationWrapper).stream()
+                .map(FirstSecondRelation::getFirstCompanyId)
+                .filter(id -> id != null)
+                .distinct()
+                .collect(Collectors.toList());
+        if (firstCompanyIds.isEmpty()) {
+            throw new ServiceException("\u5f53\u524d\u516c\u53f8\u672a\u914d\u7f6e\u53ef\u62a5\u4fee\u7684\u4e00\u7ea7\u516c\u53f8");
+        }
+        LambdaQueryWrapper<HqFirstContract> contractWrapper = new LambdaQueryWrapper<>();
+        contractWrapper.in(HqFirstContract::getFirstCompanyId, firstCompanyIds)
+                .eq(HqFirstContract::getStatus, 1);
+        if (hqCompanyId != null) {
+            contractWrapper.eq(HqFirstContract::getHqCompanyId, hqCompanyId);
+        }
+        List<Long> allowedFirstCompanyIds = hqFirstContractMapper.selectList(contractWrapper).stream()
+                .map(HqFirstContract::getFirstCompanyId)
+                .filter(id -> id != null)
+                .distinct()
+                .collect(Collectors.toList());
+        if (allowedFirstCompanyIds.isEmpty()) {
+            throw new ServiceException("\u5f53\u524d\u6761\u7801\u672a\u5339\u914d\u5230\u53ef\u62a5\u4fee\u7684\u4e00\u7ea7\u516c\u53f8");
+        }
+        return buildCompanySimpleVoList(allowedFirstCompanyIds);
+    }
+
+    private List<SysCompanySimpleVO> listUpstreamHqOptions(Long currentCompanyId, MachineBarcode barcodeArchive) {
+        Long archiveHqCompanyId = resolveBarcodeArchiveHqCompanyId(barcodeArchive);
+        if (archiveHqCompanyId != null) {
+            validateCreateHqCompany(currentCompanyId, archiveHqCompanyId);
+            return buildCompanySimpleVoList(Collections.singletonList(archiveHqCompanyId));
+        }
+        List<Long> hqCompanyIds = resolveCreateHqCompanyIds(currentCompanyId);
+        if (hqCompanyIds.isEmpty()) {
+            throw new ServiceException("\u5f53\u524d\u516c\u53f8\u672a\u914d\u7f6e\u53ef\u62a5\u4fee\u7684\u4f73\u58eb\u603b\u90e8");
+        }
+        return buildCompanySimpleVoList(hqCompanyIds);
+    }
+
+    private List<SysCompanySimpleVO> buildCompanySimpleVoList(List<Long> companyIds) {
+        if (companyIds == null || companyIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<SysCompany> companies = sysCompanyMapper.selectBatchIds(companyIds);
+        List<SysCompany> activeCompanies = companies.stream()
+                .filter(company -> company != null && (company.getStatus() == null || company.getStatus() == 1))
+                .sorted(java.util.Comparator.comparing(SysCompany::getId))
+                .collect(Collectors.toList());
+        if (activeCompanies.isEmpty()) {
+            return Collections.emptyList();
+        }
+        Map<String, String> typeNameMap = buildTypeNameMap(activeCompanies);
+        return activeCompanies.stream()
+                .map(company -> buildCompanySimpleVo(company, typeNameMap.get(company.getTypeCode())))
+                .collect(Collectors.toList());
+    }
+
+    private CustomerFaultSelection resolveCreateFaultSelection(List<String> faultItems, String faultRemark,
+                                                              Long hqCompanyId, String productCode, String productModel) {
+        List<String> configuredFaultOptions = listConfiguredFaultOptions(hqCompanyId, productCode, productModel);
+        if (configuredFaultOptions.isEmpty()) {
+            throw new ServiceException("\u5f53\u524d\u4ea7\u54c1\u672a\u914d\u7f6e\u6545\u969c\u9879\uff0c\u4e0d\u80fd\u5efa\u5355\uff0c\u8bf7\u8054\u7cfb\u7ba1\u7406\u5458\u5b8c\u5584\u914d\u7f6e");
+        }
+        List<String> normalizedFaultItems = normalizeFaultItems(faultItems);
+        if (normalizedFaultItems.isEmpty()) {
+            throw new ServiceException("\u8bf7\u9009\u62e9\u6545\u969c\u63cf\u8ff0");
+        }
+        LinkedHashSet<String> allowedFaultOptions = new LinkedHashSet<>(configuredFaultOptions);
+        allowedFaultOptions.add(OTHER_FAULT_LABEL);
+        for (String faultItem : normalizedFaultItems) {
+            if (!allowedFaultOptions.contains(faultItem)) {
+                throw new ServiceException("\u6545\u969c\u63cf\u8ff0\u4e0d\u5728\u53ef\u9009\u8303\u56f4\u5185");
+            }
+        }
+        String normalizedFaultRemark = normalizeNullableText(faultRemark);
+        if (normalizedFaultItems.contains(OTHER_FAULT_LABEL) && normalizedFaultRemark == null) {
+            throw new ServiceException("\u9009\u62e9\u5176\u5b83\u6545\u969c\u65f6\u5fc5\u987b\u586b\u5199\u6545\u969c\u8bf4\u660e");
+        }
+        return new CustomerFaultSelection(String.join(FAULT_DESC_SEPARATOR, normalizedFaultItems), normalizedFaultRemark);
+    }
+
+    private List<String> buildCreateFaultOptions(Long hqCompanyId, String productCode, String productModel) {
+        LinkedHashSet<String> result = new LinkedHashSet<>(listConfiguredFaultOptions(hqCompanyId, productCode, productModel));
+        if (result.isEmpty()) {
+            throw new ServiceException("\u5f53\u524d\u4ea7\u54c1\u672a\u914d\u7f6e\u6545\u969c\u9879\uff0c\u4e0d\u80fd\u5efa\u5355\uff0c\u8bf7\u8054\u7cfb\u7ba1\u7406\u5458\u5b8c\u5584\u914d\u7f6e");
+        }
+        result.add(OTHER_FAULT_LABEL);
+        return new ArrayList<>(result);
+    }
+
+    private List<String> listConfiguredFaultOptions(Long hqCompanyId, String productCode, String productModel) {
+        List<WorkOrderRepairFaultOptionVO> options = faultRepairConfigService == null
+                ? Collections.emptyList()
+                : faultRepairConfigService.listRepairFaultOptions(hqCompanyId, productCode, productModel);
+        if (options == null || options.isEmpty()) {
+            return Collections.emptyList();
+        }
+        LinkedHashSet<String> result = new LinkedHashSet<>();
+        for (WorkOrderRepairFaultOptionVO option : options) {
+            String faultDesc = normalizeNullableText(option == null ? null : option.getFaultDesc());
+            if (faultDesc != null) {
+                result.add(faultDesc);
+            }
+        }
+        return new ArrayList<>(result);
+    }
+
+    private List<String> normalizeFaultItems(List<String> faultItems) {
+        if (faultItems == null || faultItems.isEmpty()) {
+            return Collections.emptyList();
+        }
+        LinkedHashSet<String> result = new LinkedHashSet<>();
+        for (String faultItem : faultItems) {
+            String normalized = normalizeNullableText(faultItem);
+            if (normalized != null) {
+                result.add(normalized);
+            }
+        }
+        return new ArrayList<>(result);
     }
 
     private List<Long> resolveTransferTargetCompanyIds(WorkOrder workOrder) {
@@ -1535,6 +1918,26 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                 .map(SysUserRole::getUserId)
                 .filter(companyUserIds::contains)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private static class CustomerFaultSelection {
+
+        private final String faultDesc;
+
+        private final String faultRemark;
+
+        private CustomerFaultSelection(String faultDesc, String faultRemark) {
+            this.faultDesc = faultDesc;
+            this.faultRemark = faultRemark;
+        }
+
+        private String getFaultDesc() {
+            return faultDesc;
+        }
+
+        private String getFaultRemark() {
+            return faultRemark;
+        }
     }
 
     private WorkOrderUserOptionVO buildUserOption(SysUser user) {

@@ -3,14 +3,16 @@ package com.jasic.aftersales.system.service;
 import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.system.domain.dto.WorkOrderAssignDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderCloseDTO;
-import com.jasic.aftersales.system.domain.dto.WorkOrderCreateDTO;
+import com.jasic.aftersales.system.domain.dto.WorkOrderProxyCreateDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderQuoteDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderRepairDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderSendExpressDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTechAcceptDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderReviewDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTransferDTO;
+import com.jasic.aftersales.system.domain.dto.WorkOrderUpstreamCreateDTO;
 import com.jasic.aftersales.system.domain.query.WorkOrderQuery;
+import com.jasic.aftersales.system.domain.vo.WorkOrderCreateBarcodeInfoVO;
 import com.jasic.aftersales.system.domain.vo.SysCompanySimpleVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderDetailVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderListVO;
@@ -53,12 +55,52 @@ public interface IWorkOrderService {
     WorkOrderDetailVO getById(Long workOrderId);
 
     /**
-     * 创建工单
+     * 查询代客户填写条码信息
      *
-     * @param dto 工单参数
+     * @param barcode 机器条码
+     * @return 条码信息
+     */
+    WorkOrderCreateBarcodeInfoVO getProxyCreateBarcodeInfo(String barcode);
+
+    /**
+     * 查询二级报修一级条码信息
+     *
+     * @param barcode 机器条码
+     * @return 条码信息
+     */
+    WorkOrderCreateBarcodeInfoVO getUpstreamFirstCreateBarcodeInfo(String barcode);
+
+    /**
+     * 查询一级报修佳士条码信息
+     *
+     * @param barcode 机器条码
+     * @return 条码信息
+     */
+    WorkOrderCreateBarcodeInfoVO getUpstreamHqCreateBarcodeInfo(String barcode, Long targetCompanyId);
+
+    /**
+     * 代客户填写创建工单
+     *
+     * @param dto 建单参数
      * @return 工单ID
      */
-    Long save(WorkOrderCreateDTO dto);
+    Long createProxy(WorkOrderProxyCreateDTO dto);
+
+    /**
+     * 二级报修一级创建工单
+     *
+     * @param dto 建单参数
+     * @return 工单ID
+     */
+    Long createUpstreamFirst(WorkOrderUpstreamCreateDTO dto);
+
+    /**
+     * 一级报修佳士创建工单
+     *
+     * @param dto 建单参数
+     * @return 工单ID
+     */
+    Long createUpstreamHq(WorkOrderUpstreamCreateDTO dto);
 
     /**
      * 派单

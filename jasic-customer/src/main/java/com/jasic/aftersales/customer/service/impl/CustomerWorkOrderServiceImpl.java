@@ -195,7 +195,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         workOrderMapper.insert(workOrder);
 
         saveCreateFlow(workOrder.getId(), customerId, serviceCompany.getId(), workOrder.getMainStatus());
-        workOrderParticipantService.initParticipants(workOrder);
+        workOrderParticipantService.initParticipants(workOrder, "SERVICE");
         return workOrder.getId();
     }
 

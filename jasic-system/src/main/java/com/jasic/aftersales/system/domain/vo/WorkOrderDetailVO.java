@@ -73,6 +73,9 @@ public class WorkOrderDetailVO extends WorkOrderListVO {
     /** 建单来源公司名称 */
     private String createCompanyName;
 
+    /** 建单入口类型 */
+    private String createEntryType;
+
     /** 归属总部ID */
     private Long hqCompanyId;
 
