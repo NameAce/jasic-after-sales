@@ -5,6 +5,7 @@ import lombok.Data;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -30,6 +31,12 @@ public class WorkOrderRepairDTO implements Serializable {
 
     /** 其他说明 */
     private String otherDesc;
+
+    /** 调整后的报价金额 */
+    private BigDecimal quoteAmount;
+
+    /** 调整后的报价说明 */
+    private String quoteDesc;
 
     /** 是否维修完成（1=是，0=否） */
     private Integer isFinished;

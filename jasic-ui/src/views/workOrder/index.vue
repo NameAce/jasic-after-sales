@@ -429,7 +429,9 @@
 
         <template v-else-if="actionDialogAction === 'QUOTE'">
           <el-form-item label="故障判断">
-            <el-input v-model="actionForm.faultJudge" type="textarea" :rows="3" placeholder="请输入故障判断" />
+            <el-select v-model="actionForm.faultJudge" placeholder="请选择故障判断" style="width: 100%;">
+              <el-option v-for="item in faultJudgeOptions" :key="item" :label="item" :value="item" />
+            </el-select>
           </el-form-item>
           <el-form-item label="报价金额">
             <el-input-number v-model="actionForm.quoteAmount" :min="0" :precision="2" :controls="false" style="width: 100%;" />
@@ -440,6 +442,23 @@
         </template>
 
         <template v-else-if="actionDialogAction === 'REPAIR_SAVE' || actionDialogAction === 'REPAIR_FINISH'">
+          <el-alert
+            v-if="!actionForm.faultJudge"
+            title="当前暂无有效报价；如需调整报价，请先通过“报价”动作确认故障判断"
+            type="warning"
+            :closable="false"
+            show-icon
+            style="margin-bottom: 12px;"
+          />
+          <el-form-item label="故障判断">
+            <el-input :value="actionForm.faultJudge || '请先在报价动作中确认故障判断'" disabled />
+          </el-form-item>
+          <el-form-item label="报价金额">
+            <el-input-number v-model="actionForm.quoteAmount" :min="0" :precision="2" :controls="false" style="width: 100%;" />
+          </el-form-item>
+          <el-form-item label="报价说明">
+            <el-input v-model="actionForm.quoteDesc" type="textarea" :rows="3" placeholder="请输入报价说明" />
+          </el-form-item>
           <el-form-item label="维修摘要">
             <el-input v-model="actionForm.repairSummary" placeholder="请输入维修摘要" />
           </el-form-item>
@@ -606,6 +625,8 @@ const SERVICE_MODE_MAIL = '寄修'
 const SERVICE_MODE_STORE = '到店维修'
 const RETURN_METHOD_MAIL = '回寄'
 const RETURN_METHOD_PICKUP = '自提'
+const FAULT_JUDGE_HAS_FAULT = '有故障'
+const FAULT_JUDGE_NO_FAULT = '无故障'
 const REVIEW_RESULT_PASS = '通过'
 const REVIEW_RESULT_CONTINUE = '继续维修'
 const OTHER_REPAIR_OPTION = '其它维修说明'
@@ -753,6 +774,7 @@ export default {
         { label: '是', value: 1 },
         { label: '否', value: 0 }
       ],
+      faultJudgeOptions: [FAULT_JUDGE_HAS_FAULT, FAULT_JUDGE_NO_FAULT],
       serviceModeOptions: [
         { label: SERVICE_MODE_STORE, value: SERVICE_MODE_STORE },
         { label: SERVICE_MODE_MAIL, value: SERVICE_MODE_MAIL }
@@ -1246,7 +1268,11 @@ export default {
         return
       }
       const form = buildDefaultActionForm()
+      const currentQuote = this.getCurrentValidQuote()
       form.workOrderId = currentWorkOrderId
+      if (action === 'QUOTE' || action === 'REPAIR_SAVE' || action === 'REPAIR_FINISH') {
+        this.fillQuoteForm(form, currentQuote)
+      }
       if (action === 'REPAIR_FINISH') {
         form.isFinished = 1
       }
@@ -1379,6 +1405,8 @@ export default {
         case 'REPAIR_FINISH':
           return {
             workOrderId,
+            quoteAmount: this.actionForm.quoteAmount,
+            quoteDesc: this.actionForm.quoteDesc,
             repairSummary: this.actionForm.repairSummary,
             repairDesc: this.actionForm.repairDesc,
             otherDesc: this.actionForm.otherDesc,
@@ -1575,6 +1603,20 @@ export default {
     },
     textValue(value) {
       return value === null || value === undefined || value === '' ? '-' : value
+    },
+    getCurrentValidQuote() {
+      const quotes = (this.detail && this.detail.quotes) || []
+      return quotes.find(item => Number(item.isCurrentValid) === 1) || quotes[0] || null
+    },
+    fillQuoteForm(form, quote) {
+      if (!form || !quote) {
+        return
+      }
+      form.faultJudge = quote.faultJudge || ''
+      form.quoteAmount = quote.quoteAmount === null || quote.quoteAmount === undefined || quote.quoteAmount === ''
+        ? undefined
+        : Number(quote.quoteAmount)
+      form.quoteDesc = quote.quoteDesc || ''
     },
     canShowRowAssign(row) {
       if (!row) {

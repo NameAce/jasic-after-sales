@@ -3,6 +3,7 @@ package com.jasic.aftersales.system.service.impl;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -84,6 +85,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -110,6 +112,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     private static final String REVIEW_RESULT_CONTINUE = "继续维修";
     private static final String RETURN_METHOD_MAIL = "回寄";
     private static final String RETURN_METHOD_PICKUP = "自提";
+    private static final String FAULT_JUDGE_HAS_FAULT = "有故障";
     private static final String FAULT_JUDGE_NO_FAULT = "无故障";
     private static final String OTHER_REPAIR_OPTION = "其它维修说明";
     private static final String OTHER_FAULT_LABEL = "其它故障";
@@ -433,21 +436,8 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         if (!workOrderPermissionService.canQuote(workOrder)) {
             throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u62a5\u4ef7");
         }
-        String faultJudge = normalizeRequiredText(dto.getFaultJudge(), "\u6545\u969c\u5224\u5b9a\u4e0d\u80fd\u4e3a\u7a7a");
-        LambdaUpdateWrapper<WorkOrderQuote> updateWrapper = new LambdaUpdateWrapper<>();
-        updateWrapper.eq(WorkOrderQuote::getWorkOrderId, workOrder.getId())
-                .set(WorkOrderQuote::getIsCurrentValid, 0);
-        workOrderQuoteMapper.update(null, updateWrapper);
-
-        WorkOrderQuote quote = new WorkOrderQuote();
-        quote.setWorkOrderId(workOrder.getId());
-        quote.setCompanyId(workOrder.getCurrentAcceptCompanyId());
-        quote.setQuotedBy(SecurityContext.getCurrentUserId());
-        quote.setFaultJudge(faultJudge);
-        quote.setQuoteAmount(dto.getQuoteAmount());
-        quote.setQuoteDesc(normalizeNullableText(dto.getQuoteDesc()));
-        quote.setIsCurrentValid(1);
-        workOrderQuoteMapper.insert(quote);
+        String faultJudge = normalizeFaultJudge(dto.getFaultJudge(), "\u6545\u969c\u5224\u5b9a\u4e0d\u80fd\u4e3a\u7a7a");
+        WorkOrderQuote quote = replaceCurrentQuote(workOrder, faultJudge, dto.getQuoteAmount(), dto.getQuoteDesc());
 
         saveFlow(workOrder.getId(), "QUOTE", workOrder.getMainStatus(), workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
@@ -467,6 +457,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u767b\u8bb0\u7ef4\u4fee");
         }
         validateRepairContent(workOrder, dto);
+        saveRepairQuoteIfNeeded(workOrder, dto);
         WorkOrderRepair repair = new WorkOrderRepair();
         repair.setWorkOrderId(workOrder.getId());
         repair.setCompanyId(workOrder.getCurrentAcceptCompanyId());
@@ -1134,6 +1125,29 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
     }
 
+    private void saveRepairQuoteIfNeeded(WorkOrder workOrder, WorkOrderRepairDTO dto) {
+        WorkOrderQuote currentQuote = getCurrentValidQuote(workOrder.getId());
+        BigDecimal nextQuoteAmount = dto == null ? null : dto.getQuoteAmount();
+        String nextQuoteDesc = normalizeNullableText(dto == null ? null : dto.getQuoteDesc());
+        if (currentQuote == null) {
+            if (nextQuoteAmount != null || nextQuoteDesc != null) {
+                throw new ServiceException("\u8bf7\u5148\u63d0\u4ea4\u62a5\u4ef7\uff0c\u518d\u5728\u7ef4\u4fee\u767b\u8bb0\u4e2d\u8c03\u6574\u62a5\u4ef7");
+            }
+            return;
+        }
+        if (!isQuoteChanged(currentQuote, nextQuoteAmount, nextQuoteDesc)) {
+            return;
+        }
+        String faultJudge = normalizeFaultJudge(
+                currentQuote.getFaultJudge(),
+                "\u5f53\u524d\u6709\u6548\u62a5\u4ef7\u7684\u6545\u969c\u5224\u5b9a\u4e0d\u80fd\u4e3a\u7a7a"
+        );
+        WorkOrderQuote quote = replaceCurrentQuote(workOrder, faultJudge, nextQuoteAmount, nextQuoteDesc);
+        saveFlow(workOrder.getId(), "QUOTE", workOrder.getMainStatus(), workOrder.getMainStatus(),
+                workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
+                workOrder.getCurrentAcceptCompanyId(), quote.getQuoteDesc());
+    }
+
     private void validateRepairContent(WorkOrder workOrder, WorkOrderRepairDTO dto) {
         if (dto == null) {
             throw new ServiceException("\u7ef4\u4fee\u767b\u8bb0\u4e0d\u80fd\u4e3a\u7a7a");
@@ -1165,6 +1179,62 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             }
         }
         return false;
+    }
+
+    private WorkOrderQuote getCurrentValidQuote(Long workOrderId) {
+        LambdaQueryWrapper<WorkOrderQuote> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(WorkOrderQuote::getWorkOrderId, workOrderId)
+                .eq(WorkOrderQuote::getIsCurrentValid, 1)
+                .orderByDesc(WorkOrderQuote::getCreateTime);
+        List<WorkOrderQuote> quotes = workOrderQuoteMapper.selectList(wrapper);
+        if (quotes == null || quotes.isEmpty()) {
+            return null;
+        }
+        return quotes.get(0);
+    }
+
+    private boolean isQuoteChanged(WorkOrderQuote currentQuote, BigDecimal nextQuoteAmount, String nextQuoteDesc) {
+        if (!isSameQuoteAmount(currentQuote.getQuoteAmount(), nextQuoteAmount)) {
+            return true;
+        }
+        return !isSameText(currentQuote.getQuoteDesc(), nextQuoteDesc);
+    }
+
+    private boolean isSameQuoteAmount(BigDecimal left, BigDecimal right) {
+        if (left == null && right == null) {
+            return true;
+        }
+        if (left == null || right == null) {
+            return false;
+        }
+        return left.compareTo(right) == 0;
+    }
+
+    private boolean isSameText(String left, String right) {
+        String normalizedLeft = normalizeNullableText(left);
+        String normalizedRight = normalizeNullableText(right);
+        if (normalizedLeft == null) {
+            return normalizedRight == null;
+        }
+        return normalizedLeft.equals(normalizedRight);
+    }
+
+    private WorkOrderQuote replaceCurrentQuote(WorkOrder workOrder, String faultJudge, BigDecimal quoteAmount, String quoteDesc) {
+        UpdateWrapper<WorkOrderQuote> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("work_order_id", workOrder.getId())
+                .set("is_current_valid", 0);
+        workOrderQuoteMapper.update(null, updateWrapper);
+
+        WorkOrderQuote quote = new WorkOrderQuote();
+        quote.setWorkOrderId(workOrder.getId());
+        quote.setCompanyId(workOrder.getCurrentAcceptCompanyId());
+        quote.setQuotedBy(SecurityContext.getCurrentUserId());
+        quote.setFaultJudge(faultJudge);
+        quote.setQuoteAmount(quoteAmount);
+        quote.setQuoteDesc(normalizeNullableText(quoteDesc));
+        quote.setIsCurrentValid(1);
+        workOrderQuoteMapper.insert(quote);
+        return quote;
     }
 
     private Long resolveCreateCustomerId(String customerName, String customerMobile, boolean autoCreateCustomer) {
@@ -1601,6 +1671,14 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             throw new ServiceException(message);
         }
         return normalized;
+    }
+
+    private String normalizeFaultJudge(String faultJudge, String blankMessage) {
+        String normalized = normalizeRequiredText(faultJudge, blankMessage);
+        if (FAULT_JUDGE_HAS_FAULT.equals(normalized) || FAULT_JUDGE_NO_FAULT.equals(normalized)) {
+            return normalized;
+        }
+        throw new ServiceException("\u6545\u969c\u5224\u5b9a\u53ea\u80fd\u4e3a\u6709\u6545\u969c\u6216\u65e0\u6545\u969c");
     }
 
     private String normalizeNullableText(String value) {

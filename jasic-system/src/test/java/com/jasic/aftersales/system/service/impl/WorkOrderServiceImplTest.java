@@ -1,5 +1,12 @@
 package com.jasic.aftersales.system.service.impl;
 
+import cn.dev33.satoken.SaManager;
+import cn.dev33.satoken.context.SaTokenContextForThreadLocal;
+import cn.dev33.satoken.context.SaTokenContextForThreadLocalStorage;
+import cn.dev33.satoken.context.model.SaRequest;
+import cn.dev33.satoken.context.model.SaResponse;
+import cn.dev33.satoken.context.model.SaStorage;
+import cn.dev33.satoken.stp.StpUtil;
 import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.system.domain.dto.WorkOrderFaultItemDTO;
@@ -7,8 +14,10 @@ import com.jasic.aftersales.system.domain.dto.WorkOrderRepairDTO;
 import com.jasic.aftersales.system.domain.entity.WorkOrder;
 import com.jasic.aftersales.system.domain.entity.WorkOrderQuote;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairFaultOptionVO;
+import com.jasic.aftersales.system.mapper.WorkOrderFlowMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderQuoteMapper;
+import com.jasic.aftersales.system.mapper.WorkOrderRepairMapper;
 import com.jasic.aftersales.system.service.IFaultRepairConfigService;
 import com.jasic.aftersales.system.service.WorkOrderPermissionService;
 import org.junit.Assert;
@@ -19,9 +28,13 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 工单业务服务测试。
@@ -85,6 +98,105 @@ public class WorkOrderServiceImplTest {
             Assert.fail("预期应拒绝空维修登记");
         } catch (ServiceException ex) {
             Assert.assertEquals("请至少填写一项维修内容", ex.getMessage());
+        }
+    }
+
+    @Test
+    public void shouldRejectUnsupportedFaultJudgeValue() throws Exception {
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        Method method = WorkOrderServiceImpl.class
+                .getDeclaredMethod("normalizeFaultJudge", String.class, String.class);
+        method.setAccessible(true);
+
+        try {
+            method.invoke(service, "待确认", "故障判断不能为空");
+            Assert.fail("预期应拒绝非枚举故障判断");
+        } catch (InvocationTargetException ex) {
+            Assert.assertTrue(ex.getCause() instanceof ServiceException);
+            Assert.assertEquals("故障判定只能为有故障或无故障", ex.getCause().getMessage());
+        }
+    }
+
+    @Test
+    public void shouldCreateQuoteRevisionWhenRepairUpdatesQuote() throws Exception {
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(6L);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.IN_PROGRESS);
+        workOrder.setCurrentAcceptCompanyId(3L);
+
+        WorkOrderQuote currentQuote = new WorkOrderQuote();
+        currentQuote.setWorkOrderId(workOrder.getId());
+        currentQuote.setFaultJudge("有故障");
+        currentQuote.setQuoteAmount(new BigDecimal("100.00"));
+        currentQuote.setQuoteDesc("首次报价");
+        currentQuote.setIsCurrentValid(1);
+
+        List<WorkOrderQuote> quotes = new ArrayList<>();
+        quotes.add(currentQuote);
+        List<WorkOrderQuote> insertedQuotes = new ArrayList<>();
+        int[] updateCount = new int[1];
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
+        setField(service, "workOrderQuoteMapper", createMutableQuoteMapperProxy(quotes, insertedQuotes, updateCount));
+        setField(service, "workOrderRepairMapper", createNoopProxy(WorkOrderRepairMapper.class, "insert"));
+        setField(service, "workOrderFlowMapper", createNoopProxy(WorkOrderFlowMapper.class, "insert"));
+        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+            @Override
+            public boolean canSaveRepair(WorkOrder target) {
+                return true;
+            }
+        });
+
+        WorkOrderRepairDTO dto = new WorkOrderRepairDTO();
+        dto.setWorkOrderId(workOrder.getId());
+        dto.setRepairSummary("更换主板");
+        dto.setQuoteAmount(new BigDecimal("120.00"));
+        dto.setQuoteDesc("复检前调价");
+
+        runWithLoginContext(101L, new ThrowingRunnable() {
+            @Override
+            public void run() throws Exception {
+                service.saveRepair(dto);
+            }
+        });
+
+        Assert.assertEquals(1, updateCount[0]);
+        Assert.assertEquals(Integer.valueOf(0), currentQuote.getIsCurrentValid());
+        Assert.assertEquals(1, insertedQuotes.size());
+        Assert.assertEquals("有故障", insertedQuotes.get(0).getFaultJudge());
+        Assert.assertEquals(0, insertedQuotes.get(0).getQuoteAmount().compareTo(new BigDecimal("120.00")));
+        Assert.assertEquals("复检前调价", insertedQuotes.get(0).getQuoteDesc());
+        Assert.assertEquals(Integer.valueOf(1), insertedQuotes.get(0).getIsCurrentValid());
+    }
+
+    @Test
+    public void shouldRejectRepairQuoteRevisionWithoutCurrentQuote() throws Exception {
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(7L);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.IN_PROGRESS);
+        workOrder.setCurrentAcceptCompanyId(3L);
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
+        setField(service, "workOrderQuoteMapper", createQuoteMapperProxy(Collections.emptyList()));
+        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+            @Override
+            public boolean canSaveRepair(WorkOrder target) {
+                return true;
+            }
+        });
+
+        WorkOrderRepairDTO dto = new WorkOrderRepairDTO();
+        dto.setWorkOrderId(workOrder.getId());
+        dto.setRepairSummary("更换风扇");
+        dto.setQuoteAmount(new BigDecimal("88.00"));
+
+        try {
+            service.saveRepair(dto);
+            Assert.fail("预期应拒绝无有效报价时的维修改价");
+        } catch (ServiceException ex) {
+            Assert.assertEquals("请先提交报价，再在维修登记中调整报价", ex.getMessage());
         }
     }
 
@@ -261,6 +373,52 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    private WorkOrderQuoteMapper createMutableQuoteMapperProxy(List<WorkOrderQuote> quotes,
+                                                               List<WorkOrderQuote> insertedQuotes,
+                                                               int[] updateCount) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectList".equals(method.getName())) {
+                    return new ArrayList<>(quotes);
+                }
+                if ("update".equals(method.getName())) {
+                    updateCount[0]++;
+                    for (WorkOrderQuote quote : quotes) {
+                        quote.setIsCurrentValid(0);
+                    }
+                    return quotes.size();
+                }
+                if ("insert".equals(method.getName())) {
+                    WorkOrderQuote quote = (WorkOrderQuote) args[0];
+                    insertedQuotes.add(quote);
+                    quotes.add(0, quote);
+                    return 1;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (WorkOrderQuoteMapper) Proxy.newProxyInstance(
+                WorkOrderQuoteMapper.class.getClassLoader(),
+                new Class<?>[]{WorkOrderQuoteMapper.class},
+                handler
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> T createNoopProxy(Class<T> type, String successMethodName) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if (successMethodName.equals(method.getName())) {
+                    return 1;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (T) Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, handler);
+    }
+
     private IFaultRepairConfigService createFaultRepairConfigServiceProxy(List<WorkOrderRepairFaultOptionVO> options) {
         InvocationHandler handler = new InvocationHandler() {
             @Override
@@ -338,5 +496,132 @@ public class WorkOrderServiceImplTest {
             return 0D;
         }
         return null;
+    }
+
+    private void runWithLoginContext(Long userId, ThrowingRunnable runnable) throws Exception {
+        SaManager.setSaTokenContext(new SaTokenContextForThreadLocal());
+        SaTokenContextForThreadLocalStorage.setBox(new MockSaRequest(), new MockSaResponse(), new MockSaStorage());
+        StpUtil.login(userId);
+        try {
+            runnable.run();
+        } finally {
+            try {
+                StpUtil.logout();
+            } finally {
+                SaTokenContextForThreadLocalStorage.clearBox();
+            }
+        }
+    }
+
+    private interface ThrowingRunnable {
+        void run() throws Exception;
+    }
+
+    private static class MockSaRequest implements SaRequest {
+
+        @Override
+        public Object getSource() {
+            return this;
+        }
+
+        @Override
+        public String getParam(String name) {
+            return null;
+        }
+
+        @Override
+        public List<String> getParamNames() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public Map<String, String> getParamMap() {
+            return Collections.emptyMap();
+        }
+
+        @Override
+        public String getHeader(String name) {
+            return null;
+        }
+
+        @Override
+        public String getCookieValue(String name) {
+            return null;
+        }
+
+        @Override
+        public String getRequestPath() {
+            return "/";
+        }
+
+        @Override
+        public String getUrl() {
+            return "http://localhost/test";
+        }
+
+        @Override
+        public String getMethod() {
+            return "GET";
+        }
+
+        @Override
+        public Object forward(String path) {
+            return null;
+        }
+    }
+
+    private static class MockSaResponse implements SaResponse {
+
+        @Override
+        public Object getSource() {
+            return this;
+        }
+
+        @Override
+        public SaResponse setStatus(int sc) {
+            return this;
+        }
+
+        @Override
+        public SaResponse setHeader(String name, String value) {
+            return this;
+        }
+
+        @Override
+        public SaResponse addHeader(String name, String value) {
+            return this;
+        }
+
+        @Override
+        public Object redirect(String url) {
+            return null;
+        }
+    }
+
+    private static class MockSaStorage implements SaStorage {
+
+        private final Map<String, Object> values = new LinkedHashMap<>();
+
+        @Override
+        public Object getSource() {
+            return this;
+        }
+
+        @Override
+        public Object get(String key) {
+            return values.get(key);
+        }
+
+        @Override
+        public SaStorage set(String key, Object value) {
+            values.put(key, value);
+            return this;
+        }
+
+        @Override
+        public SaStorage delete(String key) {
+            values.remove(key);
+            return this;
+        }
     }
 }
