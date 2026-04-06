@@ -32,6 +32,7 @@
         <knife4j.version>4.4.0</knife4j.version>
         <hutool.version>5.8.26</hutool.version>
         <redisson.version>3.27.2</redisson.version>
+        <wxjava.version>4.7.0</wxjava.version>
         <jasic.version>1.0.0</jasic.version>
     </properties>
 
@@ -86,6 +87,13 @@
                 <groupId>cn.hutool</groupId>
                 <artifactId>hutool-all</artifactId>
                 <version>${hutool.version}</version>
+            </dependency>
+
+            <!-- WxJava 小程序 SDK -->
+            <dependency>
+                <groupId>com.github.binarywang</groupId>
+                <artifactId>weixin-java-miniapp</artifactId>
+                <version>${wxjava.version}</version>
             </dependency>
 
             <!-- 子模块 -->

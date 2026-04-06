@@ -22,6 +22,12 @@
             <artifactId>jasic-framework</artifactId>
         </dependency>
 
+        <!-- WxJava 小程序 SDK -->
+        <dependency>
+            <groupId>com.github.binarywang</groupId>
+            <artifactId>weixin-java-miniapp</artifactId>
+        </dependency>
+
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
