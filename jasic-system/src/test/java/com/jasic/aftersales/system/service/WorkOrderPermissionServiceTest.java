@@ -89,7 +89,7 @@ public class WorkOrderPermissionServiceTest {
     @Test
     public void shouldAllowAllScopeUserViewReadonlyNetworkWorkOrder() throws Exception {
         setCurrentHqAllContext();
-        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(buildParticipant(12L, 900L), 0L));
+        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(buildParticipant(12L, 900L, "HQ_OBSERVER"), 0L));
         setField(service, "hqFirstContractMapper", createContractMapperProxy(Collections.emptyList()));
         setField(service, "firstSecondRelationMapper", createRelationMapperProxy(Collections.emptyList()));
 
@@ -101,7 +101,7 @@ public class WorkOrderPermissionServiceTest {
     @Test
     public void shouldRejectAllScopeUserViewWorkOrderFromAnotherHq() throws Exception {
         setCurrentHqAllContext();
-        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(buildParticipant(13L, 900L), 0L));
+        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(buildParticipant(13L, 900L, "HQ_OBSERVER"), 0L));
         setField(service, "hqFirstContractMapper", createContractMapperProxy(Collections.emptyList()));
         setField(service, "firstSecondRelationMapper", createRelationMapperProxy(Collections.emptyList()));
 
@@ -129,7 +129,7 @@ public class WorkOrderPermissionServiceTest {
     @Test
     public void shouldRejectRegionManagerReadonlyOrderOutsideRegionEvenIfParticipantExists() throws Exception {
         setCurrentHqRegionContext();
-        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(buildParticipant(3L, 900L), 0L));
+        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(buildParticipant(3L, 900L, "HQ_OBSERVER"), 0L));
         setField(service, "hqFirstContractMapper", createContractMapperProxy(
                 Collections.singletonList(buildContract(900L, 1001L, 10L))
         ));
@@ -201,6 +201,34 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertEquals(Arrays.asList(1001L, 1002L), query.getRelatedCompanyIds());
     }
 
+    @Test
+    public void shouldResolveRelationTypeAsHqObserverForReadonlyHqParticipant() throws Exception {
+        setCurrentHqAllContext();
+        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(
+                buildParticipant(14L, 900L, "HQ_OBSERVER"), 0L
+        ));
+
+        WorkOrder workOrder = buildWorkOrder(14L, 900L, 1001L, 1001L, null);
+
+        Assert.assertEquals("HQ_OBSERVER", service.resolveRelationType(workOrder));
+    }
+
+    @Test
+    public void shouldResolveRelationTypeAsHistoryReadonlyForHistoricalParticipant() throws Exception {
+        SecurityContext.setCurrentCompanyId(1001L);
+        SecurityContext.setCurrentSubjectType("SERVICE");
+        SecurityContext.setCurrentTypeCode("FIRST");
+        SecurityContext.setEffectiveDataScope("ALL");
+        SecurityContext.setCurrentRegionIds(Collections.emptyList());
+        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(
+                buildParticipant(15L, 1001L, "HISTORY"), 0L
+        ));
+
+        WorkOrder workOrder = buildWorkOrder(15L, 900L, 1002L, 1001L, null);
+
+        Assert.assertEquals("HISTORY_PARTICIPANT_READONLY", service.resolveRelationType(workOrder));
+    }
+
     private void setCurrentHqRegionContext() {
         SecurityContext.setCurrentCompanyId(900L);
         SecurityContext.setCurrentSubjectType("HQ");
@@ -228,11 +256,11 @@ public class WorkOrderPermissionServiceTest {
         return workOrder;
     }
 
-    private WorkOrderParticipant buildParticipant(Long workOrderId, Long companyId) {
+    private WorkOrderParticipant buildParticipant(Long workOrderId, Long companyId, String participateType) {
         WorkOrderParticipant participant = new WorkOrderParticipant();
         participant.setWorkOrderId(workOrderId);
         participant.setCompanyId(companyId);
-        participant.setParticipateType("HQ_OBSERVER");
+        participant.setParticipateType(participateType);
         participant.setIsCurrentHandler(0);
         participant.setIsReadonly(1);
         return participant;

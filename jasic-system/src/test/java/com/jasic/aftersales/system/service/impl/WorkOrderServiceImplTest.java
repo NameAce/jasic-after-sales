@@ -13,10 +13,20 @@ import com.jasic.aftersales.system.domain.dto.WorkOrderCloseDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderFaultItemDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderRepairDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderReviewDTO;
+import com.jasic.aftersales.system.domain.dto.WorkOrderTransferDTO;
+import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
+import com.jasic.aftersales.system.domain.entity.HqFirstContract;
+import com.jasic.aftersales.system.domain.entity.SysCompany;
+import com.jasic.aftersales.system.domain.entity.SysCompanyType;
 import com.jasic.aftersales.system.domain.entity.WorkOrder;
+import com.jasic.aftersales.system.domain.entity.WorkOrderFlow;
 import com.jasic.aftersales.system.domain.entity.WorkOrderQuote;
 import com.jasic.aftersales.system.domain.entity.WorkOrderReview;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairFaultOptionVO;
+import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
+import com.jasic.aftersales.system.mapper.HqFirstContractMapper;
+import com.jasic.aftersales.system.mapper.SysCompanyMapper;
+import com.jasic.aftersales.system.mapper.SysCompanyTypeMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderFlowMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderQuoteMapper;
@@ -24,6 +34,7 @@ import com.jasic.aftersales.system.mapper.WorkOrderRepairMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderReviewMapper;
 import com.jasic.aftersales.system.service.IFaultRepairConfigService;
 import com.jasic.aftersales.system.service.WorkOrderNotifyEventService;
+import com.jasic.aftersales.system.service.WorkOrderParticipantService;
 import com.jasic.aftersales.system.service.WorkOrderPermissionService;
 import org.junit.Assert;
 import org.junit.Test;
@@ -120,6 +131,115 @@ public class WorkOrderServiceImplTest {
         } catch (InvocationTargetException ex) {
             Assert.assertTrue(ex.getCause() instanceof ServiceException);
             Assert.assertEquals("故障判定只能为有故障或无故障", ex.getCause().getMessage());
+        }
+    }
+
+    @Test
+    public void shouldTransferSecondLevelWorkOrderAndRecordHistory() throws Exception {
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(3L);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.IN_PROGRESS);
+        workOrder.setCurrentAcceptCompanyId(2002L);
+        workOrder.setCurrentAcceptSubjectType("SERVICE");
+        workOrder.setAssignedUserId(301L);
+        workOrder.setHasTransfer(0);
+        workOrder.setTransferCount(0);
+        workOrder.setHqCompanyId(900L);
+
+        int[] updateCount = new int[1];
+        List<WorkOrderFlow> insertedFlows = new ArrayList<>();
+        TransferParticipantRecorder participantRecorder = new TransferParticipantRecorder();
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, updateCount));
+        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+            @Override
+            public boolean canTransfer(WorkOrder target) {
+                return true;
+            }
+        });
+        setField(service, "sysCompanyMapper", createCompanyMapperProxy(Arrays.asList(
+                buildCompany(2002L, "二级网点", "SECOND"),
+                buildCompany(1001L, "一级网点", "FIRST")
+        )));
+        setField(service, "sysCompanyTypeMapper", createCompanyTypeMapperProxy(
+                buildCompanyType("FIRST", "SERVICE")
+        ));
+        setField(service, "firstSecondRelationMapper", createRelationMapperProxy(
+                Collections.singletonList(buildRelation(1001L, 2002L))
+        ));
+        setField(service, "workOrderFlowMapper", createFlowMapperProxy(insertedFlows));
+        setField(service, "workOrderParticipantService", participantRecorder);
+
+        WorkOrderTransferDTO dto = new WorkOrderTransferDTO();
+        dto.setWorkOrderId(workOrder.getId());
+        dto.setTargetCompanyId(1001L);
+        dto.setRemark("维修不了，转一级处理");
+
+        runWithLoginContext(101L, new ThrowingRunnable() {
+            @Override
+            public void run() throws Exception {
+                service.transfer(dto);
+            }
+        });
+
+        Assert.assertEquals(1, updateCount[0]);
+        Assert.assertEquals(Long.valueOf(1001L), workOrder.getCurrentAcceptCompanyId());
+        Assert.assertEquals("SERVICE", workOrder.getCurrentAcceptSubjectType());
+        Assert.assertNull(workOrder.getAssignedUserId());
+        Assert.assertEquals(WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN, workOrder.getMainStatus());
+        Assert.assertEquals(Integer.valueOf(1), workOrder.getHasTransfer());
+        Assert.assertEquals(Integer.valueOf(1), workOrder.getTransferCount());
+
+        Assert.assertEquals(1, insertedFlows.size());
+        WorkOrderFlow flow = insertedFlows.get(0);
+        Assert.assertEquals("TRANSFER", flow.getActionType());
+        Assert.assertEquals(WorkOrderStatusConstants.MainStatus.IN_PROGRESS, flow.getBeforeStatus());
+        Assert.assertEquals(WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN, flow.getAfterStatus());
+        Assert.assertEquals(Long.valueOf(2002L), flow.getFromCompanyId());
+        Assert.assertEquals(Long.valueOf(1001L), flow.getToCompanyId());
+        Assert.assertEquals(Long.valueOf(2002L), flow.getOperatorCompanyId());
+        Assert.assertEquals(Long.valueOf(101L), flow.getOperatorUserId());
+        Assert.assertEquals("维修不了，转一级处理", flow.getRemark());
+
+        Assert.assertEquals(Long.valueOf(3L), participantRecorder.workOrderId);
+        Assert.assertEquals(Long.valueOf(2002L), participantRecorder.fromCompanyId);
+        Assert.assertEquals("SERVICE", participantRecorder.fromSubjectType);
+        Assert.assertEquals(Long.valueOf(1001L), participantRecorder.toCompanyId);
+        Assert.assertEquals("SERVICE", participantRecorder.toSubjectType);
+    }
+
+    @Test
+    public void shouldRejectTransferOutsideAllowedScopeForFirstLevelWorkOrder() throws Exception {
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(4L);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.COMPLETED);
+        workOrder.setCurrentAcceptCompanyId(1001L);
+        workOrder.setCurrentAcceptSubjectType("SERVICE");
+        workOrder.setHqCompanyId(900L);
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
+        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+            @Override
+            public boolean canTransfer(WorkOrder target) {
+                return true;
+            }
+        });
+        setField(service, "sysCompanyMapper", createCompanyMapperProxy(Collections.singletonList(
+                buildCompany(1001L, "一级网点", "FIRST")
+        )));
+        setField(service, "hqFirstContractMapper", createContractMapperProxy(1L));
+
+        WorkOrderTransferDTO dto = new WorkOrderTransferDTO();
+        dto.setWorkOrderId(workOrder.getId());
+        dto.setTargetCompanyId(901L);
+
+        try {
+            service.transfer(dto);
+            Assert.fail("预期应拒绝跨规则转单");
+        } catch (ServiceException ex) {
+            Assert.assertEquals("当前工单不允许转到该目标公司", ex.getMessage());
         }
     }
 
@@ -587,6 +707,107 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    private SysCompanyMapper createCompanyMapperProxy(List<SysCompany> companies) {
+        Map<Long, SysCompany> companyMap = new LinkedHashMap<>();
+        for (SysCompany company : companies) {
+            companyMap.put(company.getId(), company);
+        }
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectById".equals(method.getName())) {
+                    return companyMap.get(args[0]);
+                }
+                if ("selectBatchIds".equals(method.getName())) {
+                    List<?> ids = (List<?>) args[0];
+                    List<SysCompany> result = new ArrayList<>();
+                    for (Object id : ids) {
+                        SysCompany company = companyMap.get(id);
+                        if (company != null) {
+                            result.add(company);
+                        }
+                    }
+                    return result;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (SysCompanyMapper) Proxy.newProxyInstance(
+                SysCompanyMapper.class.getClassLoader(),
+                new Class<?>[]{SysCompanyMapper.class},
+                handler
+        );
+    }
+
+    private SysCompanyTypeMapper createCompanyTypeMapperProxy(SysCompanyType companyType) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectOne".equals(method.getName())) {
+                    return companyType;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (SysCompanyTypeMapper) Proxy.newProxyInstance(
+                SysCompanyTypeMapper.class.getClassLoader(),
+                new Class<?>[]{SysCompanyTypeMapper.class},
+                handler
+        );
+    }
+
+    private FirstSecondRelationMapper createRelationMapperProxy(List<FirstSecondRelation> relations) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectList".equals(method.getName())) {
+                    return relations;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (FirstSecondRelationMapper) Proxy.newProxyInstance(
+                FirstSecondRelationMapper.class.getClassLoader(),
+                new Class<?>[]{FirstSecondRelationMapper.class},
+                handler
+        );
+    }
+
+    private HqFirstContractMapper createContractMapperProxy(Long count) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectCount".equals(method.getName())) {
+                    return count;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (HqFirstContractMapper) Proxy.newProxyInstance(
+                HqFirstContractMapper.class.getClassLoader(),
+                new Class<?>[]{HqFirstContractMapper.class},
+                handler
+        );
+    }
+
+    private WorkOrderFlowMapper createFlowMapperProxy(List<WorkOrderFlow> insertedFlows) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("insert".equals(method.getName())) {
+                    insertedFlows.add((WorkOrderFlow) args[0]);
+                    return 1;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (WorkOrderFlowMapper) Proxy.newProxyInstance(
+                WorkOrderFlowMapper.class.getClassLoader(),
+                new Class<?>[]{WorkOrderFlowMapper.class},
+                handler
+        );
+    }
+
     private WorkOrderQuoteMapper createQuoteMapperProxy(List<WorkOrderQuote> quotes) {
         InvocationHandler handler = new InvocationHandler() {
             @Override
@@ -712,6 +933,30 @@ public class WorkOrderServiceImplTest {
         return option;
     }
 
+    private SysCompany buildCompany(Long companyId, String companyName, String typeCode) {
+        SysCompany company = new SysCompany();
+        company.setId(companyId);
+        company.setCompanyName(companyName);
+        company.setTypeCode(typeCode);
+        company.setStatus(1);
+        return company;
+    }
+
+    private SysCompanyType buildCompanyType(String typeCode, String subjectType) {
+        SysCompanyType companyType = new SysCompanyType();
+        companyType.setTypeCode(typeCode);
+        companyType.setSubjectType(subjectType);
+        return companyType;
+    }
+
+    private FirstSecondRelation buildRelation(Long firstCompanyId, Long secondCompanyId) {
+        FirstSecondRelation relation = new FirstSecondRelation();
+        relation.setFirstCompanyId(firstCompanyId);
+        relation.setSecondCompanyId(secondCompanyId);
+        relation.setStatus(1);
+        return relation;
+    }
+
     private WorkOrder buildRepairWorkOrder() {
         WorkOrder workOrder = new WorkOrder();
         workOrder.setId(5L);
@@ -767,6 +1012,25 @@ public class WorkOrderServiceImplTest {
 
     private interface ThrowingRunnable {
         void run() throws Exception;
+    }
+
+    private static class TransferParticipantRecorder extends WorkOrderParticipantService {
+
+        private Long workOrderId;
+        private Long fromCompanyId;
+        private String fromSubjectType;
+        private Long toCompanyId;
+        private String toSubjectType;
+
+        @Override
+        public void transferParticipant(Long workOrderId, Long fromCompanyId, String fromSubjectType,
+                                        Long toCompanyId, String toSubjectType) {
+            this.workOrderId = workOrderId;
+            this.fromCompanyId = fromCompanyId;
+            this.fromSubjectType = fromSubjectType;
+            this.toCompanyId = toCompanyId;
+            this.toSubjectType = toSubjectType;
+        }
     }
 
     private static class MockSaRequest implements SaRequest {
