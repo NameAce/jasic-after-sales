@@ -9,16 +9,21 @@ import cn.dev33.satoken.context.model.SaStorage;
 import cn.dev33.satoken.stp.StpUtil;
 import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
 import com.jasic.aftersales.common.exception.ServiceException;
+import com.jasic.aftersales.system.domain.dto.WorkOrderCloseDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderFaultItemDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderRepairDTO;
+import com.jasic.aftersales.system.domain.dto.WorkOrderReviewDTO;
 import com.jasic.aftersales.system.domain.entity.WorkOrder;
 import com.jasic.aftersales.system.domain.entity.WorkOrderQuote;
+import com.jasic.aftersales.system.domain.entity.WorkOrderReview;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairFaultOptionVO;
 import com.jasic.aftersales.system.mapper.WorkOrderFlowMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderQuoteMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderRepairMapper;
+import com.jasic.aftersales.system.mapper.WorkOrderReviewMapper;
 import com.jasic.aftersales.system.service.IFaultRepairConfigService;
+import com.jasic.aftersales.system.service.WorkOrderNotifyEventService;
 import com.jasic.aftersales.system.service.WorkOrderPermissionService;
 import org.junit.Assert;
 import org.junit.Test;
@@ -29,6 +34,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -201,6 +207,213 @@ public class WorkOrderServiceImplTest {
     }
 
     @Test
+    public void shouldMoveWorkOrderBackToInProgressWhenReviewRequestsContinueRepair() throws Exception {
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(8L);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.COMPLETED);
+        workOrder.setCurrentAcceptCompanyId(3L);
+        workOrder.setCompletedTime(LocalDateTime.now());
+        List<WorkOrderReview> insertedReviews = new ArrayList<>();
+        int[] updateCount = new int[1];
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, updateCount));
+        setField(service, "workOrderReviewMapper", createReviewMapperProxy(insertedReviews));
+        setField(service, "workOrderFlowMapper", createNoopProxy(WorkOrderFlowMapper.class, "insert"));
+        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+            @Override
+            public boolean canReview(WorkOrder target) {
+                return true;
+            }
+        });
+
+        WorkOrderReviewDTO dto = new WorkOrderReviewDTO();
+        dto.setWorkOrderId(workOrder.getId());
+        dto.setReviewResult("继续维修");
+        dto.setReviewDesc("复检后仍需继续处理");
+
+        runWithLoginContext(101L, new ThrowingRunnable() {
+            @Override
+            public void run() throws Exception {
+                service.saveReview(dto);
+            }
+        });
+
+        Assert.assertEquals(1, updateCount[0]);
+        Assert.assertEquals(WorkOrderStatusConstants.MainStatus.IN_PROGRESS, workOrder.getMainStatus());
+        Assert.assertNull(workOrder.getCompletedTime());
+        Assert.assertEquals(1, insertedReviews.size());
+        Assert.assertEquals(Integer.valueOf(1), insertedReviews.get(0).getIsContinueRepair());
+        Assert.assertEquals(Long.valueOf(3L), insertedReviews.get(0).getCompanyId());
+        Assert.assertEquals(Long.valueOf(101L), insertedReviews.get(0).getReviewUserId());
+    }
+
+    @Test
+    public void shouldKeepCompletedWhenReviewPasses() throws Exception {
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(9L);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.COMPLETED);
+        workOrder.setCurrentAcceptCompanyId(3L);
+        workOrder.setCompletedTime(LocalDateTime.now());
+        List<WorkOrderReview> insertedReviews = new ArrayList<>();
+        int[] updateCount = new int[1];
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, updateCount));
+        setField(service, "workOrderReviewMapper", createReviewMapperProxy(insertedReviews));
+        setField(service, "workOrderFlowMapper", createNoopProxy(WorkOrderFlowMapper.class, "insert"));
+        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+            @Override
+            public boolean canReview(WorkOrder target) {
+                return true;
+            }
+        });
+
+        WorkOrderReviewDTO dto = new WorkOrderReviewDTO();
+        dto.setWorkOrderId(workOrder.getId());
+        dto.setReviewResult("通过");
+        dto.setReviewDesc("复检通过");
+
+        runWithLoginContext(101L, new ThrowingRunnable() {
+            @Override
+            public void run() throws Exception {
+                service.saveReview(dto);
+            }
+        });
+
+        Assert.assertEquals(0, updateCount[0]);
+        Assert.assertEquals(WorkOrderStatusConstants.MainStatus.COMPLETED, workOrder.getMainStatus());
+        Assert.assertEquals(1, insertedReviews.size());
+        Assert.assertEquals(Integer.valueOf(0), insertedReviews.get(0).getIsContinueRepair());
+    }
+
+    @Test
+    public void shouldRequireReturnExpressNoWhenClosingByMail() throws Exception {
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(10L);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.COMPLETED);
+        workOrder.setCurrentAcceptCompanyId(3L);
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
+        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+            @Override
+            public boolean canClose(WorkOrder target) {
+                return true;
+            }
+        });
+
+        WorkOrderCloseDTO dto = new WorkOrderCloseDTO();
+        dto.setWorkOrderId(workOrder.getId());
+        dto.setReturnMethod("回寄");
+        dto.setCloseReason("客户要求回寄");
+        dto.setReturnExpressNo("   ");
+
+        try {
+            service.close(dto);
+            Assert.fail("预期应拒绝缺少回寄单号的关闭请求");
+        } catch (ServiceException ex) {
+            Assert.assertEquals("回寄时必须填写回寄快递单号", ex.getMessage());
+        }
+    }
+
+    @Test
+    public void shouldCloseNoFaultWorkOrderAsNotOpenWithoutInvite() throws Exception {
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(11L);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.COMPLETED);
+        workOrder.setCurrentAcceptCompanyId(3L);
+        WorkOrderQuote currentQuote = new WorkOrderQuote();
+        currentQuote.setWorkOrderId(workOrder.getId());
+        currentQuote.setFaultJudge("无故障");
+        currentQuote.setIsCurrentValid(1);
+        int[] updateCount = new int[1];
+        int[] inviteCount = new int[1];
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, updateCount));
+        setField(service, "workOrderQuoteMapper", createQuoteMapperProxy(Collections.singletonList(currentQuote)));
+        setField(service, "workOrderFlowMapper", createNoopProxy(WorkOrderFlowMapper.class, "insert"));
+        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+            @Override
+            public boolean canClose(WorkOrder target) {
+                return true;
+            }
+        });
+        setField(service, "workOrderNotifyEventService", new WorkOrderNotifyEventService() {
+            @Override
+            public void recordEvaluationInvite(WorkOrder target) {
+                inviteCount[0]++;
+            }
+        });
+
+        WorkOrderCloseDTO dto = new WorkOrderCloseDTO();
+        dto.setWorkOrderId(workOrder.getId());
+        dto.setReturnMethod("自提");
+        dto.setCloseReason("无故障，客户自提");
+
+        runWithLoginContext(101L, new ThrowingRunnable() {
+            @Override
+            public void run() throws Exception {
+                service.close(dto);
+            }
+        });
+
+        Assert.assertEquals(1, updateCount[0]);
+        Assert.assertEquals(WorkOrderStatusConstants.MainStatus.CLOSED, workOrder.getMainStatus());
+        Assert.assertEquals(WorkOrderStatusConstants.EvaluateStatus.NOT_OPEN, workOrder.getEvaluateStatus());
+        Assert.assertEquals("自提", workOrder.getReturnMethod());
+        Assert.assertEquals("无故障，客户自提", workOrder.getCloseReason());
+        Assert.assertEquals(0, inviteCount[0]);
+    }
+
+    @Test
+    public void shouldCloseFaultWorkOrderAsPendingEvaluateAndRecordInvite() throws Exception {
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(12L);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.COMPLETED);
+        workOrder.setCurrentAcceptCompanyId(3L);
+        WorkOrderQuote currentQuote = new WorkOrderQuote();
+        currentQuote.setWorkOrderId(workOrder.getId());
+        currentQuote.setFaultJudge("有故障");
+        currentQuote.setIsCurrentValid(1);
+        int[] inviteCount = new int[1];
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, new int[1]));
+        setField(service, "workOrderQuoteMapper", createQuoteMapperProxy(Collections.singletonList(currentQuote)));
+        setField(service, "workOrderFlowMapper", createNoopProxy(WorkOrderFlowMapper.class, "insert"));
+        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+            @Override
+            public boolean canClose(WorkOrder target) {
+                return true;
+            }
+        });
+        setField(service, "workOrderNotifyEventService", new WorkOrderNotifyEventService() {
+            @Override
+            public void recordEvaluationInvite(WorkOrder target) {
+                inviteCount[0]++;
+            }
+        });
+
+        WorkOrderCloseDTO dto = new WorkOrderCloseDTO();
+        dto.setWorkOrderId(workOrder.getId());
+        dto.setReturnMethod("自提");
+        dto.setCloseReason("维修完成");
+
+        runWithLoginContext(101L, new ThrowingRunnable() {
+            @Override
+            public void run() throws Exception {
+                service.close(dto);
+            }
+        });
+
+        Assert.assertEquals(WorkOrderStatusConstants.MainStatus.CLOSED, workOrder.getMainStatus());
+        Assert.assertEquals(WorkOrderStatusConstants.EvaluateStatus.PENDING_EVALUATE, workOrder.getEvaluateStatus());
+        Assert.assertEquals(1, inviteCount[0]);
+    }
+
+    @Test
     public void shouldDeriveContinueRepairFromReviewResult() throws Exception {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         Method normalizeReviewResult = WorkOrderServiceImpl.class
@@ -353,6 +566,27 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    private WorkOrderMapper createMutableWorkOrderMapperProxy(WorkOrder workOrder, int[] updateCount) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectById".equals(method.getName())) {
+                    return workOrder;
+                }
+                if ("updateById".equals(method.getName())) {
+                    updateCount[0]++;
+                    return 1;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (WorkOrderMapper) Proxy.newProxyInstance(
+                WorkOrderMapper.class.getClassLoader(),
+                new Class<?>[]{WorkOrderMapper.class},
+                handler
+        );
+    }
+
     private WorkOrderQuoteMapper createQuoteMapperProxy(List<WorkOrderQuote> quotes) {
         InvocationHandler handler = new InvocationHandler() {
             @Override
@@ -401,6 +635,24 @@ public class WorkOrderServiceImplTest {
         return (WorkOrderQuoteMapper) Proxy.newProxyInstance(
                 WorkOrderQuoteMapper.class.getClassLoader(),
                 new Class<?>[]{WorkOrderQuoteMapper.class},
+                handler
+        );
+    }
+
+    private WorkOrderReviewMapper createReviewMapperProxy(List<WorkOrderReview> insertedReviews) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("insert".equals(method.getName())) {
+                    insertedReviews.add((WorkOrderReview) args[0]);
+                    return 1;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (WorkOrderReviewMapper) Proxy.newProxyInstance(
+                WorkOrderReviewMapper.class.getClassLoader(),
+                new Class<?>[]{WorkOrderReviewMapper.class},
                 handler
         );
     }

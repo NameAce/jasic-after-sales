@@ -1,21 +1,38 @@
 package com.jasic.aftersales.customer.service.impl;
 
+import cn.dev33.satoken.SaManager;
+import cn.dev33.satoken.context.SaTokenContextForThreadLocal;
+import cn.dev33.satoken.context.SaTokenContextForThreadLocalStorage;
+import cn.dev33.satoken.context.model.SaRequest;
+import cn.dev33.satoken.context.model.SaResponse;
+import cn.dev33.satoken.context.model.SaStorage;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderCreateDTO;
+import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderEvaluateDTO;
 import com.jasic.aftersales.customer.domain.entity.CUser;
 import com.jasic.aftersales.customer.domain.vo.CustomerBarcodeInfoVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerNearbyServiceCompanyVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerServiceCompanyOptionVO;
+import com.jasic.aftersales.framework.security.StpCustomerUtil;
 import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
 import com.jasic.aftersales.system.domain.entity.HqFirstContract;
 import com.jasic.aftersales.system.domain.entity.MachineBarcode;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
+import com.jasic.aftersales.system.domain.entity.WorkOrder;
+import com.jasic.aftersales.system.domain.entity.WorkOrderEvaluation;
+import com.jasic.aftersales.system.domain.entity.WorkOrderFlow;
+import com.jasic.aftersales.system.domain.entity.WorkOrderQuote;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairFaultOptionVO;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
 import com.jasic.aftersales.system.mapper.HqFirstContractMapper;
 import com.jasic.aftersales.system.mapper.MachineBarcodeMapper;
 import com.jasic.aftersales.system.mapper.SysCompanyMapper;
+import com.jasic.aftersales.system.mapper.WorkOrderEvaluationMapper;
+import com.jasic.aftersales.system.mapper.WorkOrderFlowMapper;
+import com.jasic.aftersales.system.mapper.WorkOrderMapper;
+import com.jasic.aftersales.system.mapper.WorkOrderQuoteMapper;
 import com.jasic.aftersales.system.service.IFaultRepairConfigService;
+import com.jasic.aftersales.system.service.WorkOrderNotifyEventService;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -27,7 +44,9 @@ import java.lang.reflect.Proxy;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * C端工单服务测试
@@ -205,6 +224,99 @@ public class CustomerWorkOrderServiceImplTest {
         Assert.assertEquals("13800138000", customerName);
     }
 
+    @Test
+    public void shouldRejectEvaluationWhenCurrentQuoteIsNoFault() throws Exception {
+        CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
+        WorkOrder workOrder = buildClosedWorkOrder(41L, 200L, 31L);
+        WorkOrderQuote currentQuote = new WorkOrderQuote();
+        currentQuote.setWorkOrderId(workOrder.getId());
+        currentQuote.setFaultJudge("无故障");
+        currentQuote.setIsCurrentValid(1);
+
+        setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder, new int[1]));
+        setField(service, "workOrderQuoteMapper", createWorkOrderQuoteMapperProxy(Collections.singletonList(currentQuote)));
+
+        CustomerWorkOrderEvaluateDTO dto = new CustomerWorkOrderEvaluateDTO();
+        dto.setWorkOrderId(workOrder.getId());
+        dto.setTimelinessScore(5);
+        dto.setQualityScore(4);
+        dto.setSatisfactionScore(5);
+        dto.setContent("整体满意");
+
+        try {
+            runWithCustomerLoginContext(200L, new ThrowingRunnable() {
+                @Override
+                public void run() throws Exception {
+                    service.evaluate(dto);
+                }
+            });
+            Assert.fail("Expected no-fault work order to reject evaluation");
+        } catch (ServiceException ex) {
+            Assert.assertEquals("当前工单无故障，不能评价", ex.getMessage());
+        }
+    }
+
+    @Test
+    public void shouldPersistThreeDimensionalEvaluationAndNotifyCurrentCompany() throws Exception {
+        CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
+        WorkOrder workOrder = buildClosedWorkOrder(42L, 200L, 31L);
+        WorkOrderQuote currentQuote = new WorkOrderQuote();
+        currentQuote.setWorkOrderId(workOrder.getId());
+        currentQuote.setFaultJudge("有故障");
+        currentQuote.setIsCurrentValid(1);
+        List<WorkOrderEvaluation> insertedEvaluations = new ArrayList<>();
+        List<WorkOrderFlow> insertedFlows = new ArrayList<>();
+        int[] updateCount = new int[1];
+        int[] notifiedScores = new int[3];
+        String[] notifiedContent = new String[1];
+
+        setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder, updateCount));
+        setField(service, "workOrderQuoteMapper", createWorkOrderQuoteMapperProxy(Collections.singletonList(currentQuote)));
+        setField(service, "workOrderEvaluationMapper", createWorkOrderEvaluationMapperProxy(insertedEvaluations, 0L));
+        setField(service, "workOrderFlowMapper", createWorkOrderFlowMapperProxy(insertedFlows));
+        setField(service, "workOrderNotifyEventService", new WorkOrderNotifyEventService() {
+            @Override
+            public void recordCustomerEvaluated(WorkOrder target, Integer timelinessScore, Integer qualityScore,
+                                                Integer satisfactionScore, String content) {
+                notifiedScores[0] = timelinessScore == null ? 0 : timelinessScore;
+                notifiedScores[1] = qualityScore == null ? 0 : qualityScore;
+                notifiedScores[2] = satisfactionScore == null ? 0 : satisfactionScore;
+                notifiedContent[0] = content;
+            }
+        });
+
+        CustomerWorkOrderEvaluateDTO dto = new CustomerWorkOrderEvaluateDTO();
+        dto.setWorkOrderId(workOrder.getId());
+        dto.setTimelinessScore(5);
+        dto.setQualityScore(4);
+        dto.setSatisfactionScore(3);
+        dto.setTags("响应快,态度好");
+        dto.setContent("维修完成较及时");
+
+        runWithCustomerLoginContext(200L, new ThrowingRunnable() {
+            @Override
+            public void run() throws Exception {
+                service.evaluate(dto);
+            }
+        });
+
+        Assert.assertEquals(1, updateCount[0]);
+        Assert.assertEquals("EVALUATED", workOrder.getEvaluateStatus());
+        Assert.assertEquals(1, insertedEvaluations.size());
+        Assert.assertEquals(Integer.valueOf(5), insertedEvaluations.get(0).getTimelinessScore());
+        Assert.assertEquals(Integer.valueOf(4), insertedEvaluations.get(0).getQualityScore());
+        Assert.assertEquals(Integer.valueOf(3), insertedEvaluations.get(0).getSatisfactionScore());
+        Assert.assertEquals("响应快,态度好", insertedEvaluations.get(0).getTags());
+        Assert.assertEquals("维修完成较及时", insertedEvaluations.get(0).getContent());
+        Assert.assertEquals(1, insertedFlows.size());
+        Assert.assertEquals("EVALUATE", insertedFlows.get(0).getActionType());
+        Assert.assertEquals(Long.valueOf(200L), insertedFlows.get(0).getOperatorUserId());
+        Assert.assertEquals(5, notifiedScores[0]);
+        Assert.assertEquals(4, notifiedScores[1]);
+        Assert.assertEquals(3, notifiedScores[2]);
+        Assert.assertEquals("维修完成较及时", notifiedContent[0]);
+    }
+
     private SysCompany buildFirstCompany() {
         SysCompany company = new SysCompany();
         company.setId(11L);
@@ -379,6 +491,94 @@ public class CustomerWorkOrderServiceImplTest {
         );
     }
 
+    private WorkOrder buildClosedWorkOrder(Long workOrderId, Long customerId, Long companyId) {
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(workOrderId);
+        workOrder.setCustomerId(customerId);
+        workOrder.setCurrentAcceptCompanyId(companyId);
+        workOrder.setMainStatus("CLOSED");
+        workOrder.setEvaluateStatus("PENDING_EVALUATE");
+        return workOrder;
+    }
+
+    private WorkOrderMapper createWorkOrderMapperProxy(WorkOrder workOrder, int[] updateCount) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectById".equals(method.getName())) {
+                    return workOrder;
+                }
+                if ("updateById".equals(method.getName())) {
+                    updateCount[0]++;
+                    return 1;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (WorkOrderMapper) Proxy.newProxyInstance(
+                WorkOrderMapper.class.getClassLoader(),
+                new Class<?>[]{WorkOrderMapper.class},
+                handler
+        );
+    }
+
+    private WorkOrderQuoteMapper createWorkOrderQuoteMapperProxy(List<WorkOrderQuote> quotes) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectList".equals(method.getName())) {
+                    return quotes;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (WorkOrderQuoteMapper) Proxy.newProxyInstance(
+                WorkOrderQuoteMapper.class.getClassLoader(),
+                new Class<?>[]{WorkOrderQuoteMapper.class},
+                handler
+        );
+    }
+
+    private WorkOrderEvaluationMapper createWorkOrderEvaluationMapperProxy(List<WorkOrderEvaluation> insertedEvaluations,
+                                                                           Long existingCount) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectCount".equals(method.getName())) {
+                    return existingCount;
+                }
+                if ("insert".equals(method.getName())) {
+                    insertedEvaluations.add((WorkOrderEvaluation) args[0]);
+                    return 1;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (WorkOrderEvaluationMapper) Proxy.newProxyInstance(
+                WorkOrderEvaluationMapper.class.getClassLoader(),
+                new Class<?>[]{WorkOrderEvaluationMapper.class},
+                handler
+        );
+    }
+
+    private WorkOrderFlowMapper createWorkOrderFlowMapperProxy(List<WorkOrderFlow> insertedFlows) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("insert".equals(method.getName())) {
+                    insertedFlows.add((WorkOrderFlow) args[0]);
+                    return 1;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (WorkOrderFlowMapper) Proxy.newProxyInstance(
+                WorkOrderFlowMapper.class.getClassLoader(),
+                new Class<?>[]{WorkOrderFlowMapper.class},
+                handler
+        );
+    }
+
     private void setField(Object target, String fieldName, Object value) throws Exception {
         Field field = CustomerWorkOrderServiceImpl.class.getDeclaredField(fieldName);
         field.setAccessible(true);
@@ -447,5 +647,132 @@ public class CustomerWorkOrderServiceImplTest {
             return 0D;
         }
         return null;
+    }
+
+    private void runWithCustomerLoginContext(Long customerId, ThrowingRunnable runnable) throws Exception {
+        SaManager.setSaTokenContext(new SaTokenContextForThreadLocal());
+        SaTokenContextForThreadLocalStorage.setBox(new MockSaRequest(), new MockSaResponse(), new MockSaStorage());
+        StpCustomerUtil.login(customerId);
+        try {
+            runnable.run();
+        } finally {
+            try {
+                StpCustomerUtil.logout();
+            } finally {
+                SaTokenContextForThreadLocalStorage.clearBox();
+            }
+        }
+    }
+
+    private interface ThrowingRunnable {
+        void run() throws Exception;
+    }
+
+    private static class MockSaRequest implements SaRequest {
+
+        @Override
+        public Object getSource() {
+            return this;
+        }
+
+        @Override
+        public String getParam(String name) {
+            return null;
+        }
+
+        @Override
+        public List<String> getParamNames() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public Map<String, String> getParamMap() {
+            return Collections.emptyMap();
+        }
+
+        @Override
+        public String getHeader(String name) {
+            return null;
+        }
+
+        @Override
+        public String getCookieValue(String name) {
+            return null;
+        }
+
+        @Override
+        public String getRequestPath() {
+            return "/";
+        }
+
+        @Override
+        public String getUrl() {
+            return "http://localhost/test";
+        }
+
+        @Override
+        public String getMethod() {
+            return "GET";
+        }
+
+        @Override
+        public Object forward(String path) {
+            return null;
+        }
+    }
+
+    private static class MockSaResponse implements SaResponse {
+
+        @Override
+        public Object getSource() {
+            return this;
+        }
+
+        @Override
+        public SaResponse setStatus(int sc) {
+            return this;
+        }
+
+        @Override
+        public SaResponse setHeader(String name, String value) {
+            return this;
+        }
+
+        @Override
+        public SaResponse addHeader(String name, String value) {
+            return this;
+        }
+
+        @Override
+        public Object redirect(String url) {
+            return null;
+        }
+    }
+
+    private static class MockSaStorage implements SaStorage {
+
+        private final Map<String, Object> values = new LinkedHashMap<>();
+
+        @Override
+        public Object getSource() {
+            return this;
+        }
+
+        @Override
+        public Object get(String key) {
+            return values.get(key);
+        }
+
+        @Override
+        public SaStorage set(String key, Object value) {
+            values.put(key, value);
+            return this;
+        }
+
+        @Override
+        public SaStorage delete(String key) {
+            values.remove(key);
+            return this;
+        }
     }
 }
