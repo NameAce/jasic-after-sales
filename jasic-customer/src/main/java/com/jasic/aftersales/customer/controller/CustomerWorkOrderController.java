@@ -7,12 +7,12 @@ import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderEvaluateDTO;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderSendInfoDTO;
 import com.jasic.aftersales.customer.domain.query.CustomerWorkOrderQuery;
 import com.jasic.aftersales.customer.domain.vo.CustomerBarcodeInfoVO;
+import com.jasic.aftersales.customer.domain.vo.CustomerNearbyServiceCompanyVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerServiceCompanyOptionVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderDetailVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderListVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderStatusCountVO;
 import com.jasic.aftersales.customer.service.ICustomerWorkOrderService;
-import com.jasic.aftersales.system.domain.vo.SysCompanySimpleVO;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -57,7 +57,7 @@ public class CustomerWorkOrderController {
      * @return 服务网点选项
      */
     @GetMapping("/service-company-options")
-    public Result<List<SysCompanySimpleVO>> listServiceCompanyOptions() {
+    public Result<List<CustomerServiceCompanyOptionVO>> listServiceCompanyOptions() {
         return Result.ok(customerWorkOrderService.listServiceCompanyOptions());
     }
 
@@ -70,7 +70,7 @@ public class CustomerWorkOrderController {
      * @return 服务网点选项
      */
     @GetMapping("/nearby-service-company-options")
-    public Result<List<CustomerServiceCompanyOptionVO>> listNearbyServiceCompanyOptions(
+    public Result<List<CustomerNearbyServiceCompanyVO>> listNearbyServiceCompanyOptions(
             @RequestParam BigDecimal longitude,
             @RequestParam BigDecimal latitude,
             @RequestParam(required = false) Integer limit) {

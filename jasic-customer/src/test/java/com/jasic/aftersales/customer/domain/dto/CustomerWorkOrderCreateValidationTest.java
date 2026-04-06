@@ -27,7 +27,6 @@ public class CustomerWorkOrderCreateValidationTest {
     @Test
     public void shouldRequireBarcode() {
         CustomerWorkOrderCreateDTO dto = new CustomerWorkOrderCreateDTO();
-        dto.setCustomerName("张三");
         dto.setServiceMode("寄修");
         dto.setServiceCompanyId(1L);
         dto.setBarcode("   ");
@@ -41,7 +40,6 @@ public class CustomerWorkOrderCreateValidationTest {
     @Test
     public void shouldRequireServiceCompany() {
         CustomerWorkOrderCreateDTO dto = new CustomerWorkOrderCreateDTO();
-        dto.setCustomerName("张三");
         dto.setServiceMode("到店维修");
         dto.setBarcode("JASIC-001");
 
@@ -49,5 +47,18 @@ public class CustomerWorkOrderCreateValidationTest {
 
         Assert.assertTrue(violations.stream()
                 .anyMatch(item -> "服务网点不能为空".equals(item.getMessage())));
+    }
+
+    @Test
+    public void shouldNotRequireCustomerName() {
+        CustomerWorkOrderCreateDTO dto = new CustomerWorkOrderCreateDTO();
+        dto.setServiceMode("到店维修");
+        dto.setBarcode("JASIC-001");
+        dto.setServiceCompanyId(1L);
+
+        Set<ConstraintViolation<CustomerWorkOrderCreateDTO>> violations = validator.validate(dto);
+
+        Assert.assertFalse(violations.stream()
+                .anyMatch(item -> "customerName".equals(item.getPropertyPath().toString())));
     }
 }

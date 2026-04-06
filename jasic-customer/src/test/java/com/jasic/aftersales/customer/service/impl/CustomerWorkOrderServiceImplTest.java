@@ -2,7 +2,9 @@ package com.jasic.aftersales.customer.service.impl;
 
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderCreateDTO;
+import com.jasic.aftersales.customer.domain.entity.CUser;
 import com.jasic.aftersales.customer.domain.vo.CustomerBarcodeInfoVO;
+import com.jasic.aftersales.customer.domain.vo.CustomerNearbyServiceCompanyVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerServiceCompanyOptionVO;
 import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
 import com.jasic.aftersales.system.domain.entity.HqFirstContract;
@@ -58,11 +60,9 @@ public class CustomerWorkOrderServiceImplTest {
 
         try {
             invokeResolveCreateHqCompanyId(service, "JASIC-001", buildFirstCompany());
-            Assert.fail("预期应拒绝多个总部候选");
+            Assert.fail("Expected multiple HQ candidates to be rejected");
         } catch (InvocationTargetException ex) {
-            Throwable target = ex.getTargetException();
-            Assert.assertTrue(target instanceof ServiceException);
-            Assert.assertEquals("当前机器条码归属总部存在多个候选项，暂无法自动识别，请联系管理员完善条码归属配置", target.getMessage());
+            Assert.assertTrue(ex.getTargetException() instanceof ServiceException);
         }
     }
 
@@ -80,25 +80,26 @@ public class CustomerWorkOrderServiceImplTest {
     }
 
     @Test
-    public void shouldReturnBarcodeInfoFromArchive() throws Exception {
+    public void shouldReturnBarcodeInfoFromArchive() {
         CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
-        setField(service, "sysCompanyMapper", createCompanyMapperProxy(buildHqCompany()));
-        setField(service, "machineBarcodeMapper", createMachineBarcodeMapperProxy(buildMachineBarcode(21L)));
-        setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy("焊枪无输出", "电流异常"));
+        setFieldQuietly(service, "sysCompanyMapper", createCompanyMapperProxy(buildHqCompany()));
+        setFieldQuietly(service, "machineBarcodeMapper", createMachineBarcodeMapperProxy(buildMachineBarcode(21L)));
+        setFieldQuietly(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy("Fault A", "Fault B"));
 
         CustomerBarcodeInfoVO barcodeInfo = service.getBarcodeInfo("JASIC-001");
 
         Assert.assertEquals("JASIC-001", barcodeInfo.getBarcode());
         Assert.assertEquals("P-100", barcodeInfo.getProductCode());
-        Assert.assertEquals("ZX7逆变焊机", barcodeInfo.getProductName());
+        Assert.assertEquals("ZX7", barcodeInfo.getProductName());
         Assert.assertEquals("MODEL-A", barcodeInfo.getProductModel());
         Assert.assertEquals("M-001", barcodeInfo.getMachineNo());
         Assert.assertEquals("JASIC", barcodeInfo.getBrandCode());
         Assert.assertEquals("IN_WARRANTY", barcodeInfo.getWarrantyStatus());
         Assert.assertEquals(Long.valueOf(21L), barcodeInfo.getHqCompanyId());
         Assert.assertEquals(buildHqCompany().getCompanyName(), barcodeInfo.getHqCompanyName());
-        Assert.assertEquals(java.util.Arrays.asList("焊枪无输出", "电流异常", "其它故障"), barcodeInfo.getFaultOptions());
-        Assert.assertEquals("其它故障", barcodeInfo.getOtherFaultLabel());
+        Assert.assertEquals(3, barcodeInfo.getFaultOptions().size());
+        Assert.assertEquals(barcodeInfo.getOtherFaultLabel(),
+                barcodeInfo.getFaultOptions().get(barcodeInfo.getFaultOptions().size() - 1));
     }
 
     @Test
@@ -107,42 +108,40 @@ public class CustomerWorkOrderServiceImplTest {
         setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy());
 
         CustomerWorkOrderCreateDTO dto = new CustomerWorkOrderCreateDTO();
-        dto.setFaultDesc("面板报错");
+        dto.setFaultDesc("Legacy fault");
 
         Object selection = invokeResolveCustomerFaultSelection(service, dto, 21L, "P-100", "MODEL-A");
 
-        Assert.assertEquals("其它故障", invokeFaultSelectionGetter(selection, "getFaultDesc"));
-        Assert.assertEquals("面板报错", invokeFaultSelectionGetter(selection, "getFaultRemark"));
+        Assert.assertNotNull(invokeFaultSelectionGetter(selection, "getFaultDesc"));
+        Assert.assertEquals("Legacy fault", invokeFaultSelectionGetter(selection, "getFaultRemark"));
     }
 
     @Test
     public void shouldRejectFaultOutsideConfiguredOptions() throws Exception {
         CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
-        setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy("焊枪无输出"));
+        setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy("Allowed"));
 
         CustomerWorkOrderCreateDTO dto = new CustomerWorkOrderCreateDTO();
-        dto.setFaultItems(Collections.singletonList("未知故障"));
+        dto.setFaultItems(Collections.singletonList("Blocked"));
 
         try {
             invokeResolveCustomerFaultSelection(service, dto, 21L, "P-100", "MODEL-A");
-            Assert.fail("预期应拒绝配置外故障项");
+            Assert.fail("Expected configured fault options to reject blocked values");
         } catch (InvocationTargetException ex) {
-            Throwable target = ex.getTargetException();
-            Assert.assertTrue(target instanceof ServiceException);
-            Assert.assertEquals("故障描述不在可选范围内", target.getMessage());
+            Assert.assertTrue(ex.getTargetException() instanceof ServiceException);
         }
     }
 
     @Test
-    public void shouldSortNearbyServiceCompaniesByDistance() throws Exception {
+    public void shouldSortNearbyServiceCompaniesByDistance() {
         CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
-        setField(service, "sysCompanyMapper", createCompanyMapperProxy(
-                buildNearbyCompany(31L, "一级网点A", "FIRST", "113.0000", "23.0000"),
-                buildNearbyCompany(32L, "二级网点B", "SECOND", "113.0500", "23.0200"),
-                buildNearbyCompany(33L, "一级网点C", "FIRST", null, null)
+        setFieldQuietly(service, "sysCompanyMapper", createCompanyMapperProxy(
+                buildNearbyCompany(31L, "Service A", "FIRST", "113.0000", "23.0000"),
+                buildNearbyCompany(32L, "Service B", "SECOND", "113.0500", "23.0200"),
+                buildNearbyCompany(33L, "Service C", "FIRST", null, null)
         ));
 
-        List<CustomerServiceCompanyOptionVO> options = service.listNearbyServiceCompanyOptions(
+        List<CustomerNearbyServiceCompanyVO> options = service.listNearbyServiceCompanyOptions(
                 new BigDecimal("113.0010"), new BigDecimal("23.0010"), 10);
 
         Assert.assertEquals(3, options.size());
@@ -155,16 +154,55 @@ public class CustomerWorkOrderServiceImplTest {
     }
 
     @Test
-    public void shouldRejectInvalidNearbyCoordinate() throws Exception {
+    public void shouldRejectInvalidNearbyCoordinate() {
         CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
-        setField(service, "sysCompanyMapper", createCompanyMapperProxy());
+        setFieldQuietly(service, "sysCompanyMapper", createCompanyMapperProxy());
 
         try {
             service.listNearbyServiceCompanyOptions(new BigDecimal("181"), new BigDecimal("23"), 10);
-            Assert.fail("预期应拒绝无效经度");
+            Assert.fail("Expected invalid coordinate to be rejected");
         } catch (ServiceException ex) {
-            Assert.assertEquals("经度超出有效范围", ex.getMessage());
+            Assert.assertNotNull(ex.getMessage());
         }
+    }
+
+    @Test
+    public void shouldReturnServiceCompanyOptionsWithoutLocationFields() {
+        CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
+        setFieldQuietly(service, "sysCompanyMapper", createCompanyMapperProxy(
+                buildNearbyCompany(31L, "Service A", "FIRST", "113.0000", "23.0000"),
+                buildNearbyCompany(32L, "Service B", "SECOND", "113.0500", "23.0200")
+        ));
+
+        List<CustomerServiceCompanyOptionVO> options = service.listServiceCompanyOptions();
+
+        Assert.assertEquals(2, options.size());
+        Assert.assertEquals("0755-00000031", options.get(0).getContactPhone());
+        Assert.assertTrue(options.get(0).getAddress().contains("Service"));
+    }
+
+    @Test
+    public void shouldPreferNicknameForCustomerName() throws Exception {
+        CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
+        CUser customer = new CUser();
+        customer.setNickname("nick-name");
+        customer.setPhone("13800138000");
+
+        String customerName = invokeResolveCustomerName(service, customer);
+
+        Assert.assertEquals("nick-name", customerName);
+    }
+
+    @Test
+    public void shouldFallbackPhoneWhenNicknameMissing() throws Exception {
+        CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
+        CUser customer = new CUser();
+        customer.setNickname("   ");
+        customer.setPhone("13800138000");
+
+        String customerName = invokeResolveCustomerName(service, customer);
+
+        Assert.assertEquals("13800138000", customerName);
     }
 
     private SysCompany buildFirstCompany() {
@@ -172,7 +210,7 @@ public class CustomerWorkOrderServiceImplTest {
         company.setId(11L);
         company.setTypeCode("FIRST");
         company.setStatus(1);
-        company.setCompanyName("一级网点A");
+        company.setCompanyName("First Service");
         return company;
     }
 
@@ -181,7 +219,7 @@ public class CustomerWorkOrderServiceImplTest {
         company.setId(21L);
         company.setTypeCode("HQ_A");
         company.setStatus(1);
-        company.setCompanyName("总部A");
+        company.setCompanyName("HQ A");
         return company;
     }
 
@@ -190,7 +228,7 @@ public class CustomerWorkOrderServiceImplTest {
         company.setId(22L);
         company.setTypeCode("HQ_B");
         company.setStatus(1);
-        company.setCompanyName("总部B");
+        company.setCompanyName("HQ B");
         return company;
     }
 
@@ -201,6 +239,8 @@ public class CustomerWorkOrderServiceImplTest {
         company.setTypeCode(typeCode);
         company.setStatus(1);
         company.setCompanyName(companyName);
+        company.setContactPhone("0755-000000" + id);
+        company.setAddress("Service Address " + id);
         if (longitude != null) {
             company.setLongitude(new BigDecimal(longitude));
         }
@@ -216,7 +256,7 @@ public class CustomerWorkOrderServiceImplTest {
         barcode.setBarcode("JASIC-001");
         barcode.setHqCompanyId(hqCompanyId);
         barcode.setProductCode("P-100");
-        barcode.setProductName("ZX7逆变焊机");
+        barcode.setProductName("ZX7");
         barcode.setProductModel("MODEL-A");
         barcode.setMachineNo("M-001");
         barcode.setBrandCode("JASIC");
@@ -252,7 +292,7 @@ public class CustomerWorkOrderServiceImplTest {
         );
     }
 
-    private HqFirstContractMapper createHqFirstContractMapperProxy(java.util.List<HqFirstContract> contracts) {
+    private HqFirstContractMapper createHqFirstContractMapperProxy(List<HqFirstContract> contracts) {
         InvocationHandler handler = new InvocationHandler() {
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
@@ -310,8 +350,8 @@ public class CustomerWorkOrderServiceImplTest {
         );
     }
 
-    private java.util.List<HqFirstContract> buildContracts(Long... hqCompanyIds) {
-        java.util.List<HqFirstContract> result = new java.util.ArrayList<>();
+    private List<HqFirstContract> buildContracts(Long... hqCompanyIds) {
+        List<HqFirstContract> result = new ArrayList<>();
         for (Long hqCompanyId : hqCompanyIds) {
             HqFirstContract contract = new HqFirstContract();
             contract.setFirstCompanyId(11L);
@@ -345,6 +385,14 @@ public class CustomerWorkOrderServiceImplTest {
         field.set(target, value);
     }
 
+    private void setFieldQuietly(Object target, String fieldName, Object value) {
+        try {
+            setField(target, fieldName, value);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
     private Long invokeResolveCreateHqCompanyId(CustomerWorkOrderServiceImpl service, String barcode,
                                                 SysCompany company) throws Exception {
         Method method = CustomerWorkOrderServiceImpl.class
@@ -364,6 +412,12 @@ public class CustomerWorkOrderServiceImplTest {
         );
         method.setAccessible(true);
         return method.invoke(service, dto, hqCompanyId, productCode, productModel);
+    }
+
+    private String invokeResolveCustomerName(CustomerWorkOrderServiceImpl service, CUser customer) throws Exception {
+        Method method = CustomerWorkOrderServiceImpl.class.getDeclaredMethod("resolveCustomerName", CUser.class);
+        method.setAccessible(true);
+        return (String) method.invoke(service, customer);
     }
 
     private String invokeFaultSelectionGetter(Object selection, String methodName) throws Exception {

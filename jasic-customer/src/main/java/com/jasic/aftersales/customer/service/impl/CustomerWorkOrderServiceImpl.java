@@ -14,6 +14,7 @@ import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderSendInfoDTO;
 import com.jasic.aftersales.customer.domain.entity.CUser;
 import com.jasic.aftersales.customer.domain.query.CustomerWorkOrderQuery;
 import com.jasic.aftersales.customer.domain.vo.CustomerBarcodeInfoVO;
+import com.jasic.aftersales.customer.domain.vo.CustomerNearbyServiceCompanyVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerServiceCompanyOptionVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderDetailVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderListVO;
@@ -33,7 +34,6 @@ import com.jasic.aftersales.system.domain.entity.WorkOrderFlow;
 import com.jasic.aftersales.system.domain.entity.WorkOrderQuote;
 import com.jasic.aftersales.system.domain.entity.WorkOrderRepair;
 import com.jasic.aftersales.system.domain.entity.WorkOrderReview;
-import com.jasic.aftersales.system.domain.vo.SysCompanySimpleVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderEvaluationVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderFaultVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderQuoteVO;
@@ -163,7 +163,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         WorkOrder workOrder = new WorkOrder();
         workOrder.setOrderNo(generateOrderNo());
         workOrder.setCustomerId(customerId);
-        workOrder.setCustomerName(normalizeRequiredText(dto.getCustomerName(), "报修人姓名不能为空"));
+        workOrder.setCustomerName(resolveCustomerName(customer));
         workOrder.setCustomerMobile(normalizeRequiredText(customer.getPhone(), "当前客户手机号不能为空"));
         workOrder.setBarcode(barcode);
         workOrder.setProductCode(productCode);
@@ -204,7 +204,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      * @return 服务网点选项
      */
     @Override
-    public List<SysCompanySimpleVO> listServiceCompanyOptions() {
+    public List<CustomerServiceCompanyOptionVO> listServiceCompanyOptions() {
         Set<String> typeCodes = new LinkedHashSet<>();
         typeCodes.addAll(CompanyCategoryEnum.getFirstLevelTypeCodes());
         typeCodes.addAll(CompanyCategoryEnum.getSecondLevelTypeCodes());
@@ -220,7 +220,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         if (companies.isEmpty()) {
             return Collections.emptyList();
         }
-        List<SysCompanySimpleVO> result = new ArrayList<>(companies.size());
+        List<CustomerServiceCompanyOptionVO> result = new ArrayList<>(companies.size());
         for (SysCompany company : companies) {
             result.add(buildServiceCompanyOption(company));
         }
@@ -236,7 +236,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      * @return 服务网点选项
      */
     @Override
-    public List<CustomerServiceCompanyOptionVO> listNearbyServiceCompanyOptions(BigDecimal longitude, BigDecimal latitude,
+    public List<CustomerNearbyServiceCompanyVO> listNearbyServiceCompanyOptions(BigDecimal longitude, BigDecimal latitude,
                                                                                 Integer limit) {
         validateCoordinate(longitude, latitude);
         int normalizedLimit = normalizeNearbyLimit(limit);
@@ -244,7 +244,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         if (companies.isEmpty()) {
             return Collections.emptyList();
         }
-        List<CustomerServiceCompanyOptionVO> options = companies.stream()
+        List<CustomerNearbyServiceCompanyVO> options = companies.stream()
                 .map(company -> buildNearbyServiceCompanyOption(company, longitude, latitude))
                 .sorted((left, right) -> compareDistance(left.getDistanceKm(), right.getDistanceKm(),
                         left.getCompanyName(), right.getCompanyName(), left.getId(), right.getId()))
@@ -748,9 +748,9 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return map;
     }
 
-    private CustomerServiceCompanyOptionVO buildNearbyServiceCompanyOption(SysCompany company, BigDecimal longitude,
+    private CustomerNearbyServiceCompanyVO buildNearbyServiceCompanyOption(SysCompany company, BigDecimal longitude,
                                                                            BigDecimal latitude) {
-        CustomerServiceCompanyOptionVO vo = new CustomerServiceCompanyOptionVO();
+        CustomerNearbyServiceCompanyVO vo = new CustomerNearbyServiceCompanyVO();
         vo.setId(company.getId());
         vo.setCompanyName(company.getCompanyName());
         vo.setCompanyCode(company.getCompanyCode());
@@ -764,13 +764,15 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return vo;
     }
 
-    private SysCompanySimpleVO buildServiceCompanyOption(SysCompany company) {
-        SysCompanySimpleVO vo = new SysCompanySimpleVO();
+    private CustomerServiceCompanyOptionVO buildServiceCompanyOption(SysCompany company) {
+        CustomerServiceCompanyOptionVO vo = new CustomerServiceCompanyOptionVO();
         vo.setId(company.getId());
         vo.setCompanyName(company.getCompanyName());
         vo.setCompanyCode(company.getCompanyCode());
         vo.setTypeCode(company.getTypeCode());
         vo.setTypeName(resolveServiceCompanyTypeName(company.getTypeCode()));
+        vo.setContactPhone(company.getContactPhone());
+        vo.setAddress(company.getAddress());
         return vo;
     }
 
@@ -787,6 +789,17 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     private String resolveArchiveText(String archiveValue, String requestValue) {
         String normalizedArchiveValue = normalizeText(archiveValue);
         return normalizedArchiveValue != null ? normalizedArchiveValue : normalizeText(requestValue);
+    }
+
+    private String resolveCustomerName(CUser customer) {
+        if (customer == null) {
+            throw new ServiceException("当前客户不存在");
+        }
+        String nickname = normalizeText(customer.getNickname());
+        if (nickname != null) {
+            return nickname;
+        }
+        return normalizeRequiredText(customer.getPhone(), "当前客户手机号不能为空");
     }
 
     private CustomerFaultSelection resolveCustomerFaultSelection(CustomerWorkOrderCreateDTO dto, Long hqCompanyId,

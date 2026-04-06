@@ -18,8 +18,7 @@ public class CustomerWorkOrderCreateDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** 报修人姓名 */
-    @NotBlank(message = "报修人姓名不能为空")
+    /** 报修人姓名（兼容旧参数，正式口径由服务端按当前登录客户派生） */
     private String customerName;
 
     /** 机器条码，当前 MVP 仅支持有条码报修 */

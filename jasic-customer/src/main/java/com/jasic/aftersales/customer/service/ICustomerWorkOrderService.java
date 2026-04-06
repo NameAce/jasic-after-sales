@@ -6,11 +6,11 @@ import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderEvaluateDTO;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderSendInfoDTO;
 import com.jasic.aftersales.customer.domain.query.CustomerWorkOrderQuery;
 import com.jasic.aftersales.customer.domain.vo.CustomerBarcodeInfoVO;
+import com.jasic.aftersales.customer.domain.vo.CustomerNearbyServiceCompanyVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerServiceCompanyOptionVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderDetailVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderListVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderStatusCountVO;
-import com.jasic.aftersales.system.domain.vo.SysCompanySimpleVO;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -36,7 +36,7 @@ public interface ICustomerWorkOrderService {
      *
      * @return 服务网点选项
      */
-    List<SysCompanySimpleVO> listServiceCompanyOptions();
+    List<CustomerServiceCompanyOptionVO> listServiceCompanyOptions();
 
     /**
      * 按定位查询附近服务网点
@@ -46,7 +46,7 @@ public interface ICustomerWorkOrderService {
      * @param limit     返回条数
      * @return 服务网点选项
      */
-    List<CustomerServiceCompanyOptionVO> listNearbyServiceCompanyOptions(BigDecimal longitude, BigDecimal latitude,
+    List<CustomerNearbyServiceCompanyVO> listNearbyServiceCompanyOptions(BigDecimal longitude, BigDecimal latitude,
                                                                          Integer limit);
 
     /**
