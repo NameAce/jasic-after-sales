@@ -70,6 +70,8 @@ public class WorkOrderStatusConstantsTest {
         Assert.assertEquals(WorkOrderStatusConstants.MainStatus.COMPLETED, WorkOrderStatusFlow.afterReview(false));
         Assert.assertEquals(WorkOrderStatusConstants.MainStatus.CLOSED, WorkOrderStatusFlow.afterClose());
         Assert.assertEquals(WorkOrderStatusConstants.EvaluateStatus.PENDING_EVALUATE, WorkOrderStatusFlow.afterCloseEvaluateStatus());
+        Assert.assertEquals(WorkOrderStatusConstants.EvaluateStatus.PENDING_EVALUATE, WorkOrderStatusFlow.afterCloseEvaluateStatus(true));
+        Assert.assertEquals(WorkOrderStatusConstants.EvaluateStatus.NOT_OPEN, WorkOrderStatusFlow.afterCloseEvaluateStatus(false));
         Assert.assertEquals(WorkOrderStatusConstants.EvaluateStatus.EVALUATED, WorkOrderStatusFlow.afterEvaluate());
     }
 }

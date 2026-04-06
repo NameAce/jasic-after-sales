@@ -19,11 +19,23 @@ public class CustomerWorkOrderEvaluateDTO {
     @NotNull(message = "工单ID不能为空")
     private Long workOrderId;
 
-    /** 评分 */
-    @NotNull(message = "评分不能为空")
-    @Min(value = 1, message = "评分最小为1分")
-    @Max(value = 5, message = "评分最大为5分")
-    private Integer score;
+    /** 服务时效评分 */
+    @NotNull(message = "服务时效评分不能为空")
+    @Min(value = 1, message = "服务时效评分最小为1分")
+    @Max(value = 5, message = "服务时效评分最大为5分")
+    private Integer timelinessScore;
+
+    /** 维修质量评分 */
+    @NotNull(message = "维修质量评分不能为空")
+    @Min(value = 1, message = "维修质量评分最小为1分")
+    @Max(value = 5, message = "维修质量评分最大为5分")
+    private Integer qualityScore;
+
+    /** 服务满意度评分 */
+    @NotNull(message = "服务满意度评分不能为空")
+    @Min(value = 1, message = "服务满意度评分最小为1分")
+    @Max(value = 5, message = "服务满意度评分最大为5分")
+    private Integer satisfactionScore;
 
     /** 标签 */
     private String tags;

@@ -14,7 +14,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -35,13 +34,14 @@ public class WorkOrderNotifyEventServiceTest {
         setField(service, "workOrderNotifyEventMapper", createEventMapperProxy(store));
         setField(service, "sysUserCompanyMapper", createUserCompanyMapperProxy(Collections.emptyList()));
 
-        service.recordCustomerEvaluated(buildWorkOrder(), 5, "服务很好");
+        service.recordCustomerEvaluated(buildWorkOrder(), 5, 4, 5, "服务很好");
 
         Assert.assertEquals(1, store.events.size());
         WorkOrderNotifyEvent event = store.events.values().iterator().next();
         Assert.assertEquals("COMPANY", event.getReceiverType());
         Assert.assertEquals("FAILED", event.getSendStatus());
         Assert.assertEquals("当前公司无可用接收人", event.getFailReason());
+        Assert.assertTrue(event.getContentSnapshot().contains("时效5/质量4/满意5"));
     }
 
     @Test

@@ -523,17 +523,18 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                 workOrder.getCurrentAcceptCompanyId(), returnMethod);
         String beforeStatus = workOrder.getMainStatus();
+        boolean canEvaluate = !isNoFaultWorkOrder(workOrder.getId());
         workOrder.setReturnMethod(returnMethod);
         workOrder.setReturnExpressNo(resolveReturnExpressNo(dto));
         workOrder.setCloseReason(closeReason);
         workOrder.setMainStatus(WorkOrderStatusFlow.afterClose());
-        workOrder.setEvaluateStatus(WorkOrderStatusFlow.afterCloseEvaluateStatus());
+        workOrder.setEvaluateStatus(WorkOrderStatusFlow.afterCloseEvaluateStatus(canEvaluate));
         workOrder.setClosedTime(LocalDateTime.now());
         workOrderMapper.updateById(workOrder);
         saveFlow(workOrder.getId(), "CLOSE", beforeStatus, workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCloseReason());
-        if (!isNoFaultWorkOrder(workOrder.getId())) {
+        if (canEvaluate) {
             workOrderNotifyEventService.recordEvaluationInvite(workOrder);
         }
     }
@@ -871,7 +872,9 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         vo.setId(evaluation.getId());
         vo.setCustomerId(evaluation.getCustomerId());
         vo.setCompanyId(evaluation.getCompanyId());
-        vo.setScore(evaluation.getScore());
+        vo.setTimelinessScore(evaluation.getTimelinessScore());
+        vo.setQualityScore(evaluation.getQualityScore());
+        vo.setSatisfactionScore(evaluation.getSatisfactionScore());
         vo.setTags(evaluation.getTags());
         vo.setContent(evaluation.getContent());
         vo.setCreateTime(evaluation.getCreateTime());

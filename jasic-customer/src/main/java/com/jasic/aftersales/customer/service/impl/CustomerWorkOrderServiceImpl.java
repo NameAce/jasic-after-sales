@@ -88,6 +88,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     private static final BigDecimal MAX_LONGITUDE = BigDecimal.valueOf(180);
     private static final BigDecimal MIN_LATITUDE = BigDecimal.valueOf(-90);
     private static final BigDecimal MAX_LATITUDE = BigDecimal.valueOf(90);
+    private static final String FAULT_JUDGE_NO_FAULT = "无故障";
     private static final double EARTH_RADIUS_KM = 6371.0088D;
     private static final String OTHER_FAULT_LABEL = "其它故障";
     private static final String FAULT_DESC_SEPARATOR = "；";
@@ -424,6 +425,9 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         if (!WorkOrderStatusConstants.EvaluateStatus.PENDING_EVALUATE.equals(workOrder.getEvaluateStatus())) {
             throw new ServiceException("当前工单不可重复评价");
         }
+        if (!hasFaultForEvaluation(workOrder.getId())) {
+            throw new ServiceException("当前工单无故障，不能评价");
+        }
         LambdaQueryWrapper<WorkOrderEvaluation> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrderEvaluation::getWorkOrderId, workOrder.getId());
         if (workOrderEvaluationMapper.selectCount(wrapper) > 0) {
@@ -434,7 +438,9 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         evaluation.setWorkOrderId(workOrder.getId());
         evaluation.setCustomerId(customerId);
         evaluation.setCompanyId(workOrder.getCurrentAcceptCompanyId());
-        evaluation.setScore(dto.getScore());
+        evaluation.setTimelinessScore(dto.getTimelinessScore());
+        evaluation.setQualityScore(dto.getQualityScore());
+        evaluation.setSatisfactionScore(dto.getSatisfactionScore());
         evaluation.setTags(dto.getTags());
         evaluation.setContent(dto.getContent());
         workOrderEvaluationMapper.insert(evaluation);
@@ -454,7 +460,8 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         flow.setRemark(dto.getContent());
         workOrderFlowMapper.insert(flow);
 
-        workOrderNotifyEventService.recordCustomerEvaluated(workOrder, dto.getScore(), dto.getContent());
+        workOrderNotifyEventService.recordCustomerEvaluated(workOrder,
+                dto.getTimelinessScore(), dto.getQualityScore(), dto.getSatisfactionScore(), dto.getContent());
     }
 
     private Long requireCustomerId() {
@@ -721,7 +728,8 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     private boolean canEvaluate(WorkOrder workOrder) {
         return workOrder != null
                 && WorkOrderStatusConstants.MainStatus.CLOSED.equals(workOrder.getMainStatus())
-                && WorkOrderStatusConstants.EvaluateStatus.PENDING_EVALUATE.equals(workOrder.getEvaluateStatus());
+                && WorkOrderStatusConstants.EvaluateStatus.PENDING_EVALUATE.equals(workOrder.getEvaluateStatus())
+                && hasFaultForEvaluation(workOrder.getId());
     }
 
     private boolean canEditSendInfo(WorkOrder workOrder) {
@@ -1114,11 +1122,28 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         vo.setId(evaluation.getId());
         vo.setCustomerId(evaluation.getCustomerId());
         vo.setCompanyId(evaluation.getCompanyId());
-        vo.setScore(evaluation.getScore());
+        vo.setTimelinessScore(evaluation.getTimelinessScore());
+        vo.setQualityScore(evaluation.getQualityScore());
+        vo.setSatisfactionScore(evaluation.getSatisfactionScore());
         vo.setTags(evaluation.getTags());
         vo.setContent(evaluation.getContent());
         vo.setCreateTime(evaluation.getCreateTime());
         return vo;
+    }
+
+    private boolean hasFaultForEvaluation(Long workOrderId) {
+        if (workOrderId == null) {
+            return false;
+        }
+        LambdaQueryWrapper<WorkOrderQuote> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(WorkOrderQuote::getWorkOrderId, workOrderId)
+                .eq(WorkOrderQuote::getIsCurrentValid, 1)
+                .orderByDesc(WorkOrderQuote::getCreateTime);
+        List<WorkOrderQuote> quotes = workOrderQuoteMapper.selectList(wrapper);
+        if (quotes == null || quotes.isEmpty()) {
+            return false;
+        }
+        return !FAULT_JUDGE_NO_FAULT.equals(normalizeText(quotes.get(0).getFaultJudge()));
     }
 
     private String generateOrderNo() {

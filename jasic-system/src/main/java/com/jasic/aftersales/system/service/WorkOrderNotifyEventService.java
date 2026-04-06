@@ -120,8 +120,10 @@ public class WorkOrderNotifyEventService {
      * @param score     评分
      * @param content   评价内容
      */
-    public void recordCustomerEvaluated(WorkOrder workOrder, Integer score, String content) {
-        String snapshotContent = buildContent("客户已完成评价，评分：" + score, workOrder, content);
+    public void recordCustomerEvaluated(WorkOrder workOrder, Integer timelinessScore, Integer qualityScore,
+                                        Integer satisfactionScore, String content) {
+        String snapshotContent = buildContent(
+                formatEvaluationSummary(timelinessScore, qualityScore, satisfactionScore), workOrder, content);
         List<SysUser> receivers = listCurrentOwnerManagers(workOrder.getCurrentAcceptCompanyId());
         if (receivers.isEmpty()) {
             WorkOrderNotifyEvent event = buildPendingEvent(workOrder, workOrder.getCurrentAcceptCompanyId(),
@@ -334,6 +336,15 @@ public class WorkOrderNotifyEventService {
             return false;
         }
         return CURRENT_OWNER_MANAGER_PERMS.stream().anyMatch(perms::contains);
+    }
+
+    private String formatEvaluationSummary(Integer timelinessScore, Integer qualityScore, Integer satisfactionScore) {
+        return String.format("客户已完成评价：时效%s/质量%s/满意%s",
+                safeScoreText(timelinessScore), safeScoreText(qualityScore), safeScoreText(satisfactionScore));
+    }
+
+    private String safeScoreText(Integer score) {
+        return score == null ? "-" : score.toString();
     }
 
     private String buildContent(String prefix, WorkOrder workOrder, String detail) {

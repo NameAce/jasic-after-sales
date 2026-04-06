@@ -307,7 +307,9 @@
 
           <div v-if="detail.evaluation" class="section-title">客户评价</div>
           <el-descriptions v-if="detail.evaluation" :column="2" border size="small">
-            <el-descriptions-item label="评分">{{ textValue(detail.evaluation.score) }}</el-descriptions-item>
+            <el-descriptions-item label="服务时效">{{ textValue(detail.evaluation.timelinessScore) }}</el-descriptions-item>
+            <el-descriptions-item label="维修质量">{{ textValue(detail.evaluation.qualityScore) }}</el-descriptions-item>
+            <el-descriptions-item label="服务满意度">{{ textValue(detail.evaluation.satisfactionScore) }}</el-descriptions-item>
             <el-descriptions-item label="评价时间">{{ textValue(detail.evaluation.createTime) }}</el-descriptions-item>
             <el-descriptions-item label="标签" :span="2">{{ textValue(detail.evaluation.tags) }}</el-descriptions-item>
             <el-descriptions-item label="评价内容" :span="2">{{ textValue(detail.evaluation.content) }}</el-descriptions-item>

@@ -27,7 +27,14 @@ public class WorkOrderEvaluationVO implements Serializable {
     private Long companyId;
 
     /** 评分 */
-    private Integer score;
+    /** 服务时效评分 */
+    private Integer timelinessScore;
+
+    /** 维修质量评分 */
+    private Integer qualityScore;
+
+    /** 服务满意度评分 */
+    private Integer satisfactionScore;
 
     /** 标签集合 */
     private String tags;

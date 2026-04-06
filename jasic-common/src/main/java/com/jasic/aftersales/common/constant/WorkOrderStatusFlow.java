@@ -95,6 +95,12 @@ public class WorkOrderStatusFlow {
         return WorkOrderStatusConstants.EvaluateStatus.PENDING_EVALUATE;
     }
 
+    public static String afterCloseEvaluateStatus(boolean canEvaluate) {
+        return canEvaluate
+                ? WorkOrderStatusConstants.EvaluateStatus.PENDING_EVALUATE
+                : WorkOrderStatusConstants.EvaluateStatus.NOT_OPEN;
+    }
+
     /**
      * 评价后的评价状态。
      *
