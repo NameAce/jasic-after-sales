@@ -1,5 +1,6 @@
 package com.jasic.aftersales.customer.service;
 
+import com.jasic.aftersales.customer.domain.dto.CustomerProfileUpdateDTO;
 import com.jasic.aftersales.customer.domain.entity.CUser;
 
 /**
@@ -35,4 +36,19 @@ public interface ICUserService {
      * @return 客户信息
      */
     CUser loginOrRegister(String openid, String unionid, String phone);
+
+    /**
+     * 获取当前登录客户
+     *
+     * @return 客户信息
+     */
+    CUser getCurrentUser();
+
+    /**
+     * 修改当前客户资料
+     *
+     * @param dto 资料参数
+     * @return 客户信息
+     */
+    CUser updateProfile(CustomerProfileUpdateDTO dto);
 }

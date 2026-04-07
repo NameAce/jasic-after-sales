@@ -146,7 +146,7 @@ CREATE TABLE `c_user` (
   `update_time`     datetime         NOT NULL                COMMENT '更新时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_openid` (`openid`),
-  KEY `idx_phone` (`phone`)
+  UNIQUE KEY `uk_phone` (`phone`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='C端客户表';
 
 -- -------------------------------------------

@@ -12,7 +12,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -52,6 +51,22 @@ public class CUserServiceImplTest {
         }
     }
 
+    @Test
+    public void shouldRejectDuplicatePhoneBinding() throws Exception {
+        CUserServiceImpl service = new CUserServiceImpl();
+        List<CUser> store = new ArrayList<>();
+        store.add(buildUser(1L, "old-openid-1", null, "13800138000", 1));
+        store.add(buildUser(2L, "old-openid-2", null, "13800138000", 1));
+        setField(service, "cUserMapper", createUserMapperProxy(store));
+
+        try {
+            service.loginOrRegister("real-openid", "union-1", "13800138000");
+            Assert.fail("预期应拒绝重复手机号自动绑定");
+        } catch (ServiceException ex) {
+            Assert.assertEquals("客户手机号存在重复数据，请联系管理员处理", ex.getMessage());
+        }
+    }
+
     private CUser buildUser(Long id, String openid, String unionid, String phone, Integer status) {
         CUser user = new CUser();
         user.setId(id);
@@ -79,6 +94,15 @@ public class CUserServiceImplTest {
                 }
                 if ("selectList".equals(method.getName())) {
                     return new ArrayList<>(store);
+                }
+                if ("selectById".equals(method.getName())) {
+                    Long id = (Long) args[0];
+                    for (CUser user : store) {
+                        if (user.getId().equals(id)) {
+                            return user;
+                        }
+                    }
+                    return null;
                 }
                 if ("updateById".equals(method.getName())) {
                     CUser updating = (CUser) args[0];
