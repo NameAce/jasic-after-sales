@@ -18,6 +18,9 @@
         <el-form-item label="物料编码" prop="productCode">
           <el-input v-model="queryParams.productCode" placeholder="请输入物料编码" clearable />
         </el-form-item>
+        <el-form-item label="机器小号" prop="productTrumpet">
+          <el-input v-model="queryParams.productTrumpet" placeholder="请输入机器小号" clearable />
+        </el-form-item>
         <el-form-item label="产品型号" prop="productModel">
           <el-input v-model="queryParams.productModel" placeholder="请输入产品型号" clearable />
         </el-form-item>
@@ -53,18 +56,34 @@
         >
           JSON导入
         </el-button>
+        <el-button
+          type="warning"
+          icon="el-icon-refresh"
+          size="small"
+          :loading="syncLoading"
+          v-hasPerms="['system:machineBarcode:import']"
+          @click="handleFullSync"
+        >
+          手动全量同步
+        </el-button>
       </div>
 
       <el-table v-loading="loading" :data="tableData" border stripe>
         <el-table-column label="ID" prop="id" width="80" />
         <el-table-column label="条码" prop="barcode" min-width="180" />
         <el-table-column label="归属总部" prop="hqCompanyName" min-width="180" />
+        <el-table-column label="CRM公司ID" prop="custId" min-width="120" />
+        <el-table-column label="销售组织" prop="salesOrg" min-width="120" />
         <el-table-column label="物料编码" prop="productCode" min-width="120" />
         <el-table-column label="商品名称" prop="productName" min-width="160" show-overflow-tooltip />
         <el-table-column label="产品型号" prop="productModel" min-width="140" />
-        <el-table-column label="机器小号" prop="machineNo" min-width="140" show-overflow-tooltip />
+        <el-table-column label="机器小号" prop="productTrumpet" min-width="140" show-overflow-tooltip />
         <el-table-column label="品牌编码" prop="brandCode" width="110" />
         <el-table-column label="质保状态" prop="warrantyStatus" width="120" />
+        <el-table-column label="厂家出库日期" prop="scanDate" width="160" />
+        <el-table-column label="经销商出库日期" prop="dealerOutDate" width="160" />
+        <el-table-column label="CRM创建时间" prop="crmAddTime" width="160" />
+        <el-table-column label="最近同步时间" prop="lastSyncTime" width="160" />
         <el-table-column label="状态" prop="status" width="90" align="center">
           <template slot-scope="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'info'" size="mini">
@@ -132,8 +151,8 @@
         <el-form-item label="产品型号" prop="productModel">
           <el-input v-model="form.productModel" placeholder="请输入产品型号" />
         </el-form-item>
-        <el-form-item label="机器小号" prop="machineNo">
-          <el-input v-model="form.machineNo" placeholder="请输入机器小号" />
+        <el-form-item label="机器小号" prop="productTrumpet">
+          <el-input v-model="form.productTrumpet" placeholder="请输入机器小号" />
         </el-form-item>
         <el-form-item label="品牌编码" prop="brandCode">
           <el-input v-model="form.brandCode" placeholder="请输入品牌编码" />
@@ -185,7 +204,8 @@ import {
   addMachineBarcode,
   updateMachineBarcode,
   deleteMachineBarcode,
-  importMachineBarcode
+  importMachineBarcode,
+  fullSyncMachineBarcode
 } from '@/api/system'
 
 export default {
@@ -202,12 +222,14 @@ export default {
         barcode: '',
         hqCompanyId: undefined,
         productCode: '',
+        productTrumpet: '',
         productModel: '',
         status: undefined
       },
       dialogVisible: false,
       dialogTitle: '',
       submitLoading: false,
+      syncLoading: false,
       form: {},
       importDialogVisible: false,
       importText: '',
@@ -250,6 +272,7 @@ export default {
         barcode: '',
         hqCompanyId: undefined,
         productCode: '',
+        productTrumpet: '',
         productModel: '',
         status: undefined
       }
@@ -263,7 +286,7 @@ export default {
         productCode: '',
         productName: '',
         productModel: '',
-        machineNo: '',
+        productTrumpet: '',
         brandCode: '',
         warrantyStatus: '',
         status: 1,
@@ -307,6 +330,19 @@ export default {
       this.importText = ''
       this.importDialogVisible = true
     },
+    handleFullSync() {
+      this.$confirm('确认执行 CRM 条码全量同步吗？同步过程可能持续较长时间。', '提示', { type: 'warning' }).then(() => {
+        this.syncLoading = true
+        fullSyncMachineBarcode().then(res => {
+          if (!res) return
+          const data = res.data || {}
+          this.$message.success(
+            `同步完成：主条码 ${data.barcodeProcessedCount || 0} 条，经销商出库 ${data.dealerProcessedCount || 0} 条，回写 ${data.dealerUpdatedCount || 0} 条`
+          )
+          this.getList()
+        }).finally(() => { this.syncLoading = false })
+      }).catch(() => {})
+    },
     fillImportExample() {
       const exampleCompanyId = this.hqOptions.length > 0 ? this.hqOptions[0].id : 1
       this.importText = JSON.stringify([
@@ -316,7 +352,7 @@ export default {
           productCode: 'P-100',
           productName: 'ZX7逆变焊机',
           productModel: 'MODEL-A',
-          machineNo: 'M-001',
+          productTrumpet: 'M-001',
           brandCode: 'JASIC',
           warrantyStatus: 'IN_WARRANTY',
           status: 1,

@@ -22,8 +22,17 @@ public class MachineBarcodeQuery extends PageQuery {
     /** 归属总部ID */
     private Long hqCompanyId;
 
+    /** CRM 公司ID */
+    private String custId;
+
+    /** 销售组织 */
+    private String salesOrg;
+
     /** 物料编码 */
     private String productCode;
+
+    /** 机器小号 */
+    private String productTrumpet;
 
     /** 产品型号 */
     private String productModel;

@@ -81,6 +81,7 @@ import com.jasic.aftersales.system.service.IWorkOrderService;
 import com.jasic.aftersales.system.service.WorkOrderNotifyEventService;
 import com.jasic.aftersales.system.service.WorkOrderParticipantService;
 import com.jasic.aftersales.system.service.WorkOrderPermissionService;
+import com.jasic.aftersales.system.service.support.MachineBarcodeWarrantyResolver;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -1078,7 +1079,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         entity.setMachineNo(normalizeNullableText(barcodeArchive.getMachineNo()));
         entity.setBrandCode(normalizeNullableText(barcodeArchive.getBrandCode()));
         entity.setServiceMode(normalizedServiceMode);
-        entity.setWarrantyStatus(normalizeNullableText(barcodeArchive.getWarrantyStatus()));
+        entity.setWarrantyStatus(resolveBarcodeWarrantyStatus(barcodeArchive, null));
         entity.setFaultDesc(faultSelection.getFaultDesc());
         entity.setFaultRemark(faultSelection.getFaultRemark());
         entity.setSenderName(resolveSendField(normalizedServiceMode, senderName));
@@ -1332,7 +1333,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         vo.setProductModel(normalizeNullableText(barcodeArchive.getProductModel()));
         vo.setMachineNo(normalizeNullableText(barcodeArchive.getMachineNo()));
         vo.setBrandCode(normalizeNullableText(barcodeArchive.getBrandCode()));
-        vo.setWarrantyStatus(normalizeNullableText(barcodeArchive.getWarrantyStatus()));
+        vo.setWarrantyStatus(resolveBarcodeWarrantyStatus(barcodeArchive, null));
         if (hqCompanyId != null) {
             SysCompany hqCompany = requireActiveHqCompany(hqCompanyId);
             vo.setHqCompanyId(hqCompany.getId());
@@ -1360,6 +1361,16 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                 .eq(MachineBarcode::getStatus, 1)
                 .last("LIMIT 1");
         return machineBarcodeMapper.selectOne(wrapper);
+    }
+
+    private String resolveBarcodeWarrantyStatus(MachineBarcode barcodeArchive, String fallbackStatus) {
+        String archiveWarrantyStatus = normalizeNullableText(barcodeArchive == null ? null : barcodeArchive.getWarrantyStatus());
+        return MachineBarcodeWarrantyResolver.resolveWarrantyStatus(
+                barcodeArchive == null ? null : barcodeArchive.getBarcode(),
+                barcodeArchive == null ? null : barcodeArchive.getDealerOutDate(),
+                barcodeArchive == null ? null : barcodeArchive.getScanDate(),
+                archiveWarrantyStatus != null ? archiveWarrantyStatus : normalizeNullableText(fallbackStatus)
+        );
     }
 
     private SysCompany requireActiveHqCompany(Long hqCompanyId) {

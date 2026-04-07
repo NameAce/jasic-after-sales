@@ -178,6 +178,9 @@ export function deleteMachineBarcode(id) {
 export function importMachineBarcode(data) {
   return request({ url: '/system/machine-barcode/import', method: 'post', data })
 }
+export function fullSyncMachineBarcode() {
+  return request({ url: '/system/machine-barcode/full-sync', method: 'post' })
+}
 
 // --- Fault Repair Config ---
 export function listFaultRepairConfig(params) {

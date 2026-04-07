@@ -28,11 +28,20 @@ public class MachineBarcodeVO implements Serializable {
     /** 归属总部名称 */
     private String hqCompanyName;
 
+    /** CRM 公司ID */
+    private String custId;
+
+    /** 销售组织 */
+    private String salesOrg;
+
     /** 物料编码 */
     private String productCode;
 
     /** 商品名称 */
     private String productName;
+
+    /** 机器小号 */
+    private String productTrumpet;
 
     /** 产品型号 */
     private String productModel;
@@ -42,6 +51,18 @@ public class MachineBarcodeVO implements Serializable {
 
     /** 品牌编码 */
     private String brandCode;
+
+    /** 厂家最后出库日期 */
+    private LocalDateTime scanDate;
+
+    /** 经销商最新出库日期 */
+    private LocalDateTime dealerOutDate;
+
+    /** CRM 创建时间 */
+    private LocalDateTime crmAddTime;
+
+    /** 最近同步时间 */
+    private LocalDateTime lastSyncTime;
 
     /** 质保状态 */
     private String warrantyStatus;

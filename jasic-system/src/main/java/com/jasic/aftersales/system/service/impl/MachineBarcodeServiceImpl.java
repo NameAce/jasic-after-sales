@@ -20,6 +20,7 @@ import com.jasic.aftersales.system.mapper.MachineBarcodeMapper;
 import com.jasic.aftersales.system.mapper.SysCompanyMapper;
 import com.jasic.aftersales.system.service.IMachineBarcodeService;
 import com.jasic.aftersales.system.service.ISysCompanyTypeService;
+import com.jasic.aftersales.system.service.support.MachineBarcodeWarrantyResolver;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,8 +66,17 @@ public class MachineBarcodeServiceImpl implements IMachineBarcodeService {
         if (query.getHqCompanyId() != null) {
             wrapper.eq(MachineBarcode::getHqCompanyId, query.getHqCompanyId());
         }
+        if (StrUtil.isNotBlank(query.getCustId())) {
+            wrapper.like(MachineBarcode::getCustId, query.getCustId().trim());
+        }
+        if (StrUtil.isNotBlank(query.getSalesOrg())) {
+            wrapper.like(MachineBarcode::getSalesOrg, query.getSalesOrg().trim());
+        }
         if (StrUtil.isNotBlank(query.getProductCode())) {
             wrapper.like(MachineBarcode::getProductCode, query.getProductCode().trim());
+        }
+        if (StrUtil.isNotBlank(query.getProductTrumpet())) {
+            wrapper.like(MachineBarcode::getProductTrumpet, query.getProductTrumpet().trim());
         }
         if (StrUtil.isNotBlank(query.getProductModel())) {
             wrapper.like(MachineBarcode::getProductModel, query.getProductModel().trim());
@@ -225,6 +235,10 @@ public class MachineBarcodeServiceImpl implements IMachineBarcodeService {
         List<MachineBarcodeVO> result = new ArrayList<>();
         for (MachineBarcode record : records) {
             MachineBarcodeVO vo = BeanUtil.copyProperties(record, MachineBarcodeVO.class);
+            String machineTrumpet = resolveMachineTrumpet(record);
+            vo.setProductTrumpet(machineTrumpet);
+            vo.setMachineNo(machineTrumpet);
+            vo.setWarrantyStatus(MachineBarcodeWarrantyResolver.resolveWarrantyStatus(record));
             SysCompany company = companyMap.get(record.getHqCompanyId());
             if (company != null) {
                 vo.setHqCompanyName(company.getCompanyName());
@@ -308,13 +322,27 @@ public class MachineBarcodeServiceImpl implements IMachineBarcodeService {
 
     private void normalizeEntity(MachineBarcode entity) {
         entity.setBarcode(normalizeRequiredText(entity.getBarcode()));
+        entity.setCustId(normalizeOptionalText(entity.getCustId()));
+        entity.setSalesOrg(normalizeOptionalText(entity.getSalesOrg()));
         entity.setProductCode(normalizeOptionalText(entity.getProductCode()));
         entity.setProductName(normalizeOptionalText(entity.getProductName()));
+        entity.setProductTrumpet(normalizeOptionalText(entity.getProductTrumpet()));
         entity.setProductModel(normalizeOptionalText(entity.getProductModel()));
         entity.setMachineNo(normalizeOptionalText(entity.getMachineNo()));
+        String machineTrumpet = resolveMachineTrumpet(entity);
+        entity.setProductTrumpet(machineTrumpet);
+        entity.setMachineNo(machineTrumpet);
         entity.setBrandCode(normalizeOptionalText(entity.getBrandCode()));
         entity.setWarrantyStatus(normalizeOptionalText(entity.getWarrantyStatus()));
         entity.setRemark(normalizeOptionalText(entity.getRemark()));
+    }
+
+    private String resolveMachineTrumpet(MachineBarcode entity) {
+        String productTrumpet = normalizeOptionalText(entity.getProductTrumpet());
+        if (productTrumpet != null) {
+            return productTrumpet;
+        }
+        return normalizeOptionalText(entity.getMachineNo());
     }
 
     private String normalizeRequiredText(String value) {

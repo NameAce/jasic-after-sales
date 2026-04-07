@@ -36,6 +36,12 @@ logging:
     com.baomidou.mybatisplus: debug
 
 jasic:
+  crm:
+    datasource:
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      url: jdbc:mysql://192.168.6.221:3306/supsce_jskj_msd_test?useUnicode=true&characterEncoding=UTF-8&useOldAliasMetadataBehavior=true&serverTimezone=GMT%2B8
+      username: liujianqiang
+      password: UTSfV8IN
   amap:
     geocode:
       enabled: true

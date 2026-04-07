@@ -9,9 +9,11 @@ import com.jasic.aftersales.common.enums.OperTypeEnum;
 import com.jasic.aftersales.system.domain.dto.MachineBarcodeDTO;
 import com.jasic.aftersales.system.domain.dto.MachineBarcodeImportItemDTO;
 import com.jasic.aftersales.system.domain.query.MachineBarcodeQuery;
+import com.jasic.aftersales.system.domain.vo.MachineBarcodeSyncResultVO;
 import com.jasic.aftersales.system.domain.vo.MachineBarcodeVO;
 import com.jasic.aftersales.system.domain.vo.SysCompanySimpleVO;
 import com.jasic.aftersales.system.service.IMachineBarcodeService;
+import com.jasic.aftersales.system.service.IMachineBarcodeSyncService;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -38,6 +40,9 @@ public class MachineBarcodeController extends BaseController {
 
     @Resource
     private IMachineBarcodeService machineBarcodeService;
+
+    @Resource
+    private IMachineBarcodeSyncService machineBarcodeSyncService;
 
     @SaCheckPermission("system:machineBarcode:list")
     @GetMapping("/list")
@@ -85,5 +90,12 @@ public class MachineBarcodeController extends BaseController {
     @PostMapping("/import")
     public Result<Integer> importItems(@RequestBody List<@Valid MachineBarcodeImportItemDTO> items) {
         return Result.ok(machineBarcodeService.importItems(items));
+    }
+
+    @SaCheckPermission("system:machineBarcode:import")
+    @OperLog(title = "条码档案全量同步", operType = OperTypeEnum.OTHER)
+    @PostMapping("/full-sync")
+    public Result<MachineBarcodeSyncResultVO> fullSync() {
+        return Result.ok(machineBarcodeSyncService.fullSyncFromCrm());
     }
 }

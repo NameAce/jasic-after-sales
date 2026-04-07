@@ -55,6 +55,7 @@ import com.jasic.aftersales.system.mapper.WorkOrderReviewMapper;
 import com.jasic.aftersales.system.service.IFaultRepairConfigService;
 import com.jasic.aftersales.system.service.WorkOrderNotifyEventService;
 import com.jasic.aftersales.system.service.WorkOrderParticipantService;
+import com.jasic.aftersales.system.service.support.MachineBarcodeWarrantyResolver;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -175,9 +176,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
                 barcodeArchive == null ? null : barcodeArchive.getBrandCode(), dto.getBrandCode()
         )));
         workOrder.setServiceMode(normalizeRequiredText(dto.getServiceMode(), "服务方式不能为空"));
-        workOrder.setWarrantyStatus(resolveArchiveText(
-                barcodeArchive == null ? null : barcodeArchive.getWarrantyStatus(), dto.getWarrantyStatus()
-        ));
+        workOrder.setWarrantyStatus(resolveBarcodeWarrantyStatus(barcodeArchive, dto.getWarrantyStatus()));
         workOrder.setFaultDesc(faultSelection.getFaultDesc());
         workOrder.setFaultRemark(faultSelection.getFaultRemark());
         workOrder.setSenderName(resolveSendField(dto.getServiceMode(), dto.getSenderName()));
@@ -272,7 +271,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         vo.setProductModel(normalizeText(barcodeArchive.getProductModel()));
         vo.setMachineNo(normalizeText(barcodeArchive.getMachineNo()));
         vo.setBrandCode(resolveBrandCode(barcodeArchive.getBrandCode()));
-        vo.setWarrantyStatus(normalizeText(barcodeArchive.getWarrantyStatus()));
+        vo.setWarrantyStatus(resolveBarcodeWarrantyStatus(barcodeArchive, null));
         vo.setHqCompanyId(hqCompany.getId());
         vo.setHqCompanyName(hqCompany.getCompanyName());
         vo.setFaultOptions(buildCustomerFaultOptions(
@@ -595,6 +594,15 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
                 .eq(MachineBarcode::getStatus, 1)
                 .last("LIMIT 1");
         return machineBarcodeMapper.selectOne(wrapper);
+    }
+
+    private String resolveBarcodeWarrantyStatus(MachineBarcode barcodeArchive, String fallbackStatus) {
+        return MachineBarcodeWarrantyResolver.resolveWarrantyStatus(
+                barcodeArchive == null ? null : barcodeArchive.getBarcode(),
+                barcodeArchive == null ? null : barcodeArchive.getDealerOutDate(),
+                barcodeArchive == null ? null : barcodeArchive.getScanDate(),
+                resolveArchiveText(barcodeArchive == null ? null : barcodeArchive.getWarrantyStatus(), fallbackStatus)
+        );
     }
 
     private List<Long> resolveFirstCompanyIds(SysCompany serviceCompany) {
