@@ -159,11 +159,11 @@ public class WorkOrderServiceImplTest {
             }
         });
         setField(service, "sysCompanyMapper", createCompanyMapperProxy(Arrays.asList(
-                buildCompany(2002L, "二级网点", "SECOND"),
-                buildCompany(1001L, "一级网点", "FIRST")
+                buildCompany(2002L, "二级网点", "SITE_SECOND"),
+                buildCompany(1001L, "一级网点", "SITE_FIRST")
         )));
         setField(service, "sysCompanyTypeMapper", createCompanyTypeMapperProxy(
-                buildCompanyType("FIRST", "SERVICE")
+                buildCompanyType("SITE_FIRST", "SERVICE")
         ));
         setField(service, "firstSecondRelationMapper", createRelationMapperProxy(
                 Collections.singletonList(buildRelation(1001L, 2002L))
@@ -227,7 +227,7 @@ public class WorkOrderServiceImplTest {
             }
         });
         setField(service, "sysCompanyMapper", createCompanyMapperProxy(Collections.singletonList(
-                buildCompany(1001L, "一级网点", "FIRST")
+                buildCompany(1001L, "一级网点", "SITE_FIRST")
         )));
         setField(service, "hqFirstContractMapper", createContractMapperProxy(1L));
 
@@ -466,6 +466,7 @@ public class WorkOrderServiceImplTest {
                 inviteCount[0]++;
             }
         });
+        setField(service, "sysFileService", createNoopProxy(com.jasic.aftersales.system.service.SysFileService.class, "replaceBizFiles"));
 
         WorkOrderCloseDTO dto = new WorkOrderCloseDTO();
         dto.setWorkOrderId(workOrder.getId());
@@ -515,6 +516,7 @@ public class WorkOrderServiceImplTest {
                 inviteCount[0]++;
             }
         });
+        setField(service, "sysFileService", createNoopProxy(com.jasic.aftersales.system.service.SysFileService.class, "replaceBizFiles"));
 
         WorkOrderCloseDTO dto = new WorkOrderCloseDTO();
         dto.setWorkOrderId(workOrder.getId());

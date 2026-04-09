@@ -38,6 +38,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
 import java.util.List;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 
 /**
  * 工单查询控制器
@@ -45,6 +47,7 @@ import java.util.List;
  * @author Codex
  * @date 2026/03/26
  */
+@Api(tags = "工单查询")
 @RestController
 @RequestMapping("/system/work-order")
 public class WorkOrderController extends BaseController {
@@ -58,6 +61,7 @@ public class WorkOrderController extends BaseController {
      * @param query 查询参数
      * @return 分页结果
      */
+    @ApiOperation(value = "分页查询工单列表")
     @SaCheckPermission("workorder:list")
     @GetMapping("/list")
     public Result<PageResult<WorkOrderListVO>> list(WorkOrderQuery query) {
@@ -73,6 +77,7 @@ public class WorkOrderController extends BaseController {
      * @param query 查询参数
      * @return 状态统计结果
      */
+    @ApiOperation(value = "按状态统计工单数量")
     @SaCheckPermission("workorder:list")
     @GetMapping("/status-count")
     public Result<List<WorkOrderStatusCountVO>> statusCount(WorkOrderQuery query) {
@@ -88,6 +93,7 @@ public class WorkOrderController extends BaseController {
      * @param workOrderId 工单ID
      * @return 工单详情
      */
+    @ApiOperation(value = "查询工单详情")
     @SaCheckPermission("workorder:list")
     @GetMapping("/{workOrderId}")
     public Result<WorkOrderDetailVO> getById(@PathVariable Long workOrderId) {
@@ -99,6 +105,7 @@ public class WorkOrderController extends BaseController {
      *
      * @return 公司选项
      */
+    @ApiOperation(value = "查询建单可选归属总部")
     @SaCheckPermission("workorder:add")
     @GetMapping("/create-hq-options")
     public Result<List<SysCompanySimpleVO>> listCreateHqOptions() {
@@ -111,6 +118,7 @@ public class WorkOrderController extends BaseController {
      * @param workOrderId 工单ID
      * @return 人员选项
      */
+    @ApiOperation(value = "查询可派单人员")
     @SaCheckPermission("workorder:assign")
     @GetMapping("/{workOrderId}/assign-user-options")
     public Result<List<WorkOrderUserOptionVO>> listAssignUserOptions(@PathVariable Long workOrderId) {
@@ -123,6 +131,7 @@ public class WorkOrderController extends BaseController {
      * @param workOrderId 工单ID
      * @return 公司选项
      */
+    @ApiOperation(value = "查询可转单目标")
     @SaCheckPermission("workorder:transfer")
     @GetMapping("/{workOrderId}/transfer-target-options")
     public Result<List<SysCompanySimpleVO>> listTransferTargetOptions(@PathVariable Long workOrderId) {
@@ -135,6 +144,7 @@ public class WorkOrderController extends BaseController {
      * @param workOrderId 工单ID
      * @return 故障与维修说明选项
      */
+    @ApiOperation(value = "查询维修登记可选故障与维修说明")
     @SaCheckPermission("workorder:repair")
     @GetMapping("/{workOrderId}/repair-fault-options")
     public Result<List<WorkOrderRepairFaultOptionVO>> listRepairFaultOptions(@PathVariable Long workOrderId) {
@@ -147,6 +157,7 @@ public class WorkOrderController extends BaseController {
      * @param barcode 机器条码
      * @return 条码信息
      */
+    @ApiOperation(value = "查询代客户填写条码信息")
     @SaCheckPermission("workorder:add")
     @GetMapping("/create/proxy/barcode-info")
     public Result<WorkOrderCreateBarcodeInfoVO> getProxyCreateBarcodeInfo(@RequestParam String barcode) {
@@ -159,6 +170,7 @@ public class WorkOrderController extends BaseController {
      * @param barcode 机器条码
      * @return 条码信息
      */
+    @ApiOperation(value = "查询二级报修一级条码信息")
     @SaCheckPermission("workorder:add")
     @GetMapping("/create/upstream-first/barcode-info")
     public Result<WorkOrderCreateBarcodeInfoVO> getUpstreamFirstCreateBarcodeInfo(@RequestParam String barcode) {
@@ -171,6 +183,7 @@ public class WorkOrderController extends BaseController {
      * @param barcode 机器条码
      * @return 条码信息
      */
+    @ApiOperation(value = "查询一级报修佳士条码信息")
     @SaCheckPermission("workorder:add")
     @GetMapping("/create/upstream-hq/barcode-info")
     public Result<WorkOrderCreateBarcodeInfoVO> getUpstreamHqCreateBarcodeInfo(@RequestParam String barcode,
@@ -184,6 +197,7 @@ public class WorkOrderController extends BaseController {
      * @param dto 建单参数
      * @return 工单ID
      */
+    @ApiOperation(value = "代客户填写创建工单")
     @SaCheckPermission("workorder:add")
     @OperLog(title = "工单管理", operType = OperTypeEnum.INSERT)
     @PostMapping("/create/proxy")
@@ -197,6 +211,7 @@ public class WorkOrderController extends BaseController {
      * @param dto 建单参数
      * @return 工单ID
      */
+    @ApiOperation(value = "二级报修一级创建工单")
     @SaCheckPermission("workorder:add")
     @OperLog(title = "工单管理", operType = OperTypeEnum.INSERT)
     @PostMapping("/create/upstream-first")
@@ -210,6 +225,7 @@ public class WorkOrderController extends BaseController {
      * @param dto 建单参数
      * @return 工单ID
      */
+    @ApiOperation(value = "一级报修佳士创建工单")
     @SaCheckPermission("workorder:add")
     @OperLog(title = "工单管理", operType = OperTypeEnum.INSERT)
     @PostMapping("/create/upstream-hq")
@@ -223,6 +239,7 @@ public class WorkOrderController extends BaseController {
      * @param dto 派单参数
      * @return 操作结果
      */
+    @ApiOperation(value = "派单")
     @SaCheckPermission("workorder:assign")
     @OperLog(title = "工单管理", operType = OperTypeEnum.UPDATE)
     @PutMapping("/assign")
@@ -237,6 +254,7 @@ public class WorkOrderController extends BaseController {
      * @param dto 接单参数
      * @return 操作结果
      */
+    @ApiOperation(value = "维修员接单")
     @SaCheckPermission("workorder:accept")
     @OperLog(title = "工单管理", operType = OperTypeEnum.UPDATE)
     @PutMapping("/tech-accept")
@@ -251,6 +269,7 @@ public class WorkOrderController extends BaseController {
      * @param dto 转单参数
      * @return 操作结果
      */
+    @ApiOperation(value = "转单")
     @SaCheckPermission("workorder:transfer")
     @OperLog(title = "工单管理", operType = OperTypeEnum.UPDATE)
     @PutMapping("/transfer")
@@ -265,6 +284,7 @@ public class WorkOrderController extends BaseController {
      * @param dto 报价参数
      * @return 操作结果
      */
+    @ApiOperation(value = "保存报价")
     @SaCheckPermission("workorder:quote")
     @OperLog(title = "工单管理", operType = OperTypeEnum.UPDATE)
     @PostMapping("/quote")
@@ -279,6 +299,7 @@ public class WorkOrderController extends BaseController {
      * @param dto 维修参数
      * @return 操作结果
      */
+    @ApiOperation(value = "保存维修登记")
     @SaCheckPermission("workorder:repair")
     @OperLog(title = "工单管理", operType = OperTypeEnum.UPDATE)
     @PostMapping("/repair")
@@ -293,6 +314,7 @@ public class WorkOrderController extends BaseController {
      * @param dto 复检参数
      * @return 操作结果
      */
+    @ApiOperation(value = "保存复检记录")
     @SaCheckPermission("workorder:review")
     @OperLog(title = "工单管理", operType = OperTypeEnum.UPDATE)
     @PostMapping("/review")
@@ -307,6 +329,7 @@ public class WorkOrderController extends BaseController {
      * @param dto 寄件快递单号参数
      * @return 操作结果
      */
+    @ApiOperation(value = "上传寄件快递单号")
     @SaCheckPermission("workorder:assign")
     @OperLog(title = "工单管理", operType = OperTypeEnum.UPDATE)
     @PutMapping("/send-express")
@@ -321,6 +344,7 @@ public class WorkOrderController extends BaseController {
      * @param dto 关闭参数
      * @return 操作结果
      */
+    @ApiOperation(value = "关闭工单")
     @SaCheckPermission("workorder:close")
     @OperLog(title = "工单管理", operType = OperTypeEnum.UPDATE)
     @PutMapping("/close")

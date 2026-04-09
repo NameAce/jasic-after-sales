@@ -219,6 +219,39 @@
               <el-input v-model="createForm.faultRemark" type="textarea" :rows="3" placeholder="请输入故障备注" />
             </el-form-item>
           </el-col>
+          <el-col :span="24">
+            <el-form-item label="故障图片">
+              <file-upload-field
+                v-model="createForm.faultImageFiles"
+                accept=".jpg,.jpeg,.png,.webp"
+                :size-limit-mb="10"
+                button-text="上传故障图片"
+                tip="支持 jpg/jpeg/png/webp，单文件 10MB"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="故障视频">
+              <file-upload-field
+                v-model="createForm.faultVideoFiles"
+                accept=".mp4,.mov"
+                :size-limit-mb="50"
+                button-text="上传故障视频"
+                tip="支持 mp4/mov，单文件 50MB"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="故障语音">
+              <file-upload-field
+                v-model="createForm.faultVoiceFiles"
+                accept=".mp3,.wav,.amr,.aac"
+                :size-limit-mb="10"
+                button-text="上传故障语音"
+                tip="支持 mp3/wav/amr/aac，单文件 10MB"
+              />
+            </el-form-item>
+          </el-col>
         </el-row>
 
         <div v-if="isCreateMailMode" class="section-title">寄修信息</div>
@@ -241,6 +274,17 @@
           <el-col :span="24">
             <el-form-item label="寄件单号" prop="sendExpressNo">
               <el-input v-model="createForm.sendExpressNo" placeholder="首次建单可不填，后续可补录" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="寄件凭证">
+              <file-upload-field
+                v-model="createForm.senderVoucherFiles"
+                accept=".jpg,.jpeg,.png,.webp"
+                :size-limit-mb="10"
+                button-text="上传寄件凭证"
+                tip="支持 jpg/jpeg/png/webp，单文件 10MB"
+              />
             </el-form-item>
           </el-col>
         </el-row>
@@ -272,11 +316,13 @@
             <el-descriptions-item label="主状态">{{ textValue(detail.mainStatusLabel || statusLabel(detail.mainStatus)) }}</el-descriptions-item>
             <el-descriptions-item label="客户姓名">{{ textValue(detail.customerName) }}</el-descriptions-item>
             <el-descriptions-item label="客户手机号">{{ textValue(detail.customerMobile) }}</el-descriptions-item>
+            <el-descriptions-item label="品牌类型">{{ textValue(detail.brandTypeLabel || brandTypeLabel(detail.brandType)) }}</el-descriptions-item>
             <el-descriptions-item label="条码">{{ textValue(detail.barcode) }}</el-descriptions-item>
             <el-descriptions-item label="物料编码">{{ textValue(detail.productCode) }}</el-descriptions-item>
             <el-descriptions-item label="机型">{{ textValue(detail.productModel) }}</el-descriptions-item>
             <el-descriptions-item label="品牌编码">{{ textValue(detail.brandCode) }}</el-descriptions-item>
-            <el-descriptions-item label="服务方式">{{ textValue(detail.serviceMode) }}</el-descriptions-item>
+            <el-descriptions-item label="品牌名称">{{ textValue(detail.brandName) }}</el-descriptions-item>
+            <el-descriptions-item label="服务方式">{{ textValue(detail.serviceModeLabel || serviceModeLabel(detail.serviceMode)) }}</el-descriptions-item>
             <el-descriptions-item label="质保状态">{{ textValue(detail.warrantyStatus) }}</el-descriptions-item>
             <el-descriptions-item label="当前受理公司">{{ textValue(detail.currentAcceptCompanyName) }}</el-descriptions-item>
             <el-descriptions-item label="当前维修员">{{ textValue(detail.assignedUserName) }}</el-descriptions-item>
@@ -304,6 +350,80 @@
             <el-descriptions-item label="完成时间">{{ textValue(detail.completedTime) }}</el-descriptions-item>
             <el-descriptions-item label="关闭时间">{{ textValue(detail.closedTime) }}</el-descriptions-item>
             <el-descriptions-item label="关闭原因" :span="2">{{ textValue(detail.closeReason) }}</el-descriptions-item>
+          </el-descriptions>
+
+          <div class="section-title">附件信息</div>
+          <el-descriptions :column="1" border size="small">
+            <el-descriptions-item label="故障图片">
+              <div class="file-link-list">
+                <span v-if="!(detail.faultImageFiles || []).length">-</span>
+                <el-link
+                  v-for="item in detail.faultImageFiles || []"
+                  :key="`fault-image-${item.fileId}`"
+                  type="primary"
+                  :underline="false"
+                  @click="openFilePreview(item)"
+                >
+                  {{ fileDisplayName(item) }}<span v-if="item.fileSize">（{{ formatFileSize(item.fileSize) }}）</span>
+                </el-link>
+              </div>
+            </el-descriptions-item>
+            <el-descriptions-item label="故障视频">
+              <div class="file-link-list">
+                <span v-if="!(detail.faultVideoFiles || []).length">-</span>
+                <el-link
+                  v-for="item in detail.faultVideoFiles || []"
+                  :key="`fault-video-${item.fileId}`"
+                  type="primary"
+                  :underline="false"
+                  @click="openFilePreview(item)"
+                >
+                  {{ fileDisplayName(item) }}<span v-if="item.fileSize">（{{ formatFileSize(item.fileSize) }}）</span>
+                </el-link>
+              </div>
+            </el-descriptions-item>
+            <el-descriptions-item label="故障语音">
+              <div class="file-link-list">
+                <span v-if="!(detail.faultVoiceFiles || []).length">-</span>
+                <el-link
+                  v-for="item in detail.faultVoiceFiles || []"
+                  :key="`fault-voice-${item.fileId}`"
+                  type="primary"
+                  :underline="false"
+                  @click="openFilePreview(item)"
+                >
+                  {{ fileDisplayName(item) }}<span v-if="item.fileSize">（{{ formatFileSize(item.fileSize) }}）</span>
+                </el-link>
+              </div>
+            </el-descriptions-item>
+            <el-descriptions-item label="寄件凭证">
+              <div class="file-link-list">
+                <span v-if="!(detail.senderVoucherFiles || []).length">-</span>
+                <el-link
+                  v-for="item in detail.senderVoucherFiles || []"
+                  :key="`sender-voucher-${item.fileId}`"
+                  type="primary"
+                  :underline="false"
+                  @click="openFilePreview(item)"
+                >
+                  {{ fileDisplayName(item) }}<span v-if="item.fileSize">（{{ formatFileSize(item.fileSize) }}）</span>
+                </el-link>
+              </div>
+            </el-descriptions-item>
+            <el-descriptions-item label="回寄凭证">
+              <div class="file-link-list">
+                <span v-if="!(detail.returnVoucherFiles || []).length">-</span>
+                <el-link
+                  v-for="item in detail.returnVoucherFiles || []"
+                  :key="`return-voucher-${item.fileId}`"
+                  type="primary"
+                  :underline="false"
+                  @click="openFilePreview(item)"
+                >
+                  {{ fileDisplayName(item) }}<span v-if="item.fileSize">（{{ formatFileSize(item.fileSize) }}）</span>
+                </el-link>
+              </div>
+            </el-descriptions-item>
           </el-descriptions>
 
           <div class="section-title">参与方</div>
@@ -572,6 +692,15 @@
           <el-form-item label="寄件单号" required>
             <el-input v-model="actionForm.sendExpressNo" placeholder="请输入寄件快递单号" />
           </el-form-item>
+          <el-form-item label="寄件凭证">
+            <file-upload-field
+              v-model="actionForm.senderVoucherFiles"
+              accept=".jpg,.jpeg,.png,.webp"
+              :size-limit-mb="10"
+              button-text="上传寄件凭证"
+              tip="支持 jpg/jpeg/png/webp，单文件 10MB"
+            />
+          </el-form-item>
         </template>
 
         <template v-else-if="actionDialogAction === 'CLOSE'">
@@ -583,6 +712,15 @@
           </el-form-item>
           <el-form-item v-if="actionForm.returnMethod === '回寄'" label="回寄单号" required>
             <el-input v-model="actionForm.returnExpressNo" placeholder="请输入回寄快递单号" />
+          </el-form-item>
+          <el-form-item v-if="actionForm.returnMethod === '回寄'" label="回寄凭证">
+            <file-upload-field
+              v-model="actionForm.returnVoucherFiles"
+              accept=".jpg,.jpeg,.png,.webp"
+              :size-limit-mb="10"
+              button-text="上传回寄凭证"
+              tip="支持 jpg/jpeg/png/webp，单文件 10MB"
+            />
           </el-form-item>
           <el-form-item label="关闭原因" required>
             <el-input v-model="actionForm.closeReason" type="textarea" :rows="3" placeholder="请输入关闭原因" />
@@ -620,9 +758,18 @@ import {
   transferWorkOrder,
   updateWorkOrderSendExpress
 } from '@/api/workOrder'
+import FileUploadField from '@/components/Upload/FileUploadField.vue'
 
-const SERVICE_MODE_MAIL = '寄修'
-const SERVICE_MODE_STORE = '到店维修'
+const SERVICE_MODE_MAIL = 'MAIL'
+const SERVICE_MODE_STORE = 'STORE'
+const SERVICE_MODE_LABELS = {
+  [SERVICE_MODE_MAIL]: '寄修',
+  [SERVICE_MODE_STORE]: '到店维修'
+}
+const SERVICE_MODE_OPTIONS = [
+  { label: SERVICE_MODE_LABELS[SERVICE_MODE_STORE], value: SERVICE_MODE_STORE },
+  { label: SERVICE_MODE_LABELS[SERVICE_MODE_MAIL], value: SERVICE_MODE_MAIL }
+]
 const RETURN_METHOD_MAIL = '回寄'
 const RETURN_METHOD_PICKUP = '自提'
 const FAULT_JUDGE_HAS_FAULT = '有故障'
@@ -634,6 +781,8 @@ const DEFAULT_OTHER_FAULT_LABEL = '其它故障'
 const CREATE_ENTRY_PROXY = 'PROXY_SELF'
 const CREATE_ENTRY_UPSTREAM_FIRST = 'UPSTREAM_FIRST'
 const CREATE_ENTRY_UPSTREAM_HQ = 'UPSTREAM_HQ'
+const BRAND_TYPE_JASIC = 'JASIC'
+const BRAND_TYPE_NON_JASIC = 'NON_JASIC'
 
 const STATUS_LABELS = {
   WAIT_ACCEPT: '待接单',
@@ -710,11 +859,42 @@ function buildDefaultCreateForm() {
     otherFaultLabel: DEFAULT_OTHER_FAULT_LABEL,
     faultItems: [],
     faultRemark: '',
+    faultImageFiles: [],
+    faultVideoFiles: [],
+    faultVoiceFiles: [],
     senderName: '',
     senderMobile: '',
     senderAddress: '',
-    sendExpressNo: ''
+    sendExpressNo: '',
+    senderVoucherFiles: []
   }
+}
+
+function buildFileIdList(fileList) {
+  return (fileList || [])
+    .map(item => item && item.fileId)
+    .filter(item => item !== null && item !== undefined && item !== '')
+}
+
+function cloneFileItems(fileList) {
+  return (fileList || []).map(item => ({ ...item }))
+}
+
+function formatFileSizeText(size) {
+  if (size === null || size === undefined || size === '') {
+    return ''
+  }
+  const numericSize = Number(size)
+  if (Number.isNaN(numericSize)) {
+    return ''
+  }
+  if (numericSize < 1024) {
+    return `${numericSize} B`
+  }
+  if (numericSize < 1024 * 1024) {
+    return `${(numericSize / 1024).toFixed(1)} KB`
+  }
+  return `${(numericSize / (1024 * 1024)).toFixed(1)} MB`
 }
 
 function normalizeText(value) {
@@ -739,14 +919,19 @@ function buildDefaultActionForm() {
     reviewDesc: '',
     isContinueRepair: 0,
     sendExpressNo: '',
+    senderVoucherFiles: [],
     returnMethod: RETURN_METHOD_PICKUP,
     returnExpressNo: '',
+    returnVoucherFiles: [],
     closeReason: ''
   }
 }
 
 export default {
   name: 'WorkOrderManage',
+  components: {
+    FileUploadField
+  },
   data() {
     return {
       serviceModeMail: SERVICE_MODE_MAIL,
@@ -775,10 +960,7 @@ export default {
         { label: '否', value: 0 }
       ],
       faultJudgeOptions: [FAULT_JUDGE_HAS_FAULT, FAULT_JUDGE_NO_FAULT],
-      serviceModeOptions: [
-        { label: SERVICE_MODE_STORE, value: SERVICE_MODE_STORE },
-        { label: SERVICE_MODE_MAIL, value: SERVICE_MODE_MAIL }
-      ],
+      serviceModeOptions: SERVICE_MODE_OPTIONS,
       createDialogVisible: false,
       createSubmitting: false,
       createBarcodeLoading: false,
@@ -815,9 +997,9 @@ export default {
     },
     createEntryOptions() {
       const options = [{ value: CREATE_ENTRY_PROXY, label: '代客户填写' }]
-      if (this.currentTypeCode === 'SECOND') {
+      if (this.currentTypeCode === 'SITE_SECOND') {
         options.push({ value: CREATE_ENTRY_UPSTREAM_FIRST, label: '报修一级' })
-      } else if (this.currentTypeCode === 'FIRST') {
+      } else if (this.currentTypeCode === 'SITE_FIRST') {
         options.push({ value: CREATE_ENTRY_UPSTREAM_HQ, label: '报修佳士' })
       }
       return options
@@ -1149,16 +1331,21 @@ export default {
         serviceMode: this.createForm.serviceMode,
         faultItems: (this.createForm.faultItems || []).map(item => normalizeText(item)).filter(item => item),
         faultRemark: normalizeText(this.createForm.faultRemark) || '',
+        faultImageFileIds: buildFileIdList(this.createForm.faultImageFiles),
+        faultVideoFileIds: buildFileIdList(this.createForm.faultVideoFiles),
+        faultVoiceFileIds: buildFileIdList(this.createForm.faultVoiceFiles),
         senderName: '',
         senderMobile: '',
         senderAddress: '',
-        sendExpressNo: ''
+        sendExpressNo: '',
+        senderVoucherFileIds: []
       }
       if (this.isCreateMailMode) {
         payload.senderName = normalizeText(this.createForm.senderName)
         payload.senderMobile = normalizeText(this.createForm.senderMobile)
         payload.senderAddress = normalizeText(this.createForm.senderAddress)
         payload.sendExpressNo = normalizeText(this.createForm.sendExpressNo)
+        payload.senderVoucherFileIds = buildFileIdList(this.createForm.senderVoucherFiles)
       }
       if (this.createForm.entryMode !== CREATE_ENTRY_PROXY) {
         payload.targetCompanyId = this.createForm.targetCompanyId
@@ -1278,10 +1465,12 @@ export default {
       }
       if (action === 'UPLOAD_SEND_EXPRESS') {
         form.sendExpressNo = this.detail.sendExpressNo || ''
+        form.senderVoucherFiles = cloneFileItems(this.detail.senderVoucherFiles)
       }
       if (action === 'CLOSE') {
         form.returnMethod = this.detail.returnMethod || (this.detail.serviceMode === SERVICE_MODE_MAIL ? RETURN_METHOD_MAIL : RETURN_METHOD_PICKUP)
         form.returnExpressNo = this.detail.returnExpressNo || ''
+        form.returnVoucherFiles = cloneFileItems(this.detail.returnVoucherFiles)
         form.closeReason = this.detail.closeReason || ''
       }
       let preparePromise = Promise.resolve()
@@ -1421,12 +1610,19 @@ export default {
             isContinueRepair: this.actionForm.reviewResult === REVIEW_RESULT_CONTINUE ? 1 : 0
           }
         case 'UPLOAD_SEND_EXPRESS':
-          return { workOrderId, sendExpressNo: this.actionForm.sendExpressNo }
+          return {
+            workOrderId,
+            sendExpressNo: this.actionForm.sendExpressNo,
+            senderVoucherFileIds: buildFileIdList(this.actionForm.senderVoucherFiles)
+          }
         case 'CLOSE':
           return {
             workOrderId,
             returnMethod: this.actionForm.returnMethod,
             returnExpressNo: this.actionForm.returnMethod === RETURN_METHOD_MAIL ? this.actionForm.returnExpressNo : '',
+            returnVoucherFileIds: this.actionForm.returnMethod === RETURN_METHOD_MAIL
+              ? buildFileIdList(this.actionForm.returnVoucherFiles)
+              : [],
             closeReason: this.actionForm.closeReason
           }
         default:
@@ -1553,6 +1749,9 @@ export default {
     evaluateStatusLabel(status) {
       return EVALUATE_STATUS_LABELS[status] || status || '-'
     },
+    serviceModeLabel(serviceMode) {
+      return SERVICE_MODE_LABELS[serviceMode] || serviceMode || '-'
+    },
     statusTag(status) {
       if (status === 'COMPLETED') {
         return 'success'
@@ -1591,6 +1790,15 @@ export default {
         return '报修佳士'
       }
       return createEntryType || '-'
+    },
+    brandTypeLabel(brandType) {
+      if (brandType === BRAND_TYPE_JASIC) {
+        return '佳士品牌'
+      }
+      if (brandType === BRAND_TYPE_NON_JASIC) {
+        return '非佳士品牌'
+      }
+      return brandType || '-'
     },
     yesNoText(value) {
       if (value === 1) {
@@ -1654,6 +1862,21 @@ export default {
       }
       return String(this.detail.currentAcceptCompanyId) === String(this.$store.getters.currentCompanyId)
     },
+    openFilePreview(item) {
+      if (!item || !item.previewUrl) {
+        return
+      }
+      window.open(item.previewUrl, '_blank')
+    },
+    fileDisplayName(item) {
+      if (!item) {
+        return '-'
+      }
+      return item.originalName || item.fileName || `文件-${item.fileId || ''}`
+    },
+    formatFileSize(size) {
+      return formatFileSizeText(size)
+    },
     resolveActionWorkOrderId() {
       return this.actionForm.workOrderId || (this.detail && this.detail.id)
     },
@@ -1712,6 +1935,12 @@ export default {
   font-size: 14px;
   font-weight: 600;
   color: #303133;
+}
+
+.file-link-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
 }
 
 .fault-header {

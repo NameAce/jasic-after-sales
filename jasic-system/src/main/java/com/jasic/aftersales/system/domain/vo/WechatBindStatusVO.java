@@ -5,6 +5,8 @@ import lombok.Data;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 
 /**
  * 微信绑定状态
@@ -12,24 +14,30 @@ import java.time.LocalDateTime;
  * @author Codex
  * @date 2026/04/02
  */
+@ApiModel(description = "微信绑定状态")
 @Data
 public class WechatBindStatusVO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     /** 是否已绑定 */
+    @ApiModelProperty(value = "是否已绑定")
     private Boolean bound;
 
     /** 当前待使用绑定码 */
+    @ApiModelProperty(value = "当前待使用绑定码")
     private String bindCode;
 
     /** 绑定微信 openid 脱敏展示 */
+    @ApiModelProperty(value = "绑定微信 openid 脱敏展示")
     private String maskedOpenid;
 
     /** 微信授权手机号快照 */
+    @ApiModelProperty(value = "微信授权手机号快照")
     private String wechatPhone;
 
     /** 绑定码过期时间 */
+    @ApiModelProperty(value = "绑定码过期时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime expireAt;
 }

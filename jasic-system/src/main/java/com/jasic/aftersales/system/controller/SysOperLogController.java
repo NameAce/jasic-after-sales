@@ -19,6 +19,8 @@ import javax.annotation.Resource;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 
 /**
  * 操作日志控制器
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
  * @author Zoro
  * @date 2026/03/18
  */
+@Api(tags = "操作日志")
 @RestController
 @RequestMapping("/log/oper-log")
 public class SysOperLogController extends BaseController {
@@ -39,6 +42,7 @@ public class SysOperLogController extends BaseController {
      * @param query 查询参数
      * @return 分页结果
      */
+    @ApiOperation(value = "分页查询操作日志")
     @SaCheckPermission("log:operLog:list")
     @GetMapping("/list")
     public Result<PageResult<SysOperLog>> list(SysOperLogQuery query) {
@@ -51,6 +55,7 @@ public class SysOperLogController extends BaseController {
      *
      * @return 操作结果
      */
+    @ApiOperation(value = "清空操作日志")
     @SaCheckPermission("log:operLog:remove")
     @OperLog(title = "操作日志", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/clean")
@@ -65,6 +70,7 @@ public class SysOperLogController extends BaseController {
      * @param ids 主键ID，逗号分隔
      * @return 操作结果
      */
+    @ApiOperation(value = "批量删除操作日志")
     @SaCheckPermission("log:operLog:remove")
     @OperLog(title = "操作日志", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/{ids}")

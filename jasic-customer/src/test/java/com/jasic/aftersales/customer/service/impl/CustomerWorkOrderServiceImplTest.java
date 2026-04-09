@@ -6,13 +6,21 @@ import cn.dev33.satoken.context.SaTokenContextForThreadLocalStorage;
 import cn.dev33.satoken.context.model.SaRequest;
 import cn.dev33.satoken.context.model.SaResponse;
 import cn.dev33.satoken.context.model.SaStorage;
+import com.jasic.aftersales.common.constant.WorkOrderConfigConstants;
+import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
+import com.jasic.aftersales.common.enums.BrandTypeEnum;
+import com.jasic.aftersales.common.enums.SysFileBizTypeEnum;
+import com.jasic.aftersales.common.enums.SysFileUploadUserTypeEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderCreateDTO;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderEvaluateDTO;
+import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderSenderVoucherDTO;
 import com.jasic.aftersales.customer.domain.entity.CUser;
 import com.jasic.aftersales.customer.domain.vo.CustomerBarcodeInfoVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerNearbyServiceCompanyVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerServiceCompanyOptionVO;
+import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderLatestSummaryVO;
+import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderListVO;
 import com.jasic.aftersales.framework.security.StpCustomerUtil;
 import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
 import com.jasic.aftersales.system.domain.entity.HqFirstContract;
@@ -23,6 +31,7 @@ import com.jasic.aftersales.system.domain.entity.WorkOrderEvaluation;
 import com.jasic.aftersales.system.domain.entity.WorkOrderFlow;
 import com.jasic.aftersales.system.domain.entity.WorkOrderQuote;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairFaultOptionVO;
+import com.jasic.aftersales.system.domain.vo.SysFileItemVO;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
 import com.jasic.aftersales.system.mapper.HqFirstContractMapper;
 import com.jasic.aftersales.system.mapper.MachineBarcodeMapper;
@@ -32,6 +41,8 @@ import com.jasic.aftersales.system.mapper.WorkOrderFlowMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderQuoteMapper;
 import com.jasic.aftersales.system.service.IFaultRepairConfigService;
+import com.jasic.aftersales.system.service.ISysConfigService;
+import com.jasic.aftersales.system.service.SysFileService;
 import com.jasic.aftersales.system.service.WorkOrderNotifyEventService;
 import org.junit.Assert;
 import org.junit.Test;
@@ -42,11 +53,16 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
 
 /**
  * C端工单服务测试
@@ -152,6 +168,89 @@ public class CustomerWorkOrderServiceImplTest {
     }
 
     @Test
+    public void shouldResolveDefaultHqCompanyForNonBarcodeCreate() throws Exception {
+        CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
+        setField(service, "sysCompanyMapper", createCompanyMapperProxy(buildFirstCompany(), buildHqCompany()));
+        setField(service, "sysConfigService", createSysConfigServiceProxy(Collections.singletonMap(
+                WorkOrderConfigConstants.DEFAULT_HQ_COMPANY_ID, "21"
+        )));
+
+        Method method = CustomerWorkOrderServiceImpl.class.getDeclaredMethod("resolveDefaultHqCompanyId");
+        method.setAccessible(true);
+
+        Long hqCompanyId = (Long) method.invoke(service);
+
+        Assert.assertEquals(Long.valueOf(21L), hqCompanyId);
+    }
+
+    @Test
+    public void shouldRejectNonBarcodeCreateWhenDefaultHqCompanyMissing() throws Exception {
+        CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
+        setField(service, "sysConfigService", createSysConfigServiceProxy(Collections.emptyMap()));
+
+        Method method = CustomerWorkOrderServiceImpl.class.getDeclaredMethod("resolveDefaultHqCompanyId");
+        method.setAccessible(true);
+
+        try {
+            method.invoke(service);
+            Assert.fail("Expected missing default HQ config to be rejected");
+        } catch (InvocationTargetException ex) {
+            Assert.assertTrue(ex.getTargetException() instanceof ServiceException);
+            Assert.assertEquals("默认归属总部未配置", ex.getTargetException().getMessage());
+        }
+    }
+
+    @Test
+    public void shouldRejectBarcodeForNonJasicCreate() throws Exception {
+        CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
+        CustomerWorkOrderCreateDTO dto = new CustomerWorkOrderCreateDTO();
+        dto.setBrandType(BrandTypeEnum.NON_JASIC);
+        dto.setBarcode("OTHER-001");
+        dto.setServiceMode("STORE");
+
+        Method method = CustomerWorkOrderServiceImpl.class.getDeclaredMethod(
+                "validateCreateRequest",
+                CustomerWorkOrderCreateDTO.class,
+                BrandTypeEnum.class,
+                boolean.class
+        );
+        method.setAccessible(true);
+
+        try {
+            method.invoke(service, dto, BrandTypeEnum.NON_JASIC, true);
+            Assert.fail("Expected non-jasic create with barcode to be rejected");
+        } catch (InvocationTargetException ex) {
+            Assert.assertTrue(ex.getTargetException() instanceof ServiceException);
+            Assert.assertEquals("非佳士报修不支持填写机器条码", ex.getTargetException().getMessage());
+        }
+    }
+
+    @Test
+    public void shouldForceOtherFaultForNonBarcodeRepair() throws Exception {
+        CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
+
+        CustomerWorkOrderCreateDTO dto = new CustomerWorkOrderCreateDTO();
+        dto.setBrandType(BrandTypeEnum.NON_JASIC);
+        dto.setFaultRemark("机器无法启动");
+
+        Method method = CustomerWorkOrderServiceImpl.class.getDeclaredMethod(
+                "resolveCustomerFaultSelection",
+                CustomerWorkOrderCreateDTO.class,
+                BrandTypeEnum.class,
+                boolean.class,
+                Long.class,
+                String.class,
+                String.class
+        );
+        method.setAccessible(true);
+
+        Object selection = method.invoke(service, dto, BrandTypeEnum.NON_JASIC, false, 21L, null, "MODEL-X");
+
+        Assert.assertEquals("其它故障", invokeFaultSelectionGetter(selection, "getFaultDesc"));
+        Assert.assertEquals("机器无法启动", invokeFaultSelectionGetter(selection, "getFaultRemark"));
+    }
+
+    @Test
     public void shouldSortNearbyServiceCompaniesByDistance() {
         CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
         setFieldQuietly(service, "sysCompanyMapper", createCompanyMapperProxy(
@@ -198,6 +297,211 @@ public class CustomerWorkOrderServiceImplTest {
         Assert.assertEquals(2, options.size());
         Assert.assertEquals("0755-00000031", options.get(0).getContactPhone());
         Assert.assertTrue(options.get(0).getAddress().contains("Service"));
+    }
+
+    @Test
+    public void shouldBuildListVoWithBrandTypeAndServiceModeLabels() throws Exception {
+        CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(51L);
+        workOrder.setBrandType(BrandTypeEnum.JASIC);
+        workOrder.setServiceMode("MAIL");
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN);
+
+        Method method = CustomerWorkOrderServiceImpl.class.getDeclaredMethod(
+                "buildListVo",
+                WorkOrder.class,
+                Map.class,
+                Map.class,
+                Set.class
+        );
+        method.setAccessible(true);
+
+        CustomerWorkOrderListVO vo = (CustomerWorkOrderListVO) method.invoke(
+                service,
+                workOrder,
+                Collections.emptyMap(),
+                Collections.emptyMap(),
+                Collections.emptySet()
+        );
+
+        Assert.assertEquals(BrandTypeEnum.JASIC, vo.getBrandType());
+        Assert.assertEquals("佳士品牌", vo.getBrandTypeLabel());
+        Assert.assertEquals("MAIL", vo.getServiceMode());
+        Assert.assertEquals("寄修", vo.getServiceModeLabel());
+        Assert.assertTrue(vo.getCanUploadSendExpress());
+    }
+
+    @Test
+    public void shouldReturnLatestUnclosedWorkOrderSummaryWhenExists() throws Exception {
+        CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(71L);
+        workOrder.setCustomerId(200L);
+        workOrder.setOrderNo("JS-202604080001");
+        workOrder.setProductName("ZX7逆变焊机");
+        workOrder.setProductModel("MODEL-A");
+        workOrder.setFaultDesc("机器无法启动");
+        workOrder.setBrandType(BrandTypeEnum.JASIC);
+        workOrder.setServiceMode("MAIL");
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT);
+        workOrder.setCreateTime(LocalDateTime.of(2026, 4, 8, 10, 30, 0));
+
+        setField(service, "workOrderMapper", createWorkOrderMapperSelectListProxy(
+                Collections.singletonList(Collections.singletonList(workOrder))
+        ));
+
+        final CustomerWorkOrderLatestSummaryVO[] result = new CustomerWorkOrderLatestSummaryVO[1];
+        runWithCustomerLoginContext(200L, new ThrowingRunnable() {
+            @Override
+            public void run() {
+                result[0] = service.getLatestSummary();
+            }
+        });
+
+        Assert.assertNotNull(result[0]);
+        Assert.assertEquals(Long.valueOf(71L), result[0].getId());
+        Assert.assertEquals("JS-202604080001", result[0].getOrderNo());
+        Assert.assertEquals("ZX7逆变焊机", result[0].getProductName());
+        Assert.assertEquals("MODEL-A", result[0].getProductModel());
+        Assert.assertEquals("机器无法启动", result[0].getFaultDesc());
+        Assert.assertEquals("待接单", result[0].getDisplayStatus());
+        Assert.assertEquals("佳士品牌", result[0].getBrandTypeLabel());
+        Assert.assertEquals("寄修", result[0].getServiceModeLabel());
+    }
+
+    @Test
+    public void shouldFallbackToLatestCreatedWorkOrderWhenNoUnclosedOrder() throws Exception {
+        CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(72L);
+        workOrder.setCustomerId(200L);
+        workOrder.setOrderNo("JS-202604080002");
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.CLOSED);
+        workOrder.setCreateTime(LocalDateTime.of(2026, 4, 8, 11, 0, 0));
+
+        setField(service, "workOrderMapper", createWorkOrderMapperSelectListProxy(Arrays.asList(
+                Collections.<WorkOrder>emptyList(),
+                Collections.singletonList(workOrder)
+        )));
+
+        final CustomerWorkOrderLatestSummaryVO[] result = new CustomerWorkOrderLatestSummaryVO[1];
+        runWithCustomerLoginContext(200L, new ThrowingRunnable() {
+            @Override
+            public void run() {
+                result[0] = service.getLatestSummary();
+            }
+        });
+
+        Assert.assertNotNull(result[0]);
+        Assert.assertEquals(Long.valueOf(72L), result[0].getId());
+        Assert.assertEquals("已关闭", result[0].getDisplayStatus());
+    }
+
+    @Test
+    public void shouldReturnNullWhenNoWorkOrderExistsForLatestSummary() throws Exception {
+        CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createWorkOrderMapperSelectListProxy(Arrays.asList(
+                Collections.<WorkOrder>emptyList(),
+                Collections.<WorkOrder>emptyList()
+        )));
+
+        final CustomerWorkOrderLatestSummaryVO[] result = new CustomerWorkOrderLatestSummaryVO[1];
+        runWithCustomerLoginContext(200L, new ThrowingRunnable() {
+            @Override
+            public void run() {
+                result[0] = service.getLatestSummary();
+            }
+        });
+
+        Assert.assertNull(result[0]);
+    }
+
+    @Test
+    public void shouldHideUploadSenderVoucherWhenCurrentVoucherAlreadyExists() throws Exception {
+        CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(52L);
+        workOrder.setServiceMode("MAIL");
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN);
+
+        Method method = CustomerWorkOrderServiceImpl.class.getDeclaredMethod(
+                "buildListVo",
+                WorkOrder.class,
+                Map.class,
+                Map.class,
+                Set.class
+        );
+        method.setAccessible(true);
+
+        CustomerWorkOrderListVO vo = (CustomerWorkOrderListVO) method.invoke(
+                service,
+                workOrder,
+                Collections.emptyMap(),
+                Collections.emptyMap(),
+                Collections.singleton(52L)
+        );
+
+        Assert.assertFalse(vo.getCanUploadSendExpress());
+    }
+
+    @Test
+    public void shouldUploadSenderVoucherForPendingMailOrder() throws Exception {
+        CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(61L);
+        workOrder.setCustomerId(200L);
+        workOrder.setServiceMode("MAIL");
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN);
+        List<Long> replacedFileIds = new ArrayList<>();
+
+        setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder, new int[1]));
+        setField(service, "sysFileService", createSysFileServiceProxy(Collections.<SysFileItemVO>emptyList(), replacedFileIds));
+
+        CustomerWorkOrderSenderVoucherDTO dto = new CustomerWorkOrderSenderVoucherDTO();
+        dto.setWorkOrderId(61L);
+        dto.setSenderVoucherFileIds(Arrays.asList(101L, 102L));
+
+        runWithCustomerLoginContext(200L, new ThrowingRunnable() {
+            @Override
+            public void run() throws Exception {
+                service.updateSenderVoucher(dto);
+            }
+        });
+
+        Assert.assertEquals(Arrays.asList(101L, 102L), replacedFileIds);
+    }
+
+    @Test
+    public void shouldRejectUploadSenderVoucherWhenCurrentVoucherAlreadyExists() throws Exception {
+        CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(62L);
+        workOrder.setCustomerId(200L);
+        workOrder.setServiceMode("MAIL");
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN);
+        SysFileItemVO voucher = new SysFileItemVO();
+        voucher.setFileId(301L);
+
+        setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder, new int[1]));
+        setField(service, "sysFileService",
+                createSysFileServiceProxy(Collections.singletonList(voucher), new ArrayList<Long>()));
+
+        CustomerWorkOrderSenderVoucherDTO dto = new CustomerWorkOrderSenderVoucherDTO();
+        dto.setWorkOrderId(62L);
+        dto.setSenderVoucherFileIds(Collections.singletonList(101L));
+
+        try {
+            runWithCustomerLoginContext(200L, new ThrowingRunnable() {
+                @Override
+                public void run() throws Exception {
+                    service.updateSenderVoucher(dto);
+                }
+            });
+            Assert.fail("Expected duplicate sender voucher upload to be rejected");
+        } catch (ServiceException ex) {
+            Assert.assertEquals("当前工单已上传寄件凭证", ex.getMessage());
+        }
     }
 
     @Test
@@ -320,7 +624,7 @@ public class CustomerWorkOrderServiceImplTest {
     private SysCompany buildFirstCompany() {
         SysCompany company = new SysCompany();
         company.setId(11L);
-        company.setTypeCode("FIRST");
+        company.setTypeCode("SITE_FIRST");
         company.setStatus(1);
         company.setCompanyName("First Service");
         return company;
@@ -462,6 +766,23 @@ public class CustomerWorkOrderServiceImplTest {
         );
     }
 
+    private ISysConfigService createSysConfigServiceProxy(Map<String, String> configMap) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("getValueByKey".equals(method.getName())) {
+                    return configMap.get(args[0]);
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (ISysConfigService) Proxy.newProxyInstance(
+                ISysConfigService.class.getClassLoader(),
+                new Class<?>[]{ISysConfigService.class},
+                handler
+        );
+    }
+
     private List<HqFirstContract> buildContracts(Long... hqCompanyIds) {
         List<HqFirstContract> result = new ArrayList<>();
         for (Long hqCompanyId : hqCompanyIds) {
@@ -511,6 +832,24 @@ public class CustomerWorkOrderServiceImplTest {
                 if ("updateById".equals(method.getName())) {
                     updateCount[0]++;
                     return 1;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (WorkOrderMapper) Proxy.newProxyInstance(
+                WorkOrderMapper.class.getClassLoader(),
+                new Class<?>[]{WorkOrderMapper.class},
+                handler
+        );
+    }
+
+    private WorkOrderMapper createWorkOrderMapperSelectListProxy(List<List<WorkOrder>> selectListResults) {
+        Queue<List<WorkOrder>> results = new LinkedList<>(selectListResults);
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectList".equals(method.getName())) {
+                    return results.isEmpty() ? Collections.<WorkOrder>emptyList() : results.poll();
                 }
                 return defaultValue(method.getReturnType());
             }
@@ -575,6 +914,33 @@ public class CustomerWorkOrderServiceImplTest {
         return (WorkOrderFlowMapper) Proxy.newProxyInstance(
                 WorkOrderFlowMapper.class.getClassLoader(),
                 new Class<?>[]{WorkOrderFlowMapper.class},
+                handler
+        );
+    }
+
+    private SysFileService createSysFileServiceProxy(List<SysFileItemVO> bizFiles, List<Long> replacedFileIds) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            @SuppressWarnings("unchecked")
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("listBizFiles".equals(method.getName())) {
+                    return bizFiles;
+                }
+                if ("replaceBizFiles".equals(method.getName())) {
+                    replacedFileIds.clear();
+                    if (args[2] instanceof List) {
+                        replacedFileIds.addAll((List<Long>) args[2]);
+                    }
+                    Assert.assertEquals(SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER, args[0]);
+                    Assert.assertEquals(SysFileUploadUserTypeEnum.CUSTOMER, args[5]);
+                    return null;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (SysFileService) Proxy.newProxyInstance(
+                SysFileService.class.getClassLoader(),
+                new Class<?>[]{SysFileService.class},
                 handler
         );
     }

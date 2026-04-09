@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 
 /**
  * 参数设置控制器
@@ -28,6 +30,7 @@ import javax.annotation.Resource;
  * @author Codex
  * @date 2026/03/19
  */
+@Api(tags = "参数设置")
 @RestController
 @RequestMapping("/system/config")
 public class SysConfigController extends BaseController {

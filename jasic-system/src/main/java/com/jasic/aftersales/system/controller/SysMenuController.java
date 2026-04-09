@@ -26,6 +26,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
 import java.util.List;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 
 /**
  * 菜单管理控制器
@@ -33,6 +35,7 @@ import java.util.List;
  * @author Zoro
  * @date 2026/03/18
  */
+@Api(tags = "菜单管理")
 @RestController
 @RequestMapping("/system/menu")
 public class SysMenuController extends BaseController {
@@ -46,6 +49,7 @@ public class SysMenuController extends BaseController {
      * @param subjectType 主体类型（PLATFORM/HQ/SERVICE）
      * @return 菜单树
      */
+    @ApiOperation(value = "查询菜单树（按主体类型）")
     @SaCheckPermission("system:menu:list")
     @GetMapping("/tree")
     public Result<List<SysMenuVO>> tree(@RequestParam String subjectType) {
@@ -59,6 +63,7 @@ public class SysMenuController extends BaseController {
      * @param subjectType 主体类型
      * @return 菜单列表
      */
+    @ApiOperation(value = "查询菜单列表（平铺，按主体类型）")
     @SaCheckPermission("system:menu:list")
     @GetMapping("/list")
     public Result<List<SysMenu>> list(@RequestParam String subjectType) {
@@ -72,6 +77,7 @@ public class SysMenuController extends BaseController {
      * @param menuId 菜单ID
      * @return 菜单详情
      */
+    @ApiOperation(value = "查询菜单详情")
     @SaCheckPermission("system:menu:list")
     @GetMapping("/{menuId}")
     public Result<SysMenu> getById(@PathVariable Long menuId) {
@@ -85,6 +91,7 @@ public class SysMenuController extends BaseController {
      * @param dto 菜单参数
      * @return 菜单ID
      */
+    @ApiOperation(value = "新增菜单")
     @SaCheckPermission("system:menu:add")
     @OperLog(title = "菜单管理", operType = OperTypeEnum.INSERT)
     @PostMapping
@@ -99,6 +106,7 @@ public class SysMenuController extends BaseController {
      * @param dto 菜单参数
      * @return 操作结果
      */
+    @ApiOperation(value = "修改菜单")
     @SaCheckPermission("system:menu:update")
     @OperLog(title = "菜单管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
@@ -113,6 +121,7 @@ public class SysMenuController extends BaseController {
      * @param menuId 菜单ID
      * @return 操作结果
      */
+    @ApiOperation(value = "删除菜单")
     @SaCheckPermission("system:menu:remove")
     @OperLog(title = "菜单管理", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/{menuId}")
@@ -127,6 +136,7 @@ public class SysMenuController extends BaseController {
      * @param typeCode 公司类型编码
      * @return 菜单树
      */
+    @ApiOperation(value = "查询公司类型已分配的菜单树（用于角色模板分配菜单时展示可选范围）")
     @SaCheckPermission("system:menu:list")
     @GetMapping("/type-code-tree")
     public Result<List<SysMenuVO>> typeCodeTree(@RequestParam String typeCode) {
@@ -140,6 +150,7 @@ public class SysMenuController extends BaseController {
      * @param typeCode 公司类型编码
      * @return 菜单ID列表
      */
+    @ApiOperation(value = "查询公司类型已分配的菜单ID列表")
     @SaCheckPermission("system:menu:list")
     @GetMapping("/type-code-menu-ids")
     public Result<List<Long>> typeCodeMenuIds(@RequestParam String typeCode) {
@@ -154,6 +165,7 @@ public class SysMenuController extends BaseController {
      * @param menuIds  菜单ID列表
      * @return 操作结果
      */
+    @ApiOperation(value = "分配公司类型的菜单上限")
     @SaCheckPermission("system:menu:update")
     @OperLog(title = "公司类型菜单分配", operType = OperTypeEnum.GRANT)
     @PutMapping("/assign-type-code-menus")
@@ -169,6 +181,7 @@ public class SysMenuController extends BaseController {
      * @param subjectType 主体类型
      * @return 发布可选项
      */
+    @ApiOperation(value = "查询菜单发布可选项")
     @SaCheckPermission("system:menu:publish")
     @GetMapping("/publish-options")
     public Result<SysMenuPublishOptionsVO> publishOptions(@RequestParam String subjectType) {
@@ -181,6 +194,7 @@ public class SysMenuController extends BaseController {
      * @param dto 发布参数
      * @return 发布结果
      */
+    @ApiOperation(value = "保存并发布菜单")
     @SaCheckPermission("system:menu:publish")
     @OperLog(title = "菜单发布", operType = OperTypeEnum.GRANT)
     @PostMapping("/publish")
@@ -194,6 +208,7 @@ public class SysMenuController extends BaseController {
      * @param dto 拷贝参数（源主体、目标主体、可选菜单ID列表）
      * @return 拷贝的菜单数量
      */
+    @ApiOperation(value = "从源主体拷贝菜单到目标主体")
     @SaCheckPermission("system:menu:add")
     @OperLog(title = "菜单拷贝", operType = OperTypeEnum.INSERT)
     @PostMapping("/copy")

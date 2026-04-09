@@ -24,6 +24,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 
 /**
  * 签约管理控制器
@@ -31,6 +33,7 @@ import javax.annotation.Resource;
  * @author Zoro
  * @date 2026/03/18
  */
+@Api(tags = "签约管理")
 @RestController
 @RequestMapping("/org/contract")
 public class SysContractController extends BaseController {
@@ -44,6 +47,7 @@ public class SysContractController extends BaseController {
      * @param query 查询参数
      * @return 分页结果
      */
+    @ApiOperation(value = "总部-一级签约分页列表")
     @SaCheckPermission("org:contract:list")
     @GetMapping("/hq-first/list")
     public Result<PageResult<HqFirstContractVO>> listHqFirstPage(HqFirstContractQuery query) {
@@ -57,6 +61,7 @@ public class SysContractController extends BaseController {
      * @param dto 签约参数
      * @return 主键ID
      */
+    @ApiOperation(value = "新增总部-一级签约")
     @SaCheckPermission("org:contract:add")
     @OperLog(title = "签约管理", operType = OperTypeEnum.INSERT)
     @PostMapping("/hq-first")
@@ -71,6 +76,7 @@ public class SysContractController extends BaseController {
      * @param dto 签约参数
      * @return 操作结果
      */
+    @ApiOperation(value = "修改总部-一级签约")
     @SaCheckPermission("org:contract:update")
     @OperLog(title = "签约管理", operType = OperTypeEnum.UPDATE)
     @PutMapping("/hq-first")
@@ -85,6 +91,7 @@ public class SysContractController extends BaseController {
      * @param id 主键ID
      * @return 操作结果
      */
+    @ApiOperation(value = "删除总部-一级签约")
     @SaCheckPermission("org:contract:remove")
     @OperLog(title = "签约管理", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/hq-first/{id}")
@@ -99,6 +106,7 @@ public class SysContractController extends BaseController {
      * @param query 查询参数
      * @return 分页结果
      */
+    @ApiOperation(value = "一级-二级从属分页列表")
     @SaCheckPermission("org:contract:list")
     @GetMapping("/first-second/list")
     public Result<PageResult<FirstSecondRelationVO>> listFirstSecondPage(FirstSecondRelationQuery query) {
@@ -112,6 +120,7 @@ public class SysContractController extends BaseController {
      * @param dto 从属关系参数
      * @return 主键ID
      */
+    @ApiOperation(value = "新增一级-二级从属")
     @SaCheckPermission("org:contract:add")
     @OperLog(title = "签约管理", operType = OperTypeEnum.INSERT)
     @PostMapping("/first-second")
@@ -126,6 +135,7 @@ public class SysContractController extends BaseController {
      * @param id 主键ID
      * @return 操作结果
      */
+    @ApiOperation(value = "删除一级-二级从属")
     @SaCheckPermission("org:contract:remove")
     @OperLog(title = "签约管理", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/first-second/{id}")

@@ -145,7 +145,7 @@ public class SysDataScopeRuleService {
                         option(DataScopeEnum.SELF.getCode(), "仅本人", true)
                 );
             case SERVICE:
-                if ("FIRST".equals(typeCode)) {
+                if ("SITE_FIRST".equals(typeCode)) {
                     return java.util.Arrays.asList(
                             option(DataScopeEnum.ALL.getCode(), "本公司及下级网点", false),
                             option(DataScopeEnum.COMPANY.getCode(), "仅本公司", true),

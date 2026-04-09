@@ -42,6 +42,13 @@
             <artifactId>jackson-annotations</artifactId>
         </dependency>
 
+        <!-- Swagger 注解（用于接口模型字段说明） -->
+        <dependency>
+            <groupId>io.swagger</groupId>
+            <artifactId>swagger-annotations</artifactId>
+            <version>${swagger.annotations.version}</version>
+        </dependency>
+
         <!-- Servlet API（用于 BaseController） -->
         <dependency>
             <groupId>javax.servlet</groupId>

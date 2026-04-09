@@ -11,6 +11,7 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -89,6 +90,20 @@ public class GlobalExceptionHandler {
         String message = fieldError != null ? fieldError.getDefaultMessage() : "参数校验失败";
         log.warn("参数绑定失败：{}", message);
         return Result.fail(ResultCode.PARAM_ERROR, message);
+    }
+
+    /**
+     * 处理上传文件超限异常
+     *
+     * @param e       异常
+     * @param request 请求
+     * @return 错误响应
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public Result<Void> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException e,
+                                                             HttpServletRequest request) {
+        log.warn("请求地址 [{}]，上传文件超限：{}", request.getRequestURI(), e.getMessage());
+        return Result.fail(ResultCode.PARAM_ERROR, "上传文件不能超过50MB");
     }
 
     /**

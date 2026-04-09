@@ -67,6 +67,12 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
     @Resource
     private ISysCompanyTypeService companyTypeService;
 
+    /**
+     * 分页查询故障与维修配置。
+     *
+     * @param query 查询参数
+     * @return 分页结果
+     */
     @Override
     public PageResult<FaultRepairConfigVO> listPage(FaultRepairConfigQuery query) {
         Page<FaultRepairConfig> page = new Page<>(query.getPageNum(), query.getPageSize());
@@ -97,6 +103,12 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         return PageResult.of(records, result.getTotal(), query.getPageNum(), query.getPageSize());
     }
 
+    /**
+     * 查询配置详情。
+     *
+     * @param id 配置ID
+     * @return 配置详情
+     */
     @Override
     public FaultRepairConfigVO getById(Long id) {
         FaultRepairConfig entity = faultRepairConfigMapper.selectById(id);
@@ -107,6 +119,12 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         return records.isEmpty() ? null : records.get(0);
     }
 
+    /**
+     * 新增故障与维修配置。
+     *
+     * @param dto 配置参数
+     * @return 配置ID
+     */
     @Transactional(rollbackFor = Exception.class)
     @Override
     public Long save(FaultRepairConfigDTO dto) {
@@ -121,6 +139,11 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         return entity.getId();
     }
 
+    /**
+     * 更新故障与维修配置。
+     *
+     * @param dto 配置参数
+     */
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void update(FaultRepairConfigDTO dto) {
@@ -141,6 +164,11 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         saveFaultItems(entity.getId(), faults);
     }
 
+    /**
+     * 删除配置及其故障、维修选项明细。
+     *
+     * @param id 配置ID
+     */
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void remove(Long id) {
@@ -152,6 +180,11 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         faultRepairConfigMapper.deleteById(id);
     }
 
+    /**
+     * 查询可配置故障模板的总部列表。
+     *
+     * @return 总部选项
+     */
     @Override
     public List<SysCompanySimpleVO> listCompanyOptions() {
         List<SysCompanyType> companyTypes = companyTypeService.listAll();
@@ -183,6 +216,14 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         return result;
     }
 
+    /**
+     * 按总部和产品维度查询维修登记可选的故障配置。
+     *
+     * @param companyId 总部公司ID
+     * @param productCode 产品编码
+     * @param productModel 产品型号
+     * @return 故障配置选项
+     */
     @Override
     public List<WorkOrderRepairFaultOptionVO> listRepairFaultOptions(Long companyId, String productCode, String productModel) {
         FaultRepairConfig config = findMatchedConfig(companyId, normalizeNullableText(productCode), normalizeNullableText(productModel));
@@ -203,6 +244,12 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         return result;
     }
 
+    /**
+     * 通过故障描述反查配置ID，用于列表页按故障筛选。
+     *
+     * @param faultDesc 故障描述
+     * @return 配置ID列表
+     */
     private List<Long> listConfigIdsByFaultDesc(String faultDesc) {
         LambdaQueryWrapper<FaultRepairConfigFault> wrapper = new LambdaQueryWrapper<>();
         wrapper.like(FaultRepairConfigFault::getFaultDesc, faultDesc);
@@ -217,6 +264,13 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 组装配置展示对象，并按需加载故障与维修说明明细。
+     *
+     * @param records 配置记录
+     * @param includeFaults 是否包含完整故障明细
+     * @return 展示对象列表
+     */
     private List<FaultRepairConfigVO> buildConfigVos(List<FaultRepairConfig> records, boolean includeFaults) {
         if (CollUtil.isEmpty(records)) {
             return Collections.emptyList();

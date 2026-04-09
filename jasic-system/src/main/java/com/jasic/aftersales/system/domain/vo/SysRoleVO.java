@@ -6,6 +6,8 @@ import lombok.Data;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.List;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 
 /**
  * 角色VO
@@ -13,45 +15,58 @@ import java.util.List;
  * @author Zoro
  * @date 2026/03/18
  */
+@ApiModel(description = "角色VO")
 @Data
 public class SysRoleVO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     /** 角色ID */
+    @ApiModelProperty(value = "角色ID")
     private Long id;
 
     /** 归属公司ID */
+    @ApiModelProperty(value = "归属公司ID")
     private Long companyId;
 
     /** 角色名称 */
+    @ApiModelProperty(value = "角色名称")
     private String roleName;
 
     /** 角色标识 */
+    @ApiModelProperty(value = "角色标识")
     private String roleKey;
 
     /** 数据范围 */
+    @ApiModelProperty(value = "数据范围")
     private String dataScope;
 
     /** 角色类型（0=自定义角色，1=公司管理员角色，2=模板角色） */
+    @ApiModelProperty(value = "角色类型（0=自定义角色，1=公司管理员角色，2=模板角色）")
     private Integer roleType;
 
     /** 是否系统角色 */
+    @ApiModelProperty(value = "是否系统角色")
     private Integer isSystem;
 
     /** 状态 */
+    @ApiModelProperty(value = "状态")
     private Integer status;
 
     /** 排序 */
+    @ApiModelProperty(value = "排序")
     private Integer orderNum;
 
     /** 备注 */
+    @ApiModelProperty(value = "备注")
     private String remark;
 
     /** 已分配菜单ID列表 */
+    @ApiModelProperty(value = "已分配菜单ID列表")
     private List<Long> menuIds;
 
     /** 创建时间 */
+    @ApiModelProperty(value = "创建时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createTime;
 }

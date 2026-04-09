@@ -23,6 +23,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
 import java.util.List;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 
 /**
  * 故障与维修配置控制器
@@ -30,6 +32,7 @@ import java.util.List;
  * @author Codex
  * @date 2026/04/01
  */
+@Api(tags = "故障与维修配置")
 @RestController
 @RequestMapping("/system/fault-repair-config")
 public class FaultRepairConfigController extends BaseController {

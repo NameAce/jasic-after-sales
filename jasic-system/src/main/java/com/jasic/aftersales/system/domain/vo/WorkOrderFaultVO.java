@@ -5,6 +5,8 @@ import lombok.Data;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 
 /**
  * 工单故障点视图
@@ -12,42 +14,54 @@ import java.time.LocalDateTime;
  * @author Codex
  * @date 2026/03/26
  */
+@ApiModel(description = "工单故障点视图")
 @Data
 public class WorkOrderFaultVO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     /** 故障点ID */
+    @ApiModelProperty(value = "故障点ID")
     private Long id;
 
     /** 登记公司ID */
+    @ApiModelProperty(value = "登记公司ID")
     private Long companyId;
 
     /** 故障描述 */
+    @ApiModelProperty(value = "故障描述")
     private String faultDesc;
 
     /** 维修说明 */
+    @ApiModelProperty(value = "维修说明")
     private String repairDesc;
 
     /** 其他维修说明 */
+    @ApiModelProperty(value = "其他维修说明")
     private String otherDesc;
 
     /** 配件信息 */
+    @ApiModelProperty(value = "配件信息")
     private String partDesc;
 
     /** 图片地址集合 */
+    @ApiModelProperty(value = "图片地址集合")
     private String imageUrls;
 
     /** 排序号 */
+    @ApiModelProperty(value = "排序号")
     private Integer sortNum;
 
     /** 登记人ID */
+    @ApiModelProperty(value = "登记人ID")
     private Long createdBy;
 
     /** 登记人姓名 */
+    @ApiModelProperty(value = "登记人姓名")
     private String createdByName;
 
     /** 创建时间 */
+    @ApiModelProperty(value = "创建时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createTime;
 }

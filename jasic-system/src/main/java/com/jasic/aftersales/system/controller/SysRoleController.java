@@ -26,6 +26,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
 import java.util.List;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 
 /**
  * 角色管理控制器
@@ -33,6 +35,7 @@ import java.util.List;
  * @author Zoro
  * @date 2026/03/18
  */
+@Api(tags = "角色管理")
 @RestController
 @RequestMapping("/system/role")
 public class SysRoleController extends BaseController {
@@ -49,6 +52,7 @@ public class SysRoleController extends BaseController {
      * @param query 查询参数
      * @return 分页结果
      */
+    @ApiOperation(value = "分页查询角色列表")
     @SaCheckPermission("system:role:list")
     @GetMapping("/list")
     public Result<PageResult<SysRoleVO>> list(SysRoleQuery query) {
@@ -64,6 +68,7 @@ public class SysRoleController extends BaseController {
      *
      * @return 角色列表
      */
+    @ApiOperation(value = "查询当前公司下的角色列表（不分页，用于下拉选择）")
     @GetMapping("/options")
     public Result<List<SysRoleVO>> options() {
         Long companyId = SecurityContext.getCurrentCompanyId();
@@ -76,6 +81,7 @@ public class SysRoleController extends BaseController {
      *
      * @return 数据范围选项
      */
+    @ApiOperation(value = "查询当前公司的数据范围选项。")
     @SaCheckPermission("system:role:list")
     @GetMapping("/data-scope-options")
     public Result<List<DataScopeOptionVO>> dataScopeOptions() {
@@ -89,6 +95,7 @@ public class SysRoleController extends BaseController {
      * @param roleId 角色ID
      * @return 角色详情
      */
+    @ApiOperation(value = "查询角色详情")
     @SaCheckPermission("system:role:list")
     @GetMapping("/{roleId}")
     public Result<SysRoleVO> getById(@PathVariable Long roleId) {
@@ -102,6 +109,7 @@ public class SysRoleController extends BaseController {
      * @param dto 角色参数
      * @return 角色ID
      */
+    @ApiOperation(value = "新增角色")
     @SaCheckPermission("system:role:add")
     @OperLog(title = "角色管理", operType = OperTypeEnum.INSERT)
     @PostMapping
@@ -117,6 +125,7 @@ public class SysRoleController extends BaseController {
      * @param dto 角色参数
      * @return 操作结果
      */
+    @ApiOperation(value = "修改角色")
     @SaCheckPermission("system:role:update")
     @OperLog(title = "角色管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
@@ -131,6 +140,7 @@ public class SysRoleController extends BaseController {
      * @param roleId 角色ID
      * @return 操作结果
      */
+    @ApiOperation(value = "删除角色")
     @SaCheckPermission("system:role:remove")
     @OperLog(title = "角色管理", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/{roleId}")
@@ -146,6 +156,7 @@ public class SysRoleController extends BaseController {
      * @param menuIds 菜单ID列表
      * @return 操作结果
      */
+    @ApiOperation(value = "分配角色菜单")
     @SaCheckPermission("system:role:update")
     @OperLog(title = "角色管理", operType = OperTypeEnum.GRANT)
     @PutMapping("/{roleId}/menus")

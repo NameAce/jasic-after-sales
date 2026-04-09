@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.jasic.aftersales.common.core.domain.BaseEntity;
+import com.jasic.aftersales.common.enums.BrandTypeEnum;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -53,10 +54,16 @@ public class WorkOrder extends BaseEntity {
     /** 机器小号 */
     private String machineNo;
 
+    /** 品牌类型 */
+    private BrandTypeEnum brandType;
+
     /** 品牌编码 */
     private String brandCode;
 
-    /** 服务方式（寄修/到店） */
+    /** 品牌名称 */
+    private String brandName;
+
+    /** 服务方式编码（MAIL/STORE） */
     private String serviceMode;
 
     /** 质保状态 */

@@ -1,7 +1,10 @@
 package com.jasic.aftersales.system.service.impl;
 
 import com.jasic.aftersales.common.exception.ServiceException;
+import com.jasic.aftersales.system.domain.entity.SysMenu;
 import com.jasic.aftersales.system.domain.entity.SysUser;
+import com.jasic.aftersales.system.domain.vo.SysPermissionVO;
+import com.jasic.aftersales.system.mapper.SysMenuMapper;
 import com.jasic.aftersales.system.mapper.SysUserMapper;
 import org.junit.Assert;
 import org.junit.Test;
@@ -59,6 +62,30 @@ public class SysAuthServiceImplTest {
         }
     }
 
+    @Test
+    public void shouldBuildLightweightPermissionItems() throws Exception {
+        SysAuthServiceImpl service = new SysAuthServiceImpl();
+        SysMenu menu = new SysMenu();
+        menu.setId(10L);
+        menu.setMenuName("工单转派");
+        menu.setParentId(5L);
+        menu.setMenuType("F");
+        menu.setPerms("workorder:transfer");
+        setField(service, "sysMenuMapper", createMenuMapperProxy(Collections.singletonList(menu)));
+
+        Method method = SysAuthServiceImpl.class.getDeclaredMethod("buildCurrentPermissionVos", Long.class, Long.class);
+        method.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        List<SysPermissionVO> result = (List<SysPermissionVO>) method.invoke(service, 1L, 2L);
+
+        Assert.assertEquals(1, result.size());
+        Assert.assertEquals(Long.valueOf(10L), result.get(0).getId());
+        Assert.assertEquals("工单转派", result.get(0).getMenuName());
+        Assert.assertEquals(Long.valueOf(5L), result.get(0).getParentId());
+        Assert.assertEquals("F", result.get(0).getMenuType());
+        Assert.assertEquals("workorder:transfer", result.get(0).getPerms());
+    }
+
     private SysUser buildUser(Long id, String username, String phone) {
         SysUser user = new SysUser();
         user.setId(id);
@@ -81,6 +108,23 @@ public class SysAuthServiceImplTest {
         return (SysUserMapper) Proxy.newProxyInstance(
                 SysUserMapper.class.getClassLoader(),
                 new Class<?>[]{SysUserMapper.class},
+                handler
+        );
+    }
+
+    private SysMenuMapper createMenuMapperProxy(List<SysMenu> menus) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectPermissionMenusByUserIdAndCompanyId".equals(method.getName())) {
+                    return menus;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (SysMenuMapper) Proxy.newProxyInstance(
+                SysMenuMapper.class.getClassLoader(),
+                new Class<?>[]{SysMenuMapper.class},
                 handler
         );
     }

@@ -20,6 +20,7 @@ import com.jasic.aftersales.system.domain.dto.UpdateProfileDTO;
 import com.jasic.aftersales.system.domain.dto.WechatBindConfirmDTO;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
 import com.jasic.aftersales.system.domain.entity.SysCompanyType;
+import com.jasic.aftersales.system.domain.entity.SysMenu;
 import com.jasic.aftersales.system.domain.entity.SysRole;
 import com.jasic.aftersales.system.domain.entity.SysUser;
 import com.jasic.aftersales.system.domain.entity.SysUserCompany;
@@ -31,6 +32,7 @@ import com.jasic.aftersales.system.domain.model.WechatPhoneInfo;
 import com.jasic.aftersales.system.domain.vo.LoginVO;
 import com.jasic.aftersales.system.domain.vo.MpLoginVO;
 import com.jasic.aftersales.system.domain.vo.SysCompanySimpleVO;
+import com.jasic.aftersales.system.domain.vo.SysPermissionVO;
 import com.jasic.aftersales.system.domain.vo.SysRoleVO;
 import com.jasic.aftersales.system.domain.vo.SysUserVO;
 import com.jasic.aftersales.system.domain.vo.WechatBindStatusVO;
@@ -216,14 +218,8 @@ public class SysAuthServiceImpl implements ISysAuthService {
                     vo.setCurrentSubjectType(companyType.getSubjectType());
                 }
 
-                String permsKey = CacheConstants.USER_PERMS_KEY + userId + ":" + companyId;
-                Set<Object> permObjects = redisTemplate.opsForSet().members(permsKey);
-                if (permObjects != null && !permObjects.isEmpty()) {
-                    Set<String> perms = permObjects.stream()
-                            .map(String::valueOf)
-                            .collect(Collectors.toSet());
-                    vo.setPerms(perms);
-                }
+                vo.setPerms(loadCurrentPerms(userId, companyId));
+                vo.setPermissionVos(buildCurrentPermissionVos(userId, companyId));
                 vo.setRoles(buildCurrentCompanyRoles(userId, companyId));
             }
         }
@@ -491,6 +487,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
         }
         vo.setPerms(perms);
         if (company != null) {
+            vo.setPermissionVos(buildCurrentPermissionVos(userId, company.getId()));
             vo.setRoles(buildCurrentCompanyRoles(userId, company.getId()));
         }
 
@@ -503,6 +500,49 @@ public class SysAuthServiceImpl implements ISysAuthService {
                     .collect(Collectors.toList());
             vo.setCompanies(buildCompanySimpleList(companyIds));
         }
+        return vo;
+    }
+
+    /**
+     * 优先读取缓存中的权限标识，缺失时回源并重建缓存。
+     */
+    private Set<String> loadCurrentPerms(Long userId, Long companyId) {
+        if (userId == null || companyId == null) {
+            return Collections.emptySet();
+        }
+        String permsKey = CacheConstants.USER_PERMS_KEY + userId + ":" + companyId;
+        Set<Object> permObjects = redisTemplate.opsForSet().members(permsKey);
+        if (permObjects != null && !permObjects.isEmpty()) {
+            return permObjects.stream()
+                    .map(String::valueOf)
+                    .collect(Collectors.toSet());
+        }
+        return sysPermissionService.loadPermsToCache(userId, companyId);
+    }
+
+    /**
+     * 构建当前公司下的轻量权限项集合。
+     */
+    private List<SysPermissionVO> buildCurrentPermissionVos(Long userId, Long companyId) {
+        if (userId == null || companyId == null) {
+            return Collections.emptyList();
+        }
+        List<SysMenu> permissionMenus = sysMenuMapper.selectPermissionMenusByUserIdAndCompanyId(userId, companyId);
+        if (permissionMenus == null || permissionMenus.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return permissionMenus.stream()
+                .map(this::convertPermissionToVO)
+                .collect(Collectors.toList());
+    }
+
+    private SysPermissionVO convertPermissionToVO(SysMenu menu) {
+        SysPermissionVO vo = new SysPermissionVO();
+        vo.setId(menu.getId());
+        vo.setMenuName(menu.getMenuName());
+        vo.setParentId(menu.getParentId());
+        vo.setMenuType(menu.getMenuType());
+        vo.setPerms(menu.getPerms());
         return vo;
     }
 

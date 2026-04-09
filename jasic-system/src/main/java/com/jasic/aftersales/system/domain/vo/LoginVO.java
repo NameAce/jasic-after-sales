@@ -4,6 +4,8 @@ import lombok.Data;
 
 import java.io.Serializable;
 import java.util.List;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 
 /**
  * 登录返回结果
@@ -11,20 +13,25 @@ import java.util.List;
  * @author Zoro
  * @date 2026/03/18
  */
+@ApiModel(description = "登录返回结果")
 @Data
 public class LoginVO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     /** Token */
+    @ApiModelProperty(value = "Token")
     private String token;
 
     /** 用户信息 */
+    @ApiModelProperty(value = "用户信息")
     private SysUserVO userInfo;
 
     /** 关联公司列表（多公司时需要选择） */
+    @ApiModelProperty(value = "关联公司列表（多公司时需要选择）")
     private List<SysCompanySimpleVO> companies;
 
     /** 是否需要选择公司 */
+    @ApiModelProperty(value = "是否需要选择公司")
     private Boolean needChooseCompany;
 }

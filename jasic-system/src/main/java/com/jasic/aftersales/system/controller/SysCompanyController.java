@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 
 /**
  * 公司管理控制器
@@ -28,6 +30,7 @@ import javax.annotation.Resource;
  * @author Zoro
  * @date 2026/03/18
  */
+@Api(tags = "公司管理")
 @RestController
 @RequestMapping("/org/company")
 public class SysCompanyController extends BaseController {
@@ -41,6 +44,7 @@ public class SysCompanyController extends BaseController {
      * @param query 查询参数
      * @return 分页结果
      */
+    @ApiOperation(value = "分页查询公司列表")
     @SaCheckPermission("org:company:list")
     @GetMapping("/list")
     public Result<PageResult<SysCompany>> list(SysCompanyQuery query) {
@@ -54,6 +58,7 @@ public class SysCompanyController extends BaseController {
      * @param id 主键ID
      * @return 公司详情
      */
+    @ApiOperation(value = "根据ID查询公司")
     @GetMapping("/{id}")
     public Result<SysCompany> getById(@PathVariable Long id) {
         SysCompany entity = companyService.getById(id);
@@ -66,6 +71,7 @@ public class SysCompanyController extends BaseController {
      * @param dto 公司参数
      * @return 主键ID
      */
+    @ApiOperation(value = "新增公司")
     @SaCheckPermission("org:company:add")
     @OperLog(title = "公司管理", operType = OperTypeEnum.INSERT)
     @PostMapping
@@ -80,6 +86,7 @@ public class SysCompanyController extends BaseController {
      * @param dto 公司参数
      * @return 操作结果
      */
+    @ApiOperation(value = "修改公司")
     @SaCheckPermission("org:company:update")
     @OperLog(title = "公司管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
@@ -94,6 +101,7 @@ public class SysCompanyController extends BaseController {
      * @param id 主键ID
      * @return 操作结果
      */
+    @ApiOperation(value = "删除公司")
     @SaCheckPermission("org:company:remove")
     @OperLog(title = "公司管理", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/{id}")

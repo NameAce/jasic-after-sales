@@ -42,7 +42,7 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
     @Override
     public WechatAuthSession code2Session(WechatMiniProgramScene scene, String code) {
         if (StrUtil.isBlank(code)) {
-            throw new ServiceException("微信登录 code 不能为空");
+            throw new ServiceException("微信登录凭证不能为空");
         }
 
         WxMaJscode2SessionResult result;
@@ -69,7 +69,7 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
     @Override
     public WechatPhoneInfo getPhoneNumber(WechatMiniProgramScene scene, String phoneCode) {
         if (StrUtil.isBlank(phoneCode)) {
-            throw new ServiceException("微信手机号 code 不能为空");
+            throw new ServiceException("微信手机号凭证不能为空");
         }
 
         WxMaPhoneNumberInfo result;
@@ -97,7 +97,7 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
     public void sendSubscribeMessage(WechatMiniProgramScene scene, String openid, String templateId, String pagePath,
                                      JSONObject data) {
         if (StrUtil.isBlank(openid)) {
-            throw new ServiceException("消息接收人 openid 不能为空");
+            throw new ServiceException("消息接收人微信标识不能为空");
         }
         if (StrUtil.isBlank(templateId)) {
             throw new ServiceException("微信配置未完成");
@@ -169,6 +169,13 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
         return new WechatMiniProgramConfig(appId, secret);
     }
 
+    /**
+     * 优先透传微信侧错误信息，便于区分是配置问题还是三方调用故障。
+     *
+     * @param defaultMessage 默认错误提示
+     * @param ex 微信 SDK 异常
+     * @return 统一业务异常
+     */
     private ServiceException buildWxServiceException(String defaultMessage, WxErrorException ex) {
         String errorMessage = defaultMessage;
         if (ex != null && ex.getError() != null && StrUtil.isNotBlank(ex.getError().getErrorMsg())) {
@@ -177,6 +184,13 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
         return new ServiceException(ResultCode.THIRD_PARTY_ERROR, errorMessage);
     }
 
+    /**
+     * 组装订阅消息字段，统一做空值兜底。
+     *
+     * @param name 字段名
+     * @param valueObj 字段值
+     * @return 订阅消息字段
+     */
     private WxMaSubscribeMessage.MsgData buildMsgData(String name, Object valueObj) {
         WxMaSubscribeMessage.MsgData data = new WxMaSubscribeMessage.MsgData();
         data.setName(name);
@@ -184,6 +198,12 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
         return data;
     }
 
+    /**
+     * 微信模板字段为空时使用短横线占位，避免模板校验失败。
+     *
+     * @param valueObj 原始字段值
+     * @return 模板可接受的字符串值
+     */
     private String resolveTemplateValue(Object valueObj) {
         if (valueObj instanceof JSONObject) {
             return StrUtil.blankToDefault(((JSONObject) valueObj).getStr("value"), "-");

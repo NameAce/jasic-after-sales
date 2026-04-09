@@ -3,20 +3,28 @@ package com.jasic.aftersales.customer.service.impl;
 import cn.hutool.core.util.IdUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.jasic.aftersales.common.constant.WorkOrderConfigConstants;
 import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
 import com.jasic.aftersales.common.constant.WorkOrderStatusFlow;
 import com.jasic.aftersales.common.core.domain.PageResult;
+import com.jasic.aftersales.common.enums.BrandTypeEnum;
 import com.jasic.aftersales.common.enums.CompanyCategoryEnum;
+import com.jasic.aftersales.common.enums.ServiceModeEnum;
+import com.jasic.aftersales.common.enums.SysFileBizTypeEnum;
+import com.jasic.aftersales.common.enums.SysFileStatusEnum;
+import com.jasic.aftersales.common.enums.SysFileUploadUserTypeEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderCreateDTO;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderEvaluateDTO;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderSendInfoDTO;
+import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderSenderVoucherDTO;
 import com.jasic.aftersales.customer.domain.entity.CUser;
 import com.jasic.aftersales.customer.domain.query.CustomerWorkOrderQuery;
 import com.jasic.aftersales.customer.domain.vo.CustomerBarcodeInfoVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerNearbyServiceCompanyVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerServiceCompanyOptionVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderDetailVO;
+import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderLatestSummaryVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderListVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderStatusCountVO;
 import com.jasic.aftersales.customer.mapper.CUserMapper;
@@ -26,6 +34,8 @@ import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
 import com.jasic.aftersales.system.domain.entity.HqFirstContract;
 import com.jasic.aftersales.system.domain.entity.MachineBarcode;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
+import com.jasic.aftersales.system.domain.entity.SysFile;
+import com.jasic.aftersales.system.domain.entity.SysFileBiz;
 import com.jasic.aftersales.system.domain.entity.SysUser;
 import com.jasic.aftersales.system.domain.entity.WorkOrder;
 import com.jasic.aftersales.system.domain.entity.WorkOrderEvaluation;
@@ -40,10 +50,14 @@ import com.jasic.aftersales.system.domain.vo.WorkOrderQuoteVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairFaultOptionVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderReviewVO;
+import com.jasic.aftersales.system.domain.vo.SysFileItemVO;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
 import com.jasic.aftersales.system.mapper.HqFirstContractMapper;
 import com.jasic.aftersales.system.mapper.MachineBarcodeMapper;
 import com.jasic.aftersales.system.mapper.SysCompanyMapper;
+import com.jasic.aftersales.system.mapper.SysFileBizMapper;
+import com.jasic.aftersales.system.mapper.SysFileMapper;
+import com.jasic.aftersales.system.service.ISysConfigService;
 import com.jasic.aftersales.system.mapper.SysUserMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderEvaluationMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderFaultMapper;
@@ -55,6 +69,7 @@ import com.jasic.aftersales.system.mapper.WorkOrderReviewMapper;
 import com.jasic.aftersales.system.service.IFaultRepairConfigService;
 import com.jasic.aftersales.system.service.WorkOrderNotifyEventService;
 import com.jasic.aftersales.system.service.WorkOrderParticipantService;
+import com.jasic.aftersales.system.service.SysFileService;
 import com.jasic.aftersales.system.service.support.MachineBarcodeWarrantyResolver;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,8 +80,10 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -93,6 +110,13 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     private static final double EARTH_RADIUS_KM = 6371.0088D;
     private static final String OTHER_FAULT_LABEL = "其它故障";
     private static final String FAULT_DESC_SEPARATOR = "；";
+    private static final List<SysFileBizTypeEnum> WORK_ORDER_FILE_BIZ_TYPES = Arrays.asList(
+            SysFileBizTypeEnum.WORK_ORDER_FAULT_IMAGE,
+            SysFileBizTypeEnum.WORK_ORDER_FAULT_VIDEO,
+            SysFileBizTypeEnum.WORK_ORDER_FAULT_VOICE,
+            SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER,
+            SysFileBizTypeEnum.WORK_ORDER_RETURN_VOUCHER
+    );
 
     @Resource
     private WorkOrderMapper workOrderMapper;
@@ -122,6 +146,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     private SysCompanyMapper sysCompanyMapper;
 
     @Resource
+    private SysFileBizMapper sysFileBizMapper;
+
+    @Resource
+    private SysFileMapper sysFileMapper;
+
+    @Resource
     private SysUserMapper sysUserMapper;
 
     @Resource
@@ -142,6 +172,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     @Resource
     private IFaultRepairConfigService faultRepairConfigService;
 
+    @Resource
+    private ISysConfigService sysConfigService;
+
+    @Resource
+    private SysFileService sysFileService;
+
     /**
      * 创建我的工单
      *
@@ -153,14 +189,21 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     public Long create(CustomerWorkOrderCreateDTO dto) {
         Long customerId = requireCustomerId();
         CUser customer = requireCustomer(customerId);
-        validateCreateRequest(dto);
+        BrandTypeEnum brandType = dto == null ? null : dto.getBrandType();
+        boolean hasBarcode = normalizeText(dto == null ? null : dto.getBarcode()) != null;
+        boolean jasicBarcodeCreate = brandType != null && brandType.isJasic() && hasBarcode;
+        validateCreateRequest(dto, brandType, hasBarcode);
         SysCompany serviceCompany = requireServiceCompany(dto.getServiceCompanyId());
-        String barcode = normalizeRequiredText(dto.getBarcode(), "机器条码不能为空");
-        MachineBarcode barcodeArchive = findActiveMachineBarcode(barcode);
-        Long hqCompanyId = resolveCreateHqCompanyId(serviceCompany, barcodeArchive);
-        String productCode = resolveArchiveText(barcodeArchive == null ? null : barcodeArchive.getProductCode(), dto.getProductCode());
-        String productModel = resolveArchiveText(barcodeArchive == null ? null : barcodeArchive.getProductModel(), dto.getProductModel());
-        CustomerFaultSelection faultSelection = resolveCustomerFaultSelection(dto, hqCompanyId, productCode, productModel);
+        String barcode = jasicBarcodeCreate ? normalizeRequiredText(dto.getBarcode(), "机器条码不能为空") : null;
+        MachineBarcode barcodeArchive = jasicBarcodeCreate ? findActiveMachineBarcode(barcode) : null;
+        Long hqCompanyId = resolveCreateHqCompanyId(brandType, hasBarcode, serviceCompany, barcodeArchive);
+        String productCode = jasicBarcodeCreate
+                ? resolveArchiveText(barcodeArchive == null ? null : barcodeArchive.getProductCode(), dto.getProductCode())
+                : null;
+        String productModel = jasicBarcodeCreate
+                ? resolveArchiveText(barcodeArchive == null ? null : barcodeArchive.getProductModel(), dto.getProductModel())
+                : normalizeText(dto.getProductModel());
+        CustomerFaultSelection faultSelection = resolveCustomerFaultSelection(dto, brandType, hasBarcode, hqCompanyId, productCode, productModel);
 
         WorkOrder workOrder = new WorkOrder();
         workOrder.setOrderNo(generateOrderNo());
@@ -169,20 +212,23 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         workOrder.setCustomerMobile(normalizeRequiredText(customer.getPhone(), "当前客户手机号不能为空"));
         workOrder.setBarcode(barcode);
         workOrder.setProductCode(productCode);
-        workOrder.setProductName(normalizeText(barcodeArchive == null ? null : barcodeArchive.getProductName()));
+        workOrder.setProductName(jasicBarcodeCreate ? normalizeText(barcodeArchive == null ? null : barcodeArchive.getProductName()) : null);
         workOrder.setProductModel(productModel);
-        workOrder.setMachineNo(normalizeText(barcodeArchive == null ? null : barcodeArchive.getMachineNo()));
-        workOrder.setBrandCode(resolveBrandCode(resolveArchiveText(
-                barcodeArchive == null ? null : barcodeArchive.getBrandCode(), dto.getBrandCode()
-        )));
-        workOrder.setServiceMode(normalizeRequiredText(dto.getServiceMode(), "服务方式不能为空"));
-        workOrder.setWarrantyStatus(resolveBarcodeWarrantyStatus(barcodeArchive, dto.getWarrantyStatus()));
+        workOrder.setMachineNo(jasicBarcodeCreate ? normalizeText(barcodeArchive == null ? null : barcodeArchive.getMachineNo()) : null);
+        workOrder.setBrandType(brandType);
+        workOrder.setBrandCode(resolveCreateBrandCode(brandType, jasicBarcodeCreate, barcodeArchive, dto));
+        workOrder.setBrandName(resolveCreateBrandName(brandType, dto));
+        String serviceMode = normalizeServiceMode(dto.getServiceMode());
+        workOrder.setServiceMode(serviceMode);
+        workOrder.setWarrantyStatus(jasicBarcodeCreate
+                ? resolveBarcodeWarrantyStatus(barcodeArchive, dto.getWarrantyStatus())
+                : normalizeText(dto.getWarrantyStatus()));
         workOrder.setFaultDesc(faultSelection.getFaultDesc());
         workOrder.setFaultRemark(faultSelection.getFaultRemark());
-        workOrder.setSenderName(resolveSendField(dto.getServiceMode(), dto.getSenderName()));
-        workOrder.setSenderMobile(resolveSendField(dto.getServiceMode(), dto.getSenderMobile()));
-        workOrder.setSenderAddress(resolveSendField(dto.getServiceMode(), dto.getSenderAddress()));
-        workOrder.setSendExpressNo(resolveSendField(dto.getServiceMode(), dto.getSendExpressNo()));
+        workOrder.setSenderName(resolveSendField(serviceMode, dto.getSenderName()));
+        workOrder.setSenderMobile(resolveSendField(serviceMode, dto.getSenderMobile()));
+        workOrder.setSenderAddress(resolveSendField(serviceMode, dto.getSenderAddress()));
+        workOrder.setSendExpressNo(resolveSendField(serviceMode, dto.getSendExpressNo()));
         workOrder.setMainStatus(WorkOrderStatusFlow.afterCreate());
         workOrder.setEvaluateStatus(WorkOrderStatusFlow.afterCreateEvaluateStatus());
         workOrder.setCurrentAcceptSubjectType("SERVICE");
@@ -192,6 +238,8 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         workOrder.setHasTransfer(0);
         workOrder.setTransferCount(0);
         workOrderMapper.insert(workOrder);
+        replaceWorkOrderCreateFiles(workOrder.getId(), dto.getFaultImageFileIds(), dto.getFaultVideoFileIds(),
+                dto.getFaultVoiceFileIds(), dto.getSenderVoucherFileIds(), customerId);
 
         saveCreateFlow(workOrder.getId(), customerId, serviceCompany.getId(), workOrder.getMainStatus());
         workOrderParticipantService.initParticipants(workOrder, "SERVICE");
@@ -308,10 +356,29 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         Map<Long, String> userNameMap = buildUserNameMap(
                 records.stream().map(WorkOrder::getAssignedUserId).collect(Collectors.toSet())
         );
+        Set<Long> senderVoucherWorkOrderIds = buildSenderVoucherWorkOrderIdSet(
+                records.stream().map(WorkOrder::getId).collect(Collectors.toSet())
+        );
         List<CustomerWorkOrderListVO> list = records.stream()
-                .map(workOrder -> buildListVo(workOrder, companyNameMap, userNameMap))
+                .map(workOrder -> buildListVo(workOrder, companyNameMap, userNameMap, senderVoucherWorkOrderIds))
                 .collect(Collectors.toList());
         return PageResult.of(list, result.getTotal(), query.getPageNum(), query.getPageSize());
+    }
+
+    /**
+     * 查询最近一条工单摘要。
+     * 优先取最近未关闭工单；若不存在，再回退到最近创建的工单。
+     *
+     * @return 最近工单摘要，不存在时返回 null
+     */
+    @Override
+    public CustomerWorkOrderLatestSummaryVO getLatestSummary() {
+        Long customerId = requireCustomerId();
+        WorkOrder workOrder = findLatestUnclosedWorkOrder(customerId);
+        if (workOrder == null) {
+            workOrder = findLatestWorkOrder(customerId);
+        }
+        return workOrder == null ? null : buildLatestSummaryVo(workOrder);
     }
 
     /**
@@ -354,8 +421,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         detail.setProductName(workOrder.getProductName());
         detail.setProductModel(workOrder.getProductModel());
         detail.setMachineNo(workOrder.getMachineNo());
+        detail.setBrandType(workOrder.getBrandType());
+        detail.setBrandTypeLabel(workOrder.getBrandType() == null ? null : workOrder.getBrandType().getLabel());
         detail.setBrandCode(workOrder.getBrandCode());
+        detail.setBrandName(workOrder.getBrandName());
         detail.setServiceMode(workOrder.getServiceMode());
+        detail.setServiceModeLabel(ServiceModeEnum.resolveLabel(workOrder.getServiceMode()));
         detail.setWarrantyStatus(workOrder.getWarrantyStatus());
         detail.setFaultDesc(workOrder.getFaultDesc());
         detail.setFaultRemark(workOrder.getFaultRemark());
@@ -376,6 +447,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         detail.setCompletedTime(workOrder.getCompletedTime());
         detail.setClosedTime(workOrder.getClosedTime());
         detail.setCreateTime(workOrder.getCreateTime());
+        fillAttachmentDetail(detail, buildWorkOrderFileMap(workOrderId));
 
         Map<Long, String> companyNameMap = buildCompanyNameMap(Collections.singleton(workOrder.getCurrentAcceptCompanyId()));
         Map<Long, String> userNameMap = buildUserNameMap(Collections.singleton(workOrder.getAssignedUserId()));
@@ -406,6 +478,42 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         workOrder.setSenderAddress(normalizeText(dto.getSenderAddress()));
         workOrder.setSendExpressNo(normalizeText(dto.getSendExpressNo()));
         workOrderMapper.updateById(workOrder);
+        sysFileService.replaceBizFiles(
+                SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER,
+                workOrder.getId(),
+                dto.getSenderVoucherFileIds(),
+                null,
+                customerId,
+                SysFileUploadUserTypeEnum.CUSTOMER,
+                null
+        );
+    }
+
+    /**
+     * 上传工单寄件凭证
+     *
+     * @param dto 寄件凭证参数
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateSenderVoucher(CustomerWorkOrderSenderVoucherDTO dto) {
+        Long customerId = requireCustomerId();
+        WorkOrder workOrder = requireCustomerWorkOrder(dto.getWorkOrderId(), customerId);
+        if (!canEditSendInfo(workOrder)) {
+            throw new ServiceException("当前工单不允许上传寄件凭证");
+        }
+        if (hasSenderVoucher(workOrder.getId())) {
+            throw new ServiceException("当前工单已上传寄件凭证");
+        }
+        sysFileService.replaceBizFiles(
+                SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER,
+                workOrder.getId(),
+                dto.getSenderVoucherFileIds(),
+                null,
+                customerId,
+                SysFileUploadUserTypeEnum.CUSTOMER,
+                null
+        );
     }
 
     /**
@@ -463,11 +571,90 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
                 dto.getTimelinessScore(), dto.getQualityScore(), dto.getSatisfactionScore(), dto.getContent());
     }
 
+    /**
+     * 汇总工单附件，统一供详情页和建单回显复用。
+     *
+     * @param workOrderId 工单ID
+     * @return 附件映射
+     */
+    private Map<SysFileBizTypeEnum, List<SysFileItemVO>> buildWorkOrderFileMap(Long workOrderId) {
+        if (workOrderId == null) {
+            return Collections.emptyMap();
+        }
+        return sysFileService.listBizFileMap(WORK_ORDER_FILE_BIZ_TYPES, workOrderId);
+    }
+
+    private void fillAttachmentDetail(CustomerWorkOrderDetailVO detail,
+                                      Map<SysFileBizTypeEnum, List<SysFileItemVO>> fileMap) {
+        if (detail == null) {
+            return;
+        }
+        Map<SysFileBizTypeEnum, List<SysFileItemVO>> safeFileMap = fileMap == null ? Collections.emptyMap() : fileMap;
+        detail.setFaultImageFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_FAULT_IMAGE, Collections.emptyList()));
+        detail.setFaultVideoFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_FAULT_VIDEO, Collections.emptyList()));
+        detail.setFaultVoiceFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_FAULT_VOICE, Collections.emptyList()));
+        detail.setSenderVoucherFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER, Collections.emptyList()));
+        detail.setReturnVoucherFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_RETURN_VOUCHER, Collections.emptyList()));
+    }
+
+    private void replaceWorkOrderCreateFiles(Long workOrderId, List<Long> faultImageFileIds, List<Long> faultVideoFileIds,
+                                             List<Long> faultVoiceFileIds, List<Long> senderVoucherFileIds,
+                                             Long customerId) {
+        sysFileService.replaceBizFiles(
+                SysFileBizTypeEnum.WORK_ORDER_FAULT_IMAGE,
+                workOrderId,
+                faultImageFileIds,
+                null,
+                customerId,
+                SysFileUploadUserTypeEnum.CUSTOMER,
+                null
+        );
+        sysFileService.replaceBizFiles(
+                SysFileBizTypeEnum.WORK_ORDER_FAULT_VIDEO,
+                workOrderId,
+                faultVideoFileIds,
+                null,
+                customerId,
+                SysFileUploadUserTypeEnum.CUSTOMER,
+                null
+        );
+        sysFileService.replaceBizFiles(
+                SysFileBizTypeEnum.WORK_ORDER_FAULT_VOICE,
+                workOrderId,
+                faultVoiceFileIds,
+                null,
+                customerId,
+                SysFileUploadUserTypeEnum.CUSTOMER,
+                null
+        );
+        sysFileService.replaceBizFiles(
+                SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER,
+                workOrderId,
+                senderVoucherFileIds,
+                null,
+                customerId,
+                SysFileUploadUserTypeEnum.CUSTOMER,
+                null
+        );
+    }
+
+    /**
+     * 校验 C 端登录态并返回当前客户ID。
+     *
+     * @return 当前客户ID
+     */
     private Long requireCustomerId() {
         StpCustomerUtil.checkLogin();
         return StpCustomerUtil.getLoginIdAsLong();
     }
 
+    /**
+     * 校验工单归属当前客户，避免越权查看或修改其它客户工单。
+     *
+     * @param workOrderId 工单ID
+     * @param customerId 当前客户ID
+     * @return 工单实体
+     */
     private WorkOrder requireCustomerWorkOrder(Long workOrderId, Long customerId) {
         WorkOrder workOrder = workOrderMapper.selectById(workOrderId);
         if (workOrder == null) {
@@ -479,6 +666,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return workOrder;
     }
 
+    /**
+     * 校验客户存在且状态正常。
+     *
+     * @param customerId 客户ID
+     * @return 客户实体
+     */
     private CUser requireCustomer(Long customerId) {
         CUser customer = cUserMapper.selectById(customerId);
         if (customer == null) {
@@ -490,19 +683,37 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return customer;
     }
 
-    private void validateCreateRequest(CustomerWorkOrderCreateDTO dto) {
+    /**
+     * 校验建单入参的核心业务约束，避免在后续多段自调用里重复判空。
+     *
+     * @param dto 建单参数
+     * @param brandType 品牌类型
+     * @param hasBarcode 是否填写条码
+     */
+    private void validateCreateRequest(CustomerWorkOrderCreateDTO dto, BrandTypeEnum brandType, boolean hasBarcode) {
         if (dto == null) {
             throw new ServiceException("建单参数不能为空");
         }
-        String serviceMode = normalizeRequiredText(dto.getServiceMode(), "服务方式不能为空");
-        if (!"寄修".equals(serviceMode) && !"到店维修".equals(serviceMode)) {
-            throw new ServiceException("服务方式仅支持寄修或到店维修");
+        if (brandType == null) {
+            throw new ServiceException("品牌类型不支持");
+        }
+        normalizeServiceMode(dto.getServiceMode());
+        if (brandType.isJasic() && hasBarcode) {
+            normalizeRequiredText(dto.getBarcode(), "机器条码不能为空");
+        }
+        if (brandType.isNonJasic() && hasBarcode) {
+            throw new ServiceException("非佳士报修不支持填写机器条码");
         }
         validateSendInfo(dto);
     }
 
+    /**
+     * 寄修方式下必须填写寄件信息，到店维修则不要求这些字段。
+     *
+     * @param dto 建单参数
+     */
     private void validateSendInfo(CustomerWorkOrderCreateDTO dto) {
-        if (dto == null || !"寄修".equals(normalizeText(dto.getServiceMode()))) {
+        if (dto == null || !ServiceModeEnum.isMail(normalizeServiceMode(dto.getServiceMode()))) {
             return;
         }
         if (normalizeText(dto.getSenderName()) == null) {
@@ -516,6 +727,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         }
     }
 
+    /**
+     * 校验所选服务网点存在、启用且属于 C 端可报修范围。
+     *
+     * @param serviceCompanyId 服务网点ID
+     * @return 服务网点实体
+     */
     private SysCompany requireServiceCompany(Long serviceCompanyId) {
         SysCompany company = sysCompanyMapper.selectById(serviceCompanyId);
         if (company == null) {
@@ -524,12 +741,18 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         if (company.getStatus() != null && company.getStatus() == 0) {
             throw new ServiceException("服务网点已停用");
         }
-        if (!"FIRST".equals(company.getTypeCode()) && !"SECOND".equals(company.getTypeCode())) {
+        if (!"SITE_FIRST".equals(company.getTypeCode()) && !"SITE_SECOND".equals(company.getTypeCode())) {
             throw new ServiceException("当前公司不是可选服务网点");
         }
         return company;
     }
 
+    /**
+     * 校验归属总部存在且启用。
+     *
+     * @param hqCompanyId 总部ID
+     * @return 总部实体
+     */
     private SysCompany requireHqCompany(Long hqCompanyId) {
         SysCompany company = sysCompanyMapper.selectById(hqCompanyId);
         if (company == null) {
@@ -538,18 +761,74 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         if (company.getStatus() != null && company.getStatus() == 0) {
             throw new ServiceException("归属总部已停用");
         }
-        if ("FIRST".equals(company.getTypeCode()) || "SECOND".equals(company.getTypeCode())) {
+        if ("SITE_FIRST".equals(company.getTypeCode()) || "SITE_SECOND".equals(company.getTypeCode())) {
             throw new ServiceException("归属总部类型不正确");
         }
         return company;
     }
 
     // Barcode archives are primary; relation fallback keeps old data usable during backfill.
+    /**
+     * 兼容旧入口，按条码和服务网点推导默认归属总部。
+     *
+     * @param barcode 机器条码
+     * @param serviceCompany 服务网点
+     * @return 归属总部ID
+     */
     private Long resolveCreateHqCompanyId(String barcode, SysCompany serviceCompany) {
         return resolveCreateHqCompanyId(serviceCompany, findActiveMachineBarcode(barcode));
     }
 
+    /**
+     * 根据品牌类型与是否填写条码决定归属总部的推导路径。
+     *
+     * @param brandType 品牌类型
+     * @param hasBarcode 是否填写条码
+     * @param serviceCompany 服务网点
+     * @param barcodeArchive 条码档案
+     * @return 归属总部ID
+     */
+    private Long resolveCreateHqCompanyId(BrandTypeEnum brandType, boolean hasBarcode,
+                                          SysCompany serviceCompany, MachineBarcode barcodeArchive) {
+        if (brandType == null || !brandType.isJasic() || !hasBarcode) {
+            return resolveDefaultHqCompanyId();
+        }
+        return resolveCreateHqCompanyId(serviceCompany, barcodeArchive);
+    }
+
+    /**
+     * 读取系统默认归属总部配置。
+     *
+     * @return 默认归属总部ID
+     */
+    private Long resolveDefaultHqCompanyId() {
+        String configValue = normalizeText(sysConfigService == null
+                ? null
+                : sysConfigService.getValueByKey(WorkOrderConfigConstants.DEFAULT_HQ_COMPANY_ID));
+        if (configValue == null) {
+            throw new ServiceException("默认归属总部未配置");
+        }
+        Long hqCompanyId;
+        try {
+            hqCompanyId = Long.valueOf(configValue);
+        } catch (NumberFormatException ex) {
+            throw new ServiceException("默认归属总部配置不正确");
+        }
+        try {
+            return requireHqCompany(hqCompanyId).getId();
+        } catch (ServiceException ex) {
+            throw new ServiceException("默认归属总部配置不正确");
+        }
+    }
+
     // Temporary fallback remains for old data until barcode archives are fully backfilled.
+    /**
+     * 按服务网点与条码档案交叉推导可用的归属总部。
+     *
+     * @param serviceCompany 服务网点
+     * @param barcodeArchive 条码档案
+     * @return 归属总部ID
+     */
     private Long resolveCreateHqCompanyId(SysCompany serviceCompany, MachineBarcode barcodeArchive) {
         Long archiveHqCompanyId = resolveBarcodeArchiveHqCompanyId(barcodeArchive);
         if (archiveHqCompanyId != null) {
@@ -569,6 +848,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return hqCompanyIds.get(0);
     }
 
+    /**
+     * 优先从条码档案直接识别归属总部。
+     *
+     * @param barcodeArchive 条码档案
+     * @return 归属总部ID
+     */
     private Long resolveBarcodeArchiveHqCompanyId(MachineBarcode barcodeArchive) {
         if (barcodeArchive == null || barcodeArchive.getHqCompanyId() == null) {
             return null;
@@ -576,6 +861,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return requireHqCompany(barcodeArchive.getHqCompanyId()).getId();
     }
 
+    /**
+     * 条码报修时要求条码档案存在且状态正常。
+     *
+     * @param barcode 机器条码
+     * @return 条码档案
+     */
     private MachineBarcode requireActiveMachineBarcode(String barcode) {
         MachineBarcode barcodeArchive = findActiveMachineBarcode(barcode);
         if (barcodeArchive == null) {
@@ -606,7 +897,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     }
 
     private List<Long> resolveFirstCompanyIds(SysCompany serviceCompany) {
-        if ("FIRST".equals(serviceCompany.getTypeCode())) {
+        if ("SITE_FIRST".equals(serviceCompany.getTypeCode())) {
             return Collections.singletonList(serviceCompany.getId());
         }
         LambdaQueryWrapper<FirstSecondRelation> wrapper = new LambdaQueryWrapper<>();
@@ -658,13 +949,28 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return sysCompanyMapper.selectList(wrapper);
     }
 
+    /**
+     * 仅在寄修模式下保留寄件字段，其余模式统一清空。
+     *
+     * @param serviceMode 服务方式
+     * @param value 原始字段值
+     * @return 清洗后的字段值
+     */
     private String resolveSendField(String serviceMode, String value) {
-        if (!"寄修".equals(normalizeText(serviceMode))) {
+        if (!ServiceModeEnum.isMail(serviceMode)) {
             return null;
         }
         return normalizeText(value);
     }
 
+    /**
+     * 记录客户建单时的首条工单流转记录。
+     *
+     * @param workOrderId 工单ID
+     * @param customerId 客户ID
+     * @param serviceCompanyId 服务网点ID
+     * @param afterStatus 建单后的工单状态
+     */
     private void saveCreateFlow(Long workOrderId, Long customerId, Long serviceCompanyId, String afterStatus) {
         WorkOrderFlow flow = new WorkOrderFlow();
         flow.setWorkOrderId(workOrderId);
@@ -679,6 +985,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         workOrderFlowMapper.insert(flow);
     }
 
+    /**
+     * 把前端标签页状态映射为工单主状态筛选条件。
+     *
+     * @param wrapper 查询条件
+     * @param tabStatus 标签页状态
+     */
     private void applyTabStatusFilter(LambdaQueryWrapper<WorkOrder> wrapper, String tabStatus) {
         if (tabStatus == null || tabStatus.trim().isEmpty()) {
             return;
@@ -712,7 +1024,8 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     }
 
     private CustomerWorkOrderListVO buildListVo(WorkOrder workOrder, Map<Long, String> companyNameMap,
-                                                Map<Long, String> userNameMap) {
+                                                Map<Long, String> userNameMap,
+                                                Set<Long> senderVoucherWorkOrderIds) {
         CustomerWorkOrderListVO vo = new CustomerWorkOrderListVO();
         vo.setId(workOrder.getId());
         vo.setOrderNo(workOrder.getOrderNo());
@@ -720,6 +1033,10 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         vo.setCustomerMobile(workOrder.getCustomerMobile());
         vo.setBarcode(workOrder.getBarcode());
         vo.setProductModel(workOrder.getProductModel());
+        vo.setBrandType(workOrder.getBrandType());
+        vo.setBrandTypeLabel(workOrder.getBrandType() == null ? null : workOrder.getBrandType().getLabel());
+        vo.setServiceMode(workOrder.getServiceMode());
+        vo.setServiceModeLabel(ServiceModeEnum.resolveLabel(workOrder.getServiceMode()));
         vo.setMainStatus(workOrder.getMainStatus());
         vo.setDisplayStatus(resolveCustomerDisplayStatus(workOrder.getMainStatus()));
         vo.setEvaluateStatus(workOrder.getEvaluateStatus());
@@ -728,11 +1045,54 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         vo.setAssignedUserName(userNameMap.get(workOrder.getAssignedUserId()));
         vo.setHasTransfer(workOrder.getHasTransfer());
         vo.setCanEvaluate(canEvaluate(workOrder));
+        vo.setCanUploadSendExpress(canUploadSendExpress(workOrder,
+                senderVoucherWorkOrderIds != null && senderVoucherWorkOrderIds.contains(workOrder.getId())));
         vo.setCreateTime(workOrder.getCreateTime());
         vo.setClosedTime(workOrder.getClosedTime());
         return vo;
     }
 
+    private CustomerWorkOrderLatestSummaryVO buildLatestSummaryVo(WorkOrder workOrder) {
+        CustomerWorkOrderLatestSummaryVO vo = new CustomerWorkOrderLatestSummaryVO();
+        vo.setId(workOrder.getId());
+        vo.setOrderNo(workOrder.getOrderNo());
+        vo.setProductName(workOrder.getProductName());
+        vo.setProductModel(workOrder.getProductModel());
+        vo.setFaultDesc(workOrder.getFaultDesc());
+        vo.setBrandType(workOrder.getBrandType());
+        vo.setBrandTypeLabel(workOrder.getBrandType() == null ? null : workOrder.getBrandType().getLabel());
+        vo.setServiceMode(workOrder.getServiceMode());
+        vo.setServiceModeLabel(ServiceModeEnum.resolveLabel(workOrder.getServiceMode()));
+        vo.setDisplayStatus(resolveCustomerDisplayStatus(workOrder.getMainStatus()));
+        vo.setCreateTime(workOrder.getCreateTime());
+        return vo;
+    }
+
+    private WorkOrder findLatestUnclosedWorkOrder(Long customerId) {
+        LambdaQueryWrapper<WorkOrder> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(WorkOrder::getCustomerId, customerId)
+                .ne(WorkOrder::getMainStatus, WorkOrderStatusConstants.MainStatus.CLOSED)
+                .orderByDesc(WorkOrder::getCreateTime)
+                .last("limit 1");
+        List<WorkOrder> records = workOrderMapper.selectList(wrapper);
+        return records == null || records.isEmpty() ? null : records.get(0);
+    }
+
+    private WorkOrder findLatestWorkOrder(Long customerId) {
+        LambdaQueryWrapper<WorkOrder> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(WorkOrder::getCustomerId, customerId)
+                .orderByDesc(WorkOrder::getCreateTime)
+                .last("limit 1");
+        List<WorkOrder> records = workOrderMapper.selectList(wrapper);
+        return records == null || records.isEmpty() ? null : records.get(0);
+    }
+
+    /**
+     * 只有已关闭、待评价且存在故障的工单才允许客户评价。
+     *
+     * @param workOrder 工单实体
+     * @return 是否允许评价
+     */
     private boolean canEvaluate(WorkOrder workOrder) {
         return workOrder != null
                 && WorkOrderStatusConstants.MainStatus.CLOSED.equals(workOrder.getMainStatus())
@@ -740,10 +1100,71 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
                 && hasFaultForEvaluation(workOrder.getId());
     }
 
+    /**
+     * 客户仅能在服务网点尚未处理前补充或修改寄修信息。
+     *
+     * @param workOrder 工单实体
+     * @return 是否允许修改寄修信息
+     */
     private boolean canEditSendInfo(WorkOrder workOrder) {
         return workOrder != null
-                && "寄修".equals(workOrder.getServiceMode())
+                && ServiceModeEnum.isMail(workOrder.getServiceMode())
                 && WorkOrderStatusConstants.isWaitAcceptMainStatus(workOrder.getMainStatus());
+    }
+
+    /**
+     * 仅待接单寄修单且当前未上传寄件凭证时，列表才展示上传按钮。
+     *
+     * @param workOrder 工单实体
+     * @param hasSenderVoucher 当前是否已有寄件凭证
+     * @return 是否允许上传寄件凭证
+     */
+    private boolean canUploadSendExpress(WorkOrder workOrder, boolean hasSenderVoucher) {
+        return !hasSenderVoucher && canEditSendInfo(workOrder);
+    }
+
+    private boolean hasSenderVoucher(Long workOrderId) {
+        if (workOrderId == null) {
+            return false;
+        }
+        return !sysFileService.listBizFiles(SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER, workOrderId).isEmpty();
+    }
+
+    private Set<Long> buildSenderVoucherWorkOrderIdSet(Set<Long> workOrderIds) {
+        if (workOrderIds == null || workOrderIds.isEmpty()) {
+            return Collections.emptySet();
+        }
+        List<Long> validWorkOrderIds = workOrderIds.stream()
+                .filter(id -> id != null)
+                .collect(Collectors.toList());
+        if (validWorkOrderIds.isEmpty()) {
+            return Collections.emptySet();
+        }
+        LambdaQueryWrapper<SysFileBiz> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysFileBiz::getBizType, SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER)
+                .in(SysFileBiz::getBizId, validWorkOrderIds);
+        List<SysFileBiz> relations = sysFileBizMapper.selectList(wrapper);
+        if (relations == null || relations.isEmpty()) {
+            return Collections.emptySet();
+        }
+        Set<Long> activeFileIds = sysFileMapper.selectBatchIds(relations.stream()
+                        .map(SysFileBiz::getFileId)
+                        .filter(id -> id != null)
+                        .collect(Collectors.toSet()))
+                .stream()
+                .filter(file -> file != null && SysFileStatusEnum.ACTIVE == file.getStatus())
+                .map(SysFile::getId)
+                .collect(Collectors.toSet());
+        if (activeFileIds.isEmpty()) {
+            return Collections.emptySet();
+        }
+        Set<Long> result = new HashSet<>();
+        for (SysFileBiz relation : relations) {
+            if (relation != null && relation.getBizId() != null && activeFileIds.contains(relation.getFileId())) {
+                result.add(relation.getBizId());
+            }
+        }
+        return result;
     }
 
     private String resolveCustomerDisplayStatus(String mainStatus) {
@@ -820,6 +1241,15 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
 
     private CustomerFaultSelection resolveCustomerFaultSelection(CustomerWorkOrderCreateDTO dto, Long hqCompanyId,
                                                                  String productCode, String productModel) {
+        return resolveCustomerFaultSelection(dto, BrandTypeEnum.JASIC, true, hqCompanyId, productCode, productModel);
+    }
+
+    private CustomerFaultSelection resolveCustomerFaultSelection(CustomerWorkOrderCreateDTO dto, BrandTypeEnum brandType,
+                                                                 boolean hasBarcode, Long hqCompanyId,
+                                                                 String productCode, String productModel) {
+        if (brandType == null || !hasBarcode) {
+            return resolveOtherOnlyFaultSelection(dto);
+        }
         List<String> configuredFaultOptions = listConfiguredFaultOptions(hqCompanyId, productCode, productModel);
         List<String> faultItems = normalizeFaultItems(dto == null ? null : dto.getFaultItems());
         String faultRemark = normalizeText(dto == null ? null : dto.getFaultRemark());
@@ -862,6 +1292,33 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return new CustomerFaultSelection(String.join(FAULT_DESC_SEPARATOR, faultItems), faultRemark);
     }
 
+    private CustomerFaultSelection resolveOtherOnlyFaultSelection(CustomerWorkOrderCreateDTO dto) {
+        List<String> faultItems = normalizeFaultItems(dto == null ? null : dto.getFaultItems());
+        String faultRemark = normalizeText(dto == null ? null : dto.getFaultRemark());
+        String legacyFaultDesc = normalizeText(dto == null ? null : dto.getFaultDesc());
+        if (faultItems.isEmpty()) {
+            faultItems = new ArrayList<>(Collections.singletonList(OTHER_FAULT_LABEL));
+        }
+        if (faultItems.size() != 1 || !OTHER_FAULT_LABEL.equals(faultItems.get(0))) {
+            throw new ServiceException("无码报修只能选择其它故障");
+        }
+        if (faultRemark == null) {
+            faultRemark = legacyFaultDesc;
+        }
+        if (faultRemark == null) {
+            throw new ServiceException("选择其它故障时必须填写故障说明");
+        }
+        return new CustomerFaultSelection(OTHER_FAULT_LABEL, faultRemark);
+    }
+
+    /**
+     * 根据总部和产品配置生成 C 端可选故障描述，并附带“其它故障”兜底项。
+     *
+     * @param hqCompanyId 归属总部ID
+     * @param productCode 产品编码
+     * @param productModel 产品型号
+     * @return 故障描述选项
+     */
     private List<String> buildCustomerFaultOptions(Long hqCompanyId, String productCode, String productModel) {
         LinkedHashSet<String> faultOptions = new LinkedHashSet<>(listConfiguredFaultOptions(hqCompanyId, productCode, productModel));
         faultOptions.add(OTHER_FAULT_LABEL);
@@ -899,6 +1356,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return new ArrayList<>(result);
     }
 
+    /**
+     * 校验定位经纬度，避免附近网点排序时出现非法坐标。
+     *
+     * @param longitude 经度
+     * @param latitude 纬度
+     */
     private void validateCoordinate(BigDecimal longitude, BigDecimal latitude) {
         if (longitude == null || latitude == null) {
             throw new ServiceException("定位经纬度不能为空");
@@ -911,6 +1374,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         }
     }
 
+    /**
+     * 控制附近网点返回条数，避免一次性查询过大。
+     *
+     * @param limit 前端期望条数
+     * @return 规范化后的条数
+     */
     private int normalizeNearbyLimit(Integer limit) {
         if (limit == null) {
             return DEFAULT_NEARBY_LIMIT;
@@ -1181,11 +1650,64 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         }
     }
 
+    /**
+     * 按品牌类型和条码场景收口品牌编码。
+     *
+     * @param brandType 品牌类型
+     * @param jasicBarcodeCreate 是否为佳士有码建单
+     * @param barcodeArchive 条码档案
+     * @param dto 建单参数
+     * @return 品牌编码
+     */
+    private String resolveCreateBrandCode(BrandTypeEnum brandType, boolean jasicBarcodeCreate,
+                                          MachineBarcode barcodeArchive, CustomerWorkOrderCreateDTO dto) {
+        if (brandType == null) {
+            return null;
+        }
+        if (brandType.isNonJasic()) {
+            return null;
+        }
+        if (!jasicBarcodeCreate) {
+            return "JASIC";
+        }
+        return resolveBrandCode(resolveArchiveText(
+                barcodeArchive == null ? null : barcodeArchive.getBrandCode(),
+                dto == null ? null : dto.getBrandCode()
+        ));
+    }
+
+    /**
+     * 按品牌类型收口品牌名称。
+     *
+     * @param brandType 品牌类型
+     * @param dto 建单参数
+     * @return 品牌名称
+     */
+    private String resolveCreateBrandName(BrandTypeEnum brandType, CustomerWorkOrderCreateDTO dto) {
+        if (brandType == null || brandType.isJasic()) {
+            return null;
+        }
+        return normalizeText(dto == null ? null : dto.getBrandName());
+    }
+
+    /**
+     * 品牌编码为空时回退为空串，避免前端展示出现 null。
+     *
+     * @param brandCode 品牌编码
+     * @return 规范化后的品牌编码
+     */
     private String resolveBrandCode(String brandCode) {
         String value = normalizeText(brandCode);
         return value == null ? "JASIC" : value;
     }
 
+    /**
+     * 统一清洗并校验必填文本，避免前端只传空白字符时绕过校验。
+     *
+     * @param value 原始文本
+     * @param message 为空时提示语
+     * @return 规范化后的文本
+     */
     private String normalizeRequiredText(String value, String message) {
         String text = normalizeText(value);
         if (text == null) {
@@ -1194,6 +1716,26 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return text;
     }
 
+    /**
+     * 服务方式只允许 MAIL / STORE 两个稳定编码。
+     *
+     * @param serviceMode 原始服务方式编码
+     * @return 规范化后的服务方式编码
+     */
+    private String normalizeServiceMode(String serviceMode) {
+        String normalized = normalizeRequiredText(serviceMode, "服务方式不能为空");
+        if (ServiceModeEnum.getByCode(normalized) != null) {
+            return normalized;
+        }
+        throw new ServiceException("服务方式仅支持 MAIL 或 STORE");
+    }
+
+    /**
+     * 统一清洗可空文本，空白字符按 null 处理。
+     *
+     * @param value 原始文本
+     * @return 规范化后的文本
+     */
     private String normalizeText(String value) {
         if (value == null) {
             return null;

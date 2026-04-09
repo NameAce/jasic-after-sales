@@ -12,6 +12,10 @@ import com.jasic.aftersales.common.constant.WorkOrderCreateEntryConstants;
 import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
 import com.jasic.aftersales.common.constant.WorkOrderStatusFlow;
 import com.jasic.aftersales.common.core.domain.PageResult;
+import com.jasic.aftersales.common.enums.BrandTypeEnum;
+import com.jasic.aftersales.common.enums.ServiceModeEnum;
+import com.jasic.aftersales.common.enums.SysFileBizTypeEnum;
+import com.jasic.aftersales.common.enums.SysFileUploadUserTypeEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.dto.WorkOrderAssignDTO;
@@ -57,6 +61,7 @@ import com.jasic.aftersales.system.domain.vo.WorkOrderRepairVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderReviewVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderStatusCountVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderUserOptionVO;
+import com.jasic.aftersales.system.domain.vo.SysFileItemVO;
 import com.jasic.aftersales.system.domain.vo.SysCompanySimpleVO;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
 import com.jasic.aftersales.system.mapper.HqFirstContractMapper;
@@ -81,6 +86,7 @@ import com.jasic.aftersales.system.service.IWorkOrderService;
 import com.jasic.aftersales.system.service.WorkOrderNotifyEventService;
 import com.jasic.aftersales.system.service.WorkOrderParticipantService;
 import com.jasic.aftersales.system.service.WorkOrderPermissionService;
+import com.jasic.aftersales.system.service.SysFileService;
 import com.jasic.aftersales.system.service.support.MachineBarcodeWarrantyResolver;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -90,6 +96,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -116,6 +123,13 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     private static final String FAULT_JUDGE_HAS_FAULT = "有故障";
     private static final String FAULT_JUDGE_NO_FAULT = "无故障";
     private static final String OTHER_REPAIR_OPTION = "其它维修说明";
+    private static final List<SysFileBizTypeEnum> WORK_ORDER_FILE_BIZ_TYPES = Arrays.asList(
+            SysFileBizTypeEnum.WORK_ORDER_FAULT_IMAGE,
+            SysFileBizTypeEnum.WORK_ORDER_FAULT_VIDEO,
+            SysFileBizTypeEnum.WORK_ORDER_FAULT_VOICE,
+            SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER,
+            SysFileBizTypeEnum.WORK_ORDER_RETURN_VOUCHER
+    );
     private static final String OTHER_FAULT_LABEL = "其它故障";
     private static final String FAULT_DESC_SEPARATOR = "；";
 
@@ -185,11 +199,14 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     @Resource
     private MachineBarcodeMapper machineBarcodeMapper;
 
+    @Resource
+    private SysFileService sysFileService;
+
     /**
-     * 闁告帒妫濋妴澶愬蓟閵夘煈鍤勭€规悶鍎卞畷鐔煎礆濡ゅ嫨鈧?
+     * 分页查询工单列表，并补齐列表页所需的状态快照字段。
      *
-     * @param query 闁哄被鍎撮妤呭矗閸屾稒娈?
-     * @return 闁告帒妫濋妴澶岀磼閹惧浜?
+     * @param query 查询参数
+     * @return 分页结果
      */
     @Override
     public PageResult<WorkOrderListVO> listPage(WorkOrderQuery query) {
@@ -203,6 +220,12 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return PageResult.of(records, result.getTotal(), query.getPageNum(), query.getPageSize());
     }
 
+    /**
+     * 统计当前筛选条件下各主状态的工单数量。
+     *
+     * @param query 查询参数
+     * @return 状态统计结果
+     */
     @Override
     public List<WorkOrderStatusCountVO> countByStatus(WorkOrderQuery query) {
         normalizeQuery(query);
@@ -275,9 +298,18 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         detail.setAvailableActions(workOrderPermissionService.listAvailableActions(entity));
         fillListSnapshot(detail, entity);
         detail.setEvaluateStatusLabel(resolveEvaluateStatusLabel(detail.getEvaluateStatus()));
+        detail.setBrandTypeLabel(detail.getBrandType() == null ? null : detail.getBrandType().getLabel());
+        detail.setServiceModeLabel(ServiceModeEnum.resolveLabel(detail.getServiceMode()));
+        fillAttachmentDetail(detail, buildWorkOrderFileMap(workOrderId));
         return detail;
     }
 
+    /**
+     * 查询代客建单时条码对应的产品和归属总部信息。
+     *
+     * @param barcode 机器条码
+     * @return 建单条码信息
+     */
     @Override
     public WorkOrderCreateBarcodeInfoVO getProxyCreateBarcodeInfo(String barcode) {
         Long currentCompanyId = requireCurrentCompanyId();
@@ -286,10 +318,16 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return buildCreateBarcodeInfo(barcodeArchive, hqCompanyId, Collections.emptyList(), null);
     }
 
+    /**
+     * 查询向一级服务网点上报时的条码建单信息。
+     *
+     * @param barcode 机器条码
+     * @return 建单条码信息
+     */
     @Override
     public WorkOrderCreateBarcodeInfoVO getUpstreamFirstCreateBarcodeInfo(String barcode) {
         Long currentCompanyId = requireCurrentCompanyId();
-        validateCurrentCompanyType("SECOND", "当前公司不支持报修一级");
+        validateCurrentCompanyType("SITE_SECOND", "当前公司不支持报修一级");
         MachineBarcode barcodeArchive = requireActiveMachineBarcode(barcode);
         Long hqCompanyId = resolveSingleHqCompanyId(currentCompanyId, barcodeArchive);
         List<SysCompanySimpleVO> targetOptions = listUpstreamFirstOptions(currentCompanyId, hqCompanyId);
@@ -297,10 +335,17 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return buildCreateBarcodeInfo(barcodeArchive, hqCompanyId, targetOptions, defaultTargetCompanyId);
     }
 
+    /**
+     * 查询向佳士总部上报时的条码建单信息。
+     *
+     * @param barcode 机器条码
+     * @param targetCompanyId 指定目标总部ID
+     * @return 建单条码信息
+     */
     @Override
     public WorkOrderCreateBarcodeInfoVO getUpstreamHqCreateBarcodeInfo(String barcode, Long targetCompanyId) {
         Long currentCompanyId = requireCurrentCompanyId();
-        validateCurrentCompanyType("FIRST", "当前公司不支持报修佳士");
+        validateCurrentCompanyType("SITE_FIRST", "当前公司不支持报修佳士");
         MachineBarcode barcodeArchive = requireActiveMachineBarcode(barcode);
         List<SysCompanySimpleVO> targetOptions = listUpstreamHqOptions(currentCompanyId, barcodeArchive);
         Long defaultTargetCompanyId = resolveDefaultTargetCompanyId(targetOptions);
@@ -313,6 +358,12 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return buildCreateBarcodeInfo(barcodeArchive, resolvedHqCompanyId, targetOptions, defaultTargetCompanyId);
     }
 
+    /**
+     * 代客创建工单，当前公司同时作为建单方和受理方。
+     *
+     * @param dto 建单参数
+     * @return 工单ID
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long createProxy(WorkOrderProxyCreateDTO dto) {
@@ -327,11 +378,17 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                 currentSubjectType, WorkOrderCreateEntryConstants.PROXY_SELF, true);
     }
 
+    /**
+     * 向一级服务网点转报创建工单。
+     *
+     * @param dto 建单参数
+     * @return 工单ID
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long createUpstreamFirst(WorkOrderUpstreamCreateDTO dto) {
         Long currentCompanyId = requireCurrentCompanyId();
-        validateCurrentCompanyType("SECOND", "当前公司不支持报修一级");
+        validateCurrentCompanyType("SITE_SECOND", "当前公司不支持报修一级");
         MachineBarcode barcodeArchive = requireActiveMachineBarcode(dto.getBarcode());
         Long hqCompanyId = resolveSingleHqCompanyId(currentCompanyId, barcodeArchive);
         List<SysCompanySimpleVO> targetOptions = listUpstreamFirstOptions(currentCompanyId, hqCompanyId);
@@ -340,11 +397,17 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                 "SERVICE", WorkOrderCreateEntryConstants.UPSTREAM_FIRST, false);
     }
 
+    /**
+     * 向佳士总部转报创建工单。
+     *
+     * @param dto 建单参数
+     * @return 工单ID
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long createUpstreamHq(WorkOrderUpstreamCreateDTO dto) {
         Long currentCompanyId = requireCurrentCompanyId();
-        validateCurrentCompanyType("FIRST", "当前公司不支持报修佳士");
+        validateCurrentCompanyType("SITE_FIRST", "当前公司不支持报修佳士");
         MachineBarcode barcodeArchive = requireActiveMachineBarcode(dto.getBarcode());
         List<SysCompanySimpleVO> targetOptions = listUpstreamHqOptions(currentCompanyId, barcodeArchive);
         Long targetCompanyId = resolveSelectedTargetCompanyId(dto.getTargetCompanyId(), targetOptions, "请选择报修佳士");
@@ -353,9 +416,9 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
     /**
-     * 婵炲弶鍎冲畷?
+     * 派单给当前受理公司的系统维修员。
      *
-     * @param dto 婵炲弶鍎冲畷鐔煎矗閸屾稒娈?
+     * @param dto 派单参数
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -375,8 +438,9 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
     /**
-     * 缂備胶绻濋幈銊╁川濡澶嶉柛?     *
-     * @param dto 闁规亽鍎卞畷鐔煎矗閸屾稒娈?
+     * 维修员接单，把工单推进到维修处理中状态。
+     *
+     * @param dto 接单参数
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -394,9 +458,9 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
     /**
-     * 閺夌儐鍓欏畷?
+     * 转单到其它允许接收的公司，并同步参与方关系。
      *
-     * @param dto 閺夌儐鍓欏畷鐔煎矗閸屾稒娈?
+     * @param dto 转单参数
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -537,6 +601,15 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
         workOrder.setSendExpressNo(normalizeRequiredText(dto.getSendExpressNo(), "\u5bc4\u4ef6\u5feb\u9012\u5355\u53f7\u4e0d\u80fd\u4e3a\u7a7a"));
         workOrderMapper.updateById(workOrder);
+        sysFileService.replaceBizFiles(
+                SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER,
+                workOrder.getId(),
+                dto.getSenderVoucherFileIds(),
+                workOrder.getCurrentAcceptCompanyId(),
+                SecurityContext.getCurrentUserId(),
+                SysFileUploadUserTypeEnum.SYSTEM,
+                null
+        );
         saveFlow(workOrder.getId(), "UPLOAD_SEND_EXPRESS", workOrder.getMainStatus(), workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getSendExpressNo());
@@ -564,6 +637,15 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         workOrder.setEvaluateStatus(WorkOrderStatusFlow.afterCloseEvaluateStatus(canEvaluate));
         workOrder.setClosedTime(LocalDateTime.now());
         workOrderMapper.updateById(workOrder);
+        sysFileService.replaceBizFiles(
+                SysFileBizTypeEnum.WORK_ORDER_RETURN_VOUCHER,
+                workOrder.getId(),
+                dto.getReturnVoucherFileIds(),
+                workOrder.getCurrentAcceptCompanyId(),
+                SecurityContext.getCurrentUserId(),
+                SysFileUploadUserTypeEnum.SYSTEM,
+                null
+        );
         saveFlow(workOrder.getId(), "CLOSE", beforeStatus, workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCloseReason());
@@ -643,6 +725,12 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 查询当前工单在维修登记时可选择的故障和维修说明配置。
+     *
+     * @param workOrderId 工单ID
+     * @return 故障配置选项
+     */
     @Override
     public List<WorkOrderRepairFaultOptionVO> listRepairFaultOptions(Long workOrderId) {
         WorkOrder workOrder = requireWorkOrder(workOrderId);
@@ -656,6 +744,11 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         );
     }
 
+    /**
+     * 补齐查询权限口径，并给缺省视图范围兜底。
+     *
+     * @param query 查询参数
+     */
     private void normalizeQuery(WorkOrderQuery query) {
         workOrderPermissionService.fillQueryScope(query);
         if (!SecurityContext.isPlatformUser() && query.getCompanyId() == null) {
@@ -666,6 +759,12 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
     }
 
+    /**
+     * 构造用于状态统计的查询副本，避免分页参数和列表展示字段干扰统计结果。
+     *
+     * @param query 原始查询参数
+     * @return 统计查询参数
+     */
     private WorkOrderQuery copyQueryForCount(WorkOrderQuery query) {
         WorkOrderQuery target = new WorkOrderQuery();
         target.setViewScope(query.getViewScope());
@@ -983,6 +1082,12 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return actionType;
     }
 
+    /**
+     * 校验工单是否存在，作为后续所有状态流转的统一入口。
+     *
+     * @param workOrderId 工单ID
+     * @return 工单实体
+     */
     private WorkOrder requireWorkOrder(Long workOrderId) {
         WorkOrder workOrder = workOrderMapper.selectById(workOrderId);
         if (workOrder == null) {
@@ -991,6 +1096,11 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return workOrder;
     }
 
+    /**
+     * 非平台用户必须具备当前公司上下文，否则无法计算权限和数据范围。
+     *
+     * @return 当前公司ID
+     */
     private Long requireCurrentCompanyId() {
         Long currentCompanyId = SecurityContext.getCurrentCompanyId();
         if (currentCompanyId == null) {
@@ -999,6 +1109,12 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return currentCompanyId;
     }
 
+    /**
+     * 校验当前公司类型是否满足业务入口要求。
+     *
+     * @param expectedTypeCode 期望的公司类型编码
+     * @param message 不满足时的提示语
+     */
     private void validateCurrentCompanyType(String expectedTypeCode, String message) {
         String currentTypeCode = SecurityContext.getCurrentTypeCode();
         if (!expectedTypeCode.equals(currentTypeCode)) {
@@ -1016,10 +1132,14 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                 dto.getServiceMode(),
                 dto.getFaultItems(),
                 dto.getFaultRemark(),
+                dto.getFaultImageFileIds(),
+                dto.getFaultVideoFileIds(),
+                dto.getFaultVoiceFileIds(),
                 dto.getSenderName(),
                 dto.getSenderMobile(),
                 dto.getSenderAddress(),
                 dto.getSendExpressNo(),
+                dto.getSenderVoucherFileIds(),
                 barcodeArchive,
                 hqCompanyId,
                 targetCompanyId,
@@ -1039,10 +1159,14 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                 dto.getServiceMode(),
                 dto.getFaultItems(),
                 dto.getFaultRemark(),
+                dto.getFaultImageFileIds(),
+                dto.getFaultVideoFileIds(),
+                dto.getFaultVoiceFileIds(),
                 dto.getSenderName(),
                 dto.getSenderMobile(),
                 dto.getSenderAddress(),
                 dto.getSendExpressNo(),
+                dto.getSenderVoucherFileIds(),
                 barcodeArchive,
                 hqCompanyId,
                 targetCompanyId,
@@ -1053,15 +1177,18 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
     private Long saveCreateWorkOrder(String customerName, String customerMobile, String barcode, String serviceMode,
-                                     List<String> faultItems, String faultRemark, String senderName, String senderMobile,
-                                     String senderAddress, String sendExpressNo, MachineBarcode barcodeArchive,
+                                     List<String> faultItems, String faultRemark, List<Long> faultImageFileIds,
+                                     List<Long> faultVideoFileIds, List<Long> faultVoiceFileIds, String senderName,
+                                     String senderMobile, String senderAddress, String sendExpressNo,
+                                     List<Long> senderVoucherFileIds, MachineBarcode barcodeArchive,
                                      Long hqCompanyId, Long targetCompanyId, String targetSubjectType,
                                      String createEntryType, boolean autoCreateCustomer) {
         Long currentCompanyId = requireCurrentCompanyId();
+        Long currentUserId = SecurityContext.getCurrentUserId();
         String normalizedCustomerName = normalizeRequiredText(customerName, "\u5ba2\u6237\u59d3\u540d\u4e0d\u80fd\u4e3a\u7a7a");
         String normalizedCustomerMobile = normalizeRequiredText(customerMobile, "\u5ba2\u6237\u624b\u673a\u53f7\u4e0d\u80fd\u4e3a\u7a7a");
         String normalizedBarcode = normalizeRequiredText(barcode, "\u673a\u5668\u6761\u7801\u4e0d\u80fd\u4e3a\u7a7a");
-        String normalizedServiceMode = normalizeRequiredText(serviceMode, "\u670d\u52a1\u65b9\u5f0f\u4e0d\u80fd\u4e3a\u7a7a");
+        String normalizedServiceMode = normalizeServiceMode(serviceMode);
         validateCreateSendInfo(normalizedServiceMode, senderName, senderMobile, senderAddress);
         CustomerFaultSelection faultSelection = resolveCreateFaultSelection(
                 faultItems, faultRemark, hqCompanyId, barcodeArchive.getProductCode(), barcodeArchive.getProductModel()
@@ -1077,6 +1204,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         entity.setProductName(normalizeNullableText(barcodeArchive.getProductName()));
         entity.setProductModel(normalizeNullableText(barcodeArchive.getProductModel()));
         entity.setMachineNo(normalizeNullableText(barcodeArchive.getMachineNo()));
+        entity.setBrandType(BrandTypeEnum.JASIC);
         entity.setBrandCode(normalizeNullableText(barcodeArchive.getBrandCode()));
         entity.setServiceMode(normalizedServiceMode);
         entity.setWarrantyStatus(resolveBarcodeWarrantyStatus(barcodeArchive, null));
@@ -1096,14 +1224,24 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         entity.setHasTransfer(0);
         entity.setTransferCount(0);
         workOrderMapper.insert(entity);
+        replaceWorkOrderCreateFiles(entity.getId(), faultImageFileIds, faultVideoFileIds, faultVoiceFileIds,
+                senderVoucherFileIds, currentCompanyId, currentUserId);
 
         saveFlow(entity.getId(), "CREATE", null, entity.getMainStatus(), null, targetCompanyId, currentCompanyId, null);
         workOrderParticipantService.initParticipants(entity, resolveCreateCompanySubjectType(currentCompanyId));
         return entity.getId();
     }
 
+    /**
+     * 寄修建单必须补齐寄件人信息，到店维修则清空这些字段。
+     *
+     * @param serviceMode 服务方式
+     * @param senderName 寄件人姓名
+     * @param senderMobile 寄件人手机号
+     * @param senderAddress 寄件地址
+     */
     private void validateCreateSendInfo(String serviceMode, String senderName, String senderMobile, String senderAddress) {
-        if (!"\u5bc4\u4fee".equals(serviceMode)) {
+        if (!ServiceModeEnum.isMail(serviceMode)) {
             return;
         }
         if (isBlank(senderName)) {
@@ -1117,6 +1255,11 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
     }
 
+    /**
+     * 关闭工单前校验回寄方式所需的补充信息。
+     *
+     * @param dto 关单参数
+     */
     private void validateCloseReturnInfo(WorkOrderCloseDTO dto) {
         if (dto == null || !RETURN_METHOD_MAIL.equals(normalizeNullableText(dto.getReturnMethod()))) {
             return;
@@ -1126,6 +1269,12 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
     }
 
+    /**
+     * 维修登记时允许顺带调整报价，但必须先存在一条有效报价记录。
+     *
+     * @param workOrder 工单实体
+     * @param dto 维修参数
+     */
     private void saveRepairQuoteIfNeeded(WorkOrder workOrder, WorkOrderRepairDTO dto) {
         WorkOrderQuote currentQuote = getCurrentValidQuote(workOrder.getId());
         BigDecimal nextQuoteAmount = dto == null ? null : dto.getQuoteAmount();
@@ -1149,6 +1298,12 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                 workOrder.getCurrentAcceptCompanyId(), quote.getQuoteDesc());
     }
 
+    /**
+     * 维修登记至少要提交维修摘要、维修说明或故障明细中的一种内容。
+     *
+     * @param workOrder 工单实体
+     * @param dto 维修参数
+     */
     private void validateRepairContent(WorkOrder workOrder, WorkOrderRepairDTO dto) {
         if (dto == null) {
             throw new ServiceException("\u7ef4\u4fee\u767b\u8bb0\u4e0d\u80fd\u4e3a\u7a7a");
@@ -1268,7 +1423,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
     private String resolveSendField(String serviceMode, String value) {
-        if (!"\u5bc4\u4fee".equals(serviceMode) || isBlank(value)) {
+        if (!ServiceModeEnum.isMail(serviceMode) || isBlank(value)) {
             return null;
         }
         return value.trim();
@@ -1282,6 +1437,73 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return dto.getReturnExpressNo().trim();
     }
 
+    private Map<SysFileBizTypeEnum, List<SysFileItemVO>> buildWorkOrderFileMap(Long workOrderId) {
+        if (workOrderId == null) {
+            return Collections.emptyMap();
+        }
+        return sysFileService.listBizFileMap(WORK_ORDER_FILE_BIZ_TYPES, workOrderId);
+    }
+
+    private void fillAttachmentDetail(WorkOrderDetailVO detail,
+                                      Map<SysFileBizTypeEnum, List<SysFileItemVO>> fileMap) {
+        if (detail == null) {
+            return;
+        }
+        Map<SysFileBizTypeEnum, List<SysFileItemVO>> safeFileMap = fileMap == null ? Collections.emptyMap() : fileMap;
+        detail.setFaultImageFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_FAULT_IMAGE, Collections.emptyList()));
+        detail.setFaultVideoFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_FAULT_VIDEO, Collections.emptyList()));
+        detail.setFaultVoiceFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_FAULT_VOICE, Collections.emptyList()));
+        detail.setSenderVoucherFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER, Collections.emptyList()));
+        detail.setReturnVoucherFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_RETURN_VOUCHER, Collections.emptyList()));
+    }
+
+    private void replaceWorkOrderCreateFiles(Long workOrderId, List<Long> faultImageFileIds, List<Long> faultVideoFileIds,
+                                             List<Long> faultVoiceFileIds, List<Long> senderVoucherFileIds,
+                                             Long companyId, Long operatorUserId) {
+        sysFileService.replaceBizFiles(
+                SysFileBizTypeEnum.WORK_ORDER_FAULT_IMAGE,
+                workOrderId,
+                faultImageFileIds,
+                companyId,
+                operatorUserId,
+                SysFileUploadUserTypeEnum.SYSTEM,
+                null
+        );
+        sysFileService.replaceBizFiles(
+                SysFileBizTypeEnum.WORK_ORDER_FAULT_VIDEO,
+                workOrderId,
+                faultVideoFileIds,
+                companyId,
+                operatorUserId,
+                SysFileUploadUserTypeEnum.SYSTEM,
+                null
+        );
+        sysFileService.replaceBizFiles(
+                SysFileBizTypeEnum.WORK_ORDER_FAULT_VOICE,
+                workOrderId,
+                faultVoiceFileIds,
+                companyId,
+                operatorUserId,
+                SysFileUploadUserTypeEnum.SYSTEM,
+                null
+        );
+        sysFileService.replaceBizFiles(
+                SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER,
+                workOrderId,
+                senderVoucherFileIds,
+                companyId,
+                operatorUserId,
+                SysFileUploadUserTypeEnum.SYSTEM,
+                null
+        );
+    }
+
+    /**
+     * 派单对象必须是当前受理公司名下、状态正常且具备维修员角色的系统用户。
+     *
+     * @param userId 维修员ID
+     * @param companyId 当前受理公司ID
+     */
     private void validateAssignedRepairer(Long userId, Long companyId) {
         if (userId == null || !listCompanyRepairerUserIds(companyId).contains(userId)) {
             throw new ServiceException("\u6d3e\u5355\u5bf9\u8c61\u5fc5\u987b\u662f\u5f53\u524d\u53d7\u7406\u516c\u53f8\u7684\u7cfb\u7edf\u7ef4\u4fee\u5458");
@@ -1292,6 +1514,12 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
     }
 
+    /**
+     * 转单前校验目标公司是否允许被当前工单流转到。
+     *
+     * @param workOrder 工单实体
+     * @param targetCompanyId 目标公司ID
+     */
     private void validateTransferTarget(WorkOrder workOrder, Long targetCompanyId) {
         if (targetCompanyId == null) {
             throw new ServiceException("\u76ee\u6807\u516c\u53f8\u4e0d\u80fd\u4e3a\u7a7a");
@@ -1346,6 +1574,12 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return vo;
     }
 
+    /**
+     * 条码建单时要求条码档案存在且状态有效。
+     *
+     * @param barcode 机器条码
+     * @return 条码档案
+     */
     private MachineBarcode requireActiveMachineBarcode(String barcode) {
         MachineBarcode barcodeArchive = findActiveMachineBarcode(barcode);
         if (barcodeArchive == null) {
@@ -1378,12 +1612,19 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         if (company == null || (company.getStatus() != null && company.getStatus() == 0)) {
             throw new ServiceException("\u5f52\u5c5e\u603b\u90e8\u4e0d\u5b58\u5728");
         }
-        if ("FIRST".equals(company.getTypeCode()) || "SECOND".equals(company.getTypeCode())) {
+        if ("SITE_FIRST".equals(company.getTypeCode()) || "SITE_SECOND".equals(company.getTypeCode())) {
             throw new ServiceException("\u5f52\u5c5e\u603b\u90e8\u7c7b\u578b\u4e0d\u6b63\u786e");
         }
         return company;
     }
 
+    /**
+     * 组合当前公司和条码档案，推导唯一可用的归属总部。
+     *
+     * @param currentCompanyId 当前公司ID
+     * @param barcodeArchive 条码档案
+     * @return 归属总部ID
+     */
     private Long resolveSingleHqCompanyId(Long currentCompanyId, MachineBarcode barcodeArchive) {
         Long archiveHqCompanyId = resolveBarcodeArchiveHqCompanyId(barcodeArchive);
         if (archiveHqCompanyId != null) {
@@ -1446,6 +1687,12 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return selectedTargetCompanyId;
     }
 
+    /**
+     * 按当前公司角色推导建单时可选的归属总部列表。
+     *
+     * @param currentCompanyId 当前公司ID
+     * @return 可选总部ID列表
+     */
     private List<Long> resolveCreateHqCompanyIds(Long currentCompanyId) {
         if (currentCompanyId == null) {
             return Collections.emptyList();
@@ -1454,14 +1701,14 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             return Collections.singletonList(currentCompanyId);
         }
         String currentTypeCode = requireCompanyTypeCode(currentCompanyId);
-        if ("FIRST".equals(currentTypeCode)) {
+        if ("SITE_FIRST".equals(currentTypeCode)) {
             LambdaQueryWrapper<HqFirstContract> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(HqFirstContract::getFirstCompanyId, currentCompanyId)
                     .eq(HqFirstContract::getStatus, 1)
                     .orderByAsc(HqFirstContract::getId);
             return resolveDistinctHqIds(hqFirstContractMapper.selectList(wrapper));
         }
-        if ("SECOND".equals(currentTypeCode)) {
+        if ("SITE_SECOND".equals(currentTypeCode)) {
             LambdaQueryWrapper<FirstSecondRelation> relationWrapper = new LambdaQueryWrapper<>();
             relationWrapper.eq(FirstSecondRelation::getSecondCompanyId, currentCompanyId)
                     .eq(FirstSecondRelation::getStatus, 1)
@@ -1524,6 +1771,13 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return buildCompanySimpleVoList(allowedFirstCompanyIds);
     }
 
+    /**
+     * 结合条码归属和当前公司角色，计算允许上报佳士的总部范围。
+     *
+     * @param currentCompanyId 当前公司ID
+     * @param barcodeArchive 条码档案
+     * @return 总部选项列表
+     */
     private List<SysCompanySimpleVO> listUpstreamHqOptions(Long currentCompanyId, MachineBarcode barcodeArchive) {
         Long archiveHqCompanyId = resolveBarcodeArchiveHqCompanyId(barcodeArchive);
         if (archiveHqCompanyId != null) {
@@ -1579,6 +1833,14 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return new CustomerFaultSelection(String.join(FAULT_DESC_SEPARATOR, normalizedFaultItems), normalizedFaultRemark);
     }
 
+    /**
+     * 建单时根据总部和产品配置生成可选故障描述。
+     *
+     * @param hqCompanyId 归属总部ID
+     * @param productCode 产品编码
+     * @param productModel 产品型号
+     * @return 故障描述选项
+     */
     private List<String> buildCreateFaultOptions(Long hqCompanyId, String productCode, String productModel) {
         LinkedHashSet<String> result = new LinkedHashSet<>(listConfiguredFaultOptions(hqCompanyId, productCode, productModel));
         if (result.isEmpty()) {
@@ -1619,10 +1881,16 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return new ArrayList<>(result);
     }
 
+    /**
+     * 根据当前受理公司的层级关系推导允许转单的目标公司范围。
+     *
+     * @param workOrder 工单实体
+     * @return 目标公司ID列表
+     */
     private List<Long> resolveTransferTargetCompanyIds(WorkOrder workOrder) {
         Long currentCompanyId = workOrder.getCurrentAcceptCompanyId();
         String currentTypeCode = requireCompanyTypeCode(currentCompanyId);
-        if ("SECOND".equals(currentTypeCode)) {
+        if ("SITE_SECOND".equals(currentTypeCode)) {
             LambdaQueryWrapper<FirstSecondRelation> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(FirstSecondRelation::getSecondCompanyId, currentCompanyId)
                     .eq(FirstSecondRelation::getStatus, 1)
@@ -1634,7 +1902,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                     .distinct()
                     .collect(Collectors.toList());
         }
-        if ("FIRST".equals(currentTypeCode)) {
+        if ("SITE_FIRST".equals(currentTypeCode)) {
             if (workOrder.getHqCompanyId() == null) {
                 return Collections.emptyList();
             }
@@ -1676,6 +1944,13 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return value == null || value.trim().isEmpty();
     }
 
+    /**
+     * 统一清洗并校验必填文本，避免前端只传空白字符时绕过校验。
+     *
+     * @param value 原始文本
+     * @param message 为空时提示语
+     * @return 规范化后的文本
+     */
     private String normalizeRequiredText(String value, String message) {
         String normalized = normalizeNullableText(value);
         if (normalized == null) {
@@ -1684,12 +1959,33 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return normalized;
     }
 
+    /**
+     * 报价故障判定只允许取“有故障/无故障”两个稳定值。
+     *
+     * @param faultJudge 原始故障判定
+     * @param blankMessage 为空时提示语
+     * @return 规范化后的故障判定
+     */
     private String normalizeFaultJudge(String faultJudge, String blankMessage) {
         String normalized = normalizeRequiredText(faultJudge, blankMessage);
         if (FAULT_JUDGE_HAS_FAULT.equals(normalized) || FAULT_JUDGE_NO_FAULT.equals(normalized)) {
             return normalized;
         }
         throw new ServiceException("\u6545\u969c\u5224\u5b9a\u53ea\u80fd\u4e3a\u6709\u6545\u969c\u6216\u65e0\u6545\u969c");
+    }
+
+    /**
+     * 服务方式只允许 MAIL / STORE 两个稳定编码。
+     *
+     * @param serviceMode 原始服务方式编码
+     * @return 规范化后的服务方式编码
+     */
+    private String normalizeServiceMode(String serviceMode) {
+        String normalized = normalizeRequiredText(serviceMode, "\u670d\u52a1\u65b9\u5f0f\u4e0d\u80fd\u4e3a\u7a7a");
+        if (ServiceModeEnum.getByCode(normalized) != null) {
+            return normalized;
+        }
+        throw new ServiceException("\u670d\u52a1\u65b9\u5f0f\u4ec5\u652f\u6301 MAIL \u6216 STORE");
     }
 
     private String normalizeNullableText(String value) {
@@ -1699,6 +1995,12 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return value.trim();
     }
 
+    /**
+     * 复检结果只允许按“通过/继续维修”两个业务分支流转。
+     *
+     * @param reviewResult 原始复检结果
+     * @return 规范化后的复检结果
+     */
     private String normalizeReviewResult(String reviewResult) {
         String normalized = normalizeRequiredText(reviewResult, "\u590d\u68c0\u7ed3\u679c\u4e0d\u80fd\u4e3a\u7a7a");
         if (REVIEW_RESULT_PASS.equals(normalized) || REVIEW_RESULT_CONTINUE.equals(normalized)) {
@@ -1711,6 +2013,12 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return REVIEW_RESULT_CONTINUE.equals(reviewResult) ? 1 : 0;
     }
 
+    /**
+     * 机器返还方式仅允许“回寄/自提”两种固定选项。
+     *
+     * @param returnMethod 原始返回方式
+     * @return 规范化后的返回方式
+     */
     private String normalizeReturnMethod(String returnMethod) {
         String normalized = normalizeRequiredText(returnMethod, "\u673a\u5668\u8fd4\u56de\u65b9\u5f0f\u4e0d\u80fd\u4e3a\u7a7a");
         if (RETURN_METHOD_PICKUP.equals(normalized) || RETURN_METHOD_MAIL.equals(normalized)) {
@@ -1776,6 +2084,14 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         workOrderFlowMapper.insert(flow);
     }
 
+    /**
+     * 保存维修登记中的故障明细，保留提交顺序作为展示顺序。
+     *
+     * @param workOrderId 工单ID
+     * @param repairId 维修记录ID
+     * @param companyId 当前受理公司ID
+     * @param faults 故障明细
+     */
     private void saveFaults(Long workOrderId, Long repairId, Long companyId, List<WorkOrderFaultItemDTO> faults) {
         if (faults == null || faults.isEmpty()) {
             return;
@@ -1803,6 +2119,13 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
     }
 
+    /**
+     * 把维修登记的故障明细规范成可落库格式，并校验故障描述、维修说明是否落在配置范围内。
+     *
+     * @param workOrder 工单实体
+     * @param faults 原始故障明细
+     * @return 规范化后的故障明细
+     */
     private List<WorkOrderFaultItemDTO> normalizeRepairFaults(WorkOrder workOrder, List<WorkOrderFaultItemDTO> faults) {
         if (faults == null || faults.isEmpty()) {
             return Collections.emptyList();
@@ -1856,6 +2179,12 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return result;
     }
 
+    /**
+     * 构造“故障描述 -> 允许维修说明集合”的映射，用于维修登记校验。
+     *
+     * @param workOrder 工单实体
+     * @return 故障与维修说明映射
+     */
     private Map<String, Set<String>> buildRepairOptionMap(WorkOrder workOrder) {
         List<WorkOrderRepairFaultOptionVO> options = faultRepairConfigService.listRepairFaultOptions(
                 workOrder.getHqCompanyId(),
@@ -1895,6 +2224,12 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return result;
     }
 
+    /**
+     * 校验维修说明去重且仍落在当前故障的允许范围内。
+     *
+     * @param repairItems 维修说明列表
+     * @param allowedOptions 允许的维修说明集合
+     */
     private void validateRepairItems(List<String> repairItems, Set<String> allowedOptions) {
         if (repairItems.isEmpty()) {
             throw new ServiceException("\u7ef4\u4fee\u8bf4\u660e\u4e0d\u80fd\u4e3a\u7a7a");

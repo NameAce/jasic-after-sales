@@ -25,22 +25,23 @@ public class CustomerWorkOrderCreateValidationTest {
     }
 
     @Test
-    public void shouldRequireBarcode() {
+    public void shouldNotRequireBarcodeAtBeanValidationLayer() {
         CustomerWorkOrderCreateDTO dto = new CustomerWorkOrderCreateDTO();
-        dto.setServiceMode("寄修");
+        dto.setServiceMode("MAIL");
         dto.setServiceCompanyId(1L);
         dto.setBarcode("   ");
+        dto.setBrandType(com.jasic.aftersales.common.enums.BrandTypeEnum.NON_JASIC);
 
         Set<ConstraintViolation<CustomerWorkOrderCreateDTO>> violations = validator.validate(dto);
 
-        Assert.assertTrue(violations.stream()
+        Assert.assertFalse(violations.stream()
                 .anyMatch(item -> "机器条码不能为空".equals(item.getMessage())));
     }
 
     @Test
     public void shouldRequireServiceCompany() {
         CustomerWorkOrderCreateDTO dto = new CustomerWorkOrderCreateDTO();
-        dto.setServiceMode("到店维修");
+        dto.setServiceMode("STORE");
         dto.setBarcode("JASIC-001");
 
         Set<ConstraintViolation<CustomerWorkOrderCreateDTO>> violations = validator.validate(dto);
@@ -52,7 +53,7 @@ public class CustomerWorkOrderCreateValidationTest {
     @Test
     public void shouldNotRequireCustomerName() {
         CustomerWorkOrderCreateDTO dto = new CustomerWorkOrderCreateDTO();
-        dto.setServiceMode("到店维修");
+        dto.setServiceMode("STORE");
         dto.setBarcode("JASIC-001");
         dto.setServiceCompanyId(1L);
 

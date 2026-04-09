@@ -28,6 +28,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
 import java.util.List;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 
 /**
  * 认证控制器（登录/登出/切换公司）
@@ -35,6 +37,7 @@ import java.util.List;
  * @author Zoro
  * @date 2026/03/18
  */
+@Api(tags = "认证（登录/登出/切换公司）")
 @RestController
 @RequestMapping("/auth")
 public class SysAuthController {
@@ -51,6 +54,7 @@ public class SysAuthController {
      * @param dto 登录参数
      * @return 登录结果
      */
+    @ApiOperation(value = "B端登录")
     @SaIgnore
     @OperLog(title = "用户登录", operType = OperTypeEnum.LOGIN)
     @PostMapping("/login")
@@ -65,6 +69,7 @@ public class SysAuthController {
      * @param dto 登录参数
      * @return 登录结果
      */
+    @ApiOperation(value = "B端小程序登录")
     @SaIgnore
     @PostMapping("/mp-login")
     public Result<MpLoginVO> mpLogin(@Validated @RequestBody MpLoginDTO dto) {
@@ -78,6 +83,7 @@ public class SysAuthController {
      * @param dto 公司选择参数
      * @return 用户信息
      */
+    @ApiOperation(value = "选择/切换公司")
     @OperLog(title = "切换公司", operType = OperTypeEnum.OTHER)
     @PostMapping("/choose-company")
     public Result<SysUserVO> chooseCompany(@Validated @RequestBody ChooseCompanyDTO dto) {
@@ -90,6 +96,7 @@ public class SysAuthController {
      *
      * @return 用户信息
      */
+    @ApiOperation(value = "获取当前用户信息")
     @GetMapping("/user-info")
     public Result<SysUserVO> getUserInfo() {
         SysUserVO vo = authService.getUserInfo();
@@ -102,6 +109,7 @@ public class SysAuthController {
      * @param dto 资料参数
      * @return 用户信息
      */
+    @ApiOperation(value = "修改当前用户资料")
     @OperLog(title = "账号中心", operType = OperTypeEnum.UPDATE)
     @PutMapping("/profile")
     public Result<SysUserVO> updateProfile(@Validated @RequestBody UpdateProfileDTO dto) {
@@ -114,6 +122,7 @@ public class SysAuthController {
      * @param dto 密码参数
      * @return 操作结果
      */
+    @ApiOperation(value = "修改当前用户密码")
     @OperLog(title = "账号中心", operType = OperTypeEnum.UPDATE)
     @PutMapping("/change-password")
     public Result<Void> changePassword(@Validated @RequestBody ChangePasswordDTO dto) {
@@ -126,6 +135,7 @@ public class SysAuthController {
      *
      * @return 绑定状态
      */
+    @ApiOperation(value = "查询当前用户微信绑定状态")
     @GetMapping("/wechat-bind/status")
     public Result<WechatBindStatusVO> getWechatBindStatus() {
         return Result.ok(authService.getWechatBindStatus());
@@ -136,6 +146,7 @@ public class SysAuthController {
      *
      * @return 绑定状态
      */
+    @ApiOperation(value = "生成当前用户微信绑定码")
     @PostMapping("/wechat-bind/code")
     public Result<WechatBindStatusVO> createWechatBindCode() {
         return Result.ok(authService.createWechatBindCode());
@@ -147,6 +158,7 @@ public class SysAuthController {
      * @param dto 绑定参数
      * @return 登录结果
      */
+    @ApiOperation(value = "小程序侧确认绑定并登录")
     @SaIgnore
     @PostMapping("/mp-bind-confirm")
     public Result<MpLoginVO> confirmWechatBind(@Validated @RequestBody WechatBindConfirmDTO dto) {
@@ -158,6 +170,7 @@ public class SysAuthController {
      *
      * @return 菜单树
      */
+    @ApiOperation(value = "获取当前用户菜单树（动态路由）")
     @GetMapping("/menus")
     public Result<List<SysMenuVO>> getMenus() {
         Long userId = SecurityContext.getCurrentUserId();
@@ -171,6 +184,7 @@ public class SysAuthController {
      *
      * @return 操作结果
      */
+    @ApiOperation(value = "退出登录")
     @OperLog(title = "用户登出", operType = OperTypeEnum.LOGOUT)
     @PostMapping("/logout")
     public Result<Void> logout() {

@@ -141,7 +141,7 @@ public class DataScopeAspect {
     private void buildServiceSql(StringBuilder sql, String prefix, String userPrefix, Long companyId, Long userId) {
         DataScopeEnum effectiveScope = resolveEffectiveScope(SubjectTypeEnum.SERVICE.getCode());
         String typeCode = SecurityContext.getCurrentTypeCode();
-        if ("FIRST".equals(typeCode)) {
+        if ("SITE_FIRST".equals(typeCode)) {
             buildFirstServiceSql(sql, prefix, userPrefix, companyId, userId, effectiveScope);
             return;
         }

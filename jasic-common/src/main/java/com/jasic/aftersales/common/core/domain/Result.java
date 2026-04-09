@@ -3,6 +3,8 @@ package com.jasic.aftersales.common.core.domain;
 import lombok.Data;
 
 import java.io.Serializable;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 
 /**
  * 统一响应结果封装
@@ -10,18 +12,22 @@ import java.io.Serializable;
  * @author Zoro
  * @date 2026/03/18
  */
+@ApiModel(description = "统一响应结果封装")
 @Data
 public class Result<T> implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     /** 状态码 */
+    @ApiModelProperty(value = "状态码，00000=成功；失败码见 API 返回码说明")
     private String code;
 
     /** 提示信息 */
+    @ApiModelProperty(value = "提示信息，失败时返回可直接展示的中文原因")
     private String msg;
 
     /** 数据 */
+    @ApiModelProperty(value = "数据")
     private T data;
 
     private static final String SUCCESS_CODE = "00000";

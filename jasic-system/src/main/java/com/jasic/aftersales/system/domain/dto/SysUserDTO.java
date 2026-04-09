@@ -6,6 +6,8 @@ import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.util.List;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 
 /**
  * 用户新增/修改参数
@@ -13,43 +15,55 @@ import java.util.List;
  * @author Zoro
  * @date 2026/03/18
  */
+@ApiModel(description = "用户新增/修改参数")
 @Data
 public class SysUserDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     /** 用户ID（修改时必传） */
+    @ApiModelProperty(value = "用户ID（修改时必传）")
     private Long id;
 
     /** 用户名 */
+    @ApiModelProperty(value = "用户名", required = true)
     @NotBlank(message = "用户名不能为空")
     private String username;
 
     /** 密码（新增时必传） */
+    @ApiModelProperty(value = "密码（新增时必传）")
     private String password;
 
     /** 真实姓名 */
+    @ApiModelProperty(value = "真实姓名")
     private String realName;
 
     /** 手机号 */
+    @ApiModelProperty(value = "手机号", required = true)
     @NotBlank(message = "手机号不能为空")
     private String phone;
 
     /** 邮箱 */
+    @ApiModelProperty(value = "邮箱")
     private String email;
 
     /** 性别 */
+    @ApiModelProperty(value = "性别")
     private Integer sex;
 
     /** 状态 */
+    @ApiModelProperty(value = "状态")
     private Integer status;
 
     /** 备注 */
+    @ApiModelProperty(value = "备注")
     private String remark;
 
     /** 关联公司ID列表 */
+    @ApiModelProperty(value = "关联公司ID列表")
     private List<Long> companyIds;
 
     /** 角色ID列表（当前公司下） */
+    @ApiModelProperty(value = "角色ID列表（当前公司下）")
     private List<Long> roleIds;
 }

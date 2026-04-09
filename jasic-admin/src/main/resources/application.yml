@@ -3,6 +3,10 @@ spring:
     name: jasic-after-sales
   profiles:
     active: dev
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 60MB
 
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
@@ -61,3 +65,12 @@ jasic:
       key: b54855e3b1a8896e7931aa6594c47fad
       url: https://restapi.amap.com/v3/geocode/geo
       timeout-ms: 6000
+  oss:
+    enabled: false
+    endpoint: oss-cn-shenzhen.aliyuncs.com
+    region: cn-shenzhen
+    access-key-id:
+    access-key-secret:
+    bucket: jasic-after
+    public-url-prefix:
+    preview-expire-seconds: 1800

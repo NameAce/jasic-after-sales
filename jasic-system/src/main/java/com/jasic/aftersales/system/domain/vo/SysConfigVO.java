@@ -5,6 +5,8 @@ import lombok.Data;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 
 /**
  * 参数设置 VO
@@ -12,30 +14,38 @@ import java.time.LocalDateTime;
  * @author Codex
  * @date 2026/03/19
  */
+@ApiModel(description = "参数设置 VO")
 @Data
 public class SysConfigVO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     /** 主键 */
+    @ApiModelProperty(value = "主键")
     private Long id;
 
     /** 参数名称 */
+    @ApiModelProperty(value = "参数名称")
     private String configName;
 
     /** 参数键名 */
+    @ApiModelProperty(value = "参数键名")
     private String configKey;
 
     /** 参数键值 */
+    @ApiModelProperty(value = "参数键值")
     private String configValue;
 
     /** 是否内置 */
+    @ApiModelProperty(value = "是否内置")
     private Integer configType;
 
     /** 备注 */
+    @ApiModelProperty(value = "备注")
     private String remark;
 
     /** 创建时间 */
+    @ApiModelProperty(value = "创建时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createTime;
 }

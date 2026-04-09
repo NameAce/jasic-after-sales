@@ -23,6 +23,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 
 /**
  * C端客户认证控制器
@@ -30,6 +32,7 @@ import javax.annotation.Resource;
  * @author Zoro
  * @date 2026/03/18
  */
+@Api(tags = "C端客户认证")
 @Slf4j
 @RestController
 @RequestMapping("/customer/auth")
@@ -47,6 +50,7 @@ public class CustomerAuthController {
      * @param dto 登录参数
      * @return Token和用户信息
      */
+    @ApiOperation(value = "C端小程序登录")
     @PostMapping("/login")
     public Result<CustomerLoginVO> login(@Validated @RequestBody CustomerWechatLoginDTO dto) {
         WechatAuthSession session = wechatMiniProgramService.code2Session(WechatMiniProgramScene.C, dto.getCode());
@@ -70,6 +74,7 @@ public class CustomerAuthController {
      *
      * @return 客户信息
      */
+    @ApiOperation(value = "获取当前客户信息")
     @GetMapping("/user-info")
     public Result<CustomerUserInfoVO> getUserInfo() {
         return Result.ok(buildUserInfo(cUserService.getCurrentUser()));
@@ -81,6 +86,7 @@ public class CustomerAuthController {
      * @param dto 资料参数
      * @return 客户信息
      */
+    @ApiOperation(value = "修改当前客户资料")
     @PutMapping("/profile")
     public Result<CustomerUserInfoVO> updateProfile(@Validated @RequestBody CustomerProfileUpdateDTO dto) {
         return Result.ok(buildUserInfo(cUserService.updateProfile(dto)));
@@ -91,6 +97,7 @@ public class CustomerAuthController {
      *
      * @return 操作结果
      */
+    @ApiOperation(value = "C端退出登录")
     @PostMapping("/logout")
     public Result<Void> logout() {
         StpCustomerUtil.logout();

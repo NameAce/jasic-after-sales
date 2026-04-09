@@ -35,10 +35,10 @@ public enum CompanyCategoryEnum {
     private final String desc;
 
     /** 一级网点对应的 typeCode 列表（兼容历史编码） */
-    private static final List<String> FIRST_LEVEL_TYPE_CODES = Arrays.asList("SITE_FIRST", "FIRST");
+    private static final List<String> FIRST_LEVEL_TYPE_CODES = Arrays.asList("SITE_FIRST");
 
     /** 二级网点对应的 typeCode 列表（兼容历史编码） */
-    private static final List<String> SECOND_LEVEL_TYPE_CODES = Arrays.asList("SITE_SECOND", "SECOND");
+    private static final List<String> SECOND_LEVEL_TYPE_CODES = Arrays.asList("SITE_SECOND");
 
     CompanyCategoryEnum(String code, String desc) {
         this.code = code;

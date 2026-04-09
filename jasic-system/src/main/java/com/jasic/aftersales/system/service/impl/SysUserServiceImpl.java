@@ -353,6 +353,11 @@ public class SysUserServiceImpl implements ISysUserService {
         return vo;
     }
 
+    /**
+     * 统一去除输入首尾空白，保证唯一性校验和落库口径一致。
+     *
+     * @param dto 用户参数
+     */
     private void normalizeUserDto(SysUserDTO dto) {
         dto.setUsername(StrUtil.trim(dto.getUsername()));
         dto.setRealName(StrUtil.trim(dto.getRealName()));
@@ -362,19 +367,24 @@ public class SysUserServiceImpl implements ISysUserService {
     }
 
     /**
-     * 根据公司ID列表构建公司简要信息列表
+     * 创建用户时强制要求存在当前操作公司，用于初始化用户归属公司。
      *
-     * @param companyIds 公司ID列表
-     * @return 公司简要信息列表
+     * @return 当前公司ID
      */
     private Long requireCurrentCompanyIdForSave() {
         Long currentCompanyId = SecurityContext.getCurrentCompanyId();
         if (currentCompanyId == null) {
-            throw new ServiceException("Current company is required when creating a user");
+            throw new ServiceException("创建用户时必须存在当前操作公司");
         }
         return currentCompanyId;
     }
 
+    /**
+     * 去重并过滤空公司ID，避免重复写入用户公司关系。
+     *
+     * @param companyIds 原始公司ID列表
+     * @return 清洗后的公司ID列表
+     */
     private List<Long> sanitizeCompanyIds(List<Long> companyIds) {
         if (companyIds == null || companyIds.isEmpty()) {
             return Collections.emptyList();
@@ -385,6 +395,12 @@ public class SysUserServiceImpl implements ISysUserService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 保存用户与公司的归属关系，默认把首个公司标记为默认公司。
+     *
+     * @param userId 用户ID
+     * @param companyIds 公司ID列表
+     */
     private void saveUserCompanies(Long userId, List<Long> companyIds) {
         for (int i = 0; i < companyIds.size(); i++) {
             SysUserCompany uc = new SysUserCompany();
@@ -395,6 +411,12 @@ public class SysUserServiceImpl implements ISysUserService {
         }
     }
 
+    /**
+     * 根据公司ID列表组装用于详情展示的公司简要信息。
+     *
+     * @param companyIds 公司ID列表
+     * @return 公司简要信息列表
+     */
     private List<SysCompanySimpleVO> buildCompanySimpleList(List<Long> companyIds) {
         if (companyIds == null || companyIds.isEmpty()) {
             return Collections.emptyList();

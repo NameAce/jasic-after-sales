@@ -22,6 +22,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
 import java.util.List;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 
 /**
  * 字典数据控制器
@@ -29,6 +31,7 @@ import java.util.List;
  * @author Codex
  * @date 2026/03/19
  */
+@Api(tags = "字典数据")
 @RestController
 @RequestMapping("/system/dict/data")
 public class SysDictDataController extends BaseController {

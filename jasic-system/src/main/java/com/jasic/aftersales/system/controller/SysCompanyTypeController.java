@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
 import java.util.List;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 
 /**
  * 公司类型管理控制器
@@ -25,6 +27,7 @@ import java.util.List;
  * @author Zoro
  * @date 2026/03/18
  */
+@Api(tags = "公司类型管理")
 @RestController
 @RequestMapping("/org/company-type")
 public class SysCompanyTypeController extends BaseController {
@@ -37,6 +40,7 @@ public class SysCompanyTypeController extends BaseController {
      *
      * @return 公司类型列表
      */
+    @ApiOperation(value = "查询所有公司类型（基础参考数据，仅需登录即可访问）")
     @GetMapping("/list")
     public Result<List<SysCompanyType>> list() {
         List<SysCompanyType> list = companyTypeService.listAll();
@@ -49,6 +53,7 @@ public class SysCompanyTypeController extends BaseController {
      * @param id 主键ID
      * @return 公司类型
      */
+    @ApiOperation(value = "根据ID查询公司类型")
     @GetMapping("/{id}")
     public Result<SysCompanyType> getById(@PathVariable Long id) {
         SysCompanyType entity = companyTypeService.getById(id);
@@ -61,6 +66,7 @@ public class SysCompanyTypeController extends BaseController {
      * @param entity 公司类型实体
      * @return 主键ID
      */
+    @ApiOperation(value = "新增公司类型")
     @SaCheckPermission("org:companyType:add")
     @OperLog(title = "公司类型管理", operType = OperTypeEnum.INSERT)
     @PostMapping
@@ -75,6 +81,7 @@ public class SysCompanyTypeController extends BaseController {
      * @param entity 公司类型实体
      * @return 操作结果
      */
+    @ApiOperation(value = "修改公司类型")
     @SaCheckPermission("org:companyType:update")
     @OperLog(title = "公司类型管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
@@ -89,6 +96,7 @@ public class SysCompanyTypeController extends BaseController {
      * @param id 主键ID
      * @return 操作结果
      */
+    @ApiOperation(value = "删除公司类型")
     @SaCheckPermission("org:companyType:remove")
     @OperLog(title = "公司类型管理", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/{id}")

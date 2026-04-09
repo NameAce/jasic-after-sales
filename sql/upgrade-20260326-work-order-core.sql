@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS `work_order` (
   `product_code`                varchar(64)      DEFAULT NULL            COMMENT '物料编码',
   `product_model`               varchar(64)      DEFAULT NULL            COMMENT '机器型号',
   `brand_code`                  varchar(32)      DEFAULT NULL            COMMENT '品牌编码',
-  `service_mode`                varchar(16)      NOT NULL                COMMENT '服务方式（寄修/到店）',
+  `service_mode`                varchar(16)      NOT NULL                COMMENT '服务方式编码（MAIL=寄修，STORE=到店维修）',
   `warranty_status`             varchar(16)      DEFAULT NULL            COMMENT '质保状态',
   `fault_desc`                  text             DEFAULT NULL            COMMENT '客户报修描述',
   `sender_name`                 varchar(64)      DEFAULT NULL            COMMENT '寄件人姓名',

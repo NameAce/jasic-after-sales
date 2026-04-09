@@ -2,6 +2,7 @@ package com.jasic.aftersales.system.service;
 
 import cn.dev33.satoken.stp.StpUtil;
 import com.jasic.aftersales.common.enums.DataScopeEnum;
+import com.jasic.aftersales.common.enums.ServiceModeEnum;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
 import com.jasic.aftersales.framework.security.SecurityContext;
@@ -275,7 +276,7 @@ public class WorkOrderPermissionService {
         if (!"CURRENT_OWNER_MANAGER".equals(resolveRelationType(workOrder))) {
             return false;
         }
-        if (!"\u5bc4\u4fee".equals(workOrder.getServiceMode())) {
+        if (!ServiceModeEnum.isMail(workOrder.getServiceMode())) {
             return false;
         }
         return WorkOrderStatusConstants.isWaitAcceptMainStatus(workOrder.getMainStatus())
@@ -313,7 +314,7 @@ public class WorkOrderPermissionService {
             return resolveRegionCompanyIds(currentCompanyId, SecurityContext.getCurrentRegionIds());
         }
         if ("SERVICE".equals(SecurityContext.getCurrentSubjectType())
-                && "FIRST".equals(SecurityContext.getCurrentTypeCode())
+                && "SITE_FIRST".equals(SecurityContext.getCurrentTypeCode())
                 && DataScopeEnum.ALL == resolveCurrentDataScope()) {
             return resolveFirstLevelCompanyScope(currentCompanyId);
         }

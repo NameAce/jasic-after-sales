@@ -24,6 +24,8 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.annotation.Resource;
 import java.util.List;
 import java.util.Map;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 
 /**
  * 角色模板管理控制器（平台管理员使用）
@@ -31,6 +33,7 @@ import java.util.Map;
  * @author Zoro
  * @date 2026/03/18
  */
+@Api(tags = "角色模板管理（平台管理员使用）")
 @RestController
 @RequestMapping("/system/role-template")
 public class SysRoleTemplateController extends BaseController {
@@ -47,6 +50,7 @@ public class SysRoleTemplateController extends BaseController {
      * @param typeCode 公司类型编码
      * @return 模板列表
      */
+    @ApiOperation(value = "查询角色模板列表")
     @SaCheckPermission("system:roleTemplate:list")
     @GetMapping("/list")
     public Result<List<SysRoleTemplateVO>> list(@RequestParam(value = "typeCode", required = false) String typeCode) {
@@ -60,6 +64,7 @@ public class SysRoleTemplateController extends BaseController {
      * @param typeCode 公司类型编码
      * @return 数据范围选项
      */
+    @ApiOperation(value = "查询指定公司类型的数据范围选项。")
     @SaCheckPermission("system:roleTemplate:list")
     @GetMapping("/data-scope-options")
     public Result<List<DataScopeOptionVO>> dataScopeOptions(@RequestParam("typeCode") String typeCode) {
@@ -71,6 +76,7 @@ public class SysRoleTemplateController extends BaseController {
      *
      * @return 数据范围选项映射
      */
+    @ApiOperation(value = "查询全部公司类型的数据范围选项映射。")
     @SaCheckPermission("system:roleTemplate:list")
     @GetMapping("/data-scope-option-map")
     public Result<Map<String, List<DataScopeOptionVO>>> dataScopeOptionMap() {
@@ -83,6 +89,7 @@ public class SysRoleTemplateController extends BaseController {
      * @param templateId 模板ID
      * @return 模板详情
      */
+    @ApiOperation(value = "查询模板详情")
     @SaCheckPermission("system:roleTemplate:list")
     @GetMapping("/{templateId}")
     public Result<SysRoleTemplateVO> getById(@PathVariable Long templateId) {
@@ -96,6 +103,7 @@ public class SysRoleTemplateController extends BaseController {
      * @param dto 模板参数
      * @return 模板ID
      */
+    @ApiOperation(value = "新增角色模板")
     @SaCheckPermission("system:roleTemplate:add")
     @OperLog(title = "角色模板管理", operType = OperTypeEnum.INSERT)
     @PostMapping
@@ -110,6 +118,7 @@ public class SysRoleTemplateController extends BaseController {
      * @param dto 模板参数
      * @return 操作结果
      */
+    @ApiOperation(value = "修改角色模板")
     @SaCheckPermission("system:roleTemplate:update")
     @OperLog(title = "角色模板管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
@@ -124,6 +133,7 @@ public class SysRoleTemplateController extends BaseController {
      * @param templateId 模板ID
      * @return 操作结果
      */
+    @ApiOperation(value = "删除角色模板")
     @SaCheckPermission("system:roleTemplate:remove")
     @OperLog(title = "角色模板管理", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/{templateId}")
@@ -138,6 +148,7 @@ public class SysRoleTemplateController extends BaseController {
      * @param templateId 模板ID
      * @return 操作结果
      */
+    @ApiOperation(value = "全量同步模板到已有公司")
     @SaCheckPermission("system:roleTemplate:sync")
     @OperLog(title = "角色模板管理", operType = OperTypeEnum.UPDATE)
     @PostMapping("/{templateId}/sync")

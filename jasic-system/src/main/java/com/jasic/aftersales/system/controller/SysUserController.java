@@ -24,6 +24,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
 import java.util.List;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 
 /**
  * 用户管理控制器
@@ -31,6 +33,7 @@ import java.util.List;
  * @author Zoro
  * @date 2026/03/18
  */
+@Api(tags = "用户管理")
 @RestController
 @RequestMapping("/system/user")
 public class SysUserController extends BaseController {
@@ -44,6 +47,7 @@ public class SysUserController extends BaseController {
      * @param query 查询参数
      * @return 分页结果
      */
+    @ApiOperation(value = "分页查询用户列表")
     @SaCheckPermission("system:user:list")
     @GetMapping("/list")
     public Result<PageResult<SysUserVO>> list(SysUserQuery query) {
@@ -60,6 +64,7 @@ public class SysUserController extends BaseController {
      * @param userId 用户ID
      * @return 用户详情
      */
+    @ApiOperation(value = "查询用户详情")
     @SaCheckPermission("system:user:list")
     @GetMapping("/{userId}")
     public Result<SysUserVO> getById(@PathVariable Long userId) {
@@ -73,6 +78,7 @@ public class SysUserController extends BaseController {
      * @param dto 用户参数
      * @return 用户ID
      */
+    @ApiOperation(value = "新增用户")
     @SaCheckPermission("system:user:add")
     @OperLog(title = "用户管理", operType = OperTypeEnum.INSERT)
     @PostMapping
@@ -87,6 +93,7 @@ public class SysUserController extends BaseController {
      * @param dto 用户参数
      * @return 操作结果
      */
+    @ApiOperation(value = "修改用户")
     @SaCheckPermission("system:user:update")
     @OperLog(title = "用户管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
@@ -101,6 +108,7 @@ public class SysUserController extends BaseController {
      * @param userId 用户ID
      * @return 操作结果
      */
+    @ApiOperation(value = "删除用户")
     @SaCheckPermission("system:user:remove")
     @OperLog(title = "用户管理", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/{userId}")
@@ -115,6 +123,7 @@ public class SysUserController extends BaseController {
      * @param dto 重置密码参数
      * @return 操作结果
      */
+    @ApiOperation(value = "重置密码")
     @SaCheckPermission("system:user:resetPwd")
     @OperLog(title = "用户管理", operType = OperTypeEnum.UPDATE)
     @PutMapping("/reset-pwd")
@@ -129,6 +138,7 @@ public class SysUserController extends BaseController {
      * @param userId 用户ID
      * @return 操作结果
      */
+    @ApiOperation(value = "强制下线")
     @SaCheckPermission("system:user:kickout")
     @OperLog(title = "用户管理", operType = OperTypeEnum.KICKOUT)
     @PostMapping("/{userId}/kickout")
@@ -144,6 +154,7 @@ public class SysUserController extends BaseController {
      * @param roleIds 角色ID列表
      * @return 操作结果
      */
+    @ApiOperation(value = "分配用户角色")
     @SaCheckPermission("system:user:update")
     @OperLog(title = "用户管理", operType = OperTypeEnum.GRANT)
     @PutMapping("/{userId}/roles")

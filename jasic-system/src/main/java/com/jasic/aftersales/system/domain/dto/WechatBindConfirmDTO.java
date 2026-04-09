@@ -4,6 +4,8 @@ import lombok.Data;
 
 import javax.validation.constraints.NotBlank;
 import java.io.Serializable;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 
 /**
  * 微信绑定确认参数
@@ -11,19 +13,23 @@ import java.io.Serializable;
  * @author Codex
  * @date 2026/04/02
  */
+@ApiModel(description = "微信绑定确认参数")
 @Data
 public class WechatBindConfirmDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     /** 绑定码 */
+    @ApiModelProperty(value = "绑定码", required = true)
     @NotBlank(message = "绑定码不能为空")
     private String bindCode;
 
-    /** 微信登录 code */
-    @NotBlank(message = "微信登录 code 不能为空")
+    /** 微信登录凭证 */
+    @ApiModelProperty(value = "微信登录凭证", required = true)
+    @NotBlank(message = "微信登录凭证不能为空")
     private String code;
 
-    /** 微信手机号 code */
+    /** 微信手机号凭证 */
+    @ApiModelProperty(value = "微信手机号凭证")
     private String phoneCode;
 }

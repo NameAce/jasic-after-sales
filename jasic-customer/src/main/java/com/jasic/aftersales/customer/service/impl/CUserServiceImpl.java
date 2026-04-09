@@ -115,6 +115,14 @@ public class CUserServiceImpl implements ICUserService {
         return user;
     }
 
+    /**
+     * 更新客户最近一次微信登录快照，保持手机号和 unionid 与微信侧同步。
+     *
+     * @param user 客户实体
+     * @param unionid 微信 unionid
+     * @param phone 手机号
+     * @return 更新后的客户
+     */
     private CUser updateLoginSnapshot(CUser user, String unionid, String phone) {
         ensureUserActive(user);
         if (StringUtils.hasText(phone)) {
@@ -128,6 +136,14 @@ public class CUserServiceImpl implements ICUserService {
         return user;
     }
 
+    /**
+     * 首次登录时创建客户账号。
+     *
+     * @param openid 微信 openid
+     * @param unionid 微信 unionid
+     * @param phone 手机号
+     * @return 新建客户
+     */
     private CUser createUser(String openid, String unionid, String phone) {
         CUser newUser = new CUser();
         newUser.setOpenid(openid);
@@ -139,6 +155,11 @@ public class CUserServiceImpl implements ICUserService {
         return newUser;
     }
 
+    /**
+     * 校验登录态并返回当前客户。
+     *
+     * @return 当前客户
+     */
     private CUser requireCurrentUser() {
         StpCustomerUtil.checkLogin();
         Long userId = StpCustomerUtil.getLoginIdAsLong();
@@ -150,12 +171,23 @@ public class CUserServiceImpl implements ICUserService {
         return user;
     }
 
+    /**
+     * 拦截已停用客户，避免继续登录或修改资料。
+     *
+     * @param user 客户实体
+     */
     private void ensureUserActive(CUser user) {
         if (user.getStatus() != null && user.getStatus() == 0) {
             throw new ServiceException("当前客户账号已停用");
         }
     }
 
+    /**
+     * 统一清洗文本输入，空白字符按 null 处理。
+     *
+     * @param text 原始文本
+     * @return 清洗后的文本
+     */
     private String normalizeText(String text) {
         return StringUtils.hasText(text) ? text.trim() : null;
     }

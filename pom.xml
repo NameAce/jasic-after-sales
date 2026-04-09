@@ -30,9 +30,11 @@
         <mybatis-plus.version>3.5.7</mybatis-plus.version>
         <sa-token.version>1.38.0</sa-token.version>
         <knife4j.version>4.4.0</knife4j.version>
+        <swagger.annotations.version>1.6.6</swagger.annotations.version>
         <hutool.version>5.8.26</hutool.version>
         <redisson.version>3.27.2</redisson.version>
         <wxjava.version>4.7.0</wxjava.version>
+        <aliyun.oss.version>3.17.4</aliyun.oss.version>
         <jasic.version>1.0.0</jasic.version>
     </properties>
 
@@ -94,6 +96,12 @@
                 <groupId>com.github.binarywang</groupId>
                 <artifactId>weixin-java-miniapp</artifactId>
                 <version>${wxjava.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.aliyun.oss</groupId>
+                <artifactId>aliyun-sdk-oss</artifactId>
+                <version>${aliyun.oss.version}</version>
             </dependency>
 
             <!-- 子模块 -->

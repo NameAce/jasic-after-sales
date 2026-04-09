@@ -3,7 +3,7 @@
 -- 数据库：jasic_after_sales
 -- 字符集：utf8mb4
 -- 排序规则：utf8mb4_general_ci
--- 共20张表
+-- 共21张表
 -- =============================================
 
 SET NAMES utf8mb4;
@@ -148,6 +148,27 @@ CREATE TABLE `c_user` (
   UNIQUE KEY `uk_openid` (`openid`),
   UNIQUE KEY `uk_phone` (`phone`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='C端客户表';
+
+-- -------------------------------------------
+-- 8. C端客户地址表
+-- -------------------------------------------
+DROP TABLE IF EXISTS `customer_address`;
+CREATE TABLE `customer_address` (
+  `id`             bigint unsigned  NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `customer_id`    bigint unsigned  NOT NULL                COMMENT '客户ID',
+  `contact_name`   varchar(64)      NOT NULL                COMMENT '联系人',
+  `contact_mobile` varchar(20)      NOT NULL                COMMENT '联系手机号',
+  `province`       varchar(64)      NOT NULL                COMMENT '省',
+  `city`           varchar(64)      NOT NULL                COMMENT '市',
+  `county`         varchar(64)      DEFAULT NULL            COMMENT '区县',
+  `detail_address` varchar(255)     NOT NULL                COMMENT '详细地址',
+  `is_default`     tinyint unsigned DEFAULT 0               COMMENT '是否默认地址（1=是，0=否）',
+  `create_time`    datetime         NOT NULL                COMMENT '创建时间',
+  `update_time`    datetime         NOT NULL                COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_customer_address_customer` (`customer_id`),
+  KEY `idx_customer_address_default` (`customer_id`, `is_default`, `update_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='C端客户地址表';
 
 -- -------------------------------------------
 -- 8. 用户-公司关联表
@@ -403,8 +424,10 @@ CREATE TABLE `work_order` (
   `product_name`                varchar(128)     DEFAULT NULL            COMMENT '商品名称',
   `product_model`               varchar(64)      DEFAULT NULL            COMMENT '机器型号',
   `machine_no`                  varchar(64)      DEFAULT NULL            COMMENT '机器小号',
+  `brand_type`                  varchar(16)      DEFAULT NULL            COMMENT '品牌类型',
   `brand_code`                  varchar(32)      DEFAULT NULL            COMMENT '品牌编码',
-  `service_mode`                varchar(16)      NOT NULL                COMMENT '服务方式（寄修/到店）',
+  `brand_name`                  varchar(64)      DEFAULT NULL            COMMENT '品牌名称',
+  `service_mode`                varchar(16)      NOT NULL                COMMENT '服务方式编码（MAIL=寄修，STORE=到店维修）',
   `warranty_status`             varchar(16)      DEFAULT NULL            COMMENT '质保状态',
   `fault_desc`                  text             DEFAULT NULL            COMMENT '客户报修描述',
   `fault_remark`                varchar(500)     DEFAULT NULL            COMMENT '客户故障备注',
@@ -418,6 +441,7 @@ CREATE TABLE `work_order` (
   `current_accept_company_id`   bigint unsigned  NOT NULL                COMMENT '当前受理公司ID',
   `assigned_user_id`            bigint unsigned  DEFAULT NULL            COMMENT '当前维修员ID',
   `create_company_id`           bigint unsigned  NOT NULL                COMMENT '建单来源公司ID',
+  `create_entry_type`           varchar(32)      DEFAULT NULL            COMMENT '建单入口类型',
   `hq_company_id`               bigint unsigned  NOT NULL                COMMENT '归属总部ID',
   `has_transfer`                tinyint unsigned DEFAULT 0               COMMENT '是否发生过转单（1=是，0=否）',
   `transfer_count`              int unsigned     DEFAULT 0               COMMENT '转单次数',
@@ -437,6 +461,52 @@ CREATE TABLE `work_order` (
   KEY `idx_customer_mobile` (`customer_mobile`),
   KEY `idx_barcode` (`barcode`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='工单主表';
+
+-- -------------------------------------------
+-- 22. 工单附件表
+-- -------------------------------------------
+DROP TABLE IF EXISTS `sys_file`;
+CREATE TABLE `sys_file` (
+  `id`                bigint unsigned  NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `storage_type`      varchar(32)      NOT NULL COMMENT '存储类型',
+  `bucket`            varchar(128)     NOT NULL COMMENT '存储桶',
+  `object_key`        varchar(512)     NOT NULL COMMENT '对象键',
+  `original_name`     varchar(255)     NOT NULL COMMENT '原始文件名',
+  `content_type`      varchar(128)     DEFAULT NULL COMMENT '内容类型',
+  `file_size`         bigint unsigned  NOT NULL COMMENT '文件大小',
+  `file_ext`          varchar(32)      NOT NULL COMMENT '扩展名',
+  `file_hash`         varchar(128)     NOT NULL COMMENT '文件哈希',
+  `access_level`      varchar(32)      NOT NULL COMMENT '访问级别',
+  `upload_user_id`    bigint unsigned  DEFAULT NULL COMMENT '上传用户ID',
+  `upload_user_type`  varchar(32)      NOT NULL COMMENT '上传用户类型',
+  `upload_company_id` bigint unsigned  DEFAULT NULL COMMENT '上传公司ID',
+  `status`            varchar(32)      NOT NULL COMMENT '文件状态',
+  `create_time`       datetime         NOT NULL COMMENT '创建时间',
+  `update_time`       datetime         NOT NULL COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_sys_file_hash_key` (`file_hash`, `object_key`),
+  KEY `idx_sys_file_upload_user` (`upload_user_id`, `upload_user_type`),
+  KEY `idx_sys_file_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文件元数据表';
+
+DROP TABLE IF EXISTS `sys_file_biz`;
+CREATE TABLE `sys_file_biz` (
+  `id`                 bigint unsigned  NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `file_id`            bigint unsigned  NOT NULL COMMENT '文件ID',
+  `biz_type`           varchar(64)      NOT NULL COMMENT '业务类型',
+  `biz_id`             bigint unsigned  NOT NULL COMMENT '业务ID',
+  `sort_num`           int              NOT NULL DEFAULT 1 COMMENT '排序号',
+  `is_primary`         tinyint unsigned NOT NULL DEFAULT 0 COMMENT '是否主文件',
+  `company_id`         bigint unsigned  DEFAULT NULL COMMENT '公司ID',
+  `operator_user_id`   bigint unsigned  DEFAULT NULL COMMENT '操作人ID',
+  `operator_user_type` varchar(32)      DEFAULT NULL COMMENT '操作人类型',
+  `remark`             varchar(255)     DEFAULT NULL COMMENT '备注',
+  `create_time`        datetime         NOT NULL COMMENT '创建时间',
+  `update_time`        datetime         NOT NULL COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_sys_file_biz_type_id_sort` (`biz_type`, `biz_id`, `sort_num`),
+  KEY `idx_sys_file_biz_file_id` (`file_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文件业务关联表';
 
 -- -------------------------------------------
 -- 22. 工单流转历史表
@@ -695,3 +765,4 @@ CREATE TABLE `fault_repair_config_option` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='故障与维修配置维修项表';
 
 SET FOREIGN_KEY_CHECKS = 1;
+

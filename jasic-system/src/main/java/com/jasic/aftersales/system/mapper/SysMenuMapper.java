@@ -27,6 +27,16 @@ public interface SysMenuMapper extends BaseMapper<SysMenu> {
     Set<String> selectPermsByUserIdAndCompanyId(@Param("userId") Long userId, @Param("companyId") Long companyId);
 
     /**
+     * 根据用户ID和公司ID查询当前已授权的权限项
+     *
+     * @param userId    用户ID
+     * @param companyId 公司ID
+     * @return 权限项列表
+     */
+    List<SysMenu> selectPermissionMenusByUserIdAndCompanyId(@Param("userId") Long userId,
+                                                            @Param("companyId") Long companyId);
+
+    /**
      * 根据用户ID和公司ID查询菜单树（不含按钮）
      *
      * @param userId    用户ID

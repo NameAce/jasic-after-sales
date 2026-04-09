@@ -27,6 +27,8 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.annotation.Resource;
 import javax.validation.Valid;
 import java.util.List;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 
 /**
  * 条码档案管理控制器
@@ -34,6 +36,7 @@ import java.util.List;
  * @author Codex
  * @date 2026/04/01
  */
+@Api(tags = "条码档案管理")
 @RestController
 @RequestMapping("/system/machine-barcode")
 public class MachineBarcodeController extends BaseController {

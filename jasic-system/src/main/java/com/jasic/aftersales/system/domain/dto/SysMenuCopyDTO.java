@@ -5,6 +5,8 @@ import lombok.Data;
 import javax.validation.constraints.NotBlank;
 import java.io.Serializable;
 import java.util.List;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 
 /**
  * 菜单拷贝参数
@@ -12,19 +14,23 @@ import java.util.List;
  * @author Zoro
  * @date 2026/03/18
  */
+@ApiModel(description = "菜单拷贝参数")
 @Data
 public class SysMenuCopyDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     /** 源主体类型（PLATFORM/HQ/SERVICE） */
+    @ApiModelProperty(value = "源主体类型（PLATFORM/HQ/SERVICE）", required = true)
     @NotBlank(message = "源主体类型不能为空")
     private String sourceSubjectType;
 
     /** 目标主体类型（PLATFORM/HQ/SERVICE） */
+    @ApiModelProperty(value = "目标主体类型（PLATFORM/HQ/SERVICE）", required = true)
     @NotBlank(message = "目标主体类型不能为空")
     private String targetSubjectType;
 
     /** 要拷贝的菜单ID列表（为空则拷贝全部） */
+    @ApiModelProperty(value = "要拷贝的菜单ID列表（为空则拷贝全部）")
     private List<Long> menuIds;
 }

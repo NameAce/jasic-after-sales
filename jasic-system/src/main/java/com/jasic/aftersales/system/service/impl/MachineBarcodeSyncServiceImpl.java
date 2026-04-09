@@ -174,18 +174,25 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
 
     private JdbcTemplate requireCrmJdbcTemplate() {
         if (crmJdbcTemplate == null) {
-            throw new ServiceException("当前未配置 CRM 数据源，请先完善 jasic.crm.datasource");
+            throw new ServiceException("当前未配置客户关系管理（CRM）数据源，请先完善 jasic.crm.datasource");
         }
         return crmJdbcTemplate;
     }
 
+    /**
+     * 校验同步表名配置，避免把非法名称直接拼接进 SQL。
+     *
+     * @param tableName 原始表名
+     * @param label 配置项名称
+     * @return 规范化后的表名
+     */
     private String validateTableName(String tableName, String label) {
         String normalized = StrUtil.trim(tableName);
         if (StrUtil.isBlank(normalized)) {
-            throw new ServiceException(label + "未在 MachineBarcodeSyncServiceImpl 中配置");
+            throw new ServiceException(label + "未配置，请先完善条码同步参数");
         }
         if (!TABLE_NAME_PATTERN.matcher(normalized).matches()) {
-            throw new ServiceException(label + "配置不合法");
+            throw new ServiceException(label + "配置格式不合法");
         }
         return normalized;
     }

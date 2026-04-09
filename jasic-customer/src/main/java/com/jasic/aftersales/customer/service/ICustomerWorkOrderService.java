@@ -4,11 +4,13 @@ import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderCreateDTO;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderEvaluateDTO;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderSendInfoDTO;
+import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderSenderVoucherDTO;
 import com.jasic.aftersales.customer.domain.query.CustomerWorkOrderQuery;
 import com.jasic.aftersales.customer.domain.vo.CustomerBarcodeInfoVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerNearbyServiceCompanyVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerServiceCompanyOptionVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderDetailVO;
+import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderLatestSummaryVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderListVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderStatusCountVO;
 
@@ -66,6 +68,13 @@ public interface ICustomerWorkOrderService {
     PageResult<CustomerWorkOrderListVO> listPage(CustomerWorkOrderQuery query);
 
     /**
+     * 查询最近一条工单摘要
+     *
+     * @return 最近工单摘要，若不存在则返回 null
+     */
+    CustomerWorkOrderLatestSummaryVO getLatestSummary();
+
+    /**
      * 查询我的工单状态计数
      *
      * @return 状态计数
@@ -86,6 +95,13 @@ public interface ICustomerWorkOrderService {
      * @param dto 寄修信息参数
      */
     void updateSendInfo(CustomerWorkOrderSendInfoDTO dto);
+
+    /**
+     * 上传工单寄件凭证
+     *
+     * @param dto 寄件凭证参数
+     */
+    void updateSenderVoucher(CustomerWorkOrderSenderVoucherDTO dto);
 
     /**
      * 提交工单评价

@@ -27,7 +27,7 @@ public class CrmJdbcTemplateConfig {
                                         @Value("${jasic.crm.datasource.password}") String password,
                                         @Value("${jasic.crm.datasource.driver-class-name:com.mysql.cj.jdbc.Driver}") String driverClassName) {
         if (StrUtil.isBlank(url)) {
-            throw new ServiceException("CRM 数据源地址不能为空");
+            throw new ServiceException("客户关系管理（CRM）数据源地址不能为空");
         }
         DriverManagerDataSource dataSource = new DriverManagerDataSource();
         dataSource.setDriverClassName(StrUtil.blankToDefault(StrUtil.trim(driverClassName), "com.mysql.cj.jdbc.Driver"));
