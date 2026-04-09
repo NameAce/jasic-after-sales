@@ -1,0 +1,98 @@
+@use "./mixins.scss" as *;
+@use "./variables.scss" as *;
+
+/* 布局 */
+.flex {
+  display: flex;
+}
+
+.flex-center {
+  @include flex-center;
+}
+
+.flex-between {
+  @include flex-between;
+}
+
+.flex-around {
+  @include flex-around;
+}
+
+/* 文字 */
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.text-primary {
+  color: $primary;
+}
+
+.text-danger {
+  color: $danger;
+}
+
+.text-secondary {
+  color: $text-secondary;
+}
+
+/* 背景 */
+.bg-page {
+  background: $bg-page;
+}
+
+.bg-card {
+  background: $bg-card;
+}
+
+/* 圆角 */
+.round-sm {
+  border-radius: $radius-sm;
+}
+
+.round-md {
+  border-radius: $radius-md;
+}
+
+.round-lg {
+  border-radius: $radius-lg;
+}
+
+/* 内边距 */
+.p-sm {
+  padding: $space-sm;
+}
+
+.p-md {
+  padding: $space-md;
+}
+
+.p-lg {
+  padding: $space-lg;
+}
+
+/* 外边距 */
+.mt-sm {
+  margin-top: $space-sm;
+}
+
+.mt-md {
+  margin-top: $space-md;
+}
+
+.mt-lg {
+  margin-top: $space-lg;
+}
+
+/* 边框 */
+.border {
+  border: 1rpx solid $border-color;
+}
+
+/* 省略 */
+.ellipsis {
+  @include ellipsis;
+}

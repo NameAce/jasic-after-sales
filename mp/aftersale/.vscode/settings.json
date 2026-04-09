@@ -1,0 +1,37 @@
+{
+  // 在保存时格式化文件
+  "editor.formatOnSave": true,
+  // 文件格式化配置
+  "[vue]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  // 配置语言的文件关联
+  "files.associations": {
+    "pages.json": "jsonc", // pages.json 可以写注释
+    "manifest.json": "jsonc" // manifest.json 可以写注释
+  },
+  "eslint.useFlatConfig": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "always"
+  }
+}
+// {
+//   "editor.formatOnSave": true,
+//   "editor.defaultFormatter": "esbenp.prettier-vscode",
+//   "[vue]": {
+//     "editor.defaultFormatter": "esbenp.prettier-vscode"
+//   },
+//   "[typescript]": {
+//     "editor.defaultFormatter": "esbenp.prettier-vscode"
+//   },
+//   "[javascript]": {
+//     "editor.defaultFormatter": "esbenp.prettier-vscode"
+//   },
+//   "editor.codeActionsOnSave": {
+//     "source.fixAll.eslint": "always"
+//   },
+//   "eslint.useFlatConfig": true
+// }

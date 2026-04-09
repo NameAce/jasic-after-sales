@@ -1,0 +1,137 @@
+{
+	"easycom": {
+		"autoscan": true,
+		"custom": {
+			// uni-ui 规则如下配置
+			"^uni-(.*)": "@dcloudio/uni-ui/lib/uni-$1/uni-$1.vue"
+		}
+	},
+	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
+		{
+			"path": "pages/index/index",
+			"style": {
+				// "navigationStyle": "custom",
+				"navigationBarTitleText": "首页"
+			}
+		},
+		{
+			"path": "pages/my/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "我的"
+			}
+		},
+		{
+			"path": "pages/order/list",
+			"style": {
+				"navigationBarTitleText": "工单列表",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/order/detail",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "工单详情"
+			}
+		},
+		{
+			"path": "pages/historicalRecord/index",
+			"style": {
+				"navigationBarTitleText": "故障点历史记录"
+			}
+		},
+		{
+			"path": "pages/repairGuide/index",
+			"style": {
+				"navigationBarTitleText": "报修指南"
+			}
+		},
+		{
+			"path": "pages/jasicRepair/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "佳士品牌"
+			}
+		},
+		{
+			"path": "pages/otherRepair/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "非佳士品牌"
+			}
+		},
+		{
+			"path": "pages/servicePoint/index",
+			"style": {
+				"navigationBarTitleText": "选择附近网点"
+			}
+		},
+		{
+			"path": "pages/order/evaluate",
+			"style": {
+				"navigationBarTitleText": "服务评价",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/login/index",
+			"style": {
+				"navigationBarTitleText": "登录",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/address/index",
+			"style": {
+				"navigationBarTitleText": "我的地址",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/address/edit",
+			"style": {
+				"navigationBarTitleText": "编辑地址",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/about/index",
+			"style": {
+				"navigationBarTitleText": "关于我们",
+				"navigationStyle": "custom"
+			}
+		}
+	],
+	"tabBar": {
+		"color": "#999",
+		"selectedColor": "#000",
+		"fontWeight": "bold",
+		"list": [
+			{
+				"pagePath": "pages/index/index",
+				"text": "首页",
+				"iconPath": "static/icon/home.png",
+				"selectedIconPath": "static/icon/home-active.png"
+			},
+			// {
+			// 	"pagePath": "pages/info/index",
+			// 	"text": "资讯",
+			// 	"iconPath": "static/icon/info.png",
+			// 	"selectedIconPath": "static/icon/info-active.png"
+			// },
+			{
+				"pagePath": "pages/my/index",
+				"text": "我的",
+				"iconPath": "static/icon/my.png",
+				"selectedIconPath": "static/icon/my-active.png"
+			}
+		]
+	},
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "uni-app",
+		"navigationBarBackgroundColor": "#fff",
+		"backgroundColor": "#fff"
+	}
+}

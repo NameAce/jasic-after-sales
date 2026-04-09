@@ -1,0 +1,60 @@
+// 主题色
+$primary: #f26604;
+$success: #7bff93;
+$warning: #ffc56f;
+$danger: #fa3534;
+$info: #909399;
+$icon-color: #dcdcdcf5;
+$bg-input: #f8fafc;
+
+// 文字
+$text-main: #303133;
+$text-secondary: #606266;
+$text-placeholder: #909399;
+$text-disabled: #c0c4cc;
+$text-bg: #fff;
+$text-dark: #0f172a;
+$text-label: #64748b;
+$text-muted: #94a3b8;
+$text-body: #334155;
+$text-desc: #475569;
+
+// 背景
+$bg-page: #f6f6f8;
+$bg-card: #ffffff;
+$bg-light: #f8fafc;
+$bg-hover: #f1f5f9;
+
+// 边框
+$border-color: #ebeef5;
+$border-light: #f1f5f9;
+$border-lighter: #f8fafc;
+
+// 圆角
+$radius-sm: 8rpx;
+$radius-md: 16rpx;
+$radius-input: 18rpx;
+$radius-lg: 24rpx;
+$radius-xl: 32rpx;
+$radius-xxl: 48rpx;
+$radius-round: 999rpx;
+
+// 间距
+$space-xs: 8rpx;
+$space-sm: 16rpx;
+$space-md: 24rpx;
+$space-lg: 32rpx;
+$space-xl: 48rpx;
+$space-input: 28rpx;
+
+// 字体
+$font-xs: 20rpx;
+$font-sm: 24rpx;
+$font-md: 28rpx;
+$font-lg: 32rpx;
+$font-xl: 36rpx;
+$font-xxl: 40rpx;
+$font-title: 48rpx;
+
+// 安全距离
+$safe-area-bottom: env(safe-area-inset-bottom);

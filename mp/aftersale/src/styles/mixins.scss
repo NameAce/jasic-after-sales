@@ -1,0 +1,263 @@
+@use "./variables.scss" as *;
+
+// ========== 布局 ==========
+
+@mixin flex {
+  display: flex;
+}
+
+@mixin flex-column {
+  @include flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+@mixin flex-column-center {
+  @include flex-center;
+  flex-direction: column;
+}
+
+@mixin flex-column-between {
+  @include flex-column;
+  align-items: space-between;
+}
+
+@mixin flex-row {
+  @include flex;
+  align-items: center;
+}
+
+@mixin flex-center {
+  @include flex-row;
+  justify-content: center;
+}
+
+@mixin flex-between {
+  @include flex-row;
+  justify-content: space-between;
+}
+
+@mixin flex-around {
+  @include flex-row;
+  justify-content: space-around;
+}
+
+@mixin flex-column-gap {
+  display: flex;
+  flex-direction: column;
+  gap: $space-lg;
+}
+
+// ========== 导航栏 ==========
+
+@mixin nav-bar {
+  background-color: $bg-card;
+  border-bottom: 2rpx solid $border-light;
+  padding: 0 $space-lg;
+}
+
+@mixin nav-bar-inner {
+  display: flex;
+  align-items: center;
+  height: 88rpx;
+}
+
+@mixin nav-back-btn {
+  width: 80rpx;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  margin-left: -20rpx;
+}
+
+@mixin nav-title {
+  flex: 1;
+  text-align: center;
+  font-size: $font-xl;
+  font-weight: bold;
+  color: $text-dark;
+}
+
+@mixin nav-right-placeholder {
+  width: 80rpx;
+}
+
+// ========== 卡片 ==========
+
+@mixin white-card($radius: $radius-lg, $padding: $space-lg) {
+  background-color: $bg-card;
+  border-radius: $radius;
+  padding: $padding;
+  border: 2rpx solid $border-light;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.03);
+}
+
+// ========== 按钮 ==========
+
+@mixin btn-reset {
+  &::after {
+    border: none;
+  }
+}
+
+@mixin btn-primary-solid {
+  background-color: $primary;
+  color: #fff;
+  font-weight: bold;
+  @include btn-reset;
+
+  &:active {
+    opacity: 0.9;
+  }
+}
+
+@mixin btn-primary-round($height: 96rpx) {
+  height: $height;
+  line-height: $height;
+  text-align: center;
+  border-radius: $radius-xxl;
+  @include btn-primary-solid;
+}
+
+@mixin btn-outline {
+  background-color: $bg-card;
+  color: $primary;
+  border: 2rpx solid $primary;
+  font-weight: bold;
+  @include btn-reset;
+}
+
+// ========== 弹窗 ==========
+
+@mixin modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin modal-actions {
+  display: flex;
+  gap: $space-lg;
+
+  button {
+    flex: 1;
+    margin: 0;
+    font-weight: bold;
+    @include btn-reset;
+  }
+}
+
+@mixin modal-btn-cancel {
+  background-color: $bg-card;
+  border: 2rpx solid $primary;
+  color: $primary;
+}
+
+@mixin modal-btn-confirm {
+  background-color: $primary;
+  color: #fff;
+  box-shadow: 0 8rpx 24rpx rgba($primary, 0.3);
+}
+
+// ========== 空状态 ==========
+
+@mixin empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+// ========== 描述框 ==========
+
+@mixin desc-box {
+  background-color: $bg-light;
+  padding: $space-md;
+  border-radius: $radius-md;
+}
+
+// ========== 区域标题 ==========
+
+@mixin section-header-with-mark {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  margin-bottom: $space-lg;
+}
+
+@mixin section-mark {
+  width: 8rpx;
+  height: $space-lg;
+  background-color: $primary;
+  border-radius: $radius-round;
+}
+
+@mixin section-title {
+  font-size: $font-lg;
+  font-weight: bold;
+  color: $text-dark;
+}
+
+// ========== 文本 ==========
+
+@mixin ellipsis($lines: 2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: $lines;
+  line-clamp: $lines;
+  -webkit-box-orient: vertical;
+}
+
+// ========== 底部固定按钮 ==========
+
+@mixin fixed-btn {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: calc(100% - $space-md * 2);
+  color: $text-bg;
+  padding: $space-md $space-md $safe-area-bottom;
+  border-radius: $radius-lg;
+  background-color: $bg-card;
+  z-index: 999;
+}
+
+// ========== 标签 ==========
+
+@mixin serviced-tag-style($color) {
+  background: rgba($color, 0.1);
+  color: $color;
+  font-size: $font-sm;
+  border-radius: $radius-sm;
+  padding: 4rpx 12rpx;
+}
+
+@mixin tag-primary {
+  padding: 4rpx 16rpx;
+  background-color: rgba($primary, 0.1);
+  color: $primary;
+  font-size: $font-sm;
+  border-radius: $radius-sm;
+}
+
+// ========== 信息列表 ==========
+
+@mixin info-label {
+  color: $text-label;
+  font-size: $font-sm;
+}
+
+@mixin info-value {
+  font-weight: 500;
+  color: $text-body;
+  font-size: $font-sm;
+}
