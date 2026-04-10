@@ -1,0 +1,530 @@
+@use './mixins.scss' as *;
+@use './variables.scss' as *;
+
+// ============= 卡片 =============
+
+.card {
+  @include flex-column;
+  gap: $space-sm;
+  background-color: $bg-card;
+  border-radius: $radius-lg;
+  border: 1rpx solid $border-color;
+  padding: $space-md $space-lg;
+}
+
+.card-shadow {
+  box-shadow: 7rpx 7rpx 0px 0px rgba(0, 0, 0, 0.1);
+}
+
+.card-actions {
+  @include flex-around;
+  padding-bottom: $space-lg;
+
+  view {
+    @include flex-center;
+  }
+}
+
+// ============= 轮播图 =============
+
+.swiper-box {
+  border-radius: $radius-lg;
+
+  image {
+    width: 100%;
+    border-radius: $radius-lg;
+  }
+}
+
+// ============= uni-section =============
+
+.uni-section {
+  border-radius: $radius-lg;
+  padding-bottom: $space-sm;
+}
+
+// ============= grid =============
+
+.grid-item-box {
+  @include flex-column-center;
+  gap: $space-sm;
+}
+
+// ============= 文件选择器 =============
+
+:deep(.uni-file-picker) {
+  @include flex-row;
+  justify-content: flex-start;
+}
+
+.file-picker-tip {
+  padding: $space-sm 0;
+  font-size: $font-sm;
+  color: $text-placeholder;
+  background-color: $bg-card;
+}
+
+.file-picker {
+  @include flex-center;
+  width: 174rpx;
+  height: 174rpx;
+  box-sizing: border-box;
+}
+
+// ============= 表单区域 =============
+
+.repair-form-page {
+  padding-top: $space-lg;
+  padding-bottom: 200rpx;
+  box-sizing: border-box;
+}
+
+// 报修页主区域在导航栏下方，若再继承 .page-index 的 min-height:100vh 会超过一屏，短内容也会出现滚动条
+.repair-form-page.page-index {
+  min-height: 0;
+}
+
+.form-content {
+  @include flex-column-gap;
+}
+
+.shipping-address-btn {
+  @include flex-row;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid #f0f0f0;
+  border-radius: $radius-md;
+  padding: 18rpx 24rpx;
+  min-height: 80rpx;
+  box-sizing: border-box;
+  background-color: #f8fafc;
+}
+
+.shipping-address-text {
+  flex: 1;
+  font-size: $font-sm;
+  color: $text-body;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+
+  &.placeholder {
+    color: #909399;
+  }
+}
+
+// ============= 按钮 =============
+
+.btn {
+  @include flex-center;
+  flex: 1;
+  height: 80rpx;
+  border-radius: $radius-lg;
+  font-size: $font-md;
+  font-weight: 500;
+  margin: 0 $space-xs;
+}
+
+.btn-primary {
+  background: $primary;
+  color: $text-bg;
+}
+
+.btn-secondary {
+  background: #f5f5f5;
+  color: $text-main;
+  border: 1rpx solid $border-color;
+}
+
+// ============= 确认弹窗（居中对话框） =============
+
+.modal-mask {
+  @include modal-overlay;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  padding: $space-lg;
+}
+
+.modal-content {
+  width: 100%;
+  max-width: 600rpx;
+  background-color: $bg-card;
+  border-radius: $radius-lg;
+  padding: $space-xl;
+  box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.1);
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+
+  .modal-icon-box {
+    width: 120rpx;
+    height: 120rpx;
+    border-radius: 50%;
+    background-color: rgba($primary, 0.1);
+    @include flex-center;
+    margin-bottom: $space-lg;
+  }
+
+  .modal-title {
+    font-size: $font-lg;
+    font-weight: bold;
+    color: $text-main;
+    margin-bottom: $space-sm;
+  }
+
+  .modal-desc {
+    font-size: $font-md;
+    color: $text-secondary;
+    line-height: 1.5;
+    margin-bottom: $space-xl * 1.5;
+  }
+
+  .modal-actions {
+    @include modal-actions;
+    width: 100%;
+
+    button {
+      border-radius: $radius-md;
+      font-size: $font-md;
+      height: 88rpx;
+      line-height: 88rpx;
+
+      &.btn-cancel {
+        @include modal-btn-cancel;
+        border-color: $border-color;
+        color: $text-secondary;
+      }
+
+      &.btn-confirm {
+        @include modal-btn-confirm;
+      }
+    }
+  }
+}
+
+// ============= 区域标题（带竖线标记） =============
+
+.section-header {
+  @include section-header-with-mark;
+
+  .section-mark {
+    @include section-mark;
+  }
+
+  .section-title {
+    @include section-title;
+  }
+}
+
+// ============= 信息列表（label-value 键值对） =============
+
+.info-list {
+  display: flex;
+  flex-direction: column;
+  gap: $space-md;
+  padding: 0 $space-md;
+
+  .info-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: $font-sm;
+
+    &.align-top {
+      align-items: flex-start;
+    }
+
+    &.align-center {
+      align-items: center;
+    }
+
+    .info-label {
+      @include info-label;
+
+      &.shrink {
+        flex-shrink: 0;
+        margin-right: $space-lg;
+      }
+    }
+
+    .info-value {
+      @include info-value;
+
+      &.text-primary {
+        color: $primary;
+      }
+
+      &.text-right {
+        text-align: right;
+        line-height: 1.4;
+      }
+    }
+
+    .tag-primary {
+      @include tag-primary;
+    }
+  }
+
+  .info-item-col {
+    display: flex;
+    flex-direction: column;
+    font-size: $font-sm;
+
+    &.border-top {
+      border-top: 2rpx solid $border-lighter;
+      padding-top: $space-md;
+      margin-top: $space-xs;
+    }
+
+    .info-label {
+      @include info-label;
+      margin-bottom: $space-sm;
+      display: block;
+    }
+
+    .desc-box {
+      @include desc-box;
+
+      .desc-text {
+        font-size: $font-sm;
+        color: $text-desc;
+        line-height: 1.6;
+      }
+    }
+  }
+}
+
+// ============= 描述框 =============
+
+.desc-box {
+  @include desc-box;
+}
+
+// ============= 状态徽章 =============
+
+.status-badge {
+  font-size: $font-xs;
+  font-weight: bold;
+  padding: $space-xs $space-sm;
+  border-radius: $radius-round;
+
+  &.status-pending {
+    background-color: rgba($primary, 0.1);
+    color: $primary;
+  }
+
+  &.status-repairing {
+    background-color: #e6f0ff;
+    color: #135bec;
+  }
+
+  &.status-finished {
+    background-color: #e6f4ea;
+    color: #16a34a;
+  }
+
+  &.status-closed {
+    background-color: $bg-hover;
+    color: $text-label;
+  }
+}
+
+// ============= 工单类型标签 =============
+
+.tag-jasic {
+  background-color: #fff7ed;
+  color: #ea580c;
+  border-color: #ffedd5;
+}
+
+.tag-non-jasic {
+  background-color: $bg-hover;
+  color: $text-label;
+  border-color: #e2e8f0;
+}
+
+.tag-model {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+  font-weight: 600;
+}
+
+// ============= 空状态 =============
+
+.empty-state {
+  @include empty-state;
+  padding: 120rpx $space-lg;
+
+  .empty-icon-wrap {
+    width: 160rpx;
+    height: 160rpx;
+    border-radius: 50%;
+    background-color: $bg-hover;
+    @include flex-center;
+    margin-bottom: $space-lg;
+
+    .empty-icon {
+      font-size: 80rpx;
+      color: #cbd5e1;
+    }
+  }
+
+  .empty-title {
+    font-size: $font-lg;
+    font-weight: 600;
+    color: $text-label;
+    margin-bottom: 12rpx;
+  }
+
+  .empty-desc {
+    font-size: 26rpx;
+    color: $text-muted;
+    line-height: 1.5;
+  }
+}
+
+// ============= 导航栏 =============
+
+.nav-bar {
+  @include nav-bar;
+
+  .nav-bar-inner {
+    @include nav-bar-inner;
+
+    .nav-back-btn {
+      @include nav-back-btn;
+    }
+
+    .nav-title {
+      @include nav-title;
+    }
+
+    .nav-right-placeholder {
+      @include nav-right-placeholder;
+    }
+  }
+}
+
+// ============= 表单输入框样式 =============
+
+:deep(.uni-easyinput .is-focused) {
+  border-color: $primary !important;
+}
+
+:deep(.uni-easyinput .is-input-border) {
+  border-radius: $radius-input !important;
+  background-color: $bg-input !important;
+}
+
+:deep(.uni-easyinput__content) {
+  padding: $space-xs 0;
+}
+
+:deep(.uni-easyinput__content-input) {
+  font-size: $space-input !important;
+  height: 56rpx !important;
+}
+
+:deep(.uni-select) {
+  border-radius: $radius-input !important;
+  background-color: $bg-input !important;
+  height: 80rpx;
+  font-size: $space-input !important;
+}
+
+:deep(.uni-forms-item__label) {
+  font-weight: bold;
+  color: $text-main !important;
+}
+
+:deep(.uni-select__input-placeholder) {
+  font-size: $space-input !important;
+}
+
+:deep(.uni-forms-item) {
+  position: relative;
+  margin-bottom: $space-input !important;
+}
+
+:deep(.uni-select__input-box .padding-top-bottom) {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+:deep(.uni-easyinput__content-textarea) {
+  min-height: 120rpx !important;
+}
+
+:deep(.uni-forms-item.is-direction-top .uni-forms-item__label) {
+  padding-bottom: 0 !important;
+}
+
+// ============= 图标覆盖 =============
+
+:deep(.uniui-scan) {
+  color: $info !important;
+}
+
+:deep(.uniui-location) {
+  color: $primary !important;
+}
+
+:deep(.uniui-clear) {
+  color: $icon-color !important;
+}
+
+:deep(.uniui-location-filled) {
+  color: $primary !important;
+}
+
+// ============= 表单间距 =============
+
+.form-padding {
+  padding-left: $space-xl;
+  padding-right: $space-xl;
+}
+
+// ============= 状态标签 =============
+
+.tag {
+  padding: 6rpx 16rpx;
+  border-radius: $radius-sm;
+  font-size: $font-sm;
+  border: 2rpx solid transparent;
+}
+
+.tag-success {
+  background: #e1f3d8;
+  color: $success;
+}
+
+.tag-warning {
+  background: #fdf6ec;
+  color: $warning;
+}
+
+.tag-danger {
+  background: #fde2e2;
+  color: $danger;
+}
+
+// ============= 通用动画 =============
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

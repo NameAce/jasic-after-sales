@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "ignoreDeprecations": "5.0",
+    "allowJs": true,
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "src/*"
+      ]
+    }
+  },
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules"
+  ],
+  "types": [
+    "@dcloudio/types",
+    "miniprogram-api-typings",
+    "@uni-helper/uni-app-types",
+    "@uni-helper/uni-ui-types"
+  ],
+  "vueCompilerOptions": {
+    "plugins": [
+      "@uni-helper/uni-app-types/volar-plugin"
+    ]
+  }
+}
