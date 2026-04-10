@@ -88,6 +88,31 @@
   @include flex-column-gap;
 }
 
+.shipping-address-btn {
+  @include flex-row;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid #f0f0f0;
+  border-radius: $radius-md;
+  padding: 18rpx 24rpx;
+  min-height: 80rpx;
+  box-sizing: border-box;
+  background-color: #f8fafc;
+}
+
+.shipping-address-text {
+  flex: 1;
+  font-size: $font-sm;
+  color: $text-body;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+
+  &.placeholder {
+    color: #909399;
+  }
+}
+
 // ============= 按钮 =============
 
 .btn {

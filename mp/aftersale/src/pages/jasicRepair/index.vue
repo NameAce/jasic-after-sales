@@ -206,23 +206,13 @@
     type JasicRepairDraftForm
   } from '@/utils/repairDraftStorage'
   import { takeSelectedShippingAddress, type SelectedShippingAddress } from '@/utils/addressStorage'
+  import { parseUnknownError } from '@/utils/errorMessage'
+  import {
+    resolveSendExpressNoForSubmit,
+    resolveShippingSubmitFields
+  } from '@/utils/shippingSubmitFields'
 
   const TOAST_DURATION = 1500
-
-  /**
-   * 解析未知错误
-   * @param err - 错误
-   * @param fallback - 默认错误信息
-   * @returns 错误信息
-   */
-  const parseUnknownError = (err: unknown, fallback: string) => {
-    const e = err as { msg?: unknown; message?: unknown }
-    return (
-      (typeof e?.msg === 'string' && e.msg) ||
-      (typeof e?.message === 'string' && e.message) ||
-      fallback
-    )
-  }
 
   /**
    * 获取表单实例
@@ -691,51 +681,6 @@
     return []
   }
 
-  const resolveShippingSubmitFields = () => {
-    const addr = selectedShippingAddress.value
-    if (addr) {
-      return {
-        senderName: addr.name,
-        senderMobile: addr.phone,
-        senderAddress: addr.fullAddress
-      }
-    }
-    // 回填旧草稿场景兜底：shippingInfo 第一行格式为「姓名 手机号」
-    const raw = String(formData.value.shippingInfo ?? '').trim()
-    const lines = raw
-      .split('\n')
-      .map((s) => s.trim())
-      .filter(Boolean)
-    const firstLine = lines[0] ?? ''
-    const match = firstLine.match(/^(.+?)\s+(1\d{10})$/)
-    return {
-      senderName: match?.[1] ?? '',
-      senderMobile: match?.[2] ?? '',
-      senderAddress: lines.length > 1 ? lines.slice(1).join('') : raw
-    }
-  }
-
-  /**
-   * 解析寄件快递单号（兼容字符串或对象字段）
-   */
-  const resolveSendExpressNoForSubmit = (): string => {
-    const raw = formData.value.shippingCode as unknown
-    if (typeof raw === 'string' || typeof raw === 'number') {
-      return String(raw).trim()
-    }
-    if (Array.isArray(raw)) {
-      for (const item of raw) {
-        if (!item || typeof item !== 'object') continue
-        const row = item as Record<string, unknown>
-        const candidate =
-          row.sendExpressNo ?? row.expressNo ?? row.shippingNo ?? row.expressCode ?? row.code
-        if (typeof candidate === 'string' && candidate.trim()) return candidate.trim()
-        if (typeof candidate === 'number') return String(candidate)
-      }
-    }
-    return ''
-  }
-
   /**
    * 构建佳士报修 payload
    * @returns payload
@@ -756,7 +701,10 @@
     const faultMedia = partitionFaultMediaFileIds(asUnknownArray(formData.value.images))
     const senderVoucherFileIds = collectVoucherFileIds(asUnknownArray(formData.value.shippingCode))
     const faultVoiceFileIds = collectVoiceFileIds(formData.value.voiceList)
-    const shippingSubmitFields = resolveShippingSubmitFields()
+    const shippingSubmitFields = resolveShippingSubmitFields(
+      selectedShippingAddress.value,
+      formData.value.shippingInfo
+    )
 
     const base: CreateCustomerWorkOrderDTO = {
       barcode: barcodeFromApi || barcodeTrim,
@@ -769,7 +717,10 @@
       productCode: api?.productCode != null ? String(api.productCode) : '',
       productModel: api?.productModel != null ? String(api.productModel) : '',
       brandType,
-      sendExpressNo: formData.value.repairType === 'MAIL' ? resolveSendExpressNoForSubmit() : '',
+      sendExpressNo:
+        formData.value.repairType === 'MAIL'
+          ? resolveSendExpressNoForSubmit(formData.value.shippingCode)
+          : '',
       senderAddress: formData.value.repairType === 'MAIL' ? shippingSubmitFields.senderAddress : '',
       senderMobile: formData.value.repairType === 'MAIL' ? shippingSubmitFields.senderMobile : '',
       senderName: formData.value.repairType === 'MAIL' ? shippingSubmitFields.senderName : '',
@@ -994,28 +945,4 @@
     }
   }
 
-  .shipping-address-btn {
-    @include flex-row;
-    justify-content: space-between;
-    align-items: center;
-    border: 1px solid #f0f0f0;
-    border-radius: $radius-md;
-    padding: 18rpx 24rpx;
-    min-height: 80rpx;
-    box-sizing: border-box;
-    background-color: #f8fafc;
-  }
-
-  .shipping-address-text {
-    flex: 1;
-    font-size: $font-sm;
-    color: $text-body;
-    line-height: 1.5;
-    white-space: pre-wrap;
-    word-break: break-all;
-
-    &.placeholder {
-      color: #909399;
-    }
-  }
 </style>

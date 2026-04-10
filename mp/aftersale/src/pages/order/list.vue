@@ -30,7 +30,7 @@
     </custom-nav-bar>
     <view :class="['page-container page-index order-list-page', showUploadModal ? 'blur-bg' : '']">
       <!-- 工单列表 -->
-      <scroll-view class="main-content" scroll-y>
+      <scroll-view class="main-content" scroll-y :lower-threshold="100" @scrolltolower="loadMore">
         <view class="order-list page-padding">
           <view v-if="filteredOrderList.length === 0" class="empty-hint">
             <view class="empty-icon-wrap">
@@ -124,11 +124,11 @@
               </view>
               <view class="action-wrap">
                 <button
-                  v-if="order.status === '待接单'"
+                  v-if="order.canUploadSendExpress"
                   class="btn-action primary"
                   @click.stop="goToUploadLogistics(order.id)"
                 >
-                  上传物流单号
+                  上传寄件单号
                 </button>
                 <button
                   v-if="order.canEvaluate"
@@ -141,7 +141,9 @@
             </view>
           </view>
           <view v-if="filteredOrderList.length > 0" class="list-end-hint">
-            <text class="list-end-text">没有更多了</text>
+            <text class="list-end-text">{{
+              loadingMore ? '加载中...' : hasMore ? '上拉加载更多' : '没有更多了'
+            }}</text>
           </view>
         </view>
       </scroll-view>
@@ -182,7 +184,7 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, computed } from 'vue'
+  import { ref, computed, watch } from 'vue'
   import { onLoad, onShow } from '@dcloudio/uni-app'
   import {
     getOrderListAPI,
@@ -196,10 +198,24 @@
 
   // 工单状态标签
   const tabs = ['全部', '待接单', '维修中', '已完成', '已关闭'] as const
+  const tabStatusMap: Record<number, string | undefined> = {
+    0: undefined,
+    1: 'WAIT_ACCEPT',
+    2: 'IN_PROGRESS',
+    3: 'COMPLETED',
+    4: 'CLOSED'
+  }
   // 当前工单状态标签索引
   const currentTab = ref(0)
   // 工单列表
   const orderList = ref<OrderListItemDTO[]>([])
+  // 分页状态
+  const pageNum = ref(1)
+  const pageSize = 20
+  const total = ref(0)
+  const hasMore = ref(true)
+  const loading = ref(false)
+  const loadingMore = ref(false)
   // 搜索关键词
   const searchKeyword = ref('')
 
@@ -217,11 +233,7 @@
    * @returns OrderListItemDTO[]
    */
   const filteredOrderList = computed(() => {
-    let list = orderList.value
-    const label = tabs[currentTab.value]
-    if (label !== '全部') {
-      list = list.filter((o) => o.status === label)
-    }
+    const list = orderList.value
     const kw = searchKeyword.value.trim().toLowerCase()
     if (!kw) return list
     return list.filter(
@@ -237,14 +249,59 @@
    * 加载工单列表
    * @returns void
    */
-  const loadOrderList = async () => {
-    try {
-      const res = await getOrderListAPI({ pageNum: 1, pageSize: 500 })
-      const records = res.result?.records ?? []
-      orderList.value = records.map(mapWorkOrderListRecordToItem)
-    } catch {
-      orderList.value = []
+  const loadOrderList = async (reset = false) => {
+    if (loading.value || loadingMore.value) return
+    if (!reset && !hasMore.value) return
+    const targetPage = reset ? 1 : pageNum.value
+    if (reset) {
+      loading.value = true
+      hasMore.value = true
+    } else {
+      loadingMore.value = true
     }
+    try {
+      const res = await getOrderListAPI({
+        pageNum: targetPage,
+        pageSize,
+        tabStatus: tabStatusMap[currentTab.value]
+      })
+      const records = res.result?.records ?? []
+      const mapped = records.map(mapWorkOrderListRecordToItem)
+      const nextTotal = Number(res.result?.total ?? 0)
+      total.value = Number.isFinite(nextTotal) ? nextTotal : 0
+      orderList.value = reset ? mapped : [...orderList.value, ...mapped]
+      const loadedCount = orderList.value.length
+      hasMore.value = loadedCount < total.value && mapped.length > 0
+      pageNum.value = targetPage + 1
+    } catch {
+      if (reset) {
+        orderList.value = []
+        total.value = 0
+        hasMore.value = false
+      }
+    } finally {
+      loading.value = false
+      loadingMore.value = false
+    }
+  }
+
+  /**
+   * 重置并重新加载列表
+   * @returns void
+   */
+  const reloadOrderList = () => {
+    pageNum.value = 1
+    total.value = 0
+    hasMore.value = true
+    loadOrderList(true)
+  }
+
+  /**
+   * 触底加载更多
+   * @returns void
+   */
+  const loadMore = () => {
+    loadOrderList(false)
   }
 
   /**
@@ -267,7 +324,11 @@
    * @returns void
    */
   onShow(() => {
-    loadOrderList()
+    reloadOrderList()
+  })
+
+  watch(currentTab, () => {
+    reloadOrderList()
   })
 
   /**
@@ -282,14 +343,14 @@
     })
   }
 
-  // 上传物流单号弹窗状态
+  // 上传寄件单号弹窗状态
   const showUploadModal = ref(false)
   const currentUploadId = ref<string | null>(null)
   /** 选中的快递单照片本地临时路径，用于预览与后续上传 */
   const uploadImagePath = ref('')
 
   /**
-   * 打开上传物流单号弹窗
+   * 打开上传寄件单号弹窗
    * @param id - 工单ID
    * @returns void
    */
@@ -300,7 +361,7 @@
   }
 
   /**
-   * 关闭上传物流单号弹窗
+   * 关闭上传寄件单号弹窗
    * @returns void
    */
   const closeUploadModal = () => {
@@ -328,7 +389,7 @@
   }
 
   /**
-   * 提交上传物流单号
+   * 提交上传寄件单号
    * @returns void
    */
   const submitUpload = async () => {
@@ -358,7 +419,7 @@
       uni.hideLoading()
       uni.showToast({ title: '上传成功', icon: 'success' })
       closeUploadModal()
-      loadOrderList()
+      reloadOrderList()
     } catch {
       uni.hideLoading()
       /* 失败提示由 http 层使用接口 msg */

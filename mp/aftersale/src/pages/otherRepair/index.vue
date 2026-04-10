@@ -68,8 +68,8 @@
             file-mediatype="all"
             :limit="4"
             :del-icon="true"
-            @select="handleFaultMediaSelect"
-            @delete="handleFaultMediaDelete"
+            @select="handleFaultMediaChange"
+            @delete="handleFaultMediaChange"
           />
 
           <!-- 寄件快递单号 -->
@@ -141,6 +141,11 @@
     type OtherRepairDraftForm
   } from '@/utils/repairDraftStorage'
   import { takeSelectedShippingAddress, type SelectedShippingAddress } from '@/utils/addressStorage'
+  import { parseUnknownError } from '@/utils/errorMessage'
+  import {
+    resolveSendExpressNoForSubmit,
+    resolveShippingSubmitFields
+  } from '@/utils/shippingSubmitFields'
   // 表单引用
   const formRef = ref(null)
   // 表单数据
@@ -298,66 +303,10 @@
   // 维修类型选项
   const repairTypes = REPAIR_TYPE_OPTIONS
 
-  /**
-   * 故障图片/视频选择
-   * @param e - 选择事件
-   * @returns void
-   */
-  const handleFaultMediaSelect = (e: { tempFiles: { fileType?: string }[] }) => {
+  type FaultMediaPickEvent = { tempFiles: { fileType?: string }[] }
+
+  const handleFaultMediaChange = (e: FaultMediaPickEvent) => {
     validateFaultMediaSelection(e.tempFiles)
-  }
-
-  /**
-   * 故障图片/视频删除
-   * @param e - 删除事件
-   * @returns void
-   */
-  const handleFaultMediaDelete = (e: { tempFiles: { fileType?: string }[] }) => {
-    validateFaultMediaSelection(e.tempFiles)
-  }
-
-  const resolveShippingSubmitFields = () => {
-    const addr = selectedShippingAddress.value
-    if (addr) {
-      return {
-        senderName: addr.name,
-        senderMobile: addr.phone,
-        senderAddress: addr.fullAddress
-      }
-    }
-    const raw = String(formData.value.shippingInfo ?? '').trim()
-    const lines = raw
-      .split('\n')
-      .map((s) => s.trim())
-      .filter(Boolean)
-    const firstLine = lines[0] ?? ''
-    const match = firstLine.match(/^(.+?)\s+(1\d{10})$/)
-    return {
-      senderName: match?.[1] ?? String(userStore.userInfo?.name ?? ''),
-      senderMobile: match?.[2] ?? String(userStore.userInfo?.mobile ?? ''),
-      senderAddress: lines.length > 1 ? lines.slice(1).join('') : raw
-    }
-  }
-
-  /**
-   * 解析寄件快递单号（兼容字符串或对象字段）
-   */
-  const resolveSendExpressNoForSubmit = (): string => {
-    const raw = formData.value.shippingCode as unknown
-    if (typeof raw === 'string' || typeof raw === 'number') {
-      return String(raw).trim()
-    }
-    if (Array.isArray(raw)) {
-      for (const item of raw) {
-        if (!item || typeof item !== 'object') continue
-        const row = item as Record<string, unknown>
-        const candidate =
-          row.sendExpressNo ?? row.expressNo ?? row.shippingNo ?? row.expressCode ?? row.code
-        if (typeof candidate === 'string' && candidate.trim()) return candidate.trim()
-        if (typeof candidate === 'number') return String(candidate)
-      }
-    }
-    return ''
   }
 
   /**
@@ -373,7 +322,14 @@
     const faultMedia = partitionFaultMediaFileIds(asUnknownArray(formData.value.images))
     const senderVoucherFileIds = collectVoucherFileIds(asUnknownArray(formData.value.shippingCode))
     const faultVoiceFileIds = collectVoiceFileIds(formData.value.voiceList)
-    const shippingSubmitFields = resolveShippingSubmitFields()
+    const shippingSubmitFields = resolveShippingSubmitFields(
+      selectedShippingAddress.value,
+      formData.value.shippingInfo,
+      {
+        fallbackName: String(userStore.userInfo?.name ?? ''),
+        fallbackMobile: String(userStore.userInfo?.mobile ?? '')
+      }
+    )
 
     const base: CreateCustomerWorkOrderDTO = {
       barcode: '',
@@ -386,7 +342,10 @@
       faultRemark: '',
       productCode: '',
       productModel: String(formData.value.modelName || '').trim(),
-      sendExpressNo: formData.value.repairType === 'MAIL' ? resolveSendExpressNoForSubmit() : '',
+      sendExpressNo:
+        formData.value.repairType === 'MAIL'
+          ? resolveSendExpressNoForSubmit(formData.value.shippingCode)
+          : '',
       senderAddress: formData.value.repairType === 'MAIL' ? shippingSubmitFields.senderAddress : '',
       senderMobile: formData.value.repairType === 'MAIL' ? shippingSubmitFields.senderMobile : '',
       senderName: formData.value.repairType === 'MAIL' ? shippingSubmitFields.senderName : '',
@@ -472,11 +431,7 @@
       uni.showToast({ title: '已暂存', icon: 'success', duration: 1500 })
     } catch (err: unknown) {
       uni.hideLoading()
-      const e = err as { msg?: unknown; message?: unknown }
-      const msg =
-        (typeof e?.msg === 'string' && e.msg) ||
-        (typeof e?.message === 'string' && e.message) ||
-        '暂存失败'
+      const msg = parseUnknownError(err, '暂存失败')
       uni.showToast({ title: msg, icon: 'none', duration: 1500 })
     }
   }
@@ -522,29 +477,4 @@
   }
 </script>
 
-<style lang="scss">
-  .shipping-address-btn {
-    @include flex-row;
-    justify-content: space-between;
-    align-items: center;
-    border: 1px solid #f0f0f0;
-    border-radius: $radius-md;
-    padding: 18rpx 24rpx;
-    min-height: 80rpx;
-    box-sizing: border-box;
-    background-color: #f8fafc;
-  }
-
-  .shipping-address-text {
-    flex: 1;
-    font-size: $font-sm;
-    color: $text-body;
-    line-height: 1.5;
-    white-space: pre-wrap;
-    word-break: break-all;
-
-    &.placeholder {
-      color: #909399;
-    }
-  }
-</style>
+<style lang="scss"></style>

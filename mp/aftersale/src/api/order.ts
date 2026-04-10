@@ -666,6 +666,8 @@ export interface OrderListItemDTO {
   price: string
   /** 是否可评价（来自 `/api/customer/work-order/list` 的 canEvaluate） */
   canEvaluate?: boolean
+  /** 是否允许上传寄件凭证（来自 `/api/customer/work-order/list` 的 canUploadSendExpress） */
+  canUploadSendExpress?: boolean
   /** ========== 接口 `/api/customer/work-order/list` 原始字段（列表完整赋值） ========== */
   barcode: string
   createTime: string
@@ -698,6 +700,7 @@ export interface WorkOrderListRecordDTO {
   customerName: string
   assignedUserName: string
   canEvaluate?: boolean
+  canUploadSendExpress?: boolean
   evaluateStatus: string
   evaluateStatusLabel: string
   hasTransfer: number
@@ -790,6 +793,7 @@ export function mapWorkOrderListRecordToItem(r: WorkOrderListRecordDTO): OrderLi
     r.canEvaluate !== undefined && r.canEvaluate !== null
       ? Boolean(r.canEvaluate)
       : status === '已关闭'
+  const canUploadSendExpress = Boolean(r.canUploadSendExpress)
 
   return {
     id: String(r.id ?? ''),
@@ -807,6 +811,7 @@ export function mapWorkOrderListRecordToItem(r: WorkOrderListRecordDTO): OrderLi
     repairType: serviceModeLabel || serviceMode || '—',
     price: quoteAmount || '—',
     canEvaluate,
+    canUploadSendExpress,
     createTime: String(r.createTime ?? '').trim(),
     closedTime: String(r.closedTime ?? '').trim(),
     customerMobile: String(r.customerMobile ?? '').trim(),
