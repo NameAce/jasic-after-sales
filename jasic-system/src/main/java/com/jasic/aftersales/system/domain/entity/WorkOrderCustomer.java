@@ -29,9 +29,6 @@ public class WorkOrderCustomer extends BaseEntity {
     /** 微信openid */
     private String openid;
 
-    /** 微信unionid */
-    private String unionid;
-
     /** 手机号 */
     private String phone;
 

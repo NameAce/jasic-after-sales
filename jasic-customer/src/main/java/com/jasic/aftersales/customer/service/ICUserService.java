@@ -30,12 +30,11 @@ public interface ICUserService {
     /**
      * 微信登录（自动注册）
      *
-     * @param openid  微信openid
-     * @param unionid 微信unionid
-     * @param phone   手机号
+     * @param openid 微信openid
+     * @param phone  手机号
      * @return 客户信息
      */
-    CUser loginOrRegister(String openid, String unionid, String phone);
+    CUser loginOrRegister(String openid, String phone);
 
     /**
      * 获取当前登录客户

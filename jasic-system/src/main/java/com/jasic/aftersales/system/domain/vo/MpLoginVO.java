@@ -19,8 +19,8 @@ public class MpLoginVO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** 登录状态，BOUND/UNBOUND */
-    @ApiModelProperty(value = "登录状态，BOUND/UNBOUND")
+    /** 登录状态，BIND/UNBIND */
+    @ApiModelProperty(value = "登录状态，BIND/UNBIND")
     private String status;
 
     /** token */

@@ -29,9 +29,6 @@ public class CUser extends BaseEntity {
     /** 微信openid */
     private String openid;
 
-    /** 微信unionid */
-    private String unionid;
-
     /** 手机号（微信授权获取） */
     private String phone;
 

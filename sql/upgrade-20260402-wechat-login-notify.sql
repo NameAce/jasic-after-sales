@@ -10,7 +10,7 @@ SET @wechat_phone_column_exists = (
 
 SET @wechat_phone_sql = IF(
   @wechat_phone_column_exists = 0,
-  'ALTER TABLE `sys_user` ADD COLUMN `wechat_phone` varchar(20) DEFAULT NULL COMMENT ''微信授权手机号快照'' AFTER `unionid`',
+  'ALTER TABLE `sys_user` ADD COLUMN `wechat_phone` varchar(20) DEFAULT NULL COMMENT ''微信授权手机号快照'' AFTER `openid`',
   'SELECT 1'
 );
 PREPARE stmt FROM @wechat_phone_sql;

@@ -1,8 +1,10 @@
 package com.jasic.aftersales.system.service;
 
 import com.jasic.aftersales.system.domain.dto.LoginDTO;
+import com.jasic.aftersales.system.domain.dto.MpBindLoginDTO;
 import com.jasic.aftersales.system.domain.dto.MpLoginDTO;
 import com.jasic.aftersales.system.domain.dto.WechatBindConfirmDTO;
+import com.jasic.aftersales.system.domain.dto.WechatBindUnbindDTO;
 import com.jasic.aftersales.system.domain.dto.ChangePasswordDTO;
 import com.jasic.aftersales.system.domain.dto.UpdateProfileDTO;
 import com.jasic.aftersales.system.domain.vo.LoginVO;
@@ -35,6 +37,14 @@ public interface ISysAuthService {
     MpLoginVO mpLogin(MpLoginDTO dto);
 
     /**
+     * B端小程序账号认领绑定并登录
+     *
+     * @param dto 绑定参数
+     * @return 登录结果
+     */
+    MpLoginVO mpBindLogin(MpBindLoginDTO dto);
+
+    /**
      * 选择/切换公司
      *
      * @param companyId 公司ID
@@ -65,11 +75,11 @@ public interface ISysAuthService {
     void changePassword(ChangePasswordDTO dto);
 
     /**
-     * 生成当前用户的微信绑定码
+     * 生成当前用户的微信绑定二维码
      *
      * @return 绑定状态
      */
-    WechatBindStatusVO createWechatBindCode();
+    WechatBindStatusVO createWechatBindQrcode();
 
     /**
      * 查询当前用户微信绑定状态
@@ -79,12 +89,19 @@ public interface ISysAuthService {
     WechatBindStatusVO getWechatBindStatus();
 
     /**
-     * 使用绑定码确认微信绑定并登录
+     * 使用绑定票据确认微信绑定并登录
      *
      * @param dto 绑定参数
      * @return 登录结果
      */
     MpLoginVO confirmWechatBind(WechatBindConfirmDTO dto);
+
+    /**
+     * 解绑当前用户微信
+     *
+     * @param dto 解绑参数
+     */
+    void unbindWechat(WechatBindUnbindDTO dto);
 
     /**
      * 退出登录

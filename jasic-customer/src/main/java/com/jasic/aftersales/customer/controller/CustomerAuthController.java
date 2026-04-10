@@ -60,7 +60,7 @@ public class CustomerAuthController {
             phone = StringUtils.hasText(phoneInfo.getPhoneNumber()) ? phoneInfo.getPhoneNumber() : phoneInfo.getPurePhoneNumber();
         }
 
-        CUser user = cUserService.loginOrRegister(session.getOpenid(), session.getUnionid(), phone);
+        CUser user = cUserService.loginOrRegister(session.getOpenid(), phone);
         StpCustomerUtil.login(user.getId());
 
         CustomerLoginVO vo = new CustomerLoginVO();

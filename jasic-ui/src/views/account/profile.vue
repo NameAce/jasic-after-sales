@@ -95,6 +95,7 @@
                 <span class="label">微信手机号</span>
                 <span class="value">{{ bindStatus.wechatPhone || '-' }}</span>
               </div>
+              <el-button size="mini" type="danger" :loading="bindLoading" @click="handleUnbindWechat">解绑微信</el-button>
             </template>
             <template v-else>
               <el-alert
@@ -104,12 +105,17 @@
                 show-icon
               />
               <div class="bind-tip">
-                请在 B 端小程序未绑定页面输入下方绑定码，完成微信绑定。绑定时不会覆盖当前账号手机号，仅保存微信标识。
+                请使用微信扫一扫下方二维码，在 B 端小程序中确认绑定。绑定时不会覆盖当前账号手机号，仅保存微信标识。
               </div>
-              <div class="bind-code-panel">
-                <div class="bind-code-value">{{ bindStatus.bindCode || '------' }}</div>
-                <el-button size="mini" type="primary" @click="generateBindCode">
-                  {{ bindStatus.bindCode ? '重新生成' : '生成绑定码' }}
+              <div class="bind-qrcode-panel">
+                <div v-if="bindQrImage" class="bind-qrcode-box">
+                  <img :src="bindQrImage" alt="微信绑定二维码" class="bind-qrcode-image">
+                </div>
+                <div v-else class="bind-qrcode-placeholder">
+                  {{ bindStatus.hasActiveTicket ? '当前存在有效二维码，如需继续绑定请重新生成。' : '点击下方按钮生成绑定二维码。' }}
+                </div>
+                <el-button size="mini" type="primary" @click="generateBindQrcode">
+                  {{ bindStatus.hasActiveTicket ? '重新生成二维码' : '生成二维码' }}
                 </el-button>
               </div>
               <div class="bind-info-item">
@@ -128,8 +134,9 @@
 import { mapGetters } from 'vuex'
 import {
   changePassword,
-  createWechatBindCode,
+  createWechatBindQrcode,
   getWechatBindStatus,
+  unbindWechat,
   updateProfile
 } from '@/api/auth'
 
@@ -152,8 +159,7 @@ export default {
       profileLoading: false,
       passwordLoading: false,
       bindLoading: false,
-      bindPollTimer: null,
-      bindSuccessNotified: false,
+      bindQrImage: '',
       profileForm: {
         username: '',
         realName: '',
@@ -168,10 +174,10 @@ export default {
       },
       bindStatus: {
         bound: false,
-        bindCode: '',
         maskedOpenid: '',
         wechatPhone: '',
-        expireAt: ''
+        expireAt: '',
+        hasActiveTicket: false
       },
       profileRules: {
         realName: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
@@ -194,9 +200,6 @@ export default {
   },
   created() {
     this.initPage()
-  },
-  beforeDestroy() {
-    this.clearBindPolling()
   },
   methods: {
     initPage() {
@@ -265,60 +268,67 @@ export default {
       this.bindLoading = true
       getWechatBindStatus().then(res => {
         if (!res) return
+        const wasBound = this.bindStatus.bound
         this.bindStatus = Object.assign({}, this.bindStatus, res.data || {})
-        if (this.bindStatus.bound) {
-          this.handleBindSuccess()
+        if (this.bindStatus.bound || !this.bindStatus.hasActiveTicket) {
+          this.bindQrImage = ''
         }
-        this.syncBindPolling()
+        if (!wasBound && this.bindStatus.bound) {
+          this.$store.dispatch('user/getInfo')
+          this.$message.success('微信绑定成功')
+        }
       }).finally(() => {
         this.bindLoading = false
       })
     },
-    generateBindCode() {
+    generateBindQrcode() {
       this.bindLoading = true
-      createWechatBindCode().then(res => {
+      createWechatBindQrcode().then(res => {
         if (!res) return
-        this.bindStatus = Object.assign({}, this.bindStatus, res.data || {})
-        this.bindSuccessNotified = false
-        this.syncBindPolling()
+        const wasBound = this.bindStatus.bound
+        const data = res.data || {}
+        this.bindStatus = Object.assign({}, this.bindStatus, data)
+        this.bindQrImage = data.qrImageBase64 || ''
+        if (this.bindStatus.bound) {
+          this.$store.dispatch('user/getInfo')
+          this.$message.success(wasBound ? '当前账号已绑定微信' : '微信绑定成功')
+          return
+        }
+        if (this.bindQrImage) {
+          this.$message.success('二维码已生成，请使用微信扫一扫')
+        }
       }).finally(() => {
         this.bindLoading = false
       })
     },
-    syncBindPolling() {
-      if (this.bindStatus.bound || !this.bindStatus.bindCode) {
-        this.clearBindPolling()
-        return
-      }
-      if (this.bindPollTimer) {
-        return
-      }
-      this.bindPollTimer = setInterval(() => {
-        getWechatBindStatus().then(res => {
+    handleUnbindWechat() {
+      const message = [
+        '解绑后当前微信将无法登录 B 端小程序。',
+        '解绑后当前账号将退出登录，如需继续使用请重新完成绑定。',
+        '请输入当前密码确认解绑。'
+      ].join('<br/>')
+      this.$prompt(message, '解绑微信', {
+        confirmButtonText: '确认解绑',
+        cancelButtonText: '取消',
+        inputType: 'password',
+        inputPlaceholder: '请输入当前密码',
+        inputPattern: /\S+/,
+        inputErrorMessage: '请输入当前密码',
+        dangerouslyUseHTMLString: true
+      }).then(({ value }) => {
+        this.bindLoading = true
+        return unbindWechat({
+          currentPassword: String(value || '').trim()
+        }).then(res => {
           if (!res) return
-          this.bindStatus = Object.assign({}, this.bindStatus, res.data || {})
-          if (this.bindStatus.bound) {
-            this.handleBindSuccess()
-          }
-          if (this.bindStatus.bound || !this.bindStatus.bindCode) {
-            this.clearBindPolling()
-          }
+          this.$message.success('微信解绑成功，请重新登录')
+          return this.$store.dispatch('user/resetToken').then(() => {
+            this.$router.push('/login')
+          })
+        }).finally(() => {
+          this.bindLoading = false
         })
-      }, 5000)
-    },
-    handleBindSuccess() {
-      this.clearBindPolling()
-      this.$store.dispatch('user/getInfo')
-      if (!this.bindSuccessNotified) {
-        this.bindSuccessNotified = true
-        this.$message.success('微信绑定成功')
-      }
-    },
-    clearBindPolling() {
-      if (this.bindPollTimer) {
-        clearInterval(this.bindPollTimer)
-        this.bindPollTimer = null
-      }
+      }).catch(() => {})
     }
   }
 }
@@ -355,22 +365,49 @@ export default {
   line-height: 1.7;
 }
 
-.bind-code-panel {
+.bind-qrcode-panel {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px;
+  padding: 16px 14px;
   margin: 18px 0 16px;
   border: 1px dashed #dcdfe6;
   border-radius: 6px;
   background: #f8fafc;
+  gap: 14px;
 }
 
-.bind-code-value {
-  font-size: 24px;
-  font-weight: 600;
-  letter-spacing: 4px;
-  color: #303133;
+.bind-qrcode-box {
+  width: 220px;
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px #ebeef5;
+}
+
+.bind-qrcode-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.bind-qrcode-placeholder {
+  width: 220px;
+  min-height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  text-align: center;
+  line-height: 1.7;
+  color: #909399;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px #ebeef5;
 }
 
 .bind-info-item {

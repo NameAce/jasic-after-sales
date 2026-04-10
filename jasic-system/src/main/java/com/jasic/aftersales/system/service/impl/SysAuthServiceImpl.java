@@ -8,6 +8,7 @@ import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.jasic.aftersales.common.constant.CacheConstants;
+import com.jasic.aftersales.common.constant.WechatConfigConstants;
 import com.jasic.aftersales.common.enums.DataScopeEnum;
 import com.jasic.aftersales.common.enums.SubjectTypeEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
@@ -15,9 +16,11 @@ import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.framework.web.ResultCode;
 import com.jasic.aftersales.system.domain.dto.ChangePasswordDTO;
 import com.jasic.aftersales.system.domain.dto.LoginDTO;
+import com.jasic.aftersales.system.domain.dto.MpBindLoginDTO;
 import com.jasic.aftersales.system.domain.dto.MpLoginDTO;
 import com.jasic.aftersales.system.domain.dto.UpdateProfileDTO;
 import com.jasic.aftersales.system.domain.dto.WechatBindConfirmDTO;
+import com.jasic.aftersales.system.domain.dto.WechatBindUnbindDTO;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
 import com.jasic.aftersales.system.domain.entity.SysCompanyType;
 import com.jasic.aftersales.system.domain.entity.SysMenu;
@@ -25,6 +28,7 @@ import com.jasic.aftersales.system.domain.entity.SysRole;
 import com.jasic.aftersales.system.domain.entity.SysUser;
 import com.jasic.aftersales.system.domain.entity.SysUserCompany;
 import com.jasic.aftersales.system.domain.entity.SysUserRole;
+import com.jasic.aftersales.system.domain.entity.WechatBindRecord;
 import com.jasic.aftersales.system.domain.enums.WechatMiniProgramScene;
 import com.jasic.aftersales.system.domain.model.WechatAuthSession;
 import com.jasic.aftersales.system.domain.model.WechatBindSession;
@@ -43,7 +47,9 @@ import com.jasic.aftersales.system.mapper.SysUserCompanyMapper;
 import com.jasic.aftersales.system.mapper.SysUserMapper;
 import com.jasic.aftersales.system.mapper.SysRoleMapper;
 import com.jasic.aftersales.system.mapper.SysUserRoleMapper;
+import com.jasic.aftersales.system.mapper.WechatBindRecordMapper;
 import com.jasic.aftersales.system.service.ISysAuthService;
+import com.jasic.aftersales.system.service.ISysConfigService;
 import com.jasic.aftersales.system.service.ISysRegionService;
 import com.jasic.aftersales.system.service.SysPermissionService;
 import com.jasic.aftersales.system.service.WechatMiniProgramService;
@@ -51,6 +57,7 @@ import com.jasic.aftersales.system.service.support.SysUserIdentityValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
@@ -71,7 +78,12 @@ import java.util.stream.Collectors;
 @Service
 public class SysAuthServiceImpl implements ISysAuthService {
 
-    private static final int BIND_CODE_EXPIRE_MINUTES = 5;
+    private static final int BIND_TICKET_EXPIRE_MINUTES = 10;
+    private static final String WECHAT_STATUS_BIND = "BIND";
+    private static final String WECHAT_STATUS_UNBIND = "UNBIND";
+    private static final String WECHAT_OPERATE_SOURCE_MP_BIND_LOGIN = "MP_BIND_LOGIN";
+    private static final String WECHAT_OPERATE_SOURCE_PC_QR_BIND = "PC_QR_BIND";
+    private static final String WECHAT_OPERATE_SOURCE_PC_SELF_UNBIND = "PC_SELF_UNBIND";
 
     @Resource
     private SysUserMapper sysUserMapper;
@@ -98,6 +110,9 @@ public class SysAuthServiceImpl implements ISysAuthService {
     private SysPermissionService sysPermissionService;
 
     @Resource
+    private ISysConfigService sysConfigService;
+
+    @Resource
     private ISysRegionService regionService;
 
     @Resource
@@ -108,6 +123,9 @@ public class SysAuthServiceImpl implements ISysAuthService {
 
     @Resource
     private SysUserIdentityValidator userIdentityValidator;
+
+    @Resource
+    private WechatBindRecordMapper wechatBindRecordMapper;
 
     /**
      * B端登录
@@ -140,12 +158,40 @@ public class SysAuthServiceImpl implements ISysAuthService {
         SysUser user = findByOpenid(session.getOpenid());
         if (user == null) {
             MpLoginVO vo = new MpLoginVO();
-            vo.setStatus("UNBOUND");
+            vo.setStatus(WECHAT_STATUS_UNBIND);
             vo.setNeedChooseCompany(false);
             return vo;
         }
         ensureUserActive(user);
-        refreshWechatIdentity(user.getId(), session.getOpenid(), session.getUnionid(), null);
+        refreshWechatIdentity(user.getId(), session.getOpenid(), null);
+        return buildMpLoginVO(doLogin(requireActiveUser(user.getId())));
+    }
+
+    /**
+     * B端小程序账号认领绑定并登录
+     *
+     * @param dto 绑定参数
+     * @return 登录结果
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public MpLoginVO mpBindLogin(MpBindLoginDTO dto) {
+        WechatAuthSession authSession = wechatMiniProgramService.code2Session(WechatMiniProgramScene.B, dto.getCode());
+        SysUser user = findByLoginIdentity(dto.getUsernameOrPhone());
+        if (user == null || !BCrypt.checkpw(dto.getPassword(), user.getPassword())) {
+            throw new ServiceException(ResultCode.LOGIN_ERROR, "用户名或密码错误");
+        }
+        ensureUserActive(user);
+        validateWechatBinding(user, authSession.getOpenid());
+
+        boolean wasBound = StrUtil.isNotBlank(user.getOpenid());
+        String wechatPhone = resolveWechatPhone(dto.getPhoneCode(), user.getId());
+        refreshWechatIdentity(user.getId(), authSession.getOpenid(), wechatPhone);
+        if (!wasBound) {
+            saveWechatBindRecord(user, WECHAT_STATUS_BIND, WECHAT_OPERATE_SOURCE_MP_BIND_LOGIN,
+                    authSession.getOpenid(), resolveRecordWechatPhone(user, wechatPhone));
+        }
+        clearBindSession(getBindSession(user.getId()));
         return buildMpLoginVO(doLogin(requireActiveUser(user.getId())));
     }
 
@@ -285,29 +331,39 @@ public class SysAuthServiceImpl implements ISysAuthService {
     }
 
     /**
-     * 生成当前用户的微信绑定码
+     * 生成当前用户的微信绑定二维码
      *
      * @return 绑定状态
      */
     @Override
-    public WechatBindStatusVO createWechatBindCode() {
+    public WechatBindStatusVO createWechatBindQrcode() {
         Long userId = SecurityContext.getCurrentUserId();
         SysUser user = requireActiveUser(userId);
+        WechatBindSession oldSession = getBindSession(userId);
         if (StrUtil.isNotBlank(user.getOpenid())) {
-            throw new ServiceException("当前账号已绑定微信");
+            clearBindSession(oldSession);
+            return buildWechatBindStatus(user, null);
         }
 
-        WechatBindSession oldSession = getBindSession(userId);
-        if (oldSession != null && StrUtil.isNotBlank(oldSession.getBindCode())) {
-            redisTemplate.delete(CacheConstants.WECHAT_BIND_CODE_KEY + oldSession.getBindCode());
+        if (oldSession != null) {
+            clearBindSession(oldSession);
         }
 
         WechatBindSession session = new WechatBindSession();
         session.setUserId(userId);
-        session.setBindCode(generateBindCode());
-        session.setExpireAt(LocalDateTime.now().plusMinutes(BIND_CODE_EXPIRE_MINUTES));
+        session.setBindTicket(generateBindTicket());
+        session.setExpireAt(LocalDateTime.now().plusMinutes(BIND_TICKET_EXPIRE_MINUTES));
         saveBindSession(session);
-        return buildWechatBindStatus(user, session);
+        try {
+            String pagePath = StrUtil.trim(sysConfigService.getValueByKey(WechatConfigConstants.B_BIND_PAGE_PATH));
+            WechatBindStatusVO vo = buildWechatBindStatus(user, session);
+            vo.setQrImageBase64(wechatMiniProgramService.createQrcodeBase64(
+                    WechatMiniProgramScene.B, session.getBindTicket(), pagePath));
+            return vo;
+        } catch (RuntimeException ex) {
+            clearBindSession(session);
+            throw ex;
+        }
     }
 
     /**
@@ -319,43 +375,64 @@ public class SysAuthServiceImpl implements ISysAuthService {
     public WechatBindStatusVO getWechatBindStatus() {
         Long userId = SecurityContext.getCurrentUserId();
         SysUser user = requireActiveUser(userId);
-        return buildWechatBindStatus(user, getBindSession(userId));
+        WechatBindSession session = getBindSession(userId);
+        if (StrUtil.isNotBlank(user.getOpenid())) {
+            clearBindSession(session);
+            return buildWechatBindStatus(user, null);
+        }
+        return buildWechatBindStatus(user, session);
     }
 
     /**
-     * 使用绑定码确认微信绑定并登录
+     * 使用绑定票据确认微信绑定并登录
      *
      * @param dto 绑定参数
      * @return 登录结果
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public MpLoginVO confirmWechatBind(WechatBindConfirmDTO dto) {
-        WechatBindSession bindSession = requireBindSession(dto.getBindCode());
+        WechatBindSession bindSession = requireBindSession(dto.getBindTicket());
         SysUser user = requireActiveUser(bindSession.getUserId());
-        if (StrUtil.isNotBlank(user.getOpenid())) {
+        WechatAuthSession authSession = wechatMiniProgramService.code2Session(WechatMiniProgramScene.B, dto.getCode());
+        if (StrUtil.isNotBlank(user.getOpenid()) && !StrUtil.equals(user.getOpenid(), authSession.getOpenid())) {
             clearBindSession(bindSession);
             throw new ServiceException("当前账号已绑定微信");
         }
+        validateWechatBinding(user, authSession.getOpenid());
 
-        WechatAuthSession authSession = wechatMiniProgramService.code2Session(WechatMiniProgramScene.B, dto.getCode());
-        SysUser boundUser = findByOpenid(authSession.getOpenid());
-        if (boundUser != null && !boundUser.getId().equals(user.getId())) {
-            throw new ServiceException("该微信已绑定其他账号");
+        boolean wasBound = StrUtil.isNotBlank(user.getOpenid());
+        String wechatPhone = resolveWechatPhone(dto.getPhoneCode(), user.getId());
+        refreshWechatIdentity(user.getId(), authSession.getOpenid(), wechatPhone);
+        if (!wasBound) {
+            saveWechatBindRecord(user, WECHAT_STATUS_BIND, WECHAT_OPERATE_SOURCE_PC_QR_BIND,
+                    authSession.getOpenid(), resolveRecordWechatPhone(user, wechatPhone));
         }
-
-        String wechatPhone = null;
-        if (StrUtil.isNotBlank(dto.getPhoneCode())) {
-            try {
-                WechatPhoneInfo phoneInfo = wechatMiniProgramService.getPhoneNumber(WechatMiniProgramScene.B, dto.getPhoneCode());
-                wechatPhone = StrUtil.blankToDefault(phoneInfo.getPhoneNumber(), phoneInfo.getPurePhoneNumber());
-            } catch (Exception ex) {
-                log.warn("获取 B 端微信手机号失败，userId={}", user.getId(), ex);
-            }
-        }
-
-        refreshWechatIdentity(user.getId(), authSession.getOpenid(), authSession.getUnionid(), wechatPhone);
         clearBindSession(bindSession);
         return buildMpLoginVO(doLogin(requireActiveUser(user.getId())));
+    }
+
+    /**
+     * 解绑当前用户微信
+     *
+     * @param dto 解绑参数
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void unbindWechat(WechatBindUnbindDTO dto) {
+        Long userId = SecurityContext.getCurrentUserId();
+        SysUser user = requireActiveUser(userId);
+        verifyCurrentPassword(user, dto.getCurrentPassword());
+        if (StrUtil.isBlank(user.getOpenid())) {
+            throw new ServiceException("当前账号未绑定微信");
+        }
+
+        String openid = user.getOpenid();
+        String wechatPhone = user.getWechatPhone();
+        clearBindSession(getBindSession(userId));
+        clearWechatIdentity(userId);
+        saveWechatBindRecord(user, WECHAT_STATUS_UNBIND, WECHAT_OPERATE_SOURCE_PC_SELF_UNBIND, openid, wechatPhone);
+        StpUtil.kickout(userId);
     }
 
     /**
@@ -678,37 +755,81 @@ public class SysAuthServiceImpl implements ISysAuthService {
         return vo;
     }
 
-    private void refreshWechatIdentity(Long userId, String openid, String unionid, String wechatPhone) {
+    private void refreshWechatIdentity(Long userId, String openid, String wechatPhone) {
         LambdaUpdateWrapper<SysUser> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(SysUser::getId, userId)
-                .set(SysUser::getOpenid, openid)
-                .set(SysUser::getUnionid, unionid);
+                .set(SysUser::getOpenid, openid);
         if (StrUtil.isNotBlank(wechatPhone)) {
             wrapper.set(SysUser::getWechatPhone, wechatPhone);
         }
         sysUserMapper.update(null, wrapper);
     }
 
-    private String generateBindCode() {
+    private void clearWechatIdentity(Long userId) {
+        LambdaUpdateWrapper<SysUser> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(SysUser::getId, userId)
+                .set(SysUser::getOpenid, null)
+                .set(SysUser::getWechatPhone, null);
+        sysUserMapper.update(null, wrapper);
+    }
+
+    private void validateWechatBinding(SysUser user, String openid) {
+        if (StrUtil.isBlank(openid)) {
+            throw new ServiceException("微信登录失败，未获取到用户标识");
+        }
+        if (StrUtil.isNotBlank(user.getOpenid()) && !StrUtil.equals(user.getOpenid(), openid)) {
+            throw new ServiceException("当前账号已绑定微信");
+        }
+        SysUser boundUser = findByOpenid(openid);
+        if (boundUser != null && !boundUser.getId().equals(user.getId())) {
+            throw new ServiceException("该微信已绑定其他账号，请联系管理员");
+        }
+    }
+
+    private String resolveWechatPhone(String phoneCode, Long userId) {
+        if (StrUtil.isBlank(phoneCode)) {
+            return null;
+        }
+        try {
+            WechatPhoneInfo phoneInfo = wechatMiniProgramService.getPhoneNumber(WechatMiniProgramScene.B, phoneCode);
+            return StrUtil.blankToDefault(phoneInfo.getPhoneNumber(), phoneInfo.getPurePhoneNumber());
+        } catch (Exception ex) {
+            log.warn("获取 B 端微信手机号失败，userId={}", userId, ex);
+            return null;
+        }
+    }
+
+    private String resolveRecordWechatPhone(SysUser user, String latestWechatPhone) {
+        if (StrUtil.isNotBlank(latestWechatPhone)) {
+            return latestWechatPhone;
+        }
+        return user.getWechatPhone();
+    }
+
+    private String generateBindTicket() {
         for (int i = 0; i < 10; i++) {
-            String bindCode = RandomUtil.randomNumbers(6);
-            if (!Boolean.TRUE.equals(redisTemplate.hasKey(CacheConstants.WECHAT_BIND_CODE_KEY + bindCode))) {
-                return bindCode;
+            String bindTicket = RandomUtil.randomString(24);
+            if (!Boolean.TRUE.equals(redisTemplate.hasKey(CacheConstants.WECHAT_BIND_TICKET_KEY + bindTicket))) {
+                return bindTicket;
             }
         }
-        throw new ServiceException("生成绑定码失败，请稍后重试");
+        throw new ServiceException("生成绑定二维码失败，请稍后重试");
     }
 
     private void saveBindSession(WechatBindSession session) {
         String sessionJson = JSONUtil.toJsonStr(session);
         redisTemplate.opsForValue().set(CacheConstants.WECHAT_BIND_USER_KEY + session.getUserId(), sessionJson,
-                BIND_CODE_EXPIRE_MINUTES, TimeUnit.MINUTES);
-        redisTemplate.opsForValue().set(CacheConstants.WECHAT_BIND_CODE_KEY + session.getBindCode(),
-                String.valueOf(session.getUserId()), BIND_CODE_EXPIRE_MINUTES, TimeUnit.MINUTES);
+                BIND_TICKET_EXPIRE_MINUTES, TimeUnit.MINUTES);
+        redisTemplate.opsForValue().set(CacheConstants.WECHAT_BIND_TICKET_KEY + session.getBindTicket(), sessionJson,
+                BIND_TICKET_EXPIRE_MINUTES, TimeUnit.MINUTES);
     }
 
     private WechatBindSession getBindSession(Long userId) {
         Object raw = redisTemplate.opsForValue().get(CacheConstants.WECHAT_BIND_USER_KEY + userId);
+        return parseBindSession(raw, userId);
+    }
+
+    private WechatBindSession parseBindSession(Object raw, Long userId) {
         if (raw == null || StrUtil.isBlank(String.valueOf(raw))) {
             return null;
         }
@@ -716,24 +837,29 @@ public class SysAuthServiceImpl implements ISysAuthService {
             WechatBindSession session = JSONUtil.toBean(String.valueOf(raw), WechatBindSession.class);
             if (session == null || session.getExpireAt() == null || session.getExpireAt().isBefore(LocalDateTime.now())) {
                 clearBindSession(session);
+                if (userId != null) {
+                    redisTemplate.delete(CacheConstants.WECHAT_BIND_USER_KEY + userId);
+                }
                 return null;
             }
             return session;
         } catch (Exception ex) {
-            redisTemplate.delete(CacheConstants.WECHAT_BIND_USER_KEY + userId);
+            if (userId != null) {
+                redisTemplate.delete(CacheConstants.WECHAT_BIND_USER_KEY + userId);
+            }
             return null;
         }
     }
 
-    private WechatBindSession requireBindSession(String bindCode) {
-        Object rawUserId = redisTemplate.opsForValue().get(CacheConstants.WECHAT_BIND_CODE_KEY + bindCode);
-        if (rawUserId == null || StrUtil.isBlank(String.valueOf(rawUserId))) {
-            throw new ServiceException("绑定码无效或已过期");
+    private WechatBindSession requireBindSession(String bindTicket) {
+        Object rawSession = redisTemplate.opsForValue().get(CacheConstants.WECHAT_BIND_TICKET_KEY + bindTicket);
+        WechatBindSession session = parseBindSession(rawSession, null);
+        if (session == null || !StrUtil.equals(bindTicket, session.getBindTicket())) {
+            throw new ServiceException("二维码已失效，请回 PC 端重新生成");
         }
-        Long userId = Long.valueOf(String.valueOf(rawUserId));
-        WechatBindSession session = getBindSession(userId);
-        if (session == null || !StrUtil.equals(bindCode, session.getBindCode())) {
-            throw new ServiceException("绑定码无效或已过期");
+        WechatBindSession currentUserSession = getBindSession(session.getUserId());
+        if (currentUserSession == null || !StrUtil.equals(bindTicket, currentUserSession.getBindTicket())) {
+            throw new ServiceException("二维码已失效，请回 PC 端重新生成");
         }
         return session;
     }
@@ -743,9 +869,23 @@ public class SysAuthServiceImpl implements ISysAuthService {
             return;
         }
         redisTemplate.delete(CacheConstants.WECHAT_BIND_USER_KEY + session.getUserId());
-        if (StrUtil.isNotBlank(session.getBindCode())) {
-            redisTemplate.delete(CacheConstants.WECHAT_BIND_CODE_KEY + session.getBindCode());
+        if (StrUtil.isNotBlank(session.getBindTicket())) {
+            redisTemplate.delete(CacheConstants.WECHAT_BIND_TICKET_KEY + session.getBindTicket());
         }
+    }
+
+    private void saveWechatBindRecord(SysUser user, String operateType, String operateSource,
+                                      String openid, String wechatPhone) {
+        WechatBindRecord record = new WechatBindRecord();
+        record.setUserId(user.getId());
+        record.setOperateType(operateType);
+        record.setOperateSource(operateSource);
+        record.setOpenid(openid);
+        record.setWechatPhone(wechatPhone);
+        record.setOperatorUserId(user.getId());
+        record.setOperatorUsername(user.getUsername());
+        record.setOperateTime(LocalDateTime.now());
+        wechatBindRecordMapper.insert(record);
     }
 
     private WechatBindStatusVO buildWechatBindStatus(SysUser user, WechatBindSession session) {
@@ -753,8 +893,8 @@ public class SysAuthServiceImpl implements ISysAuthService {
         vo.setBound(StrUtil.isNotBlank(user.getOpenid()));
         vo.setMaskedOpenid(maskOpenid(user.getOpenid()));
         vo.setWechatPhone(user.getWechatPhone());
+        vo.setHasActiveTicket(Boolean.FALSE.equals(vo.getBound()) && session != null);
         if (session != null && Boolean.FALSE.equals(vo.getBound())) {
-            vo.setBindCode(session.getBindCode());
             vo.setExpireAt(session.getExpireAt());
         }
         return vo;
@@ -772,7 +912,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
 
     private MpLoginVO buildMpLoginVO(LoginVO loginVO) {
         MpLoginVO vo = new MpLoginVO();
-        vo.setStatus("BOUND");
+        vo.setStatus(WECHAT_STATUS_BIND);
         vo.setToken(loginVO.getToken());
         vo.setUserInfo(loginVO.getUserInfo());
         vo.setCompanies(loginVO.getCompanies());

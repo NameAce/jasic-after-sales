@@ -59,16 +59,15 @@ public class CUserServiceImpl implements ICUserService {
     /**
      * 微信登录（自动注册），openid 不存在则创建新客户
      *
-     * @param openid  微信openid
-     * @param unionid 微信unionid
-     * @param phone   手机号
+     * @param openid 微信openid
+     * @param phone  手机号
      * @return 客户信息
      */
     @Override
-    public CUser loginOrRegister(String openid, String unionid, String phone) {
+    public CUser loginOrRegister(String openid, String phone) {
         CUser user = getByOpenid(openid);
         if (user != null) {
-            return updateLoginSnapshot(user, unionid, phone);
+            return updateLoginSnapshot(user, phone);
         }
         if (!StringUtils.hasText(phone)) {
             throw new ServiceException("首次登录请先授权手机号");
@@ -76,9 +75,9 @@ public class CUserServiceImpl implements ICUserService {
         CUser phoneUser = getByPhone(phone);
         if (phoneUser != null) {
             phoneUser.setOpenid(openid);
-            return updateLoginSnapshot(phoneUser, unionid, phone);
+            return updateLoginSnapshot(phoneUser, phone);
         }
-        return createUser(openid, unionid, phone);
+        return createUser(openid, phone);
     }
 
     /**
@@ -116,20 +115,16 @@ public class CUserServiceImpl implements ICUserService {
     }
 
     /**
-     * 更新客户最近一次微信登录快照，保持手机号和 unionid 与微信侧同步。
+     * 更新客户最近一次微信登录快照，保持手机号与微信侧同步。
      *
      * @param user 客户实体
-     * @param unionid 微信 unionid
      * @param phone 手机号
      * @return 更新后的客户
      */
-    private CUser updateLoginSnapshot(CUser user, String unionid, String phone) {
+    private CUser updateLoginSnapshot(CUser user, String phone) {
         ensureUserActive(user);
         if (StringUtils.hasText(phone)) {
             user.setPhone(phone);
-        }
-        if (StringUtils.hasText(unionid)) {
-            user.setUnionid(unionid);
         }
         user.setLastLoginTime(LocalDateTime.now());
         cUserMapper.updateById(user);
@@ -140,14 +135,12 @@ public class CUserServiceImpl implements ICUserService {
      * 首次登录时创建客户账号。
      *
      * @param openid 微信 openid
-     * @param unionid 微信 unionid
      * @param phone 手机号
      * @return 新建客户
      */
-    private CUser createUser(String openid, String unionid, String phone) {
+    private CUser createUser(String openid, String phone) {
         CUser newUser = new CUser();
         newUser.setOpenid(openid);
-        newUser.setUnionid(unionid);
         newUser.setPhone(phone);
         newUser.setStatus(1);
         newUser.setLastLoginTime(LocalDateTime.now());

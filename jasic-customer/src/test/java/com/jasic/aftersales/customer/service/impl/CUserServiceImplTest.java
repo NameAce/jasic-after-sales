@@ -26,14 +26,13 @@ public class CUserServiceImplTest {
     public void shouldMergeRealWechatIdentityByPhone() throws Exception {
         CUserServiceImpl service = new CUserServiceImpl();
         List<CUser> store = new ArrayList<>();
-        store.add(buildUser(1L, "SYS_WO_FAKE", null, "13800138000", 1));
+        store.add(buildUser(1L, "SYS_WO_FAKE", "13800138000", 1));
         setField(service, "cUserMapper", createUserMapperProxy(store));
 
-        CUser user = service.loginOrRegister("real-openid", "union-1", "13800138000");
+        CUser user = service.loginOrRegister("real-openid", "13800138000");
 
         Assert.assertEquals(Long.valueOf(1L), user.getId());
         Assert.assertEquals("real-openid", user.getOpenid());
-        Assert.assertEquals("union-1", user.getUnionid());
         Assert.assertEquals("13800138000", user.getPhone());
         Assert.assertNotNull(user.getLastLoginTime());
     }
@@ -44,7 +43,7 @@ public class CUserServiceImplTest {
         setField(service, "cUserMapper", createUserMapperProxy(new ArrayList<>()));
 
         try {
-            service.loginOrRegister("real-openid", "union-1", null);
+            service.loginOrRegister("real-openid", null);
             Assert.fail("预期应拒绝首次未授权手机号登录");
         } catch (ServiceException ex) {
             Assert.assertEquals("首次登录请先授权手机号", ex.getMessage());
@@ -55,23 +54,22 @@ public class CUserServiceImplTest {
     public void shouldRejectDuplicatePhoneBinding() throws Exception {
         CUserServiceImpl service = new CUserServiceImpl();
         List<CUser> store = new ArrayList<>();
-        store.add(buildUser(1L, "old-openid-1", null, "13800138000", 1));
-        store.add(buildUser(2L, "old-openid-2", null, "13800138000", 1));
+        store.add(buildUser(1L, "old-openid-1", "13800138000", 1));
+        store.add(buildUser(2L, "old-openid-2", "13800138000", 1));
         setField(service, "cUserMapper", createUserMapperProxy(store));
 
         try {
-            service.loginOrRegister("real-openid", "union-1", "13800138000");
+            service.loginOrRegister("real-openid", "13800138000");
             Assert.fail("预期应拒绝重复手机号自动绑定");
         } catch (ServiceException ex) {
             Assert.assertEquals("客户手机号存在重复数据，请联系管理员处理", ex.getMessage());
         }
     }
 
-    private CUser buildUser(Long id, String openid, String unionid, String phone, Integer status) {
+    private CUser buildUser(Long id, String openid, String phone, Integer status) {
         CUser user = new CUser();
         user.setId(id);
         user.setOpenid(openid);
-        user.setUnionid(unionid);
         user.setPhone(phone);
         user.setStatus(status);
         user.setLastLoginTime(LocalDateTime.now().minusDays(1));

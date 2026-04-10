@@ -23,6 +23,9 @@ public class WechatConfigConstants {
     /** C 端小程序 secret */
     public static final String C_APP_SECRET = "wechat.mp.c.secret";
 
+    /** B 端微信绑定小程序页面路径 */
+    public static final String B_BIND_PAGE_PATH = "wechat.mp.b.bind.pagePath";
+
     /** 客户维修完成通知模板 ID */
     public static final String TEMPLATE_REPAIR_FINISHED = "wechat.notify.customer.repairFinished.templateId";
 

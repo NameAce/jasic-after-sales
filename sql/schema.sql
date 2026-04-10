@@ -114,7 +114,6 @@ CREATE TABLE `sys_user` (
   `email`           varchar(64)      DEFAULT NULL            COMMENT '邮箱',
   `avatar`          varchar(256)     DEFAULT NULL            COMMENT '头像URL',
   `openid`          varchar(64)      DEFAULT NULL            COMMENT '微信openid（小程序登录绑定）',
-  `unionid`         varchar(64)      DEFAULT NULL            COMMENT '微信unionid',
   `wechat_phone`    varchar(20)      DEFAULT NULL            COMMENT '微信授权手机号快照',
   `sex`             tinyint unsigned DEFAULT 0               COMMENT '性别（0=未知，1=男，2=女）',
   `status`          tinyint unsigned DEFAULT 1               COMMENT '状态（1=正常，0=停用）',
@@ -130,13 +129,31 @@ CREATE TABLE `sys_user` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='B端员工表';
 
 -- -------------------------------------------
--- 7. C端客户表
+-- 7. 微信绑定记录表
+-- -------------------------------------------
+DROP TABLE IF EXISTS `wechat_bind_record`;
+CREATE TABLE `wechat_bind_record` (
+  `id`                bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `user_id`           bigint unsigned NOT NULL                COMMENT '用户ID',
+  `operate_type`      varchar(32)     NOT NULL                COMMENT '操作类型（BIND/UNBIND）',
+  `operate_source`    varchar(32)     NOT NULL                COMMENT '操作来源（MP_BIND_LOGIN/PC_QR_BIND/PC_SELF_UNBIND）',
+  `openid`            varchar(64)     NOT NULL                COMMENT '微信openid快照',
+  `wechat_phone`      varchar(20)     DEFAULT NULL            COMMENT '微信授权手机号快照',
+  `operator_user_id`  bigint unsigned NOT NULL                COMMENT '操作人ID',
+  `operator_username` varchar(64)     NOT NULL                COMMENT '操作人用户名',
+  `operate_time`      datetime        NOT NULL                COMMENT '操作时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_user_operate_time` (`user_id`, `operate_time`),
+  KEY `idx_openid_operate_time` (`openid`, `operate_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='微信绑定记录表';
+
+-- -------------------------------------------
+-- 8. C端客户表
 -- -------------------------------------------
 DROP TABLE IF EXISTS `c_user`;
 CREATE TABLE `c_user` (
   `id`              bigint unsigned  NOT NULL AUTO_INCREMENT COMMENT '主键',
   `openid`          varchar(64)      NOT NULL                COMMENT '微信openid',
-  `unionid`         varchar(64)      DEFAULT NULL            COMMENT '微信unionid',
   `phone`           varchar(20)      DEFAULT NULL            COMMENT '手机号（微信授权获取）',
   `nickname`        varchar(64)      DEFAULT NULL            COMMENT '昵称',
   `avatar`          varchar(256)     DEFAULT NULL            COMMENT '头像URL',
@@ -150,7 +167,7 @@ CREATE TABLE `c_user` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='C端客户表';
 
 -- -------------------------------------------
--- 8. C端客户地址表
+-- 9. C端客户地址表
 -- -------------------------------------------
 DROP TABLE IF EXISTS `customer_address`;
 CREATE TABLE `customer_address` (

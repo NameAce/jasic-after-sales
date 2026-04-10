@@ -48,9 +48,6 @@ public class SysUser extends BaseEntity {
     /** 微信openid（小程序登录绑定） */
     private String openid;
 
-    /** 微信unionid */
-    private String unionid;
-
     /** 微信授权手机号快照 */
     private String wechatPhone;
 

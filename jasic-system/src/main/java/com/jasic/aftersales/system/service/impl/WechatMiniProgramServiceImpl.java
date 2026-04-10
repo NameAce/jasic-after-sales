@@ -2,6 +2,7 @@ package com.jasic.aftersales.system.service.impl;
 
 import cn.binarywang.wx.miniapp.api.WxMaService;
 import cn.binarywang.wx.miniapp.api.impl.WxMaServiceImpl;
+import cn.binarywang.wx.miniapp.bean.WxMaCodeLineColor;
 import cn.binarywang.wx.miniapp.bean.WxMaJscode2SessionResult;
 import cn.binarywang.wx.miniapp.bean.WxMaPhoneNumberInfo;
 import cn.binarywang.wx.miniapp.bean.WxMaSubscribeMessage;
@@ -20,6 +21,7 @@ import me.chanjar.weixin.common.error.WxErrorException;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -58,7 +60,6 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
 
         WechatAuthSession session = new WechatAuthSession();
         session.setOpenid(result.getOpenid());
-        session.setUnionid(result.getUnionid());
         session.setSessionKey(result.getSessionKey());
         if (StrUtil.isBlank(session.getOpenid())) {
             throw new ServiceException(ResultCode.THIRD_PARTY_ERROR, "微信登录失败，未获取到用户标识");
@@ -91,6 +92,30 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
             throw new ServiceException(ResultCode.THIRD_PARTY_ERROR, "获取微信手机号失败，未获取到手机号");
         }
         return phoneInfo;
+    }
+
+    @Override
+    public String createQrcodeBase64(WechatMiniProgramScene scene, String sceneValue, String pagePath) {
+        if (StrUtil.isBlank(sceneValue)) {
+            throw new ServiceException("绑定票据不能为空");
+        }
+        if (StrUtil.isBlank(pagePath)) {
+            throw new ServiceException("微信绑定页面未配置，请联系管理员");
+        }
+
+        byte[] qrcodeBytes;
+        try {
+            qrcodeBytes = getMaService(scene).getQrcodeService()
+                    .createWxaCodeUnlimitBytes(sceneValue, pagePath, true, "release", 430, true,
+                            (WxMaCodeLineColor) null, false);
+        } catch (WxErrorException ex) {
+            log.error("调用微信生成二维码失败，scene={}", scene.getCode(), ex);
+            throw buildWxServiceException("生成微信绑定二维码失败", ex);
+        } catch (Exception ex) {
+            log.error("调用微信生成二维码失败，scene={}", scene.getCode(), ex);
+            throw new ServiceException(ResultCode.THIRD_PARTY_ERROR, "生成微信绑定二维码失败，请稍后重试");
+        }
+        return "data:image/png;base64," + Base64.getEncoder().encodeToString(qrcodeBytes);
     }
 
     @Override

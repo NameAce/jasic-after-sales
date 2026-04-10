@@ -32,6 +32,10 @@ export function getWechatBindStatus() {
   return request({ url: '/auth/wechat-bind/status', method: 'get' })
 }
 
-export function createWechatBindCode() {
-  return request({ url: '/auth/wechat-bind/code', method: 'post' })
+export function createWechatBindQrcode() {
+  return request({ url: '/auth/wechat-bind/qrcode', method: 'post' })
+}
+
+export function unbindWechat(data) {
+  return request({ url: '/auth/wechat-bind/unbind', method: 'post', data })
 }

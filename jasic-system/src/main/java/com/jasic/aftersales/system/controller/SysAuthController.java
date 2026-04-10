@@ -6,8 +6,10 @@ import com.jasic.aftersales.common.core.domain.Result;
 import com.jasic.aftersales.common.enums.OperTypeEnum;
 import com.jasic.aftersales.system.domain.dto.ChooseCompanyDTO;
 import com.jasic.aftersales.system.domain.dto.LoginDTO;
+import com.jasic.aftersales.system.domain.dto.MpBindLoginDTO;
 import com.jasic.aftersales.system.domain.dto.MpLoginDTO;
 import com.jasic.aftersales.system.domain.dto.WechatBindConfirmDTO;
+import com.jasic.aftersales.system.domain.dto.WechatBindUnbindDTO;
 import com.jasic.aftersales.system.domain.dto.ChangePasswordDTO;
 import com.jasic.aftersales.system.domain.dto.UpdateProfileDTO;
 import com.jasic.aftersales.system.domain.vo.LoginVO;
@@ -78,6 +80,19 @@ public class SysAuthController {
     }
 
     /**
+     * B端小程序账号认领绑定并登录
+     *
+     * @param dto 绑定参数
+     * @return 登录结果
+     */
+    @ApiOperation(value = "B端小程序账号认领绑定并登录")
+    @SaIgnore
+    @PostMapping("/mp-bind-login")
+    public Result<MpLoginVO> mpBindLogin(@Validated @RequestBody MpBindLoginDTO dto) {
+        return Result.ok(authService.mpBindLogin(dto));
+    }
+
+    /**
      * 选择/切换公司
      *
      * @param dto 公司选择参数
@@ -142,14 +157,28 @@ public class SysAuthController {
     }
 
     /**
-     * 生成当前用户微信绑定码
+     * 生成当前用户微信绑定二维码
      *
      * @return 绑定状态
      */
-    @ApiOperation(value = "生成当前用户微信绑定码")
-    @PostMapping("/wechat-bind/code")
-    public Result<WechatBindStatusVO> createWechatBindCode() {
-        return Result.ok(authService.createWechatBindCode());
+    @ApiOperation(value = "生成当前用户微信绑定二维码")
+    @PostMapping("/wechat-bind/qrcode")
+    public Result<WechatBindStatusVO> createWechatBindQrcode() {
+        return Result.ok(authService.createWechatBindQrcode());
+    }
+
+    /**
+     * 解绑当前用户微信
+     *
+     * @param dto 解绑参数
+     * @return 操作结果
+     */
+    @ApiOperation(value = "解绑当前用户微信")
+    @OperLog(title = "账号中心", operType = OperTypeEnum.UPDATE)
+    @PostMapping("/wechat-bind/unbind")
+    public Result<Void> unbindWechat(@Validated @RequestBody WechatBindUnbindDTO dto) {
+        authService.unbindWechat(dto);
+        return Result.ok();
     }
 
     /**

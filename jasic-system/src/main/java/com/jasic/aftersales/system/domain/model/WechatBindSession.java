@@ -6,7 +6,7 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * 微信绑定码会话
+ * 微信绑定票据会话
  *
  * @author Codex
  * @date 2026/04/02
@@ -19,8 +19,8 @@ public class WechatBindSession implements Serializable {
     /** 用户ID */
     private Long userId;
 
-    /** 绑定码 */
-    private String bindCode;
+    /** 绑定票据 */
+    private String bindTicket;
 
     /** 过期时间 */
     private LocalDateTime expireAt;

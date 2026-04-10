@@ -14,7 +14,7 @@ import com.jasic.aftersales.system.domain.model.WechatPhoneInfo;
 public interface WechatMiniProgramService {
 
     /**
-     * 通过登录 code 换取 openid/unionid
+     * 通过登录 code 换取 openid
      *
      * @param scene 小程序场景
      * @param code  登录 code
@@ -30,6 +30,16 @@ public interface WechatMiniProgramService {
      * @return 手机号结果
      */
     WechatPhoneInfo getPhoneNumber(WechatMiniProgramScene scene, String phoneCode);
+
+    /**
+     * 生成小程序绑定二维码 base64
+     *
+     * @param scene      小程序场景
+     * @param sceneValue scene 参数
+     * @param pagePath   小程序页面路径
+     * @return 二维码 base64
+     */
+    String createQrcodeBase64(WechatMiniProgramScene scene, String sceneValue, String pagePath);
 
     /**
      * 发送小程序订阅消息

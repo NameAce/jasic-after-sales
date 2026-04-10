@@ -18,9 +18,6 @@ public class WechatAuthSession implements Serializable {
     /** openid */
     private String openid;
 
-    /** unionid */
-    private String unionid;
-
     /** session_key */
     private String sessionKey;
 }
