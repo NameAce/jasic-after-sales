@@ -1,0 +1,310 @@
+@use "./variables.scss" as *;
+
+@mixin flex {
+  display: flex;
+}
+
+/** 纵向堆叠（主轴从上到下，不强制垂直居中） */
+@mixin flex-col {
+  display: flex;
+  flex-direction: column;
+}
+
+@mixin flex-column {
+  @include flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+@mixin flex-column-center {
+  @include flex-center;
+  flex-direction: column;
+}
+
+@mixin flex-row {
+  @include flex;
+  align-items: center;
+}
+
+@mixin flex-center {
+  @include flex-row;
+  justify-content: center;
+}
+
+@mixin flex-between {
+  @include flex-row;
+  justify-content: space-between;
+}
+
+@mixin flex-column-gap {
+  @include flex-col;
+  gap: $space-lg;
+}
+
+/** 两端对齐 + 交叉轴顶对齐 */
+@mixin flex-between-start {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+/** 两端对齐 + 交叉轴底对齐 */
+@mixin flex-between-end {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+/** 主轴居右 */
+@mixin flex-end {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+@mixin ellipsis($lines: 2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: $lines;
+  line-clamp: $lines;
+  -webkit-box-orient: vertical;
+}
+
+@mixin fixed-btn {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+
+  width: calc(100% - $space-md*2);
+  color: $surface-white;
+  padding: $space-md $space-md $safe-area-bottom;
+  border-radius: $radius-lg;
+  background-color: $surface-white;
+  z-index: $z-content-fixed;
+}
+
+// ========== 常用表面 / 卡片（多页表单、工单详情、弹窗）==========
+
+/// 浅灰底（slate-50）
+@mixin surface-muted {
+  background-color: $surface-slate-50;
+}
+
+/// 浅灰底 + 中圆角；可选内边距（描述块、记录卡片等）
+@mixin surface-muted-box($padding: $space-md) {
+  @include surface-muted;
+  border-radius: $radius-md;
+  padding: $padding;
+}
+
+/// 表单控件：浅底 + 灰描边 + 中圆角（picker / input / textarea 外壳）
+@mixin form-field-frame {
+  background-color: $surface-slate-50;
+  border: 2rpx solid $surface-slate-200;
+  border-radius: $radius-md;
+  box-sizing: border-box;
+}
+
+/// 表单控件：浅底 + 中圆角、无描边（行内 picker、输入框）
+@mixin form-field-soft {
+  background-color: $surface-slate-50;
+  border-radius: $radius-md;
+  box-sizing: border-box;
+}
+
+/// 白底大圆角面板；$padding 不传则不加 padding（如 Tab 外框）
+@mixin sheet-white($padding: null) {
+  background-color: $surface-white;
+  border-radius: $radius-lg;
+  @if $padding != null {
+    padding: $padding;
+  }
+}
+
+/// 横向 Tab 轨道：不换行 + 左右边距 + 大间距
+@mixin tabs-track {
+  display: flex;
+  flex-wrap: nowrap;
+  padding: 0 $space-lg;
+  gap: 48rpx;
+}
+
+/// 整页：灰底 + 纵向铺满（工单子页根容器常用）
+@mixin page-column-app {
+  min-height: 100vh;
+  background-color: $surface-app;
+  @include flex-col;
+}
+
+// ========== 弹窗 / Sheet 底部操作栏 ==========
+
+/// 底部取消/确认按钮（CloseOrderModal · ReturnMethodModal · TransferModal · AssignTechnicianModal 等共用）
+@mixin modal-action-btn {
+  flex: 1;
+  padding: 20rpx 0;
+  border-radius: 16rpx;
+  @include flex-center;
+
+  .text {
+    font-size: $font-md;
+    font-weight: bold;
+  }
+
+  &.btn-cancel {
+    background-color: $surface-slate-100;
+    .text { color: $text-slate-900; }
+    &:active { background-color: $surface-slate-200; }
+  }
+
+  &.btn-confirm {
+    background-color: $primary;
+    .text { color: $surface-white; }
+    &:active { opacity: 0.9; }
+  }
+}
+
+// ========== Tab 横排项 ==========
+
+/// 带底部 active 指示条的 Tab 项
+@mixin tab-underline-item(
+  $text-color: $text-main,
+  $active-color: $primary,
+  $bar-height: 4rpx,
+  $bar-radius: 0
+) {
+  @include flex-column-center;
+  position: relative;
+  flex-shrink: 0;
+
+  .text {
+    font-size: $font-md;
+    font-weight: 500;
+    color: $text-color;
+  }
+
+  &.active {
+    .text {
+      color: $active-color;
+      font-weight: bold;
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: $bar-height;
+      background-color: $active-color;
+      @if $bar-radius != 0 {
+        border-radius: $bar-radius;
+      }
+    }
+  }
+}
+
+// ========== 文本截断 ==========
+
+/// 单行文本截断
+@mixin text-ellipsis {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// ========== 复合 UI 组件 ==========
+
+/// Pill/Segment 切换器（报修入口 Tab、工单列表一级 Tab）
+@mixin pill-tabs {
+  @include flex-row;
+  background-color: $surface-slate-100;
+  border-radius: $radius-lg;
+  padding: $space-xs;
+
+  .tab-item {
+    flex: 1;
+    text-align: center;
+    padding: $space-sm $space-xs;
+    border-radius: $radius-md;
+
+    .text {
+      font-size: $font-md;
+      font-weight: 500;
+      color: $text-main;
+    }
+
+    &.active {
+      background-color: $primary;
+
+      .text {
+        color: $surface-white;
+        font-weight: bold;
+      }
+    }
+  }
+}
+
+/// 区块标题栏（竖条指示器 + 标题文字），用于工单详情、弹窗表单
+@mixin section-title-bar {
+  @include flex-row;
+  gap: $space-sm;
+  margin-bottom: $space-lg;
+
+  .section-mark,
+  .section-indicator {
+    width: $space-xs;
+    height: $space-lg;
+    background-color: $primary;
+    border-radius: $radius-pill;
+  }
+
+  .section-title {
+    font-size: $font-lg;
+    font-weight: bold;
+    color: $text-slate-900;
+  }
+}
+
+/// 弹窗底部操作栏（取消/确认）
+@mixin modal-footer-bar {
+  display: flex;
+  gap: $space-md;
+  padding: $space-lg;
+  border-top: 2rpx solid $surface-slate-100;
+
+  .btns { @include modal-action-btn; }
+}
+
+// ========== 导航栏（aftersale 复用）==========
+@mixin nav-bar {
+  background-color: $bg-card;
+  border-bottom: 2rpx solid $border-light;
+  padding: 0 $space-lg;
+}
+
+@mixin nav-bar-inner {
+  display: flex;
+  align-items: center;
+  height: 88rpx;
+}
+
+@mixin nav-back-btn {
+  width: 80rpx;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  margin-left: -20rpx;
+}
+
+@mixin nav-title {
+  flex: 1;
+  text-align: center;
+  font-size: $font-lg;
+  font-weight: bold;
+  color: $text-dark;
+}
+
+@mixin nav-right-placeholder {
+  width: 80rpx;
+}

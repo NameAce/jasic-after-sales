@@ -1,0 +1,211 @@
+/* 工单详情子卡片（与 pages/order/detail 视觉一致） */
+@use "@/styles/variables.scss" as *;
+@use "@/styles/mixins.scss" as *;
+
+.od-card-box {
+  @include sheet-white($space-lg);
+}
+
+.od-section-header {
+  @include section-title-bar;
+}
+
+.od-fault-details {
+  @include flex-col;
+  gap: $space-lg;
+
+  .detail-group {
+    @include flex-col;
+    gap: $space-sm;
+
+    .group-title {
+      font-size: $font-sm;
+      color: $text-slate-500;
+    }
+
+    .group-content {
+      font-size: $font-sm;
+      line-height: 1.6;
+      color: $text-slate-900;
+    }
+
+    .voice-msg {
+      @include flex-row;
+      gap: $space-md;
+      background-color: $primary-alpha-10;
+      width: 320rpx;
+      padding: $space-sm $space-lg;
+      border-radius: $radius-pill;
+      border: 2rpx solid rgba($primary, 0.2);
+
+      .voice-icon {
+        width: 40rpx;
+        height: 40rpx;
+      }
+
+      .voice-waves {
+        @include flex-row;
+        gap: $space-xs;
+
+        .wave {
+          width: $space-xs;
+          background-color: $primary;
+          border-radius: $radius-pill;
+
+          &-1 {
+            height: $space-md;
+            animation: order-detail-card-pulse 1.5s infinite;
+          }
+          &-2 {
+            height: 40rpx;
+          }
+          &-3 {
+            height: 32rpx;
+            animation: order-detail-card-pulse 1.5s infinite 0.3s;
+          }
+          &-4 {
+            height: $space-sm;
+          }
+        }
+      }
+
+      .voice-duration {
+        font-size: $font-sm;
+        font-weight: bold;
+        color: $primary;
+        margin-left: auto;
+      }
+    }
+
+    .image-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: $space-sm;
+
+      .grid-img {
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        border-radius: $radius-md;
+        background-color: $surface-slate-100;
+      }
+    }
+  }
+}
+
+.od-fault-point-info {
+  @include flex-col;
+  gap: $space-lg;
+
+  .history-header {
+    @include flex-between;
+
+    .history-title {
+      font-size: $font-sm;
+      color: $text-slate-500;
+    }
+
+    .history-btn {
+      padding: $space-xs $space-md;
+      background-color: $primary-alpha-10;
+      color: $primary;
+      font-size: $font-sm;
+      font-weight: bold;
+      border-radius: $radius-pill;
+    }
+  }
+
+  .history-record {
+    @include surface-muted-box;
+    border-left: 4rpx solid rgba($primary, 0.3);
+
+    .record-top {
+      @include flex-between;
+      margin-bottom: $space-xs;
+
+      .record-label {
+        font-size: $font-sm;
+        font-weight: bold;
+        color: $text-slate-700;
+      }
+
+      .record-date {
+        font-size: 20rpx;
+        color: $text-slate-400;
+      }
+    }
+
+    .record-desc {
+      font-size: $font-sm;
+      color: $text-slate-600;
+      line-height: 1.5;
+    }
+  }
+}
+
+.od-info-list {
+  @include flex-col;
+  gap: $space-md;
+  padding: 0 $space-md;
+
+  .info-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: $font-sm;
+
+    &.align-top {
+      align-items: flex-start;
+    }
+
+    .info-label {
+      color: $text-slate-500;
+
+      &.shrink {
+        flex-shrink: 0;
+        margin-right: $space-lg;
+      }
+    }
+
+    .info-value {
+      font-weight: 500;
+      color: $text-strong;
+
+      &.text-primary {
+        color: $primary;
+      }
+
+      &.text-right {
+        text-align: right;
+        line-height: 1.4;
+      }
+    }
+  }
+
+  .info-item-col {
+    @include flex-col;
+    font-size: $font-sm;
+
+    .info-label {
+      color: $text-slate-500;
+    }
+
+    .desc-box {
+      @include surface-muted-box;
+
+      .desc-text {
+        font-size: $font-sm;
+        color: $text-slate-600;
+        line-height: 1.6;
+      }
+    }
+  }
+}
+
+@keyframes order-detail-card-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}

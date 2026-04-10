@@ -1,0 +1,352 @@
+<template>
+  <CommonModal v-model="visible" :title="title" @close="onClose">
+    <!-- 搜索 -->
+    <view class="atm-search">
+      <view class="search-box">
+        <uni-icons type="search" size="24" color="#cbd5e1"></uni-icons>
+        <input
+          v-model="searchQuery"
+          class="input"
+          :placeholder="searchPlaceholder"
+          placeholder-class="placeholder"
+        />
+      </view>
+    </view>
+    <!-- 维修员列表 -->
+    <scroll-view scroll-y class="atm-list">
+      <view
+        v-for="tech in filteredTechnicianList"
+        :key="tech.id"
+        :class="['tech-card', { selected: selectedId === tech.id, busy: !!tech.isBusy }]"
+        @tap="selectTechnician(tech.id)"
+      >
+        <view class="avatar-wrap">
+          <image class="avatar" :src="tech.avatar" mode="aspectFill" />
+          <view v-if="selectedId === tech.id" class="check-badge">
+            <text class="material-symbols-outlined icon">check</text>
+          </view>
+        </view>
+
+        <view class="info">
+          <view class="name-row">
+            <text class="name">{{ tech.name }}</text>
+            <text v-if="tech.isRecommend" class="tag">推荐</text>
+          </view>
+          <text v-if="tech.desc" class="desc">{{ tech.desc }}</text>
+        </view>
+
+        <view class="distance">
+          <text v-if="tech.distance" class="dist-val">{{ tech.distance }}</text>
+          <text v-if="tech.time" class="dist-time">{{ tech.time }}</text>
+        </view>
+      </view>
+    </scroll-view>
+
+    <!-- 底部按钮 -->
+    <template #footer>
+      <view class="atm-actions">
+        <view class="btns btn-cancel" @tap="onClose">
+          <text class="text">取消</text>
+        </view>
+        <view class="btns btn-confirm" @tap="onConfirm">
+          <text class="text">确认指派</text>
+        </view>
+      </view>
+    </template>
+  </CommonModal>
+</template>
+
+<script setup lang="ts">
+  import { computed, ref, watch } from 'vue'
+  import CommonModal from '@/components/CommonModal/CommonModal.vue'
+
+  /** 维修员类型 */
+  export type Technician = {
+    id: number | string
+    name: string
+    phone?: string
+    avatar: string
+    isRecommend?: boolean
+    desc?: string
+    distance?: string
+    time?: string
+    isBusy?: boolean
+  }
+
+  /**
+   * 组件属性
+   * @param modelValue 是否显示弹窗
+   * @param technicianList 维修员列表
+   * @param title 标题
+   * @param searchPlaceholder 搜索占位符
+   * @param selectedTechId 选择的维修员ID
+   * @param resetOnOpen 是否重置搜索
+   */
+  const props = withDefaults(
+    defineProps<{
+      modelValue: boolean
+      technicianList: Technician[]
+      title?: string
+      searchPlaceholder?: string
+      selectedTechId?: number | string | null
+      resetOnOpen?: boolean
+    }>(),
+    {
+      title: '指派维修员',
+      searchPlaceholder: '搜索姓名/手机号',
+      selectedTechId: null,
+      resetOnOpen: true
+    }
+  )
+
+  /**
+   * 组件事件
+   * @param e 事件
+   * @param v 值
+   */
+  const emit = defineEmits<{
+    (e: 'update:modelValue', v: boolean): void
+    (e: 'update:selectedTechId', v: number | string | null): void
+    (e: 'close'): void
+    (e: 'confirm', payload: { selectedTechId: number | string; technician: Technician }): void
+  }>()
+
+  /**
+   * 是否显示弹窗
+   * @returns 是否显示弹窗
+   */
+  const visible = computed({
+    get: () => props.modelValue,
+    set: (v: boolean) => emit('update:modelValue', v)
+  })
+
+  /**
+   * 搜索关键词
+   * @returns 搜索关键词
+   */
+  const searchQuery = ref('')
+  /**
+   * 选择的维修员ID
+   * @returns 选择的维修员ID
+   */
+  const selectedId = computed({
+    get: () => props.selectedTechId,
+    set: (v: number | string | null) => emit('update:selectedTechId', v)
+  })
+
+  /**
+   * 监听弹窗是否显示
+   * @param v 是否显示弹窗
+   */
+  watch(
+    () => props.modelValue,
+    (v) => {
+      if (!v) return
+      if (props.resetOnOpen) searchQuery.value = ''
+    }
+  )
+
+  /**
+   * 过滤维修员列表
+   * @returns 过滤后的维修员列表
+   */
+  const filteredTechnicianList = computed(() => {
+    const q = searchQuery.value?.trim()
+    if (!q) return props.technicianList
+    return props.technicianList.filter((tech) => {
+      const nameHit = tech.name?.includes(q)
+      const phoneHit = tech.phone ? tech.phone.includes(q) : false
+      return nameHit || phoneHit
+    })
+  })
+
+  /**
+   * 选择维修员
+   * @param id 维修员ID
+   */
+  const selectTechnician = (id: number | string) => {
+    selectedId.value = id
+  }
+
+  /**
+   * 关闭弹窗
+   */
+  const onClose = () => {
+    visible.value = false
+    emit('close')
+  }
+
+  /**
+   * 确认指派
+   */
+  const onConfirm = () => {
+    if (selectedId.value === null || selectedId.value === undefined || selectedId.value === '') {
+      uni.showToast({ title: '请选择维修员', icon: 'none' })
+      return
+    }
+    const tech = props.technicianList.find((t) => t.id === selectedId.value)
+    if (!tech) {
+      uni.showToast({ title: '所选维修员不存在', icon: 'none' })
+      return
+    }
+    emit('confirm', { selectedTechId: selectedId.value, technician: tech })
+  }
+</script>
+
+<style lang="scss" scoped>
+  .atm-search {
+    padding: 24rpx 32rpx;
+
+    .search-box {
+      position: relative;
+      display: flex;
+      align-items: center;
+
+      .icon {
+        position: absolute;
+        left: 24rpx;
+        color: $text-slate-400;
+        font-size: 40rpx;
+      }
+
+      .input {
+        width: 100%;
+        height: 80rpx;
+        padding-left: 80rpx;
+        border-radius: 24rpx;
+        background-color: $surface-slate-100;
+        font-size: 28rpx;
+        color: $text-slate-900;
+        box-sizing: border-box;
+      }
+
+      .placeholder {
+        color: $text-slate-400;
+      }
+    }
+  }
+
+  .atm-list {
+    padding: 0 32rpx;
+    box-sizing: border-box;
+    height: 50vh;
+  }
+
+  .tech-card {
+    display: flex;
+    align-items: center;
+    gap: 32rpx;
+    background-color: $surface-white;
+    padding: 20rpx 32rpx;
+    border-radius: 24rpx;
+    border: 2rpx solid $surface-slate-100;
+    box-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.05);
+    margin-bottom: 24rpx;
+
+    &.selected {
+      border: 4rpx solid $primary;
+      background-color: rgba(242, 102, 4, 0.05);
+
+      .avatar {
+        border: 4rpx solid $surface-white;
+      }
+    }
+
+    &.busy {
+      opacity: 0.8;
+    }
+
+    .avatar-wrap {
+      position: relative;
+      width: 100rpx;
+      height: 100rpx;
+    }
+
+    .check-badge {
+      position: absolute;
+      bottom: -8rpx;
+      right: -8rpx;
+      background-color: $primary;
+      color: $surface-white;
+      padding: 4rpx;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      .icon {
+        font-size: 24rpx;
+        font-weight: bold;
+      }
+    }
+
+    .avatar {
+      width: 100rpx;
+      height: 100rpx;
+      border-radius: 50%;
+      border: 4rpx solid transparent;
+    }
+
+    .info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .name-row {
+      display: flex;
+      align-items: baseline;
+      gap: 16rpx;
+    }
+
+    .name {
+      color: $text-slate-900;
+      font-size: 28rpx;
+      font-weight: bold;
+    }
+
+    .tag {
+      font-size: 24rpx;
+      color: $primary;
+      font-weight: 500;
+      background-color: rgba(242, 102, 4, 0.1);
+      padding: 4rpx 12rpx;
+      border-radius: 8rpx;
+      flex-shrink: 0;
+    }
+
+    .desc {
+      color: $text-slate-500;
+      font-size: 24rpx;
+      margin-top: 8rpx;
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .distance {
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .dist-val {
+      color: $text-slate-900;
+      font-size: 28rpx;
+      font-weight: 500;
+      display: block;
+    }
+
+    .dist-time {
+      color: $text-slate-400;
+      font-size: 24rpx;
+      margin-top: 8rpx;
+      display: block;
+    }
+  }
+
+  .atm-actions {
+    @include modal-footer-bar;
+    background-color: $surface-white;
+    padding: $space-sm $space-lg;
+  }
+</style>

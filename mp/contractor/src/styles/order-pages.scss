@@ -1,0 +1,429 @@
+@use './mixins.scss' as *;
+@use './variables.scss' as *;
+@use "sass:list";
+
+/* 工单列表 / 工作台：多页共用的标题栏、搜索、空状态、工单卡片 */
+.page-index.order-list-page {
+  @include flex-col;
+  background-color: $surface-app;
+  min-height: 100vh;
+  /* TabBar 页面：可视高度扣减底部占位，避免整页滚动导致顶栏被滚走 */
+  height: calc(100vh - var(--window-bottom, 0px));
+  max-height: calc(100vh - var(--window-bottom, 0px));
+  padding: 0;
+  gap: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+
+  .custom-nav-bar {
+    flex-shrink: 0;
+  }
+}
+
+.order-list-page .header,
+.page-container .header {
+  background-color: $surface-white;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.page-container .header {
+  z-index: 20;
+  border-bottom: 2rpx solid $surface-slate-100;
+}
+
+.title-bar {
+  @include flex-between;
+  padding: 0 $space-lg $space-md;
+
+  .icon-btn {
+    width: 64rpx;
+    height: 64rpx;
+    @include flex-center;
+    color: $text-slate-500;
+  }
+
+  .placeholder-box {
+    width: 64rpx;
+    flex-shrink: 0;
+  }
+
+  .title {
+    flex: 1;
+    text-align: center;
+    font-size: 36rpx;
+    font-weight: bold;
+    color: $text-main;
+    line-height: 1.25;
+    letter-spacing: -0.025em;
+  }
+}
+
+.order-list-page .title-bar .placeholder-box {
+  width: 80rpx;
+  height: 80rpx;
+}
+
+.order-list-page .title-bar {
+  padding-bottom: $space-lg;
+}
+
+.title-bar--branch .title {
+  font-size: $font-lg;
+  color: $text-slate-900;
+  letter-spacing: 0;
+}
+
+.search-wrap {
+  @include flex-column-gap;
+
+  .search-box {
+    @include flex-row;
+    background-color: $surface-slate-100;
+    border-radius: $radius-lg;
+    height: 88rpx;
+    padding: 0 $space-lg;
+
+    .icon-search {
+      font-size: 40rpx;
+      color: $text-slate-400;
+      margin-right: $space-sm;
+    }
+
+    .search-input {
+      flex: 1;
+      height: 100%;
+      font-size: $font-md;
+      color: $text-slate-900;
+      background: transparent;
+      border: none;
+    }
+
+    .placeholder-text {
+      color: $text-slate-400;
+    }
+  }
+}
+
+.page-container .search-wrap {
+  padding: $space-sm $space-lg $space-md;
+}
+
+.order-list-page .main-content,
+.page-container .main-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* 仅工单列表：scroll-view 需确定高度，否则小程序/H5 会撑开整页导致顶栏一起滚动 */
+.order-list-page .main-content {
+  min-height: 0;
+  height: 0;
+}
+
+.page-container .main-content {
+  padding-bottom: 40rpx;
+}
+
+.dashboard-page .list-container,
+.order-list-page .list-container {
+  padding: 0 $space-lg;
+}
+
+.page-container .list-container {
+  padding: 0 $space-lg;
+  @include flex-col;
+  gap: $space-lg;
+}
+
+/* 与 aftersale 工单列表「暂无工单」空状态一致：灰底插图区 + 标题/说明层级 */
+.list-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 160rpx 64rpx 120rpx;
+
+  .empty-icon-wrap {
+    width: 520rpx;
+    max-width: 92%;
+    height: 200rpx;
+    @include flex-center;
+    padding: 0 24rpx;
+    box-sizing: border-box;
+
+    .empty-list-illus {
+      width: 100%;
+      height: 160rpx;
+    }
+  }
+
+  .empty-icon {
+    font-size: 120rpx;
+    color: $surface-slate-300;
+    margin-bottom: $space-lg;
+    font-variation-settings:
+      'FILL' 0,
+      'wght' 300,
+      'GRAD' 0,
+      'opsz' 48;
+  }
+
+  .empty-title {
+    font-size: $font-lg;
+    font-weight: 600;
+    color: $text-slate-500;
+    margin-bottom: 12rpx;
+  }
+
+  .empty-desc {
+    font-size: 26rpx;
+    color: $text-slate-400;
+    line-height: 1.5;
+    text-align: center;
+  }
+}
+
+.order-card {
+  background-color: $surface-white;
+  border-radius: $radius-lg;
+  padding: $space-lg;
+  margin-bottom: $space-lg;
+  border: 2rpx solid $surface-slate-100;
+
+  .card-header {
+    @include flex-between-start;
+    margin-bottom: $space-md;
+
+    .order-no {
+      @include flex-col;
+      gap: $space-xs;
+
+      .label {
+        font-size: $font-sm;
+        color: $text-slate-400;
+        font-weight: 500;
+        text-transform: uppercase;
+      }
+
+      .value {
+        font-size: $font-lg;
+        font-weight: bold;
+        color: $text-slate-900;
+        letter-spacing: -0.025em;
+      }
+    }
+
+    .status-badge {
+      padding: $space-xs $space-sm;
+      border-radius: $radius-pill;
+      @include flex-center;
+
+      .text {
+        font-size: 20rpx;
+        font-weight: bold;
+        text-transform: uppercase;
+      }
+
+      $-status-colors: (
+        pending:    $status-pending-bg    $primary,
+        processing: $status-processing-bg $status-processing-text,
+        completed:  $status-completed-bg  $status-completed-text,
+        closed:     $status-closed-bg     $status-closed-text,
+      );
+
+      @each $status, $pair in $-status-colors {
+        &.#{$status} {
+          background-color: list.nth($pair, 1);
+          .text { color: list.nth($pair, 2); }
+        }
+      }
+    }
+  }
+
+  .tags-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-sm;
+    margin-bottom: $space-lg;
+
+    .tag {
+      padding: 4rpx $space-sm;
+      border-radius: $radius-sm;
+      border: 2rpx solid transparent;
+      @include flex-center;
+
+      .text {
+        font-size: 22rpx;
+        font-weight: 500;
+      }
+
+      $-tag-variants: (
+        tag-brand:       $tag-brand-bg       $tag-brand-border       $tag-brand-text,
+        tag-in-warranty: $tag-warranty-in-bg  $tag-warranty-in-border  $tag-warranty-in-text,
+        tag-transfer-in: $tag-transfer-bg     $tag-transfer-border     $tag-transfer-text,
+      );
+
+      @each $name, $triple in $-tag-variants {
+        &.#{$name} {
+          background-color: list.nth($triple, 1);
+          border-color: list.nth($triple, 2);
+          .text { color: list.nth($triple, 3); }
+        }
+      }
+
+      &.tag-out-warranty,
+      &.tag-other-brand {
+        background-color: $tag-neutral-bg;
+        border-color: $tag-neutral-border;
+        .text { color: $text-slate-500; }
+      }
+
+      &.tag-other-brand .text {
+        color: $text-slate-600;
+      }
+    }
+  }
+
+  .card-body {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    row-gap: $space-md;
+    column-gap: $space-sm;
+    margin-bottom: $space-lg;
+
+    .info-item {
+      @include flex-col;
+      gap: 4rpx;
+
+      .label {
+        font-size: 22rpx;
+        color: $text-slate-400;
+      }
+
+      .value {
+        font-size: 26rpx;
+        font-weight: 500;
+        color: $text-slate-700;
+
+        &.primary {
+          color: $primary;
+        }
+      }
+    }
+  }
+
+  .card-desc {
+    @include surface-muted-box;
+    margin-bottom: $space-lg;
+
+    .text {
+      font-size: $font-sm;
+      color: $text-slate-500;
+      line-height: 1.625;
+    }
+
+    .label {
+      font-size: $font-sm;
+      font-weight: bold;
+      color: $text-slate-600;
+    }
+  }
+
+  .card-footer {
+    @include flex-end;
+    gap: $space-md;
+
+    .time-wrap {
+      @include flex-row;
+      gap: $space-xs;
+      color: $text-slate-400;
+
+      .time-icon {
+        font-size: $font-sm;
+      }
+
+      .time-text {
+        font-size: 22rpx;
+      }
+    }
+
+    .action-wrap {
+      @include flex-row;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: $space-md;
+
+      .btn-action {
+        width: auto;
+        flex: 0 1 auto;
+        min-width: 0;
+        margin: 0;
+        padding: 2rpx $space-lg;
+        border-radius: 10rpx;
+        font-size: 26rpx;
+        font-weight: bold;
+
+        @include flex-center;
+
+        &.primary {
+          background-color: $primary;
+          color: $surface-white;
+
+          &:active {
+            opacity: 0.9;
+          }
+        }
+
+        &.outline {
+          background-color: $surface-white;
+          color: $primary;
+          border: 2rpx solid $primary;
+
+          &:active {
+            background-color: $tag-brand-bg;
+          }
+        }
+
+        &::after {
+          border: none;
+        }
+      }
+    }
+  }
+}
+
+.page-container .order-card {
+  margin-bottom: 0;
+
+  .card-desc {
+    margin-bottom: 0;
+  }
+}
+
+.order-card--branch-badges {
+  .status-badge {
+    &.pending {
+      background-color: $tag-transfer-bg;
+      .text {
+        color: $tag-transfer-text;
+      }
+    }
+
+    &.processing {
+      background-color: $tag-brand-bg;
+      .text {
+        color: $primary;
+      }
+    }
+
+    &.completed {
+      background-color: $status-completed-bg;
+      .text {
+        color: $status-completed-text;
+      }
+    }
+  }
+}

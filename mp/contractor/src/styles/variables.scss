@@ -1,0 +1,119 @@
+// ========== 品牌与功能色 ==========
+$primary: #f26604;
+$primary-light: #ff8533;
+$icon-color: #dcdcdcf5;
+
+// ========== 表面色 ==========
+$surface-white: #ffffff;
+$surface-slate-50: #f8fafc;
+$surface-slate-100: #f1f5f9;
+$surface-slate-200: #e2e8f0;
+$surface-slate-300: #cbd5e1;
+$surface-page: #f5f5f5;
+$surface-app: #f6f6f8;
+
+// ========== 文字 ==========
+$text-main: #303133;
+$text-secondary: #606266;
+$text-placeholder: #909399;
+$text-strong: #333333;
+
+$text-slate-900: #0f172a;
+$text-slate-700: #334155;
+$text-slate-600: #475569;
+$text-slate-500: #64748b;
+$text-slate-400: #94a3b8;
+$text-dark: $text-slate-900;
+
+// ========== 边框 ==========
+$border-color: #ebeef5;
+$border-light: $surface-slate-100;
+$border-lighter: $surface-slate-50;
+
+// ========== 圆角 ==========
+$radius-sm: 8rpx;
+$radius-md: 16rpx;
+$radius-input: 18rpx;
+$radius-lg: 24rpx;
+$radius-xl: 48rpx;
+$radius-pill: 999rpx;
+
+// ========== 间距 ==========
+$space-xs: 8rpx;
+$space-sm: 16rpx;
+$space-md: 24rpx;
+$space-lg: 32rpx;
+$space-xl: 48rpx;
+$space-input: 28rpx;
+
+// ========== 字体尺寸 ==========
+$font-sm: 24rpx;
+$font-md: 28rpx;
+$font-lg: 32rpx;
+$font-xl: 48rpx;
+
+// ========== 工单 / 状态语义色 ==========
+$status-pending-bg: #ffedd5;
+$status-processing-bg: #e6f0ff;
+$status-processing-text: #135bec;
+$status-completed-bg: #dcfce7;
+$status-completed-text: #16a34a;
+$status-closed-bg: $surface-slate-50;
+$status-closed-text: $text-slate-400;
+
+$tag-brand-bg: #fff7ed;
+$tag-brand-border: #ffedd5;
+$tag-brand-text: #ea580c;
+$tag-warranty-in-bg: #f0fdf4;
+$tag-warranty-in-border: #dcfce7;
+$tag-warranty-in-text: #16a34a;
+$tag-neutral-bg: $surface-slate-50;
+$tag-neutral-border: $surface-slate-200;
+$tag-transfer-bg: #eff6ff;
+$tag-transfer-border: #bfdbfe;
+$tag-transfer-text: #2563eb;
+
+$blue-500: #3b82f6;
+$emerald-500: #10b981;
+$emerald-600: #059669;
+$emerald-50: #ecfdf5;
+$rose-500: #f43f5e;
+$rose-50: #fff1f2;
+$amber-500: #f59e0b;
+$red-50: #fef2f2;
+$red-400: #f87171;
+$red-500: #ef4444;
+$red-600: #dc2626;
+$orange-800: #c2410c;
+$violet-600: #7c3aed;
+$yellow-700: #ca8a04;
+
+// ========== 登录 / 营销渐变 ==========
+$login-bg: #080c14;
+$login-gradient: linear-gradient(135deg, $primary-light 0%, $primary 100%);
+$primary-header-end: #ff8235;
+$my-header-gradient: linear-gradient(180deg, $primary 0%, $primary-header-end 100%);
+
+// ========== 主色透明 ==========
+$primary-alpha-06: rgba($primary, 0.06);
+$primary-alpha-10: rgba($primary, 0.1);
+$primary-alpha-12: rgba($primary, 0.12);
+$primary-alpha-14: rgba(234, 88, 12, 0.14);
+$primary-alpha-25: rgba(234, 88, 12, 0.25);
+
+// ========== 安全区 ==========
+$safe-area-bottom: env(safe-area-inset-bottom);
+
+// ========== 层级（z-index）==========
+// 规则：弹窗最高，其次导航栏/TabBar，其他层级保持在其下
+$z-content-fixed: 100;
+$z-nav-tabbar: 900;
+$z-modal: 1000;
+
+// ========== 语音条等 ==========
+$surface-voice: #f9f9f9;
+$surface-voice-border: #d9dfe6;
+
+// aftersale 兼容别名（供复用组件/mixin 使用）
+$bg-card: $surface-white;
+$bg-input: $surface-voice;

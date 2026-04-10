@@ -1,0 +1,113 @@
+/* 申请内容 Tab：工单信息 / 商品 / 服务 卡片（与 detail 页原样一致） */
+@use "@/styles/variables.scss" as *;
+@use "@/styles/mixins.scss" as *;
+
+.od-apply-card {
+  @include sheet-white($space-lg);
+}
+
+.od-apply-section-header {
+  @include section-title-bar;
+}
+
+.od-apply-info-list {
+  @include flex-col;
+  gap: $space-md;
+  padding: 0 $space-md;
+
+  .info-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: $font-sm;
+
+    &.align-top {
+      align-items: flex-start;
+    }
+
+    &.align-center {
+      align-items: center;
+    }
+
+    .info-label {
+      color: $text-slate-500;
+
+      &.shrink {
+        flex-shrink: 0;
+        margin-right: $space-lg;
+      }
+    }
+
+    .info-value {
+      font-weight: 500;
+      color: $text-strong;
+
+      &.text-right {
+        text-align: right;
+        line-height: 1.4;
+      }
+    }
+
+    .tag-method {
+      padding: 4rpx $space-sm;
+      font-size: $font-sm;
+      font-weight: 500;
+      border-radius: $radius-sm;
+      line-height: 1.4;
+    }
+
+    .tag-method-purple {
+      background-color: rgba($violet-600, 0.12);
+      color: $violet-600;
+    }
+
+    .tag-method-yellow {
+      background-color: rgba($yellow-700, 0.14);
+      color: $yellow-700;
+    }
+
+    .tag-method-neutral {
+      @include surface-muted;
+      color: $text-slate-500;
+    }
+
+    .tag-value {
+      padding: 4rpx $space-sm;
+      font-size: $font-sm;
+      font-weight: 500;
+      border-radius: $radius-sm;
+      line-height: 1.4;
+    }
+
+    .tag-value-neutral {
+      @include surface-muted;
+      color: $text-slate-500;
+    }
+
+    .tag-order-type-orange {
+      background-color: $primary-alpha-14;
+      color: $tag-brand-text;
+    }
+
+    .tag-order-type-gray {
+      background-color: rgba($text-slate-500, 0.14);
+      color: $text-slate-500;
+    }
+
+    .tag-warranty-green {
+      background-color: rgba($status-completed-text, 0.14);
+      color: $status-completed-text;
+    }
+
+    .tag-warranty-red {
+      background-color: rgba($red-600, 0.14);
+      color: $red-600;
+    }
+
+    .shipping-img {
+      width: 128rpx;
+      height: 128rpx;
+      border-radius: 12rpx;
+      border: 2rpx solid $surface-slate-100;
+    }
+  }
+}

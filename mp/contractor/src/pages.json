@@ -1,0 +1,102 @@
+{
+	"easycom": {
+		"autoscan": true,
+		"custom": {
+			// uni-ui 规则如下配置
+			"^uni-(.*)": "@dcloudio/uni-ui/lib/uni-$1/uni-$1.vue"
+		}
+	},
+	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
+		{
+			"path": "pages/login/index",
+			"style": {
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/index/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "工作台"
+			}
+		},
+		{
+			"path": "pages/my/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "我的"
+			}
+		},
+		{
+			"path": "pages/order/list",
+			"style": {
+				"navigationBarTitleText": "工单列表",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/order/detail",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "工单详情",
+				"navigationBarBackgroundColor": "#f26604"
+			}
+		},
+		{
+			"path": "pages/order/branch-detail",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "网点工单详情"
+			}
+		},
+		{
+			"path": "pages/historicalRecord/index",
+			"style": {
+				"navigationBarTitleText": "故障点历史记录"
+			}
+		},
+		{
+			"path": "pages/jasicRepair/index",
+			"style": {
+				"navigationBarTitleText": "佳士品牌"
+			}
+		},
+		{
+			"path": "pages/evaluate/index",
+			"style": {
+				"navigationBarTitleText": "服务评价"
+			}
+		}
+	],
+	"tabBar": {
+		"color": "#999",
+		"selectedColor": "#000",
+		"fontWeight": "bold",
+		"list": [
+			{
+				"pagePath": "pages/index/index",
+				"text": "工作台",
+				"iconPath": "static/icon/home.png",
+				"selectedIconPath": "static/icon/home-active.png"
+			},
+			{
+				"pagePath": "pages/order/list",
+				"text": "工单库",
+				"iconPath": "static/icon/info.png",
+				"selectedIconPath": "static/icon/info-active.png"
+			},
+			{
+				"pagePath": "pages/my/index",
+				"text": "我的",
+				"iconPath": "static/icon/my.png",
+				"selectedIconPath": "static/icon/my-active.png"
+			}
+		]
+	},
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "uni-app",
+		"navigationBarBackgroundColor": "#fff",
+		"backgroundColor": "#fff"
+	}
+}
