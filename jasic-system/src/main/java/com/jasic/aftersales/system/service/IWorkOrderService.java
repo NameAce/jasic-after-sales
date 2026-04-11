@@ -71,6 +71,13 @@ public interface IWorkOrderService {
     WorkOrderCreateBarcodeInfoVO getUpstreamFirstCreateBarcodeInfo(String barcode);
 
     /**
+     * 查询二级无码报修一级可选目标公司。
+     *
+     * @return 公司选项
+     */
+    List<SysCompanySimpleVO> listUpstreamFirstCreateTargetOptions();
+
+    /**
      * 查询一级报修佳士条码信息
      *
      * @param barcode 机器条码

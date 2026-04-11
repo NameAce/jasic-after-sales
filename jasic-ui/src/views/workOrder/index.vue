@@ -98,7 +98,7 @@
         </el-radio-group>
       </div>
       <el-alert
-        title="当前仅支持佳士有码报修，必须先查条码，再允许提交建单。"
+        title="代客户填写支持有码/无码；上级报修客户信息由当前登录账号兜底，无码时会加载默认总部建单信息。"
         type="info"
         :closable="false"
         show-icon
@@ -106,12 +106,12 @@
       />
       <el-form ref="createForm" :model="createForm" :rules="createRules" label-width="96px">
         <el-row :gutter="16">
-          <el-col :span="12">
+          <el-col v-if="showCreateCustomerFields" :span="12">
             <el-form-item label="客户姓名" prop="customerName">
-              <el-input v-model="createForm.customerName" placeholder="请输入客户姓名" />
+              <el-input v-model="createForm.customerName" placeholder="请输入客户姓名，不填则回退客户手机号" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col v-if="showCreateCustomerFields" :span="12">
             <el-form-item label="客户手机号" prop="customerMobile">
               <el-input v-model="createForm.customerMobile" placeholder="请输入客户手机号" />
             </el-form-item>
@@ -120,7 +120,7 @@
             <el-form-item label="机器条码" prop="barcode">
               <el-input
                 v-model="createForm.barcode"
-                placeholder="请输入机器条码"
+                placeholder="有码请输入机器条码；无码可直接点右侧加载信息"
                 @keyup.enter.native="queryCreateBarcodeInfo"
               >
                 <el-button
@@ -129,7 +129,7 @@
                   :loading="createBarcodeLoading"
                   @click="queryCreateBarcodeInfo"
                 >
-                  查条码
+                  加载信息
                 </el-button>
               </el-input>
             </el-form-item>
@@ -202,7 +202,7 @@
                 v-model="createForm.faultItems"
                 multiple
                 collapse-tags
-                :placeholder="hasCreateBarcodeResult && createForm.faultOptions.length ? '请选择故障描述' : '请先完成条码查询并确认目标公司'"
+                :placeholder="createFaultPlaceholder"
                 :disabled="!hasCreateBarcodeResult || !createForm.faultOptions.length"
               >
                 <el-option
@@ -256,19 +256,54 @@
 
         <div v-if="isCreateMailMode" class="section-title">寄修信息</div>
         <el-row v-if="isCreateMailMode" :gutter="16">
+          <el-col :span="24">
+            <el-form-item label="公司地址簿">
+              <div class="inline-actions">
+                <el-select
+                  v-model="createForm.companyAddressId"
+                  placeholder="请选择公司地址"
+                  filterable
+                  :loading="companyAddressLoading"
+                  @change="handleCreateCompanyAddressChange"
+                >
+                  <el-option
+                    v-for="item in companyAddressList"
+                    :key="item.id"
+                    :label="formatCompanyAddressLabel(item)"
+                    :value="item.id"
+                  />
+                </el-select>
+                <el-button icon="el-icon-refresh" @click="loadCompanyAddressList({ preserveSelection: true })">刷新</el-button>
+                <el-button
+                  type="primary"
+                  plain
+                  @click="openCompanyAddressDialog"
+                >
+                  管理地址簿
+                </el-button>
+              </div>
+            </el-form-item>
+            <el-alert
+              v-if="!companyAddressLoading && !companyAddressList.length"
+              title="当前公司还没有可用地址，请先维护公司地址簿后再提交寄修工单。"
+              type="warning"
+              :closable="false"
+              show-icon
+            />
+          </el-col>
           <el-col :span="12">
             <el-form-item label="寄件人" prop="senderName">
-              <el-input v-model="createForm.senderName" placeholder="请输入寄件人" />
+              <el-input v-model="createForm.senderName" disabled placeholder="请选择公司地址簿" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="寄件手机号" prop="senderMobile">
-              <el-input v-model="createForm.senderMobile" placeholder="请输入寄件手机号" />
+              <el-input v-model="createForm.senderMobile" disabled placeholder="请选择公司地址簿" />
             </el-form-item>
           </el-col>
           <el-col :span="24">
             <el-form-item label="寄件地址" prop="senderAddress">
-              <el-input v-model="createForm.senderAddress" placeholder="请输入寄件地址" />
+              <el-input v-model="createForm.senderAddress" disabled placeholder="请选择公司地址簿" />
             </el-form-item>
           </el-col>
           <el-col :span="24">
@@ -292,6 +327,61 @@
       <div slot="footer">
         <el-button @click="createDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="createSubmitting" @click="submitCreate">确定</el-button>
+      </div>
+    </el-dialog>
+
+    <el-dialog title="公司地址簿" :visible.sync="companyAddressDialogVisible" width="760px" append-to-body>
+      <div class="table-toolbar">
+        <el-button type="primary" size="small" icon="el-icon-plus" @click="openCompanyAddressForm()">新增地址</el-button>
+      </div>
+      <el-table :data="companyAddressList" border stripe v-loading="companyAddressLoading">
+        <el-table-column label="默认" width="80" align="center">
+          <template slot-scope="{ row }">
+            <el-tag v-if="row.isDefault === 1" type="success" size="mini">默认</el-tag>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="联系人" prop="contactName" min-width="120" />
+        <el-table-column label="联系电话" prop="contactPhone" min-width="140" />
+        <el-table-column label="详细地址" prop="address" min-width="280" show-overflow-tooltip />
+        <el-table-column label="操作" width="220" fixed="right">
+          <template slot-scope="{ row }">
+            <el-button
+              v-if="row.isDefault !== 1"
+              type="text"
+              size="mini"
+              @click="handleSetDefaultCompanyAddress(row)"
+            >
+              设默认
+            </el-button>
+            <el-button type="text" size="mini" @click="openCompanyAddressForm(row)">编辑</el-button>
+            <el-button type="text" size="mini" @click="handleDeleteCompanyAddress(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div slot="footer">
+        <el-button @click="companyAddressDialogVisible = false">关闭</el-button>
+      </div>
+    </el-dialog>
+
+    <el-dialog :title="companyAddressFormTitle" :visible.sync="companyAddressFormVisible" width="520px" append-to-body>
+      <el-form :model="companyAddressForm" label-width="96px">
+        <el-form-item label="联系人">
+          <el-input v-model="companyAddressForm.contactName" placeholder="请输入联系人" />
+        </el-form-item>
+        <el-form-item label="联系电话">
+          <el-input v-model="companyAddressForm.contactPhone" placeholder="请输入联系电话" />
+        </el-form-item>
+        <el-form-item label="详细地址">
+          <el-input v-model="companyAddressForm.address" type="textarea" :rows="3" placeholder="请输入详细地址" />
+        </el-form-item>
+        <el-form-item label="默认地址">
+          <el-switch v-model="companyAddressForm.isDefault" :active-value="1" :inactive-value="0" />
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="companyAddressFormVisible = false">取消</el-button>
+        <el-button type="primary" :loading="companyAddressSubmitting" @click="submitCompanyAddress">保存</el-button>
       </div>
     </el-dialog>
 
@@ -526,7 +616,7 @@
       </div>
     </el-drawer>
 
-    <el-dialog :title="actionDialogTitle" :visible.sync="actionDialogVisible" width="640px" append-to-body>
+    <el-dialog :title="actionDialogTitle" :visible.sync="actionDialogVisible" width="640px" append-to-body @close="closeActionDialog">
       <el-form ref="actionForm" :model="actionForm" label-width="100px">
         <template v-if="actionDialogAction === 'ASSIGN'">
           <el-form-item label="维修员" required>
@@ -545,6 +635,29 @@
           <el-form-item label="转单备注">
             <el-input v-model="actionForm.remark" type="textarea" :rows="3" placeholder="请输入转单备注" />
           </el-form-item>
+        </template>
+
+        <template v-else-if="actionDialogAction === 'TECH_ACCEPT'">
+          <el-form-item label="故障判断" required>
+            <el-select v-model="actionForm.faultJudge" placeholder="请选择故障判断" style="width: 100%;" @change="handleTechAcceptFaultJudgeChange">
+              <el-option v-for="item in faultJudgeOptions" :key="item" :label="item" :value="item" />
+            </el-select>
+          </el-form-item>
+          <template v-if="actionForm.faultJudge === faultJudgeHasFault">
+            <el-form-item label="报价金额">
+              <el-input-number v-model="actionForm.quoteAmount" :min="0" :precision="2" :controls="false" style="width: 100%;" />
+            </el-form-item>
+            <el-form-item label="报价说明">
+              <el-input v-model="actionForm.quoteDesc" type="textarea" :rows="3" placeholder="请输入报价说明" />
+            </el-form-item>
+          </template>
+          <el-alert
+            v-else-if="actionForm.faultJudge === faultJudgeNoFault"
+            title="选择无故障后，下一步将进入关闭工单弹窗填写返回方式和关闭原因"
+            type="warning"
+            :closable="false"
+            show-icon
+          />
         </template>
 
         <template v-else-if="actionDialogAction === 'QUOTE'">
@@ -728,7 +841,7 @@
         </template>
       </el-form>
       <div slot="footer">
-        <el-button @click="actionDialogVisible = false">取消</el-button>
+        <el-button @click="closeActionDialog">取消</el-button>
         <el-button type="primary" :loading="actionSubmitting" @click="submitAction">确定</el-button>
       </div>
     </el-dialog>
@@ -758,6 +871,13 @@ import {
   transferWorkOrder,
   updateWorkOrderSendExpress
 } from '@/api/workOrder'
+import {
+  createCompanyAddress,
+  deleteCompanyAddress,
+  listCompanyAddress,
+  setDefaultCompanyAddress,
+  updateCompanyAddress
+} from '@/api/companyAddress'
 import FileUploadField from '@/components/Upload/FileUploadField.vue'
 
 const SERVICE_MODE_MAIL = 'MAIL'
@@ -862,12 +982,37 @@ function buildDefaultCreateForm() {
     faultImageFiles: [],
     faultVideoFiles: [],
     faultVoiceFiles: [],
+    companyAddressId: undefined,
     senderName: '',
     senderMobile: '',
     senderAddress: '',
     sendExpressNo: '',
     senderVoucherFiles: []
   }
+}
+
+function buildDefaultCompanyAddressForm() {
+  return {
+    id: undefined,
+    contactName: '',
+    contactPhone: '',
+    address: '',
+    isDefault: 0
+  }
+}
+
+function formatCompanyAddressLabel(address) {
+  if (!address) {
+    return ''
+  }
+  const tags = []
+  if (address.isDefault === 1) {
+    tags.push('默认')
+  }
+  tags.push(address.contactName || '-')
+  tags.push(address.contactPhone || '-')
+  tags.push(address.address || '-')
+  return tags.join(' / ')
 }
 
 function buildFileIdList(fileList) {
@@ -935,6 +1080,8 @@ export default {
   data() {
     return {
       serviceModeMail: SERVICE_MODE_MAIL,
+      faultJudgeHasFault: FAULT_JUDGE_HAS_FAULT,
+      faultJudgeNoFault: FAULT_JUDGE_NO_FAULT,
       otherRepairOption: OTHER_REPAIR_OPTION,
       loading: false,
       workOrderList: [],
@@ -964,11 +1111,25 @@ export default {
       createDialogVisible: false,
       createSubmitting: false,
       createBarcodeLoading: false,
+      companyAddressLoading: false,
+      companyAddressList: [],
+      companyAddressDialogVisible: false,
+      companyAddressSubmitting: false,
+      companyAddressFormVisible: false,
+      companyAddressFormTitle: '新增地址',
+      companyAddressForm: buildDefaultCompanyAddressForm(),
       createForm: buildDefaultCreateForm(),
       createRules: {
-        customerName: [{ required: true, message: '请输入客户姓名', trigger: 'blur' }],
-        customerMobile: [{ required: true, message: '请输入客户手机号', trigger: 'blur' }],
-        barcode: [{ required: true, message: '请输入机器条码', trigger: 'blur' }],
+        customerMobile: [{
+          validator: (rule, value, callback) => {
+            if (this.createForm.entryMode === CREATE_ENTRY_PROXY && !normalizeText(value)) {
+              callback(new Error('请输入客户手机号'))
+              return
+            }
+            callback()
+          },
+          trigger: 'blur'
+        }],
         serviceMode: [{ required: true, message: '请选择服务方式', trigger: 'change' }]
       },
       detailVisible: false,
@@ -979,6 +1140,7 @@ export default {
       actionDialogTitle: '',
       actionSubmitting: false,
       actionForm: buildDefaultActionForm(),
+      pendingTechAcceptPayload: null,
       assignUserOptions: [],
       transferTargetOptions: [],
       actionRepairConfigLoading: false,
@@ -995,6 +1157,9 @@ export default {
     currentTypeCode() {
       return this.currentUserInfo.currentTypeCode || ''
     },
+    isCreateUpstreamEntry() {
+      return this.createForm.entryMode !== CREATE_ENTRY_PROXY
+    },
     createEntryOptions() {
       const options = [{ value: CREATE_ENTRY_PROXY, label: '代客户填写' }]
       if (this.currentTypeCode === 'SITE_SECOND') {
@@ -1003,6 +1168,9 @@ export default {
         options.push({ value: CREATE_ENTRY_UPSTREAM_HQ, label: '报修佳士' })
       }
       return options
+    },
+    showCreateCustomerFields() {
+      return !this.isCreateUpstreamEntry
     },
     isCreateMailMode() {
       return this.createForm.serviceMode === SERVICE_MODE_MAIL
@@ -1021,6 +1189,15 @@ export default {
     },
     showCreateFaultRemark() {
       return (this.createForm.faultItems || []).includes(this.createForm.otherFaultLabel || DEFAULT_OTHER_FAULT_LABEL)
+    },
+    createFaultPlaceholder() {
+      if (!this.hasCreateBarcodeResult) {
+        return '请先完成条码查询并确认目标公司'
+      }
+      if (!(this.createForm.faultOptions || []).length) {
+        return '无码场景可不选故障描述'
+      }
+      return '请选择故障描述'
     },
     activeMainStatus: {
       get() {
@@ -1071,6 +1248,9 @@ export default {
     this.getList()
   },
   methods: {
+    formatCompanyAddressLabel(address) {
+      return formatCompanyAddressLabel(address)
+    },
     getList() {
       this.loading = true
       return Promise.all([
@@ -1148,6 +1328,7 @@ export default {
       this.createForm = buildDefaultCreateForm()
       this.createForm.entryMode = defaultEntryMode
       this.createDialogVisible = true
+      this.loadCompanyAddressList()
       this.$nextTick(() => {
         if (this.$refs.createForm) {
           this.$refs.createForm.clearValidate()
@@ -1161,10 +1342,12 @@ export default {
       nextForm.customerMobile = this.createForm.customerMobile
       nextForm.barcode = this.createForm.barcode
       nextForm.serviceMode = this.createForm.serviceMode
+      nextForm.companyAddressId = this.createForm.companyAddressId
       nextForm.senderName = this.createForm.senderName
       nextForm.senderMobile = this.createForm.senderMobile
       nextForm.senderAddress = this.createForm.senderAddress
       nextForm.sendExpressNo = this.createForm.sendExpressNo
+      nextForm.senderVoucherFiles = cloneFileItems(this.createForm.senderVoucherFiles)
       this.createForm = nextForm
       this.$nextTick(() => {
         if (this.$refs.createForm) {
@@ -1180,10 +1363,6 @@ export default {
     },
     queryCreateBarcodeInfo(options = {}) {
       const barcode = normalizeText(this.createForm.barcode)
-      if (!barcode) {
-        this.$message.error('请先输入机器条码')
-        return
-      }
       const request = this.resolveCreateBarcodeInfoRequest(barcode)
       if (!request) {
         this.$message.error('当前建单入口不支持查条码')
@@ -1197,7 +1376,7 @@ export default {
         }
         this.applyCreateBarcodeInfo(res.data || {}, barcode)
         if (!options.silentSuccess) {
-          this.$message.success('条码查询成功')
+          this.$message.success(barcode ? '条码查询成功' : '建单信息加载成功')
         }
       }).finally(() => {
         this.createBarcodeLoading = false
@@ -1271,6 +1450,119 @@ export default {
         faultRemark: ''
       })
     },
+    loadCompanyAddressList(options = {}) {
+      this.companyAddressLoading = true
+      return listCompanyAddress().then(res => {
+        if (!res) {
+          return
+        }
+        this.companyAddressList = res.data || []
+        this.syncCreateCompanyAddressSelection(options)
+      }).finally(() => {
+        this.companyAddressLoading = false
+      })
+    },
+    syncCreateCompanyAddressSelection(options = {}) {
+      const preserveSelection = !!options.preserveSelection
+      const currentAddressId = this.createForm.companyAddressId
+      let selected = null
+      if (preserveSelection && currentAddressId !== undefined && currentAddressId !== null) {
+        selected = this.companyAddressList.find(item => String(item.id) === String(currentAddressId)) || null
+      }
+      if (!selected) {
+        selected = this.companyAddressList.find(item => item.isDefault === 1) || this.companyAddressList[0] || null
+      }
+      this.applySelectedCompanyAddress(selected)
+    },
+    applySelectedCompanyAddress(address) {
+      this.createForm.companyAddressId = address ? address.id : undefined
+      this.createForm.senderName = address ? (address.contactName || '') : ''
+      this.createForm.senderMobile = address ? (address.contactPhone || '') : ''
+      this.createForm.senderAddress = address ? (address.address || '') : ''
+    },
+    handleCreateCompanyAddressChange(value) {
+      const selected = this.companyAddressList.find(item => String(item.id) === String(value)) || null
+      this.applySelectedCompanyAddress(selected)
+    },
+    openCompanyAddressDialog() {
+      this.companyAddressDialogVisible = true
+      this.loadCompanyAddressList({ preserveSelection: true })
+    },
+    openCompanyAddressForm(address) {
+      if (address) {
+        this.companyAddressFormTitle = '编辑地址'
+        this.companyAddressForm = {
+          id: address.id,
+          contactName: address.contactName || '',
+          contactPhone: address.contactPhone || '',
+          address: address.address || '',
+          isDefault: address.isDefault === 1 ? 1 : 0
+        }
+      } else {
+        this.companyAddressFormTitle = '新增地址'
+        this.companyAddressForm = buildDefaultCompanyAddressForm()
+      }
+      this.companyAddressFormVisible = true
+    },
+    submitCompanyAddress() {
+      const payload = {
+        id: this.companyAddressForm.id,
+        contactName: normalizeText(this.companyAddressForm.contactName),
+        contactPhone: normalizeText(this.companyAddressForm.contactPhone),
+        address: normalizeText(this.companyAddressForm.address),
+        isDefault: this.companyAddressForm.isDefault === 1 ? 1 : 0
+      }
+      if (!payload.contactName) {
+        this.$message.error('请输入联系人')
+        return
+      }
+      if (!payload.contactPhone) {
+        this.$message.error('请输入联系电话')
+        return
+      }
+      if (!payload.address) {
+        this.$message.error('请输入详细地址')
+        return
+      }
+      const request = payload.id ? updateCompanyAddress(payload) : createCompanyAddress(payload)
+      this.companyAddressSubmitting = true
+      request.then(res => {
+        if (!res) {
+          return
+        }
+        this.$message.success(payload.id ? '地址修改成功' : '地址新增成功')
+        this.companyAddressFormVisible = false
+        return this.loadCompanyAddressList({ preserveSelection: true })
+      }).finally(() => {
+        this.companyAddressSubmitting = false
+      })
+    },
+    handleDeleteCompanyAddress(address) {
+      if (!address || !address.id) {
+        return
+      }
+      this.$confirm('确认删除该地址吗？', '提示', { type: 'warning' }).then(() => {
+        return deleteCompanyAddress(address.id)
+      }).then(res => {
+        if (!res) {
+          return
+        }
+        this.$message.success('地址删除成功')
+        return this.loadCompanyAddressList({ preserveSelection: true })
+      }).catch(() => {})
+    },
+    handleSetDefaultCompanyAddress(address) {
+      if (!address || !address.id || address.isDefault === 1) {
+        return
+      }
+      setDefaultCompanyAddress(address.id).then(res => {
+        if (!res) {
+          return
+        }
+        this.$message.success('默认地址设置成功')
+        return this.loadCompanyAddressList({ preserveSelection: true })
+      })
+    },
     submitCreate() {
       this.$refs.createForm.validate(valid => {
         if (!valid) {
@@ -1306,14 +1598,14 @@ export default {
     validateCreateBeforeSubmit() {
       const barcode = normalizeText(this.createForm.barcode)
       if (!this.createForm.barcodeQueried || this.createForm.queriedBarcode !== barcode) {
-        this.$message.error('请先查条码，再提交建单')
+        this.$message.error('请先查询建单信息，再提交建单')
         return false
       }
       if (this.showCreateTargetCompany && !this.createForm.targetCompanyId) {
         this.$message.error(`请选择${this.createTargetCompanyLabel}`)
         return false
       }
-      if (!(this.createForm.faultItems || []).length) {
+      if ((this.createForm.faultOptions || []).length && !(this.createForm.faultItems || []).length) {
         this.$message.error('请选择故障描述')
         return false
       }
@@ -1365,16 +1657,20 @@ export default {
       return null
     },
     validateSendInfo(form) {
+      if (!form.companyAddressId) {
+        this.$message.error('请选择公司地址簿')
+        return false
+      }
       if (!form.senderName) {
-        this.$message.error('请输入寄件人')
+        this.$message.error('当前地址未配置寄件人')
         return false
       }
       if (!form.senderMobile) {
-        this.$message.error('请输入寄件手机号')
+        this.$message.error('当前地址未配置寄件手机号')
         return false
       }
       if (!form.senderAddress) {
-        this.$message.error('请输入寄件地址')
+        this.$message.error('当前地址未配置寄件地址')
         return false
       }
       return true
@@ -1404,10 +1700,6 @@ export default {
     },
     handleAction(action) {
       if (!this.detail) {
-        return
-      }
-      if (action === 'TECH_ACCEPT') {
-        this.confirmTechAccept()
         return
       }
       const loadOptions = []
@@ -1481,25 +1773,31 @@ export default {
         this.actionRepairConfigLoading = false
       }
       this.actionForm = form
+      this.pendingTechAcceptPayload = null
       this.actionDialogAction = action
       this.actionDialogTitle = ACTION_META[action] ? ACTION_META[action].title : '工单操作'
       preparePromise.finally(() => {
         this.actionDialogVisible = true
       })
     },
-    confirmTechAccept() {
-      this.$confirm('确认维修员接单吗？', '提示', { type: 'warning' }).then(() => {
-        this.actionSubmitting = true
-        return techAcceptWorkOrder({ workOrderId: this.detail.id })
-      }).then(res => {
-        if (!res) {
-          return
-        }
-        this.$message.success('接单成功')
-        this.refreshAfterAction()
-      }).catch(() => {}).finally(() => {
-        this.actionSubmitting = false
-      })
+    closeActionDialog() {
+      this.actionDialogVisible = false
+      this.pendingTechAcceptPayload = null
+    },
+    handleTechAcceptFaultJudgeChange(value) {
+      if (value === FAULT_JUDGE_NO_FAULT) {
+        this.actionForm.quoteAmount = undefined
+        this.actionForm.quoteDesc = ''
+      }
+    },
+    openNoFaultTechAcceptCloseDialog(payload) {
+      const form = buildDefaultActionForm()
+      form.workOrderId = payload.workOrderId
+      form.returnMethod = this.detail && this.detail.serviceMode === SERVICE_MODE_MAIL ? RETURN_METHOD_MAIL : RETURN_METHOD_PICKUP
+      this.pendingTechAcceptPayload = payload
+      this.actionForm = form
+      this.actionDialogAction = 'CLOSE'
+      this.actionDialogTitle = ACTION_META.CLOSE.title
     },
     submitAction() {
       if (!this.validateAction()) {
@@ -1507,6 +1805,10 @@ export default {
       }
       const payload = this.buildActionPayload()
       if (!payload) {
+        return
+      }
+      if (this.actionDialogAction === 'TECH_ACCEPT' && payload.faultJudge === FAULT_JUDGE_NO_FAULT) {
+        this.openNoFaultTechAcceptCloseDialog(payload)
         return
       }
       const request = this.resolveActionRequest(payload)
@@ -1531,6 +1833,10 @@ export default {
       }
       if (this.actionDialogAction === 'TRANSFER' && !this.actionForm.targetCompanyId) {
         this.$message.error('请选择目标公司')
+        return false
+      }
+      if (this.actionDialogAction === 'TECH_ACCEPT' && !this.actionForm.faultJudge) {
+        this.$message.error('请输入故障判定')
         return false
       }
       if (this.actionDialogAction === 'QUOTE' && !this.actionForm.faultJudge) {
@@ -1583,6 +1889,13 @@ export default {
           return { workOrderId, assignedUserId: this.actionForm.assignedUserId }
         case 'TRANSFER':
           return { workOrderId, targetCompanyId: this.actionForm.targetCompanyId, remark: this.actionForm.remark }
+        case 'TECH_ACCEPT':
+          return {
+            workOrderId,
+            faultJudge: this.actionForm.faultJudge,
+            quoteAmount: this.actionForm.faultJudge === FAULT_JUDGE_HAS_FAULT ? this.actionForm.quoteAmount : undefined,
+            quoteDesc: this.actionForm.faultJudge === FAULT_JUDGE_HAS_FAULT ? this.actionForm.quoteDesc : ''
+          }
         case 'QUOTE':
           return {
             workOrderId,
@@ -1633,6 +1946,8 @@ export default {
       switch (this.actionDialogAction) {
         case 'ASSIGN':
           return assignWorkOrder(payload)
+        case 'TECH_ACCEPT':
+          return techAcceptWorkOrder(payload)
         case 'TRANSFER':
           return transferWorkOrder(payload)
         case 'QUOTE':
@@ -1645,6 +1960,15 @@ export default {
         case 'UPLOAD_SEND_EXPRESS':
           return updateWorkOrderSendExpress(payload)
         case 'CLOSE':
+          if (this.pendingTechAcceptPayload) {
+            return techAcceptWorkOrder({
+              ...this.pendingTechAcceptPayload,
+              returnMethod: payload.returnMethod,
+              returnExpressNo: payload.returnExpressNo,
+              returnVoucherFileIds: payload.returnVoucherFileIds,
+              closeReason: payload.closeReason
+            })
+          }
           return closeWorkOrder(payload)
         default:
           return null
@@ -1736,6 +2060,7 @@ export default {
       const workOrderId = this.resolveActionWorkOrderId()
       const shouldReloadDetail = this.detailVisible && this.detail && String(this.detail.id) === String(workOrderId)
       this.actionDialogVisible = false
+      this.pendingTechAcceptPayload = null
       this.actionRepairFaultOptions = []
       this.actionRepairConfigLoading = false
       this.getList()
@@ -1915,6 +2240,16 @@ export default {
 
 .create-entry-tabs {
   margin-bottom: 16px;
+}
+
+.inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inline-actions .el-select {
+  flex: 1;
 }
 
 .pagination {

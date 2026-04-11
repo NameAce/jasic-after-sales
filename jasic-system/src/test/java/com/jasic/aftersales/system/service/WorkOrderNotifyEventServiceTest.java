@@ -65,6 +65,21 @@ public class WorkOrderNotifyEventServiceTest {
         Assert.assertEquals("微信配置未完成", event.getFailReason());
     }
 
+    @Test
+    public void shouldSkipCustomerNotifyEventWhenCustomerIdMissing() throws Exception {
+        WorkOrderNotifyEventService service = new WorkOrderNotifyEventService();
+        EventStore store = new EventStore();
+        WorkOrder workOrder = buildWorkOrder();
+        workOrder.setCustomerId(null);
+
+        setField(service, "workOrderNotifyEventMapper", createEventMapperProxy(store));
+
+        service.recordRepairFinished(workOrder, "更换配件");
+        service.recordEvaluationInvite(workOrder);
+
+        Assert.assertTrue(store.events.isEmpty());
+    }
+
     private WorkOrder buildWorkOrder() {
         WorkOrder workOrder = new WorkOrder();
         workOrder.setId(100L);

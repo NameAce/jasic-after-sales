@@ -7,6 +7,7 @@ import cn.dev33.satoken.context.model.SaRequest;
 import cn.dev33.satoken.context.model.SaResponse;
 import cn.dev33.satoken.context.model.SaStorage;
 import cn.dev33.satoken.stp.StpUtil;
+import com.jasic.aftersales.common.enums.WorkOrderRelationTypeEnum;
 import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
 import com.jasic.aftersales.system.domain.entity.HqFirstContract;
@@ -210,7 +211,7 @@ public class WorkOrderPermissionServiceTest {
 
         WorkOrder workOrder = buildWorkOrder(14L, 900L, 1001L, 1001L, null);
 
-        Assert.assertEquals("HQ_OBSERVER", service.resolveRelationType(workOrder));
+        Assert.assertEquals(WorkOrderRelationTypeEnum.HQ_OBSERVER, service.resolveRelationType(workOrder));
     }
 
     @Test
@@ -226,7 +227,7 @@ public class WorkOrderPermissionServiceTest {
 
         WorkOrder workOrder = buildWorkOrder(15L, 900L, 1002L, 1001L, null);
 
-        Assert.assertEquals("HISTORY_PARTICIPANT_READONLY", service.resolveRelationType(workOrder));
+        Assert.assertEquals(WorkOrderRelationTypeEnum.HISTORY_PARTICIPANT_READONLY, service.resolveRelationType(workOrder));
     }
 
     private void setCurrentHqRegionContext() {

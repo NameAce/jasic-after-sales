@@ -7,8 +7,8 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.jasic.aftersales.common.constant.RoleConstants;
 import com.jasic.aftersales.common.constant.WorkOrderCreateEntryConstants;
+import com.jasic.aftersales.common.constant.WorkOrderReportSubjectConstants;
 import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
 import com.jasic.aftersales.common.constant.WorkOrderStatusFlow;
 import com.jasic.aftersales.common.core.domain.PageResult;
@@ -16,6 +16,8 @@ import com.jasic.aftersales.common.enums.BrandTypeEnum;
 import com.jasic.aftersales.common.enums.ServiceModeEnum;
 import com.jasic.aftersales.common.enums.SysFileBizTypeEnum;
 import com.jasic.aftersales.common.enums.SysFileUploadUserTypeEnum;
+import com.jasic.aftersales.common.enums.WorkOrderActionEnum;
+import com.jasic.aftersales.common.enums.WorkOrderRelationTypeEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.dto.WorkOrderAssignDTO;
@@ -68,6 +70,7 @@ import com.jasic.aftersales.system.mapper.HqFirstContractMapper;
 import com.jasic.aftersales.system.mapper.MachineBarcodeMapper;
 import com.jasic.aftersales.system.mapper.SysCompanyMapper;
 import com.jasic.aftersales.system.mapper.SysCompanyTypeMapper;
+import com.jasic.aftersales.system.mapper.SysMenuMapper;
 import com.jasic.aftersales.system.mapper.SysRoleMapper;
 import com.jasic.aftersales.system.mapper.SysUserMapper;
 import com.jasic.aftersales.system.mapper.SysUserCompanyMapper;
@@ -82,6 +85,7 @@ import com.jasic.aftersales.system.mapper.WorkOrderQuoteMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderRepairMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderReviewMapper;
 import com.jasic.aftersales.system.service.IFaultRepairConfigService;
+import com.jasic.aftersales.system.service.ISysConfigService;
 import com.jasic.aftersales.system.service.IWorkOrderService;
 import com.jasic.aftersales.system.service.WorkOrderNotifyEventService;
 import com.jasic.aftersales.system.service.WorkOrderParticipantService;
@@ -123,6 +127,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     private static final String FAULT_JUDGE_HAS_FAULT = "有故障";
     private static final String FAULT_JUDGE_NO_FAULT = "无故障";
     private static final String OTHER_REPAIR_OPTION = "其它维修说明";
+    private static final String WORKORDER_ACCEPT_PERMISSION = "workorder:accept";
     private static final List<SysFileBizTypeEnum> WORK_ORDER_FILE_BIZ_TYPES = Arrays.asList(
             SysFileBizTypeEnum.WORK_ORDER_FAULT_IMAGE,
             SysFileBizTypeEnum.WORK_ORDER_FAULT_VIDEO,
@@ -173,10 +178,16 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     private IFaultRepairConfigService faultRepairConfigService;
 
     @Resource
+    private ISysConfigService sysConfigService;
+
+    @Resource
     private SysCompanyMapper sysCompanyMapper;
 
     @Resource
     private SysCompanyTypeMapper sysCompanyTypeMapper;
+
+    @Resource
+    private SysMenuMapper sysMenuMapper;
 
     @Resource
     private SysUserCompanyMapper sysUserCompanyMapper;
@@ -313,9 +324,18 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     @Override
     public WorkOrderCreateBarcodeInfoVO getProxyCreateBarcodeInfo(String barcode) {
         Long currentCompanyId = requireCurrentCompanyId();
-        MachineBarcode barcodeArchive = requireActiveMachineBarcode(barcode);
-        Long hqCompanyId = resolveSingleHqCompanyId(currentCompanyId, barcodeArchive);
+        MachineBarcode barcodeArchive = findCreateBarcodeArchive(barcode);
+        Long hqCompanyId = barcodeArchive == null
+                ? resolveDefaultHqCompanyId()
+                : resolveSingleHqCompanyId(currentCompanyId, barcodeArchive);
         return buildCreateBarcodeInfo(barcodeArchive, hqCompanyId, Collections.emptyList(), null);
+    }
+
+    @Override
+    public List<SysCompanySimpleVO> listUpstreamFirstCreateTargetOptions() {
+        Long currentCompanyId = requireCurrentCompanyId();
+        validateCurrentCompanyType("SITE_SECOND", "当前公司不支持报修一级");
+        return listUpstreamFirstOptions(currentCompanyId, null);
     }
 
     /**
@@ -328,9 +348,11 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     public WorkOrderCreateBarcodeInfoVO getUpstreamFirstCreateBarcodeInfo(String barcode) {
         Long currentCompanyId = requireCurrentCompanyId();
         validateCurrentCompanyType("SITE_SECOND", "当前公司不支持报修一级");
-        MachineBarcode barcodeArchive = requireActiveMachineBarcode(barcode);
-        Long hqCompanyId = resolveSingleHqCompanyId(currentCompanyId, barcodeArchive);
-        List<SysCompanySimpleVO> targetOptions = listUpstreamFirstOptions(currentCompanyId, hqCompanyId);
+        MachineBarcode barcodeArchive = findCreateBarcodeArchive(barcode);
+        Long hqCompanyId = barcodeArchive == null
+                ? resolveDefaultHqCompanyId()
+                : resolveSingleHqCompanyId(currentCompanyId, barcodeArchive);
+        List<SysCompanySimpleVO> targetOptions = listUpstreamFirstOptions(currentCompanyId, barcodeArchive == null ? null : hqCompanyId);
         Long defaultTargetCompanyId = resolveDefaultTargetCompanyId(targetOptions);
         return buildCreateBarcodeInfo(barcodeArchive, hqCompanyId, targetOptions, defaultTargetCompanyId);
     }
@@ -346,10 +368,14 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     public WorkOrderCreateBarcodeInfoVO getUpstreamHqCreateBarcodeInfo(String barcode, Long targetCompanyId) {
         Long currentCompanyId = requireCurrentCompanyId();
         validateCurrentCompanyType("SITE_FIRST", "当前公司不支持报修佳士");
-        MachineBarcode barcodeArchive = requireActiveMachineBarcode(barcode);
-        List<SysCompanySimpleVO> targetOptions = listUpstreamHqOptions(currentCompanyId, barcodeArchive);
-        Long defaultTargetCompanyId = resolveDefaultTargetCompanyId(targetOptions);
-        Long resolvedHqCompanyId = targetCompanyId != null
+        MachineBarcode barcodeArchive = findCreateBarcodeArchive(barcode);
+        List<SysCompanySimpleVO> targetOptions = barcodeArchive == null
+                ? Collections.emptyList()
+                : listUpstreamHqOptions(currentCompanyId, barcodeArchive);
+        Long defaultTargetCompanyId = barcodeArchive == null ? null : resolveDefaultTargetCompanyId(targetOptions);
+        Long resolvedHqCompanyId = barcodeArchive == null
+                ? resolveDefaultHqCompanyId()
+                : targetCompanyId != null
                 ? resolveSelectedTargetCompanyId(targetCompanyId, targetOptions, "请选择报修佳士")
                 : resolveResolvedHqCompanyId(barcodeArchive, targetOptions);
         if (resolvedHqCompanyId == null) {
@@ -368,14 +394,36 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     @Transactional(rollbackFor = Exception.class)
     public Long createProxy(WorkOrderProxyCreateDTO dto) {
         Long currentCompanyId = requireCurrentCompanyId();
-        MachineBarcode barcodeArchive = requireActiveMachineBarcode(dto.getBarcode());
-        Long hqCompanyId = resolveSingleHqCompanyId(currentCompanyId, barcodeArchive);
+        MachineBarcode barcodeArchive = findCreateBarcodeArchive(dto.getBarcode());
+        Long hqCompanyId = barcodeArchive == null
+                ? resolveDefaultHqCompanyId()
+                : resolveSingleHqCompanyId(currentCompanyId, barcodeArchive);
         String currentSubjectType = normalizeNullableText(SecurityContext.getCurrentSubjectType());
         if (currentSubjectType == null) {
             currentSubjectType = resolveCompanySubjectType(currentCompanyId);
         }
-        return saveCreateWorkOrder(dto, barcodeArchive, hqCompanyId, currentCompanyId,
-                currentSubjectType, WorkOrderCreateEntryConstants.PROXY_SELF, true);
+        CustomerCreateIdentity customerIdentity = resolveProxyCreateCustomerIdentity(dto);
+        return saveCreateWorkOrder(
+                customerIdentity.getCustomerName(),
+                customerIdentity.getCustomerMobile(),
+                dto.getBarcode(),
+                dto.getServiceMode(),
+                dto.getFaultItems(),
+                dto.getFaultRemark(),
+                dto.getFaultImageFileIds(),
+                dto.getFaultVideoFileIds(),
+                dto.getFaultVoiceFileIds(),
+                dto.getSenderName(),
+                dto.getSenderMobile(),
+                dto.getSenderAddress(),
+                dto.getSendExpressNo(),
+                dto.getSenderVoucherFileIds(),
+                barcodeArchive,
+                hqCompanyId,
+                currentCompanyId,
+                currentSubjectType,
+                WorkOrderCreateEntryConstants.PROXY_SELF
+        );
     }
 
     /**
@@ -389,12 +437,34 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     public Long createUpstreamFirst(WorkOrderUpstreamCreateDTO dto) {
         Long currentCompanyId = requireCurrentCompanyId();
         validateCurrentCompanyType("SITE_SECOND", "当前公司不支持报修一级");
-        MachineBarcode barcodeArchive = requireActiveMachineBarcode(dto.getBarcode());
-        Long hqCompanyId = resolveSingleHqCompanyId(currentCompanyId, barcodeArchive);
-        List<SysCompanySimpleVO> targetOptions = listUpstreamFirstOptions(currentCompanyId, hqCompanyId);
+        MachineBarcode barcodeArchive = findCreateBarcodeArchive(dto.getBarcode());
+        Long hqCompanyId = barcodeArchive == null
+                ? resolveDefaultHqCompanyId()
+                : resolveSingleHqCompanyId(currentCompanyId, barcodeArchive);
+        List<SysCompanySimpleVO> targetOptions = listUpstreamFirstOptions(currentCompanyId, barcodeArchive == null ? null : hqCompanyId);
         Long targetCompanyId = resolveSelectedTargetCompanyId(dto.getTargetCompanyId(), targetOptions, "请选择报修一级");
-        return saveCreateWorkOrder(dto, barcodeArchive, hqCompanyId, targetCompanyId,
-                "SERVICE", WorkOrderCreateEntryConstants.UPSTREAM_FIRST, false);
+        CustomerCreateIdentity customerIdentity = resolveUpstreamCreateCustomerIdentity();
+        return saveCreateWorkOrder(
+                customerIdentity.getCustomerName(),
+                customerIdentity.getCustomerMobile(),
+                dto.getBarcode(),
+                dto.getServiceMode(),
+                dto.getFaultItems(),
+                dto.getFaultRemark(),
+                dto.getFaultImageFileIds(),
+                dto.getFaultVideoFileIds(),
+                dto.getFaultVoiceFileIds(),
+                dto.getSenderName(),
+                dto.getSenderMobile(),
+                dto.getSenderAddress(),
+                dto.getSendExpressNo(),
+                dto.getSenderVoucherFileIds(),
+                barcodeArchive,
+                hqCompanyId,
+                targetCompanyId,
+                "SERVICE",
+                WorkOrderCreateEntryConstants.UPSTREAM_FIRST
+        );
     }
 
     /**
@@ -408,15 +478,39 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     public Long createUpstreamHq(WorkOrderUpstreamCreateDTO dto) {
         Long currentCompanyId = requireCurrentCompanyId();
         validateCurrentCompanyType("SITE_FIRST", "当前公司不支持报修佳士");
-        MachineBarcode barcodeArchive = requireActiveMachineBarcode(dto.getBarcode());
-        List<SysCompanySimpleVO> targetOptions = listUpstreamHqOptions(currentCompanyId, barcodeArchive);
-        Long targetCompanyId = resolveSelectedTargetCompanyId(dto.getTargetCompanyId(), targetOptions, "请选择报修佳士");
-        return saveCreateWorkOrder(dto, barcodeArchive, targetCompanyId, targetCompanyId,
-                "HQ", WorkOrderCreateEntryConstants.UPSTREAM_HQ, false);
+        MachineBarcode barcodeArchive = findCreateBarcodeArchive(dto.getBarcode());
+        List<SysCompanySimpleVO> targetOptions = barcodeArchive == null
+                ? Collections.emptyList()
+                : listUpstreamHqOptions(currentCompanyId, barcodeArchive);
+        Long targetCompanyId = barcodeArchive == null
+                ? resolveDefaultHqCompanyId()
+                : resolveSelectedTargetCompanyId(dto.getTargetCompanyId(), targetOptions, "请选择报修佳士");
+        CustomerCreateIdentity customerIdentity = resolveUpstreamCreateCustomerIdentity();
+        return saveCreateWorkOrder(
+                customerIdentity.getCustomerName(),
+                customerIdentity.getCustomerMobile(),
+                dto.getBarcode(),
+                dto.getServiceMode(),
+                dto.getFaultItems(),
+                dto.getFaultRemark(),
+                dto.getFaultImageFileIds(),
+                dto.getFaultVideoFileIds(),
+                dto.getFaultVoiceFileIds(),
+                dto.getSenderName(),
+                dto.getSenderMobile(),
+                dto.getSenderAddress(),
+                dto.getSendExpressNo(),
+                dto.getSenderVoucherFileIds(),
+                barcodeArchive,
+                targetCompanyId,
+                targetCompanyId,
+                "HQ",
+                WorkOrderCreateEntryConstants.UPSTREAM_HQ
+        );
     }
 
     /**
-     * 派单给当前受理公司的系统维修员。
+     * 派单给当前受理公司下具备接单权限的系统用户。
      *
      * @param dto 派单参数
      */
@@ -427,12 +521,12 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         if (!workOrderPermissionService.canAssign(workOrder)) {
             throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u6d3e\u5355");
         }
-        validateAssignedRepairer(dto.getAssignedUserId(), workOrder.getCurrentAcceptCompanyId());
+        validateAssignedUser(dto.getAssignedUserId(), workOrder.getCurrentAcceptCompanyId());
         String beforeStatus = workOrder.getMainStatus();
         workOrder.setAssignedUserId(dto.getAssignedUserId());
         workOrder.setMainStatus(WorkOrderStatusFlow.afterAssign());
         workOrderMapper.updateById(workOrder);
-        saveFlow(workOrder.getId(), "ASSIGN", beforeStatus, workOrder.getMainStatus(),
+        saveFlow(workOrder.getId(), WorkOrderActionEnum.ASSIGN.getCode(), beforeStatus, workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                 workOrder.getCurrentAcceptCompanyId(), null);
     }
@@ -449,12 +543,48 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         if (!workOrderPermissionService.canTechAccept(workOrder)) {
             throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u63a5\u5355");
         }
+        String faultJudge = normalizeFaultJudge(dto.getFaultJudge(), "\u6545\u969c\u5224\u5b9a\u4e0d\u80fd\u4e3a\u7a7a");
         String beforeStatus = workOrder.getMainStatus();
-        workOrder.setMainStatus(WorkOrderStatusFlow.afterTechAccept());
+        String acceptedStatus = WorkOrderStatusFlow.afterTechAccept();
+        WorkOrderQuote quote = replaceCurrentQuote(workOrder, faultJudge, dto.getQuoteAmount(), dto.getQuoteDesc());
+        workOrder.setMainStatus(acceptedStatus);
+        if (FAULT_JUDGE_NO_FAULT.equals(faultJudge)) {
+            String returnMethod = normalizeReturnMethod(dto.getReturnMethod());
+            String closeReason = normalizeRequiredText(dto.getCloseReason(), "\u5173\u95ed\u539f\u56e0\u4e0d\u80fd\u4e3a\u7a7a");
+            validateCloseReturnInfo(returnMethod, dto.getReturnExpressNo());
+            LocalDateTime now = LocalDateTime.now();
+            workOrder.setReturnMethod(returnMethod);
+            workOrder.setReturnExpressNo(resolveReturnExpressNo(returnMethod, dto.getReturnExpressNo()));
+            workOrder.setCloseReason(closeReason);
+            workOrder.setMainStatus(WorkOrderStatusFlow.afterClose());
+            workOrder.setEvaluateStatus(WorkOrderStatusFlow.afterCloseEvaluateStatus(false));
+            workOrder.setCompletedTime(now);
+            workOrder.setClosedTime(now);
+        }
         workOrderMapper.updateById(workOrder);
-        saveFlow(workOrder.getId(), "TECH_ACCEPT", beforeStatus, workOrder.getMainStatus(),
+        saveFlow(workOrder.getId(), WorkOrderActionEnum.TECH_ACCEPT.getCode(), beforeStatus, acceptedStatus,
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                 workOrder.getCurrentAcceptCompanyId(), null);
+        saveFlow(workOrder.getId(), WorkOrderActionEnum.QUOTE.getCode(), acceptedStatus, acceptedStatus,
+                workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
+                workOrder.getCurrentAcceptCompanyId(), quote.getQuoteDesc());
+        if (FAULT_JUDGE_NO_FAULT.equals(faultJudge)) {
+            sysFileService.replaceBizFiles(
+                    SysFileBizTypeEnum.WORK_ORDER_RETURN_VOUCHER,
+                    workOrder.getId(),
+                    dto.getReturnVoucherFileIds(),
+                    workOrder.getCurrentAcceptCompanyId(),
+                    SecurityContext.getCurrentUserId(),
+                    SysFileUploadUserTypeEnum.SYSTEM,
+                    null
+            );
+            saveFlow(workOrder.getId(), WorkOrderActionEnum.RETURN_METHOD.getCode(), acceptedStatus, acceptedStatus,
+                    workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
+                    workOrder.getCurrentAcceptCompanyId(), workOrder.getReturnMethod());
+            saveFlow(workOrder.getId(), WorkOrderActionEnum.CLOSE.getCode(), acceptedStatus, workOrder.getMainStatus(),
+                    workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
+                    workOrder.getCurrentAcceptCompanyId(), workOrder.getCloseReason());
+        }
     }
 
     /**
@@ -483,7 +613,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         workOrder.setTransferCount(workOrder.getTransferCount() == null ? 1 : workOrder.getTransferCount() + 1);
         workOrderMapper.updateById(workOrder);
 
-        saveFlow(workOrder.getId(), "TRANSFER", beforeStatus, workOrder.getMainStatus(),
+        saveFlow(workOrder.getId(), WorkOrderActionEnum.TRANSFER.getCode(), beforeStatus, workOrder.getMainStatus(),
                 fromCompanyId, dto.getTargetCompanyId(), fromCompanyId, dto.getRemark());
         workOrderParticipantService.transferParticipant(workOrder.getId(), fromCompanyId, fromSubjectType,
                 dto.getTargetCompanyId(), targetSubjectType);
@@ -504,7 +634,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         String faultJudge = normalizeFaultJudge(dto.getFaultJudge(), "\u6545\u969c\u5224\u5b9a\u4e0d\u80fd\u4e3a\u7a7a");
         WorkOrderQuote quote = replaceCurrentQuote(workOrder, faultJudge, dto.getQuoteAmount(), dto.getQuoteDesc());
 
-        saveFlow(workOrder.getId(), "QUOTE", workOrder.getMainStatus(), workOrder.getMainStatus(),
+        saveFlow(workOrder.getId(), WorkOrderActionEnum.QUOTE.getCode(), workOrder.getMainStatus(), workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                 workOrder.getCurrentAcceptCompanyId(), quote.getQuoteDesc());
     }
@@ -542,12 +672,12 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             workOrder.setMainStatus(WorkOrderStatusFlow.afterRepairFinish());
             workOrder.setCompletedTime(LocalDateTime.now());
             workOrderMapper.updateById(workOrder);
-            saveFlow(workOrder.getId(), "REPAIR_FINISH", beforeStatus, workOrder.getMainStatus(),
+            saveFlow(workOrder.getId(), WorkOrderActionEnum.REPAIR_FINISH.getCode(), beforeStatus, workOrder.getMainStatus(),
                     workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                     workOrder.getCurrentAcceptCompanyId(), repair.getRepairSummary());
             workOrderNotifyEventService.recordRepairFinished(workOrder, repair.getRepairSummary());
         } else {
-            saveFlow(workOrder.getId(), "REPAIR_SAVE", workOrder.getMainStatus(), workOrder.getMainStatus(),
+            saveFlow(workOrder.getId(), WorkOrderActionEnum.REPAIR_SAVE.getCode(), workOrder.getMainStatus(), workOrder.getMainStatus(),
                     workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                     workOrder.getCurrentAcceptCompanyId(), repair.getRepairSummary());
         }
@@ -582,7 +712,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             workOrder.setCompletedTime(null);
             workOrderMapper.updateById(workOrder);
         }
-        saveFlow(workOrder.getId(), "REVIEW", beforeStatus, workOrder.getMainStatus(),
+        saveFlow(workOrder.getId(), WorkOrderActionEnum.REVIEW.getCode(), beforeStatus, workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                 workOrder.getCurrentAcceptCompanyId(), review.getReviewDesc());
     }
@@ -610,7 +740,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                 SysFileUploadUserTypeEnum.SYSTEM,
                 null
         );
-        saveFlow(workOrder.getId(), "UPLOAD_SEND_EXPRESS", workOrder.getMainStatus(), workOrder.getMainStatus(),
+        saveFlow(workOrder.getId(), WorkOrderActionEnum.UPLOAD_SEND_EXPRESS.getCode(), workOrder.getMainStatus(), workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getSendExpressNo());
     }
@@ -625,7 +755,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         String returnMethod = normalizeReturnMethod(dto.getReturnMethod());
         String closeReason = normalizeRequiredText(dto.getCloseReason(), "\u5173\u95ed\u539f\u56e0\u4e0d\u80fd\u4e3a\u7a7a");
         validateCloseReturnInfo(dto);
-        saveFlow(workOrder.getId(), "RETURN_METHOD", workOrder.getMainStatus(), workOrder.getMainStatus(),
+        saveFlow(workOrder.getId(), WorkOrderActionEnum.RETURN_METHOD.getCode(), workOrder.getMainStatus(), workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                 workOrder.getCurrentAcceptCompanyId(), returnMethod);
         String beforeStatus = workOrder.getMainStatus();
@@ -646,7 +776,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                 SysFileUploadUserTypeEnum.SYSTEM,
                 null
         );
-        saveFlow(workOrder.getId(), "CLOSE", beforeStatus, workOrder.getMainStatus(),
+        saveFlow(workOrder.getId(), WorkOrderActionEnum.CLOSE.getCode(), beforeStatus, workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCloseReason());
         if (canEvaluate) {
@@ -687,7 +817,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         if (!workOrderPermissionService.canAssign(workOrder)) {
             throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u6d3e\u5355");
         }
-        Set<Long> userIds = listCompanyRepairerUserIds(workOrder.getCurrentAcceptCompanyId());
+        Set<Long> userIds = listCompanyAcceptEnabledUserIds(workOrder.getCurrentAcceptCompanyId());
         if (userIds.isEmpty()) {
             return Collections.emptyList();
         }
@@ -814,8 +944,8 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         if (workOrder == null) {
             return;
         }
-        String relationType = workOrderPermissionService.resolveRelationType(workOrder);
-        target.setRelationType(relationType);
+        WorkOrderRelationTypeEnum relationType = workOrderPermissionService.resolveRelationType(workOrder);
+        target.setRelationType(relationType.getCode());
         target.setIsReadonly(resolveReadonlyFlag(relationType, target.getIsReadonly()));
     }
 
@@ -1046,40 +1176,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
     private String resolveActionName(String actionType) {
-        if ("CREATE".equals(actionType)) {
-            return "\u5efa\u5355";
-        }
-        if ("ASSIGN".equals(actionType)) {
-            return "\u6d3e\u5355";
-        }
-        if ("TECH_ACCEPT".equals(actionType)) {
-            return "\u7ef4\u4fee\u5458\u63a5\u5355";
-        }
-        if ("TRANSFER".equals(actionType)) {
-            return "\u8f6c\u5355";
-        }
-        if ("QUOTE".equals(actionType)) {
-            return "\u62a5\u4ef7";
-        }
-        if ("REPAIR_SAVE".equals(actionType)) {
-            return "\u4fdd\u5b58\u7ef4\u4fee";
-        }
-        if ("REPAIR_FINISH".equals(actionType)) {
-            return "\u7ef4\u4fee\u5b8c\u6210";
-        }
-        if ("REVIEW".equals(actionType)) {
-            return "\u590d\u68c0";
-        }
-        if ("UPLOAD_SEND_EXPRESS".equals(actionType)) {
-            return "\u4e0a\u4f20\u5bc4\u4ef6\u5355\u53f7";
-        }
-        if ("RETURN_METHOD".equals(actionType)) {
-            return "\u9009\u62e9\u8fd4\u56de\u65b9\u5f0f";
-        }
-        if ("CLOSE".equals(actionType)) {
-            return "\u5173\u95ed\u5de5\u5355";
-        }
-        return actionType;
+        return WorkOrderActionEnum.resolveLabel(actionType);
     }
 
     /**
@@ -1122,90 +1219,40 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
     }
 
-    private Long saveCreateWorkOrder(WorkOrderProxyCreateDTO dto, MachineBarcode barcodeArchive, Long hqCompanyId,
-                                     Long targetCompanyId, String targetSubjectType, String createEntryType,
-                                     boolean autoCreateCustomer) {
-        return saveCreateWorkOrder(
-                dto.getCustomerName(),
-                dto.getCustomerMobile(),
-                dto.getBarcode(),
-                dto.getServiceMode(),
-                dto.getFaultItems(),
-                dto.getFaultRemark(),
-                dto.getFaultImageFileIds(),
-                dto.getFaultVideoFileIds(),
-                dto.getFaultVoiceFileIds(),
-                dto.getSenderName(),
-                dto.getSenderMobile(),
-                dto.getSenderAddress(),
-                dto.getSendExpressNo(),
-                dto.getSenderVoucherFileIds(),
-                barcodeArchive,
-                hqCompanyId,
-                targetCompanyId,
-                targetSubjectType,
-                createEntryType,
-                autoCreateCustomer
-        );
-    }
-
-    private Long saveCreateWorkOrder(WorkOrderUpstreamCreateDTO dto, MachineBarcode barcodeArchive, Long hqCompanyId,
-                                     Long targetCompanyId, String targetSubjectType, String createEntryType,
-                                     boolean autoCreateCustomer) {
-        return saveCreateWorkOrder(
-                dto.getCustomerName(),
-                dto.getCustomerMobile(),
-                dto.getBarcode(),
-                dto.getServiceMode(),
-                dto.getFaultItems(),
-                dto.getFaultRemark(),
-                dto.getFaultImageFileIds(),
-                dto.getFaultVideoFileIds(),
-                dto.getFaultVoiceFileIds(),
-                dto.getSenderName(),
-                dto.getSenderMobile(),
-                dto.getSenderAddress(),
-                dto.getSendExpressNo(),
-                dto.getSenderVoucherFileIds(),
-                barcodeArchive,
-                hqCompanyId,
-                targetCompanyId,
-                targetSubjectType,
-                createEntryType,
-                autoCreateCustomer
-        );
-    }
-
     private Long saveCreateWorkOrder(String customerName, String customerMobile, String barcode, String serviceMode,
                                      List<String> faultItems, String faultRemark, List<Long> faultImageFileIds,
                                      List<Long> faultVideoFileIds, List<Long> faultVoiceFileIds, String senderName,
                                      String senderMobile, String senderAddress, String sendExpressNo,
                                      List<Long> senderVoucherFileIds, MachineBarcode barcodeArchive,
                                      Long hqCompanyId, Long targetCompanyId, String targetSubjectType,
-                                     String createEntryType, boolean autoCreateCustomer) {
+                                     String createEntryType) {
         Long currentCompanyId = requireCurrentCompanyId();
         Long currentUserId = SecurityContext.getCurrentUserId();
         String normalizedCustomerName = normalizeRequiredText(customerName, "\u5ba2\u6237\u59d3\u540d\u4e0d\u80fd\u4e3a\u7a7a");
         String normalizedCustomerMobile = normalizeRequiredText(customerMobile, "\u5ba2\u6237\u624b\u673a\u53f7\u4e0d\u80fd\u4e3a\u7a7a");
-        String normalizedBarcode = normalizeRequiredText(barcode, "\u673a\u5668\u6761\u7801\u4e0d\u80fd\u4e3a\u7a7a");
+        String normalizedBarcode = normalizeNullableText(barcode);
         String normalizedServiceMode = normalizeServiceMode(serviceMode);
         validateCreateSendInfo(normalizedServiceMode, senderName, senderMobile, senderAddress);
         CustomerFaultSelection faultSelection = resolveCreateFaultSelection(
-                faultItems, faultRemark, hqCompanyId, barcodeArchive.getProductCode(), barcodeArchive.getProductModel()
+                faultItems, faultRemark, hqCompanyId,
+                barcodeArchive == null ? null : barcodeArchive.getProductCode(),
+                barcodeArchive == null ? null : barcodeArchive.getProductModel()
         );
 
         WorkOrder entity = new WorkOrder();
         entity.setOrderNo(generateOrderNo());
-        entity.setCustomerId(resolveCreateCustomerId(normalizedCustomerName, normalizedCustomerMobile, autoCreateCustomer));
+        entity.setCustomerId(resolveCreateCustomerId(normalizedCustomerName, normalizedCustomerMobile));
         entity.setCustomerName(normalizedCustomerName);
         entity.setCustomerMobile(normalizedCustomerMobile);
+        entity.setReportSubjectType(resolveReportSubjectType(createEntryType));
+        entity.setReportCompanyId(resolveReportCompanyId(currentCompanyId, createEntryType));
         entity.setBarcode(normalizedBarcode);
-        entity.setProductCode(normalizeNullableText(barcodeArchive.getProductCode()));
-        entity.setProductName(normalizeNullableText(barcodeArchive.getProductName()));
-        entity.setProductModel(normalizeNullableText(barcodeArchive.getProductModel()));
-        entity.setMachineNo(normalizeNullableText(barcodeArchive.getMachineNo()));
+        entity.setProductCode(normalizeNullableText(barcodeArchive == null ? null : barcodeArchive.getProductCode()));
+        entity.setProductName(normalizeNullableText(barcodeArchive == null ? null : barcodeArchive.getProductName()));
+        entity.setProductModel(normalizeNullableText(barcodeArchive == null ? null : barcodeArchive.getProductModel()));
+        entity.setMachineNo(normalizeNullableText(barcodeArchive == null ? null : barcodeArchive.getMachineNo()));
         entity.setBrandType(BrandTypeEnum.JASIC);
-        entity.setBrandCode(normalizeNullableText(barcodeArchive.getBrandCode()));
+        entity.setBrandCode(normalizeNullableText(barcodeArchive == null ? null : barcodeArchive.getBrandCode()));
         entity.setServiceMode(normalizedServiceMode);
         entity.setWarrantyStatus(resolveBarcodeWarrantyStatus(barcodeArchive, null));
         entity.setFaultDesc(faultSelection.getFaultDesc());
@@ -1227,7 +1274,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         replaceWorkOrderCreateFiles(entity.getId(), faultImageFileIds, faultVideoFileIds, faultVoiceFileIds,
                 senderVoucherFileIds, currentCompanyId, currentUserId);
 
-        saveFlow(entity.getId(), "CREATE", null, entity.getMainStatus(), null, targetCompanyId, currentCompanyId, null);
+        saveFlow(entity.getId(), WorkOrderActionEnum.CREATE.getCode(), null, entity.getMainStatus(), null, targetCompanyId, currentCompanyId, null);
         workOrderParticipantService.initParticipants(entity, resolveCreateCompanySubjectType(currentCompanyId));
         return entity.getId();
     }
@@ -1261,10 +1308,17 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
      * @param dto 关单参数
      */
     private void validateCloseReturnInfo(WorkOrderCloseDTO dto) {
-        if (dto == null || !RETURN_METHOD_MAIL.equals(normalizeNullableText(dto.getReturnMethod()))) {
+        if (dto == null) {
             return;
         }
-        if (isBlank(dto.getReturnExpressNo())) {
+        validateCloseReturnInfo(dto.getReturnMethod(), dto.getReturnExpressNo());
+    }
+
+    private void validateCloseReturnInfo(String returnMethod, String returnExpressNo) {
+        if (!RETURN_METHOD_MAIL.equals(normalizeNullableText(returnMethod))) {
+            return;
+        }
+        if (isBlank(returnExpressNo)) {
             throw new ServiceException("\u56de\u5bc4\u65f6\u5fc5\u987b\u586b\u5199\u56de\u5bc4\u5feb\u9012\u5355\u53f7");
         }
     }
@@ -1293,7 +1347,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                 "\u5f53\u524d\u6709\u6548\u62a5\u4ef7\u7684\u6545\u969c\u5224\u5b9a\u4e0d\u80fd\u4e3a\u7a7a"
         );
         WorkOrderQuote quote = replaceCurrentQuote(workOrder, faultJudge, nextQuoteAmount, nextQuoteDesc);
-        saveFlow(workOrder.getId(), "QUOTE", workOrder.getMainStatus(), workOrder.getMainStatus(),
+        saveFlow(workOrder.getId(), WorkOrderActionEnum.QUOTE.getCode(), workOrder.getMainStatus(), workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                 workOrder.getCurrentAcceptCompanyId(), quote.getQuoteDesc());
     }
@@ -1393,7 +1447,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return quote;
     }
 
-    private Long resolveCreateCustomerId(String customerName, String customerMobile, boolean autoCreateCustomer) {
+    private Long resolveCreateCustomerId(String customerName, String customerMobile) {
         LambdaQueryWrapper<WorkOrderCustomer> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrderCustomer::getPhone, customerMobile)
                 .orderByAsc(WorkOrderCustomer::getId);
@@ -1410,16 +1464,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             }
             return customer.getId();
         }
-        if (!autoCreateCustomer) {
-            return null;
-        }
-        WorkOrderCustomer newCustomer = new WorkOrderCustomer();
-        newCustomer.setOpenid(generateSystemCustomerOpenid());
-        newCustomer.setPhone(customerMobile);
-        newCustomer.setNickname(customerName);
-        newCustomer.setStatus(1);
-        workOrderCustomerMapper.insert(newCustomer);
-        return newCustomer.getId();
+        return null;
     }
 
     private String resolveSendField(String serviceMode, String value) {
@@ -1430,11 +1475,33 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
     private String resolveReturnExpressNo(WorkOrderCloseDTO dto) {
-        if (dto == null || !RETURN_METHOD_MAIL.equals(normalizeNullableText(dto.getReturnMethod()))
-                || isBlank(dto.getReturnExpressNo())) {
+        if (dto == null) {
             return null;
         }
-        return dto.getReturnExpressNo().trim();
+        return resolveReturnExpressNo(dto.getReturnMethod(), dto.getReturnExpressNo());
+    }
+
+    private String resolveReturnExpressNo(String returnMethod, String returnExpressNo) {
+        if (!RETURN_METHOD_MAIL.equals(normalizeNullableText(returnMethod)) || isBlank(returnExpressNo)) {
+            return null;
+        }
+        return returnExpressNo.trim();
+    }
+
+    private String resolveReportSubjectType(String createEntryType) {
+        if (WorkOrderCreateEntryConstants.UPSTREAM_FIRST.equals(createEntryType)
+                || WorkOrderCreateEntryConstants.UPSTREAM_HQ.equals(createEntryType)) {
+            return WorkOrderReportSubjectConstants.COMPANY;
+        }
+        return WorkOrderReportSubjectConstants.CUSTOMER;
+    }
+
+    private Long resolveReportCompanyId(Long currentCompanyId, String createEntryType) {
+        if (WorkOrderCreateEntryConstants.UPSTREAM_FIRST.equals(createEntryType)
+                || WorkOrderCreateEntryConstants.UPSTREAM_HQ.equals(createEntryType)) {
+            return currentCompanyId;
+        }
+        return null;
     }
 
     private Map<SysFileBizTypeEnum, List<SysFileItemVO>> buildWorkOrderFileMap(Long workOrderId) {
@@ -1499,18 +1566,18 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
     /**
-     * 派单对象必须是当前受理公司名下、状态正常且具备维修员角色的系统用户。
+     * 派单对象必须是当前受理公司名下、状态正常且具备接单权限的系统用户。
      *
-     * @param userId 维修员ID
+     * @param userId 派单对象ID
      * @param companyId 当前受理公司ID
      */
-    private void validateAssignedRepairer(Long userId, Long companyId) {
-        if (userId == null || !listCompanyRepairerUserIds(companyId).contains(userId)) {
-            throw new ServiceException("\u6d3e\u5355\u5bf9\u8c61\u5fc5\u987b\u662f\u5f53\u524d\u53d7\u7406\u516c\u53f8\u7684\u7cfb\u7edf\u7ef4\u4fee\u5458");
+    private void validateAssignedUser(Long userId, Long companyId) {
+        if (userId == null || !listCompanyAcceptEnabledUserIds(companyId).contains(userId)) {
+            throw new ServiceException("\u6d3e\u5355\u5bf9\u8c61\u5fc5\u987b\u662f\u5f53\u524d\u53d7\u7406\u516c\u53f8\u4e0b\u53ef\u63a5\u5355\u7684\u542f\u7528\u7528\u6237");
         }
         SysUser user = sysUserMapper.selectById(userId);
         if (user == null || user.getStatus() == null || user.getStatus() != 1) {
-            throw new ServiceException("\u6d3e\u5355\u5bf9\u8c61\u5fc5\u987b\u662f\u542f\u7528\u72b6\u6001\u7684\u7cfb\u7edf\u7ef4\u4fee\u5458");
+            throw new ServiceException("\u6d3e\u5355\u5bf9\u8c61\u5fc5\u987b\u662f\u542f\u7528\u72b6\u6001\u7684\u53ef\u63a5\u5355\u7528\u6237");
         }
     }
 
@@ -1555,18 +1622,22 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                                                                 List<SysCompanySimpleVO> targetOptions,
                                                                 Long defaultTargetCompanyId) {
         WorkOrderCreateBarcodeInfoVO vo = new WorkOrderCreateBarcodeInfoVO();
-        vo.setBarcode(normalizeNullableText(barcodeArchive.getBarcode()));
-        vo.setProductCode(normalizeNullableText(barcodeArchive.getProductCode()));
-        vo.setProductName(normalizeNullableText(barcodeArchive.getProductName()));
-        vo.setProductModel(normalizeNullableText(barcodeArchive.getProductModel()));
-        vo.setMachineNo(normalizeNullableText(barcodeArchive.getMachineNo()));
-        vo.setBrandCode(normalizeNullableText(barcodeArchive.getBrandCode()));
+        vo.setBarcode(normalizeNullableText(barcodeArchive == null ? null : barcodeArchive.getBarcode()));
+        vo.setProductCode(normalizeNullableText(barcodeArchive == null ? null : barcodeArchive.getProductCode()));
+        vo.setProductName(normalizeNullableText(barcodeArchive == null ? null : barcodeArchive.getProductName()));
+        vo.setProductModel(normalizeNullableText(barcodeArchive == null ? null : barcodeArchive.getProductModel()));
+        vo.setMachineNo(normalizeNullableText(barcodeArchive == null ? null : barcodeArchive.getMachineNo()));
+        vo.setBrandCode(normalizeNullableText(barcodeArchive == null ? null : barcodeArchive.getBrandCode()));
         vo.setWarrantyStatus(resolveBarcodeWarrantyStatus(barcodeArchive, null));
         if (hqCompanyId != null) {
             SysCompany hqCompany = requireActiveHqCompany(hqCompanyId);
             vo.setHqCompanyId(hqCompany.getId());
             vo.setHqCompanyName(hqCompany.getCompanyName());
-            vo.setFaultOptions(buildCreateFaultOptions(hqCompany.getId(), barcodeArchive.getProductCode(), barcodeArchive.getProductModel()));
+            vo.setFaultOptions(buildCreateFaultOptions(
+                    hqCompany.getId(),
+                    barcodeArchive == null ? null : barcodeArchive.getProductCode(),
+                    barcodeArchive == null ? null : barcodeArchive.getProductModel()
+            ));
             vo.setOtherFaultLabel(OTHER_FAULT_LABEL);
         }
         vo.setTargetCompanyOptions(targetOptions == null ? Collections.emptyList() : targetOptions);
@@ -1586,6 +1657,10 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             throw new ServiceException("\u5f53\u524d\u6761\u7801\u672a\u7ef4\u62a4\u6863\u6848\u4fe1\u606f");
         }
         return barcodeArchive;
+    }
+
+    private MachineBarcode findCreateBarcodeArchive(String barcode) {
+        return StrUtil.isBlank(barcode) ? null : requireActiveMachineBarcode(barcode);
     }
 
     private MachineBarcode findActiveMachineBarcode(String barcode) {
@@ -1616,6 +1691,49 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             throw new ServiceException("\u5f52\u5c5e\u603b\u90e8\u7c7b\u578b\u4e0d\u6b63\u786e");
         }
         return company;
+    }
+
+    private Long resolveDefaultHqCompanyId() {
+        String configValue = normalizeNullableText(sysConfigService == null ? null : sysConfigService.getValueByKey("default.hq.company.id"));
+        if (configValue == null) {
+            throw new ServiceException("默认归属总部未配置");
+        }
+        Long hqCompanyId;
+        try {
+            hqCompanyId = Long.valueOf(configValue);
+        } catch (NumberFormatException ex) {
+            throw new ServiceException("默认归属总部配置错误");
+        }
+        return requireActiveHqCompany(hqCompanyId).getId();
+    }
+
+    private CustomerCreateIdentity resolveProxyCreateCustomerIdentity(WorkOrderProxyCreateDTO dto) {
+        String customerMobile = normalizeRequiredText(dto == null ? null : dto.getCustomerMobile(), "客户手机号不能为空");
+        String customerName = normalizeNullableText(dto == null ? null : dto.getCustomerName());
+        if (customerName == null) {
+            customerName = customerMobile;
+        }
+        return new CustomerCreateIdentity(customerName, customerMobile);
+    }
+
+    private CustomerCreateIdentity resolveUpstreamCreateCustomerIdentity() {
+        Long currentUserId = SecurityContext.getCurrentUserId();
+        if (currentUserId == null) {
+            throw new ServiceException("当前登录用户不存在");
+        }
+        SysUser currentUser = sysUserMapper.selectById(currentUserId);
+        if (currentUser == null) {
+            throw new ServiceException("当前登录用户不存在");
+        }
+        String customerMobile = normalizeNullableText(currentUser.getPhone());
+        if (customerMobile == null) {
+            throw new ServiceException("当前登录账号未维护手机号，无法提交上级报修");
+        }
+        String customerName = normalizeNullableText(currentUser.getRealName());
+        if (customerName == null) {
+            customerName = customerMobile;
+        }
+        return new CustomerCreateIdentity(customerName, customerMobile);
     }
 
     /**
@@ -1811,15 +1929,22 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
 
     private CustomerFaultSelection resolveCreateFaultSelection(List<String> faultItems, String faultRemark,
                                                               Long hqCompanyId, String productCode, String productModel) {
-        List<String> configuredFaultOptions = listConfiguredFaultOptions(hqCompanyId, productCode, productModel);
-        if (configuredFaultOptions.isEmpty()) {
-            throw new ServiceException("\u5f53\u524d\u4ea7\u54c1\u672a\u914d\u7f6e\u6545\u969c\u9879\uff0c\u4e0d\u80fd\u5efa\u5355\uff0c\u8bf7\u8054\u7cfb\u7ba1\u7406\u5458\u5b8c\u5584\u914d\u7f6e");
-        }
         List<String> normalizedFaultItems = normalizeFaultItems(faultItems);
+        boolean hasProductScope = hasCreateProductScope(productCode, productModel);
         if (normalizedFaultItems.isEmpty()) {
+            if (!hasProductScope) {
+                return new CustomerFaultSelection(null, normalizeNullableText(faultRemark));
+            }
             throw new ServiceException("\u8bf7\u9009\u62e9\u6545\u969c\u63cf\u8ff0");
         }
-        LinkedHashSet<String> allowedFaultOptions = new LinkedHashSet<>(configuredFaultOptions);
+        LinkedHashSet<String> allowedFaultOptions = new LinkedHashSet<>();
+        if (hasProductScope) {
+            List<String> configuredFaultOptions = listConfiguredFaultOptions(hqCompanyId, productCode, productModel);
+            if (configuredFaultOptions.isEmpty()) {
+                throw new ServiceException("\u5f53\u524d\u4ea7\u54c1\u672a\u914d\u7f6e\u6545\u969c\u9879\uff0c\u4e0d\u80fd\u5efa\u5355\uff0c\u8bf7\u8054\u7cfb\u7ba1\u7406\u5458\u5b8c\u5584\u914d\u7f6e");
+            }
+            allowedFaultOptions.addAll(configuredFaultOptions);
+        }
         allowedFaultOptions.add(OTHER_FAULT_LABEL);
         for (String faultItem : normalizedFaultItems) {
             if (!allowedFaultOptions.contains(faultItem)) {
@@ -1842,12 +1967,20 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
      * @return 故障描述选项
      */
     private List<String> buildCreateFaultOptions(Long hqCompanyId, String productCode, String productModel) {
-        LinkedHashSet<String> result = new LinkedHashSet<>(listConfiguredFaultOptions(hqCompanyId, productCode, productModel));
+        if (!hasCreateProductScope(productCode, productModel)) {
+            return Collections.emptyList();
+        }
+        LinkedHashSet<String> result = new LinkedHashSet<>();
+        result.addAll(listConfiguredFaultOptions(hqCompanyId, productCode, productModel));
         if (result.isEmpty()) {
             throw new ServiceException("\u5f53\u524d\u4ea7\u54c1\u672a\u914d\u7f6e\u6545\u969c\u9879\uff0c\u4e0d\u80fd\u5efa\u5355\uff0c\u8bf7\u8054\u7cfb\u7ba1\u7406\u5458\u5b8c\u5584\u914d\u7f6e");
         }
         result.add(OTHER_FAULT_LABEL);
         return new ArrayList<>(result);
+    }
+
+    private boolean hasCreateProductScope(String productCode, String productModel) {
+        return normalizeNullableText(productCode) != null || normalizeNullableText(productModel) != null;
     }
 
     private List<String> listConfiguredFaultOptions(Long hqCompanyId, String productCode, String productModel) {
@@ -2039,11 +2172,28 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return snapshot;
     }
 
-    private Integer resolveReadonlyFlag(String relationType, Integer currentFlag) {
-        if ("HISTORY_PARTICIPANT_READONLY".equals(relationType) || "HQ_OBSERVER".equals(relationType)) {
+    /**
+     * 根据工单关系类型推导列表/详情的只读标记。
+     *
+     * <p>规则上，只要是总部观察者或历史参与方，就应该明确标记为只读；
+     * 只要当前用户与工单存在明确业务关系且不是只读关系，就返回非只读。
+     * 这里的“非只读”只表示具备进一步操作的可能，具体按钮仍由 `availableActions` 决定。</p>
+     *
+     * @param relationType 当前登录人与工单的关系类型
+     * @param currentFlag  现有只读标记
+     * @return 推导后的只读标记
+     */
+    private Integer resolveReadonlyFlag(WorkOrderRelationTypeEnum relationType, Integer currentFlag) {
+        if (relationType == null) {
+            return currentFlag;
+        }
+        // 总部观察者、历史参与方都允许看单，但不允许把当前详情页当作可编辑页使用。
+        if (relationType.isReadonly()) {
             return 1;
         }
-        if (relationType != null && !"NONE".equals(relationType)) {
+        // 只要与工单存在明确业务关系且不是只读关系，就返回非只读；
+        // 具体能不能出现动作按钮，还要继续看 availableActions。
+        if (relationType.hasRelation()) {
             return 0;
         }
         return currentFlag;
@@ -2063,10 +2213,6 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
         String faultJudge = normalizeNullableText(quotes.get(0).getFaultJudge());
         return FAULT_JUDGE_NO_FAULT.equals(faultJudge);
-    }
-
-    private String generateSystemCustomerOpenid() {
-        return "SYS_WO_" + IdUtil.fastSimpleUUID();
     }
 
     private void saveFlow(Long workOrderId, String actionType, String beforeStatus, String afterStatus,
@@ -2306,42 +2452,36 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
     /**
-     * 查询当前公司下拥有系统维修员角色的用户ID集合。
+     * 查询当前公司下已启用且具备接单权限的用户ID集合。
      *
      * @param companyId 公司ID
      * @return 用户ID集合
      */
-    private Set<Long> listCompanyRepairerUserIds(Long companyId) {
+    private Set<Long> listCompanyAcceptEnabledUserIds(Long companyId) {
         Set<Long> companyUserIds = listCompanyUserIds(companyId);
         if (companyUserIds.isEmpty()) {
             return Collections.emptySet();
         }
-        LambdaQueryWrapper<SysRole> roleWrapper = new LambdaQueryWrapper<>();
-        roleWrapper.eq(SysRole::getCompanyId, companyId)
-                .eq(SysRole::getStatus, 1)
-                .eq(SysRole::getIsSystem, 1)
-                .eq(SysRole::getRoleKey, RoleConstants.REPAIRER_ROLE_KEY);
-        List<SysRole> roles = sysRoleMapper.selectList(roleWrapper);
-        if (roles.isEmpty()) {
+        List<SysUser> users = sysUserMapper.selectBatchIds(companyUserIds);
+        if (users == null || users.isEmpty()) {
             return Collections.emptySet();
         }
-        Set<Long> roleIds = roles.stream()
-                .map(SysRole::getId)
-                .filter(id -> id != null)
+        return users.stream()
+                .filter(user -> user != null
+                        && user.getId() != null
+                        && user.getStatus() != null
+                        && user.getStatus() == 1)
+                .map(SysUser::getId)
+                .filter(userId -> hasCompanyPermission(userId, companyId, WORKORDER_ACCEPT_PERMISSION))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
-        if (roleIds.isEmpty()) {
-            return Collections.emptySet();
+    }
+
+    private boolean hasCompanyPermission(Long userId, Long companyId, String permission) {
+        if (userId == null || companyId == null || StrUtil.isBlank(permission)) {
+            return false;
         }
-        LambdaQueryWrapper<SysUserRole> userRoleWrapper = new LambdaQueryWrapper<>();
-        userRoleWrapper.in(SysUserRole::getRoleId, roleIds);
-        List<SysUserRole> userRoles = sysUserRoleMapper.selectList(userRoleWrapper);
-        if (userRoles.isEmpty()) {
-            return Collections.emptySet();
-        }
-        return userRoles.stream()
-                .map(SysUserRole::getUserId)
-                .filter(companyUserIds::contains)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<String> perms = sysMenuMapper.selectPermsByUserIdAndCompanyId(userId, companyId);
+        return perms != null && perms.contains(permission);
     }
 
     private static class CustomerFaultSelection {
@@ -2361,6 +2501,26 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
 
         private String getFaultRemark() {
             return faultRemark;
+        }
+    }
+
+    private static class CustomerCreateIdentity {
+
+        private final String customerName;
+
+        private final String customerMobile;
+
+        private CustomerCreateIdentity(String customerName, String customerMobile) {
+            this.customerName = customerName;
+            this.customerMobile = customerMobile;
+        }
+
+        private String getCustomerName() {
+            return customerName;
+        }
+
+        private String getCustomerMobile() {
+            return customerMobile;
         }
     }
 

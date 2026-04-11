@@ -39,6 +39,12 @@ public class WorkOrder extends BaseEntity {
     /** 客户手机号 */
     private String customerMobile;
 
+    /** 报修主体类型（CUSTOMER/COMPANY） */
+    private String reportSubjectType;
+
+    /** 报修主体公司ID */
+    private Long reportCompanyId;
+
     /** 机器条码 */
     private String barcode;
 

@@ -21,8 +21,7 @@ public class WorkOrderProxyCreateDTO implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 客户姓名 */
-    @ApiModelProperty(value = "客户姓名", required = true)
-    @NotBlank(message = "客户姓名不能为空")
+    @ApiModelProperty(value = "客户姓名")
     private String customerName;
 
     /** 客户手机号 */
@@ -31,8 +30,7 @@ public class WorkOrderProxyCreateDTO implements Serializable {
     private String customerMobile;
 
     /** 机器条码 */
-    @ApiModelProperty(value = "机器条码", required = true)
-    @NotBlank(message = "机器条码不能为空")
+    @ApiModelProperty(value = "机器条码")
     private String barcode;
 
     /** 服务方式编码（MAIL/STORE） */

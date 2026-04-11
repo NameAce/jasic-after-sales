@@ -95,6 +95,9 @@ public class WorkOrderNotifyEventService {
      * @param summary   维修摘要
      */
     public void recordRepairFinished(WorkOrder workOrder, String summary) {
+        if (workOrder == null || workOrder.getCustomerId() == null) {
+            return;
+        }
         WorkOrderNotifyEvent event = buildPendingEvent(workOrder, workOrder.getCurrentAcceptCompanyId(),
                 EVENT_REPAIR_FINISHED, "REPAIR_FINISH", RECEIVER_CUSTOMER, workOrder.getCustomerId(),
                 "维修完成通知", buildContent("工单已维修完成", workOrder, summary));
@@ -107,6 +110,9 @@ public class WorkOrderNotifyEventService {
      * @param workOrder 工单主表
      */
     public void recordEvaluationInvite(WorkOrder workOrder) {
+        if (workOrder == null || workOrder.getCustomerId() == null) {
+            return;
+        }
         WorkOrderNotifyEvent event = buildPendingEvent(workOrder, workOrder.getCurrentAcceptCompanyId(),
                 EVENT_EVALUATION_INVITE, "CLOSE", RECEIVER_CUSTOMER, workOrder.getCustomerId(),
                 "客户满意度评价通知", buildContent("工单已关闭，请进行满意度评价", workOrder, null));

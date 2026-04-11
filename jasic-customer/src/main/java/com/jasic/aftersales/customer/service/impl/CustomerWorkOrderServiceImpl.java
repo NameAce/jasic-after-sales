@@ -4,6 +4,7 @@ import cn.hutool.core.util.IdUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jasic.aftersales.common.constant.WorkOrderConfigConstants;
+import com.jasic.aftersales.common.constant.WorkOrderReportSubjectConstants;
 import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
 import com.jasic.aftersales.common.constant.WorkOrderStatusFlow;
 import com.jasic.aftersales.common.core.domain.PageResult;
@@ -210,6 +211,8 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         workOrder.setCustomerId(customerId);
         workOrder.setCustomerName(resolveCustomerName(customer));
         workOrder.setCustomerMobile(normalizeRequiredText(customer.getPhone(), "当前客户手机号不能为空"));
+        workOrder.setReportSubjectType(WorkOrderReportSubjectConstants.CUSTOMER);
+        workOrder.setReportCompanyId(null);
         workOrder.setBarcode(barcode);
         workOrder.setProductCode(productCode);
         workOrder.setProductName(jasicBarcodeCreate ? normalizeText(barcodeArchive == null ? null : barcodeArchive.getProductName()) : null);

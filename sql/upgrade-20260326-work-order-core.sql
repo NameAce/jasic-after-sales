@@ -12,9 +12,11 @@ SET NAMES utf8mb4;
 CREATE TABLE IF NOT EXISTS `work_order` (
   `id`                          bigint unsigned  NOT NULL AUTO_INCREMENT COMMENT '主键',
   `order_no`                    varchar(32)      NOT NULL                COMMENT '工单号',
-  `customer_id`                 bigint unsigned  NOT NULL                COMMENT '客户ID',
+  `customer_id`                 bigint unsigned  DEFAULT NULL            COMMENT '客户ID',
   `customer_name`               varchar(64)      NOT NULL                COMMENT '客户姓名',
   `customer_mobile`             varchar(20)      NOT NULL                COMMENT '客户手机号',
+  `report_subject_type`         varchar(16)      NOT NULL                COMMENT '报修主体类型（CUSTOMER/COMPANY）',
+  `report_company_id`           bigint unsigned  DEFAULT NULL            COMMENT '报修主体公司ID',
   `barcode`                     varchar(64)      DEFAULT NULL            COMMENT '机器条码',
   `product_code`                varchar(64)      DEFAULT NULL            COMMENT '物料编码',
   `product_model`               varchar(64)      DEFAULT NULL            COMMENT '机器型号',
@@ -48,6 +50,7 @@ CREATE TABLE IF NOT EXISTS `work_order` (
   KEY `idx_assigned_user` (`assigned_user_id`),
   KEY `idx_hq_company` (`hq_company_id`),
   KEY `idx_main_status` (`main_status`),
+  KEY `idx_report_company` (`report_company_id`),
   KEY `idx_customer_mobile` (`customer_mobile`),
   KEY `idx_barcode` (`barcode`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='工单主表';

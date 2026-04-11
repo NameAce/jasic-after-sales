@@ -25,8 +25,16 @@ public class RoleConstants {
     /** 维修员角色标识 */
     public static final String REPAIRER_ROLE_KEY = "repairer";
 
+    /** 派单员角色标识 */
+    public static final String DISPATCHER_ROLE_KEY = "dispatcher";
+
     /** 系统保留角色标识集合 */
     public static final Set<String> RESERVED_ROLE_KEYS = Collections.unmodifiableSet(
-            new LinkedHashSet<>(Arrays.asList(JASIC_ADMIN_ROLE_KEY, ADMIN_ROLE_KEY, REPAIRER_ROLE_KEY))
+            new LinkedHashSet<>(Arrays.asList(
+                    JASIC_ADMIN_ROLE_KEY,
+                    ADMIN_ROLE_KEY,
+                    REPAIRER_ROLE_KEY,
+                    DISPATCHER_ROLE_KEY
+            ))
     );
 }

@@ -33,6 +33,7 @@
             w.customer_mobile AS customerMobile,
             w.barcode,
             w.product_model AS productModel,
+            w.fault_desc AS faultDesc,
             w.main_status AS mainStatus,
             w.current_accept_company_id AS currentAcceptCompanyId,
             cac.company_name AS currentAcceptCompanyName,

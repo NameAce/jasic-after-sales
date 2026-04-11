@@ -20,8 +20,8 @@ public class WorkOrderCreateDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** 客户ID（为空时按手机号自动匹配或创建） */
-    @ApiModelProperty(value = "客户ID（为空时按手机号自动匹配或创建）")
+    /** 客户ID（为空时按手机号自动匹配） */
+    @ApiModelProperty(value = "客户ID（为空时按手机号自动匹配）")
     private Long customerId;
 
     /** 客户姓名 */

@@ -50,6 +50,18 @@ public class WorkOrderRequestValidationTest {
     }
 
     @Test
+    public void shouldRequireTechAcceptFaultJudge() {
+        WorkOrderTechAcceptDTO dto = new WorkOrderTechAcceptDTO();
+        dto.setWorkOrderId(1L);
+        dto.setFaultJudge("   ");
+
+        Set<ConstraintViolation<WorkOrderTechAcceptDTO>> violations = validator.validate(dto);
+
+        Assert.assertTrue(violations.stream()
+                .anyMatch(item -> "故障判定不能为空".equals(item.getMessage())));
+    }
+
+    @Test
     public void shouldCascadeValidateFaultItems() {
         WorkOrderFaultItemDTO faultItem = new WorkOrderFaultItemDTO();
         faultItem.setFaultDesc("   ");

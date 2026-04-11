@@ -160,7 +160,7 @@ public class WorkOrderController extends BaseController {
     @ApiOperation(value = "查询代客户填写条码信息")
     @SaCheckPermission("workorder:add")
     @GetMapping("/create/proxy/barcode-info")
-    public Result<WorkOrderCreateBarcodeInfoVO> getProxyCreateBarcodeInfo(@RequestParam String barcode) {
+    public Result<WorkOrderCreateBarcodeInfoVO> getProxyCreateBarcodeInfo(@RequestParam(required = false) String barcode) {
         return Result.ok(workOrderService.getProxyCreateBarcodeInfo(barcode));
     }
 
@@ -173,8 +173,20 @@ public class WorkOrderController extends BaseController {
     @ApiOperation(value = "查询二级报修一级条码信息")
     @SaCheckPermission("workorder:add")
     @GetMapping("/create/upstream-first/barcode-info")
-    public Result<WorkOrderCreateBarcodeInfoVO> getUpstreamFirstCreateBarcodeInfo(@RequestParam String barcode) {
+    public Result<WorkOrderCreateBarcodeInfoVO> getUpstreamFirstCreateBarcodeInfo(@RequestParam(required = false) String barcode) {
         return Result.ok(workOrderService.getUpstreamFirstCreateBarcodeInfo(barcode));
+    }
+
+    /**
+     * 查询二级无码报修一级可选目标公司
+     *
+     * @return 公司选项
+     */
+    @ApiOperation(value = "查询二级无码报修一级可选目标公司")
+    @SaCheckPermission("workorder:add")
+    @GetMapping("/create/upstream-first/target-options")
+    public Result<List<SysCompanySimpleVO>> listUpstreamFirstCreateTargetOptions() {
+        return Result.ok(workOrderService.listUpstreamFirstCreateTargetOptions());
     }
 
     /**
@@ -186,7 +198,7 @@ public class WorkOrderController extends BaseController {
     @ApiOperation(value = "查询一级报修佳士条码信息")
     @SaCheckPermission("workorder:add")
     @GetMapping("/create/upstream-hq/barcode-info")
-    public Result<WorkOrderCreateBarcodeInfoVO> getUpstreamHqCreateBarcodeInfo(@RequestParam String barcode,
+    public Result<WorkOrderCreateBarcodeInfoVO> getUpstreamHqCreateBarcodeInfo(@RequestParam(required = false) String barcode,
                                                                                @RequestParam(required = false) Long targetCompanyId) {
         return Result.ok(workOrderService.getUpstreamHqCreateBarcodeInfo(barcode, targetCompanyId));
     }

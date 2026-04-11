@@ -7,32 +7,50 @@ import cn.dev33.satoken.context.model.SaRequest;
 import cn.dev33.satoken.context.model.SaResponse;
 import cn.dev33.satoken.context.model.SaStorage;
 import cn.dev33.satoken.stp.StpUtil;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
+import com.jasic.aftersales.common.core.domain.PageResult;
+import com.jasic.aftersales.common.enums.WorkOrderRelationTypeEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
+import com.jasic.aftersales.system.domain.dto.WorkOrderAssignDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderCloseDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderFaultItemDTO;
+import com.jasic.aftersales.system.domain.dto.WorkOrderProxyCreateDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderRepairDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderReviewDTO;
+import com.jasic.aftersales.system.domain.dto.WorkOrderTechAcceptDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTransferDTO;
 import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
 import com.jasic.aftersales.system.domain.entity.HqFirstContract;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
 import com.jasic.aftersales.system.domain.entity.SysCompanyType;
+import com.jasic.aftersales.system.domain.entity.SysUser;
+import com.jasic.aftersales.system.domain.entity.SysUserCompany;
 import com.jasic.aftersales.system.domain.entity.WorkOrder;
+import com.jasic.aftersales.system.domain.entity.WorkOrderCustomer;
 import com.jasic.aftersales.system.domain.entity.WorkOrderFlow;
 import com.jasic.aftersales.system.domain.entity.WorkOrderQuote;
 import com.jasic.aftersales.system.domain.entity.WorkOrderReview;
+import com.jasic.aftersales.system.domain.query.WorkOrderQuery;
+import com.jasic.aftersales.system.domain.vo.WorkOrderCreateBarcodeInfoVO;
+import com.jasic.aftersales.system.domain.vo.WorkOrderListVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairFaultOptionVO;
+import com.jasic.aftersales.system.domain.vo.WorkOrderUserOptionVO;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
 import com.jasic.aftersales.system.mapper.HqFirstContractMapper;
 import com.jasic.aftersales.system.mapper.SysCompanyMapper;
 import com.jasic.aftersales.system.mapper.SysCompanyTypeMapper;
+import com.jasic.aftersales.system.mapper.SysMenuMapper;
+import com.jasic.aftersales.system.mapper.SysUserMapper;
+import com.jasic.aftersales.system.mapper.SysUserCompanyMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderFlowMapper;
+import com.jasic.aftersales.system.mapper.WorkOrderCustomerMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderQuoteMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderRepairMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderReviewMapper;
 import com.jasic.aftersales.system.service.IFaultRepairConfigService;
+import com.jasic.aftersales.system.service.ISysConfigService;
 import com.jasic.aftersales.system.service.WorkOrderNotifyEventService;
 import com.jasic.aftersales.system.service.WorkOrderParticipantService;
 import com.jasic.aftersales.system.service.WorkOrderPermissionService;
@@ -50,8 +68,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 工单业务服务测试。
@@ -60,6 +80,51 @@ import java.util.Map;
  * @date 2026/04/01
  */
 public class WorkOrderServiceImplTest {
+
+    @Test
+    public void shouldReturnFaultDescInWorkOrderListPage() throws Exception {
+        WorkOrderListVO record = new WorkOrderListVO();
+        record.setId(99L);
+        record.setMainStatus(WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN);
+        record.setCurrentAcceptCompanyId(2002L);
+        record.setFaultDesc("开机无反应");
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createPagedWorkOrderMapperProxy(Collections.singletonList(record)));
+        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+            @Override
+            public void fillQueryScope(WorkOrderQuery query) {
+                query.setCurrentUserId(101L);
+                query.setCompanyId(2002L);
+                query.setSubjectType("BRANCH");
+                query.setDataScope("ALL");
+                query.setRelatedCompanyIds(Collections.emptyList());
+            }
+
+            @Override
+            public WorkOrderRelationTypeEnum resolveRelationType(WorkOrder target) {
+                return WorkOrderRelationTypeEnum.CURRENT_ASSIGNEE;
+            }
+        });
+
+        WorkOrderQuery query = new WorkOrderQuery();
+        query.setPageNum(1);
+        query.setPageSize(10);
+
+        final PageResult<WorkOrderListVO>[] holder = new PageResult[1];
+        runWithLoginContext(101L, new ThrowingRunnable() {
+            @Override
+            public void run() {
+                com.jasic.aftersales.framework.security.SecurityContext.setCurrentCompanyId(2002L);
+                com.jasic.aftersales.framework.security.SecurityContext.setCurrentSubjectType("BRANCH");
+                holder[0] = service.listPage(query);
+            }
+        });
+
+        Assert.assertEquals(1L, holder[0].getTotal().longValue());
+        Assert.assertEquals(1, holder[0].getRecords().size());
+        Assert.assertEquals("开机无反应", holder[0].getRecords().get(0).getFaultDesc());
+    }
 
     @Test
     public void shouldRejectTransferTargetQueryWhenTransferNotAllowed() throws Exception {
@@ -132,6 +197,294 @@ public class WorkOrderServiceImplTest {
             Assert.assertTrue(ex.getCause() instanceof ServiceException);
             Assert.assertEquals("故障判定只能为有故障或无故障", ex.getCause().getMessage());
         }
+    }
+
+    @Test
+    public void shouldListAdminUserWhenAdminHasAcceptPermission() throws Exception {
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(13L);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN);
+        workOrder.setCurrentAcceptCompanyId(2002L);
+
+        SysUser adminUser = buildUser(101L, "老板账号", "13800138000", 1);
+        SysUser normalUser = buildUser(102L, "普通账号", "13800138001", 1);
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
+        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+            @Override
+            public boolean canAssign(WorkOrder target) {
+                return true;
+            }
+        });
+        setField(service, "sysUserCompanyMapper", createUserCompanyMapperProxy(2002L, Arrays.asList(101L, 102L)));
+        setField(service, "sysUserMapper", createSysUserMapperProxy(Arrays.asList(adminUser, normalUser)));
+        setField(service, "sysMenuMapper", createSysMenuMapperProxy(Collections.singletonMap(
+                101L, Collections.singleton("workorder:accept")
+        )));
+
+        List<WorkOrderUserOptionVO> options = service.listAssignUserOptions(workOrder.getId());
+
+        Assert.assertEquals(1, options.size());
+        Assert.assertEquals(Long.valueOf(101L), options.get(0).getId());
+        Assert.assertEquals("老板账号", options.get(0).getRealName());
+    }
+
+    @Test
+    public void shouldAllowAssignToAdminWhenAdminHasAcceptPermission() throws Exception {
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(14L);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN);
+        workOrder.setCurrentAcceptCompanyId(2002L);
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, new int[1]));
+        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+            @Override
+            public boolean canAssign(WorkOrder target) {
+                return true;
+            }
+        });
+        setField(service, "sysUserCompanyMapper", createUserCompanyMapperProxy(2002L, Collections.singletonList(101L)));
+        setField(service, "sysUserMapper", createSysUserMapperProxy(Collections.singletonList(
+                buildUser(101L, "老板账号", "13800138000", 1)
+        )));
+        setField(service, "sysMenuMapper", createSysMenuMapperProxy(Collections.singletonMap(
+                101L, Collections.singleton("workorder:accept")
+        )));
+        setField(service, "workOrderFlowMapper", createNoopProxy(WorkOrderFlowMapper.class, "insert"));
+
+        WorkOrderAssignDTO dto = new WorkOrderAssignDTO();
+        dto.setWorkOrderId(workOrder.getId());
+        dto.setAssignedUserId(101L);
+
+        runWithLoginContext(101L, new ThrowingRunnable() {
+            @Override
+            public void run() throws Exception {
+                service.assign(dto);
+            }
+        });
+
+        Assert.assertEquals(Long.valueOf(101L), workOrder.getAssignedUserId());
+        Assert.assertEquals(WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT, workOrder.getMainStatus());
+    }
+
+    @Test
+    public void shouldTechAcceptFaultWorkOrderAndCreateQuote() throws Exception {
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(14L);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT);
+        workOrder.setCurrentAcceptCompanyId(3L);
+
+        List<WorkOrderQuote> quotes = new ArrayList<>();
+        List<WorkOrderQuote> insertedQuotes = new ArrayList<>();
+        List<WorkOrderFlow> insertedFlows = new ArrayList<>();
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, new int[1]));
+        setField(service, "workOrderQuoteMapper", createMutableQuoteMapperProxy(quotes, insertedQuotes, new int[1]));
+        setField(service, "workOrderFlowMapper", createFlowMapperProxy(insertedFlows));
+        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+            @Override
+            public boolean canTechAccept(WorkOrder target) {
+                return true;
+            }
+        });
+
+        WorkOrderTechAcceptDTO dto = new WorkOrderTechAcceptDTO();
+        dto.setWorkOrderId(workOrder.getId());
+        dto.setFaultJudge("有故障");
+
+        runWithLoginContext(101L, new ThrowingRunnable() {
+            @Override
+            public void run() throws Exception {
+                service.techAccept(dto);
+            }
+        });
+
+        Assert.assertEquals(WorkOrderStatusConstants.MainStatus.IN_PROGRESS, workOrder.getMainStatus());
+        Assert.assertEquals(1, insertedQuotes.size());
+        Assert.assertEquals("有故障", insertedQuotes.get(0).getFaultJudge());
+        Assert.assertNull(insertedQuotes.get(0).getQuoteAmount());
+        Assert.assertNull(insertedQuotes.get(0).getQuoteDesc());
+        Assert.assertEquals(Integer.valueOf(1), insertedQuotes.get(0).getIsCurrentValid());
+        Assert.assertEquals(2, insertedFlows.size());
+        Assert.assertEquals("TECH_ACCEPT", insertedFlows.get(0).getActionType());
+        Assert.assertEquals("QUOTE", insertedFlows.get(1).getActionType());
+        Assert.assertEquals(WorkOrderStatusConstants.MainStatus.IN_PROGRESS, insertedFlows.get(1).getAfterStatus());
+    }
+
+    @Test
+    public void shouldTechAcceptNoFaultWorkOrderAndCloseImmediately() throws Exception {
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(15L);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT);
+        workOrder.setCurrentAcceptCompanyId(3L);
+        workOrder.setServiceMode("STORE");
+
+        List<WorkOrderQuote> quotes = new ArrayList<>();
+        List<WorkOrderQuote> insertedQuotes = new ArrayList<>();
+        List<WorkOrderFlow> insertedFlows = new ArrayList<>();
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, new int[1]));
+        setField(service, "workOrderQuoteMapper", createMutableQuoteMapperProxy(quotes, insertedQuotes, new int[1]));
+        setField(service, "workOrderFlowMapper", createFlowMapperProxy(insertedFlows));
+        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+            @Override
+            public boolean canTechAccept(WorkOrder target) {
+                return true;
+            }
+        });
+        setField(service, "sysFileService", createNoopProxy(com.jasic.aftersales.system.service.SysFileService.class, "replaceBizFiles"));
+
+        WorkOrderTechAcceptDTO dto = new WorkOrderTechAcceptDTO();
+        dto.setWorkOrderId(workOrder.getId());
+        dto.setFaultJudge("无故障");
+        dto.setReturnMethod("自提");
+        dto.setCloseReason("检测无故障，客户自提");
+
+        runWithLoginContext(101L, new ThrowingRunnable() {
+            @Override
+            public void run() throws Exception {
+                service.techAccept(dto);
+            }
+        });
+
+        Assert.assertEquals(WorkOrderStatusConstants.MainStatus.CLOSED, workOrder.getMainStatus());
+        Assert.assertEquals(WorkOrderStatusConstants.EvaluateStatus.NOT_OPEN, workOrder.getEvaluateStatus());
+        Assert.assertEquals("自提", workOrder.getReturnMethod());
+        Assert.assertEquals("检测无故障，客户自提", workOrder.getCloseReason());
+        Assert.assertNotNull(workOrder.getCompletedTime());
+        Assert.assertNotNull(workOrder.getClosedTime());
+        Assert.assertEquals(workOrder.getCompletedTime(), workOrder.getClosedTime());
+        Assert.assertEquals(1, insertedQuotes.size());
+        Assert.assertEquals("无故障", insertedQuotes.get(0).getFaultJudge());
+        Assert.assertNull(insertedQuotes.get(0).getQuoteAmount());
+        Assert.assertNull(insertedQuotes.get(0).getQuoteDesc());
+        Assert.assertEquals(4, insertedFlows.size());
+        Assert.assertEquals("TECH_ACCEPT", insertedFlows.get(0).getActionType());
+        Assert.assertEquals("QUOTE", insertedFlows.get(1).getActionType());
+        Assert.assertEquals("RETURN_METHOD", insertedFlows.get(2).getActionType());
+        Assert.assertEquals("CLOSE", insertedFlows.get(3).getActionType());
+        Assert.assertEquals(WorkOrderStatusConstants.MainStatus.CLOSED, insertedFlows.get(3).getAfterStatus());
+    }
+
+    @Test
+    public void shouldLoadBarcodelessProxyCreateInfoFromDefaultHq() throws Exception {
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "sysConfigService", createSysConfigServiceProxy("900"));
+        setField(service, "sysCompanyMapper", createCompanyMapperProxy(Collections.singletonList(
+                buildCompany(900L, "默认总部", "HQ_A")
+        )));
+        setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(Collections.singletonList(
+                buildRepairFaultOption("默认故障", Collections.singletonList("更换配件"))
+        )));
+
+        final WorkOrderCreateBarcodeInfoVO[] holder = new WorkOrderCreateBarcodeInfoVO[1];
+        runWithLoginContext(101L, new ThrowingRunnable() {
+            @Override
+            public void run() {
+                com.jasic.aftersales.framework.security.SecurityContext.setCurrentCompanyId(2002L);
+                holder[0] = service.getProxyCreateBarcodeInfo(null);
+            }
+        });
+
+        Assert.assertNotNull(holder[0]);
+        Assert.assertNull(holder[0].getBarcode());
+        Assert.assertEquals(Long.valueOf(900L), holder[0].getHqCompanyId());
+        Assert.assertEquals("默认总部", holder[0].getHqCompanyName());
+        Assert.assertEquals(Collections.emptyList(), holder[0].getFaultOptions());
+    }
+
+    @Test
+    public void shouldAllowEmptyFaultItemsForBarcodelessCreate() throws Exception {
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+
+        Object selection = invokePrivateMethod(service, "resolveCreateFaultSelection",
+                new Class<?>[]{List.class, String.class, Long.class, String.class, String.class},
+                Collections.emptyList(), "", 900L, null, null);
+
+        Assert.assertNull(invokeGetter(selection, "getFaultDesc"));
+        Assert.assertNull(invokeGetter(selection, "getFaultRemark"));
+    }
+
+    @Test
+    public void shouldAllowOtherFaultForBarcodelessCreateWhenRemarkProvided() throws Exception {
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+
+        Object selection = invokePrivateMethod(service, "resolveCreateFaultSelection",
+                new Class<?>[]{List.class, String.class, Long.class, String.class, String.class},
+                Collections.singletonList("其它故障"), "无码机器手工描述故障", 900L, null, null);
+
+        Assert.assertEquals("其它故障", invokeGetter(selection, "getFaultDesc"));
+        Assert.assertEquals("无码机器手工描述故障", invokeGetter(selection, "getFaultRemark"));
+    }
+
+    @Test
+    public void shouldFallbackProxyCustomerNameToMobileWhenBlank() throws Exception {
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        WorkOrderProxyCreateDTO dto = new WorkOrderProxyCreateDTO();
+        dto.setCustomerName("   ");
+        dto.setCustomerMobile("13800138000");
+
+        Object identity = invokePrivateMethod(service, "resolveProxyCreateCustomerIdentity",
+                new Class<?>[]{WorkOrderProxyCreateDTO.class}, dto);
+        Assert.assertEquals("13800138000", invokeGetter(identity, "getCustomerName"));
+        Assert.assertEquals("13800138000", invokeGetter(identity, "getCustomerMobile"));
+    }
+
+    @Test
+    public void shouldLeaveCustomerIdNullWhenProxyCustomerNotMatched() throws Exception {
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderCustomerMapper", createWorkOrderCustomerMapperProxy(Collections.emptyList()));
+
+        Object customerId = invokePrivateMethod(service, "resolveCreateCustomerId",
+                new Class<?>[]{String.class, String.class}, "临时报修人", "13800138000");
+
+        Assert.assertNull(customerId);
+    }
+
+    @Test
+    public void shouldResolveReportSubjectByCreateEntryType() throws Exception {
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+
+        Object proxySubjectType = invokePrivateMethod(service, "resolveReportSubjectType",
+                new Class<?>[]{String.class}, "PROXY_SELF");
+        Object upstreamSubjectType = invokePrivateMethod(service, "resolveReportSubjectType",
+                new Class<?>[]{String.class}, "UPSTREAM_FIRST");
+        Object proxyReportCompanyId = invokePrivateMethod(service, "resolveReportCompanyId",
+                new Class<?>[]{Long.class, String.class}, 2002L, "PROXY_SELF");
+        Object upstreamReportCompanyId = invokePrivateMethod(service, "resolveReportCompanyId",
+                new Class<?>[]{Long.class, String.class}, 2002L, "UPSTREAM_HQ");
+
+        Assert.assertEquals("CUSTOMER", proxySubjectType);
+        Assert.assertEquals("COMPANY", upstreamSubjectType);
+        Assert.assertNull(proxyReportCompanyId);
+        Assert.assertEquals(Long.valueOf(2002L), upstreamReportCompanyId);
+    }
+
+    @Test
+    public void shouldRejectUpstreamCreateWhenLoginPhoneMissing() throws Exception {
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        SysUser currentUser = new SysUser();
+        currentUser.setId(101L);
+        currentUser.setRealName("当前员工");
+        currentUser.setPhone("   ");
+        setField(service, "sysUserMapper", createSysUserMapperProxy(currentUser));
+
+        runWithLoginContext(101L, new ThrowingRunnable() {
+            @Override
+            public void run() throws Exception {
+                try {
+                    invokePrivateMethod(service, "resolveUpstreamCreateCustomerIdentity", new Class<?>[0]);
+                    Assert.fail("预期应拒绝缺少手机号的上游报修兜底");
+                } catch (InvocationTargetException ex) {
+                    Assert.assertTrue(ex.getCause() instanceof ServiceException);
+                    Assert.assertEquals("当前登录账号未维护手机号，无法提交上级报修", ex.getCause().getMessage());
+                }
+            }
+        });
     }
 
     @Test
@@ -688,6 +1041,26 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    private WorkOrderMapper createPagedWorkOrderMapperProxy(List<WorkOrderListVO> records) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectWorkOrderPage".equals(method.getName())) {
+                    Page<WorkOrderListVO> page = new Page<>(1, records.size());
+                    page.setRecords(new ArrayList<>(records));
+                    page.setTotal(records.size());
+                    return page;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (WorkOrderMapper) Proxy.newProxyInstance(
+                WorkOrderMapper.class.getClassLoader(),
+                new Class<?>[]{WorkOrderMapper.class},
+                handler
+        );
+    }
+
     private WorkOrderMapper createMutableWorkOrderMapperProxy(WorkOrder workOrder, int[] updateCount) {
         InvocationHandler handler = new InvocationHandler() {
             @Override
@@ -709,6 +1082,29 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    private WorkOrderCustomerMapper createWorkOrderCustomerMapperProxy(List<WorkOrderCustomer> customers) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectList".equals(method.getName())) {
+                    return customers;
+                }
+                if ("updateById".equals(method.getName())) {
+                    return 1;
+                }
+                if ("insert".equals(method.getName())) {
+                    Assert.fail("本轮不应自动创建客户");
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (WorkOrderCustomerMapper) Proxy.newProxyInstance(
+                WorkOrderCustomerMapper.class.getClassLoader(),
+                new Class<?>[]{WorkOrderCustomerMapper.class},
+                handler
+        );
+    }
+
     private SysCompanyMapper createCompanyMapperProxy(List<SysCompany> companies) {
         Map<Long, SysCompany> companyMap = new LinkedHashMap<>();
         for (SysCompany company : companies) {
@@ -721,7 +1117,7 @@ public class WorkOrderServiceImplTest {
                     return companyMap.get(args[0]);
                 }
                 if ("selectBatchIds".equals(method.getName())) {
-                    List<?> ids = (List<?>) args[0];
+                    Iterable<?> ids = (Iterable<?>) args[0];
                     List<SysCompany> result = new ArrayList<>();
                     for (Object id : ids) {
                         SysCompany company = companyMap.get(id);
@@ -911,6 +1307,117 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    private ISysConfigService createSysConfigServiceProxy(String defaultHqCompanyId) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("getValueByKey".equals(method.getName())
+                        && args != null
+                        && args.length > 0
+                        && ("defaultHqCompanyId".equals(args[0]) || "default.hq.company.id".equals(args[0]))) {
+                    return defaultHqCompanyId;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (ISysConfigService) Proxy.newProxyInstance(
+                ISysConfigService.class.getClassLoader(),
+                new Class<?>[]{ISysConfigService.class},
+                handler
+        );
+    }
+
+    private SysUserMapper createSysUserMapperProxy(SysUser currentUser) {
+        return createSysUserMapperProxy(Collections.singletonList(currentUser));
+    }
+
+    private SysUserMapper createSysUserMapperProxy(List<SysUser> users) {
+        Map<Long, SysUser> userMap = new LinkedHashMap<>();
+        for (SysUser user : users) {
+            userMap.put(user.getId(), user);
+        }
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectById".equals(method.getName())) {
+                    return userMap.get(args[0]);
+                }
+                if ("selectBatchIds".equals(method.getName())) {
+                    Iterable<?> ids = (Iterable<?>) args[0];
+                    List<SysUser> result = new ArrayList<>();
+                    for (Object id : ids) {
+                        SysUser user = userMap.get(id);
+                        if (user != null) {
+                            result.add(user);
+                        }
+                    }
+                    return result;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (SysUserMapper) Proxy.newProxyInstance(
+                SysUserMapper.class.getClassLoader(),
+                new Class<?>[]{SysUserMapper.class},
+                handler
+        );
+    }
+
+    private SysUserCompanyMapper createUserCompanyMapperProxy(Long companyId, List<Long> userIds) {
+        List<SysUserCompany> userCompanies = new ArrayList<>();
+        for (Long userId : userIds) {
+            SysUserCompany userCompany = new SysUserCompany();
+            userCompany.setCompanyId(companyId);
+            userCompany.setUserId(userId);
+            userCompanies.add(userCompany);
+        }
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectList".equals(method.getName())) {
+                    return userCompanies;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (SysUserCompanyMapper) Proxy.newProxyInstance(
+                SysUserCompanyMapper.class.getClassLoader(),
+                new Class<?>[]{SysUserCompanyMapper.class},
+                handler
+        );
+    }
+
+    private SysMenuMapper createSysMenuMapperProxy(Map<Long, Set<String>> userPermsMap) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectPermsByUserIdAndCompanyId".equals(method.getName())) {
+                    Long userId = (Long) args[0];
+                    Set<String> perms = userPermsMap.get(userId);
+                    return perms == null ? Collections.emptySet() : new LinkedHashSet<>(perms);
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (SysMenuMapper) Proxy.newProxyInstance(
+                SysMenuMapper.class.getClassLoader(),
+                new Class<?>[]{SysMenuMapper.class},
+                handler
+        );
+    }
+
+    private Object invokePrivateMethod(Object target, String methodName, Class<?>[] parameterTypes, Object... args) throws Exception {
+        Method method = target.getClass().getDeclaredMethod(methodName, parameterTypes);
+        method.setAccessible(true);
+        return method.invoke(target, args);
+    }
+
+    private Object invokeGetter(Object target, String methodName) throws Exception {
+        Method method = target.getClass().getDeclaredMethod(methodName);
+        method.setAccessible(true);
+        return method.invoke(target);
+    }
+
     @SuppressWarnings("unchecked")
     private List<WorkOrderFaultItemDTO> invokeNormalizeRepairFaults(WorkOrderServiceImpl service,
                                                                     WorkOrder workOrder,
@@ -942,6 +1449,15 @@ public class WorkOrderServiceImplTest {
         company.setTypeCode(typeCode);
         company.setStatus(1);
         return company;
+    }
+
+    private SysUser buildUser(Long userId, String realName, String phone, Integer status) {
+        SysUser user = new SysUser();
+        user.setId(userId);
+        user.setRealName(realName);
+        user.setPhone(phone);
+        user.setStatus(status);
+        return user;
     }
 
     private SysCompanyType buildCompanyType(String typeCode, String subjectType) {
