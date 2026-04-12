@@ -17,7 +17,6 @@ import com.jasic.aftersales.common.enums.ServiceModeEnum;
 import com.jasic.aftersales.common.enums.SysFileBizTypeEnum;
 import com.jasic.aftersales.common.enums.SysFileUploadUserTypeEnum;
 import com.jasic.aftersales.common.enums.WorkOrderActionEnum;
-import com.jasic.aftersales.common.enums.WorkOrderRelationTypeEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.dto.WorkOrderAssignDTO;
@@ -944,9 +943,6 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         if (workOrder == null) {
             return;
         }
-        WorkOrderRelationTypeEnum relationType = workOrderPermissionService.resolveRelationType(workOrder);
-        target.setRelationType(relationType.getCode());
-        target.setIsReadonly(resolveReadonlyFlag(relationType, target.getIsReadonly()));
     }
 
     private List<WorkOrderQuoteVO> listQuoteVos(Long workOrderId) {
@@ -2170,33 +2166,6 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         snapshot.setCurrentAcceptCompanyId(target.getCurrentAcceptCompanyId());
         snapshot.setAssignedUserId(target.getAssignedUserId());
         return snapshot;
-    }
-
-    /**
-     * 根据工单关系类型推导列表/详情的只读标记。
-     *
-     * <p>规则上，只要是总部观察者或历史参与方，就应该明确标记为只读；
-     * 只要当前用户与工单存在明确业务关系且不是只读关系，就返回非只读。
-     * 这里的“非只读”只表示具备进一步操作的可能，具体按钮仍由 `availableActions` 决定。</p>
-     *
-     * @param relationType 当前登录人与工单的关系类型
-     * @param currentFlag  现有只读标记
-     * @return 推导后的只读标记
-     */
-    private Integer resolveReadonlyFlag(WorkOrderRelationTypeEnum relationType, Integer currentFlag) {
-        if (relationType == null) {
-            return currentFlag;
-        }
-        // 总部观察者、历史参与方都允许看单，但不允许把当前详情页当作可编辑页使用。
-        if (relationType.isReadonly()) {
-            return 1;
-        }
-        // 只要与工单存在明确业务关系且不是只读关系，就返回非只读；
-        // 具体能不能出现动作按钮，还要继续看 availableActions。
-        if (relationType.hasRelation()) {
-            return 0;
-        }
-        return currentFlag;
     }
 
     private boolean isNoFaultWorkOrder(Long workOrderId) {

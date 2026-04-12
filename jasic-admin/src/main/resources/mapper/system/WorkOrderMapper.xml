@@ -41,8 +41,6 @@
             su.real_name AS assignedUserName,
             w.has_transfer AS hasTransfer,
             w.transfer_count AS transferCount,
-            p.participate_type AS relationType,
-            p.is_readonly AS isReadonly,
             w.create_time AS createTime
         FROM work_order w
         LEFT JOIN sys_company cac ON w.current_accept_company_id = cac.id
@@ -237,7 +235,6 @@
             p.subject_type AS subjectType,
             p.participate_type AS participateType,
             p.is_current_handler AS isCurrentHandler,
-            p.is_readonly AS isReadonly,
             p.first_participate_time AS firstParticipateTime,
             p.last_participate_time AS lastParticipateTime
         FROM work_order_participant p

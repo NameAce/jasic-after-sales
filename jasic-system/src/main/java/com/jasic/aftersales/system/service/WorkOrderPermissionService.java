@@ -4,6 +4,7 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.jasic.aftersales.common.enums.DataScopeEnum;
 import com.jasic.aftersales.common.enums.ServiceModeEnum;
 import com.jasic.aftersales.common.enums.WorkOrderActionEnum;
+import com.jasic.aftersales.common.enums.WorkOrderRelationTagEnum;
 import com.jasic.aftersales.common.enums.WorkOrderRelationTypeEnum;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
@@ -20,7 +21,9 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -34,6 +37,25 @@ import java.util.stream.Collectors;
  */
 @Service
 public class WorkOrderPermissionService {
+
+    /**
+     * 详情页动作返回顺序。
+     *
+     * <p>前端按钮通常希望按稳定顺序展示，因此这里集中定义返回顺序，
+     * 避免动作判断逻辑改造后，按钮顺序随着代码分支顺序发生漂移。</p>
+     */
+    private static final List<WorkOrderActionEnum> DETAIL_ACTION_ORDER = Collections.unmodifiableList(Arrays.asList(
+            WorkOrderActionEnum.ASSIGN,
+            WorkOrderActionEnum.UPLOAD_SEND_EXPRESS,
+            WorkOrderActionEnum.TECH_ACCEPT,
+            WorkOrderActionEnum.TRANSFER,
+            WorkOrderActionEnum.QUOTE,
+            WorkOrderActionEnum.REPAIR_SAVE,
+            WorkOrderActionEnum.REPAIR_FINISH,
+            WorkOrderActionEnum.REVIEW,
+            WorkOrderActionEnum.RETURN_METHOD,
+            WorkOrderActionEnum.CLOSE
+    ));
 
     @Resource
     private WorkOrderParticipantMapper workOrderParticipantMapper;
@@ -104,11 +126,72 @@ public class WorkOrderPermissionService {
     }
 
     /**
+     * 解析当前登录人与工单之间已经成立的关系标签集合。
+     *
+     * <p>该方法只负责提炼“事实关系”，不直接产出按钮或放行结果。
+     * 之所以单独抽成多值标签，是为了支持一人多岗场景：同一个用户在当前受理公司下，
+     * 既可能是当前维修员，又可能同时拥有转单、关闭等管理动作权限。</p>
+     *
+     * <p>典型使用方式：</p>
+     * <p>1. `canView` 先判断是否具备查看工单的资格。</p>
+     * <p>2. `resolveRelationTags` 再把工单里的客观业务关系标签补齐。</p>
+     * <p>3. `canExecute` 基于关系标签、动作权限点和工单状态决定某个动作是否允许。</p>
+     *
+     * @param workOrder 工单实体
+     * @return 关系标签集合；未命中时返回空集合
+     */
+    public EnumSet<WorkOrderRelationTagEnum> resolveRelationTags(WorkOrder workOrder) {
+        EnumSet<WorkOrderRelationTagEnum> relationTags = EnumSet.noneOf(WorkOrderRelationTagEnum.class);
+        if (workOrder == null) {
+            return relationTags;
+        }
+        // 平台视角不依赖工单参与记录，直接保留平台管理员标签，供后续按需扩展特例。
+        if (SecurityContext.isPlatformUser()) {
+            relationTags.add(WorkOrderRelationTagEnum.PLATFORM_ADMIN);
+            return relationTags;
+        }
+        Long currentCompanyId = SecurityContext.getCurrentCompanyId();
+        Long currentUserId = SecurityContext.getCurrentUserId();
+        if (currentCompanyId == null) {
+            return relationTags;
+        }
+        // 当前登录公司就是当前受理公司，是大多数管理动作成立的必要前提。
+        if (currentCompanyId.equals(workOrder.getCurrentAcceptCompanyId())) {
+            relationTags.add(WorkOrderRelationTagEnum.CURRENT_ACCEPT_COMPANY);
+        }
+        // 建单方标签当前主要用于补齐事实关系，为后续扩展建单方能力预留挂点。
+        if (currentCompanyId.equals(workOrder.getCreateCompanyId())) {
+            relationTags.add(WorkOrderRelationTagEnum.CREATOR_COMPANY);
+        }
+        // 被明确派到这张单上的维修员单独打标，供接单/报价/维修动作复用。
+        if (workOrder.getAssignedUserId() != null && workOrder.getAssignedUserId().equals(currentUserId)) {
+            relationTags.add(WorkOrderRelationTagEnum.ASSIGNEE);
+        }
+        // 当前受理公司下的标签已经足够判定当前处理方关系，无需再查参与表补历史标签。
+        if (relationTags.contains(WorkOrderRelationTagEnum.CURRENT_ACCEPT_COMPANY)) {
+            return relationTags;
+        }
+        WorkOrderParticipant participant = getParticipant(workOrder.getId(), currentCompanyId);
+        if (participant == null) {
+            return relationTags;
+        }
+        // 总部参与关系保留独立标签，方便前端或后端单独识别总部只读视角。
+        if (WorkOrderRelationTypeEnum.HQ_OBSERVER.getCode().equals(participant.getParticipateType())) {
+            relationTags.add(WorkOrderRelationTagEnum.HQ_OBSERVER);
+            return relationTags;
+        }
+        // 其余参与记录统一视为历史参与关系，当前默认只读。
+        relationTags.add(WorkOrderRelationTagEnum.HISTORY_PARTICIPANT);
+        return relationTags;
+    }
+
+    /**
      * 解析当前登录人与工单之间的关系类型。
      *
      * <p>这里解析的是“工单内身份”，不是纯菜单权限。
-     * 同一个用户即使具备 `workorder:transfer`、`workorder:quote` 等权限点，
-     * 也只有在当前工单里处于对应业务角色时，才允许真正执行动作。</p>
+     * 但从本次重构开始，它主要承担“主身份展示”职责，不再作为动作放行的唯一依据。
+     * 同一个用户在一张工单上可能同时具备多个关系标签和多个动作权限，
+     * 因此真正的动作授权统一改由 `resolveRelationTags + canExecute` 负责。</p>
      *
      * <p>判定顺序如下：</p>
      * <p>1. 平台账号直接归类为 {@link WorkOrderRelationTypeEnum#PLATFORM_ADMIN}。</p>
@@ -116,54 +199,56 @@ public class WorkOrderPermissionService {
      * <p>3. 如果不是当前受理公司，则根据参与方记录识别为总部观察者或历史参与方只读。</p>
      * <p>4. 全部不命中时返回 {@link WorkOrderRelationTypeEnum#NONE}。</p>
      *
+     * <p>注意：因为 `relationType` 仍然是单值字段，一人多岗时只能选一个“主展示身份”。
+     * 当前优先级仍然保持“当前维修员优先于管理岗”，这样可以保证已被派单的技师在前端看到的主身份
+     * 仍然是“当前维修员”；如果需要展示更多兼岗信息，后续应直接补充返回关系标签集合。</p>
+     *
      * @param workOrder 工单实体
      * @return 关系类型枚举
      */
     public WorkOrderRelationTypeEnum resolveRelationType(WorkOrder workOrder) {
-        if (workOrder == null) {
+        EnumSet<WorkOrderRelationTagEnum> relationTags = resolveRelationTags(workOrder);
+        if (relationTags.isEmpty()) {
             return WorkOrderRelationTypeEnum.NONE;
         }
-        // 平台账号不依赖工单参与关系，直接视为平台管理员视角。
-        if (SecurityContext.isPlatformUser()) {
+        if (relationTags.contains(WorkOrderRelationTagEnum.PLATFORM_ADMIN)) {
             return WorkOrderRelationTypeEnum.PLATFORM_ADMIN;
         }
-        Long currentCompanyId = SecurityContext.getCurrentCompanyId();
-        Long currentUserId = SecurityContext.getCurrentUserId();
-        if (currentCompanyId == null) {
-            return WorkOrderRelationTypeEnum.NONE;
-        }
-        if (currentCompanyId.equals(workOrder.getCurrentAcceptCompanyId())) {
-            // 当前公司就是当前受理公司时，先判断是否就是被派到这张单上的维修员。
-            if (workOrder.getAssignedUserId() != null && workOrder.getAssignedUserId().equals(currentUserId)) {
+        if (relationTags.contains(WorkOrderRelationTagEnum.CURRENT_ACCEPT_COMPANY)) {
+            // 对外展示时，已被派到这张单上的维修员仍优先显示为当前维修员。
+            if (relationTags.contains(WorkOrderRelationTagEnum.ASSIGNEE)) {
                 return WorkOrderRelationTypeEnum.CURRENT_ASSIGNEE;
             }
-            // 不是维修员但具备派单/转单/复检/关闭等管理能力时，归类为当前受理方管理岗。
-            if (hasAnyPermission("workorder:assign", "workorder:transfer", "workorder:review", "workorder:close")) {
+            // “管理岗”在这里是展示语义：表示当前受理公司下具备任一管理动作基础权限的人员。
+            // 真正能否执行动作，仍以 canExecute 中的实例级规则为准。
+            if (hasAnyActionPermission(
+                    WorkOrderActionEnum.ASSIGN,
+                    WorkOrderActionEnum.TRANSFER,
+                    WorkOrderActionEnum.REVIEW,
+                    WorkOrderActionEnum.CLOSE
+            )) {
                 return WorkOrderRelationTypeEnum.CURRENT_OWNER_MANAGER;
             }
-            // 同属当前受理公司、但既不是当前维修员也不是管理岗时，视为当前受理方普通成员。
             return WorkOrderRelationTypeEnum.CURRENT_OWNER_MEMBER;
         }
-        // 不是当前受理公司时，只能再从参与记录里判断是总部观察者还是历史参与方。
-        WorkOrderParticipant participant = getParticipant(workOrder.getId(), currentCompanyId);
-        if (participant == null) {
-            return WorkOrderRelationTypeEnum.NONE;
-        }
-        // 总部参与记录单独保留 HQ_OBSERVER，前端会据此标记总部只读身份。
-        if (WorkOrderRelationTypeEnum.HQ_OBSERVER.getCode().equals(participant.getParticipateType())) {
+        if (relationTags.contains(WorkOrderRelationTagEnum.HQ_OBSERVER)) {
             return WorkOrderRelationTypeEnum.HQ_OBSERVER;
         }
-        // 其余有参与记录但不是当前受理方的，统一视为历史参与方只读。
-        return WorkOrderRelationTypeEnum.HISTORY_PARTICIPANT_READONLY;
+        if (relationTags.contains(WorkOrderRelationTagEnum.HISTORY_PARTICIPANT)) {
+            return WorkOrderRelationTypeEnum.HISTORY_PARTICIPANT_READONLY;
+        }
+        return WorkOrderRelationTypeEnum.NONE;
     }
 
     /**
      * 根据当前关系和工单状态返回前端可执行的操作编码。
      *
-     * <p>该方法返回的是“这张工单当前真正允许做的动作”，因此会同时叠加三层条件：</p>
-     * <p>1. 当前用户先要有查看该工单的资格。</p>
-     * <p>2. 当前用户在该工单中的关系类型要匹配动作归属，例如管理岗和维修员的动作集合不同。</p>
-     * <p>3. 工单主状态和权限点都要满足，例如待派单才允许 `ASSIGN`，处理中才允许 `QUOTE`。</p>
+     * <p>该方法返回的是“这张工单当前真正允许做的动作”。从本次重构开始，
+     * 它不再直接依赖单一 `relationType` 做分支，而是统一复用 `canExecute`。</p>
+     *
+     * <p>这样做有两个目的：</p>
+     * <p>1. 避免 `listAvailableActions`、`canTransfer`、`canClose` 等多个入口各写一套规则。</p>
+     * <p>2. 支持一人多岗：当前维修员如果同时拥有转单权限，也可以在动作层被正确放行。</p>
      *
      * <p>返回值面向前端按钮层，仍然使用字符串编码，避免接口契约发生变化。</p>
      *
@@ -171,59 +256,96 @@ public class WorkOrderPermissionService {
      * @return 可执行操作列表
      */
     public List<String> listAvailableActions(WorkOrder workOrder) {
-        if (!canView(workOrder)) {
+        if (workOrder == null) {
             return Collections.emptyList();
         }
         List<String> actions = new ArrayList<>();
-        WorkOrderRelationTypeEnum relationType = resolveRelationType(workOrder);
-        String mainStatus = workOrder.getMainStatus();
-        if (WorkOrderRelationTypeEnum.CURRENT_OWNER_MANAGER == relationType) {
-            // 管理岗负责派单，因此只有待派单时才可能看到 ASSIGN。
-            if (WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN.equals(mainStatus)
-                    && StpUtil.hasPermission("workorder:assign")) {
-                addAction(actions, WorkOrderActionEnum.ASSIGN);
-            }
-            // 寄修单在待受理阶段需要由管理岗补充寄件单号。
-            if (canUpdateSendExpress(workOrder)) {
-                addAction(actions, WorkOrderActionEnum.UPLOAD_SEND_EXPRESS);
-            }
-            // 转单属于当前受理方的管理动作，维修员和历史参与方都不能做。
-            if (WorkOrderStatusConstants.MainStatus.IN_PROGRESS.equals(mainStatus)
-                    && StpUtil.hasPermission("workorder:transfer")) {
-                addAction(actions, WorkOrderActionEnum.TRANSFER);
-            }
-            if (WorkOrderStatusConstants.MainStatus.COMPLETED.equals(mainStatus)) {
-                // 已完成后，管理岗根据权限决定是否复检、转单或关闭。
-                if (StpUtil.hasPermission("workorder:review")) {
-                    addAction(actions, WorkOrderActionEnum.REVIEW);
-                }
-                if (StpUtil.hasPermission("workorder:transfer")) {
-                    addAction(actions, WorkOrderActionEnum.TRANSFER);
-                }
-                if (StpUtil.hasPermission("workorder:close")) {
-                    addAction(actions, WorkOrderActionEnum.RETURN_METHOD);
-                    addAction(actions, WorkOrderActionEnum.CLOSE);
-                }
-            }
-        }
-        if (WorkOrderRelationTypeEnum.CURRENT_ASSIGNEE == relationType) {
-            // 接单动作只属于当前被派到这张单上的维修员。
-            if (WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT.equals(mainStatus)
-                    && StpUtil.hasPermission("workorder:accept")) {
-                addAction(actions, WorkOrderActionEnum.TECH_ACCEPT);
-            }
-            if (WorkOrderStatusConstants.MainStatus.IN_PROGRESS.equals(mainStatus)) {
-                // 处理中阶段的报价和维修登记由当前维修员承担。
-                if (StpUtil.hasPermission("workorder:quote")) {
-                    addAction(actions, WorkOrderActionEnum.QUOTE);
-                }
-                if (StpUtil.hasPermission("workorder:repair")) {
-                    addAction(actions, WorkOrderActionEnum.REPAIR_SAVE);
-                    addAction(actions, WorkOrderActionEnum.REPAIR_FINISH);
-                }
+        for (WorkOrderActionEnum action : DETAIL_ACTION_ORDER) {
+            if (canExecute(workOrder, action)) {
+                addAction(actions, action);
             }
         }
         return actions;
+    }
+
+    /**
+     * 判断当前登录人是否允许在指定工单上执行某个动作。
+     *
+     * <p>这是工单动作授权的统一入口，专门用来替代过去依赖单一 `relationType`
+     * 做分支的写法。每个动作都会同时叠加三类条件：</p>
+     *
+     * <p>1. 当前人先要能看见这张工单。</p>
+     * <p>2. 当前工单的事实关系标签要满足动作要求，例如维修员动作要求 `ASSIGNEE`。</p>
+     * <p>3. 动作对应的基础权限点、工单状态、服务模式等实例条件也要满足。</p>
+     *
+     * <p>这种写法可以天然支持一人多岗。比如同一个用户既是当前维修员，
+     * 又拥有 `TRANSFER` 权限，那么只要他属于当前受理公司且状态允许，就可以转单，
+     * 不会再因为主展示身份被压成 `CURRENT_ASSIGNEE` 而失去管理动作。</p>
+     *
+     * @param workOrder 工单实体
+     * @param action    动作枚举
+     * @return true 表示允许执行
+     */
+    public boolean canExecute(WorkOrder workOrder, WorkOrderActionEnum action) {
+        if (workOrder == null || action == null) {
+            return false;
+        }
+        if (!canView(workOrder)) {
+            return false;
+        }
+        EnumSet<WorkOrderRelationTagEnum> relationTags = resolveRelationTags(workOrder);
+        String mainStatus = workOrder.getMainStatus();
+        boolean inCurrentAcceptCompany = relationTags.contains(WorkOrderRelationTagEnum.CURRENT_ACCEPT_COMPANY);
+        boolean isAssignee = relationTags.contains(WorkOrderRelationTagEnum.ASSIGNEE);
+        switch (action) {
+            case ASSIGN:
+                // 派单要求当前登录公司就是当前受理公司，且工单仍停留在待派单状态。
+                return inCurrentAcceptCompany
+                        && WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN.equals(mainStatus)
+                        && hasActionPermission(action);
+            case UPLOAD_SEND_EXPRESS:
+                // 上传寄件单号是寄修单在待受理阶段的补充物流动作，沿用派单权限点控制。
+                return inCurrentAcceptCompany
+                        && ServiceModeEnum.isMail(workOrder.getServiceMode())
+                        && WorkOrderStatusConstants.isWaitAcceptMainStatus(mainStatus)
+                        && hasActionPermission(action);
+            case TECH_ACCEPT:
+                // 接单只属于当前被派到这张单上的维修员。
+                return isAssignee
+                        && WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT.equals(mainStatus)
+                        && hasActionPermission(action);
+            case QUOTE:
+                // 报价动作沿用当前维修员语义，且仅处理中可做。
+                return isAssignee
+                        && WorkOrderStatusConstants.MainStatus.IN_PROGRESS.equals(mainStatus)
+                        && hasActionPermission(action);
+            case REPAIR_SAVE:
+            case REPAIR_FINISH:
+                // 维修保存和维修完成共用同一套“维修员 + 处理中 + repair 权限”约束。
+                return isAssignee
+                        && WorkOrderStatusConstants.MainStatus.IN_PROGRESS.equals(mainStatus)
+                        && hasActionPermission(action);
+            case TRANSFER:
+                // 转单看的是“是否属于当前受理公司 + 是否有转单权限”，
+                // 而不是“主展示身份是不是管理岗”，这样才能兼容一人多岗。
+                return inCurrentAcceptCompany
+                        && WorkOrderStatusConstants.canTransfer(mainStatus)
+                        && hasActionPermission(action);
+            case REVIEW:
+                // 复检和关闭属于完成态管理动作；如果未来要增加“禁止自己复检自己”，
+                // 应在这里直接追加实例级约束，而不是再回退到单值身份互斥。
+                return inCurrentAcceptCompany
+                        && WorkOrderStatusConstants.MainStatus.COMPLETED.equals(mainStatus)
+                        && hasActionPermission(action);
+            case RETURN_METHOD:
+            case CLOSE:
+                // 当前实现里返还方式和关闭都挂在 close 权限点下，且只允许完成态执行。
+                return inCurrentAcceptCompany
+                        && WorkOrderStatusConstants.MainStatus.COMPLETED.equals(mainStatus)
+                        && hasActionPermission(action);
+            default:
+                return false;
+        }
     }
 
     /**
@@ -233,9 +355,7 @@ public class WorkOrderPermissionService {
      * @return true 表示允许指派
      */
     public boolean canAssign(WorkOrder workOrder) {
-        return WorkOrderRelationTypeEnum.CURRENT_OWNER_MANAGER == resolveRelationType(workOrder)
-                && WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN.equals(workOrder.getMainStatus())
-                && StpUtil.hasPermission("workorder:assign");
+        return canExecute(workOrder, WorkOrderActionEnum.ASSIGN);
     }
 
     /**
@@ -245,9 +365,7 @@ public class WorkOrderPermissionService {
      * @return true 表示允许技师接单
      */
     public boolean canTechAccept(WorkOrder workOrder) {
-        return WorkOrderRelationTypeEnum.CURRENT_ASSIGNEE == resolveRelationType(workOrder)
-                && WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT.equals(workOrder.getMainStatus())
-                && StpUtil.hasPermission("workorder:accept");
+        return canExecute(workOrder, WorkOrderActionEnum.TECH_ACCEPT);
     }
 
     /**
@@ -257,9 +375,7 @@ public class WorkOrderPermissionService {
      * @return true 表示允许转派
      */
     public boolean canTransfer(WorkOrder workOrder) {
-        return WorkOrderRelationTypeEnum.CURRENT_OWNER_MANAGER == resolveRelationType(workOrder)
-                && WorkOrderStatusConstants.canTransfer(workOrder.getMainStatus())
-                && StpUtil.hasPermission("workorder:transfer");
+        return canExecute(workOrder, WorkOrderActionEnum.TRANSFER);
     }
 
     /**
@@ -269,9 +385,7 @@ public class WorkOrderPermissionService {
      * @return true 表示允许报价
      */
     public boolean canQuote(WorkOrder workOrder) {
-        return WorkOrderRelationTypeEnum.CURRENT_ASSIGNEE == resolveRelationType(workOrder)
-                && WorkOrderStatusConstants.MainStatus.IN_PROGRESS.equals(workOrder.getMainStatus())
-                && StpUtil.hasPermission("workorder:quote");
+        return canExecute(workOrder, WorkOrderActionEnum.QUOTE);
     }
 
     /**
@@ -281,9 +395,7 @@ public class WorkOrderPermissionService {
      * @return true 表示允许保存维修记录
      */
     public boolean canSaveRepair(WorkOrder workOrder) {
-        return WorkOrderRelationTypeEnum.CURRENT_ASSIGNEE == resolveRelationType(workOrder)
-                && WorkOrderStatusConstants.MainStatus.IN_PROGRESS.equals(workOrder.getMainStatus())
-                && StpUtil.hasPermission("workorder:repair");
+        return canExecute(workOrder, WorkOrderActionEnum.REPAIR_SAVE);
     }
 
     /**
@@ -293,9 +405,7 @@ public class WorkOrderPermissionService {
      * @return true 表示允许复检
      */
     public boolean canReview(WorkOrder workOrder) {
-        return WorkOrderRelationTypeEnum.CURRENT_OWNER_MANAGER == resolveRelationType(workOrder)
-                && WorkOrderStatusConstants.MainStatus.COMPLETED.equals(workOrder.getMainStatus())
-                && StpUtil.hasPermission("workorder:review");
+        return canExecute(workOrder, WorkOrderActionEnum.REVIEW);
     }
 
     /**
@@ -305,29 +415,26 @@ public class WorkOrderPermissionService {
      * @return true 表示允许上传寄件快递单号
      */
     public boolean canUpdateSendExpress(WorkOrder workOrder) {
-        if (WorkOrderRelationTypeEnum.CURRENT_OWNER_MANAGER != resolveRelationType(workOrder)) {
-            return false;
-        }
-        if (!ServiceModeEnum.isMail(workOrder.getServiceMode())) {
-            return false;
-        }
-        return WorkOrderStatusConstants.isWaitAcceptMainStatus(workOrder.getMainStatus())
-                && StpUtil.hasPermission("workorder:assign");
+        return canExecute(workOrder, WorkOrderActionEnum.UPLOAD_SEND_EXPRESS);
     }
 
     /**
      * 判断当前登录人是否允许关闭工单。
      *
-     * <p>仅当前受理公司的管理岗，且工单已进入已完成状态时，才允许执行关闭。
-     * 关闭动作通常还会伴随返还方式、返件单号、客户评价邀请等后续流程。</p>
+     * <p>关闭动作当前要求：</p>
+     * <p>1. 当前用户能查看该工单。</p>
+     * <p>2. 当前登录公司就是工单当前受理公司。</p>
+     * <p>3. 工单主状态已进入已完成。</p>
+     * <p>4. 当前账号具备 `workorder:close` 基础权限点。</p>
+     *
+     * <p>这里不再硬性要求单值 `relationType` 必须等于“管理岗”，
+     * 从而允许一人多岗场景下的兼岗人员在满足条件时执行关闭。</p>
      *
      * @param workOrder 工单实体
      * @return true 表示允许关闭
      */
     public boolean canClose(WorkOrder workOrder) {
-        return WorkOrderRelationTypeEnum.CURRENT_OWNER_MANAGER == resolveRelationType(workOrder)
-                && WorkOrderStatusConstants.MainStatus.COMPLETED.equals(workOrder.getMainStatus())
-                && StpUtil.hasPermission("workorder:close");
+        return canExecute(workOrder, WorkOrderActionEnum.CLOSE);
     }
 
     /**
@@ -433,9 +540,50 @@ public class WorkOrderPermissionService {
         return workOrderParticipantMapper.selectCount(wrapper) > 0;
     }
 
-    private boolean hasAnyPermission(String... perms) {
-        for (String perm : perms) {
-            if (StpUtil.hasPermission(perm)) {
+    /**
+     * 判断当前登录人是否具备某个动作对应的基础权限点。
+     *
+     * <p>该方法刻意只处理“基础权限点”判断，便于测试时通过覆写方式替换权限来源，
+     * 而不用把整个 Sa-Token 权限链路搬进单元测试。</p>
+     *
+     * @param action 工单动作
+     * @return true 表示拥有该动作对应的基础权限
+     */
+    protected boolean hasActionPermission(WorkOrderActionEnum action) {
+        if (action == null) {
+            return false;
+        }
+        return hasPermissionCode(action.getPermissionCode());
+    }
+
+    /**
+     * 判断当前登录人是否具备指定权限点。
+     *
+     * <p>之所以单独抽这一层，是为了把权限来源和动作实例规则拆开：
+     * 生产环境默认走 Sa-Token，测试环境则可以通过覆写该方法快速注入权限集合。</p>
+     *
+     * @param permissionCode 权限点编码
+     * @return true 表示具备权限
+     */
+    protected boolean hasPermissionCode(String permissionCode) {
+        if (permissionCode == null || permissionCode.trim().isEmpty()) {
+            return true;
+        }
+        return StpUtil.hasPermission(permissionCode);
+    }
+
+    /**
+     * 判断当前登录人是否具备任一动作对应的基础权限点。
+     *
+     * <p>该方法当前只用于推导单值 `relationType` 的展示身份，不参与真实动作放行。
+     * 这样即便未来管理动作继续扩展，也只需要在这里或动作枚举中集中维护。</p>
+     *
+     * @param actions 动作列表
+     * @return true 表示命中任一动作权限
+     */
+    private boolean hasAnyActionPermission(WorkOrderActionEnum... actions) {
+        for (WorkOrderActionEnum action : actions) {
+            if (hasActionPermission(action)) {
                 return true;
             }
         }

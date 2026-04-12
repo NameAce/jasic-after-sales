@@ -7,6 +7,9 @@ import cn.dev33.satoken.context.model.SaRequest;
 import cn.dev33.satoken.context.model.SaResponse;
 import cn.dev33.satoken.context.model.SaStorage;
 import cn.dev33.satoken.stp.StpUtil;
+import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
+import com.jasic.aftersales.common.enums.WorkOrderActionEnum;
+import com.jasic.aftersales.common.enums.WorkOrderRelationTagEnum;
 import com.jasic.aftersales.common.enums.WorkOrderRelationTypeEnum;
 import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
@@ -28,9 +31,12 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumSet;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 工单权限服务测试。
@@ -41,13 +47,20 @@ import java.util.Map;
 public class WorkOrderPermissionServiceTest {
 
     private WorkOrderPermissionService service;
+    private Set<String> permissionCodes;
 
     @Before
     public void setUp() {
         SaManager.setSaTokenContext(new SaTokenContextForThreadLocal());
         SaTokenContextForThreadLocalStorage.setBox(new MockSaRequest(), new MockSaResponse(), new MockSaStorage());
         StpUtil.login(101L);
-        service = new WorkOrderPermissionService();
+        permissionCodes = new LinkedHashSet<>();
+        service = new WorkOrderPermissionService() {
+            @Override
+            protected boolean hasPermissionCode(String permissionCode) {
+                return permissionCode == null || permissionCode.trim().isEmpty() || permissionCodes.contains(permissionCode);
+            }
+        };
     }
 
     @After
@@ -230,6 +243,51 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertEquals(WorkOrderRelationTypeEnum.HISTORY_PARTICIPANT_READONLY, service.resolveRelationType(workOrder));
     }
 
+    @Test
+    public void shouldResolveRelationTagsForAssignedDispatcherInCurrentAcceptCompany() throws Exception {
+        setCurrentServiceContext(1001L);
+        setEmptyMapperDependencies();
+
+        WorkOrder workOrder = buildWorkOrder(16L, 900L, 1001L, 1001L, 101L);
+
+        EnumSet<WorkOrderRelationTagEnum> relationTags = service.resolveRelationTags(workOrder);
+
+        Assert.assertTrue(relationTags.contains(WorkOrderRelationTagEnum.CURRENT_ACCEPT_COMPANY));
+        Assert.assertTrue(relationTags.contains(WorkOrderRelationTagEnum.ASSIGNEE));
+        Assert.assertTrue(relationTags.contains(WorkOrderRelationTagEnum.CREATOR_COMPANY));
+    }
+
+    @Test
+    public void shouldAllowAssignedDispatcherTransferAndQuoteAtSameTime() throws Exception {
+        setCurrentServiceContext(1001L);
+        setEmptyMapperDependencies();
+        grantPermissions("workorder:transfer", "workorder:quote");
+
+        WorkOrder workOrder = buildWorkOrder(17L, 900L, 1001L, 1001L, 101L);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.IN_PROGRESS);
+
+        List<String> actions = service.listAvailableActions(workOrder);
+
+        Assert.assertEquals(WorkOrderRelationTypeEnum.CURRENT_ASSIGNEE, service.resolveRelationType(workOrder));
+        Assert.assertTrue(service.canTransfer(workOrder));
+        Assert.assertTrue(service.canQuote(workOrder));
+        Assert.assertTrue(actions.contains(WorkOrderActionEnum.TRANSFER.getCode()));
+        Assert.assertTrue(actions.contains(WorkOrderActionEnum.QUOTE.getCode()));
+    }
+
+    @Test
+    public void shouldRejectTransferForAssignedTechWithoutTransferPermission() throws Exception {
+        setCurrentServiceContext(1001L);
+        setEmptyMapperDependencies();
+        grantPermissions("workorder:quote");
+
+        WorkOrder workOrder = buildWorkOrder(18L, 900L, 1001L, 1001L, 101L);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.IN_PROGRESS);
+
+        Assert.assertFalse(service.canTransfer(workOrder));
+        Assert.assertFalse(service.listAvailableActions(workOrder).contains(WorkOrderActionEnum.TRANSFER.getCode()));
+    }
+
     private void setCurrentHqRegionContext() {
         SecurityContext.setCurrentCompanyId(900L);
         SecurityContext.setCurrentSubjectType("HQ");
@@ -244,6 +302,27 @@ public class WorkOrderPermissionServiceTest {
         SecurityContext.setCurrentTypeCode("HQ_A");
         SecurityContext.setEffectiveDataScope("ALL");
         SecurityContext.setCurrentRegionIds(Collections.emptyList());
+    }
+
+    private void setCurrentServiceContext(Long companyId) {
+        SecurityContext.setCurrentCompanyId(companyId);
+        SecurityContext.setCurrentSubjectType("SERVICE");
+        SecurityContext.setCurrentTypeCode("FIRST");
+        SecurityContext.setEffectiveDataScope("ALL");
+        SecurityContext.setCurrentRegionIds(Collections.emptyList());
+    }
+
+    private void grantPermissions(String... permissionCodes) {
+        if (permissionCodes == null) {
+            return;
+        }
+        this.permissionCodes.addAll(Arrays.asList(permissionCodes));
+    }
+
+    private void setEmptyMapperDependencies() throws Exception {
+        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(null, 0L));
+        setField(service, "hqFirstContractMapper", createContractMapperProxy(Collections.emptyList()));
+        setField(service, "firstSecondRelationMapper", createRelationMapperProxy(Collections.emptyList()));
     }
 
     private WorkOrder buildWorkOrder(Long id, Long hqCompanyId, Long currentAcceptCompanyId,
@@ -263,7 +342,6 @@ public class WorkOrderPermissionServiceTest {
         participant.setCompanyId(companyId);
         participant.setParticipateType(participateType);
         participant.setIsCurrentHandler(0);
-        participant.setIsReadonly(1);
         return participant;
     }
 

@@ -41,9 +41,6 @@ public class WorkOrderParticipant extends BaseEntity {
     /** 是否当前受理方（1=是，0=否） */
     private Integer isCurrentHandler;
 
-    /** 是否只读（1=是，0=否） */
-    private Integer isReadonly;
-
     /** 首次参与时间 */
     private LocalDateTime firstParticipateTime;
 

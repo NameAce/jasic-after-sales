@@ -39,16 +39,16 @@ public class WorkOrderParticipantService {
         boolean sameHandlerCompany = workOrder.getCreateCompanyId() != null
                 && workOrder.getCreateCompanyId().equals(workOrder.getCurrentAcceptCompanyId());
         saveOrUpdateParticipant(workOrder.getId(), workOrder.getCreateCompanyId(),
-                createSubjectType, "CREATE", sameHandlerCompany ? 1 : 0, sameHandlerCompany ? 0 : 1, now);
+                createSubjectType, "CREATE", sameHandlerCompany ? 1 : 0, now);
         if (!sameHandlerCompany) {
             saveOrUpdateParticipant(workOrder.getId(), workOrder.getCurrentAcceptCompanyId(),
-                    workOrder.getCurrentAcceptSubjectType(), "CURRENT", 1, 0, now);
+                    workOrder.getCurrentAcceptSubjectType(), "CURRENT", 1, now);
         }
         if (workOrder.getHqCompanyId() != null
                 && !workOrder.getHqCompanyId().equals(workOrder.getCreateCompanyId())
                 && !workOrder.getHqCompanyId().equals(workOrder.getCurrentAcceptCompanyId())) {
             saveOrUpdateParticipant(workOrder.getId(), workOrder.getHqCompanyId(),
-                    "HQ", "HQ_OBSERVER", 0, 1, now);
+                    "HQ", "HQ_OBSERVER", 0, now);
         }
     }
 
@@ -66,9 +66,9 @@ public class WorkOrderParticipantService {
                                     Long toCompanyId, String toSubjectType) {
         LocalDateTime now = LocalDateTime.now();
         if (fromCompanyId != null) {
-            saveOrUpdateParticipant(workOrderId, fromCompanyId, fromSubjectType, "HISTORY", 0, 1, now);
+            saveOrUpdateParticipant(workOrderId, fromCompanyId, fromSubjectType, "HISTORY", 0, now);
         }
-        saveOrUpdateParticipant(workOrderId, toCompanyId, toSubjectType, "CURRENT", 1, 0, now);
+        saveOrUpdateParticipant(workOrderId, toCompanyId, toSubjectType, "CURRENT", 1, now);
         clearOtherCurrentHandler(workOrderId, toCompanyId);
     }
 
@@ -86,8 +86,7 @@ public class WorkOrderParticipantService {
     }
 
     private void saveOrUpdateParticipant(Long workOrderId, Long companyId, String subjectType,
-                                         String participateType, Integer isCurrentHandler,
-                                         Integer isReadonly, LocalDateTime now) {
+                                         String participateType, Integer isCurrentHandler, LocalDateTime now) {
         if (workOrderId == null || companyId == null) {
             return;
         }
@@ -104,7 +103,6 @@ public class WorkOrderParticipantService {
         participant.setSubjectType(subjectType);
         participant.setParticipateType(participateType);
         participant.setIsCurrentHandler(isCurrentHandler);
-        participant.setIsReadonly(isReadonly);
         participant.setLastParticipateTime(now);
         if (participant.getId() == null) {
             workOrderParticipantMapper.insert(participant);
@@ -123,7 +121,6 @@ public class WorkOrderParticipantService {
                 continue;
             }
             participant.setIsCurrentHandler(0);
-            participant.setIsReadonly(1);
             workOrderParticipantMapper.updateById(participant);
         }
     }

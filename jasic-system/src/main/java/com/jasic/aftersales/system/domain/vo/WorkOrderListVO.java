@@ -84,14 +84,6 @@ public class WorkOrderListVO implements Serializable {
     @ApiModelProperty(value = "转单次数")
     private Integer transferCount;
 
-    /** 当前登录人与该工单的关系类型编码，用于前端展示“我的身份”并辅助判断只读态。 */
-    @ApiModelProperty(value = "当前关系类型；表示当前登录人与该工单的业务关系，而非纯菜单权限", allowableValues = "PLATFORM_ADMIN,CURRENT_ASSIGNEE,CURRENT_OWNER_MANAGER,CURRENT_OWNER_MEMBER,HQ_OBSERVER,HISTORY_PARTICIPANT_READONLY,NONE")
-    private String relationType;
-
-    /** 是否只读；1 表示当前用户只能查看，0 表示存在可编辑/可操作可能，仍需结合 availableActions 判断具体动作。 */
-    @ApiModelProperty(value = "是否只读；1-只读，0-非只读")
-    private Integer isReadonly;
-
     /** 创建时间 */
     @ApiModelProperty(value = "创建时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")

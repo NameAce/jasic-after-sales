@@ -24,12 +24,10 @@ export type WorkOrderListVO = {
   displayStatus?: string
   hasTransfer?: number
   id: number
-  isReadonly?: number
   mainStatus?: string
   mainStatusLabel?: string
   orderNo?: string
   productModel?: string
-  relationType?: string
   transferCount?: number
 }
 
@@ -52,8 +50,6 @@ export type WorkOrderDetailVO = {
   evaluateStatusLabel?: string
   hasTransfer?: number
   transferCount?: number
-  isReadonly?: number
-  relationType?: string
   availableActions?: string[]
 
   assignedUserId?: number
@@ -187,7 +183,6 @@ export type WorkOrderParticipantVO = {
   companyName?: string
   firstParticipateTime?: string
   isCurrentHandler?: number
-  isReadonly?: number
   lastParticipateTime?: string
   participateType?: string
   subjectType?: string
@@ -468,4 +463,3 @@ export const getReturnMethodInitialMail = (detail: OrderDetail | undefined): Mai
  */
 export const cloneOrderDetail = (order?: OrderDetail) =>
   JSON.parse(JSON.stringify(order ?? createEmptyOrderDetail())) as OrderDetail
-

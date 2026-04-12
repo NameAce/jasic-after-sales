@@ -58,11 +58,6 @@
         </el-table-column>
         <el-table-column label="当前受理公司" prop="currentAcceptCompanyName" min-width="160" show-overflow-tooltip />
         <el-table-column label="当前维修员" prop="assignedUserName" min-width="110" />
-        <el-table-column label="关系" min-width="120">
-          <template slot-scope="{ row }">
-            {{ relationLabel(row.relationType) }}
-          </template>
-        </el-table-column>
         <el-table-column label="转单" min-width="80" align="center">
           <template slot-scope="{ row }">
             <el-tag :type="row.hasTransfer === 1 ? 'warning' : 'info'" size="mini">
@@ -71,9 +66,8 @@
           </template>
         </el-table-column>
         <el-table-column label="创建时间" prop="createTime" min-width="160" />
-        <el-table-column label="操作" fixed="right" width="150">
+        <el-table-column label="操作" fixed="right" width="90">
           <template slot-scope="{ row }">
-            <el-button v-if="canShowRowAssign(row)" type="text" size="mini" @click="handleAssignRow(row)">派单</el-button>
             <el-button type="text" size="mini" @click="handleView(row)">详情</el-button>
           </template>
         </el-table-column>
@@ -523,9 +517,6 @@
             <el-table-column label="参与类型" prop="participateType" min-width="120" />
             <el-table-column label="当前处理方" min-width="100">
               <template slot-scope="{ row }">{{ yesNoText(row.isCurrentHandler) }}</template>
-            </el-table-column>
-            <el-table-column label="只读" min-width="80">
-              <template slot-scope="{ row }">{{ yesNoText(row.isReadonly) }}</template>
             </el-table-column>
             <el-table-column label="首次参与时间" prop="firstParticipateTime" min-width="160" />
             <el-table-column label="最后参与时间" prop="lastParticipateTime" min-width="160" />
@@ -1678,14 +1669,6 @@ export default {
     handleView(row) {
       this.openDetail(row.id)
     },
-    handleAssignRow(row) {
-      if (!row || !this.canShowRowAssign(row)) {
-        return
-      }
-      this.loadAssignUserOptions(row.id).then(() => {
-        this.openActionDialog('ASSIGN', row.id)
-      })
-    },
     openDetail(workOrderId) {
       this.detailVisible = true
       this.detailLoading = true
@@ -2089,21 +2072,6 @@ export default {
       }
       return 'warning'
     },
-    relationLabel(relationType) {
-      if (relationType === 'CURRENT_ASSIGNEE') {
-        return '我的工单'
-      }
-      if (relationType === 'CURRENT_OWNER_MANAGER' || relationType === 'CURRENT_OWNER_MEMBER') {
-        return '当前处理'
-      }
-      if (relationType === 'HQ_OBSERVER') {
-        return '总部只读'
-      }
-      if (relationType === 'HISTORY_PARTICIPANT_READONLY') {
-        return '历史只读'
-      }
-      return relationType || '-'
-    },
     createEntryTypeLabel(createEntryType) {
       if (createEntryType === CREATE_ENTRY_PROXY) {
         return '代客户填写'
@@ -2150,24 +2118,6 @@ export default {
         ? undefined
         : Number(quote.quoteAmount)
       form.quoteDesc = quote.quoteDesc || ''
-    },
-    canShowRowAssign(row) {
-      if (!row) {
-        return false
-      }
-      if (!this.hasPerm('workorder:assign')) {
-        return false
-      }
-      if (row.mainStatus !== 'PENDING_ASSIGN') {
-        return false
-      }
-      if (row.assignedUserId) {
-        return false
-      }
-      if (row.relationType === 'CURRENT_OWNER_MANAGER') {
-        return true
-      }
-      return String(row.currentAcceptCompanyId) === String(this.$store.getters.currentCompanyId)
     },
     shouldShowAssignFallback() {
       if (!this.detail) {

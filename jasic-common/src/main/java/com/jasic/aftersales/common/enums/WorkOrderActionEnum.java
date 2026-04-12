@@ -11,7 +11,11 @@ import lombok.Getter;
  * <p>3. 日志展示、通知事件关联、状态流说明时需要的中文动作名称。</p>
  *
  * <p>通过统一枚举，业务代码可以避免到处散落 `"ASSIGN"`、`"QUOTE"` 这类魔法字符串，
- * 也能减少按钮编码、流转日志编码和展示名称不一致的风险。</p>
+ * 也能减少按钮编码、流转日志编码、基础权限码和展示名称不一致的风险。</p>
+ *
+ * <p>这里的 `permissionCode` 表示该动作对应的“基础菜单权限点”。它只回答
+ * “当前账号原则上是否具备这类动作能力”，并不直接等价于“当前这张工单上就一定能做”。
+ * 真正放行时，后端仍然需要再叠加工单关系、工单状态、服务模式等实例条件。</p>
  *
  * @author Codex
  * @date 2026/04/11
@@ -20,37 +24,37 @@ import lombok.Getter;
 public enum WorkOrderActionEnum {
 
     /** 创建工单，通常对应建单入口完成后的首条流转记录。 */
-    CREATE("CREATE", "建单"),
+    CREATE("CREATE", "建单", "workorder:add"),
 
     /** 派单给当前受理公司的维修员，把工单推进到待接单阶段。 */
-    ASSIGN("ASSIGN", "派单"),
+    ASSIGN("ASSIGN", "派单", "workorder:assign"),
 
     /** 维修员接单，确认开始处理当前工单。 */
-    TECH_ACCEPT("TECH_ACCEPT", "维修员接单"),
+    TECH_ACCEPT("TECH_ACCEPT", "维修员接单", "workorder:accept"),
 
     /** 将工单转交到其他服务公司，并切换当前受理公司。 */
-    TRANSFER("TRANSFER", "转单"),
+    TRANSFER("TRANSFER", "转单", "workorder:transfer"),
 
     /** 提交或更新报价，可能在接单时首报，也可能在处理中重新报价。 */
-    QUOTE("QUOTE", "报价"),
+    QUOTE("QUOTE", "报价", "workorder:quote"),
 
     /** 保存维修过程，不结束维修，工单主状态通常保持处理中。 */
-    REPAIR_SAVE("REPAIR_SAVE", "保存维修"),
+    REPAIR_SAVE("REPAIR_SAVE", "保存维修", "workorder:repair"),
 
     /** 提交维修完成，把工单推进到待复检或已完成阶段。 */
-    REPAIR_FINISH("REPAIR_FINISH", "维修完成"),
+    REPAIR_FINISH("REPAIR_FINISH", "维修完成", "workorder:repair"),
 
     /** 管理岗复检，决定通过关闭流或打回继续维修。 */
-    REVIEW("REVIEW", "复检"),
+    REVIEW("REVIEW", "复检", "workorder:review"),
 
     /** 上传寄修场景的寄件快递单号，补充送修物流信息。 */
-    UPLOAD_SEND_EXPRESS("UPLOAD_SEND_EXPRESS", "上传寄件单号"),
+    UPLOAD_SEND_EXPRESS("UPLOAD_SEND_EXPRESS", "上传寄件单号", "workorder:assign"),
 
     /** 选择返还方式，用于关闭前或无故障直接闭单场景的返件信息记录。 */
-    RETURN_METHOD("RETURN_METHOD", "选择返回方式"),
+    RETURN_METHOD("RETURN_METHOD", "选择返回方式", "workorder:close"),
 
     /** 关闭工单，结束当前售后服务流程。 */
-    CLOSE("CLOSE", "关闭工单");
+    CLOSE("CLOSE", "关闭工单", "workorder:close");
 
     /** 编码 */
     private final String code;
@@ -58,9 +62,18 @@ public enum WorkOrderActionEnum {
     /** 展示名称 */
     private final String label;
 
-    WorkOrderActionEnum(String code, String label) {
+    /**
+     * 基础权限标识。
+     *
+     * <p>该字段仅表达“这类动作在系统权限层面是否开放”，
+     * 不负责实例级校验，实例级约束由工单权限服务统一叠加判断。</p>
+     */
+    private final String permissionCode;
+
+    WorkOrderActionEnum(String code, String label, String permissionCode) {
         this.code = code;
         this.label = label;
+        this.permissionCode = permissionCode;
     }
 
     /**

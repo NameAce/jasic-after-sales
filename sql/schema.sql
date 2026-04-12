@@ -562,15 +562,13 @@ CREATE TABLE `work_order_participant` (
   `subject_type`           varchar(16)      NOT NULL                COMMENT '主体类型（SERVICE/HQ）',
   `participate_type`       varchar(32)      NOT NULL                COMMENT '参与类型（CREATE/CURRENT/HISTORY/HQ_OBSERVER）',
   `is_current_handler`     tinyint unsigned DEFAULT 0               COMMENT '是否当前受理方（1=是，0=否）',
-  `is_readonly`            tinyint unsigned DEFAULT 1               COMMENT '是否只读（1=是，0=否）',
   `first_participate_time` datetime         NOT NULL                COMMENT '首次参与时间',
   `last_participate_time`  datetime         NOT NULL                COMMENT '最后参与时间',
   `create_time`            datetime         NOT NULL                COMMENT '创建时间',
   `update_time`            datetime         NOT NULL                COMMENT '更新时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_work_order_company` (`work_order_id`, `company_id`),
-  KEY `idx_company_current` (`company_id`, `is_current_handler`),
-  KEY `idx_company_readonly` (`company_id`, `is_readonly`)
+  KEY `idx_company_current` (`company_id`, `is_current_handler`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='工单参与方快照表';
 
 -- -------------------------------------------

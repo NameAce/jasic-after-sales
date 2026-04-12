@@ -40,10 +40,6 @@ public class WorkOrderParticipantVO implements Serializable {
     @ApiModelProperty(value = "是否当前受理方")
     private Integer isCurrentHandler;
 
-    /** 是否只读 */
-    @ApiModelProperty(value = "是否只读")
-    private Integer isReadonly;
-
     /** 首次参与时间 */
     @ApiModelProperty(value = "首次参与时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")

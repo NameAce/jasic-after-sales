@@ -176,21 +176,9 @@
 | `dataScope` | `ALL`、`COMPANY`、`REGION`、`SELF` | 当前有效数据范围 |
 | `category` | `HQ`、`FIRST_LEVEL`、`SECOND_LEVEL` | 公司业务分类 |
 
-### 3.2 工单权限关系字段
+### 3.2 工单动作字段
 
-`WorkOrderListVO.relationType` / `WorkOrderDetailVO.availableActions` 涉及下列业务编码：
-
-#### `relationType`
-
-| 编码 | 说明 |
-| --- | --- |
-| `PLATFORM_ADMIN` | 平台管理员视角 |
-| `CURRENT_ASSIGNEE` | 当前受理公司下的当前维修员 |
-| `CURRENT_OWNER_MANAGER` | 当前受理公司管理岗 |
-| `CURRENT_OWNER_MEMBER` | 当前受理公司普通成员 |
-| `HQ_OBSERVER` | 总部观察者，只读 |
-| `HISTORY_PARTICIPANT_READONLY` | 历史参与方，只读 |
-| `NONE` | 当前用户与工单无关系 |
+`WorkOrderDetailVO.availableActions` 涉及下列业务编码：
 
 #### `availableActions`
 
