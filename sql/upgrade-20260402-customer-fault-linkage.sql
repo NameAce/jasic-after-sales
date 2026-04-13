@@ -33,7 +33,7 @@ SET @add_machine_barcode_machine_no = (
 );
 SET @sql_machine_barcode_machine_no = IF(
   @add_machine_barcode_machine_no = 0,
-  'ALTER TABLE `machine_barcode` ADD COLUMN `machine_no` varchar(64) DEFAULT NULL COMMENT ''机器小号'' AFTER `product_model`',
+  'ALTER TABLE `machine_barcode` ADD COLUMN `machine_no` varchar(100) DEFAULT NULL COMMENT ''机器小号'' AFTER `product_model`',
   'SELECT 1'
 );
 PREPARE stmt_machine_barcode_machine_no FROM @sql_machine_barcode_machine_no;
@@ -68,7 +68,7 @@ SET @add_work_order_machine_no = (
 );
 SET @sql_work_order_machine_no = IF(
   @add_work_order_machine_no = 0,
-  'ALTER TABLE `work_order` ADD COLUMN `machine_no` varchar(64) DEFAULT NULL COMMENT ''机器小号'' AFTER `product_model`',
+  'ALTER TABLE `work_order` ADD COLUMN `machine_no` varchar(100) DEFAULT NULL COMMENT ''机器小号'' AFTER `product_model`',
   'SELECT 1'
 );
 PREPARE stmt_work_order_machine_no FROM @sql_work_order_machine_no;

@@ -26,6 +26,10 @@ public class MachineBarcodeImportItemDTO implements Serializable {
     @NotBlank(message = "机器条码不能为空")
     private String barcode;
 
+    /** 发货单号 */
+    @ApiModelProperty(value = "发货单号")
+    private String deliverNumber;
+
     /** 归属总部ID */
     @ApiModelProperty(value = "归属总部ID", required = true)
     @NotNull(message = "归属总部不能为空")
@@ -47,10 +51,6 @@ public class MachineBarcodeImportItemDTO implements Serializable {
     @ApiModelProperty(value = "商品名称")
     private String productName;
 
-    /** 机器小号 */
-    @ApiModelProperty(value = "机器小号")
-    private String productTrumpet;
-
     /** 产品型号 */
     @ApiModelProperty(value = "产品型号")
     private String productModel;
@@ -63,8 +63,8 @@ public class MachineBarcodeImportItemDTO implements Serializable {
     @ApiModelProperty(value = "品牌编码")
     private String brandCode;
 
-    /** 厂家最后出库日期 */
-    @ApiModelProperty(value = "厂家最后出库日期")
+    /** 条码扫描时间 */
+    @ApiModelProperty(value = "条码扫描时间")
     private LocalDateTime scanDate;
 
     /** 经销商最新出库日期 */

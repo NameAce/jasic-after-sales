@@ -5,7 +5,6 @@
       <el-tab-pane label="一级-二级关系" name="firstSecond" />
     </el-tabs>
 
-    <!-- 总部-一级签约 -->
     <el-card v-if="activeTab === 'hqFirst'" shadow="never">
       <el-form :model="hqQuery" :inline="true" size="small" style="margin-bottom: 12px;">
         <el-form-item label="总部公司">
@@ -19,6 +18,7 @@
       </el-form>
       <div class="table-toolbar">
         <el-button type="primary" icon="el-icon-plus" size="small" v-hasPerms="['org:contract:add']" @click="handleAddHqFirst">新增签约</el-button>
+        <el-button type="success" icon="el-icon-download" size="small" v-hasPerms="['org:contract:add']" @click="openCrmImportDialog">从CRM导入</el-button>
       </div>
       <el-table v-loading="hqLoading" :data="hqFirstList" border stripe>
         <el-table-column label="ID" prop="id" width="70" />
@@ -52,7 +52,6 @@
       />
     </el-card>
 
-    <!-- 一级-二级关系 -->
     <el-card v-if="activeTab === 'firstSecond'" shadow="never">
       <el-form :model="fsQuery" :inline="true" size="small" style="margin-bottom: 12px;">
         <el-form-item label="一级网点">
@@ -89,7 +88,6 @@
       />
     </el-card>
 
-    <!-- 新增总部-一级弹窗 -->
     <el-dialog :title="hqDialogTitle" :visible.sync="hqDialogVisible" width="500px" append-to-body>
       <el-form ref="hqForm" :model="hqForm" :rules="hqFormRules" label-width="90px">
         <el-form-item label="总部公司" prop="hqCompanyId">
@@ -123,7 +121,95 @@
       </div>
     </el-dialog>
 
-    <!-- 新增一级-二级弹窗 -->
+    <el-dialog
+      title="从CRM导入签约"
+      :visible.sync="crmImportDialogVisible"
+      width="1180px"
+      append-to-body
+      @close="handleCrmImportDialogClose"
+    >
+      <el-form :model="crmImportQuery" :inline="true" size="small" class="crm-import-filter">
+        <el-form-item label="总部公司">
+          <el-select
+            v-model="crmImportQuery.hqCompanyId"
+            placeholder="请选择总部公司"
+            clearable
+            filterable
+            @change="handleCrmImportHqChange"
+          >
+            <el-option v-for="c in hqOptions" :key="c.id" :label="c.companyName" :value="c.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="一级公司">
+          <el-select v-model="crmImportQuery.firstCompanyId" placeholder="全部" clearable filterable>
+            <el-option v-for="c in firstOptions" :key="c.id" :label="c.companyName" :value="c.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="大区">
+          <el-select v-model="crmImportQuery.regionId" placeholder="全部" clearable filterable>
+            <el-option v-for="r in crmImportRegionOptions" :key="r.id" :label="r.regionName" :value="r.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-checkbox v-model="crmImportQuery.showAbnormal">查看异常数据</el-checkbox>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" icon="el-icon-search" @click="handleCrmImportSearch">搜索</el-button>
+          <el-button @click="resetCrmImportQuery">重置</el-button>
+        </el-form-item>
+      </el-form>
+      <el-table
+        ref="crmImportTable"
+        v-loading="crmImportLoading"
+        :data="crmImportList"
+        border
+        stripe
+        row-key="id"
+        @selection-change="handleCrmImportSelectionChange"
+      >
+        <el-table-column type="selection" width="55" :selectable="row => row.canImport" />
+        <el-table-column label="客户编码" prop="kunnr" width="120" />
+        <el-table-column label="CRM企业名称" prop="crmCompanyName" min-width="180" show-overflow-tooltip />
+        <el-table-column label="销售组织" prop="salesOrg" width="120" />
+        <el-table-column label="CRM大区" min-width="160">
+          <template slot-scope="{ row }">
+            <span>{{ row.regionName || '-' }}</span>
+            <span v-if="row.regionCode">（{{ row.regionCode }}）</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="一级公司" prop="firstCompanyName" min-width="160" show-overflow-tooltip />
+        <el-table-column label="本地大区" prop="localRegionName" min-width="150" show-overflow-tooltip />
+        <el-table-column label="CRM状态" width="100" align="center">
+          <template slot-scope="{ row }">
+            <el-tag size="mini" :type="row.aliveFlag === 1 ? 'success' : 'info'">
+              {{ row.aliveFlag === 1 ? '有效' : '失效' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="导入状态" width="110" align="center">
+          <template slot-scope="{ row }">
+            <el-tag v-if="row.canImport" size="mini" type="success">可导入</el-tag>
+            <el-tag v-else-if="row.existingContract" size="mini">已存在</el-tag>
+            <el-tag v-else size="mini" type="warning">异常</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="说明" prop="matchRemark" min-width="180" show-overflow-tooltip />
+      </el-table>
+      <el-pagination
+        style="margin-top: 16px; text-align: right;"
+        :current-page="crmImportQuery.pageNum"
+        :page-size="crmImportQuery.pageSize"
+        :total="crmImportTotal"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="handleCrmImportSizeChange"
+        @current-change="handleCrmImportCurrentChange"
+      />
+      <div slot="footer">
+        <el-button @click="crmImportDialogVisible = false">取 消</el-button>
+        <el-button type="primary" :loading="crmImportSubmitLoading" @click="submitCrmImport">导 入</el-button>
+      </div>
+    </el-dialog>
+
     <el-dialog title="新增一级-二级关系" :visible.sync="fsDialogVisible" width="500px" append-to-body>
       <el-form ref="fsForm" :model="fsForm" :rules="fsFormRules" label-width="90px">
         <el-form-item label="一级网点" prop="firstCompanyId">
@@ -147,8 +233,15 @@
 
 <script>
 import {
-  listHqFirstContract, addHqFirstContract, updateHqFirstContract, deleteHqFirstContract,
-  listFirstSecondRelation, addFirstSecondRelation, deleteFirstSecondRelation,
+  listHqFirstContract,
+  addHqFirstContract,
+  updateHqFirstContract,
+  deleteHqFirstContract,
+  listCrmHqFirstContractImport,
+  importCrmHqFirstContract,
+  listFirstSecondRelation,
+  addFirstSecondRelation,
+  deleteFirstSecondRelation,
   listCompany
 } from '@/api/org'
 import { listRegion } from '@/api/system'
@@ -177,6 +270,21 @@ export default {
       hqFormRules: {
         hqCompanyId: [{ required: true, message: '请选择总部公司', trigger: 'change' }],
         firstCompanyId: [{ required: true, message: '请选择一级网点', trigger: 'change' }]
+      },
+      crmImportDialogVisible: false,
+      crmImportLoading: false,
+      crmImportSubmitLoading: false,
+      crmImportList: [],
+      crmImportTotal: 0,
+      crmImportSelection: [],
+      crmImportRegionOptions: [],
+      crmImportQuery: {
+        pageNum: 1,
+        pageSize: 10,
+        hqCompanyId: undefined,
+        firstCompanyId: undefined,
+        regionId: undefined,
+        showAbnormal: false
       },
       fsDialogVisible: false,
       fsForm: {},
@@ -226,7 +334,7 @@ export default {
     },
     handleAddHqFirst() {
       this.hqDialogTitle = '新增签约'
-      this.hqForm = { status: 1 }
+      this.hqForm = { hqCompanyId: this.hqQuery.hqCompanyId, status: 1 }
       this.hqDialogVisible = true
       this.$nextTick(() => this.$refs.hqForm && this.$refs.hqForm.clearValidate())
     },
@@ -259,6 +367,140 @@ export default {
           this.getHqFirstList()
         })
       }).catch(() => {})
+    },
+    openCrmImportDialog() {
+      this.crmImportQuery = {
+        pageNum: 1,
+        pageSize: 10,
+        hqCompanyId: this.hqQuery.hqCompanyId,
+        firstCompanyId: undefined,
+        regionId: undefined,
+        showAbnormal: false
+      }
+      this.crmImportDialogVisible = true
+      this.crmImportList = []
+      this.crmImportTotal = 0
+      this.crmImportRegionOptions = []
+      this.resetCrmImportSelection()
+      if (this.crmImportQuery.hqCompanyId) {
+        this.loadCrmImportRegions(this.crmImportQuery.hqCompanyId)
+        this.getCrmImportList()
+      }
+    },
+    getCrmImportList() {
+      if (!this.crmImportQuery.hqCompanyId) {
+        this.crmImportList = []
+        this.crmImportTotal = 0
+        this.resetCrmImportSelection()
+        return
+      }
+      this.crmImportLoading = true
+      listCrmHqFirstContractImport(this.crmImportQuery).then(res => {
+        if (!res) return
+        this.crmImportList = res.data.records || []
+        this.crmImportTotal = res.data.total || 0
+        this.resetCrmImportSelection()
+      }).catch(() => {
+        this.crmImportList = []
+        this.crmImportTotal = 0
+        this.resetCrmImportSelection()
+      }).finally(() => {
+        this.crmImportLoading = false
+      })
+    },
+    handleCrmImportSearch() {
+      if (!this.crmImportQuery.hqCompanyId) {
+        this.$message.warning('请选择总部公司')
+        return
+      }
+      this.crmImportQuery.pageNum = 1
+      this.getCrmImportList()
+    },
+    resetCrmImportQuery() {
+      const hqCompanyId = this.crmImportQuery.hqCompanyId
+      this.crmImportQuery = {
+        pageNum: 1,
+        pageSize: 10,
+        hqCompanyId,
+        firstCompanyId: undefined,
+        regionId: undefined,
+        showAbnormal: false
+      }
+      if (hqCompanyId) {
+        this.loadCrmImportRegions(hqCompanyId)
+        this.getCrmImportList()
+      } else {
+        this.crmImportRegionOptions = []
+        this.crmImportList = []
+        this.crmImportTotal = 0
+        this.resetCrmImportSelection()
+      }
+    },
+    handleCrmImportHqChange(val) {
+      this.crmImportQuery.pageNum = 1
+      this.crmImportQuery.regionId = undefined
+      this.resetCrmImportSelection()
+      if (val) {
+        this.loadCrmImportRegions(val)
+        this.getCrmImportList()
+      } else {
+        this.crmImportRegionOptions = []
+        this.crmImportList = []
+        this.crmImportTotal = 0
+      }
+    },
+    loadCrmImportRegions(hqCompanyId) {
+      if (!hqCompanyId) {
+        this.crmImportRegionOptions = []
+        return
+      }
+      listRegion(hqCompanyId).then(res => {
+        if (!res) return
+        this.crmImportRegionOptions = res.data || []
+      })
+    },
+    handleCrmImportSelectionChange(rows) {
+      this.crmImportSelection = rows || []
+    },
+    handleCrmImportSizeChange(val) {
+      this.crmImportQuery.pageNum = 1
+      this.crmImportQuery.pageSize = val
+      this.getCrmImportList()
+    },
+    handleCrmImportCurrentChange(val) {
+      this.crmImportQuery.pageNum = val
+      this.getCrmImportList()
+    },
+    resetCrmImportSelection() {
+      this.crmImportSelection = []
+      this.$nextTick(() => {
+        if (this.$refs.crmImportTable) {
+          this.$refs.crmImportTable.clearSelection()
+        }
+      })
+    },
+    submitCrmImport() {
+      if (!this.crmImportSelection.length) {
+        this.$message.warning('请选择要导入的 CRM 签约关系')
+        return
+      }
+      this.crmImportSubmitLoading = true
+      importCrmHqFirstContract({
+        hqCompanyId: this.crmImportQuery.hqCompanyId,
+        snapshotIds: this.crmImportSelection.map(item => item.id)
+      }).then(res => {
+        if (!res) return
+        const data = res.data || {}
+        this.$message.success(`成功 ${data.successCount || 0} 条，已存在跳过 ${data.existedCount || 0} 条，映射失败 ${data.failedCount || 0} 条`)
+        this.getCrmImportList()
+        this.getHqFirstList()
+      }).finally(() => {
+        this.crmImportSubmitLoading = false
+      })
+    },
+    handleCrmImportDialogClose() {
+      this.crmImportRegionOptions = []
+      this.resetCrmImportSelection()
     },
     handleAddFirstSecond() {
       this.fsForm = {}
@@ -301,5 +543,25 @@ export default {
 
 <style lang="scss" scoped>
 .app-container { padding: 0; }
-.table-toolbar { margin-bottom: 12px; }
+.table-toolbar {
+  margin-bottom: 12px;
+  display: flex;
+  gap: 8px;
+}
+.crm-import-toolbar {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.crm-import-filter {
+  margin-bottom: 12px;
+}
+.crm-import-toolbar__text {
+  color: #606266;
+}
+.crm-import-toolbar__text span {
+  color: #303133;
+  font-weight: 500;
+}
 </style>

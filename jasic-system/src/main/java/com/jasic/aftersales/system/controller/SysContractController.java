@@ -6,8 +6,12 @@ import com.jasic.aftersales.common.core.controller.BaseController;
 import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.common.core.domain.Result;
 import com.jasic.aftersales.common.enums.OperTypeEnum;
+import com.jasic.aftersales.system.domain.dto.CrmHqFirstContractImportDTO;
 import com.jasic.aftersales.system.domain.dto.FirstSecondRelationDTO;
 import com.jasic.aftersales.system.domain.dto.HqFirstContractDTO;
+import com.jasic.aftersales.system.domain.query.CrmHqFirstContractImportQuery;
+import com.jasic.aftersales.system.domain.vo.CrmHqFirstContractImportResultVO;
+import com.jasic.aftersales.system.domain.vo.CrmHqFirstContractImportVO;
 import com.jasic.aftersales.system.domain.vo.FirstSecondRelationVO;
 import com.jasic.aftersales.system.domain.vo.HqFirstContractVO;
 import com.jasic.aftersales.system.domain.query.FirstSecondRelationQuery;
@@ -56,6 +60,20 @@ public class SysContractController extends BaseController {
     }
 
     /**
+     * CRM 签约导入分页列表
+     *
+     * @param query 查询参数
+     * @return 分页结果
+     */
+    @ApiOperation(value = "CRM签约导入分页列表")
+    @SaCheckPermission("org:contract:add")
+    @GetMapping("/hq-first/crm-import/list")
+    public Result<PageResult<CrmHqFirstContractImportVO>> listCrmHqFirstImportPage(CrmHqFirstContractImportQuery query) {
+        PageResult<CrmHqFirstContractImportVO> page = contractService.listCrmHqFirstImportPage(query);
+        return Result.ok(page);
+    }
+
+    /**
      * 新增总部-一级签约
      *
      * @param dto 签约参数
@@ -98,6 +116,21 @@ public class SysContractController extends BaseController {
     public Result<Void> removeHqFirst(@PathVariable Long id) {
         contractService.removeHqFirst(id);
         return Result.ok();
+    }
+
+    /**
+     * 从 CRM 快照导入总部-一级签约
+     *
+     * @param dto 导入参数
+     * @return 导入结果
+     */
+    @ApiOperation(value = "从CRM快照导入总部-一级签约")
+    @SaCheckPermission("org:contract:add")
+    @OperLog(title = "签约管理", operType = OperTypeEnum.INSERT)
+    @PostMapping("/hq-first/crm-import")
+    public Result<CrmHqFirstContractImportResultVO> importHqFirstFromCrm(@Validated @RequestBody CrmHqFirstContractImportDTO dto) {
+        CrmHqFirstContractImportResultVO result = contractService.importHqFirstFromCrm(dto);
+        return Result.ok(result);
     }
 
     /**

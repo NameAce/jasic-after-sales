@@ -438,11 +438,11 @@ CREATE TABLE `work_order` (
   `customer_mobile`             varchar(20)      NOT NULL                COMMENT '客户手机号',
   `report_subject_type`         varchar(16)      NOT NULL                COMMENT '报修主体类型（CUSTOMER/COMPANY）',
   `report_company_id`           bigint unsigned  DEFAULT NULL            COMMENT '报修主体公司ID',
-  `barcode`                     varchar(64)      DEFAULT NULL            COMMENT '机器条码',
+  `barcode`                     varchar(100)     DEFAULT NULL            COMMENT '机器条码',
   `product_code`                varchar(64)      DEFAULT NULL            COMMENT '物料编码',
   `product_name`                varchar(128)     DEFAULT NULL            COMMENT '商品名称',
-  `product_model`               varchar(64)      DEFAULT NULL            COMMENT '机器型号',
-  `machine_no`                  varchar(64)      DEFAULT NULL            COMMENT '机器小号',
+  `product_model`               varchar(100)     DEFAULT NULL            COMMENT '机器型号',
+  `machine_no`                  varchar(100)     DEFAULT NULL            COMMENT '机器小号',
   `brand_type`                  varchar(16)      DEFAULT NULL            COMMENT '品牌类型',
   `brand_code`                  varchar(32)      DEFAULT NULL            COMMENT '品牌编码',
   `brand_name`                  varchar(64)      DEFAULT NULL            COMMENT '品牌名称',
@@ -600,9 +600,6 @@ CREATE TABLE `work_order_repair` (
   `work_order_id`  bigint unsigned  NOT NULL                COMMENT '工单ID',
   `company_id`     bigint unsigned  NOT NULL                COMMENT '维修公司ID',
   `repair_user_id` bigint unsigned  NOT NULL                COMMENT '维修员ID',
-  `repair_summary` varchar(255)     DEFAULT NULL            COMMENT '维修摘要',
-  `repair_desc`    text             DEFAULT NULL            COMMENT '维修说明',
-  `other_desc`     varchar(500)     DEFAULT NULL            COMMENT '其他说明',
   `is_finished`    tinyint unsigned DEFAULT 0               COMMENT '是否维修完成（1=是，0=否）',
   `finished_time`  datetime         DEFAULT NULL            COMMENT '完成时间',
   `create_time`    datetime         NOT NULL                COMMENT '创建时间',
@@ -709,17 +706,17 @@ CREATE TABLE `work_order_notify_event` (
 DROP TABLE IF EXISTS `machine_barcode`;
 CREATE TABLE `machine_barcode` (
   `id`              bigint unsigned  NOT NULL AUTO_INCREMENT COMMENT '主键',
-  `barcode`         varchar(64)      NOT NULL                COMMENT '机器条码',
+  `barcode`         varchar(100)     NOT NULL                COMMENT '机器条码',
+  `deliver_number`  varchar(50)      DEFAULT NULL            COMMENT '发货单号',
   `hq_company_id`   bigint unsigned  DEFAULT NULL            COMMENT '归属总部ID',
   `cust_id`         varchar(64)      DEFAULT NULL            COMMENT 'CRM公司ID',
   `sales_org`       varchar(64)      DEFAULT NULL            COMMENT '销售组织',
   `product_code`    varchar(64)      DEFAULT NULL            COMMENT '物料编码',
   `product_name`    varchar(128)     DEFAULT NULL            COMMENT '商品名称',
-  `product_trumpet` varchar(64)      DEFAULT NULL            COMMENT '机器小号',
-  `product_model`   varchar(64)      DEFAULT NULL            COMMENT '产品型号',
-  `machine_no`      varchar(64)      DEFAULT NULL            COMMENT '机器小号',
+  `product_model`   varchar(100)     DEFAULT NULL            COMMENT '产品型号',
+  `machine_no`      varchar(100)     DEFAULT NULL            COMMENT '机器小号',
   `brand_code`      varchar(32)      DEFAULT NULL            COMMENT '品牌编码',
-  `scan_date`       datetime         DEFAULT NULL            COMMENT '厂家最后出库日期',
+  `scan_date`       datetime         DEFAULT NULL            COMMENT '条码扫描时间',
   `dealer_out_date` datetime         DEFAULT NULL            COMMENT '经销商最新出库日期',
   `crm_add_time`    datetime         DEFAULT NULL            COMMENT 'CRM创建时间',
   `last_sync_time`  datetime         DEFAULT NULL            COMMENT '最近同步时间',
@@ -733,6 +730,50 @@ CREATE TABLE `machine_barcode` (
   KEY `idx_machine_barcode_hq` (`hq_company_id`),
   KEY `idx_machine_barcode_product` (`product_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='机器条码档案表';
+
+-- 31. CRM 公司映射表
+-- -------------------------------------------
+DROP TABLE IF EXISTS `crm_company_mapping`;
+CREATE TABLE `crm_company_mapping` (
+  `id`            bigint unsigned  NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `cust_id`       varchar(64)      DEFAULT NULL            COMMENT 'CRM公司ID',
+  `sales_org`     varchar(64)      DEFAULT NULL            COMMENT '销售组织',
+  `hq_company_id` bigint unsigned  DEFAULT NULL            COMMENT '归属总部ID',
+  `status`        tinyint unsigned DEFAULT 1               COMMENT '状态（1=启用，0=停用）',
+  `remark`        varchar(256)     DEFAULT NULL            COMMENT '备注',
+  `create_time`   datetime         NOT NULL                COMMENT '创建时间',
+  `update_time`   datetime         NOT NULL                COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_crm_company_mapping_cust` (`cust_id`),
+  UNIQUE KEY `uk_crm_company_mapping_sales_org` (`sales_org`),
+  KEY `idx_crm_company_mapping_hq` (`hq_company_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='CRM公司映射表';
+
+-- -------------------------------------------
+-- 32. CRM 总部-一级签约快照表
+-- -------------------------------------------
+DROP TABLE IF EXISTS `crm_hq_first_contract_snapshot`;
+CREATE TABLE `crm_hq_first_contract_snapshot` (
+  `id`               bigint unsigned  NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `kunnr`            varchar(64)      NOT NULL                COMMENT 'CRM客户编码',
+  `cust_id`          bigint unsigned  DEFAULT NULL            COMMENT 'CRM企业ID',
+  `crm_company_name` varchar(200)     DEFAULT NULL            COMMENT 'CRM企业名称',
+  `sales_org`        varchar(64)      NOT NULL                COMMENT '销售组织',
+  `region_code`      varchar(64)      DEFAULT NULL            COMMENT 'CRM大区编码',
+  `region_name`      varchar(100)     DEFAULT NULL            COMMENT 'CRM大区名称',
+  `alive_flag`       tinyint          DEFAULT NULL            COMMENT 'CRM有效标识',
+  `crm_add_time`     datetime         DEFAULT NULL            COMMENT 'CRM新增时间',
+  `crm_oper_time`    datetime         DEFAULT NULL            COMMENT 'CRM操作时间',
+  `last_sync_time`   datetime         DEFAULT NULL            COMMENT '最近同步时间',
+  `create_time`      datetime         NOT NULL                COMMENT '创建时间',
+  `update_time`      datetime         NOT NULL                COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_crm_hq_first_contract` (`kunnr`, `sales_org`),
+  KEY `idx_crm_hq_first_contract_sales_org` (`sales_org`),
+  KEY `idx_crm_hq_first_contract_region_code` (`region_code`),
+  KEY `idx_crm_hq_first_contract_oper_time` (`crm_oper_time`),
+  KEY `idx_crm_hq_first_contract_add_time` (`crm_add_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='CRM总部-一级签约快照表';
 
 -- -------------------------------------------
 -- 28. 故障与维修配置表
@@ -781,6 +822,92 @@ CREATE TABLE `fault_repair_config_option` (
   PRIMARY KEY (`id`),
   KEY `idx_fault_repair_option_fault` (`fault_id`, `sort_num`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='故障与维修配置维修项表';
+
+-- -------------------------------------------
+-- 31a. CRM 公司快照表
+-- -------------------------------------------
+DROP TABLE IF EXISTS `crm_biz_company_snapshot`;
+CREATE TABLE `crm_biz_company_snapshot` (
+  `id`                  bigint unsigned  NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `cust_id`             bigint unsigned  NOT NULL                COMMENT 'CRM客户ID',
+  `cust_name`           varchar(200)     DEFAULT NULL            COMMENT '客户名称',
+  `juristic_cust_id`    varchar(50)      DEFAULT NULL            COMMENT '联系人',
+  `group_contact_phone` varchar(50)      DEFAULT NULL            COMMENT '联系电话',
+  `cellphone`           varchar(50)      DEFAULT NULL            COMMENT '手机',
+  `company_address`     varchar(200)     DEFAULT NULL            COMMENT '公司地址',
+  `cust_state`          int              DEFAULT NULL            COMMENT '客户状态',
+  `add_date`            datetime         DEFAULT NULL            COMMENT 'CRM新增时间',
+  `oper_time`           datetime         DEFAULT NULL            COMMENT 'CRM操作时间',
+  `last_sync_time`      datetime         DEFAULT NULL            COMMENT '最近同步时间',
+  `create_time`         datetime         NOT NULL                COMMENT '创建时间',
+  `update_time`         datetime         NOT NULL                COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_crm_biz_company_snapshot_cust` (`cust_id`),
+  KEY `idx_crm_biz_company_snapshot_name` (`cust_name`),
+  KEY `idx_crm_biz_company_snapshot_oper` (`oper_time`),
+  KEY `idx_crm_biz_company_snapshot_add` (`add_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='CRM公司快照表';
+
+-- -------------------------------------------
+-- 31b. CRM 销售出库扫码快照表
+-- -------------------------------------------
+DROP TABLE IF EXISTS `crm_warehouse_scan_outstorage_snapshot`;
+CREATE TABLE `crm_warehouse_scan_outstorage_snapshot` (
+  `id`              bigint unsigned  NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `source_id`       bigint unsigned  NOT NULL                COMMENT 'CRM原始主键',
+  `ware_id`         bigint unsigned  DEFAULT NULL            COMMENT '出入库ID',
+  `warehouse_id`    bigint unsigned  DEFAULT NULL            COMMENT '仓库ID',
+  `scan_code`       varchar(30)      DEFAULT NULL            COMMENT '条码',
+  `scan_date`       datetime         DEFAULT NULL            COMMENT '扫码时间',
+  `cust_id`         bigint unsigned  DEFAULT NULL            COMMENT '企业ID',
+  `product_numeric` varchar(50)      DEFAULT NULL            COMMENT '产品编码',
+  `last_sync_time`  datetime         DEFAULT NULL            COMMENT '最近同步时间',
+  `create_time`     datetime         NOT NULL                COMMENT '创建时间',
+  `update_time`     datetime         NOT NULL                COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_crm_warehouse_scan_outstorage_source` (`source_id`),
+  KEY `idx_crm_warehouse_scan_outstorage_code` (`scan_code`),
+  KEY `idx_crm_warehouse_scan_outstorage_date` (`scan_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='CRM销售出库扫码快照表';
+
+-- -------------------------------------------
+-- 32. 同步任务表
+-- -------------------------------------------
+DROP TABLE IF EXISTS `sync_task`;
+CREATE TABLE `sync_task` (
+  `id`              bigint unsigned  NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `task_code`       varchar(64)      NOT NULL                COMMENT '任务编码',
+  `task_name`       varchar(128)     NOT NULL                COMMENT '任务名称',
+  `handler_code`    varchar(64)      NOT NULL                COMMENT '处理器编码',
+  `cron_expression` varchar(128)     NOT NULL                COMMENT 'Cron表达式',
+  `status`          tinyint unsigned DEFAULT 1               COMMENT '状态（1=启用，0=停用）',
+  `remark`          varchar(256)     DEFAULT NULL            COMMENT '备注',
+  `create_time`     datetime         NOT NULL                COMMENT '创建时间',
+  `update_time`     datetime         NOT NULL                COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_sync_task_code` (`task_code`),
+  UNIQUE KEY `uk_sync_task_handler` (`handler_code`),
+  KEY `idx_sync_task_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='同步任务表';
+
+-- -------------------------------------------
+-- 33. 同步任务日志表
+-- -------------------------------------------
+DROP TABLE IF EXISTS `sync_task_log`;
+CREATE TABLE `sync_task_log` (
+  `id`              bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `task_id`         bigint unsigned NOT NULL                COMMENT '任务ID',
+  `status`          varchar(16)     NOT NULL                COMMENT '执行状态',
+  `start_time`      datetime        NOT NULL                COMMENT '开始时间',
+  `end_time`        datetime        DEFAULT NULL            COMMENT '结束时间',
+  `data_start_time` datetime        DEFAULT NULL            COMMENT '数据开始时间',
+  `data_end_time`   datetime        DEFAULT NULL            COMMENT '数据结束时间',
+  `message`         varchar(1000)   DEFAULT NULL            COMMENT '执行信息',
+  `create_time`     datetime        NOT NULL                COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_sync_task_log_task` (`task_id`, `id`),
+  KEY `idx_sync_task_log_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='同步任务日志表';
 
 SET FOREIGN_KEY_CHECKS = 1;
 

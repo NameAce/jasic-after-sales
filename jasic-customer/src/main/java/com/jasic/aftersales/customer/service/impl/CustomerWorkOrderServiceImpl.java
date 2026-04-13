@@ -1514,9 +1514,6 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
             vo.setCompanyName(companyNameMap.get(repair.getCompanyId()));
             vo.setRepairUserId(repair.getRepairUserId());
             vo.setRepairUserName(userNameMap.get(repair.getRepairUserId()));
-            vo.setRepairSummary(repair.getRepairSummary());
-            vo.setRepairDesc(repair.getRepairDesc());
-            vo.setOtherDesc(repair.getOtherDesc());
             vo.setIsFinished(repair.getIsFinished());
             vo.setFinishedTime(repair.getFinishedTime());
             vo.setCreateTime(repair.getCreateTime());

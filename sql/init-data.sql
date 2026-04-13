@@ -230,10 +230,7 @@ INSERT INTO `sys_config` (`id`, `config_name`, `config_key`, `config_value`, `co
 INSERT INTO `sys_menu` (`id`, `subject_type`, `menu_name`, `parent_id`, `menu_type`, `path`, `component`, `perms`, `icon`, `order_num`, `is_visible`, `status`, `create_time`, `update_time`) VALUES
 (108, 'PLATFORM', '条码档案', 1, 'C', 'machineBarcode', 'system/machineBarcode/index', NULL, 'el-icon-postcard', 7, 1, 1, NOW(), NOW()),
 (1081, 'PLATFORM', '条码查询', 108, 'F', NULL, NULL, 'system:machineBarcode:list', NULL, 1, 1, 1, NOW(), NOW()),
-(1082, 'PLATFORM', '条码新增', 108, 'F', NULL, NULL, 'system:machineBarcode:add', NULL, 2, 1, 1, NOW(), NOW()),
-(1083, 'PLATFORM', '条码修改', 108, 'F', NULL, NULL, 'system:machineBarcode:update', NULL, 3, 1, 1, NOW(), NOW()),
-(1084, 'PLATFORM', '条码删除', 108, 'F', NULL, NULL, 'system:machineBarcode:remove', NULL, 4, 1, 1, NOW(), NOW()),
-(1085, 'PLATFORM', '条码导入', 108, 'F', NULL, NULL, 'system:machineBarcode:import', NULL, 5, 1, 1, NOW(), NOW()),
+(1082, 'PLATFORM', '条码同步', 108, 'F', NULL, NULL, 'system:machineBarcode:sync', NULL, 2, 1, 1, NOW(), NOW()),
 (109, 'PLATFORM', '故障与维修配置', 1, 'C', 'faultRepairConfig', 'system/faultRepairConfig/index', NULL, 'el-icon-setting', 8, 1, 1, NOW(), NOW()),
 (1091, 'PLATFORM', '配置查询', 109, 'F', NULL, NULL, 'system:faultRepairConfig:list', NULL, 1, 1, 1, NOW(), NOW()),
 (1092, 'PLATFORM', '配置新增', 109, 'F', NULL, NULL, 'system:faultRepairConfig:add', NULL, 2, 1, 1, NOW(), NOW()),
@@ -244,9 +241,6 @@ INSERT INTO `sys_role_menu` (`role_id`, `menu_id`, `create_time`, `update_time`)
 (1, 108, NOW(), NOW()),
 (1, 1081, NOW(), NOW()),
 (1, 1082, NOW(), NOW()),
-(1, 1083, NOW(), NOW()),
-(1, 1084, NOW(), NOW()),
-(1, 1085, NOW(), NOW()),
 (1, 109, NOW(), NOW()),
 (1, 1091, NOW(), NOW()),
 (1, 1092, NOW(), NOW()),
@@ -257,11 +251,44 @@ INSERT INTO `sys_type_code_menu` (`type_code`, `menu_id`, `create_time`, `update
 ('PLATFORM', 108, NOW(), NOW()),
 ('PLATFORM', 1081, NOW(), NOW()),
 ('PLATFORM', 1082, NOW(), NOW()),
-('PLATFORM', 1083, NOW(), NOW()),
-('PLATFORM', 1084, NOW(), NOW()),
-('PLATFORM', 1085, NOW(), NOW()),
 ('PLATFORM', 109, NOW(), NOW()),
 ('PLATFORM', 1091, NOW(), NOW()),
 ('PLATFORM', 1092, NOW(), NOW()),
 ('PLATFORM', 1093, NOW(), NOW()),
 ('PLATFORM', 1094, NOW(), NOW());
+
+-- -------------------------------------------
+-- 14. 同步任务菜单与权限
+-- -------------------------------------------
+INSERT INTO `sys_menu` (`id`, `subject_type`, `menu_name`, `parent_id`, `menu_type`, `path`, `component`, `perms`, `icon`, `order_num`, `is_visible`, `status`, `create_time`, `update_time`) VALUES
+(110, 'PLATFORM', '同步任务', 1, 'C', 'syncTask', 'system/syncTask/index', NULL, 'el-icon-time', 9, 1, 1, NOW(), NOW()),
+(1101, 'PLATFORM', '任务查询', 110, 'F', NULL, NULL, 'system:syncTask:list', NULL, 1, 1, 1, NOW(), NOW()),
+(1102, 'PLATFORM', '任务新增', 110, 'F', NULL, NULL, 'system:syncTask:add', NULL, 2, 1, 1, NOW(), NOW()),
+(1103, 'PLATFORM', '任务修改', 110, 'F', NULL, NULL, 'system:syncTask:update', NULL, 3, 1, 1, NOW(), NOW()),
+(1104, 'PLATFORM', '任务执行', 110, 'F', NULL, NULL, 'system:syncTask:execute', NULL, 4, 1, 1, NOW(), NOW()),
+(1105, 'PLATFORM', '日志查询', 110, 'F', NULL, NULL, 'system:syncTask:log', NULL, 5, 1, 1, NOW(), NOW());
+
+INSERT INTO `sys_role_menu` (`role_id`, `menu_id`, `create_time`, `update_time`) VALUES
+(1, 110, NOW(), NOW()),
+(1, 1101, NOW(), NOW()),
+(1, 1102, NOW(), NOW()),
+(1, 1103, NOW(), NOW()),
+(1, 1104, NOW(), NOW()),
+(1, 1105, NOW(), NOW());
+
+INSERT INTO `sys_type_code_menu` (`type_code`, `menu_id`, `create_time`, `update_time`) VALUES
+('PLATFORM', 110, NOW(), NOW()),
+('PLATFORM', 1101, NOW(), NOW()),
+('PLATFORM', 1102, NOW(), NOW()),
+('PLATFORM', 1103, NOW(), NOW()),
+('PLATFORM', 1104, NOW(), NOW()),
+('PLATFORM', 1105, NOW(), NOW());
+
+-- -------------------------------------------
+-- 15. 默认同步任务
+-- -------------------------------------------
+INSERT INTO `sync_task` (`id`, `task_code`, `task_name`, `handler_code`, `cron_expression`, `status`, `remark`, `create_time`, `update_time`) VALUES
+(1, 'MACHINE_BARCODE_SYNC', '条码档案同步', 'machineBarcodeSync', '0 0 2 * * ?', 0, '默认内置条码档案同步任务，启用后由 Quartz 按 Cron 调度', NOW(), NOW()),
+(2, 'BIZ_COMPANY_SNAPSHOT_SYNC', 'CRM公司快照同步', 'bizCompanySnapshotSync', '0 0 1 * * ?', 0, '默认内置 CRM 公司快照同步任务，启用后由 Quartz 按 Cron 调度', NOW(), NOW()),
+(3, 'WAREHOUSE_SCAN_OUTSTORAGE_SYNC', '销售出库扫码同步', 'warehouseScanOutstorageSync', '0 0 3 * * ?', 0, '默认内置销售出库扫码同步任务，启用后由 Quartz 按 Cron 调度', NOW(), NOW()),
+(4, 'CRM_HQ_FIRST_CONTRACT_SNAPSHOT_SYNC', 'CRM签约快照同步', 'crmHqFirstContractSnapshotSync', '0 30 1 * * ?', 0, '默认内置 CRM 签约快照同步任务，启用后由 Quartz 按 Cron 调度', NOW(), NOW());

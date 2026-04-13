@@ -550,7 +550,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         if (FAULT_JUDGE_NO_FAULT.equals(faultJudge)) {
             String returnMethod = normalizeReturnMethod(dto.getReturnMethod());
             String closeReason = normalizeRequiredText(dto.getCloseReason(), "\u5173\u95ed\u539f\u56e0\u4e0d\u80fd\u4e3a\u7a7a");
-            validateCloseReturnInfo(returnMethod, dto.getReturnExpressNo());
+            validateCloseReturnInfo(returnMethod, dto.getReturnVoucherFileIds());
             LocalDateTime now = LocalDateTime.now();
             workOrder.setReturnMethod(returnMethod);
             workOrder.setReturnExpressNo(resolveReturnExpressNo(returnMethod, dto.getReturnExpressNo()));
@@ -652,13 +652,11 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
         validateRepairContent(workOrder, dto);
         saveRepairQuoteIfNeeded(workOrder, dto);
+        String repairRemark = buildRepairRemark(dto.getFaults());
         WorkOrderRepair repair = new WorkOrderRepair();
         repair.setWorkOrderId(workOrder.getId());
         repair.setCompanyId(workOrder.getCurrentAcceptCompanyId());
         repair.setRepairUserId(SecurityContext.getCurrentUserId());
-        repair.setRepairSummary(normalizeNullableText(dto.getRepairSummary()));
-        repair.setRepairDesc(normalizeNullableText(dto.getRepairDesc()));
-        repair.setOtherDesc(normalizeNullableText(dto.getOtherDesc()));
         repair.setIsFinished(dto.getIsFinished() != null && dto.getIsFinished() == 1 ? 1 : 0);
         if (repair.getIsFinished() == 1) {
             repair.setFinishedTime(LocalDateTime.now());
@@ -673,12 +671,12 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             workOrderMapper.updateById(workOrder);
             saveFlow(workOrder.getId(), WorkOrderActionEnum.REPAIR_FINISH.getCode(), beforeStatus, workOrder.getMainStatus(),
                     workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
-                    workOrder.getCurrentAcceptCompanyId(), repair.getRepairSummary());
-            workOrderNotifyEventService.recordRepairFinished(workOrder, repair.getRepairSummary());
+                    workOrder.getCurrentAcceptCompanyId(), repairRemark);
+            workOrderNotifyEventService.recordRepairFinished(workOrder, repairRemark);
         } else {
             saveFlow(workOrder.getId(), WorkOrderActionEnum.REPAIR_SAVE.getCode(), workOrder.getMainStatus(), workOrder.getMainStatus(),
                     workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
-                    workOrder.getCurrentAcceptCompanyId(), repair.getRepairSummary());
+                    workOrder.getCurrentAcceptCompanyId(), repairRemark);
         }
     }
 
@@ -940,6 +938,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
         target.setMainStatusLabel(resolveMainStatusLabel(target.getMainStatus()));
         target.setDisplayStatus(resolveDisplayStatus(target.getMainStatus()));
+        target.setBrandTypeLabel(target.getBrandType() == null ? null : target.getBrandType().getLabel());
         if (workOrder == null) {
             return;
         }
@@ -995,9 +994,6 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             vo.setCompanyName(companyNameMap.get(repair.getCompanyId()));
             vo.setRepairUserId(repair.getRepairUserId());
             vo.setRepairUserName(userNameMap.get(repair.getRepairUserId()));
-            vo.setRepairSummary(repair.getRepairSummary());
-            vo.setRepairDesc(repair.getRepairDesc());
-            vo.setOtherDesc(repair.getOtherDesc());
             vo.setIsFinished(repair.getIsFinished());
             vo.setFinishedTime(repair.getFinishedTime());
             vo.setCreateTime(repair.getCreateTime());
@@ -1307,15 +1303,15 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         if (dto == null) {
             return;
         }
-        validateCloseReturnInfo(dto.getReturnMethod(), dto.getReturnExpressNo());
+        validateCloseReturnInfo(dto.getReturnMethod(), dto.getReturnVoucherFileIds());
     }
 
-    private void validateCloseReturnInfo(String returnMethod, String returnExpressNo) {
+    private void validateCloseReturnInfo(String returnMethod, List<Long> returnVoucherFileIds) {
         if (!RETURN_METHOD_MAIL.equals(normalizeNullableText(returnMethod))) {
             return;
         }
-        if (isBlank(returnExpressNo)) {
-            throw new ServiceException("\u56de\u5bc4\u65f6\u5fc5\u987b\u586b\u5199\u56de\u5bc4\u5feb\u9012\u5355\u53f7");
+        if (returnVoucherFileIds == null || returnVoucherFileIds.isEmpty()) {
+            throw new ServiceException("\u56de\u5bc4\u65f6\u5fc5\u987b\u4e0a\u4f20\u56de\u5bc4\u51ed\u8bc1");
         }
     }
 
@@ -1349,7 +1345,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
     /**
-     * 维修登记至少要提交维修摘要、维修说明或故障明细中的一种内容。
+     * 维修登记至少要提交一条故障点明细。
      *
      * @param workOrder 工单实体
      * @param dto 维修参数
@@ -1365,9 +1361,6 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
     private boolean hasRepairContent(WorkOrderRepairDTO dto) {
-        if (!isBlank(dto.getRepairSummary()) || !isBlank(dto.getRepairDesc()) || !isBlank(dto.getOtherDesc())) {
-            return true;
-        }
         if (dto.getFaults() == null || dto.getFaults().isEmpty()) {
             return false;
         }
@@ -1385,6 +1378,27 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             }
         }
         return false;
+    }
+
+    private String buildRepairRemark(List<WorkOrderFaultItemDTO> faults) {
+        if (faults == null || faults.isEmpty()) {
+            return null;
+        }
+        List<String> parts = new ArrayList<>();
+        for (WorkOrderFaultItemDTO fault : faults) {
+            if (fault == null || isBlank(fault.getFaultDesc())) {
+                continue;
+            }
+            StringBuilder builder = new StringBuilder(fault.getFaultDesc().trim());
+            if (!isBlank(fault.getRepairDesc())) {
+                builder.append("：").append(fault.getRepairDesc().trim());
+            }
+            parts.add(builder.toString());
+        }
+        if (parts.isEmpty()) {
+            return null;
+        }
+        return String.join("；", parts);
     }
 
     private WorkOrderQuote getCurrentValidQuote(Long workOrderId) {

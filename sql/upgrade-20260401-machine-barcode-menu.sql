@@ -51,47 +51,14 @@ WHERE @machine_barcode_menu_id IS NOT NULL
   );
 
 INSERT INTO `sys_menu` (`subject_type`, `menu_name`, `parent_id`, `menu_type`, `path`, `component`, `perms`, `icon`, `order_num`, `is_visible`, `status`, `create_time`, `update_time`)
-SELECT 'PLATFORM', '条码新增', @machine_barcode_menu_id, 'F', NULL, NULL, 'system:machineBarcode:add', NULL, 2, 1, 1, NOW(), NOW()
+SELECT 'PLATFORM', '条码同步', @machine_barcode_menu_id, 'F', NULL, NULL, 'system:machineBarcode:sync', NULL, 2, 1, 1, NOW(), NOW()
 FROM DUAL
 WHERE @machine_barcode_menu_id IS NOT NULL
   AND NOT EXISTS (
     SELECT 1 FROM `sys_menu`
     WHERE `parent_id` = @machine_barcode_menu_id
       AND `menu_type` = 'F'
-      AND `perms` = 'system:machineBarcode:add'
-  );
-
-INSERT INTO `sys_menu` (`subject_type`, `menu_name`, `parent_id`, `menu_type`, `path`, `component`, `perms`, `icon`, `order_num`, `is_visible`, `status`, `create_time`, `update_time`)
-SELECT 'PLATFORM', '条码修改', @machine_barcode_menu_id, 'F', NULL, NULL, 'system:machineBarcode:update', NULL, 3, 1, 1, NOW(), NOW()
-FROM DUAL
-WHERE @machine_barcode_menu_id IS NOT NULL
-  AND NOT EXISTS (
-    SELECT 1 FROM `sys_menu`
-    WHERE `parent_id` = @machine_barcode_menu_id
-      AND `menu_type` = 'F'
-      AND `perms` = 'system:machineBarcode:update'
-  );
-
-INSERT INTO `sys_menu` (`subject_type`, `menu_name`, `parent_id`, `menu_type`, `path`, `component`, `perms`, `icon`, `order_num`, `is_visible`, `status`, `create_time`, `update_time`)
-SELECT 'PLATFORM', '条码删除', @machine_barcode_menu_id, 'F', NULL, NULL, 'system:machineBarcode:remove', NULL, 4, 1, 1, NOW(), NOW()
-FROM DUAL
-WHERE @machine_barcode_menu_id IS NOT NULL
-  AND NOT EXISTS (
-    SELECT 1 FROM `sys_menu`
-    WHERE `parent_id` = @machine_barcode_menu_id
-      AND `menu_type` = 'F'
-      AND `perms` = 'system:machineBarcode:remove'
-  );
-
-INSERT INTO `sys_menu` (`subject_type`, `menu_name`, `parent_id`, `menu_type`, `path`, `component`, `perms`, `icon`, `order_num`, `is_visible`, `status`, `create_time`, `update_time`)
-SELECT 'PLATFORM', '条码导入', @machine_barcode_menu_id, 'F', NULL, NULL, 'system:machineBarcode:import', NULL, 5, 1, 1, NOW(), NOW()
-FROM DUAL
-WHERE @machine_barcode_menu_id IS NOT NULL
-  AND NOT EXISTS (
-    SELECT 1 FROM `sys_menu`
-    WHERE `parent_id` = @machine_barcode_menu_id
-      AND `menu_type` = 'F'
-      AND `perms` = 'system:machineBarcode:import'
+      AND `perms` = 'system:machineBarcode:sync'
   );
 
 SET @platform_role_id = (
@@ -111,10 +78,7 @@ WHERE @platform_role_id IS NOT NULL
     (m.`parent_id` = @platform_system_root_id AND m.`path` = 'machineBarcode')
     OR m.`perms` IN (
       'system:machineBarcode:list',
-      'system:machineBarcode:add',
-      'system:machineBarcode:update',
-      'system:machineBarcode:remove',
-      'system:machineBarcode:import'
+      'system:machineBarcode:sync'
     )
   )
   AND NOT EXISTS (
@@ -132,10 +96,7 @@ WHERE m.`subject_type` = 'PLATFORM'
     (m.`parent_id` = @platform_system_root_id AND m.`path` = 'machineBarcode')
     OR m.`perms` IN (
       'system:machineBarcode:list',
-      'system:machineBarcode:add',
-      'system:machineBarcode:update',
-      'system:machineBarcode:remove',
-      'system:machineBarcode:import'
+      'system:machineBarcode:sync'
     )
   )
   AND NOT EXISTS (

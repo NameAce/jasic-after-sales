@@ -1,8 +1,11 @@
 package com.jasic.aftersales.system.service.impl;
 
+import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.common.exception.ServiceException;
+import com.jasic.aftersales.system.domain.dto.CrmHqFirstContractImportDTO;
 import com.jasic.aftersales.system.domain.dto.FirstSecondRelationDTO;
 import com.jasic.aftersales.system.domain.dto.HqFirstContractDTO;
+import com.jasic.aftersales.system.domain.entity.CrmHqFirstContractSnapshot;
 import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
 import com.jasic.aftersales.system.domain.entity.FirstSecondRelationRecord;
 import com.jasic.aftersales.system.domain.entity.HqFirstContract;
@@ -10,6 +13,10 @@ import com.jasic.aftersales.system.domain.entity.HqFirstContractRecord;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
 import com.jasic.aftersales.system.domain.entity.SysCompanyType;
 import com.jasic.aftersales.system.domain.entity.SysRegion;
+import com.jasic.aftersales.system.domain.query.CrmHqFirstContractImportQuery;
+import com.jasic.aftersales.system.domain.vo.CrmHqFirstContractImportResultVO;
+import com.jasic.aftersales.system.domain.vo.CrmHqFirstContractImportVO;
+import com.jasic.aftersales.system.mapper.CrmHqFirstContractSnapshotMapper;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationRecordMapper;
 import com.jasic.aftersales.system.mapper.HqFirstContractMapper;
@@ -20,6 +27,7 @@ import com.jasic.aftersales.system.service.ISysCompanyTypeService;
 import org.junit.Assert;
 import org.junit.Test;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
@@ -69,7 +77,7 @@ public class SysContractServiceImplTest {
         SysContractServiceImpl service = new SysContractServiceImpl();
         Map<Long, SysCompany> companies = new LinkedHashMap<>();
         companies.put(1L, buildCompany(1L, "HQ_A", 1));
-        companies.put(2L, buildCompany(2L, "FIRST", 1));
+        companies.put(2L, buildCompany(2L, "SITE_FIRST", 1));
         Map<Long, SysRegion> regions = new LinkedHashMap<>();
         SysRegion region = new SysRegion();
         region.setId(10L);
@@ -98,8 +106,8 @@ public class SysContractServiceImplTest {
     public void shouldRejectSecondCompanyAlreadyBoundToOtherFirst() throws Exception {
         SysContractServiceImpl service = new SysContractServiceImpl();
         Map<Long, SysCompany> companies = new LinkedHashMap<>();
-        companies.put(1L, buildCompany(1L, "FIRST", 1));
-        companies.put(2L, buildCompany(2L, "SECOND", 1));
+        companies.put(1L, buildCompany(1L, "SITE_FIRST", 1));
+        companies.put(2L, buildCompany(2L, "SITE_SECOND", 1));
         FirstSecondRelationMapperState relationState = new FirstSecondRelationMapperState();
         relationState.selectCountResults.add(0L);
         FirstSecondRelation existing = new FirstSecondRelation();
@@ -128,8 +136,8 @@ public class SysContractServiceImplTest {
     public void shouldTranslateDuplicateKeyWhenSavingFirstSecond() throws Exception {
         SysContractServiceImpl service = new SysContractServiceImpl();
         Map<Long, SysCompany> companies = new LinkedHashMap<>();
-        companies.put(1L, buildCompany(1L, "FIRST", 1));
-        companies.put(2L, buildCompany(2L, "SECOND", 1));
+        companies.put(1L, buildCompany(1L, "SITE_FIRST", 1));
+        companies.put(2L, buildCompany(2L, "SITE_SECOND", 1));
         FirstSecondRelationMapperState relationState = new FirstSecondRelationMapperState();
         relationState.selectCountResults.add(0L);
         relationState.insertException = new DuplicateKeyException("Duplicate entry for key 'uk_second'");
@@ -200,6 +208,127 @@ public class SysContractServiceImplTest {
         Assert.assertEquals("DELETE", recordHolder.record.getOperationType());
     }
 
+    @Test
+    public void shouldListOnlyImportableRowsWhenListingCrmImportPage() throws Exception {
+        SysContractServiceImpl service = new SysContractServiceImpl();
+        Map<Long, SysCompany> companies = new LinkedHashMap<>();
+        SysCompany hqCompany = buildCompany(1L, "HQ_A", 1);
+        hqCompany.setCompanyCode("HQ001");
+        companies.put(1L, hqCompany);
+        SysCompany firstCompany = buildCompany(2L, "SITE_FIRST", 1);
+        firstCompany.setCompanyCode("K001");
+        firstCompany.setCompanyName("一级公司A");
+        companies.put(2L, firstCompany);
+
+        Map<Long, SysRegion> regions = new LinkedHashMap<>();
+        SysRegion region = new SysRegion();
+        region.setId(10L);
+        region.setCompanyId(1L);
+        region.setRegionCode("R001");
+        region.setRegionName("华东一区");
+        regions.put(10L, region);
+
+        CrmHqFirstContractSnapshotMapperState snapshotState = new CrmHqFirstContractSnapshotMapperState();
+        snapshotState.selectListResult = Arrays.asList(
+                buildSnapshot(100L, "K001", "1000", "R001"),
+                buildSnapshot(101L, "K999", "1000", "R002")
+        );
+        HqFirstContractMapperState contractState = new HqFirstContractMapperState();
+
+        setField(service, "sysCompanyMapper", createCompanyMapperProxy(companies));
+        setField(service, "sysRegionMapper", createRegionMapperProxy(regions));
+        setField(service, "companyTypeService", createCompanyTypeService());
+        setField(service, "crmHqFirstContractSnapshotMapper", createSnapshotMapperProxy(snapshotState));
+        setField(service, "hqFirstContractMapper", createHqFirstContractMapperProxy(contractState));
+        setField(service, "jdbcTemplate", createJdbcTemplate(Collections.singletonList("1000")));
+
+        CrmHqFirstContractImportQuery query = new CrmHqFirstContractImportQuery();
+        query.setHqCompanyId(1L);
+        query.setShowAbnormal(false);
+        query.setPageNum(1);
+        query.setPageSize(10);
+
+        PageResult<CrmHqFirstContractImportVO> page = service.listCrmHqFirstImportPage(query);
+
+        Assert.assertEquals(Long.valueOf(1L), page.getTotal());
+        Assert.assertEquals(1, page.getRecords().size());
+        Assert.assertEquals(Long.valueOf(100L), page.getRecords().get(0).getId());
+        Assert.assertEquals(Boolean.TRUE, page.getRecords().get(0).getCanImport());
+    }
+
+    @Test
+    public void shouldCountSuccessExistingAndFailedWhenImportingFromCrm() throws Exception {
+        SysContractServiceImpl service = new SysContractServiceImpl();
+        Map<Long, SysCompany> companies = new LinkedHashMap<>();
+        SysCompany hqCompany = buildCompany(1L, "HQ_A", 1);
+        hqCompany.setCompanyCode("HQ001");
+        companies.put(1L, hqCompany);
+
+        SysCompany importableCompany = buildCompany(2L, "SITE_FIRST", 1);
+        importableCompany.setCompanyCode("K001");
+        importableCompany.setCompanyName("一级公司A");
+        companies.put(2L, importableCompany);
+
+        SysCompany existedCompany = buildCompany(3L, "SITE_FIRST", 1);
+        existedCompany.setCompanyCode("K002");
+        existedCompany.setCompanyName("一级公司B");
+        companies.put(3L, existedCompany);
+
+        SysCompany failedCompany = buildCompany(4L, "SITE_FIRST", 1);
+        failedCompany.setCompanyCode("K003");
+        failedCompany.setCompanyName("一级公司C");
+        companies.put(4L, failedCompany);
+
+        Map<Long, SysRegion> regions = new LinkedHashMap<>();
+        SysRegion importableRegion = new SysRegion();
+        importableRegion.setId(10L);
+        importableRegion.setCompanyId(1L);
+        importableRegion.setRegionCode("R001");
+        importableRegion.setRegionName("华东一区");
+        regions.put(10L, importableRegion);
+
+        SysRegion foreignRegion = new SysRegion();
+        foreignRegion.setId(11L);
+        foreignRegion.setCompanyId(99L);
+        foreignRegion.setRegionCode("R002");
+        foreignRegion.setRegionName("外部大区");
+        regions.put(11L, foreignRegion);
+
+        CrmHqFirstContractSnapshotMapperState snapshotState = new CrmHqFirstContractSnapshotMapperState();
+        snapshotState.selectListResult = Arrays.asList(
+                buildSnapshot(100L, "K001", "1000", "R001"),
+                buildSnapshot(101L, "K002", "1000", "R001"),
+                buildSnapshot(102L, "K003", "1000", "R002")
+        );
+        HqFirstContractMapperState contractState = new HqFirstContractMapperState();
+        HqFirstContract existingContract = new HqFirstContract();
+        existingContract.setFirstCompanyId(3L);
+        contractState.selectListResult = Collections.singletonList(existingContract);
+        contractState.selectCountResults.add(0L);
+
+        setField(service, "sysCompanyMapper", createCompanyMapperProxy(companies));
+        setField(service, "sysRegionMapper", createRegionMapperProxy(regions));
+        setField(service, "companyTypeService", createCompanyTypeService());
+        setField(service, "crmHqFirstContractSnapshotMapper", createSnapshotMapperProxy(snapshotState));
+        setField(service, "hqFirstContractMapper", createHqFirstContractMapperProxy(contractState));
+        setField(service, "jdbcTemplate", createJdbcTemplate(Collections.singletonList("1000")));
+
+        CrmHqFirstContractImportDTO dto = new CrmHqFirstContractImportDTO();
+        dto.setHqCompanyId(1L);
+        dto.setSnapshotIds(Arrays.asList(100L, 101L, 102L));
+
+        CrmHqFirstContractImportResultVO result = service.importHqFirstFromCrm(dto);
+
+        Assert.assertEquals(Integer.valueOf(3), result.getSelectedCount());
+        Assert.assertEquals(Integer.valueOf(1), result.getSuccessCount());
+        Assert.assertEquals(Integer.valueOf(1), result.getExistedCount());
+        Assert.assertEquals(Integer.valueOf(1), result.getFailedCount());
+        Assert.assertNotNull(contractState.insertedEntity);
+        Assert.assertEquals(Long.valueOf(2L), contractState.insertedEntity.getFirstCompanyId());
+        Assert.assertEquals(Long.valueOf(10L), contractState.insertedEntity.getRegionId());
+        Assert.assertEquals("CRM导入初始化", contractState.insertedEntity.getRemark());
+    }
+
     private SysCompany buildCompany(Long id, String typeCode, Integer status) {
         SysCompany company = new SysCompany();
         company.setId(id);
@@ -214,6 +343,9 @@ public class SysContractServiceImplTest {
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectById".equals(method.getName())) {
                     return companies.get(args[0]);
+                }
+                if ("selectList".equals(method.getName())) {
+                    return Arrays.asList(companies.values().toArray(new SysCompany[0]));
                 }
                 return defaultValue(method.getReturnType());
             }
@@ -231,6 +363,9 @@ public class SysContractServiceImplTest {
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectById".equals(method.getName())) {
                     return regions.get(args[0]);
+                }
+                if ("selectList".equals(method.getName())) {
+                    return Arrays.asList(regions.values().toArray(new SysRegion[0]));
                 }
                 return defaultValue(method.getReturnType());
             }
@@ -251,6 +386,9 @@ public class SysContractServiceImplTest {
                 }
                 if ("selectCount".equals(method.getName())) {
                     return state.selectCountResults.isEmpty() ? 0L : state.selectCountResults.poll();
+                }
+                if ("selectList".equals(method.getName())) {
+                    return state.selectListResult;
                 }
                 if ("insert".equals(method.getName())) {
                     if (state.insertException != null) {
@@ -275,6 +413,23 @@ public class SysContractServiceImplTest {
         return (HqFirstContractMapper) Proxy.newProxyInstance(
                 HqFirstContractMapper.class.getClassLoader(),
                 new Class<?>[]{HqFirstContractMapper.class},
+                handler
+        );
+    }
+
+    private CrmHqFirstContractSnapshotMapper createSnapshotMapperProxy(CrmHqFirstContractSnapshotMapperState state) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectList".equals(method.getName())) {
+                    return state.selectListResult;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (CrmHqFirstContractSnapshotMapper) Proxy.newProxyInstance(
+                CrmHqFirstContractSnapshotMapper.class.getClassLoader(),
+                new Class<?>[]{CrmHqFirstContractSnapshotMapper.class},
                 handler
         );
     }
@@ -354,8 +509,8 @@ public class SysContractServiceImplTest {
     private ISysCompanyTypeService createCompanyTypeService() {
         List<SysCompanyType> companyTypes = Arrays.asList(
                 buildCompanyType("HQ_A", "HQ"),
-                buildCompanyType("FIRST", "SERVICE"),
-                buildCompanyType("SECOND", "SERVICE")
+                buildCompanyType("SITE_FIRST", "SERVICE"),
+                buildCompanyType("SITE_SECOND", "SERVICE")
         );
         return new ISysCompanyTypeService() {
             @Override
@@ -390,6 +545,29 @@ public class SysContractServiceImplTest {
         return type;
     }
 
+    private CrmHqFirstContractSnapshot buildSnapshot(Long id, String kunnr, String salesOrg, String regionCode) {
+        CrmHqFirstContractSnapshot snapshot = new CrmHqFirstContractSnapshot();
+        snapshot.setId(id);
+        snapshot.setKunnr(kunnr);
+        snapshot.setSalesOrg(salesOrg);
+        snapshot.setRegionCode(regionCode);
+        snapshot.setCrmCompanyName("CRM-" + kunnr);
+        return snapshot;
+    }
+
+    private JdbcTemplate createJdbcTemplate(List<String> salesOrgs) {
+        return new JdbcTemplate() {
+            @Override
+            public <T> List<T> queryForList(String sql, Class<T> elementType, Object... args) {
+                List<T> result = new java.util.ArrayList<>();
+                for (String salesOrg : salesOrgs) {
+                    result.add(elementType.cast(salesOrg));
+                }
+                return result;
+            }
+        };
+    }
+
     private void setField(Object target, String fieldName, Object value) throws Exception {
         Field field = SysContractServiceImpl.class.getDeclaredField(fieldName);
         field.setAccessible(true);
@@ -422,10 +600,15 @@ public class SysContractServiceImplTest {
     private static class HqFirstContractMapperState {
         private final Queue<Long> selectCountResults = new ArrayDeque<>();
         private HqFirstContract selectByIdResult;
+        private List<HqFirstContract> selectListResult = Collections.emptyList();
         private DuplicateKeyException insertException;
         private HqFirstContract insertedEntity;
         private HqFirstContract updatedEntity;
         private Long deletedId;
+    }
+
+    private static class CrmHqFirstContractSnapshotMapperState {
+        private List<CrmHqFirstContractSnapshot> selectListResult = Collections.emptyList();
     }
 
     private static class FirstSecondRelationMapperState {

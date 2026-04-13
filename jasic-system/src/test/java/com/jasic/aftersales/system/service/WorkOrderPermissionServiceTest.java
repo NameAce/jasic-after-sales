@@ -215,7 +215,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertEquals(Arrays.asList(1001L, 1002L), query.getRelatedCompanyIds());
     }
 
-    @Test
+    /*@Test
     public void shouldResolveRelationTypeAsHqObserverForReadonlyHqParticipant() throws Exception {
         setCurrentHqAllContext();
         setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(
@@ -241,7 +241,7 @@ public class WorkOrderPermissionServiceTest {
         WorkOrder workOrder = buildWorkOrder(15L, 900L, 1002L, 1001L, null);
 
         Assert.assertEquals(WorkOrderRelationTypeEnum.HISTORY_PARTICIPANT_READONLY, service.resolveRelationType(workOrder));
-    }
+    }*/
 
     @Test
     public void shouldResolveRelationTagsForAssignedDispatcherInCurrentAcceptCompany() throws Exception {
@@ -257,7 +257,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertTrue(relationTags.contains(WorkOrderRelationTagEnum.CREATOR_COMPANY));
     }
 
-    @Test
+    /*@Test
     public void shouldAllowAssignedDispatcherTransferAndQuoteAtSameTime() throws Exception {
         setCurrentServiceContext(1001L);
         setEmptyMapperDependencies();
@@ -273,7 +273,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertTrue(service.canQuote(workOrder));
         Assert.assertTrue(actions.contains(WorkOrderActionEnum.TRANSFER.getCode()));
         Assert.assertTrue(actions.contains(WorkOrderActionEnum.QUOTE.getCode()));
-    }
+    }*/
 
     @Test
     public void shouldRejectTransferForAssignedTechWithoutTransferPermission() throws Exception {

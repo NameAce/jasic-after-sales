@@ -553,10 +553,7 @@
             <el-descriptions :column="2" border size="small">
               <el-descriptions-item label="维修公司">{{ textValue(repair.companyName) }}</el-descriptions-item>
               <el-descriptions-item label="维修人">{{ textValue(repair.repairUserName) }}</el-descriptions-item>
-              <el-descriptions-item label="维修摘要">{{ textValue(repair.repairSummary) }}</el-descriptions-item>
               <el-descriptions-item label="维修完成">{{ yesNoText(repair.isFinished) }}</el-descriptions-item>
-              <el-descriptions-item label="维修说明" :span="2">{{ textValue(repair.repairDesc) }}</el-descriptions-item>
-              <el-descriptions-item label="其他说明" :span="2">{{ textValue(repair.otherDesc) }}</el-descriptions-item>
             </el-descriptions>
             <el-table v-if="repair.faults && repair.faults.length" :data="repair.faults" border size="small" class="inner-table">
               <el-table-column label="故障点" prop="faultDesc" min-width="160" />
@@ -683,15 +680,6 @@
           <el-form-item label="报价说明">
             <el-input v-model="actionForm.quoteDesc" type="textarea" :rows="3" placeholder="请输入报价说明" />
           </el-form-item>
-          <el-form-item label="维修摘要">
-            <el-input v-model="actionForm.repairSummary" placeholder="请输入维修摘要" />
-          </el-form-item>
-          <el-form-item label="维修说明">
-            <el-input v-model="actionForm.repairDesc" type="textarea" :rows="3" placeholder="请输入维修说明" />
-          </el-form-item>
-          <el-form-item label="其他说明">
-            <el-input v-model="actionForm.otherDesc" type="textarea" :rows="3" placeholder="请输入其他说明" />
-          </el-form-item>
           <el-alert
             v-if="actionRepairConfigLoading"
             title="正在加载故障与维修配置"
@@ -814,10 +802,10 @@
               <el-option label="回寄" value="回寄" />
             </el-select>
           </el-form-item>
-          <el-form-item v-if="actionForm.returnMethod === '回寄'" label="回寄单号" required>
-            <el-input v-model="actionForm.returnExpressNo" placeholder="请输入回寄快递单号" />
+          <el-form-item v-if="actionForm.returnMethod === '回寄'" label="回寄单号">
+            <el-input v-model="actionForm.returnExpressNo" placeholder="请输入回寄快递单号，不填也可提交" />
           </el-form-item>
-          <el-form-item v-if="actionForm.returnMethod === '回寄'" label="回寄凭证">
+          <el-form-item v-if="actionForm.returnMethod === '回寄'" label="回寄凭证" required>
             <file-upload-field
               v-model="actionForm.returnVoucherFiles"
               accept=".jpg,.jpeg,.png,.webp"
@@ -1046,9 +1034,6 @@ function buildDefaultActionForm() {
     faultJudge: '',
     quoteAmount: undefined,
     quoteDesc: '',
-    repairSummary: '',
-    repairDesc: '',
-    otherDesc: '',
     isFinished: 0,
     faults: [createFaultItem()],
     reviewResult: REVIEW_RESULT_PASS,
@@ -1827,9 +1812,6 @@ export default {
         return false
       }
       if ((this.actionDialogAction === 'REPAIR_SAVE' || this.actionDialogAction === 'REPAIR_FINISH')
-        && !this.actionForm.repairSummary
-        && !this.actionForm.repairDesc
-        && !this.actionForm.otherDesc
         && this.buildRepairFaults().length === 0) {
         this.$message.error('请至少填写一项维修内容')
         return false
@@ -1851,8 +1833,9 @@ export default {
           this.$message.error('请选择返回方式')
           return false
         }
-        if (this.actionForm.returnMethod === RETURN_METHOD_MAIL && !this.actionForm.returnExpressNo) {
-          this.$message.error('请输入回寄快递单号')
+        if (this.actionForm.returnMethod === RETURN_METHOD_MAIL
+          && !(this.actionForm.returnVoucherFiles || []).length) {
+          this.$message.error('请上传回寄凭证')
           return false
         }
         if (!this.actionForm.closeReason) {
@@ -1892,9 +1875,6 @@ export default {
             workOrderId,
             quoteAmount: this.actionForm.quoteAmount,
             quoteDesc: this.actionForm.quoteDesc,
-            repairSummary: this.actionForm.repairSummary,
-            repairDesc: this.actionForm.repairDesc,
-            otherDesc: this.actionForm.otherDesc,
             isFinished: this.actionDialogAction === 'REPAIR_FINISH' ? 1 : 0,
             faults: this.buildRepairFaults()
           }

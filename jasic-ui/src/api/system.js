@@ -163,23 +163,31 @@ export function listMachineBarcode(params) {
 export function getMachineBarcode(id) {
   return request({ url: `/system/machine-barcode/${id}`, method: 'get' })
 }
-export function listMachineBarcodeHqOptions() {
-  return request({ url: '/system/machine-barcode/hq-company-options', method: 'get' })
-}
-export function addMachineBarcode(data) {
-  return request({ url: '/system/machine-barcode', method: 'post', data })
-}
-export function updateMachineBarcode(data) {
-  return request({ url: '/system/machine-barcode', method: 'put', data })
-}
-export function deleteMachineBarcode(id) {
-  return request({ url: `/system/machine-barcode/${id}`, method: 'delete' })
-}
-export function importMachineBarcode(data) {
-  return request({ url: '/system/machine-barcode/import', method: 'post', data })
-}
 export function fullSyncMachineBarcode() {
   return request({ url: '/system/machine-barcode/full-sync', method: 'post' })
+}
+
+// --- Sync Task ---
+export function listSyncTask(params) {
+  return request({ url: '/system/sync-task/list', method: 'get', params })
+}
+export function getSyncTask(id) {
+  return request({ url: `/system/sync-task/${id}`, method: 'get' })
+}
+export function listSyncTaskHandlerOptions() {
+  return request({ url: '/system/sync-task/handler-options', method: 'get' })
+}
+export function addSyncTask(data) {
+  return request({ url: '/system/sync-task', method: 'post', data })
+}
+export function updateSyncTask(data) {
+  return request({ url: '/system/sync-task', method: 'put', data })
+}
+export function executeSyncTask(id) {
+  return request({ url: `/system/sync-task/${id}/execute`, method: 'post' })
+}
+export function listSyncTaskLog(params) {
+  return request({ url: '/system/sync-task/log/list', method: 'get', params })
 }
 
 // --- Fault Repair Config ---

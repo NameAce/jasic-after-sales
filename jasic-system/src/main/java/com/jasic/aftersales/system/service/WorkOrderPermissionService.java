@@ -206,7 +206,7 @@ public class WorkOrderPermissionService {
      * @param workOrder 工单实体
      * @return 关系类型枚举
      */
-    public WorkOrderRelationTypeEnum resolveRelationType(WorkOrder workOrder) {
+    /*public WorkOrderRelationTypeEnum resolveRelationType(WorkOrder workOrder) {
         EnumSet<WorkOrderRelationTagEnum> relationTags = resolveRelationTags(workOrder);
         if (relationTags.isEmpty()) {
             return WorkOrderRelationTypeEnum.NONE;
@@ -238,7 +238,7 @@ public class WorkOrderPermissionService {
             return WorkOrderRelationTypeEnum.HISTORY_PARTICIPANT_READONLY;
         }
         return WorkOrderRelationTypeEnum.NONE;
-    }
+    }*/
 
     /**
      * 根据当前关系和工单状态返回前端可执行的操作编码。

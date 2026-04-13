@@ -225,9 +225,6 @@ export type WorkOrderRepairVO = {
   finishedTime?: string
   id?: number
   isFinished?: number
-  otherDesc?: string
-  repairDesc?: string
-  repairSummary?: string
   repairUserId?: number
   repairUserName?: string
   faults?: WorkOrderFaultVO[]

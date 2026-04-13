@@ -32,6 +32,7 @@
             w.customer_name AS customerName,
             w.customer_mobile AS customerMobile,
             w.barcode,
+            w.brand_type AS brandType,
             w.product_model AS productModel,
             w.fault_desc AS faultDesc,
             w.main_status AS mainStatus,

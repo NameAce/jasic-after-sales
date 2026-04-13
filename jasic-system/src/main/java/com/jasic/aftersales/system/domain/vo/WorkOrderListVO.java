@@ -1,6 +1,7 @@
 package com.jasic.aftersales.system.domain.vo;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.jasic.aftersales.common.enums.BrandTypeEnum;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -39,6 +40,14 @@ public class WorkOrderListVO implements Serializable {
     /** 条码 */
     @ApiModelProperty(value = "条码")
     private String barcode;
+
+    /** 品牌类型 */
+    @ApiModelProperty(value = "品牌类型", allowableValues = "JASIC,NON_JASIC")
+    private BrandTypeEnum brandType;
+
+    /** 品牌类型名称 */
+    @ApiModelProperty(value = "品牌类型名称")
+    private String brandTypeLabel;
 
     /** 机器型号 */
     @ApiModelProperty(value = "机器型号")

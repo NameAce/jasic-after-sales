@@ -1,6 +1,7 @@
 package com.jasic.aftersales.system.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -10,8 +11,10 @@ import com.jasic.aftersales.common.enums.CompanyCategoryEnum;
 import com.jasic.aftersales.common.enums.SubjectTypeEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.framework.security.SecurityContext;
+import com.jasic.aftersales.system.domain.dto.CrmHqFirstContractImportDTO;
 import com.jasic.aftersales.system.domain.dto.FirstSecondRelationDTO;
 import com.jasic.aftersales.system.domain.dto.HqFirstContractDTO;
+import com.jasic.aftersales.system.domain.entity.CrmHqFirstContractSnapshot;
 import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
 import com.jasic.aftersales.system.domain.entity.FirstSecondRelationRecord;
 import com.jasic.aftersales.system.domain.entity.HqFirstContract;
@@ -19,10 +22,14 @@ import com.jasic.aftersales.system.domain.entity.HqFirstContractRecord;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
 import com.jasic.aftersales.system.domain.entity.SysCompanyType;
 import com.jasic.aftersales.system.domain.entity.SysRegion;
+import com.jasic.aftersales.system.domain.query.CrmHqFirstContractImportQuery;
 import com.jasic.aftersales.system.domain.query.FirstSecondRelationQuery;
 import com.jasic.aftersales.system.domain.query.HqFirstContractQuery;
+import com.jasic.aftersales.system.domain.vo.CrmHqFirstContractImportResultVO;
+import com.jasic.aftersales.system.domain.vo.CrmHqFirstContractImportVO;
 import com.jasic.aftersales.system.domain.vo.FirstSecondRelationVO;
 import com.jasic.aftersales.system.domain.vo.HqFirstContractVO;
+import com.jasic.aftersales.system.mapper.CrmHqFirstContractSnapshotMapper;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationRecordMapper;
 import com.jasic.aftersales.system.mapper.HqFirstContractMapper;
@@ -32,13 +39,19 @@ import com.jasic.aftersales.system.mapper.SysRegionMapper;
 import com.jasic.aftersales.system.service.ISysCompanyTypeService;
 import com.jasic.aftersales.system.service.ISysContractService;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -53,6 +66,8 @@ public class SysContractServiceImpl implements ISysContractService {
     private static final Integer STATUS_ENABLED = 1;
     private static final Integer STATUS_DISABLED = 0;
     private static final String OPERATION_DELETE = "DELETE";
+    private static final String CRM_IMPORT_REMARK = "CRM导入初始化";
+    private static final String CRM_COMPANY_MAPPING_TABLE = "crm_company_mapping";
 
     @Resource
     private HqFirstContractMapper hqFirstContractMapper;
@@ -73,6 +88,12 @@ public class SysContractServiceImpl implements ISysContractService {
     private FirstSecondRelationRecordMapper firstSecondRelationRecordMapper;
 
     @Resource
+    private CrmHqFirstContractSnapshotMapper crmHqFirstContractSnapshotMapper;
+
+    @Resource(name = "jdbcTemplate")
+    private JdbcTemplate jdbcTemplate;
+
+    @Resource
     private ISysCompanyTypeService companyTypeService;
 
     /**
@@ -86,6 +107,24 @@ public class SysContractServiceImpl implements ISysContractService {
         Page<HqFirstContractVO> page = new Page<>(query.getPageNum(), query.getPageSize());
         IPage<HqFirstContractVO> result = hqFirstContractMapper.selectHqFirstPage(page, query);
         return PageResult.of(result.getRecords(), result.getTotal(), query.getPageNum(), query.getPageSize());
+    }
+
+    @Override
+    public PageResult<CrmHqFirstContractImportVO> listCrmHqFirstImportPage(CrmHqFirstContractImportQuery query) {
+        if (query == null || query.getHqCompanyId() == null) {
+            throw new ServiceException("请选择总部公司");
+        }
+        validateImportHqCompany(query.getHqCompanyId());
+        String salesOrg = resolveSalesOrgByHqCompanyId(query.getHqCompanyId());
+        List<CrmHqFirstContractSnapshot> snapshots = listSnapshotsBySalesOrg(salesOrg);
+        List<CrmHqFirstContractImportVO> records = buildCrmImportVOList(query.getHqCompanyId(), snapshots);
+        records = filterCrmImportRecords(records, query);
+        if (!Boolean.TRUE.equals(query.getShowAbnormal())) {
+            records = records.stream()
+                    .filter(item -> Boolean.TRUE.equals(item.getCanImport()))
+                    .collect(Collectors.toList());
+        }
+        return buildPageResult(records, query.getPageNum(), query.getPageSize());
     }
 
     /**
@@ -184,6 +223,68 @@ public class SysContractServiceImpl implements ISysContractService {
         hqFirstContractMapper.deleteById(id);
     }
 
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public CrmHqFirstContractImportResultVO importHqFirstFromCrm(CrmHqFirstContractImportDTO dto) {
+        if (dto == null || dto.getHqCompanyId() == null) {
+            throw new ServiceException("请选择总部公司");
+        }
+        if (CollUtil.isEmpty(dto.getSnapshotIds())) {
+            throw new ServiceException("请选择要导入的 CRM 签约关系");
+        }
+        validateImportHqCompany(dto.getHqCompanyId());
+        String salesOrg = resolveSalesOrgByHqCompanyId(dto.getHqCompanyId());
+        Set<Long> snapshotIds = dto.getSnapshotIds().stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (CollUtil.isEmpty(snapshotIds)) {
+            throw new ServiceException("请选择要导入的 CRM 签约关系");
+        }
+
+        LambdaQueryWrapper<CrmHqFirstContractSnapshot> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(CrmHqFirstContractSnapshot::getId, snapshotIds)
+                .eq(CrmHqFirstContractSnapshot::getSalesOrg, salesOrg);
+        List<CrmHqFirstContractSnapshot> snapshots = crmHqFirstContractSnapshotMapper.selectList(wrapper);
+        Map<Long, CrmHqFirstContractImportVO> importVOMap = buildCrmImportVOList(dto.getHqCompanyId(), snapshots).stream()
+                .collect(Collectors.toMap(CrmHqFirstContractImportVO::getId, item -> item, (a, b) -> a));
+
+        CrmHqFirstContractImportResultVO result = new CrmHqFirstContractImportResultVO();
+        result.setSelectedCount(snapshotIds.size());
+        for (Long snapshotId : snapshotIds) {
+            CrmHqFirstContractImportVO importVO = importVOMap.get(snapshotId);
+            if (importVO == null) {
+                result.setFailedCount(defaultInt(result.getFailedCount()) + 1);
+                continue;
+            }
+            if (Boolean.TRUE.equals(importVO.getExistingContract())) {
+                result.setExistedCount(defaultInt(result.getExistedCount()) + 1);
+                continue;
+            }
+            if (!Boolean.TRUE.equals(importVO.getCanImport())) {
+                result.setFailedCount(defaultInt(result.getFailedCount()) + 1);
+                continue;
+            }
+
+            HqFirstContractDTO saveDTO = new HqFirstContractDTO();
+            saveDTO.setHqCompanyId(dto.getHqCompanyId());
+            saveDTO.setFirstCompanyId(importVO.getFirstCompanyId());
+            saveDTO.setRegionId(importVO.getRegionId());
+            saveDTO.setStatus(STATUS_ENABLED);
+            saveDTO.setRemark(CRM_IMPORT_REMARK);
+            try {
+                saveHqFirst(saveDTO);
+                result.setSuccessCount(defaultInt(result.getSuccessCount()) + 1);
+            } catch (ServiceException ex) {
+                if (isDuplicateHqFirstMessage(ex.getMessage())) {
+                    result.setExistedCount(defaultInt(result.getExistedCount()) + 1);
+                } else {
+                    result.setFailedCount(defaultInt(result.getFailedCount()) + 1);
+                }
+            }
+        }
+        return result;
+    }
+
     /**
      * 一级-二级从属分页列表
      *
@@ -250,6 +351,205 @@ public class SysContractServiceImpl implements ISysContractService {
         List<SysCompanyType> companyTypes = companyTypeService.listAll();
         return companyTypes.stream()
                 .collect(Collectors.toMap(SysCompanyType::getTypeCode, SysCompanyType::getSubjectType, (a, b) -> a));
+    }
+
+    private void validateImportHqCompany(Long hqCompanyId) {
+        Map<String, String> subjectTypeMap = buildSubjectTypeMap();
+        SysCompany hqCompany = requireCompany(hqCompanyId, "总部公司");
+        validateEnabledCompany(hqCompany, "总部公司");
+        validateHqCompany(hqCompany, subjectTypeMap);
+    }
+
+    private String resolveSalesOrgByHqCompanyId(Long hqCompanyId) {
+        String sql = "SELECT DISTINCT sales_org FROM " + CRM_COMPANY_MAPPING_TABLE + " "
+                + "WHERE hq_company_id = ? AND status = 1 "
+                + "AND sales_org IS NOT NULL AND TRIM(sales_org) <> ''";
+        List<String> salesOrgs = jdbcTemplate.queryForList(sql, String.class, hqCompanyId).stream()
+                .map(StrUtil::trim)
+                .filter(StrUtil::isNotBlank)
+                .distinct()
+                .collect(Collectors.toList());
+        if (CollUtil.isEmpty(salesOrgs)) {
+            throw new ServiceException("当前销售组织未配置总部映射");
+        }
+        if (salesOrgs.size() > 1) {
+            throw new ServiceException("当前总部配置了多个销售组织");
+        }
+        return salesOrgs.get(0);
+    }
+
+    private List<CrmHqFirstContractSnapshot> listSnapshotsBySalesOrg(String salesOrg) {
+        LambdaQueryWrapper<CrmHqFirstContractSnapshot> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CrmHqFirstContractSnapshot::getSalesOrg, salesOrg)
+                .orderByDesc(CrmHqFirstContractSnapshot::getCrmOperTime)
+                .orderByDesc(CrmHqFirstContractSnapshot::getCrmAddTime)
+                .orderByAsc(CrmHqFirstContractSnapshot::getKunnr)
+                .orderByDesc(CrmHqFirstContractSnapshot::getId);
+        return crmHqFirstContractSnapshotMapper.selectList(wrapper);
+    }
+
+    private List<CrmHqFirstContractImportVO> buildCrmImportVOList(Long hqCompanyId,
+                                                                  List<CrmHqFirstContractSnapshot> snapshots) {
+        if (CollUtil.isEmpty(snapshots)) {
+            return Collections.emptyList();
+        }
+
+        Set<String> companyCodes = snapshots.stream()
+                .map(CrmHqFirstContractSnapshot::getKunnr)
+                .map(StrUtil::trim)
+                .filter(StrUtil::isNotBlank)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<String> regionCodes = snapshots.stream()
+                .map(CrmHqFirstContractSnapshot::getRegionCode)
+                .map(StrUtil::trim)
+                .filter(StrUtil::isNotBlank)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        Map<String, SysCompany> companyByCode = loadCompanyByCode(companyCodes);
+        Map<String, List<SysRegion>> regionByCode = loadRegionsByCode(regionCodes);
+        Set<Long> firstCompanyIds = companyByCode.values().stream()
+                .map(SysCompany::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<Long> existingFirstCompanyIds = loadExistingContractFirstCompanyIds(hqCompanyId, firstCompanyIds);
+
+        List<CrmHqFirstContractImportVO> result = new ArrayList<>(snapshots.size());
+        for (CrmHqFirstContractSnapshot snapshot : snapshots) {
+            CrmHqFirstContractImportVO vo = new CrmHqFirstContractImportVO();
+            vo.setId(snapshot.getId());
+            vo.setKunnr(snapshot.getKunnr());
+            vo.setCustId(snapshot.getCustId());
+            vo.setCrmCompanyName(snapshot.getCrmCompanyName());
+            vo.setSalesOrg(snapshot.getSalesOrg());
+            vo.setRegionCode(snapshot.getRegionCode());
+            vo.setRegionName(snapshot.getRegionName());
+            vo.setAliveFlag(snapshot.getAliveFlag());
+            vo.setCrmAddTime(snapshot.getCrmAddTime());
+            vo.setCrmOperTime(snapshot.getCrmOperTime());
+
+            SysCompany localCompany = companyByCode.get(StrUtil.trim(snapshot.getKunnr()));
+            if (localCompany == null) {
+                vo.setMatchRemark("CRM 客户未匹配本地一级公司");
+                vo.setCanImport(Boolean.FALSE);
+                result.add(vo);
+                continue;
+            }
+            vo.setFirstCompanyId(localCompany.getId());
+            vo.setFirstCompanyName(localCompany.getCompanyName());
+            if (existingFirstCompanyIds.contains(localCompany.getId())) {
+                vo.setExistingContract(Boolean.TRUE);
+                vo.setCanImport(Boolean.FALSE);
+                vo.setMatchRemark("已存在正式签约");
+                result.add(vo);
+                continue;
+            }
+            if (!CompanyCategoryEnum.getFirstLevelTypeCodes().contains(localCompany.getTypeCode())) {
+                vo.setMatchRemark("CRM 客户未匹配本地一级公司");
+                vo.setCanImport(Boolean.FALSE);
+                result.add(vo);
+                continue;
+            }
+            if (!Objects.equals(localCompany.getStatus(), STATUS_ENABLED)) {
+                vo.setMatchRemark("一级公司已停用");
+                vo.setCanImport(Boolean.FALSE);
+                result.add(vo);
+                continue;
+            }
+
+            RegionMatchResult regionMatch = matchRegion(hqCompanyId, StrUtil.trim(snapshot.getRegionCode()), regionByCode);
+            if (regionMatch.getRegion() == null) {
+                vo.setMatchRemark(regionMatch.getRemark());
+                vo.setCanImport(Boolean.FALSE);
+                result.add(vo);
+                continue;
+            }
+            vo.setRegionId(regionMatch.getRegion().getId());
+            vo.setLocalRegionName(regionMatch.getRegion().getRegionName());
+            vo.setExistingContract(Boolean.FALSE);
+            vo.setCanImport(Boolean.TRUE);
+            result.add(vo);
+        }
+        return result;
+    }
+
+    private Map<String, SysCompany> loadCompanyByCode(Set<String> companyCodes) {
+        if (CollUtil.isEmpty(companyCodes)) {
+            return Collections.emptyMap();
+        }
+        LambdaQueryWrapper<SysCompany> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(SysCompany::getCompanyCode, companyCodes);
+        return sysCompanyMapper.selectList(wrapper).stream()
+                .filter(item -> StrUtil.isNotBlank(item.getCompanyCode()))
+                .collect(Collectors.toMap(item -> StrUtil.trim(item.getCompanyCode()), item -> item, (a, b) -> a, LinkedHashMap::new));
+    }
+
+    private Map<String, List<SysRegion>> loadRegionsByCode(Set<String> regionCodes) {
+        if (CollUtil.isEmpty(regionCodes)) {
+            return Collections.emptyMap();
+        }
+        LambdaQueryWrapper<SysRegion> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(SysRegion::getRegionCode, regionCodes);
+        return sysRegionMapper.selectList(wrapper).stream()
+                .filter(item -> StrUtil.isNotBlank(item.getRegionCode()))
+                .collect(Collectors.groupingBy(item -> StrUtil.trim(item.getRegionCode()), LinkedHashMap::new, Collectors.toList()));
+    }
+
+    private Set<Long> loadExistingContractFirstCompanyIds(Long hqCompanyId, Set<Long> firstCompanyIds) {
+        if (CollUtil.isEmpty(firstCompanyIds)) {
+            return Collections.emptySet();
+        }
+        LambdaQueryWrapper<HqFirstContract> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(HqFirstContract::getHqCompanyId, hqCompanyId)
+                .in(HqFirstContract::getFirstCompanyId, firstCompanyIds);
+        return hqFirstContractMapper.selectList(wrapper).stream()
+                .map(HqFirstContract::getFirstCompanyId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private RegionMatchResult matchRegion(Long hqCompanyId,
+                                          String regionCode,
+                                          Map<String, List<SysRegion>> regionByCode) {
+        if (StrUtil.isBlank(regionCode)) {
+            return RegionMatchResult.fail("CRM 大区编码为空");
+        }
+        List<SysRegion> regions = regionByCode.get(regionCode);
+        if (CollUtil.isEmpty(regions)) {
+            return RegionMatchResult.fail("CRM 大区未匹配本地大区");
+        }
+        for (SysRegion region : regions) {
+            if (Objects.equals(region.getCompanyId(), hqCompanyId)) {
+                return RegionMatchResult.success(region);
+            }
+        }
+        return RegionMatchResult.fail("CRM 大区不属于当前总部");
+    }
+
+    private PageResult<CrmHqFirstContractImportVO> buildPageResult(List<CrmHqFirstContractImportVO> records,
+                                                                   Integer pageNum,
+                                                                   Integer pageSize) {
+        int currentPageNum = pageNum == null || pageNum < 1 ? 1 : pageNum;
+        int currentPageSize = pageSize == null || pageSize < 1 ? 10 : pageSize;
+        int total = records == null ? 0 : records.size();
+        if (total == 0) {
+            return PageResult.of(Collections.emptyList(), 0L, currentPageNum, currentPageSize);
+        }
+        int fromIndex = Math.min((currentPageNum - 1) * currentPageSize, total);
+        int toIndex = Math.min(fromIndex + currentPageSize, total);
+        return PageResult.of(records.subList(fromIndex, toIndex), (long) total, currentPageNum, currentPageSize);
+    }
+
+    private List<CrmHqFirstContractImportVO> filterCrmImportRecords(List<CrmHqFirstContractImportVO> records,
+                                                                    CrmHqFirstContractImportQuery query) {
+        if (CollUtil.isEmpty(records)) {
+            return Collections.emptyList();
+        }
+        return records.stream()
+                .filter(item -> query.getFirstCompanyId() == null
+                        || Objects.equals(item.getFirstCompanyId(), query.getFirstCompanyId()))
+                .filter(item -> query.getRegionId() == null
+                        || Objects.equals(item.getRegionId(), query.getRegionId()))
+                .collect(Collectors.toList());
     }
 
     private SysCompany requireCompany(Long companyId, String label) {
@@ -425,6 +725,15 @@ public class SysContractServiceImpl implements ISysContractService {
         return StrUtil.isBlank(normalized) ? null : normalized;
     }
 
+    private int defaultInt(Integer value) {
+        return value == null ? 0 : value;
+    }
+
+    private boolean isDuplicateHqFirstMessage(String message) {
+        return StrUtil.equals(message, "该总部与一级网点的签约关系已存在")
+                || StrUtil.equals(message, "签约关系已存在，请勿重复保存");
+    }
+
     private ServiceException translateHqFirstDuplicateException(DuplicateKeyException ex) {
         String message = ex.getMessage();
         if (StrUtil.containsIgnoreCase(message, "uk_hq_first")) {
@@ -442,5 +751,32 @@ public class SysContractServiceImpl implements ISysContractService {
             return new ServiceException("该一级、二级网点的从属关系已存在");
         }
         return new ServiceException("从属关系已存在，请勿重复保存");
+    }
+
+    private static class RegionMatchResult {
+
+        private final SysRegion region;
+        private final String remark;
+
+        private RegionMatchResult(SysRegion region, String remark) {
+            this.region = region;
+            this.remark = remark;
+        }
+
+        private static RegionMatchResult success(SysRegion region) {
+            return new RegionMatchResult(region, null);
+        }
+
+        private static RegionMatchResult fail(String remark) {
+            return new RegionMatchResult(null, remark);
+        }
+
+        private SysRegion getRegion() {
+            return region;
+        }
+
+        private String getRemark() {
+            return remark;
+        }
     }
 }

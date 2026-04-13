@@ -1,12 +1,16 @@
 package com.jasic.aftersales.system.service;
 
 import com.jasic.aftersales.common.core.domain.PageResult;
+import com.jasic.aftersales.system.domain.dto.CrmHqFirstContractImportDTO;
 import com.jasic.aftersales.system.domain.dto.FirstSecondRelationDTO;
 import com.jasic.aftersales.system.domain.dto.HqFirstContractDTO;
 import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
 import com.jasic.aftersales.system.domain.entity.HqFirstContract;
+import com.jasic.aftersales.system.domain.query.CrmHqFirstContractImportQuery;
 import com.jasic.aftersales.system.domain.query.FirstSecondRelationQuery;
 import com.jasic.aftersales.system.domain.query.HqFirstContractQuery;
+import com.jasic.aftersales.system.domain.vo.CrmHqFirstContractImportResultVO;
+import com.jasic.aftersales.system.domain.vo.CrmHqFirstContractImportVO;
 import com.jasic.aftersales.system.domain.vo.FirstSecondRelationVO;
 import com.jasic.aftersales.system.domain.vo.HqFirstContractVO;
 
@@ -25,6 +29,14 @@ public interface ISysContractService {
      * @return 分页结果
      */
     PageResult<HqFirstContractVO> listHqFirstPage(HqFirstContractQuery query);
+
+    /**
+     * CRM 签约导入分页列表
+     *
+     * @param query 查询参数
+     * @return 分页结果
+     */
+    PageResult<CrmHqFirstContractImportVO> listCrmHqFirstImportPage(CrmHqFirstContractImportQuery query);
 
     /**
      * 新增总部-一级签约
@@ -47,6 +59,14 @@ public interface ISysContractService {
      * @param id 主键ID
      */
     void removeHqFirst(Long id);
+
+    /**
+     * 从 CRM 快照导入总部-一级签约
+     *
+     * @param dto 导入参数
+     * @return 导入结果
+     */
+    CrmHqFirstContractImportResultVO importHqFirstFromCrm(CrmHqFirstContractImportDTO dto);
 
     /**
      * 一级-二级从属分页列表

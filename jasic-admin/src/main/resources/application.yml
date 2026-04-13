@@ -14,6 +14,13 @@ spring:
     default-property-inclusion: non_null
     serialization:
       write-dates-as-timestamps: false
+  quartz:
+    job-store-type: memory
+    scheduler-name: jasicSyncScheduler
+    auto-startup: true
+    startup-delay: 5s
+    properties:
+      org.quartz.threadPool.threadCount: 5
 
 server:
   port: 8080

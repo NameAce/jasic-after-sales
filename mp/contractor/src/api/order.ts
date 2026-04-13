@@ -411,7 +411,7 @@ function mapWorkOrderDetailToOrderDetail(vo: WorkOrderDetailVO): OrderDetail {
     faultPoint: {
       current: {
         date: String(latestRepair?.createTime || ''),
-        desc: String(latestFault?.faultDesc || latestRepair?.repairSummary || ''),
+        desc: String(latestFault?.faultDesc || ''),
       },
       history,
     },
@@ -815,4 +815,3 @@ export async function techAcceptWorkOrder(dto: WorkOrderTechAcceptDTO) {
 
   return res
 }
-

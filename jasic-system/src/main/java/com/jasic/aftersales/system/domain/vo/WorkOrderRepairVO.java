@@ -41,18 +41,6 @@ public class WorkOrderRepairVO implements Serializable {
     @ApiModelProperty(value = "维修员姓名")
     private String repairUserName;
 
-    /** 维修摘要 */
-    @ApiModelProperty(value = "维修摘要")
-    private String repairSummary;
-
-    /** 维修说明 */
-    @ApiModelProperty(value = "维修说明")
-    private String repairDesc;
-
-    /** 其他说明 */
-    @ApiModelProperty(value = "其他说明")
-    private String otherDesc;
-
     /** 是否维修完成 */
     @ApiModelProperty(value = "是否维修完成")
     private Integer isFinished;

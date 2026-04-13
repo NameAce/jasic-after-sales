@@ -26,6 +26,7 @@
     <el-card shadow="never" style="margin-top: 12px;">
       <div class="table-toolbar">
         <el-button type="primary" icon="el-icon-plus" size="small" v-hasPerms="['org:company:add']" @click="handleAdd">新增公司</el-button>
+        <el-button type="success" icon="el-icon-download" size="small" v-hasPerms="['org:company:add']" @click="openExternalDialog">从CRM导入</el-button>
       </div>
       <el-table v-loading="loading" :data="companyList" border stripe>
         <el-table-column label="ID" prop="id" width="70" />
@@ -74,7 +75,7 @@
           <el-input v-model="form.companyName" placeholder="请输入公司名称" />
         </el-form-item>
         <el-form-item label="公司编码" prop="companyCode">
-          <el-input v-model="form.companyCode" placeholder="请输入公司编码" :disabled="!!form.id" />
+          <el-input v-model="form.companyCode" placeholder="请输入公司编码" :disabled="!!form.id || companyCodeLocked" />
         </el-form-item>
         <el-form-item label="公司类型" prop="typeCode">
           <el-select v-model="form.typeCode" placeholder="请选择" :disabled="!!form.id">
@@ -105,12 +106,75 @@
         <el-button type="primary" :loading="submitLoading" @click="submitForm">确 定</el-button>
       </div>
     </el-dialog>
+
+    <el-dialog title="选择CRM公司" :visible.sync="externalDialogVisible" width="960px" append-to-body>
+      <el-form :model="externalQueryParams" ref="externalQueryForm" :inline="true" size="small">
+        <el-form-item label="客户编码" prop="companyCode">
+          <el-input v-model="externalQueryParams.companyCode" placeholder="请输入客户编码" clearable />
+        </el-form-item>
+        <el-form-item label="公司名称" prop="companyName">
+          <el-input v-model="externalQueryParams.companyName" placeholder="请输入公司名称" clearable />
+        </el-form-item>
+        <el-form-item label="CRM状态" prop="custState">
+          <el-select v-model="externalQueryParams.custState" placeholder="全部" clearable>
+            <el-option v-for="item in externalStateOptions" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" icon="el-icon-search" @click="handleExternalQuery">搜索</el-button>
+          <el-button icon="el-icon-refresh" @click="resetExternalQuery">重置</el-button>
+        </el-form-item>
+      </el-form>
+
+      <el-table v-loading="externalLoading" :data="externalCompanyList" border stripe style="margin-top: 12px;">
+        <el-table-column label="客户编码" prop="companyCode" width="120" />
+        <el-table-column label="公司名称" prop="companyName" min-width="180" />
+        <el-table-column label="联系人" prop="contactName" width="120" />
+        <el-table-column label="联系电话" prop="contactPhone" width="140" />
+        <el-table-column label="地址" prop="address" min-width="220" show-overflow-tooltip />
+        <el-table-column label="CRM状态" width="100">
+          <template slot-scope="{ row }">
+            <el-tag :type="row.custState === 1 ? 'success' : 'info'" size="mini">{{ row.custStateLabel }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="本地状态" width="100">
+          <template slot-scope="{ row }">
+            <el-tag v-if="row.existingCompanyId" type="warning" size="mini">已存在</el-tag>
+            <el-tag v-else type="success" size="mini">可导入</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="最近同步时间" prop="lastSyncTime" width="160" />
+        <el-table-column label="操作" fixed="right" width="100">
+          <template slot-scope="{ row }">
+            <el-button type="text" size="mini" @click="handleUseExternal(row)">选择</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <el-pagination
+        style="margin-top: 16px; text-align: right;"
+        :current-page="externalQueryParams.pageNum"
+        :page-size="externalQueryParams.pageSize"
+        :total="externalTotal"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="val => { externalQueryParams.pageSize = val; getExternalList() }"
+        @current-change="val => { externalQueryParams.pageNum = val; getExternalList() }"
+      />
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import { listCompany, getCompany, addCompany, updateCompany, deleteCompany } from '@/api/org'
-import { listCompanyType } from '@/api/org'
+import {
+  listCompany,
+  getCompany,
+  addCompany,
+  updateCompany,
+  deleteCompany,
+  listExternalCompany,
+  getExternalCompanyImportPreview,
+  listCompanyType
+} from '@/api/org'
 
 export default {
   name: 'CompanyManage',
@@ -126,10 +190,29 @@ export default {
       dialogTitle: '',
       form: {},
       submitLoading: false,
+      companyCodeLocked: false,
+      externalDialogVisible: false,
+      externalLoading: false,
+      externalCompanyList: [],
+      externalTotal: 0,
+      externalQueryParams: { pageNum: 1, pageSize: 10, companyCode: '', companyName: '', custState: undefined },
+      externalStateOptions: [
+        { value: 0, label: '待审核' },
+        { value: 1, label: '审核通过' },
+        { value: 2, label: '审核不通过' },
+        { value: 3, label: '注销' },
+        { value: 4, label: '资料已保存' },
+        { value: 5, label: '申请注销' },
+        { value: 6, label: '资料未填写' },
+        { value: 9, label: '删除' }
+      ],
       rules: {
         companyName: [{ required: true, message: '请输入公司名称', trigger: 'blur' }],
         companyCode: [{ required: true, message: '请输入公司编码', trigger: 'blur' }],
         typeCode: [{ required: true, message: '请选择公司类型', trigger: 'change' }],
+        contactName: [{ required: true, message: '请输入联系人', trigger: 'blur' }],
+        contactPhone: [{ required: true, message: '请输入联系电话', trigger: 'blur' }],
+        address: [{ required: true, message: '请输入公司地址', trigger: 'blur' }],
         adminUsername: [{
           validator: (rule, value, callback) => {
             if (!this.form.id && !value) {
@@ -167,24 +250,86 @@ export default {
         this.total = res.data.total
       }).finally(() => { this.loading = false })
     },
-    handleQuery() { this.queryParams.pageNum = 1; this.getList() },
+    getExternalList() {
+      this.externalLoading = true
+      listExternalCompany(this.externalQueryParams).then(res => {
+        if (!res) return
+        this.externalCompanyList = res.data.records
+        this.externalTotal = res.data.total
+      }).finally(() => { this.externalLoading = false })
+    },
+    handleQuery() {
+      this.queryParams.pageNum = 1
+      this.getList()
+    },
     resetQuery() {
       this.$refs.queryForm.resetFields()
       this.queryParams = { pageNum: 1, pageSize: 10, companyName: '', typeCode: '', status: undefined }
       this.getList()
     },
-    handleAdd() {
+    handleExternalQuery() {
+      this.externalQueryParams.pageNum = 1
+      this.getExternalList()
+    },
+    resetExternalQuery() {
+      this.$refs.externalQueryForm.resetFields()
+      this.externalQueryParams = { pageNum: 1, pageSize: 10, companyCode: '', companyName: '', custState: undefined }
+      this.getExternalList()
+    },
+    handleAdd(prefill) {
       this.dialogTitle = '新增公司'
-      this.form = { status: 1 }
+      this.companyCodeLocked = !!(prefill && prefill.companyCode)
+      this.form = Object.assign({
+        companyName: '',
+        companyCode: '',
+        typeCode: '',
+        contactName: '',
+        contactPhone: '',
+        address: '',
+        adminUsername: '',
+        status: 1
+      }, prefill || {})
       this.dialogVisible = true
       this.$nextTick(() => this.$refs.form && this.$refs.form.clearValidate())
     },
     handleEdit(row) {
+      this.openEditDialog(row.id)
+    },
+    openEditDialog(id) {
       this.dialogTitle = '编辑公司'
-      getCompany(row.id).then(res => {
+      this.companyCodeLocked = true
+      getCompany(id).then(res => {
         if (!res) return
         this.form = res.data
         this.dialogVisible = true
+        this.$nextTick(() => this.$refs.form && this.$refs.form.clearValidate())
+      })
+    },
+    openExternalDialog() {
+      this.externalDialogVisible = true
+      this.externalQueryParams.pageNum = 1
+      this.getExternalList()
+    },
+    handleUseExternal(row) {
+      getExternalCompanyImportPreview(row.custId).then(res => {
+        if (!res) return
+        const preview = res.data || {}
+        this.externalDialogVisible = false
+        if (preview.existingCompanyId) {
+          this.$confirm(`公司编码 ${preview.companyCode} 已存在，是否打开编辑页？`, '提示', { type: 'warning' }).then(() => {
+            this.openEditDialog(preview.existingCompanyId)
+          }).catch(() => {})
+          return
+        }
+        // TODO: 后续按业务再调整外部公司导入带入字段。
+        this.handleAdd({
+          companyName: preview.companyName || '',
+          companyCode: preview.companyCode || '',
+          contactName: preview.contactName || '',
+          contactPhone: preview.contactPhone || '',
+          address: preview.address || '',
+          status: preview.status == null ? 1 : preview.status
+        })
       })
     },
     submitForm() {

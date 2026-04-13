@@ -5,21 +5,14 @@
         <el-form-item label="条码" prop="barcode">
           <el-input v-model="queryParams.barcode" placeholder="请输入条码" clearable />
         </el-form-item>
-        <el-form-item label="总部" prop="hqCompanyId">
-          <el-select v-model="queryParams.hqCompanyId" placeholder="全部" clearable filterable>
-            <el-option
-              v-for="item in hqOptions"
-              :key="item.id"
-              :label="item.companyName"
-              :value="item.id"
-            />
-          </el-select>
+        <el-form-item label="发货单号" prop="deliverNumber">
+          <el-input v-model="queryParams.deliverNumber" placeholder="请输入发货单号" clearable />
         </el-form-item>
         <el-form-item label="物料编码" prop="productCode">
           <el-input v-model="queryParams.productCode" placeholder="请输入物料编码" clearable />
         </el-form-item>
-        <el-form-item label="机器小号" prop="productTrumpet">
-          <el-input v-model="queryParams.productTrumpet" placeholder="请输入机器小号" clearable />
+        <el-form-item label="机器小号" prop="machineNo">
+          <el-input v-model="queryParams.machineNo" placeholder="请输入机器小号" clearable />
         </el-form-item>
         <el-form-item label="产品型号" prop="productModel">
           <el-input v-model="queryParams.productModel" placeholder="请输入产品型号" clearable />
@@ -40,50 +33,29 @@
     <el-card shadow="never" style="margin-top: 12px;">
       <div class="table-toolbar">
         <el-button
-          type="primary"
-          icon="el-icon-plus"
-          size="small"
-          v-hasPerms="['system:machineBarcode:add']"
-          @click="handleAdd"
-        >
-          新增
-        </el-button>
-        <el-button
-          icon="el-icon-upload2"
-          size="small"
-          v-hasPerms="['system:machineBarcode:import']"
-          @click="handleOpenImport"
-        >
-          JSON导入
-        </el-button>
-        <el-button
           type="warning"
           icon="el-icon-refresh"
           size="small"
           :loading="syncLoading"
-          v-hasPerms="['system:machineBarcode:import']"
+          v-hasPerms="['system:machineBarcode:sync']"
           @click="handleFullSync"
         >
-          手动全量同步
+          执行同步任务
         </el-button>
       </div>
 
       <el-table v-loading="loading" :data="tableData" border stripe>
         <el-table-column label="ID" prop="id" width="80" />
         <el-table-column label="条码" prop="barcode" min-width="180" />
+        <el-table-column label="发货单号" prop="deliverNumber" min-width="150" />
         <el-table-column label="归属总部" prop="hqCompanyName" min-width="180" />
         <el-table-column label="CRM公司ID" prop="custId" min-width="120" />
         <el-table-column label="销售组织" prop="salesOrg" min-width="120" />
         <el-table-column label="物料编码" prop="productCode" min-width="120" />
         <el-table-column label="商品名称" prop="productName" min-width="160" show-overflow-tooltip />
-        <el-table-column label="产品型号" prop="productModel" min-width="140" />
-        <el-table-column label="机器小号" prop="productTrumpet" min-width="140" show-overflow-tooltip />
-        <el-table-column label="品牌编码" prop="brandCode" width="110" />
-        <el-table-column label="质保状态" prop="warrantyStatus" width="120" />
-        <el-table-column label="厂家出库日期" prop="scanDate" width="160" />
-        <el-table-column label="经销商出库日期" prop="dealerOutDate" width="160" />
-        <el-table-column label="CRM创建时间" prop="crmAddTime" width="160" />
-        <el-table-column label="最近同步时间" prop="lastSyncTime" width="160" />
+        <el-table-column label="产品型号" prop="productModel" min-width="160" show-overflow-tooltip />
+        <el-table-column label="机器小号" prop="machineNo" min-width="140" show-overflow-tooltip />
+        <el-table-column label="条码扫描时间" prop="scanDate" width="170" />
         <el-table-column label="状态" prop="status" width="90" align="center">
           <template slot-scope="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'info'" size="mini">
@@ -91,27 +63,10 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="备注" prop="remark" min-width="180" show-overflow-tooltip />
-        <el-table-column label="更新时间" prop="updateTime" width="160" />
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column label="更新时间" prop="updateTime" width="170" />
+        <el-table-column label="操作" width="90" fixed="right">
           <template slot-scope="{ row }">
-            <el-button
-              type="text"
-              size="mini"
-              v-hasPerms="['system:machineBarcode:update']"
-              @click="handleEdit(row)"
-            >
-              编辑
-            </el-button>
-            <el-button
-              type="text"
-              size="mini"
-              style="color: #F56C6C;"
-              v-hasPerms="['system:machineBarcode:remove']"
-              @click="handleDelete(row)"
-            >
-              删除
-            </el-button>
+            <el-button type="text" size="mini" @click="handleView(row)">查看</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -127,70 +82,27 @@
       />
     </el-card>
 
-    <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="640px" append-to-body>
-      <el-form ref="form" :model="form" :rules="rules" label-width="96px">
-        <el-form-item label="机器条码" prop="barcode">
-          <el-input v-model="form.barcode" placeholder="请输入机器条码" />
-        </el-form-item>
-        <el-form-item label="归属总部" prop="hqCompanyId">
-          <el-select v-model="form.hqCompanyId" placeholder="请选择归属总部" filterable style="width: 100%;">
-            <el-option
-              v-for="item in hqOptions"
-              :key="item.id"
-              :label="item.companyName"
-              :value="item.id"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="物料编码" prop="productCode">
-          <el-input v-model="form.productCode" placeholder="请输入物料编码" />
-        </el-form-item>
-        <el-form-item label="商品名称" prop="productName">
-          <el-input v-model="form.productName" placeholder="请输入商品名称" />
-        </el-form-item>
-        <el-form-item label="产品型号" prop="productModel">
-          <el-input v-model="form.productModel" placeholder="请输入产品型号" />
-        </el-form-item>
-        <el-form-item label="机器小号" prop="productTrumpet">
-          <el-input v-model="form.productTrumpet" placeholder="请输入机器小号" />
-        </el-form-item>
-        <el-form-item label="品牌编码" prop="brandCode">
-          <el-input v-model="form.brandCode" placeholder="请输入品牌编码" />
-        </el-form-item>
-        <el-form-item label="质保状态" prop="warrantyStatus">
-          <el-input v-model="form.warrantyStatus" placeholder="例如 IN_WARRANTY" />
-        </el-form-item>
-        <el-form-item label="状态" prop="status">
-          <el-radio-group v-model="form.status">
-            <el-radio :label="1">启用</el-radio>
-            <el-radio :label="0">停用</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="备注" prop="remark">
-          <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="请输入备注" />
-        </el-form-item>
-      </el-form>
+    <el-dialog title="条码档案详情" :visible.sync="detailVisible" width="760px" append-to-body>
+      <el-descriptions v-if="detail" :column="2" border size="small">
+        <el-descriptions-item label="条码">{{ detail.barcode || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="发货单号">{{ detail.deliverNumber || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="归属总部">{{ detail.hqCompanyName || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="CRM公司ID">{{ detail.custId || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="销售组织">{{ detail.salesOrg || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="物料编码">{{ detail.productCode || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="商品名称">{{ detail.productName || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="产品型号">{{ detail.productModel || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="机器小号">{{ detail.machineNo || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="条码扫描时间">{{ detail.scanDate || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="经销商出库日期">{{ detail.dealerOutDate || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="CRM创建时间">{{ detail.crmAddTime || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="最近同步时间">{{ detail.lastSyncTime || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="质保状态">{{ detail.warrantyStatus || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="状态">{{ detail.status === 1 ? '启用' : '停用' }}</el-descriptions-item>
+        <el-descriptions-item label="备注" :span="2">{{ detail.remark || '-' }}</el-descriptions-item>
+      </el-descriptions>
       <div slot="footer">
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="submitForm">确定</el-button>
-      </div>
-    </el-dialog>
-
-    <el-dialog title="JSON批量导入" :visible.sync="importDialogVisible" width="760px" append-to-body>
-      <div class="import-tip">
-        按数组提交，支持按条码覆盖更新已有档案。示例见下方“填充示例”。
-      </div>
-      <el-input
-        v-model="importText"
-        type="textarea"
-        :rows="16"
-        resize="none"
-        placeholder='请输入 JSON 数组，例如 [{"barcode":"JASIC-001","hqCompanyId":2,"productCode":"P-100","status":1}]'
-      />
-      <div slot="footer">
-        <el-button @click="fillImportExample">填充示例</el-button>
-        <el-button @click="importDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="importLoading" @click="submitImport">开始导入</el-button>
+        <el-button @click="detailVisible = false">关闭</el-button>
       </div>
     </el-dialog>
   </div>
@@ -200,11 +112,6 @@
 import {
   listMachineBarcode,
   getMachineBarcode,
-  listMachineBarcodeHqOptions,
-  addMachineBarcode,
-  updateMachineBarcode,
-  deleteMachineBarcode,
-  importMachineBarcode,
   fullSyncMachineBarcode
 } from '@/api/system'
 
@@ -213,51 +120,33 @@ export default {
   data() {
     return {
       loading: false,
+      syncLoading: false,
       total: 0,
       tableData: [],
-      hqOptions: [],
+      detailVisible: false,
+      detail: null,
       queryParams: {
         pageNum: 1,
         pageSize: 10,
         barcode: '',
-        hqCompanyId: undefined,
+        deliverNumber: '',
         productCode: '',
-        productTrumpet: '',
+        machineNo: '',
         productModel: '',
         status: undefined
-      },
-      dialogVisible: false,
-      dialogTitle: '',
-      submitLoading: false,
-      syncLoading: false,
-      form: {},
-      importDialogVisible: false,
-      importText: '',
-      importLoading: false,
-      rules: {
-        barcode: [{ required: true, message: '请输入机器条码', trigger: 'blur' }],
-        hqCompanyId: [{ required: true, message: '请选择归属总部', trigger: 'change' }],
-        status: [{ required: true, message: '请选择状态', trigger: 'change' }]
       }
     }
   },
   created() {
-    this.loadHqOptions()
     this.getList()
   },
   methods: {
-    loadHqOptions() {
-      listMachineBarcodeHqOptions().then(res => {
-        if (!res) return
-        this.hqOptions = res.data || []
-      })
-    },
     getList() {
       this.loading = true
       listMachineBarcode(this.queryParams).then(res => {
         if (!res) return
-        this.tableData = res.data.records
-        this.total = res.data.total
+        this.tableData = res.data.records || []
+        this.total = res.data.total || 0
       }).finally(() => { this.loading = false })
     },
     handleQuery() {
@@ -270,119 +159,29 @@ export default {
         pageNum: 1,
         pageSize: 10,
         barcode: '',
-        hqCompanyId: undefined,
+        deliverNumber: '',
         productCode: '',
-        productTrumpet: '',
+        machineNo: '',
         productModel: '',
         status: undefined
       }
       this.getList()
     },
-    handleAdd() {
-      this.dialogTitle = '新增条码档案'
-      this.form = {
-        barcode: '',
-        hqCompanyId: undefined,
-        productCode: '',
-        productName: '',
-        productModel: '',
-        productTrumpet: '',
-        brandCode: '',
-        warrantyStatus: '',
-        status: 1,
-        remark: ''
-      }
-      this.dialogVisible = true
-      this.$nextTick(() => this.$refs.form && this.$refs.form.clearValidate())
-    },
-    handleEdit(row) {
-      this.dialogTitle = '编辑条码档案'
+    handleView(row) {
       getMachineBarcode(row.id).then(res => {
         if (!res) return
-        this.form = Object.assign({ status: 1 }, res.data)
-        this.dialogVisible = true
-        this.$nextTick(() => this.$refs.form && this.$refs.form.clearValidate())
+        this.detail = res.data || null
+        this.detailVisible = true
       })
-    },
-    submitForm() {
-      this.$refs.form.validate(valid => {
-        if (!valid) return
-        this.submitLoading = true
-        const api = this.form.id ? updateMachineBarcode : addMachineBarcode
-        api(this.form).then(res => {
-          if (!res) return
-          this.$message.success('操作成功')
-          this.dialogVisible = false
-          this.getList()
-        }).finally(() => { this.submitLoading = false })
-      })
-    },
-    handleDelete(row) {
-      this.$confirm(`确认删除条码档案 "${row.barcode}" 吗？`, '提示', { type: 'warning' }).then(() => {
-        deleteMachineBarcode(row.id).then(res => {
-          if (!res) return
-          this.$message.success('删除成功')
-          this.getList()
-        })
-      }).catch(() => {})
-    },
-    handleOpenImport() {
-      this.importText = ''
-      this.importDialogVisible = true
     },
     handleFullSync() {
-      this.$confirm('确认执行 CRM 条码全量同步吗？同步过程可能持续较长时间。', '提示', { type: 'warning' }).then(() => {
+      this.$confirm('确认提交条码档案同步任务吗？系统会按同步任务配置在后台执行，并把结果写入任务日志。', '提示', { type: 'warning' }).then(() => {
         this.syncLoading = true
         fullSyncMachineBarcode().then(res => {
           if (!res) return
-          const data = res.data || {}
-          this.$message.success(
-            `同步完成：主条码 ${data.barcodeProcessedCount || 0} 条，经销商出库 ${data.dealerProcessedCount || 0} 条，回写 ${data.dealerUpdatedCount || 0} 条`
-          )
-          this.getList()
+          this.$message.success(`任务已提交，执行日志ID：${res.data}，请到“同步任务”查看进度和结果`)
         }).finally(() => { this.syncLoading = false })
       }).catch(() => {})
-    },
-    fillImportExample() {
-      const exampleCompanyId = this.hqOptions.length > 0 ? this.hqOptions[0].id : 1
-      this.importText = JSON.stringify([
-        {
-          barcode: 'JASIC-001',
-          hqCompanyId: exampleCompanyId,
-          productCode: 'P-100',
-          productName: 'ZX7逆变焊机',
-          productModel: 'MODEL-A',
-          productTrumpet: 'M-001',
-          brandCode: 'JASIC',
-          warrantyStatus: 'IN_WARRANTY',
-          status: 1,
-          remark: '初始导入'
-        }
-      ], null, 2)
-    },
-    submitImport() {
-      if (!this.importText) {
-        this.$message.warning('请输入导入 JSON')
-        return
-      }
-      let payload = null
-      try {
-        payload = JSON.parse(this.importText)
-      } catch (error) {
-        this.$message.error('JSON 格式不正确')
-        return
-      }
-      if (!Array.isArray(payload)) {
-        this.$message.error('导入内容必须是 JSON 数组')
-        return
-      }
-      this.importLoading = true
-      importMachineBarcode(payload).then(res => {
-        if (!res) return
-        this.$message.success(`导入成功，共处理 ${res.data} 条`)
-        this.importDialogVisible = false
-        this.getList()
-      }).finally(() => { this.importLoading = false })
     }
   }
 }
@@ -392,9 +191,4 @@ export default {
 .app-container { padding: 0; }
 .search-card { margin-bottom: 0; }
 .table-toolbar { margin-bottom: 12px; }
-.import-tip {
-  margin-bottom: 12px;
-  color: #606266;
-  line-height: 1.6;
-}
 </style>

@@ -30,6 +30,12 @@ export function updateCompany(data) {
 export function deleteCompany(id) {
   return request({ url: `/org/company/${id}`, method: 'delete' })
 }
+export function listExternalCompany(params) {
+  return request({ url: '/org/company/external/list', method: 'get', params })
+}
+export function getExternalCompanyImportPreview(custId) {
+  return request({ url: `/org/company/external/${custId}/import-preview`, method: 'get' })
+}
 
 // --- 签约关系管理 ---
 export function listHqFirstContract(params) {
@@ -43,6 +49,12 @@ export function updateHqFirstContract(data) {
 }
 export function deleteHqFirstContract(id) {
   return request({ url: `/org/contract/hq-first/${id}`, method: 'delete' })
+}
+export function listCrmHqFirstContractImport(params) {
+  return request({ url: '/org/contract/hq-first/crm-import/list', method: 'get', params })
+}
+export function importCrmHqFirstContract(data) {
+  return request({ url: '/org/contract/hq-first/crm-import', method: 'post', data })
 }
 
 export function listFirstSecondRelation(params) {

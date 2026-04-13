@@ -23,6 +23,26 @@ public class MachineBarcodeSyncResultVO implements Serializable {
     @ApiModelProperty(value = "主条码处理条数")
     private Integer barcodeProcessedCount;
 
+    /** 新增条码条数 */
+    @ApiModelProperty(value = "新增条码条数")
+    private Integer insertedCount;
+
+    /** 已存在跳过条数 */
+    @ApiModelProperty(value = "已存在跳过条数")
+    private Integer skippedExistingCount;
+
+    /** 总部未匹配条数 */
+    @ApiModelProperty(value = "总部未匹配条数")
+    private Integer hqUnmatchedCount;
+
+    /** 总部匹配冲突条数 */
+    @ApiModelProperty(value = "总部匹配冲突条数")
+    private Integer hqConflictCount;
+
+    /** 物料未匹配条数 */
+    @ApiModelProperty(value = "物料未匹配条数")
+    private Integer productUnmatchedCount;
+
     /** 经销商最新出库处理条数 */
     @ApiModelProperty(value = "经销商最新出库处理条数")
     private Integer dealerProcessedCount;

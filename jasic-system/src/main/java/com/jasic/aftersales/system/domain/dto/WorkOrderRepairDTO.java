@@ -27,18 +27,6 @@ public class WorkOrderRepairDTO implements Serializable {
     @NotNull(message = "工单ID不能为空")
     private Long workOrderId;
 
-    /** 维修摘要 */
-    @ApiModelProperty(value = "维修摘要")
-    private String repairSummary;
-
-    /** 维修说明 */
-    @ApiModelProperty(value = "维修说明")
-    private String repairDesc;
-
-    /** 其他说明 */
-    @ApiModelProperty(value = "其他说明")
-    private String otherDesc;
-
     /** 调整后的报价金额 */
     @ApiModelProperty(value = "调整后的报价金额")
     private BigDecimal quoteAmount;

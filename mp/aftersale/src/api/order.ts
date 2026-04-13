@@ -192,9 +192,6 @@ export interface CustomerWorkOrderDetailDTO {
     finishedTime: string
     id: number
     isFinished: number
-    otherDesc: string
-    repairDesc: string
-    repairSummary: string
     repairUserId: number
     repairUserName: string
   }>
@@ -348,21 +345,9 @@ export function mapCustomerWorkOrderDetailToOrderDetailDTO(r: CustomerWorkOrderD
     .flatMap((rep) => {
       const repDate = String(rep.finishedTime || rep.createTime || '').trim()
       const repLocation = String(rep.companyName || r.currentAcceptCompanyName || '').trim()
-      const repDesc = String(rep.repairDesc || rep.repairSummary || '').trim()
-      const repOther = String(rep.otherDesc || '').trim()
       const faults = rep.faults ?? []
       if (faults.length === 0) {
-        return repDesc
-          ? [
-              {
-                description: repDesc,
-                images: [],
-                specialInfo: repOther || undefined,
-                location: repLocation,
-                date: repDate,
-              },
-            ]
-          : []
+        return []
       }
       return faults.map((f) => {
         const imgs = splitCommaUrls(f.imageUrls).map((url, idx) => ({
@@ -370,9 +355,9 @@ export function mapCustomerWorkOrderDetailToOrderDetailDTO(r: CustomerWorkOrderD
           label: `图片${idx + 1}`,
         }))
         return {
-          description: String(f.repairDesc || f.faultDesc || repDesc || '').trim(),
+          description: String(f.repairDesc || f.faultDesc || '').trim(),
           images: imgs,
-          specialInfo: String(f.otherDesc || repOther || '').trim() || undefined,
+          specialInfo: String(f.otherDesc || '').trim() || undefined,
           location: repLocation,
           date: String(f.createTime || repDate || '').trim(),
         }
@@ -396,9 +381,7 @@ export function mapCustomerWorkOrderDetailToOrderDetailDTO(r: CustomerWorkOrderD
       .sort((a, b) => (Number(a.sortNum) || 0) - (Number(b.sortNum) || 0))
       .map((f) => String(f.repairDesc || f.faultDesc || '').trim())
       .filter(Boolean)
-    faultPointCurrentDesc =
-      String(latestRepair.repairSummary || latestRepair.repairDesc || '').trim() ||
-      faultLines.join('；')
+    faultPointCurrentDesc = faultLines.join('；')
   }
 
   const orderTypeName = String(

@@ -92,15 +92,15 @@ public class WorkOrderNotifyEventService {
      * 记录维修完成通知事件
      *
      * @param workOrder 工单主表
-     * @param summary   维修摘要
+     * @param detail    维修明细摘要
      */
-    public void recordRepairFinished(WorkOrder workOrder, String summary) {
+    public void recordRepairFinished(WorkOrder workOrder, String detail) {
         if (workOrder == null || workOrder.getCustomerId() == null) {
             return;
         }
         WorkOrderNotifyEvent event = buildPendingEvent(workOrder, workOrder.getCurrentAcceptCompanyId(),
                 EVENT_REPAIR_FINISHED, "REPAIR_FINISH", RECEIVER_CUSTOMER, workOrder.getCustomerId(),
-                "维修完成通知", buildContent("工单已维修完成", workOrder, summary));
+                "维修完成通知", buildContent("工单已维修完成", workOrder, detail));
         saveEventsAndDispatch(Collections.singletonList(event));
     }
 
