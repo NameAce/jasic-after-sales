@@ -32,7 +32,6 @@ public class WorkOrderEvaluationVO implements Serializable {
     @ApiModelProperty(value = "被评价公司ID")
     private Long companyId;
 
-    /** 评分 */
     /** 服务时效评分 */
     @ApiModelProperty(value = "服务时效评分")
     private Integer timelinessScore;

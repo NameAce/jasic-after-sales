@@ -33,7 +33,6 @@ public class WorkOrderEvaluation extends BaseEntity {
     /** 被评价服务方公司ID */
     private Long companyId;
 
-    /** 评分 */
     /** 服务时效评分 */
     private Integer timelinessScore;
 
