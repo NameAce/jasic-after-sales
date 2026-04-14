@@ -178,12 +178,7 @@ public class SysFileServiceImpl implements SysFileService {
         if (bizType == null || bizId == null) {
             return Collections.emptyList();
         }
-        LambdaQueryWrapper<SysFileBiz> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysFileBiz::getBizType, bizType)
-                .eq(SysFileBiz::getBizId, bizId)
-                .orderByAsc(SysFileBiz::getSortNum)
-                .orderByAsc(SysFileBiz::getId);
-        List<SysFileBiz> relations = sysFileBizMapper.selectList(wrapper);
+        List<SysFileBiz> relations = sysFileBizMapper.selectVisibleBizRelations(bizType, bizId);
         return buildFileItems(relations);
     }
 
@@ -199,13 +194,7 @@ public class SysFileServiceImpl implements SysFileService {
         if (normalizedBizTypes.isEmpty()) {
             return Collections.emptyMap();
         }
-        LambdaQueryWrapper<SysFileBiz> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(SysFileBiz::getBizType, normalizedBizTypes)
-                .eq(SysFileBiz::getBizId, bizId)
-                .orderByAsc(SysFileBiz::getBizType)
-                .orderByAsc(SysFileBiz::getSortNum)
-                .orderByAsc(SysFileBiz::getId);
-        List<SysFileBiz> relations = sysFileBizMapper.selectList(wrapper);
+        List<SysFileBiz> relations = sysFileBizMapper.selectVisibleBizRelationsByTypes(normalizedBizTypes, bizId);
         Map<SysFileBizTypeEnum, List<SysFileItemVO>> result = new EnumMap<>(SysFileBizTypeEnum.class);
         for (SysFileBizTypeEnum bizType : normalizedBizTypes) {
             result.put(bizType, new ArrayList<>());
