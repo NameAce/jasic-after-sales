@@ -90,9 +90,25 @@ public class WorkOrderServiceImplTest {
         record.setCurrentAcceptCompanyId(2002L);
         record.setFaultDesc("开机无反应");
         record.setBrandType(BrandTypeEnum.JASIC);
+        WorkOrderQuote olderValidQuote = new WorkOrderQuote();
+        olderValidQuote.setWorkOrderId(99L);
+        olderValidQuote.setIsCurrentValid(1);
+        olderValidQuote.setQuoteAmount(new BigDecimal("100.00"));
+        olderValidQuote.setCreateTime(LocalDateTime.of(2026, 4, 1, 9, 0, 0));
+        WorkOrderQuote latestValidQuote = new WorkOrderQuote();
+        latestValidQuote.setWorkOrderId(99L);
+        latestValidQuote.setIsCurrentValid(1);
+        latestValidQuote.setQuoteAmount(new BigDecimal("188.50"));
+        latestValidQuote.setCreateTime(LocalDateTime.of(2026, 4, 2, 9, 0, 0));
+        WorkOrderQuote invalidQuote = new WorkOrderQuote();
+        invalidQuote.setWorkOrderId(99L);
+        invalidQuote.setIsCurrentValid(0);
+        invalidQuote.setQuoteAmount(new BigDecimal("299.00"));
+        invalidQuote.setCreateTime(LocalDateTime.of(2026, 4, 3, 9, 0, 0));
 
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createPagedWorkOrderMapperProxy(Collections.singletonList(record)));
+        setField(service, "workOrderQuoteMapper", createQuoteMapperProxy(Arrays.asList(olderValidQuote, invalidQuote, latestValidQuote)));
         setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
             @Override
             public void fillQueryScope(WorkOrderQuery query) {
@@ -123,6 +139,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals("开机无反应", holder[0].getRecords().get(0).getFaultDesc());
         Assert.assertEquals(BrandTypeEnum.JASIC, holder[0].getRecords().get(0).getBrandType());
         Assert.assertEquals("佳士品牌", holder[0].getRecords().get(0).getBrandTypeLabel());
+        Assert.assertEquals(0, new BigDecimal("188.50").compareTo(holder[0].getRecords().get(0).getQuoteAmount()));
     }
 
     @Test
@@ -678,6 +695,11 @@ public class WorkOrderServiceImplTest {
                 return true;
             }
         });
+        setField(service, "workOrderNotifyEventService", new WorkOrderNotifyEventService() {
+            @Override
+            public void recordRepairFinished(WorkOrder target, String detail) {
+            }
+        });
 
         WorkOrderRepairDTO dto = new WorkOrderRepairDTO();
         dto.setWorkOrderId(workOrder.getId());
@@ -699,6 +721,57 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(0, insertedQuotes.get(0).getQuoteAmount().compareTo(new BigDecimal("120.00")));
         Assert.assertEquals("复检前调价", insertedQuotes.get(0).getQuoteDesc());
         Assert.assertEquals(Integer.valueOf(1), insertedQuotes.get(0).getIsCurrentValid());
+    }
+
+    @Test
+    public void shouldCompleteWorkOrderWhenRepairSubmitted() throws Exception {
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(6L);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.IN_PROGRESS);
+        workOrder.setCurrentAcceptCompanyId(3L);
+        List<WorkOrderFlow> insertedFlows = new ArrayList<>();
+        int[] updateCount = new int[1];
+        int[] notifyCount = new int[1];
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, updateCount));
+        setField(service, "workOrderQuoteMapper", createQuoteMapperProxy(Collections.emptyList()));
+        setField(service, "workOrderRepairMapper", createNoopProxy(WorkOrderRepairMapper.class, "insert"));
+        setField(service, "workOrderFaultMapper", createNoopProxy(com.jasic.aftersales.system.mapper.WorkOrderFaultMapper.class, "insert"));
+        setField(service, "workOrderFlowMapper", createFlowMapperProxy(insertedFlows));
+        setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(Collections.emptyList()));
+        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+            @Override
+            public boolean canSaveRepair(WorkOrder target) {
+                return true;
+            }
+        });
+        setField(service, "workOrderNotifyEventService", new WorkOrderNotifyEventService() {
+            @Override
+            public void recordRepairFinished(WorkOrder target, String detail) {
+                notifyCount[0]++;
+            }
+        });
+
+        WorkOrderRepairDTO dto = new WorkOrderRepairDTO();
+        dto.setWorkOrderId(workOrder.getId());
+        dto.setIsFinished(0);
+        dto.setFaults(Collections.singletonList(buildFaultItem("主板故障", "更换主板", "主板")));
+
+        runWithLoginContext(101L, new ThrowingRunnable() {
+            @Override
+            public void run() throws Exception {
+                service.saveRepair(dto);
+            }
+        });
+
+        Assert.assertEquals(1, updateCount[0]);
+        Assert.assertEquals(WorkOrderStatusConstants.MainStatus.COMPLETED, workOrder.getMainStatus());
+        Assert.assertNotNull(workOrder.getCompletedTime());
+        Assert.assertEquals(1, insertedFlows.size());
+        Assert.assertEquals("REPAIR_FINISH", insertedFlows.get(0).getActionType());
+        Assert.assertEquals(WorkOrderStatusConstants.MainStatus.COMPLETED, insertedFlows.get(0).getAfterStatus());
+        Assert.assertEquals(1, notifyCount[0]);
     }
 
     @Test

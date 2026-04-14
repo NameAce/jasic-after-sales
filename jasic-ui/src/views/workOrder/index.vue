@@ -662,7 +662,7 @@
           </el-form-item>
         </template>
 
-        <template v-else-if="actionDialogAction === 'REPAIR_SAVE' || actionDialogAction === 'REPAIR_FINISH'">
+        <template v-else-if="actionDialogAction === 'REPAIR_FINISH'">
           <el-alert
             v-if="!actionForm.faultJudge"
             title="当前暂无有效报价；如需调整报价，请先通过“报价”动作确认故障判断"
@@ -903,8 +903,7 @@ const ACTION_META = {
   TECH_ACCEPT: { label: '维修员接单', title: '维修员接单', type: 'primary' },
   TRANSFER: { label: '转单', title: '转单', type: 'warning' },
   QUOTE: { label: '报价', title: '报价', type: 'primary' },
-  REPAIR_SAVE: { label: '保存维修', title: '保存维修登记', type: 'primary' },
-  REPAIR_FINISH: { label: '维修完成', title: '提交维修完成', type: 'success' },
+  REPAIR_FINISH: { label: '维修登记', title: '维修登记', type: 'primary' },
   REVIEW: { label: '复检', title: '复检登记', type: 'warning' },
   UPLOAD_SEND_EXPRESS: { label: '上传寄件单号', title: '上传寄件单号', type: 'primary' },
   CLOSE: { label: '关闭工单', title: '关闭工单', type: 'danger' }
@@ -1717,7 +1716,7 @@ export default {
       const form = buildDefaultActionForm()
       const currentQuote = this.getCurrentValidQuote()
       form.workOrderId = currentWorkOrderId
-      if (action === 'QUOTE' || action === 'REPAIR_SAVE' || action === 'REPAIR_FINISH') {
+      if (action === 'QUOTE' || action === 'REPAIR_FINISH') {
         this.fillQuoteForm(form, currentQuote)
       }
       if (action === 'REPAIR_FINISH') {
@@ -1734,7 +1733,7 @@ export default {
         form.closeReason = this.detail.closeReason || ''
       }
       let preparePromise = Promise.resolve()
-      if (action === 'REPAIR_SAVE' || action === 'REPAIR_FINISH') {
+      if (action === 'REPAIR_FINISH') {
         preparePromise = this.loadRepairFaultOptions(currentWorkOrderId)
       } else {
         this.actionRepairFaultOptions = []
@@ -1811,12 +1810,12 @@ export default {
         this.$message.error('请输入故障判定')
         return false
       }
-      if ((this.actionDialogAction === 'REPAIR_SAVE' || this.actionDialogAction === 'REPAIR_FINISH')
+      if (this.actionDialogAction === 'REPAIR_FINISH'
         && this.buildRepairFaults().length === 0) {
         this.$message.error('请至少填写一项维修内容')
         return false
       }
-      if ((this.actionDialogAction === 'REPAIR_SAVE' || this.actionDialogAction === 'REPAIR_FINISH')
+      if (this.actionDialogAction === 'REPAIR_FINISH'
         && !this.validateRepairFaultItems()) {
         return false
       }
@@ -1869,13 +1868,12 @@ export default {
             quoteAmount: this.actionForm.quoteAmount,
             quoteDesc: this.actionForm.quoteDesc
           }
-        case 'REPAIR_SAVE':
         case 'REPAIR_FINISH':
           return {
             workOrderId,
             quoteAmount: this.actionForm.quoteAmount,
             quoteDesc: this.actionForm.quoteDesc,
-            isFinished: this.actionDialogAction === 'REPAIR_FINISH' ? 1 : 0,
+            isFinished: 1,
             faults: this.buildRepairFaults()
           }
         case 'REVIEW':
@@ -1915,7 +1913,6 @@ export default {
           return transferWorkOrder(payload)
         case 'QUOTE':
           return quoteWorkOrder(payload)
-        case 'REPAIR_SAVE':
         case 'REPAIR_FINISH':
           return repairWorkOrder(payload)
         case 'REVIEW':

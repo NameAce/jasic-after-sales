@@ -138,7 +138,7 @@ public interface IWorkOrderService {
     void saveQuote(WorkOrderQuoteDTO dto);
 
     /**
-     * 保存维修登记
+     * 提交维修登记
      *
      * @param dto 维修参数
      */

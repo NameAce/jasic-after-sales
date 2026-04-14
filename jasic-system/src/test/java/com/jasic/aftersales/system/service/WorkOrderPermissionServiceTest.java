@@ -288,6 +288,21 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertFalse(service.listAvailableActions(workOrder).contains(WorkOrderActionEnum.TRANSFER.getCode()));
     }
 
+    @Test
+    public void shouldOnlyExposeRepairRegisterActionForInProgressAssignee() throws Exception {
+        setCurrentServiceContext(1001L);
+        setEmptyMapperDependencies();
+        grantPermissions("workorder:repair");
+
+        WorkOrder workOrder = buildWorkOrder(19L, 900L, 1001L, 1001L, 101L);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.IN_PROGRESS);
+
+        List<String> actions = service.listAvailableActions(workOrder);
+
+        Assert.assertTrue(service.canSaveRepair(workOrder));
+        Assert.assertTrue(actions.contains(WorkOrderActionEnum.REPAIR_FINISH.getCode()));
+    }
+
     private void setCurrentHqRegionContext() {
         SecurityContext.setCurrentCompanyId(900L);
         SecurityContext.setCurrentSubjectType("HQ");

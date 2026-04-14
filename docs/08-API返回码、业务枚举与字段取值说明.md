@@ -192,8 +192,7 @@
 | `CLOSE` | 关闭工单 |
 | `TECH_ACCEPT` | 维修员接单 |
 | `QUOTE` | 报价 |
-| `REPAIR_SAVE` | 保存维修登记 |
-| `REPAIR_FINISH` | 完成维修登记 |
+| `REPAIR_FINISH` | 维修登记 |
 
 ### 3.3 质保状态补充说明
 

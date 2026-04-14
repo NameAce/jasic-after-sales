@@ -313,7 +313,8 @@ public class CustomerWorkOrderServiceImplTest {
                 WorkOrder.class,
                 Map.class,
                 Map.class,
-                Set.class
+                Set.class,
+                Map.class
         );
         method.setAccessible(true);
 
@@ -322,7 +323,8 @@ public class CustomerWorkOrderServiceImplTest {
                 workOrder,
                 Collections.emptyMap(),
                 Collections.emptyMap(),
-                Collections.emptySet()
+                Collections.emptySet(),
+                Collections.singletonMap(51L, new BigDecimal("256.80"))
         );
 
         Assert.assertEquals(BrandTypeEnum.JASIC, vo.getBrandType());
@@ -330,6 +332,7 @@ public class CustomerWorkOrderServiceImplTest {
         Assert.assertEquals("MAIL", vo.getServiceMode());
         Assert.assertEquals("寄修", vo.getServiceModeLabel());
         Assert.assertTrue(vo.getCanUploadSendExpress());
+        Assert.assertEquals(0, new BigDecimal("256.80").compareTo(vo.getQuoteAmount()));
     }
 
     @Test
@@ -430,7 +433,8 @@ public class CustomerWorkOrderServiceImplTest {
                 WorkOrder.class,
                 Map.class,
                 Map.class,
-                Set.class
+                Set.class,
+                Map.class
         );
         method.setAccessible(true);
 
@@ -439,7 +443,8 @@ public class CustomerWorkOrderServiceImplTest {
                 workOrder,
                 Collections.emptyMap(),
                 Collections.emptyMap(),
-                Collections.singleton(52L)
+                Collections.singleton(52L),
+                Collections.emptyMap()
         );
 
         Assert.assertFalse(vo.getCanUploadSendExpress());

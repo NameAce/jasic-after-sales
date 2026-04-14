@@ -50,7 +50,6 @@ public class WorkOrderPermissionService {
             WorkOrderActionEnum.TECH_ACCEPT,
             WorkOrderActionEnum.TRANSFER,
             WorkOrderActionEnum.QUOTE,
-            WorkOrderActionEnum.REPAIR_SAVE,
             WorkOrderActionEnum.REPAIR_FINISH,
             WorkOrderActionEnum.REVIEW,
             WorkOrderActionEnum.RETURN_METHOD,
@@ -319,9 +318,8 @@ public class WorkOrderPermissionService {
                 return isAssignee
                         && WorkOrderStatusConstants.MainStatus.IN_PROGRESS.equals(mainStatus)
                         && hasActionPermission(action);
-            case REPAIR_SAVE:
             case REPAIR_FINISH:
-                // 维修保存和维修完成共用同一套“维修员 + 处理中 + repair 权限”约束。
+                // 维修登记沿用“维修员 + 处理中 + repair 权限”约束。
                 return isAssignee
                         && WorkOrderStatusConstants.MainStatus.IN_PROGRESS.equals(mainStatus)
                         && hasActionPermission(action);
@@ -389,13 +387,13 @@ public class WorkOrderPermissionService {
     }
 
     /**
-     * 判断当前登录人是否允许保存维修记录。
+     * 判断当前登录人是否允许提交维修登记。
      *
      * @param workOrder 工单实体
-     * @return true 表示允许保存维修记录
+     * @return true 表示允许提交维修登记
      */
     public boolean canSaveRepair(WorkOrder workOrder) {
-        return canExecute(workOrder, WorkOrderActionEnum.REPAIR_SAVE);
+        return canExecute(workOrder, WorkOrderActionEnum.REPAIR_FINISH);
     }
 
     /**

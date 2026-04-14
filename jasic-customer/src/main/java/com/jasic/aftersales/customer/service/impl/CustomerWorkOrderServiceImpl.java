@@ -82,6 +82,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -362,8 +363,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         Set<Long> senderVoucherWorkOrderIds = buildSenderVoucherWorkOrderIdSet(
                 records.stream().map(WorkOrder::getId).collect(Collectors.toSet())
         );
+        Map<Long, BigDecimal> currentQuoteAmountMap = buildCurrentValidQuoteAmountMap(
+                records.stream().map(WorkOrder::getId).collect(Collectors.toList())
+        );
         List<CustomerWorkOrderListVO> list = records.stream()
-                .map(workOrder -> buildListVo(workOrder, companyNameMap, userNameMap, senderVoucherWorkOrderIds))
+                .map(workOrder -> buildListVo(workOrder, companyNameMap, userNameMap,
+                        senderVoucherWorkOrderIds, currentQuoteAmountMap))
                 .collect(Collectors.toList());
         return PageResult.of(list, result.getTotal(), query.getPageNum(), query.getPageSize());
     }
@@ -1028,7 +1033,8 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
 
     private CustomerWorkOrderListVO buildListVo(WorkOrder workOrder, Map<Long, String> companyNameMap,
                                                 Map<Long, String> userNameMap,
-                                                Set<Long> senderVoucherWorkOrderIds) {
+                                                Set<Long> senderVoucherWorkOrderIds,
+                                                Map<Long, BigDecimal> currentQuoteAmountMap) {
         CustomerWorkOrderListVO vo = new CustomerWorkOrderListVO();
         vo.setId(workOrder.getId());
         vo.setOrderNo(workOrder.getOrderNo());
@@ -1050,9 +1056,46 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         vo.setCanEvaluate(canEvaluate(workOrder));
         vo.setCanUploadSendExpress(canUploadSendExpress(workOrder,
                 senderVoucherWorkOrderIds != null && senderVoucherWorkOrderIds.contains(workOrder.getId())));
+        vo.setQuoteAmount(currentQuoteAmountMap == null ? null : currentQuoteAmountMap.get(workOrder.getId()));
         vo.setCreateTime(workOrder.getCreateTime());
         vo.setClosedTime(workOrder.getClosedTime());
         return vo;
+    }
+
+    private Map<Long, BigDecimal> buildCurrentValidQuoteAmountMap(List<Long> workOrderIds) {
+        if (workOrderIds == null || workOrderIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<Long> validIds = workOrderIds.stream()
+                .filter(id -> id != null && id > 0)
+                .distinct()
+                .collect(Collectors.toList());
+        if (validIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        LambdaQueryWrapper<WorkOrderQuote> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(WorkOrderQuote::getWorkOrderId, validIds)
+                .eq(WorkOrderQuote::getIsCurrentValid, 1)
+                .orderByDesc(WorkOrderQuote::getCreateTime)
+                .orderByDesc(WorkOrderQuote::getId);
+        List<WorkOrderQuote> quotes = workOrderQuoteMapper.selectList(wrapper);
+        if (quotes == null || quotes.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        quotes.sort(Comparator
+                .comparing(WorkOrderQuote::getCreateTime, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(WorkOrderQuote::getId, Comparator.nullsLast(Comparator.reverseOrder())));
+        Map<Long, BigDecimal> result = new HashMap<>();
+        for (WorkOrderQuote quote : quotes) {
+            if (quote == null
+                    || quote.getWorkOrderId() == null
+                    || !Integer.valueOf(1).equals(quote.getIsCurrentValid())
+                    || result.containsKey(quote.getWorkOrderId())) {
+                continue;
+            }
+            result.put(quote.getWorkOrderId(), quote.getQuoteAmount());
+        }
+        return result;
     }
 
     private CustomerWorkOrderLatestSummaryVO buildLatestSummaryVo(WorkOrder workOrder) {

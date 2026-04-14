@@ -38,11 +38,8 @@ public enum WorkOrderActionEnum {
     /** 提交或更新报价，可能在接单时首报，也可能在处理中重新报价。 */
     QUOTE("QUOTE", "报价", "workorder:quote"),
 
-    /** 保存维修过程，不结束维修，工单主状态通常保持处理中。 */
-    REPAIR_SAVE("REPAIR_SAVE", "保存维修", "workorder:repair"),
-
-    /** 提交维修完成，把工单推进到待复检或已完成阶段。 */
-    REPAIR_FINISH("REPAIR_FINISH", "维修完成", "workorder:repair"),
+    /** 提交维修登记，并把工单推进到已完成阶段。 */
+    REPAIR_FINISH("REPAIR_FINISH", "维修登记", "workorder:repair"),
 
     /** 管理岗复检，决定通过关闭流或打回继续维修。 */
     REVIEW("REVIEW", "复检", "workorder:review"),

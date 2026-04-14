@@ -100,6 +100,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -224,8 +225,11 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         Page<WorkOrderListVO> page = new Page<>(query.getPageNum(), query.getPageSize());
         IPage<WorkOrderListVO> result = workOrderMapper.selectWorkOrderPage(page, query);
         List<WorkOrderListVO> records = result.getRecords();
+        Map<Long, BigDecimal> currentQuoteAmountMap = buildCurrentValidQuoteAmountMap(
+                records.stream().map(WorkOrderListVO::getId).collect(Collectors.toList())
+        );
         for (WorkOrderListVO record : records) {
-            fillListSnapshot(record);
+            fillListSnapshot(record, currentQuoteAmountMap);
         }
         return PageResult.of(records, result.getTotal(), query.getPageNum(), query.getPageSize());
     }
@@ -306,7 +310,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         detail.setEvaluation(getEvaluationVo(workOrderId));
         detail.setNotifyEvents(listNotifyEventVos(workOrderId));
         detail.setAvailableActions(workOrderPermissionService.listAvailableActions(entity));
-        fillListSnapshot(detail, entity);
+        fillListSnapshot(detail, entity, buildCurrentValidQuoteAmountMap(Collections.singletonList(workOrderId)));
         detail.setEvaluateStatusLabel(resolveEvaluateStatusLabel(detail.getEvaluateStatus()));
         detail.setBrandTypeLabel(detail.getBrandType() == null ? null : detail.getBrandType().getLabel());
         detail.setServiceModeLabel(ServiceModeEnum.resolveLabel(detail.getServiceMode()));
@@ -639,7 +643,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
     /**
-     * 保存维修记录。
+     * 提交维修登记。
      *
      * @param dto 维修参数
      */
@@ -657,27 +661,20 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         repair.setWorkOrderId(workOrder.getId());
         repair.setCompanyId(workOrder.getCurrentAcceptCompanyId());
         repair.setRepairUserId(SecurityContext.getCurrentUserId());
-        repair.setIsFinished(dto.getIsFinished() != null && dto.getIsFinished() == 1 ? 1 : 0);
-        if (repair.getIsFinished() == 1) {
-            repair.setFinishedTime(LocalDateTime.now());
-        }
+        LocalDateTime finishedTime = LocalDateTime.now();
+        repair.setIsFinished(1);
+        repair.setFinishedTime(finishedTime);
         workOrderRepairMapper.insert(repair);
         saveFaults(workOrder.getId(), repair.getId(), workOrder.getCurrentAcceptCompanyId(), dto.getFaults());
 
-        if (repair.getIsFinished() == 1) {
-            String beforeStatus = workOrder.getMainStatus();
-            workOrder.setMainStatus(WorkOrderStatusFlow.afterRepairFinish());
-            workOrder.setCompletedTime(LocalDateTime.now());
-            workOrderMapper.updateById(workOrder);
-            saveFlow(workOrder.getId(), WorkOrderActionEnum.REPAIR_FINISH.getCode(), beforeStatus, workOrder.getMainStatus(),
-                    workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
-                    workOrder.getCurrentAcceptCompanyId(), repairRemark);
-            workOrderNotifyEventService.recordRepairFinished(workOrder, repairRemark);
-        } else {
-            saveFlow(workOrder.getId(), WorkOrderActionEnum.REPAIR_SAVE.getCode(), workOrder.getMainStatus(), workOrder.getMainStatus(),
-                    workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
-                    workOrder.getCurrentAcceptCompanyId(), repairRemark);
-        }
+        String beforeStatus = workOrder.getMainStatus();
+        workOrder.setMainStatus(WorkOrderStatusFlow.afterRepairFinish());
+        workOrder.setCompletedTime(finishedTime);
+        workOrderMapper.updateById(workOrder);
+        saveFlow(workOrder.getId(), WorkOrderActionEnum.REPAIR_FINISH.getCode(), beforeStatus, workOrder.getMainStatus(),
+                workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
+                workOrder.getCurrentAcceptCompanyId(), repairRemark);
+        workOrderNotifyEventService.recordRepairFinished(workOrder, repairRemark);
     }
 
     /**
@@ -929,19 +926,66 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
     private void fillListSnapshot(WorkOrderListVO target) {
-        fillListSnapshot(target, buildWorkOrderSnapshot(target));
+        fillListSnapshot(
+                target,
+                buildWorkOrderSnapshot(target),
+                buildCurrentValidQuoteAmountMap(target == null || target.getId() == null
+                        ? Collections.emptyList()
+                        : Collections.singletonList(target.getId()))
+        );
     }
 
-    private void fillListSnapshot(WorkOrderListVO target, WorkOrder workOrder) {
+    private void fillListSnapshot(WorkOrderListVO target, Map<Long, BigDecimal> currentQuoteAmountMap) {
+        fillListSnapshot(target, buildWorkOrderSnapshot(target), currentQuoteAmountMap);
+    }
+
+    private void fillListSnapshot(WorkOrderListVO target, WorkOrder workOrder, Map<Long, BigDecimal> currentQuoteAmountMap) {
         if (target == null) {
             return;
         }
         target.setMainStatusLabel(resolveMainStatusLabel(target.getMainStatus()));
         target.setDisplayStatus(resolveDisplayStatus(target.getMainStatus()));
         target.setBrandTypeLabel(target.getBrandType() == null ? null : target.getBrandType().getLabel());
+        target.setQuoteAmount(currentQuoteAmountMap == null ? null : currentQuoteAmountMap.get(target.getId()));
         if (workOrder == null) {
             return;
         }
+    }
+
+    private Map<Long, BigDecimal> buildCurrentValidQuoteAmountMap(List<Long> workOrderIds) {
+        if (workOrderIds == null || workOrderIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<Long> validIds = workOrderIds.stream()
+                .filter(id -> id != null && id > 0)
+                .distinct()
+                .collect(Collectors.toList());
+        if (validIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        LambdaQueryWrapper<WorkOrderQuote> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(WorkOrderQuote::getWorkOrderId, validIds)
+                .eq(WorkOrderQuote::getIsCurrentValid, 1)
+                .orderByDesc(WorkOrderQuote::getCreateTime)
+                .orderByDesc(WorkOrderQuote::getId);
+        List<WorkOrderQuote> quotes = workOrderQuoteMapper.selectList(wrapper);
+        if (quotes == null || quotes.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        quotes.sort(Comparator
+                .comparing(WorkOrderQuote::getCreateTime, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(WorkOrderQuote::getId, Comparator.nullsLast(Comparator.reverseOrder())));
+        Map<Long, BigDecimal> result = new HashMap<>();
+        for (WorkOrderQuote quote : quotes) {
+            if (quote == null
+                    || quote.getWorkOrderId() == null
+                    || !Integer.valueOf(1).equals(quote.getIsCurrentValid())
+                    || result.containsKey(quote.getWorkOrderId())) {
+                continue;
+            }
+            result.put(quote.getWorkOrderId(), quote.getQuoteAmount());
+        }
+        return result;
     }
 
     private List<WorkOrderQuoteVO> listQuoteVos(Long workOrderId) {

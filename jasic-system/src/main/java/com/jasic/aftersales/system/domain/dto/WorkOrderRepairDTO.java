@@ -35,8 +35,8 @@ public class WorkOrderRepairDTO implements Serializable {
     @ApiModelProperty(value = "调整后的报价说明")
     private String quoteDesc;
 
-    /** 是否维修完成（1=是，0=否） */
-    @ApiModelProperty(value = "是否维修完成（1=是，0=否）")
+    /** 是否维修完成（兼容历史字段，当前提交统一视为完成） */
+    @ApiModelProperty(value = "是否维修完成（兼容历史字段，当前提交统一视为完成）")
     private Integer isFinished;
 
     /** 故障点列表 */

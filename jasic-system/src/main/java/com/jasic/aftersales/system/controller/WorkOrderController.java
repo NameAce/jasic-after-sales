@@ -306,12 +306,12 @@ public class WorkOrderController extends BaseController {
     }
 
     /**
-     * 保存维修登记
+     * 提交维修登记
      *
      * @param dto 维修参数
      * @return 操作结果
      */
-    @ApiOperation(value = "保存维修登记")
+    @ApiOperation(value = "维修登记")
     @SaCheckPermission("workorder:repair")
     @OperLog(title = "工单管理", operType = OperTypeEnum.UPDATE)
     @PostMapping("/repair")

@@ -4,6 +4,7 @@ import com.jasic.aftersales.common.enums.BrandTypeEnum;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
@@ -95,6 +96,10 @@ public class CustomerWorkOrderListVO implements Serializable {
     /** 是否允许上传寄件凭证 */
     @ApiModelProperty(value = "是否允许上传寄件凭证")
     private Boolean canUploadSendExpress;
+
+    /** 当前有效报价金额 */
+    @ApiModelProperty(value = "当前有效报价金额")
+    private BigDecimal quoteAmount;
 
     /** 创建时间 */
     @ApiModelProperty(value = "创建时间")
