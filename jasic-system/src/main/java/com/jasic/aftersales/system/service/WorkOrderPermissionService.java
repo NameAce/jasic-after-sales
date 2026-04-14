@@ -65,6 +65,9 @@ public class WorkOrderPermissionService {
     @Resource
     private FirstSecondRelationMapper firstSecondRelationMapper;
 
+    @Resource
+    private WorkOrderUserParticipantService workOrderUserParticipantService;
+
     /**
      * 判断当前登录人是否可以查看指定工单。
      *
@@ -89,20 +92,26 @@ public class WorkOrderPermissionService {
         List<Long> relatedCompanyIds = resolveRelatedCompanyIds();
         boolean matchRelatedCompanyScope = !relatedCompanyIds.isEmpty() && matchRelatedCompanyScope(workOrder, relatedCompanyIds);
         boolean requiresRelatedCompanyLimit = requiresRelatedCompanyLimit();
-        if (DataScopeEnum.SELF == resolveCurrentDataScope()) {
-            Long currentUserId = SecurityContext.getCurrentUserId();
-            if (currentUserId == null || !currentUserId.equals(workOrder.getAssignedUserId())) {
-                return false;
-            }
-        }
         if (currentCompanyId.equals(workOrder.getCurrentAcceptCompanyId())) {
+            if (DataScopeEnum.SELF == resolveCurrentDataScope()) {
+                Long currentUserId = SecurityContext.getCurrentUserId();
+                if (currentUserId == null || !currentUserId.equals(workOrder.getAssignedUserId())) {
+                    return false;
+                }
+            }
             return !requiresRelatedCompanyLimit || matchRelatedCompanyScope;
         }
         WorkOrderParticipant participant = getParticipant(workOrder.getId(), currentCompanyId);
-        if (participant != null) {
-            return !requiresRelatedCompanyLimit || matchRelatedCompanyScope;
+        if (participant == null || Integer.valueOf(1).equals(participant.getIsCurrentHandler())) {
+            return false;
         }
-        return matchRelatedCompanyScope;
+        if (requiresRelatedCompanyLimit && !matchRelatedCompanyScope) {
+            return false;
+        }
+        if (DataScopeEnum.SELF == resolveCurrentDataScope()) {
+            return hasHistoryUserParticipation(workOrder.getId(), currentCompanyId, SecurityContext.getCurrentUserId());
+        }
+        return true;
     }
 
     /**
@@ -568,6 +577,19 @@ public class WorkOrderPermissionService {
             return true;
         }
         return StpUtil.hasPermission(permissionCode);
+    }
+
+    /**
+     * 判断当前用户是否命中过该工单的用户级历史参与事实。
+     *
+     * @param workOrderId 工单ID
+     * @param companyId 公司ID
+     * @param userId 用户ID
+     * @return true 表示存在用户级参与事实
+     */
+    protected boolean hasHistoryUserParticipation(Long workOrderId, Long companyId, Long userId) {
+        return workOrderUserParticipantService != null
+                && workOrderUserParticipantService.hasParticipation(workOrderId, companyId, userId);
     }
 
     /**

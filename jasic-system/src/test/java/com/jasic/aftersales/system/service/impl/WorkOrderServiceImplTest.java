@@ -11,12 +11,14 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
 import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.common.enums.BrandTypeEnum;
+import com.jasic.aftersales.common.enums.WorkOrderUserParticipationActionEnum;
 import com.jasic.aftersales.common.enums.WorkOrderRelationTypeEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.system.domain.dto.WorkOrderAssignDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderCloseDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderFaultItemDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderProxyCreateDTO;
+import com.jasic.aftersales.system.domain.dto.WorkOrderQuoteDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderRepairDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderReviewDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTechAcceptDTO;
@@ -55,6 +57,7 @@ import com.jasic.aftersales.system.service.ISysConfigService;
 import com.jasic.aftersales.system.service.WorkOrderNotifyEventService;
 import com.jasic.aftersales.system.service.WorkOrderParticipantService;
 import com.jasic.aftersales.system.service.WorkOrderPermissionService;
+import com.jasic.aftersales.system.service.WorkOrderUserParticipantService;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -295,6 +298,7 @@ public class WorkOrderServiceImplTest {
         List<WorkOrderQuote> quotes = new ArrayList<>();
         List<WorkOrderQuote> insertedQuotes = new ArrayList<>();
         List<WorkOrderFlow> insertedFlows = new ArrayList<>();
+        UserParticipantRecorder participantRecorder = new UserParticipantRecorder();
 
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, new int[1]));
@@ -306,6 +310,7 @@ public class WorkOrderServiceImplTest {
                 return true;
             }
         });
+        setField(service, "workOrderUserParticipantService", participantRecorder);
 
         WorkOrderTechAcceptDTO dto = new WorkOrderTechAcceptDTO();
         dto.setWorkOrderId(workOrder.getId());
@@ -328,6 +333,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals("TECH_ACCEPT", insertedFlows.get(0).getActionType());
         Assert.assertEquals("QUOTE", insertedFlows.get(1).getActionType());
         Assert.assertEquals(WorkOrderStatusConstants.MainStatus.IN_PROGRESS, insertedFlows.get(1).getAfterStatus());
+        Assert.assertEquals(Arrays.asList("3-101-TECH_ACCEPT", "3-101-QUOTE"), participantRecorder.records);
     }
 
     @Test
@@ -435,6 +441,48 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(1, insertedQuotes.size());
         Assert.assertEquals("RETURN_METHOD", insertedFlows.get(2).getActionType());
         Assert.assertEquals("CLOSE", insertedFlows.get(3).getActionType());
+    }
+
+    @Test
+    public void shouldRecordQuoteParticipationWhenSavingQuote() throws Exception {
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(18L);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.IN_PROGRESS);
+        workOrder.setCurrentAcceptCompanyId(3L);
+        List<WorkOrderQuote> quotes = new ArrayList<>();
+        List<WorkOrderQuote> insertedQuotes = new ArrayList<>();
+        List<WorkOrderFlow> insertedFlows = new ArrayList<>();
+        UserParticipantRecorder participantRecorder = new UserParticipantRecorder();
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
+        setField(service, "workOrderQuoteMapper", createMutableQuoteMapperProxy(quotes, insertedQuotes, new int[1]));
+        setField(service, "workOrderFlowMapper", createFlowMapperProxy(insertedFlows));
+        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+            @Override
+            public boolean canQuote(WorkOrder target) {
+                return true;
+            }
+        });
+        setField(service, "workOrderUserParticipantService", participantRecorder);
+
+        WorkOrderQuoteDTO dto = new WorkOrderQuoteDTO();
+        dto.setWorkOrderId(workOrder.getId());
+        dto.setFaultJudge("有故障");
+        dto.setQuoteAmount(new BigDecimal("88.00"));
+        dto.setQuoteDesc("重新报价");
+
+        runWithLoginContext(101L, new ThrowingRunnable() {
+            @Override
+            public void run() throws Exception {
+                service.saveQuote(dto);
+            }
+        });
+
+        Assert.assertEquals(1, insertedQuotes.size());
+        Assert.assertEquals(1, insertedFlows.size());
+        Assert.assertEquals("QUOTE", insertedFlows.get(0).getActionType());
+        Assert.assertEquals(Collections.singletonList("3-101-QUOTE"), participantRecorder.records);
     }
 
     @Test
@@ -681,6 +729,7 @@ public class WorkOrderServiceImplTest {
         quotes.add(currentQuote);
         List<WorkOrderQuote> insertedQuotes = new ArrayList<>();
         int[] updateCount = new int[1];
+        UserParticipantRecorder participantRecorder = new UserParticipantRecorder();
 
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
@@ -700,6 +749,7 @@ public class WorkOrderServiceImplTest {
             public void recordRepairFinished(WorkOrder target, String detail) {
             }
         });
+        setField(service, "workOrderUserParticipantService", participantRecorder);
 
         WorkOrderRepairDTO dto = new WorkOrderRepairDTO();
         dto.setWorkOrderId(workOrder.getId());
@@ -721,6 +771,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(0, insertedQuotes.get(0).getQuoteAmount().compareTo(new BigDecimal("120.00")));
         Assert.assertEquals("复检前调价", insertedQuotes.get(0).getQuoteDesc());
         Assert.assertEquals(Integer.valueOf(1), insertedQuotes.get(0).getIsCurrentValid());
+        Assert.assertEquals(Arrays.asList("3-101-QUOTE", "3-101-REPAIR"), participantRecorder.records);
     }
 
     @Test
@@ -732,6 +783,7 @@ public class WorkOrderServiceImplTest {
         List<WorkOrderFlow> insertedFlows = new ArrayList<>();
         int[] updateCount = new int[1];
         int[] notifyCount = new int[1];
+        UserParticipantRecorder participantRecorder = new UserParticipantRecorder();
 
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, updateCount));
@@ -752,6 +804,7 @@ public class WorkOrderServiceImplTest {
                 notifyCount[0]++;
             }
         });
+        setField(service, "workOrderUserParticipantService", participantRecorder);
 
         WorkOrderRepairDTO dto = new WorkOrderRepairDTO();
         dto.setWorkOrderId(workOrder.getId());
@@ -772,6 +825,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals("REPAIR_FINISH", insertedFlows.get(0).getActionType());
         Assert.assertEquals(WorkOrderStatusConstants.MainStatus.COMPLETED, insertedFlows.get(0).getAfterStatus());
         Assert.assertEquals(1, notifyCount[0]);
+        Assert.assertEquals(Collections.singletonList("3-101-REPAIR"), participantRecorder.records);
     }
 
     @Test
@@ -814,6 +868,7 @@ public class WorkOrderServiceImplTest {
         workOrder.setCompletedTime(LocalDateTime.now());
         List<WorkOrderReview> insertedReviews = new ArrayList<>();
         int[] updateCount = new int[1];
+        UserParticipantRecorder participantRecorder = new UserParticipantRecorder();
 
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, updateCount));
@@ -825,6 +880,7 @@ public class WorkOrderServiceImplTest {
                 return true;
             }
         });
+        setField(service, "workOrderUserParticipantService", participantRecorder);
 
         WorkOrderReviewDTO dto = new WorkOrderReviewDTO();
         dto.setWorkOrderId(workOrder.getId());
@@ -845,6 +901,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(Integer.valueOf(1), insertedReviews.get(0).getIsContinueRepair());
         Assert.assertEquals(Long.valueOf(3L), insertedReviews.get(0).getCompanyId());
         Assert.assertEquals(Long.valueOf(101L), insertedReviews.get(0).getReviewUserId());
+        Assert.assertEquals(Collections.singletonList("3-101-REVIEW"), participantRecorder.records);
     }
 
     @Test
@@ -1734,6 +1791,17 @@ public class WorkOrderServiceImplTest {
             this.fromSubjectType = fromSubjectType;
             this.toCompanyId = toCompanyId;
             this.toSubjectType = toSubjectType;
+        }
+    }
+
+    private static class UserParticipantRecorder extends WorkOrderUserParticipantService {
+
+        private final List<String> records = new ArrayList<>();
+
+        @Override
+        public void recordAction(Long workOrderId, Long companyId, Long userId,
+                                 WorkOrderUserParticipationActionEnum action, LocalDateTime actionTime) {
+            records.add(String.valueOf(companyId) + "-" + String.valueOf(userId) + "-" + action.getCode());
         }
     }
 

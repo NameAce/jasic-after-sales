@@ -48,6 +48,7 @@ public class WorkOrderPermissionServiceTest {
 
     private WorkOrderPermissionService service;
     private Set<String> permissionCodes;
+    private Set<String> historyParticipationKeys;
 
     @Before
     public void setUp() {
@@ -55,10 +56,16 @@ public class WorkOrderPermissionServiceTest {
         SaTokenContextForThreadLocalStorage.setBox(new MockSaRequest(), new MockSaResponse(), new MockSaStorage());
         StpUtil.login(101L);
         permissionCodes = new LinkedHashSet<>();
+        historyParticipationKeys = new LinkedHashSet<>();
         service = new WorkOrderPermissionService() {
             @Override
             protected boolean hasPermissionCode(String permissionCode) {
                 return permissionCode == null || permissionCode.trim().isEmpty() || permissionCodes.contains(permissionCode);
+            }
+
+            @Override
+            protected boolean hasHistoryUserParticipation(Long workOrderId, Long companyId, Long userId) {
+                return historyParticipationKeys.contains(buildHistoryParticipationKey(workOrderId, companyId, userId));
             }
         };
     }
@@ -106,6 +113,7 @@ public class WorkOrderPermissionServiceTest {
         setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(buildParticipant(12L, 900L, "HQ_OBSERVER"), 0L));
         setField(service, "hqFirstContractMapper", createContractMapperProxy(Collections.emptyList()));
         setField(service, "firstSecondRelationMapper", createRelationMapperProxy(Collections.emptyList()));
+        grantHistoryParticipation(12L, 900L, 101L);
 
         WorkOrder workOrder = buildWorkOrder(12L, 900L, 1001L, 1001L, null);
 
@@ -175,6 +183,55 @@ public class WorkOrderPermissionServiceTest {
         WorkOrder workOrder = buildWorkOrder(5L, 900L, 900L, 1001L, 202L);
 
         Assert.assertFalse(service.canView(workOrder));
+    }
+
+    @Test
+    public void shouldAllowSelfScopeUserViewHistoricalWorkOrderWhenParticipationExists() throws Exception {
+        SecurityContext.setCurrentCompanyId(1001L);
+        SecurityContext.setCurrentSubjectType("SERVICE");
+        SecurityContext.setCurrentTypeCode("FIRST");
+        SecurityContext.setEffectiveDataScope("SELF");
+        SecurityContext.setCurrentRegionIds(Collections.emptyList());
+        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(buildParticipant(21L, 1001L, "HISTORY"), 0L));
+        setField(service, "hqFirstContractMapper", createContractMapperProxy(Collections.emptyList()));
+        setField(service, "firstSecondRelationMapper", createRelationMapperProxy(Collections.emptyList()));
+        grantHistoryParticipation(21L, 1001L, 101L);
+
+        WorkOrder workOrder = buildWorkOrder(21L, 900L, 2001L, 1001L, null);
+
+        Assert.assertTrue(service.canView(workOrder));
+    }
+
+    @Test
+    public void shouldRejectSelfScopeHistoricalWorkOrderWhenParticipationMissing() throws Exception {
+        SecurityContext.setCurrentCompanyId(1001L);
+        SecurityContext.setCurrentSubjectType("SERVICE");
+        SecurityContext.setCurrentTypeCode("FIRST");
+        SecurityContext.setEffectiveDataScope("SELF");
+        SecurityContext.setCurrentRegionIds(Collections.emptyList());
+        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(buildParticipant(22L, 1001L, "HISTORY"), 0L));
+        setField(service, "hqFirstContractMapper", createContractMapperProxy(Collections.emptyList()));
+        setField(service, "firstSecondRelationMapper", createRelationMapperProxy(Collections.emptyList()));
+
+        WorkOrder workOrder = buildWorkOrder(22L, 900L, 2001L, 1001L, null);
+
+        Assert.assertFalse(service.canView(workOrder));
+    }
+
+    @Test
+    public void shouldAllowAllScopeHistoricalWorkOrderWithoutUserParticipation() throws Exception {
+        SecurityContext.setCurrentCompanyId(1001L);
+        SecurityContext.setCurrentSubjectType("SERVICE");
+        SecurityContext.setCurrentTypeCode("FIRST");
+        SecurityContext.setEffectiveDataScope("ALL");
+        SecurityContext.setCurrentRegionIds(Collections.emptyList());
+        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(buildParticipant(23L, 1001L, "HISTORY"), 0L));
+        setField(service, "hqFirstContractMapper", createContractMapperProxy(Collections.emptyList()));
+        setField(service, "firstSecondRelationMapper", createRelationMapperProxy(Collections.emptyList()));
+
+        WorkOrder workOrder = buildWorkOrder(23L, 900L, 2001L, 1001L, null);
+
+        Assert.assertTrue(service.canView(workOrder));
     }
 
     @Test
@@ -332,6 +389,14 @@ public class WorkOrderPermissionServiceTest {
             return;
         }
         this.permissionCodes.addAll(Arrays.asList(permissionCodes));
+    }
+
+    private void grantHistoryParticipation(Long workOrderId, Long companyId, Long userId) {
+        historyParticipationKeys.add(buildHistoryParticipationKey(workOrderId, companyId, userId));
+    }
+
+    private String buildHistoryParticipationKey(Long workOrderId, Long companyId, Long userId) {
+        return String.valueOf(workOrderId) + "-" + String.valueOf(companyId) + "-" + String.valueOf(userId);
     }
 
     private void setEmptyMapperDependencies() throws Exception {

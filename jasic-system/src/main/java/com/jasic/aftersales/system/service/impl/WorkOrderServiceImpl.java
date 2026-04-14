@@ -17,6 +17,7 @@ import com.jasic.aftersales.common.enums.ServiceModeEnum;
 import com.jasic.aftersales.common.enums.SysFileBizTypeEnum;
 import com.jasic.aftersales.common.enums.SysFileUploadUserTypeEnum;
 import com.jasic.aftersales.common.enums.WorkOrderActionEnum;
+import com.jasic.aftersales.common.enums.WorkOrderUserParticipationActionEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.dto.WorkOrderAssignDTO;
@@ -89,6 +90,7 @@ import com.jasic.aftersales.system.service.IWorkOrderService;
 import com.jasic.aftersales.system.service.WorkOrderNotifyEventService;
 import com.jasic.aftersales.system.service.WorkOrderParticipantService;
 import com.jasic.aftersales.system.service.WorkOrderPermissionService;
+import com.jasic.aftersales.system.service.WorkOrderUserParticipantService;
 import com.jasic.aftersales.system.service.SysFileService;
 import com.jasic.aftersales.system.service.support.MachineBarcodeWarrantyResolver;
 import org.springframework.stereotype.Service;
@@ -173,6 +175,9 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
 
     @Resource
     private WorkOrderNotifyEventService workOrderNotifyEventService;
+
+    @Resource
+    private WorkOrderUserParticipantService workOrderUserParticipantService;
 
     @Resource
     private IFaultRepairConfigService faultRepairConfigService;
@@ -549,13 +554,14 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         String faultJudge = normalizeFaultJudge(dto.getFaultJudge(), "\u6545\u969c\u5224\u5b9a\u4e0d\u80fd\u4e3a\u7a7a");
         String beforeStatus = workOrder.getMainStatus();
         String acceptedStatus = WorkOrderStatusFlow.afterTechAccept();
+        LocalDateTime actionTime = LocalDateTime.now();
         WorkOrderQuote quote = replaceCurrentQuote(workOrder, faultJudge, dto.getQuoteAmount(), dto.getQuoteDesc());
         workOrder.setMainStatus(acceptedStatus);
         if (FAULT_JUDGE_NO_FAULT.equals(faultJudge)) {
             String returnMethod = normalizeReturnMethod(dto.getReturnMethod());
             String closeReason = normalizeRequiredText(dto.getCloseReason(), "\u5173\u95ed\u539f\u56e0\u4e0d\u80fd\u4e3a\u7a7a");
             validateCloseReturnInfo(returnMethod, dto.getReturnVoucherFileIds());
-            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime now = actionTime;
             workOrder.setReturnMethod(returnMethod);
             workOrder.setReturnExpressNo(resolveReturnExpressNo(returnMethod, dto.getReturnExpressNo()));
             workOrder.setCloseReason(closeReason);
@@ -571,6 +577,10 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         saveFlow(workOrder.getId(), WorkOrderActionEnum.QUOTE.getCode(), acceptedStatus, acceptedStatus,
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                 workOrder.getCurrentAcceptCompanyId(), quote.getQuoteDesc());
+        recordUserParticipation(workOrder.getId(), workOrder.getCurrentAcceptCompanyId(), SecurityContext.getCurrentUserId(),
+                WorkOrderUserParticipationActionEnum.TECH_ACCEPT, actionTime);
+        recordUserParticipation(workOrder.getId(), workOrder.getCurrentAcceptCompanyId(), SecurityContext.getCurrentUserId(),
+                WorkOrderUserParticipationActionEnum.QUOTE, actionTime);
         if (FAULT_JUDGE_NO_FAULT.equals(faultJudge)) {
             sysFileService.replaceBizFiles(
                     SysFileBizTypeEnum.WORK_ORDER_RETURN_VOUCHER,
@@ -635,11 +645,14 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u62a5\u4ef7");
         }
         String faultJudge = normalizeFaultJudge(dto.getFaultJudge(), "\u6545\u969c\u5224\u5b9a\u4e0d\u80fd\u4e3a\u7a7a");
+        LocalDateTime actionTime = LocalDateTime.now();
         WorkOrderQuote quote = replaceCurrentQuote(workOrder, faultJudge, dto.getQuoteAmount(), dto.getQuoteDesc());
 
         saveFlow(workOrder.getId(), WorkOrderActionEnum.QUOTE.getCode(), workOrder.getMainStatus(), workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                 workOrder.getCurrentAcceptCompanyId(), quote.getQuoteDesc());
+        recordUserParticipation(workOrder.getId(), workOrder.getCurrentAcceptCompanyId(), SecurityContext.getCurrentUserId(),
+                WorkOrderUserParticipationActionEnum.QUOTE, actionTime);
     }
 
     /**
@@ -655,25 +668,31 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u767b\u8bb0\u7ef4\u4fee");
         }
         validateRepairContent(workOrder, dto);
-        saveRepairQuoteIfNeeded(workOrder, dto);
+        LocalDateTime actionTime = LocalDateTime.now();
+        boolean quoteAdjusted = saveRepairQuoteIfNeeded(workOrder, dto);
         String repairRemark = buildRepairRemark(dto.getFaults());
         WorkOrderRepair repair = new WorkOrderRepair();
         repair.setWorkOrderId(workOrder.getId());
         repair.setCompanyId(workOrder.getCurrentAcceptCompanyId());
         repair.setRepairUserId(SecurityContext.getCurrentUserId());
-        LocalDateTime finishedTime = LocalDateTime.now();
         repair.setIsFinished(1);
-        repair.setFinishedTime(finishedTime);
+        repair.setFinishedTime(actionTime);
         workOrderRepairMapper.insert(repair);
         saveFaults(workOrder.getId(), repair.getId(), workOrder.getCurrentAcceptCompanyId(), dto.getFaults());
 
         String beforeStatus = workOrder.getMainStatus();
         workOrder.setMainStatus(WorkOrderStatusFlow.afterRepairFinish());
-        workOrder.setCompletedTime(finishedTime);
+        workOrder.setCompletedTime(actionTime);
         workOrderMapper.updateById(workOrder);
         saveFlow(workOrder.getId(), WorkOrderActionEnum.REPAIR_FINISH.getCode(), beforeStatus, workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                 workOrder.getCurrentAcceptCompanyId(), repairRemark);
+        if (quoteAdjusted) {
+            recordUserParticipation(workOrder.getId(), workOrder.getCurrentAcceptCompanyId(), SecurityContext.getCurrentUserId(),
+                    WorkOrderUserParticipationActionEnum.QUOTE, actionTime);
+        }
+        recordUserParticipation(workOrder.getId(), workOrder.getCurrentAcceptCompanyId(), SecurityContext.getCurrentUserId(),
+                WorkOrderUserParticipationActionEnum.REPAIR, actionTime);
         workOrderNotifyEventService.recordRepairFinished(workOrder, repairRemark);
     }
 
@@ -691,6 +710,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
         String reviewResult = normalizeReviewResult(dto.getReviewResult());
         int continueRepair = resolveContinueRepair(reviewResult);
+        LocalDateTime actionTime = LocalDateTime.now();
         WorkOrderReview review = new WorkOrderReview();
         review.setWorkOrderId(workOrder.getId());
         review.setCompanyId(workOrder.getCurrentAcceptCompanyId());
@@ -709,6 +729,8 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         saveFlow(workOrder.getId(), WorkOrderActionEnum.REVIEW.getCode(), beforeStatus, workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                 workOrder.getCurrentAcceptCompanyId(), review.getReviewDesc());
+        recordUserParticipation(workOrder.getId(), workOrder.getCurrentAcceptCompanyId(), SecurityContext.getCurrentUserId(),
+                WorkOrderUserParticipationActionEnum.REVIEW, actionTime);
     }
 
     /**
@@ -1365,7 +1387,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
      * @param workOrder 工单实体
      * @param dto 维修参数
      */
-    private void saveRepairQuoteIfNeeded(WorkOrder workOrder, WorkOrderRepairDTO dto) {
+    private boolean saveRepairQuoteIfNeeded(WorkOrder workOrder, WorkOrderRepairDTO dto) {
         WorkOrderQuote currentQuote = getCurrentValidQuote(workOrder.getId());
         BigDecimal nextQuoteAmount = dto == null ? null : dto.getQuoteAmount();
         String nextQuoteDesc = normalizeNullableText(dto == null ? null : dto.getQuoteDesc());
@@ -1373,10 +1395,10 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             if (nextQuoteAmount != null || nextQuoteDesc != null) {
                 throw new ServiceException("\u8bf7\u5148\u63d0\u4ea4\u62a5\u4ef7\uff0c\u518d\u5728\u7ef4\u4fee\u767b\u8bb0\u4e2d\u8c03\u6574\u62a5\u4ef7");
             }
-            return;
+            return false;
         }
         if (!isQuoteChanged(currentQuote, nextQuoteAmount, nextQuoteDesc)) {
-            return;
+            return false;
         }
         String faultJudge = normalizeFaultJudge(
                 currentQuote.getFaultJudge(),
@@ -1386,6 +1408,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         saveFlow(workOrder.getId(), WorkOrderActionEnum.QUOTE.getCode(), workOrder.getMainStatus(), workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                 workOrder.getCurrentAcceptCompanyId(), quote.getQuoteDesc());
+        return true;
     }
 
     /**
@@ -1462,6 +1485,14 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             return true;
         }
         return !isSameText(currentQuote.getQuoteDesc(), nextQuoteDesc);
+    }
+
+    private void recordUserParticipation(Long workOrderId, Long companyId, Long userId,
+                                         WorkOrderUserParticipationActionEnum action, LocalDateTime actionTime) {
+        if (workOrderUserParticipantService == null) {
+            return;
+        }
+        workOrderUserParticipantService.recordAction(workOrderId, companyId, userId, action, actionTime);
     }
 
     private boolean isSameQuoteAmount(BigDecimal left, BigDecimal right) {
