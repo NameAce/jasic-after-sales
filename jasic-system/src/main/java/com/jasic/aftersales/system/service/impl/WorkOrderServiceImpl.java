@@ -22,6 +22,7 @@ import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.dto.WorkOrderAssignDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderCloseDTO;
+import com.jasic.aftersales.system.domain.dto.WorkOrderFaultPartItemDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderProxyCreateDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderRepairDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderSendExpressDTO;
@@ -42,6 +43,7 @@ import com.jasic.aftersales.system.domain.entity.WorkOrder;
 import com.jasic.aftersales.system.domain.entity.WorkOrderCustomer;
 import com.jasic.aftersales.system.domain.entity.WorkOrderEvaluation;
 import com.jasic.aftersales.system.domain.entity.WorkOrderFault;
+import com.jasic.aftersales.system.domain.entity.WorkOrderFaultPart;
 import com.jasic.aftersales.system.domain.entity.WorkOrderFlow;
 import com.jasic.aftersales.system.domain.entity.WorkOrderNotifyEvent;
 import com.jasic.aftersales.system.domain.entity.WorkOrderQuote;
@@ -50,6 +52,7 @@ import com.jasic.aftersales.system.domain.query.WorkOrderQuery;
 import com.jasic.aftersales.system.domain.vo.WorkOrderCreateBarcodeInfoVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderDetailVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderEvaluationVO;
+import com.jasic.aftersales.system.domain.vo.WorkOrderFaultPartVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderFaultVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderFlowVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderListVO;
@@ -73,6 +76,7 @@ import com.jasic.aftersales.system.mapper.SysUserCompanyMapper;
 import com.jasic.aftersales.system.mapper.SysUserRoleMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderEvaluationMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderFaultMapper;
+import com.jasic.aftersales.system.mapper.WorkOrderFaultPartMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderFlowMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderCustomerMapper;
@@ -159,6 +163,9 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
 
     @Resource
     private WorkOrderFaultMapper workOrderFaultMapper;
+
+    @Resource
+    private WorkOrderFaultPartMapper workOrderFaultPartMapper;
 
     @Resource
     private WorkOrderEvaluationMapper workOrderEvaluationMapper;
@@ -643,7 +650,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u767b\u8bb0\u7ef4\u4fee");
         }
         NormalizedRepairContent repairContent = validateRepairContent(workOrder, dto.getRepairDesc(), dto.getRepairItems(), dto.getOtherDesc(),
-                dto.getPartName(), dto.getPartQty(),
+                dto.getPartList(),
                 dto.getFaultOldImageFileIds(), dto.getFaultNewImageFileIds(),
                 dto.getMachineImageFileIds(), dto.getMachineBarcodeImageFileIds(), dto.getOtherImageFileIds());
         LocalDateTime actionTime = LocalDateTime.now();
@@ -685,7 +692,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u590d\u68c0");
         }
         NormalizedRepairContent repairContent = validateRepairContent(workOrder, dto.getRepairDesc(), dto.getRepairItems(), dto.getOtherDesc(),
-                dto.getPartName(), dto.getPartQty(),
+                dto.getPartList(),
                 dto.getFaultOldImageFileIds(), dto.getFaultNewImageFileIds(),
                 dto.getMachineImageFileIds(), dto.getMachineBarcodeImageFileIds(), dto.getOtherImageFileIds());
         LocalDateTime actionTime = LocalDateTime.now();
@@ -1060,6 +1067,9 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         if (faults.isEmpty()) {
             return Collections.emptyMap();
         }
+        Map<Long, List<WorkOrderFaultPartVO>> partMap = buildFaultPartMap(
+                faults.stream().map(WorkOrderFault::getId).collect(Collectors.toCollection(LinkedHashSet::new))
+        );
         Map<Long, String> userNameMap = buildUserNameMap(faults.stream().map(WorkOrderFault::getCreatedBy).collect(Collectors.toSet()));
         Map<Long, List<WorkOrderFaultVO>> result = new HashMap<>();
         for (WorkOrderFault fault : faults) {
@@ -1069,13 +1079,36 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             vo.setFaultDesc(fault.getFaultDesc());
             vo.setRepairDesc(fault.getRepairDesc());
             vo.setOtherDesc(fault.getOtherDesc());
-            vo.setPartName(fault.getPartName());
-            vo.setPartQty(fault.getPartQty());
+            vo.setPartList(partMap.getOrDefault(fault.getId(), Collections.emptyList()));
             vo.setSortNum(fault.getSortNum());
             vo.setCreatedBy(fault.getCreatedBy());
             vo.setCreatedByName(userNameMap.get(fault.getCreatedBy()));
             vo.setCreateTime(fault.getCreateTime());
             result.computeIfAbsent(fault.getRepairId(), key -> new ArrayList<>()).add(vo);
+        }
+        return result;
+    }
+
+    private Map<Long, List<WorkOrderFaultPartVO>> buildFaultPartMap(Set<Long> faultIds) {
+        if (faultIds == null || faultIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        LambdaQueryWrapper<WorkOrderFaultPart> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(WorkOrderFaultPart::getFaultId, faultIds)
+                .orderByAsc(WorkOrderFaultPart::getSortNum)
+                .orderByAsc(WorkOrderFaultPart::getId);
+        List<WorkOrderFaultPart> faultParts = workOrderFaultPartMapper.selectList(wrapper);
+        if (faultParts.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<Long, List<WorkOrderFaultPartVO>> result = new HashMap<>();
+        for (WorkOrderFaultPart faultPart : faultParts) {
+            WorkOrderFaultPartVO vo = new WorkOrderFaultPartVO();
+            vo.setId(faultPart.getId());
+            vo.setPartName(faultPart.getPartName());
+            vo.setPartQty(faultPart.getPartQty());
+            vo.setSortNum(faultPart.getSortNum());
+            result.computeIfAbsent(faultPart.getFaultId(), key -> new ArrayList<>()).add(vo);
         }
         return result;
     }
@@ -1363,14 +1396,14 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
     private NormalizedRepairContent validateRepairContent(WorkOrder workOrder, String repairDesc, List<String> repairItems,
-                                                          String otherDesc, String partName, Integer partQty,
+                                                          String otherDesc, List<WorkOrderFaultPartItemDTO> partList,
                                                           List<Long> faultOldImageFileIds, List<Long> faultNewImageFileIds,
                                                           List<Long> machineImageFileIds, List<Long> machineBarcodeImageFileIds,
                                                           List<Long> otherImageFileIds) {
         if (workOrder == null) {
             throw new ServiceException("\u5de5\u5355\u4e0d\u5b58\u5728");
         }
-        if (!hasRepairContent(repairDesc, repairItems, otherDesc, partName, partQty,
+        if (!hasRepairContent(repairDesc, repairItems, otherDesc, partList,
                 faultOldImageFileIds, faultNewImageFileIds, machineImageFileIds, machineBarcodeImageFileIds, otherImageFileIds)) {
             throw new ServiceException("\u8bf7\u81f3\u5c11\u586b\u5199\u4e00\u9879\u7ef4\u4fee\u5185\u5bb9");
         }
@@ -1379,23 +1412,38 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         validateSingleImageLimit(machineImageFileIds, "\u673a\u5668\u6b63\u9762\u7167\u7247");
         validateSingleImageLimit(machineBarcodeImageFileIds, "\u673a\u5668\u6761\u7801\u7167\u7247");
         validateSingleImageLimit(otherImageFileIds, "\u5176\u4ed6\u56fe\u7247");
-        return normalizeRepairContent(workOrder, repairDesc, repairItems, otherDesc, partName, partQty);
+        return normalizeRepairContent(workOrder, repairDesc, repairItems, otherDesc, partList);
     }
 
-    private boolean hasRepairContent(String repairDesc, List<String> repairItems, String otherDesc, String partName,
-                                     Integer partQty, List<Long> faultOldImageFileIds, List<Long> faultNewImageFileIds,
+    private boolean hasRepairContent(String repairDesc, List<String> repairItems, String otherDesc,
+                                     List<WorkOrderFaultPartItemDTO> partList, List<Long> faultOldImageFileIds,
+                                     List<Long> faultNewImageFileIds,
                                      List<Long> machineImageFileIds, List<Long> machineBarcodeImageFileIds,
                                      List<Long> otherImageFileIds) {
         return !isBlank(repairDesc)
                 || (repairItems != null && !repairItems.isEmpty())
                 || !isBlank(otherDesc)
-                || !isBlank(partName)
-                || partQty != null
+                || hasPartContent(partList)
                 || hasFileContent(faultOldImageFileIds)
                 || hasFileContent(faultNewImageFileIds)
                 || hasFileContent(machineImageFileIds)
                 || hasFileContent(machineBarcodeImageFileIds)
                 || hasFileContent(otherImageFileIds);
+    }
+
+    private boolean hasPartContent(List<WorkOrderFaultPartItemDTO> partList) {
+        if (partList == null || partList.isEmpty()) {
+            return false;
+        }
+        for (WorkOrderFaultPartItemDTO partItem : partList) {
+            if (partItem == null) {
+                continue;
+            }
+            if (!isBlank(partItem.getPartName()) || partItem.getPartQty() != null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean hasFileContent(List<Long> fileIds) {
@@ -1413,10 +1461,10 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
     private NormalizedRepairContent normalizeRepairContent(WorkOrder workOrder, String repairDesc, List<String> repairItems,
-                                                           String otherDesc, String partName, Integer partQty) {
-        String normalizedPartName = normalizeRequiredText(partName, "\u914d\u4ef6\u540d\u79f0\u4e0d\u80fd\u4e3a\u7a7a");
-        if (partQty == null || partQty <= 0) {
-            throw new ServiceException("\u914d\u4ef6\u6570\u91cf\u5fc5\u987b\u662f\u6b63\u6574\u6570");
+                                                           String otherDesc, List<WorkOrderFaultPartItemDTO> partList) {
+        List<NormalizedFaultPart> normalizedPartList = normalizeFaultPartList(partList);
+        if (normalizedPartList.isEmpty()) {
+            throw new ServiceException("\u8bf7\u81f3\u5c11\u586b\u5199\u4e00\u6761\u914d\u4ef6\u660e\u7ec6");
         }
         Map<String, Set<String>> optionMap = buildRepairOptionMap(workOrder);
         Set<String> allowedOptions = buildAllowedRepairOptions(workOrder, optionMap);
@@ -1441,7 +1489,32 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         if (!normalizedRepairItems.contains(OTHER_REPAIR_OPTION)) {
             normalizedOtherDesc = null;
         }
-        return new NormalizedRepairContent(storedRepairDesc, normalizedRepairItems, normalizedOtherDesc, normalizedPartName, partQty);
+        return new NormalizedRepairContent(storedRepairDesc, normalizedRepairItems, normalizedOtherDesc, normalizedPartList);
+    }
+
+    private List<NormalizedFaultPart> normalizeFaultPartList(List<WorkOrderFaultPartItemDTO> partList) {
+        if (partList == null || partList.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<NormalizedFaultPart> result = new ArrayList<>();
+        for (WorkOrderFaultPartItemDTO partItem : partList) {
+            if (partItem == null) {
+                continue;
+            }
+            String normalizedPartName = normalizeNullableText(partItem.getPartName());
+            Integer partQty = partItem.getPartQty();
+            if (normalizedPartName == null && partQty == null) {
+                continue;
+            }
+            if (normalizedPartName == null) {
+                throw new ServiceException("\u914d\u4ef6\u540d\u79f0\u4e0d\u80fd\u4e3a\u7a7a");
+            }
+            if (partQty == null || partQty <= 0) {
+                throw new ServiceException("\u914d\u4ef6\u6570\u91cf\u5fc5\u987b\u662f\u6b63\u6574\u6570");
+            }
+            result.add(new NormalizedFaultPart(normalizedPartName, partQty));
+        }
+        return result;
     }
 
     private String buildRepairRemark(String faultDesc, String repairDesc, List<String> repairItems) {
@@ -2304,11 +2377,29 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         fault.setFaultDesc(normalizeRequiredText(workOrder.getFaultDesc(), "\u5de5\u5355\u6545\u969c\u63cf\u8ff0\u4e0d\u80fd\u4e3a\u7a7a"));
         fault.setRepairDesc(repairContent.getRepairDesc());
         fault.setOtherDesc(repairContent.getOtherDesc());
-        fault.setPartName(repairContent.getPartName());
-        fault.setPartQty(repairContent.getPartQty());
         fault.setSortNum(1);
         fault.setCreatedBy(SecurityContext.getCurrentUserId());
         workOrderFaultMapper.insert(fault);
+        saveFaultParts(workOrder.getId(), fault.getId(), companyId, repairContent.getPartList());
+    }
+
+    private void saveFaultParts(Long workOrderId, Long faultId, Long companyId, List<NormalizedFaultPart> partList) {
+        if (partList == null || partList.isEmpty()) {
+            return;
+        }
+        Long currentUserId = SecurityContext.getCurrentUserId();
+        for (int i = 0; i < partList.size(); i++) {
+            NormalizedFaultPart partItem = partList.get(i);
+            WorkOrderFaultPart faultPart = new WorkOrderFaultPart();
+            faultPart.setWorkOrderId(workOrderId);
+            faultPart.setFaultId(faultId);
+            faultPart.setCompanyId(companyId);
+            faultPart.setPartName(partItem.getPartName());
+            faultPart.setPartQty(partItem.getPartQty());
+            faultPart.setSortNum(i + 1);
+            faultPart.setCreatedBy(currentUserId);
+            workOrderFaultPartMapper.insert(faultPart);
+        }
     }
 
     private void bindRepairFiles(Long repairId, Long companyId, List<Long> faultOldImageFileIds,
@@ -2540,17 +2631,14 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
 
         private final String otherDesc;
 
-        private final String partName;
-
-        private final Integer partQty;
+        private final List<NormalizedFaultPart> partList;
 
         private NormalizedRepairContent(String repairDesc, List<String> repairItems, String otherDesc,
-                                        String partName, Integer partQty) {
+                                        List<NormalizedFaultPart> partList) {
             this.repairDesc = repairDesc;
             this.repairItems = repairItems;
             this.otherDesc = otherDesc;
-            this.partName = partName;
-            this.partQty = partQty;
+            this.partList = partList;
         }
 
         private String getRepairDesc() {
@@ -2563,6 +2651,22 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
 
         private String getOtherDesc() {
             return otherDesc;
+        }
+
+        private List<NormalizedFaultPart> getPartList() {
+            return partList;
+        }
+    }
+
+    private static class NormalizedFaultPart {
+
+        private final String partName;
+
+        private final Integer partQty;
+
+        private NormalizedFaultPart(String partName, Integer partQty) {
+            this.partName = partName;
+            this.partQty = partQty;
         }
 
         private String getPartName() {

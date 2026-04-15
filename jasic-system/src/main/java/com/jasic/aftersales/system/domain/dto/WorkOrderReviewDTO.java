@@ -37,13 +37,9 @@ public class WorkOrderReviewDTO implements Serializable {
     @ApiModelProperty(value = "其他维修说明")
     private String otherDesc;
 
-    /** 配件名称 */
-    @ApiModelProperty(value = "配件名称")
-    private String partName;
-
-    /** 配件数量 */
-    @ApiModelProperty(value = "配件数量")
-    private Integer partQty;
+    /** 配件明细列表 */
+    @ApiModelProperty(value = "配件明细列表")
+    private List<WorkOrderFaultPartItemDTO> partList;
 
     /** 故障处旧图片文件ID */
     @ApiModelProperty(value = "故障处旧图片文件ID")

@@ -41,10 +41,12 @@ import com.jasic.aftersales.system.domain.entity.SysUser;
 import com.jasic.aftersales.system.domain.entity.WorkOrder;
 import com.jasic.aftersales.system.domain.entity.WorkOrderEvaluation;
 import com.jasic.aftersales.system.domain.entity.WorkOrderFault;
+import com.jasic.aftersales.system.domain.entity.WorkOrderFaultPart;
 import com.jasic.aftersales.system.domain.entity.WorkOrderFlow;
 import com.jasic.aftersales.system.domain.entity.WorkOrderQuote;
 import com.jasic.aftersales.system.domain.entity.WorkOrderRepair;
 import com.jasic.aftersales.system.domain.vo.WorkOrderEvaluationVO;
+import com.jasic.aftersales.system.domain.vo.WorkOrderFaultPartVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderFaultVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderQuoteVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairFaultOptionVO;
@@ -60,6 +62,7 @@ import com.jasic.aftersales.system.service.ISysConfigService;
 import com.jasic.aftersales.system.mapper.SysUserMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderEvaluationMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderFaultMapper;
+import com.jasic.aftersales.system.mapper.WorkOrderFaultPartMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderFlowMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderQuoteMapper;
@@ -139,6 +142,9 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
 
     @Resource
     private WorkOrderFaultMapper workOrderFaultMapper;
+
+    @Resource
+    private WorkOrderFaultPartMapper workOrderFaultPartMapper;
 
     @Resource
     private WorkOrderEvaluationMapper workOrderEvaluationMapper;
@@ -1603,6 +1609,9 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         if (faults.isEmpty()) {
             return Collections.emptyMap();
         }
+        Map<Long, List<WorkOrderFaultPartVO>> partMap = buildFaultPartMap(
+                faults.stream().map(WorkOrderFault::getId).collect(Collectors.toCollection(LinkedHashSet::new))
+        );
         Map<Long, String> userNameMap = buildUserNameMap(
                 faults.stream().map(WorkOrderFault::getCreatedBy).collect(Collectors.toSet())
         );
@@ -1614,13 +1623,36 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
             vo.setFaultDesc(fault.getFaultDesc());
             vo.setRepairDesc(fault.getRepairDesc());
             vo.setOtherDesc(fault.getOtherDesc());
-            vo.setPartName(fault.getPartName());
-            vo.setPartQty(fault.getPartQty());
+            vo.setPartList(partMap.getOrDefault(fault.getId(), Collections.emptyList()));
             vo.setSortNum(fault.getSortNum());
             vo.setCreatedBy(fault.getCreatedBy());
             vo.setCreatedByName(userNameMap.get(fault.getCreatedBy()));
             vo.setCreateTime(fault.getCreateTime());
             result.computeIfAbsent(fault.getRepairId(), key -> new ArrayList<>()).add(vo);
+        }
+        return result;
+    }
+
+    private Map<Long, List<WorkOrderFaultPartVO>> buildFaultPartMap(Set<Long> faultIds) {
+        if (faultIds == null || faultIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        LambdaQueryWrapper<WorkOrderFaultPart> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(WorkOrderFaultPart::getFaultId, faultIds)
+                .orderByAsc(WorkOrderFaultPart::getSortNum)
+                .orderByAsc(WorkOrderFaultPart::getId);
+        List<WorkOrderFaultPart> faultParts = workOrderFaultPartMapper.selectList(wrapper);
+        if (faultParts.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<Long, List<WorkOrderFaultPartVO>> result = new HashMap<>();
+        for (WorkOrderFaultPart faultPart : faultParts) {
+            WorkOrderFaultPartVO vo = new WorkOrderFaultPartVO();
+            vo.setId(faultPart.getId());
+            vo.setPartName(faultPart.getPartName());
+            vo.setPartQty(faultPart.getPartQty());
+            vo.setSortNum(faultPart.getSortNum());
+            result.computeIfAbsent(faultPart.getFaultId(), key -> new ArrayList<>()).add(vo);
         }
         return result;
     }

@@ -36,37 +36,22 @@ PREPARE stmt_work_order_fault_other_desc FROM @sql_work_order_fault_other_desc;
 EXECUTE stmt_work_order_fault_other_desc;
 DEALLOCATE PREPARE stmt_work_order_fault_other_desc;
 
-SET @add_work_order_fault_part_name = (
-  SELECT COUNT(*)
-  FROM information_schema.COLUMNS
-  WHERE TABLE_SCHEMA = DATABASE()
-    AND TABLE_NAME = 'work_order_fault'
-    AND COLUMN_NAME = 'part_name'
-);
-SET @sql_work_order_fault_part_name = IF(
-  @add_work_order_fault_part_name = 0,
-  'ALTER TABLE `work_order_fault` ADD COLUMN `part_name` varchar(500) DEFAULT NULL COMMENT ''配件名称'' AFTER `other_desc`',
-  'SELECT 1'
-);
-PREPARE stmt_work_order_fault_part_name FROM @sql_work_order_fault_part_name;
-EXECUTE stmt_work_order_fault_part_name;
-DEALLOCATE PREPARE stmt_work_order_fault_part_name;
-
-SET @add_work_order_fault_part_qty = (
-  SELECT COUNT(*)
-  FROM information_schema.COLUMNS
-  WHERE TABLE_SCHEMA = DATABASE()
-    AND TABLE_NAME = 'work_order_fault'
-    AND COLUMN_NAME = 'part_qty'
-);
-SET @sql_work_order_fault_part_qty = IF(
-  @add_work_order_fault_part_qty = 0,
-  'ALTER TABLE `work_order_fault` ADD COLUMN `part_qty` int unsigned DEFAULT NULL COMMENT ''配件数量'' AFTER `part_name`',
-  'SELECT 1'
-);
-PREPARE stmt_work_order_fault_part_qty FROM @sql_work_order_fault_part_qty;
-EXECUTE stmt_work_order_fault_part_qty;
-DEALLOCATE PREPARE stmt_work_order_fault_part_qty;
+CREATE TABLE IF NOT EXISTS `work_order_fault_part` (
+  `id`            bigint unsigned  NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `work_order_id` bigint unsigned  NOT NULL                COMMENT '工单ID',
+  `fault_id`      bigint unsigned  NOT NULL                COMMENT '故障点ID',
+  `company_id`    bigint unsigned  NOT NULL                COMMENT '登记公司ID',
+  `part_name`     varchar(500)     NOT NULL                COMMENT '配件名称',
+  `part_qty`      int unsigned     NOT NULL                COMMENT '配件数量',
+  `sort_num`      int unsigned     DEFAULT 0               COMMENT '排序号',
+  `created_by`    bigint unsigned  NOT NULL                COMMENT '登记人ID',
+  `create_time`   datetime         NOT NULL                COMMENT '创建时间',
+  `update_time`   datetime         NOT NULL                COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_fault_part` (`fault_id`, `sort_num`),
+  KEY `idx_work_order_fault_part_time` (`work_order_id`, `create_time`),
+  KEY `idx_fault_part_company` (`company_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='工单故障点配件明细表';
 
 SET @has_work_order_fault_part_desc = (
   SELECT COUNT(*)
@@ -75,21 +60,6 @@ SET @has_work_order_fault_part_desc = (
     AND TABLE_NAME = 'work_order_fault'
     AND COLUMN_NAME = 'part_desc'
 );
-SET @has_work_order_fault_part_name = (
-  SELECT COUNT(*)
-  FROM information_schema.COLUMNS
-  WHERE TABLE_SCHEMA = DATABASE()
-    AND TABLE_NAME = 'work_order_fault'
-    AND COLUMN_NAME = 'part_name'
-);
-SET @sql_work_order_fault_backfill_part_name = IF(
-  @has_work_order_fault_part_desc = 1 AND @has_work_order_fault_part_name = 1,
-  'UPDATE `work_order_fault` SET `part_name` = `part_desc` WHERE (`part_name` IS NULL OR `part_name` = '''') AND `part_desc` IS NOT NULL AND `part_desc` <> ''''',
-  'SELECT 1'
-);
-PREPARE stmt_work_order_fault_backfill_part_name FROM @sql_work_order_fault_backfill_part_name;
-EXECUTE stmt_work_order_fault_backfill_part_name;
-DEALLOCATE PREPARE stmt_work_order_fault_backfill_part_name;
 
 SET @drop_work_order_fault_part_desc = IF(
   @has_work_order_fault_part_desc = 1,
@@ -99,6 +69,38 @@ SET @drop_work_order_fault_part_desc = IF(
 PREPARE stmt_work_order_fault_part_desc FROM @drop_work_order_fault_part_desc;
 EXECUTE stmt_work_order_fault_part_desc;
 DEALLOCATE PREPARE stmt_work_order_fault_part_desc;
+
+SET @has_work_order_fault_part_name = (
+  SELECT COUNT(*)
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'work_order_fault'
+    AND COLUMN_NAME = 'part_name'
+);
+SET @drop_work_order_fault_part_name = IF(
+  @has_work_order_fault_part_name = 1,
+  'ALTER TABLE `work_order_fault` DROP COLUMN `part_name`',
+  'SELECT 1'
+);
+PREPARE stmt_work_order_fault_part_name FROM @drop_work_order_fault_part_name;
+EXECUTE stmt_work_order_fault_part_name;
+DEALLOCATE PREPARE stmt_work_order_fault_part_name;
+
+SET @has_work_order_fault_part_qty = (
+  SELECT COUNT(*)
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'work_order_fault'
+    AND COLUMN_NAME = 'part_qty'
+);
+SET @drop_work_order_fault_part_qty = IF(
+  @has_work_order_fault_part_qty = 1,
+  'ALTER TABLE `work_order_fault` DROP COLUMN `part_qty`',
+  'SELECT 1'
+);
+PREPARE stmt_work_order_fault_part_qty FROM @drop_work_order_fault_part_qty;
+EXECUTE stmt_work_order_fault_part_qty;
+DEALLOCATE PREPARE stmt_work_order_fault_part_qty;
 
 SET @has_work_order_fault_image_urls = (
   SELECT COUNT(*)

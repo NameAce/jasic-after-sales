@@ -16,6 +16,7 @@ import com.jasic.aftersales.common.enums.WorkOrderRelationTypeEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.system.domain.dto.WorkOrderAssignDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderCloseDTO;
+import com.jasic.aftersales.system.domain.dto.WorkOrderFaultPartItemDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderProxyCreateDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderRepairDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTechAcceptDTO;
@@ -44,6 +45,7 @@ import com.jasic.aftersales.system.mapper.SysUserMapper;
 import com.jasic.aftersales.system.mapper.SysUserCompanyMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderFlowMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderCustomerMapper;
+import com.jasic.aftersales.system.mapper.WorkOrderFaultPartMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderQuoteMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderRepairMapper;
@@ -689,6 +691,7 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderQuoteMapper", createMutableQuoteMapperProxy(quotes, insertedQuotes, updateCount));
         setField(service, "workOrderRepairMapper", createNoopProxy(WorkOrderRepairMapper.class, "insert"));
         setField(service, "workOrderFaultMapper", createNoopProxy(com.jasic.aftersales.system.mapper.WorkOrderFaultMapper.class, "insert"));
+        setField(service, "workOrderFaultPartMapper", createNoopProxy(WorkOrderFaultPartMapper.class, "insert"));
         setField(service, "workOrderFlowMapper", createNoopProxy(WorkOrderFlowMapper.class, "insert"));
         setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(Collections.emptyList()));
         setField(service, "sysFileService", createNoopProxy(com.jasic.aftersales.system.service.SysFileService.class, "replaceBizFiles"));
@@ -745,6 +748,7 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderQuoteMapper", createQuoteMapperProxy(Collections.emptyList()));
         setField(service, "workOrderRepairMapper", createNoopProxy(WorkOrderRepairMapper.class, "insert"));
         setField(service, "workOrderFaultMapper", createNoopProxy(com.jasic.aftersales.system.mapper.WorkOrderFaultMapper.class, "insert"));
+        setField(service, "workOrderFaultPartMapper", createNoopProxy(WorkOrderFaultPartMapper.class, "insert"));
         setField(service, "workOrderFlowMapper", createFlowMapperProxy(insertedFlows));
         setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(Collections.emptyList()));
         setField(service, "sysFileService", createNoopProxy(com.jasic.aftersales.system.service.SysFileService.class, "replaceBizFiles"));
@@ -1397,8 +1401,10 @@ public class WorkOrderServiceImplTest {
 
     private void fillRepairSubmission(WorkOrderRepairDTO dto, String repairDesc, String partName, Integer partQty) {
         dto.setRepairDesc(repairDesc);
-        dto.setPartName(partName);
-        dto.setPartQty(partQty);
+        WorkOrderFaultPartItemDTO partItem = new WorkOrderFaultPartItemDTO();
+        partItem.setPartName(partName);
+        partItem.setPartQty(partQty);
+        dto.setPartList(Collections.singletonList(partItem));
     }
 
     private SysCompany buildCompany(Long companyId, String companyName, String typeCode) {

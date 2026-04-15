@@ -562,8 +562,22 @@
               <el-table-column label="报修故障描述" prop="faultDesc" min-width="180" show-overflow-tooltip />
               <el-table-column label="维修说明" prop="repairDesc" min-width="180" show-overflow-tooltip />
               <el-table-column label="其他维修说明" prop="otherDesc" min-width="180" show-overflow-tooltip />
-              <el-table-column label="配件名称" prop="partName" min-width="160" show-overflow-tooltip />
-              <el-table-column label="配件数量" prop="partQty" min-width="100" />
+              <el-table-column label="配件名称" min-width="160">
+                <template slot-scope="{ row }">
+                  <div v-if="faultPartRows(row).length">
+                    <div v-for="(partItem, index) in faultPartRows(row)" :key="`name-${row.id}-${index}`">{{ partItem.partName }}</div>
+                  </div>
+                  <span v-else>-</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="配件数量" min-width="100">
+                <template slot-scope="{ row }">
+                  <div v-if="faultPartRows(row).length">
+                    <div v-for="(partItem, index) in faultPartRows(row)" :key="`qty-${row.id}-${index}`">{{ partItem.partQty }}</div>
+                  </div>
+                  <span v-else>-</span>
+                </template>
+              </el-table-column>
               <el-table-column label="登记人" prop="createdByName" min-width="110" />
               <el-table-column label="创建时间" prop="createTime" min-width="160" />
             </el-table>
@@ -736,11 +750,38 @@
           <el-form-item v-if="isOtherRepairSelected" label="其他维修说明">
             <el-input v-model="actionForm.otherDesc" type="textarea" :rows="2" placeholder="请输入其他维修说明" />
           </el-form-item>
-          <el-form-item label="配件名称">
-            <el-input v-model="actionForm.partName" placeholder="请输入配件名称" />
-          </el-form-item>
-          <el-form-item label="配件数量">
-            <el-input-number v-model="actionForm.partQty" :min="1" :precision="0" :controls="false" style="width: 100%;" />
+          <el-form-item label="更换配件" required>
+            <div class="repair-part-editor">
+              <div
+                v-for="(partItem, index) in actionForm.partList"
+                :key="`repair-part-${index}`"
+                class="repair-part-row"
+              >
+                <el-input
+                  v-model="partItem.partName"
+                  class="repair-part-row__name"
+                  placeholder="请输入配件名称"
+                />
+                <el-input-number
+                  v-model="partItem.partQty"
+                  class="repair-part-row__qty"
+                  :min="1"
+                  :precision="0"
+                  :controls="false"
+                />
+                <el-button
+                  type="text"
+                  icon="el-icon-plus"
+                  @click="addRepairPartRow"
+                />
+                <el-button
+                  type="text"
+                  icon="el-icon-delete"
+                  :disabled="(actionForm.partList || []).length <= 1"
+                  @click="removeRepairPartRow(index)"
+                />
+              </div>
+            </div>
           </el-form-item>
           <el-form-item label="故障处旧图片">
             <file-upload-field v-model="actionForm.faultOldImageFiles" accept=".jpg,.jpeg,.png,.webp" :size-limit-mb="10" button-text="上传故障处旧图片" :tip="REPAIR_FILE_TIP" />
@@ -990,6 +1031,13 @@ function normalizeText(value) {
   return value === null || value === undefined ? '' : String(value).trim()
 }
 
+function buildDefaultRepairPartItem() {
+  return {
+    partName: '',
+    partQty: undefined
+  }
+}
+
 function buildDefaultActionForm() {
   return {
     workOrderId: undefined,
@@ -1003,8 +1051,7 @@ function buildDefaultActionForm() {
     repairDesc: '',
     repairItems: [],
     otherDesc: '',
-    partName: '',
-    partQty: undefined,
+    partList: [buildDefaultRepairPartItem()],
     faultOldImageFiles: [],
     faultNewImageFiles: [],
     machineImageFiles: [],
@@ -1845,8 +1892,7 @@ export default {
             repairDesc: normalizeText(this.actionForm.repairDesc),
             repairItems: this.normalizeRepairItems(this.actionForm.repairItems),
             otherDesc: normalizeText(this.actionForm.otherDesc),
-            partName: normalizeText(this.actionForm.partName),
-            partQty: this.actionForm.partQty,
+            partList: this.normalizeRepairPartList(this.actionForm.partList),
             faultOldImageFileIds: buildFileIdList(this.actionForm.faultOldImageFiles),
             faultNewImageFileIds: buildFileIdList(this.actionForm.faultNewImageFiles),
             machineImageFileIds: buildFileIdList(this.actionForm.machineImageFiles),
@@ -1859,8 +1905,7 @@ export default {
             repairDesc: normalizeText(this.actionForm.repairDesc),
             repairItems: this.normalizeRepairItems(this.actionForm.repairItems),
             otherDesc: normalizeText(this.actionForm.otherDesc),
-            partName: normalizeText(this.actionForm.partName),
-            partQty: this.actionForm.partQty,
+            partList: this.normalizeRepairPartList(this.actionForm.partList),
             faultOldImageFileIds: buildFileIdList(this.actionForm.faultOldImageFiles),
             faultNewImageFileIds: buildFileIdList(this.actionForm.faultNewImageFiles),
             machineImageFileIds: buildFileIdList(this.actionForm.machineImageFiles),
@@ -1930,6 +1975,30 @@ export default {
         .map(item => normalizeText(item))
         .filter(item => item)
     },
+    normalizeRepairPartList(partList) {
+      return (partList || [])
+        .map(item => ({
+          partName: normalizeText(item && item.partName),
+          partQty: item && item.partQty !== undefined && item.partQty !== null && item.partQty !== ''
+            ? Number(item.partQty)
+            : undefined
+        }))
+        .filter(item => item.partName || item.partQty !== undefined)
+    },
+    addRepairPartRow() {
+      this.actionForm.partList = [...(this.actionForm.partList || []), buildDefaultRepairPartItem()]
+    },
+    removeRepairPartRow(index) {
+      const currentList = [...(this.actionForm.partList || [])]
+      if (currentList.length <= 1) {
+        return
+      }
+      currentList.splice(index, 1)
+      this.actionForm.partList = currentList.length ? currentList : [buildDefaultRepairPartItem()]
+    },
+    faultPartRows(fault) {
+      return ((fault && fault.partList) || []).filter(item => item && normalizeText(item.partName))
+    },
     resolveDetailFaultDescs() {
       const rawFaultDesc = normalizeText(this.detail && this.detail.faultDesc)
       if (!rawFaultDesc) {
@@ -1945,20 +2014,6 @@ export default {
         this.$message.error('当前工单未记录报修故障描述，无法提交维修登记')
         return false
       }
-      const hasAnyContent = !!normalizeText(this.actionForm.repairDesc)
-        || this.normalizeRepairItems(this.actionForm.repairItems).length > 0
-        || !!normalizeText(this.actionForm.otherDesc)
-        || !!normalizeText(this.actionForm.partName)
-        || !!this.actionForm.partQty
-        || (this.actionForm.faultOldImageFiles || []).length > 0
-        || (this.actionForm.faultNewImageFiles || []).length > 0
-        || (this.actionForm.machineImageFiles || []).length > 0
-        || (this.actionForm.machineBarcodeImageFiles || []).length > 0
-        || (this.actionForm.otherImageFiles || []).length > 0
-      if (!hasAnyContent) {
-        this.$message.error('请至少填写一项维修内容')
-        return false
-      }
       if (this.currentRepairOptions.length) {
         if (!this.normalizeRepairItems(this.actionForm.repairItems).length) {
           this.$message.error('请选择维修说明')
@@ -1972,12 +2027,7 @@ export default {
         this.$message.error('请输入维修说明')
         return false
       }
-      if (!normalizeText(this.actionForm.partName)) {
-        this.$message.error('请输入配件名称')
-        return false
-      }
-      if (!this.actionForm.partQty || Number(this.actionForm.partQty) <= 0) {
-        this.$message.error('请输入正确的配件数量')
+      if (!this.validateRepairPartList()) {
         return false
       }
       if (!this.validateRepairFileLimit(this.actionForm.faultOldImageFiles, '故障处旧图片')
@@ -1992,6 +2042,31 @@ export default {
     validateRepairFileLimit(fileList, label) {
       if ((fileList || []).length > 1) {
         this.$message.error(`${label}最多只能上传1张`)
+        return false
+      }
+      return true
+    },
+    validateRepairPartList() {
+      const partList = this.actionForm.partList || []
+      let hasValidPart = false
+      for (const partItem of partList) {
+        const partName = normalizeText(partItem && partItem.partName)
+        const partQty = partItem && partItem.partQty
+        if (!partName && (partQty === undefined || partQty === null || partQty === '')) {
+          continue
+        }
+        if (!partName) {
+          this.$message.error('请输入配件名称')
+          return false
+        }
+        if (!partQty || Number(partQty) <= 0) {
+          this.$message.error('请输入正确的配件数量')
+          return false
+        }
+        hasValidPart = true
+      }
+      if (!hasValidPart) {
+        this.$message.error('请至少填写一条配件明细')
         return false
       }
       return true
@@ -2229,5 +2304,27 @@ export default {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 12px;
+}
+
+.repair-part-editor {
+  width: 100%;
+}
+
+.repair-part-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.repair-part-row + .repair-part-row {
+  margin-top: 8px;
+}
+
+.repair-part-row__name {
+  flex: 1;
+}
+
+.repair-part-row__qty {
+  width: 120px;
 }
 </style>

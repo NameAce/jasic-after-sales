@@ -5,6 +5,7 @@ import lombok.Data;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.List;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 
@@ -40,13 +41,9 @@ public class WorkOrderFaultVO implements Serializable {
     @ApiModelProperty(value = "其他维修说明")
     private String otherDesc;
 
-    /** 配件名称 */
-    @ApiModelProperty(value = "配件名称")
-    private String partName;
-
-    /** 配件数量 */
-    @ApiModelProperty(value = "配件数量")
-    private Integer partQty;
+    /** 配件明细列表 */
+    @ApiModelProperty(value = "配件明细列表")
+    private List<WorkOrderFaultPartVO> partList;
 
     /** 排序号 */
     @ApiModelProperty(value = "排序号")

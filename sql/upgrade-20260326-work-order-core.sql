@@ -164,8 +164,6 @@ CREATE TABLE IF NOT EXISTS `work_order_fault` (
   `fault_desc`    varchar(500)     NOT NULL                COMMENT '故障描述',
   `repair_desc`   varchar(500)     DEFAULT NULL            COMMENT '维修说明',
   `other_desc`    varchar(500)     DEFAULT NULL            COMMENT '其他维修说明',
-  `part_name`     varchar(500)     DEFAULT NULL            COMMENT '配件名称',
-  `part_qty`      int unsigned     DEFAULT NULL            COMMENT '配件数量',
   `sort_num`      int unsigned     DEFAULT 0               COMMENT '排序号',
   `created_by`    bigint unsigned  NOT NULL                COMMENT '登记人ID',
   `create_time`   datetime         NOT NULL                COMMENT '创建时间',
@@ -175,6 +173,26 @@ CREATE TABLE IF NOT EXISTS `work_order_fault` (
   KEY `idx_work_order_fault_time` (`work_order_id`, `create_time`),
   KEY `idx_fault_company` (`company_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='工单故障点记录表';
+
+-- -------------------------------------------
+-- 8. 新增表：work_order_fault_part
+-- -------------------------------------------
+CREATE TABLE IF NOT EXISTS `work_order_fault_part` (
+  `id`            bigint unsigned  NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `work_order_id` bigint unsigned  NOT NULL                COMMENT '工单ID',
+  `fault_id`      bigint unsigned  NOT NULL                COMMENT '故障点ID',
+  `company_id`    bigint unsigned  NOT NULL                COMMENT '登记公司ID',
+  `part_name`     varchar(500)     NOT NULL                COMMENT '配件名称',
+  `part_qty`      int unsigned     NOT NULL                COMMENT '配件数量',
+  `sort_num`      int unsigned     DEFAULT 0               COMMENT '排序号',
+  `created_by`    bigint unsigned  NOT NULL                COMMENT '登记人ID',
+  `create_time`   datetime         NOT NULL                COMMENT '创建时间',
+  `update_time`   datetime         NOT NULL                COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_fault_part` (`fault_id`, `sort_num`),
+  KEY `idx_work_order_fault_part_time` (`work_order_id`, `create_time`),
+  KEY `idx_fault_part_company` (`company_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='工单故障点配件明细表';
 
 -- -------------------------------------------
 -- 9. 新增表：work_order_evaluation
