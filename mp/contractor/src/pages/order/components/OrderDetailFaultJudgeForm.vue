@@ -9,17 +9,17 @@
     <view class="info-list fault-form">
       <!-- 故障判定 -->
       <view class="fault-form-item">
-        <text class="fault-form-label">故障判定</text>
+        <text class="fault-form-label">故障判定 <text class="text-red">*</text></text>
         <picker mode="selector" :range="faultJudgeOptions" @change="onFaultJudgePicker">
           <view class="fault-picker">
             <text :class="['fault-picker-text', faultJudge ? '' : 'placeholder']">
               {{ faultJudge || '请选择' }}
             </text>
-            <uni-icons type="down" size="24" color="#cbd5e1"></uni-icons>
+            <uni-icons type="down" size="15" color="#cbd5e1"></uni-icons>
           </view>
         </picker>
       </view>
-      <!-- 维修报价 -->
+      <!-- 维修报价（与接单接口一并提交） -->
       <template v-if="faultJudge === '有故障'">
         <view class="fault-form-item">
           <text class="fault-form-label">维修报价</text>
@@ -29,20 +29,21 @@
               v-model="repairQuote"
               class="fault-input"
               type="digit"
-              placeholder="请输入报价金额"
+              placeholder="请输入维修报价"
               placeholder-class="fault-placeholder"
             />
           </view>
         </view>
         <!-- 报价说明 -->
         <view class="fault-form-item">
-          <text class="fault-form-label">报价说明</text>
+          <text class="fault-form-label">维修报价说明</text>
           <textarea
             v-model="quoteDesc"
             class="fault-textarea"
-            placeholder="请输入报价详细说明"
+            placeholder="请输入维修报价说明"
             placeholder-class="fault-placeholder"
-            maxlength="-1"
+            :maxlength="-1"
+            auto-height
           />
         </view>
       </template>
@@ -66,7 +67,12 @@
    */
   const onFaultJudgePicker = (e: { detail: { value: string | number } }) => {
     const idx = Number(e.detail.value)
-    faultJudge.value = faultJudgeOptions[idx] ?? ''
+    const next = faultJudgeOptions[idx] ?? ''
+    faultJudge.value = next
+    if (next === '无故障') {
+      repairQuote.value = ''
+      quoteDesc.value = ''
+    }
   }
 </script>
 
@@ -100,6 +106,7 @@
       @include form-field-frame;
       padding: 20rpx $space-lg;
       transition: all 0.2s;
+      border: none;
     }
 
     .fault-picker-text {
@@ -131,25 +138,25 @@
       width: 100%;
       font-size: 26rpx;
       color: $text-slate-900;
-      @include form-field-frame;
-      transition: all 0.2s;
-      height: auto;
-
-      &:focus {
-        border-color: $primary;
-        box-shadow: 0 0 0 4rpx rgba($primary, 0.2);
-      }
+      @include form-field-soft;
     }
 
     .fault-input {
       height: 80rpx;
       padding: 0 $space-lg 0 64rpx;
+
+      &::placeholder {
+        color: $text-slate-400;
+      }
     }
 
     .fault-textarea {
-      min-height: 160rpx;
-      padding: 20rpx $space-lg;
-      line-height: 1.5;
+      min-height: 100rpx;
+      padding: $space-md;
+
+      &::placeholder {
+        color: $text-slate-400;
+      }
     }
   }
 

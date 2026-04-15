@@ -44,6 +44,11 @@ export const DEFAULT_MY_MENU: MyMenuItem[] = [
     label: '建维修订单',
     link: '/pages/jasicRepair/index',
   },
+  {
+    icon: 'address',
+    label: '地址管理',
+    link: '/pages/address/index',
+  },
   { icon: 'info', label: '关于我们' },
 ]
 

@@ -1,134 +1,144 @@
 <template>
-  <CommonModal v-model="visible" title="机器返回方式" animation="slide-up">
-    <view class="return-method-content">
-      <!-- 选择返回方式 -->
-      <view class="radio-group">
-        <!-- 自提 -->
-        <view
-          class="radio-item"
-          :class="{ active: returnType === 'self' }"
-          @tap="returnType = 'self'"
-        >
-          <text class="mail-title">自提</text>
-          <view class="radio-icon"></view>
-        </view>
-
-        <!-- 回寄 -->
-        <view
-          class="radio-item"
-          :class="{ active: returnType === 'mail' }"
-          @tap="returnType = 'mail'"
-        >
-          <text class="mail-title">回寄</text>
-          <view class="radio-icon"></view>
-        </view>
-      </view>
-
-      <!-- 寄件信息 -->
-      <view v-if="returnType === 'mail'" class="mail-section">
-        <view class="section-header">
-          <view class="section-indicator"></view>
-          <text class="section-title">寄件信息<text class="text-red">*</text></text>
-          <view class="edit-btn" @tap="toggleEditAddress">
-            <image class="edit-icon" :src="editIcon" mode="aspectFit" />
-            <text class="edit-text">{{ isEditingAddress ? '完成' : '编辑' }}</text>
-          </view>
-        </view>
-
-        <view class="address-card">
-          <view class="info-row">
-            <text class="info-label">收货人</text>
-            <view class="info-value-group">
-              <input
-                v-if="isEditingAddress"
-                v-model="receiverName"
-                class="info-input"
-                placeholder="请输入收货人姓名"
-              />
-              <text v-else class="info-value">{{ receiverName || '-' }}</text>
-            </view>
-          </view>
-          <view class="info-row">
-            <text class="info-label">联系电话</text>
-            <view class="info-value-group">
-              <input
-                v-if="isEditingAddress"
-                v-model="receiverPhone"
-                class="info-input"
-                type="number"
-                maxlength="11"
-                placeholder="请输入联系电话"
-              />
-              <text v-else class="info-value">{{ receiverPhone || '-' }}</text>
-            </view>
-          </view>
-          <view class="address-row">
-            <view class="address-header">
-              <text class="info-label">收货地址</text>
-            </view>
-            <textarea
-              v-if="isEditingAddress"
-              v-model="receiverAddress"
-              class="address-input"
-              :maxlength="200"
-              placeholder="请输入收货地址"
-            />
-            <text v-else class="address-value">{{ receiverAddress || '-' }}</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 上传回寄快递单号照片 -->
-      <view v-if="returnType === 'mail'" class="upload-section">
-        <view class="section-header">
-          <view class="section-indicator"></view>
-          <text class="section-title">上传回寄快递单号照片<text class="text-red">*</text></text>
-        </view>
-
-        <view class="receipt-upload-row">
+  <!-- 根节点包裹：小程序下插槽内容在子组件内渲染，scoped 易无法命中，样式统一挂在 .return-method-modal 下 -->
+  <view class="return-method-modal">
+    <CommonModal v-model="visible" title="机器返回方式" animation="slide-up">
+      <view class="return-method-content">
+        <!-- 选择返回方式 -->
+        <view class="radio-group">
+          <!-- 自提 -->
           <view
-            v-for="(path, idx) in receiptImagePaths"
-            :key="'rcpt-' + idx"
-            class="receipt-thumb-wrap"
+            class="radio-item"
+            :class="{ active: returnType === 'self' }"
+            @tap="returnType = 'self'"
           >
-            <image class="receipt-thumb" :src="path" mode="aspectFill" />
-            <view class="receipt-remove" @tap.stop="removeReceiptImage(idx)">
-              <uni-icons type="close" size="24" color="#fff"></uni-icons>
+            <text class="mail-title">自提</text>
+            <view class="radio-icon"></view>
+          </view>
+
+          <!-- 回寄 -->
+          <view
+            class="radio-item"
+            :class="{ active: returnType === 'mail' }"
+            @tap="returnType = 'mail'"
+          >
+            <text class="mail-title">回寄</text>
+            <view class="radio-icon"></view>
+          </view>
+        </view>
+
+        <!-- 寄件信息：「选择地址」始终保留便于重选；有完整数据时再展示收货人/电话/地址 -->
+        <view v-if="returnType === 'mail'" class="mail-section">
+          <view class="section-header">
+            <view class="section-indicator"></view>
+            <text class="section-title">寄件信息<text class="text-red">*</text></text>
+            <view v-if="hasCoreMailFilled()" class="edit-btn" @tap="toggleEditAddress">
+              <image class="edit-icon" :src="editIcon" mode="aspectFit" />
+              <text class="edit-text">{{ isEditingAddress ? '完成' : '编辑' }}</text>
             </view>
           </view>
-          <view class="upload-box" @tap="onUpload">
-            <view class="upload-icon-wrap">
-              <image class="upload-icon" :src="addAPhotoIcon" mode="aspectFit" />
+
+          <view class="mail-pick-row" @tap="goPickShippingAddress">
+            <text class="mail-pick-text">点击选择寄件地址</text>
+            <uni-icons type="right" :size="14" color="#f26604"></uni-icons>
+          </view>
+
+          <view v-if="detailSendExpressNo" class="express-no-row">
+            <text class="info-label">寄件快递单号</text>
+            <text class="info-value express-no-text">{{ detailSendExpressNo }}</text>
+          </view>
+
+          <view v-if="hasCoreMailFilled()" class="address-card">
+            <view class="info-row">
+              <text class="info-label">收货人</text>
+              <view class="info-value-group">
+                <input
+                  v-if="isEditingAddress"
+                  v-model="receiverName"
+                  class="info-input"
+                  placeholder-class="info-input-placeholder"
+                  placeholder="请输入收货人姓名"
+                />
+                <text v-else class="info-value">{{ receiverName || '-' }}</text>
+              </view>
             </view>
-            <text class="upload-text">上传图片</text>
+            <view class="info-row">
+              <text class="info-label">联系电话</text>
+              <view class="info-value-group">
+                <input
+                  v-if="isEditingAddress"
+                  v-model="receiverPhone"
+                  class="info-input"
+                  type="number"
+                  :maxlength="11"
+                  placeholder-class="info-input-placeholder"
+                  placeholder="请输入联系电话"
+                />
+                <text v-else class="info-value">{{ receiverPhone || '-' }}</text>
+              </view>
+            </view>
+            <view class="address-row">
+              <view class="address-header">
+                <text class="info-label">收货地址</text>
+              </view>
+              <textarea
+                v-if="isEditingAddress"
+                v-model="receiverAddress"
+                class="address-input"
+                auto-height
+                :maxlength="200"
+                placeholder-class="info-input-placeholder"
+                placeholder="请输入收货地址"
+              ></textarea>
+              <text v-else class="address-value">{{ receiverAddress || '-' }}</text>
+            </view>
           </view>
         </view>
-      </view>
-    </view>
-    <!-- 底部按钮 -->
-    <template #footer>
-      <view class="modal-footer">
-        <view class="btns btn-cancel" @tap="onCancel">
-          <text class="text">取消</text>
+
+        <!-- 上传回寄快递单号照片 -->
+        <view v-if="returnType === 'mail'" class="upload-section">
+          <view class="section-header">
+            <view class="section-indicator"></view>
+            <text class="section-title">上传回寄快递单号照片<text class="text-red">*</text></text>
+          </view>
+
+          <MediaUploadField
+            v-model="receiptFileList"
+            :show-label-row="false"
+            file-mediatype="image"
+            mode="grid"
+            :limit="1"
+          />
         </view>
-        <view class="btns btn-confirm" @tap="onConfirm">
-          <text class="text">确认</text>
-        </view>
       </view>
-    </template>
-  </CommonModal>
+      <!-- 底部按钮 -->
+      <template #footer>
+        <view class="modal-footer">
+          <view class="btns btn-cancel" @tap="onCancel">
+            <text class="text">取消</text>
+          </view>
+          <view class="btns btn-confirm" @tap="onConfirm">
+            <text class="text">确认</text>
+          </view>
+        </view>
+      </template>
+    </CommonModal>
+  </view>
 </template>
 
 <script setup lang="ts">
   import { ref, computed, watch } from 'vue'
   import CommonModal from '@/components/CommonModal/CommonModal.vue'
+  import MediaUploadField from '@/components/MediaUploadField/MediaUploadField.vue'
   import { isValidCnMobile } from '@/utils/validation'
-  import { addAPhotoIcon, editIcon } from '@/svgs'
+  import { collectVoucherFileIds, hasUnuploadedMediaItems } from '@/utils/workOrderFileIds'
+  import { editIcon } from '@/svgs'
 
   type InitialMailFields = {
     receiverName?: string
     receiverPhone?: string
     receiverAddress?: string
+    /** 详情接口 `sendExpressNo`，仅展示 */
+    sendExpressNo?: string
     receiptImagePaths?: string[]
   }
 
@@ -149,6 +159,7 @@
           receiverPhone: string
           receiverAddress: string
           receiptImagePaths: string[]
+          returnVoucherFileIds: number[]
         }
       }
 
@@ -174,8 +185,28 @@
   const receiverPhone = ref('')
   // 收货地址
   const receiverAddress = ref('')
-  // 回寄快递单号照片
-  const receiptImagePaths = ref<string[]>([])
+  type ReceiptFileItem = Record<string, unknown>
+
+  /** 与 MediaUploadField / uni-file-picker 一致的结构，确认时抽出 url 作为 receiptImagePaths */
+  const receiptFileList = ref<ReceiptFileItem[]>([])
+
+  const detailSendExpressNo = computed(() => (props.initialMail?.sendExpressNo ?? '').trim())
+
+  const receiptUrlsFromFileList = (list: ReceiptFileItem[]): string[] => {
+    const out: string[] = []
+    for (const item of list) {
+      const raw = item.url ?? item.path ?? item.previewUrl ?? item.fileUrl ?? item.tempFilePath
+      const s = String(raw ?? '').trim()
+      if (s) out.push(s)
+    }
+    return out
+  }
+
+  const receiptFilesFromPathStrings = (paths: string[]): ReceiptFileItem[] =>
+    paths
+      .map((u) => String(u ?? '').trim())
+      .filter(Boolean)
+      .map((url) => ({ url, path: url }))
 
   /**
    * 同步表单数据
@@ -188,13 +219,27 @@
       receiverName.value = (m.receiverName ?? '').trim()
       receiverPhone.value = (m.receiverPhone ?? '').trim()
       receiverAddress.value = (m.receiverAddress ?? '').trim()
-      receiptImagePaths.value = m.receiptImagePaths?.length ? [...m.receiptImagePaths] : []
+      receiptFileList.value = m.receiptImagePaths?.length
+        ? receiptFilesFromPathStrings(m.receiptImagePaths)
+        : []
     } else {
       receiverName.value = ''
       receiverPhone.value = ''
       receiverAddress.value = ''
-      receiptImagePaths.value = []
+      receiptFileList.value = []
     }
+  }
+
+  const hasCoreMailFilled = () =>
+    Boolean(receiverName.value.trim() && receiverPhone.value.trim() && receiverAddress.value.trim())
+
+  /**
+   * 跳转地址簿选择寄件信息（与工单详情 onShow + takeSelectedShippingAddress 配合回显）
+   */
+  const goPickShippingAddress = () => {
+    uni.navigateTo({
+      url: '/pages/address/index?mode=selectShipping'
+    })
   }
 
   /**
@@ -204,8 +249,8 @@
    */
   watch(
     () => props.modelValue,
-    (open) => {
-      if (open) {
+    (open, wasOpen) => {
+      if (open && !wasOpen) {
         const t = props.initialType
         returnType.value = t === 'self' || t === 'mail' ? t : ''
         syncFormFromInitial()
@@ -213,43 +258,36 @@
     }
   )
 
+  watch(
+    () =>
+      [
+        props.modelValue,
+        (props.initialMail?.receiverName ?? '').trim(),
+        (props.initialMail?.receiverPhone ?? '').trim(),
+        (props.initialMail?.receiverAddress ?? '').trim()
+      ] as const,
+    ([open]) => {
+      if (!open) return
+      const m = props.initialMail
+      if (!m) return
+      receiverName.value = (m.receiverName ?? '').trim()
+      receiverPhone.value = (m.receiverPhone ?? '').trim()
+      receiverAddress.value = (m.receiverAddress ?? '').trim()
+    }
+  )
+
+  watch(returnType, (t, prev) => {
+    if (t === 'mail' && prev !== 'mail') {
+      syncFormFromInitial()
+    }
+  })
+
   /**
    * 切换编辑地址
    * @returns void
    */
   const toggleEditAddress = () => {
     isEditingAddress.value = !isEditingAddress.value
-  }
-
-  /**
-   * 删除回寄快递单号照片
-   * @param idx 索引
-   * @returns void
-   */
-  const removeReceiptImage = (idx: number) => {
-    receiptImagePaths.value = receiptImagePaths.value.filter((_, i) => i !== idx)
-  }
-
-  /**
-   * 上传回寄快递单号照片
-   * @returns void
-   */
-  const onUpload = () => {
-    const remain = 9 - receiptImagePaths.value.length
-    if (remain <= 0) {
-      uni.showToast({ title: '最多上传9张', icon: 'none' })
-      return
-    }
-    uni.chooseImage({
-      count: remain,
-      success: (res) => {
-        const raw = res.tempFilePaths
-        const paths = Array.isArray(raw) ? raw : raw ? [raw] : []
-        if (paths.length) {
-          receiptImagePaths.value = receiptImagePaths.value.concat(paths)
-        }
-      }
-    })
   }
 
   /**
@@ -294,10 +332,16 @@
       uni.showToast({ title: '请填写收货地址', icon: 'none' })
       return
     }
-    if (!receiptImagePaths.value.length) {
+    if (hasUnuploadedMediaItems(receiptFileList.value)) {
+      uni.showToast({ title: '图片正在上传，请稍候再试', icon: 'none' })
+      return
+    }
+    const returnVoucherFileIds = collectVoucherFileIds(receiptFileList.value)
+    if (!returnVoucherFileIds.length) {
       uni.showToast({ title: '请上传回寄快递单号照片', icon: 'none' })
       return
     }
+    const receiptImagePaths = receiptUrlsFromFileList(receiptFileList.value)
 
     emit('confirm', {
       type: 'mail',
@@ -305,142 +349,99 @@
         receiverName: name,
         receiverPhone: phone,
         receiverAddress: addr,
-        receiptImagePaths: [...receiptImagePaths.value]
+        receiptImagePaths,
+        returnVoucherFileIds
       }
     })
     visible.value = false
   }
 </script>
 
-<style lang="scss" scoped>
-  .return-method-content {
-    padding: 32rpx;
-    max-height: 70vh;
-    overflow-y: auto;
+<style lang="scss">
+  /* 非 scoped + 根类限定：避免小程序中插槽节点收不到父组件 scoped 属性导致整段样式失效 */
+  .return-method-modal {
+    .return-method-content {
+      padding: 32rpx;
+      max-height: 70vh;
+      overflow-y: auto;
 
-    display: flex;
-    flex-direction: column;
-    gap: 24rpx;
-  }
-
-  /* Radio Group */
-  .radio-group {
-    @include flex-between;
-    gap: 24rpx;
-  }
-
-  .radio-item {
-    flex: 1;
-    @include flex-between;
-    align-items: center;
-    padding: $space-md;
-    border: 1rpx solid $border-color;
-    border-radius: $radius-lg;
-    background-color: $surface-white;
-    transition: all 0.3s;
-
-    &.active {
-      border-color: $primary;
-      background-color: rgba($primary, 0.05);
-
-      .radio-icon {
-        border: 12rpx solid $primary;
-        background-color: $surface-white;
-      }
-    }
-
-    .radio-icon {
-      width: 38rpx;
-      height: 38rpx;
-      border-radius: 50%;
-      border: 4rpx solid $surface-slate-200;
-      box-sizing: border-box;
-      transition: all 0.3s;
-    }
-  }
-
-  .radio-item {
-    align-items: flex-start;
-
-    .mail-title {
-      font-size: 28rpx;
-      font-weight: bold;
-      color: $text-slate-900;
-    }
-  }
-
-  .section-header {
-    @include section-title-bar;
-
-    .edit-btn {
-      margin-left: auto;
-      @include flex-row;
-      gap: $space-xs;
-      color: $primary;
-
-      .edit-icon {
-        width: 56rpx;
-        height: 32rpx;
-        flex-shrink: 0;
-      }
-
-      .edit-text {
-        font-size: $font-md;
-        font-weight: 500;
-      }
-    }
-  }
-
-  /* Address Card */
-  .address-card {
-    background-color: $surface-slate-50;
-    border-radius: 32rpx;
-    padding: 32rpx;
-    display: flex;
-    flex-direction: column;
-    gap: 24rpx;
-
-    .info-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-
-      .info-label {
-        font-size: 26rpx;
-        color: $text-slate-500;
-      }
-
-      .info-value-group {
-        display: flex;
-        align-items: center;
-        gap: 16rpx;
-
-        .info-value {
-          font-size: 26rpx;
-          font-weight: 600;
-          color: $text-slate-900;
-        }
-
-        .info-input {
-          width: 320rpx;
-          height: 60rpx;
-          padding: 0 16rpx;
-          font-size: 26rpx;
-          color: $text-slate-900;
-          background-color: $surface-white;
-          border: 2rpx solid $surface-slate-200;
-          border-radius: 12rpx;
-          box-sizing: border-box;
-        }
-      }
-    }
-
-    .address-row {
       display: flex;
       flex-direction: column;
-      gap: 8rpx;
+      gap: 24rpx;
+    }
 
-      .address-header {
+    .radio-group {
+      @include flex-between;
+      gap: 24rpx;
+    }
+
+    .radio-item {
+      flex: 1;
+      @include flex-between;
+      align-items: flex-start;
+      padding: $space-md;
+      border: 1rpx solid $border-color;
+      border-radius: $radius-lg;
+      background-color: $surface-white;
+      transition: all 0.3s;
+
+      &.active {
+        border-color: $primary;
+        background-color: rgba($primary, 0.05);
+
+        .radio-icon {
+          border: 12rpx solid $primary;
+          background-color: $surface-white;
+        }
+      }
+
+      .mail-title {
+        font-size: 28rpx;
+        font-weight: bold;
+        color: $text-slate-900;
+      }
+
+      .radio-icon {
+        width: 38rpx;
+        height: 38rpx;
+        border-radius: 50%;
+        border: 4rpx solid $surface-slate-200;
+        box-sizing: border-box;
+        transition: all 0.3s;
+      }
+    }
+
+    .section-header {
+      @include section-title-bar;
+
+      .edit-btn {
+        margin-left: auto;
+        @include flex-row;
+        gap: $space-xs;
+        color: $primary;
+
+        .edit-icon {
+          width: 56rpx;
+          height: 32rpx;
+          flex-shrink: 0;
+        }
+
+        .edit-text {
+          font-size: $font-md;
+          font-weight: 500;
+        }
+      }
+    }
+
+    .address-card {
+      background-color: $surface-slate-50;
+      border-radius: 32rpx;
+      padding: 32rpx;
+      display: flex;
+      flex-direction: column;
+      gap: 24rpx;
+
+      .info-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -449,108 +450,133 @@
           font-size: 26rpx;
           color: $text-slate-500;
         }
+
+        .info-value-group {
+          display: flex;
+          align-items: center;
+          gap: 16rpx;
+
+          .info-value {
+            font-size: 26rpx;
+            font-weight: 600;
+            color: $text-slate-900;
+          }
+
+          .info-input {
+            width: 320rpx;
+            height: 80rpx;
+            padding: 0 $space-lg;
+            font-size: 26rpx;
+            color: $text-slate-900;
+            @include form-field-soft;
+            box-sizing: border-box;
+          }
+        }
       }
 
-      .address-value {
-        font-size: 24rpx;
-        font-weight: 600;
-        color: $text-slate-900;
-        line-height: 1.5;
-      }
+      .address-row {
+        display: flex;
+        flex-direction: column;
+        gap: 8rpx;
 
-      .address-input {
-        width: 100%;
-        min-height: 120rpx;
-        padding: 16rpx;
-        font-size: 24rpx;
-        color: $text-slate-900;
-        background-color: $surface-white;
-        border: 2rpx solid $surface-slate-200;
-        border-radius: 12rpx;
-        box-sizing: border-box;
+        .address-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+
+          .info-label {
+            font-size: 26rpx;
+            color: $text-slate-500;
+          }
+        }
+
+        .address-value {
+          display: block;
+          width: 100%;
+          box-sizing: border-box;
+          font-size: 24rpx;
+          font-weight: 600;
+          color: $text-slate-900;
+          line-height: 1.5;
+          word-break: break-all;
+          white-space: pre-wrap;
+        }
+
+        .address-input {
+          width: 100%;
+          min-height: 100rpx;
+          padding: $space-md;
+          font-size: 26rpx;
+          line-height: 1.5;
+          color: $text-slate-900;
+          @include form-field-soft;
+          box-sizing: border-box;
+        }
       }
     }
-  }
 
-  /* Upload Section */
-  .upload-section {
-    margin-bottom: 16rpx;
-  }
-
-  .receipt-upload-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 24rpx;
-    align-items: flex-start;
-  }
-
-  .receipt-thumb-wrap {
-    position: relative;
-    width: 200rpx;
-    height: 200rpx;
-    border-radius: 32rpx;
-    overflow: hidden;
-  }
-
-  .receipt-thumb {
-    width: 100%;
-    height: 100%;
-    display: block;
-  }
-
-  .receipt-remove {
-    position: absolute;
-    top: 8rpx;
-    right: 8rpx;
-    width: 44rpx;
-    height: 44rpx;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .receipt-remove-icon {
-    font-size: 28rpx;
-    color: $surface-white;
-  }
-
-  .upload-box {
-    width: 200rpx;
-    height: 200rpx;
-    border: 4rpx dashed $surface-slate-200;
-    border-radius: 32rpx;
-    background-color: $surface-slate-50;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 24rpx;
-
-    .upload-icon-wrap {
-      width: 80rpx;
-      height: 80rpx;
-      background-color: $surface-white;
-      border-radius: 50%;
+    .mail-pick-row {
       display: flex;
       align-items: center;
-      justify-content: center;
-      box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+      justify-content: space-between;
+      padding: 24rpx $space-md;
+      background-color: rgba($primary, 0.06);
+      border: 2rpx solid rgba($primary, 0.35);
+      border-radius: $radius-lg;
+      margin-bottom: 16rpx;
 
-      .upload-icon {
-        font-size: 40rpx;
-        color: $text-slate-400;
+      &:active {
+        opacity: 0.88;
       }
     }
 
-    .upload-text {
-      font-size: 24rpx;
+    .mail-pick-text {
+      font-size: 28rpx;
+      font-weight: 600;
+      color: $primary;
+    }
+
+    .express-no-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16rpx;
+      padding: 16rpx $space-md;
+      margin-bottom: 16rpx;
+      background-color: $surface-slate-50;
+      border-radius: $radius-md;
+
+      .info-label {
+        flex-shrink: 0;
+        font-size: 26rpx;
+        color: $text-slate-500;
+      }
+
+      .express-no-text {
+        flex: 1;
+        text-align: right;
+        font-size: 26rpx;
+        font-weight: 600;
+        color: $text-slate-900;
+        word-break: break-all;
+      }
+    }
+
+    .upload-section {
+      margin-bottom: 16rpx;
+    }
+
+    .modal-footer {
+      @include modal-footer-bar;
+    }
+
+    .text-red {
+      color: $red-500;
+      margin-left: 4rpx;
+    }
+
+    :deep(.info-input-placeholder) {
       color: $text-slate-400;
     }
-  }
-
-  .modal-footer {
-    @include modal-footer-bar;
   }
 </style>

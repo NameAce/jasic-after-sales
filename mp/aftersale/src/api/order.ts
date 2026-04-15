@@ -2,7 +2,7 @@ import { http } from '@/utils/http'
 // 故障点图片项
 export interface FaultPointImageItem {
   url: string
-  label: string
+  label?: string
 }
 
 // 故障点配件项
@@ -19,6 +19,10 @@ export interface FaultPointMaintenanceRecord {
   specialInfo?: string
   location: string
   date: string
+  /** 与登记表单、详情一致时的结构化字段（由详情映射写入） */
+  faultDesc?: string
+  repairDesc?: string
+  otherDesc?: string
 }
 
 // 工单详情
@@ -26,6 +30,10 @@ export interface OrderDetailDTO {
   status: string
   /** 是否可评价（来自 `/api/customer/work-order/{id}` 的 canEvaluate） */
   canEvaluate?: boolean
+  /**
+   * 是否佳士品牌工单（与列表 `isJasic` 规则一致，用于「工单类型」标签配色）
+   */
+  isJasic: boolean
   base: {
     orderNo: string
     orderTypeName: string
@@ -37,6 +45,10 @@ export interface OrderDetailDTO {
     serialNo: string
     /** 非佳士报修时填写的品牌名称 */
     brandName?: string
+    /** 商品/产品线名称（详情接口 productName，无品牌名时可用于「品牌」展示兜底） */
+    productName?: string
+    /** 质保判定展示文案，如 保内 / 保外 */
+    warrantyClass?: string
   }
   service: {
     sitePhone: string
@@ -49,6 +61,13 @@ export interface OrderDetailDTO {
   acceptor: {
     sitePhone: string
     acceptorName: string
+  }
+  /** 指派/维修人员（与详情受理信息同源，供评价页等使用） */
+  technician?: {
+    name: string
+    /** 如受理网点名称 */
+    orgLabel?: string
+    avatar?: string
   }
   fault: {
     desc: string
@@ -92,6 +111,8 @@ export interface OrderDetailDTO {
     satisfaction: number
     comment?: string
   }
+  /** 故障图片附件（与接口 `faultImageFiles` 一致，详情页优先用于回显） */
+  faultImageFiles?: CustomerWorkOrderFileDTO[]
 }
 
 // ========== 工单详情（新接口） ==========
@@ -125,6 +146,8 @@ export interface CustomerWorkOrderDetailDTO {
   closedTime: string
   completedTime: string
   createTime: string
+  /** 建单公司（用于详情页「受理方」显示） */
+  createCompanyName?: string
   currentAcceptCompanyName: string
   customerId: number
   customerMobile: string
@@ -160,6 +183,8 @@ export interface CustomerWorkOrderDetailDTO {
   brandType?: string
   /** 报修业务类型名称，对应详情页「工单类型」 */
   brandTypeLabel?: string
+  /** 是否佳士产品线（与列表同源字段，缺省时用 brandType 推断） */
+  isJasicProduct?: boolean
   quotes?: Array<{
     companyId: number
     companyName: string
@@ -192,6 +217,9 @@ export interface CustomerWorkOrderDetailDTO {
     finishedTime: string
     id: number
     isFinished: number
+    otherDesc: string
+    repairDesc: string
+    repairSummary: string
     repairUserId: number
     repairUserName: string
   }>
@@ -227,10 +255,28 @@ export interface CustomerWorkOrderDetailDTO {
  * @returns - 格式化后的报价金额
  */
 function formatQuoteAmount(v: unknown): string {
-  const n = typeof v === 'number' ? v : Number(v)
+  if (v == null) return ''
+  if (typeof v === 'number') {
+    if (!Number.isFinite(v)) return ''
+    return v.toFixed(2)
+  }
+  const s = String(v).trim()
+  if (!s) return ''
+  const n = Number(s)
   if (Number.isFinite(n)) return n.toFixed(2)
-  const s = String(v ?? '').trim()
-  return s || '0.00'
+  return s
+}
+
+/** 将详情接口 warrantyStatus 转为「质保判定」展示文案 */
+function formatWarrantyJudgeLabel(raw: unknown): string {
+  const s = String(raw ?? '').trim()
+  if (!s) return ''
+  if (/保外/.test(s)) return '保外'
+  if (/保内/.test(s)) return '保内'
+  const u = s.toUpperCase().replace(/-/g, '_')
+  if (u.includes('OUT_OF_WARRANTY') || u === 'OUT') return '保外'
+  if (u.includes('IN_WARRANTY') || u === 'IN') return '保内'
+  return s
 }
 
 /**
@@ -319,10 +365,18 @@ export function mapCustomerWorkOrderDetailToOrderDetailDTO(r: CustomerWorkOrderD
     .map((x) => String(x ?? '').trim())
     .filter(Boolean)
 
-  const acceptorName = [r.currentAcceptCompanyName, r.assignedUserName]
-    .map((x) => String(x ?? '').trim())
-    .filter(Boolean)
-    .join(' ')
+  const companyNameRaw = String(r.currentAcceptCompanyName ?? '').trim()
+  const assignedUserRaw = String(r.assignedUserName ?? '').trim()
+  const acceptorName = String(r.createCompanyName ?? '').trim() || companyNameRaw
+
+  const technician: OrderDetailDTO['technician'] =
+    assignedUserRaw || companyNameRaw
+      ? {
+          name: assignedUserRaw || companyNameRaw || acceptorName,
+          orgLabel: assignedUserRaw && companyNameRaw ? companyNameRaw : undefined,
+          avatar: undefined,
+        }
+      : undefined
 
   const faultImagesFromFiles = previewUrlsFromFiles(r.faultImageFiles)
   const faultImagesFromRepairs = (r.repairs ?? [])
@@ -345,19 +399,40 @@ export function mapCustomerWorkOrderDetailToOrderDetailDTO(r: CustomerWorkOrderD
     .flatMap((rep) => {
       const repDate = String(rep.finishedTime || rep.createTime || '').trim()
       const repLocation = String(rep.companyName || r.currentAcceptCompanyName || '').trim()
+      const repDesc = String(rep.repairDesc || rep.repairSummary || '').trim()
+      const repOther = String(rep.otherDesc || '').trim()
       const faults = rep.faults ?? []
       if (faults.length === 0) {
-        return []
+        return repDesc
+          ? [
+              {
+                description: repDesc,
+                faultDesc: '',
+                repairDesc: repDesc,
+                otherDesc: repOther,
+                images: [],
+                specialInfo: repOther || undefined,
+                location: repLocation,
+                date: repDate,
+              },
+            ]
+          : []
       }
       return faults.map((f) => {
+        const faultDesc = String(f.faultDesc ?? '').trim()
+        const repairDesc = String(f.repairDesc ?? '').trim()
+        const otherDesc = String(f.otherDesc ?? '').trim() || repOther
         const imgs = splitCommaUrls(f.imageUrls).map((url, idx) => ({
           url,
           label: `图片${idx + 1}`,
         }))
         return {
-          description: String(f.repairDesc || f.faultDesc || '').trim(),
+          description: String(f.repairDesc || f.faultDesc || repDesc || '').trim(),
+          faultDesc,
+          repairDesc,
+          otherDesc,
           images: imgs,
-          specialInfo: String(f.otherDesc || '').trim() || undefined,
+          specialInfo: otherDesc || undefined,
           location: repLocation,
           date: String(f.createTime || repDate || '').trim(),
         }
@@ -381,16 +456,34 @@ export function mapCustomerWorkOrderDetailToOrderDetailDTO(r: CustomerWorkOrderD
       .sort((a, b) => (Number(a.sortNum) || 0) - (Number(b.sortNum) || 0))
       .map((f) => String(f.repairDesc || f.faultDesc || '').trim())
       .filter(Boolean)
-    faultPointCurrentDesc = faultLines.join('；')
+    faultPointCurrentDesc =
+      String(latestRepair.repairSummary || latestRepair.repairDesc || '').trim() ||
+      faultLines.join('；')
   }
 
   const orderTypeName = String(
     r.brandTypeLabel || r.brandType || r.productName || r.serviceMode || ''
   ).trim()
 
+  const brandTypeLabelForJasic = String(r.brandTypeLabel ?? '').trim()
+  const isJasicByBrandLabel = brandTypeLabelForJasic
+    ? !brandTypeLabelForJasic.includes('非佳士') && brandTypeLabelForJasic.includes('佳士')
+    : null
+  const brandTypeCode = String(r.brandType ?? '').trim().toUpperCase().replace(/-/g, '_')
+  const isJasic =
+    isJasicByBrandLabel !== null
+      ? isJasicByBrandLabel
+      : brandTypeCode === 'NON_JASIC'
+        ? false
+        : brandTypeCode === 'JASIC' || brandTypeCode.includes('JASIC')
+          ? true
+          : Boolean(r.isJasicProduct)
+
   return {
     status: uiStatus,
     canEvaluate: r.canEvaluate ?? (uiStatus === '已关闭'),
+    isJasic,
+    faultImageFiles: sortWorkOrderFiles(r.faultImageFiles),
     base: {
       orderNo: String(r.orderNo ?? '').trim(),
       orderTypeName,
@@ -401,6 +494,8 @@ export function mapCustomerWorkOrderDetailToOrderDetailDTO(r: CustomerWorkOrderD
       model: String(r.productModel ?? '').trim(),
       serialNo: String(r.machineNo ?? '').trim(),
       brandName: String(r.brandName ?? '').trim() || undefined,
+      productName: String(r.productName ?? '').trim() || undefined,
+      warrantyClass: formatWarrantyJudgeLabel(r.warrantyStatus) || undefined,
     },
     service: {
       sitePhone: outletPhone,
@@ -413,6 +508,7 @@ export function mapCustomerWorkOrderDetailToOrderDetailDTO(r: CustomerWorkOrderD
       sitePhone: outletPhone,
       acceptorName,
     },
+    technician,
     fault: {
       desc: String(r.faultDesc ?? '').trim(),
       remark: String(r.faultRemark ?? '').trim(),
@@ -664,6 +760,8 @@ export interface OrderListItemDTO {
   hasTransfer: number
   mainStatus: string
   productModel: string
+  /** 接口 `brandTypeLabel`（如：佳士品牌 / 非佳士品牌） */
+  brandTypeLabel: string
 }
 
 /**
@@ -679,6 +777,8 @@ export interface WorkOrderListRecordDTO {
   createTime: string
   closedTime: string
   currentAcceptCompanyName: string
+  /** 当前受理网点联系电话（列表「网点电话」优先使用） */
+  currentAcceptCompanyMobile?: string
   customerMobile: string
   customerName: string
   assignedUserName: string
@@ -693,14 +793,16 @@ export interface WorkOrderListRecordDTO {
   serviceMode?: string
   /** 服务/维修方式展示文案（若后端扩展返回） */
   serviceModeLabel?: string
-  /** 报价金额展示（若后端扩展返回） */
-  quoteAmount?: string
+  /** 当前有效报价金额（接口为 number，亦兼容字符串） */
+  quoteAmount?: number | string
   /** 网点联系电话（若后端扩展返回，优先于 customerMobile 展示为网点电话） */
   sitePhone?: string
   /** 是否佳士产品（若后端扩展返回） */
   isJasicProduct?: boolean
   /** 工单品牌类型展示文案（如：佳士/非佳士） */
   brandTypeLabel?: string
+  /** 品牌类型编码（如 JASIC / NON_JASIC），与后端 `brandType` 一致 */
+  brandType?: string
 }
 
 /**
@@ -719,6 +821,7 @@ const UI_ORDER_STATUSES: OrderListItemDTO['status'][] = ['待接单', '维修中
 const MAIN_STATUS_TO_UI: Record<string, OrderListItemDTO['status']> = {
   PENDING: '待接单',
   PENDING_ASSIGN: '待接单',
+  PENDING_TECH_ACCEPT: '待接单',
   WAIT_ACCEPT: '待接单',
   WAITING: '待接单',
   REPAIRING: '维修中',
@@ -757,21 +860,33 @@ function workOrderRecordToUiStatus(r: WorkOrderListRecordDTO): OrderListItemDTO[
  * - 状态：`displayStatus` 中文优先，否则按 `mainStatus` 映射为 Tab 用状态
  * - 时间：`createTime`，缺省用 `closedTime`
  * - 条码 / 型号：`barcode`、`productModel`
- * - 网点：`currentAcceptCompanyName`；电话：`sitePhone`（若有）否则 `customerMobile`
- * - 维修方式 / 价格：扩展字段 `serviceModeLabel`、`quoteAmount`，无则展示「—」
+ * - 网点：`currentAcceptCompanyName`；电话：`currentAcceptCompanyMobile`，缺省再 `sitePhone`、`customerMobile`
+ * - 维修方式 / 价格：`serviceModeLabel`、`quoteAmount`（number 会格式化为展示字符串）
  * - 故障描述：扩展字段 `faultDesc`，无则空串
  * - 佳士：优先使用 `brandTypeLabel` 判断，缺失时回退 `isJasicProduct`
  */
+function workOrderListQuoteToDisplay(v: unknown): string {
+  if (v == null || v === '') return ''
+  if (typeof v === 'number') return Number.isFinite(v) ? String(v) : ''
+  if (typeof v === 'string') return v.trim()
+  return String(v).trim()
+}
+
 export function mapWorkOrderListRecordToItem(r: WorkOrderListRecordDTO): OrderListItemDTO {
   const status = workOrderRecordToUiStatus(r)
   const barcode = String(r.barcode ?? '').trim()
   const serviceModeLabel = r.serviceModeLabel?.trim()
   const serviceMode = r.serviceMode?.trim()
-  const quoteAmount = r.quoteAmount?.trim()
+  const quoteAmount = workOrderListQuoteToDisplay(r.quoteAmount)
   const brandTypeLabel = String(r.brandTypeLabel ?? '').trim()
+  const brandTypeCode = String(r.brandType ?? '')
+    .trim()
+    .toUpperCase()
   const isJasicByBrandLabel = brandTypeLabel
     ? !brandTypeLabel.includes('非佳士') && brandTypeLabel.includes('佳士')
     : null
+  const isJasicByBrandTypeCode =
+    brandTypeCode === 'JASIC' ? true : brandTypeCode === 'NON_JASIC' ? false : null
   const canEvaluate =
     r.canEvaluate !== undefined && r.canEvaluate !== null
       ? Boolean(r.canEvaluate)
@@ -786,13 +901,16 @@ export function mapWorkOrderListRecordToItem(r: WorkOrderListRecordDTO): OrderLi
     orderNo: String(r.orderNo ?? '').trim(),
     qrCode: barcode,
     barcode,
-    isJasic: isJasicByBrandLabel ?? Boolean(r.isJasicProduct),
+    isJasic: isJasicByBrandLabel ?? isJasicByBrandTypeCode ?? Boolean(r.isJasicProduct),
+    brandTypeLabel,
     modelName: String(r.productModel ?? '').trim(),
     productModel: String(r.productModel ?? '').trim(),
     centerName: String(r.currentAcceptCompanyName ?? '').trim(),
-    phone: String((r.sitePhone ?? r.customerMobile ?? '').trim()),
-    repairType: serviceModeLabel || serviceMode || '—',
-    price: quoteAmount || '—',
+    phone: String(
+      (r.currentAcceptCompanyMobile ?? r.sitePhone ?? r.customerMobile ?? '').trim()
+    ),
+    repairType: serviceModeLabel || serviceMode || '',
+    price: quoteAmount,
     canEvaluate,
     canUploadSendExpress,
     createTime: String(r.createTime ?? '').trim(),
@@ -829,6 +947,7 @@ export interface WorkOrderListQuery {
  * @returns - 工单列表
  */
 export const getOrderListAPI = (data?: WorkOrderListQuery) => {
+  const tabStatus = String(data?.tabStatus ?? '').trim()
   return http<WorkOrderListPageDTO>({
     url: '/api/customer/work-order/list',
     method: 'GET',
@@ -836,7 +955,7 @@ export const getOrderListAPI = (data?: WorkOrderListQuery) => {
       orderByColumn: data?.orderByColumn ?? 'createTime',
       pageNum: data?.pageNum ?? 1,
       pageSize: data?.pageSize ?? 500,
-      tabStatus: data?.tabStatus,
+      ...(tabStatus ? { tabStatus } : {}),
       ...(data?.isAsc == null ? null : { isAsc: data.isAsc }),
     },
   })

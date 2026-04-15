@@ -17,7 +17,9 @@
 			"path": "pages/index/index",
 			"style": {
 				"navigationStyle": "custom",
-				"navigationBarTitleText": "工作台"
+				"navigationBarTitleText": "工作台",
+				"enablePullDownRefresh": true,
+				"backgroundTextStyle": "dark"
 			}
 		},
 		{
@@ -52,7 +54,9 @@
 		{
 			"path": "pages/historicalRecord/index",
 			"style": {
-				"navigationBarTitleText": "故障点历史记录"
+				"navigationBarTitleText": "故障点历史记录",
+				"enablePullDownRefresh": true,
+				"backgroundTextStyle": "dark"
 			}
 		},
 		{
@@ -62,9 +66,24 @@
 			}
 		},
 		{
-			"path": "pages/evaluate/index",
+			"path": "pages/address/index",
 			"style": {
-				"navigationBarTitleText": "服务评价"
+				"navigationBarTitleText": "我的地址",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/address/edit",
+			"style": {
+				"navigationBarTitleText": "编辑地址",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/about/index",
+			"style": {
+				"navigationBarTitleText": "关于我们",
+				"navigationStyle": "custom"
 			}
 		}
 	],

@@ -27,44 +27,48 @@
         <text class="title">欢迎回来</text>
         <text class="subtitle">专业维修服务，高效响应需求</text>
 
-        <!-- 账号密码登录 -->
-        <view class="login-form">
-          <text class="login-form-title">账号登录</text>
-          <view class="input-card">
-            <text class="input-label">用户名</text>
-            <input
-              v-model="username"
-              class="input"
-              placeholder="请输入用户名"
-              placeholder-class="input-placeholder"
-              :maxlength="64"
-            />
-          </view>
-          <view class="input-card">
-            <text class="input-label">密码</text>
-            <input
-              v-model="password"
-              class="input"
-              password
-              placeholder="请输入密码"
-              placeholder-class="input-placeholder"
-              :maxlength="64"
-            />
-          </view>
-        </view>
+        <text class="login-hint">使用微信一键登录承修方账号</text>
       </view>
 
       <!-- 底部操作 -->
       <view class="bottom-actions bottom-glass">
         <view class="action-container">
-          <!-- 登录按钮 -->
-          <button class="login-btn btn-gradient group" :loading="isLoggingIn" @click="handleLogin">
-            <text class="btn-text">{{ isLoggingIn ? '登录中...' : '账号密码登录' }}</text>
+          <!-- 登录按钮：微信小程序内先 getPhoneNumber，再 uni.login 取 code，POST /api/auth/mp-login -->
+          <!-- #ifdef MP-WEIXIN -->
+          <button
+            v-if="isTermsChecked"
+            class="login-btn btn-gradient group login-btn-native"
+            open-type="getPhoneNumber"
+            :loading="isLoggingIn"
+            @getphonenumber="handleWeixinMpLogin"
+          >
+            <text class="btn-text">{{ isLoggingIn ? '登录中...' : '手机号一键登录' }}</text>
             <view v-if="!isLoggingIn" class="btn-icon">
-              <uni-icons type="arrow-right" size="20" color="#fff"></uni-icons>
+              <uni-icons type="phone" size="20" color="#fff"></uni-icons>
             </view>
             <view class="shine-effect"></view>
           </button>
+          <button v-else class="login-btn btn-gradient group" @click="promptTermsFirst">
+            <text class="btn-text">手机号一键登录</text>
+            <view class="btn-icon">
+              <uni-icons type="phone" size="20" color="#fff"></uni-icons>
+            </view>
+            <view class="shine-effect"></view>
+          </button>
+          <!-- #endif -->
+          <!-- #ifndef MP-WEIXIN -->
+          <button
+            class="login-btn btn-gradient group"
+            :loading="isLoggingIn"
+            @click="handleNonWeixinLogin"
+          >
+            <text class="btn-text">手机号一键登录</text>
+            <view v-if="!isLoggingIn" class="btn-icon">
+              <uni-icons type="phone" size="20" color="#fff"></uni-icons>
+            </view>
+            <view class="shine-effect"></view>
+          </button>
+          <!-- #endif -->
 
           <!-- 条款 -->
           <view class="terms-container">
@@ -90,20 +94,76 @@
         </view>
       </view>
     </view>
+
+    <!-- UNBIND：认领绑定（账号密码 + 再次 wx code，带首次 phoneCode）；不可绕过进入业务，仅可绑定成功或退出小程序 -->
+    <view v-if="showBindPanel" class="bind-overlay">
+      <view class="bind-card" @click.stop>
+        <text class="bind-title">绑定承修方账号</text>
+        <text class="bind-desc"
+          >未绑定已有承修方账号将无法使用本小程序。请输入用户名或手机号与登录密码完成认领。</text
+        >
+        <view class="bind-input-row">
+          <input
+            v-model="bindUsername"
+            class="bind-input"
+            :class="{ 'bind-input--suffix': bindUsername.length > 0 }"
+            placeholder="用户名或手机号"
+            placeholder-class="bind-placeholder"
+          />
+          <view v-if="bindUsername.length > 0" class="bind-input-suffix">
+            <view class="bind-input-icon-hit" @click.stop="clearBindUsername">
+              <uni-icons type="closeempty" size="18" color="rgba(255, 255, 255, 0.45)" />
+            </view>
+          </view>
+        </view>
+        <view class="bind-input-row">
+          <input
+            v-model="bindPassword"
+            class="bind-input bind-input--suffix-pwd"
+            :password="!showBindPassword"
+            placeholder="登录密码"
+            placeholder-class="bind-placeholder"
+          />
+          <view class="bind-input-suffix bind-input-suffix--pwd">
+            <view
+              v-if="bindPassword.length > 0"
+              class="bind-input-icon-hit"
+              @click.stop="clearBindPassword"
+            >
+              <uni-icons type="closeempty" size="18" color="rgba(255, 255, 255, 0.45)" />
+            </view>
+            <view class="bind-input-icon-hit" @click.stop="toggleBindPasswordVisible">
+              <uni-icons
+                :type="showBindPassword ? 'eye-filled' : 'eye-slash-filled'"
+                size="18"
+                color="rgba(255, 255, 255, 0.45)"
+              />
+            </view>
+          </view>
+        </view>
+        <button
+          class="login-btn btn-gradient group login-btn-native bind-submit"
+          :loading="isLoggingIn"
+          @click="handleBindSubmit"
+        >
+          <text class="btn-text">{{ isLoggingIn ? '绑定中...' : '确认绑定并登录' }}</text>
+        </button>
+        <view class="bind-cancel" @click="exitWithoutBind">
+          <text>不绑定，退出小程序</text>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
 <script setup lang="ts">
   import { ref } from 'vue'
-  import { onShow } from '@dcloudio/uni-app'
+  import { onBackPress, onShow } from '@dcloudio/uni-app'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
-  import { useUserStore } from '@/stores/modules/user'
-  import { login as loginApi } from '@/api/auth'
-  import { getApiMessage } from '@/utils/http'
-  import type { CompanySimple, SysUserInfo } from '@/utils/permissions'
-
-  // 用户商店
-  const userStore = useUserStore()
+  import { mpBindLogin as mpBindLoginApi, mpLogin as mpLoginApi } from '@/api/auth'
+  import { getApiMessage, type ApiResponse } from '@/utils/http'
+  import { finalizeMpLoginSession } from '@/utils/mpSession'
+  import type { LoginResult } from '@/utils/permissions'
 
   // 是否登录中
   const isLoggingIn = ref(false)
@@ -111,9 +171,25 @@
   const isTermsChecked = ref(false)
   // 条款错误
   const termsError = ref(false)
-  // 用户名/密码
-  const username = ref('')
-  const password = ref('')
+  /** mp-login 返回 UNBIND 时展示认领表单，并暂存本次 getPhoneNumber 的 phoneCode */
+  const showBindPanel = ref(false)
+  const pendingPhoneCode = ref('')
+  const bindUsername = ref('')
+  const bindPassword = ref('')
+  /** 绑定弹层内密码是否明文展示 */
+  const showBindPassword = ref(false)
+
+  const clearBindUsername = () => {
+    bindUsername.value = ''
+  }
+
+  const clearBindPassword = () => {
+    bindPassword.value = ''
+  }
+
+  const toggleBindPasswordVisible = () => {
+    showBindPassword.value = !showBindPassword.value
+  }
 
   /** 与 routeGuard 一致：有 token 则直接进入业务（冷启动首屏为登录页时） */
   onShow(() => {
@@ -122,11 +198,46 @@
     }
   })
 
+  /** 待绑定态：拦截系统返回键，与导航返回一致，仅允许确认后退出小程序 */
+  onBackPress(() => {
+    if (showBindPanel.value) {
+      exitWithoutBind()
+      return true
+    }
+    return false
+  })
+
+  /**
+   * 未绑定则无法使用：仅可退出小程序（不关闭绑定层回到可登录业务态）
+   * @returns void
+   */
+  const exitWithoutBind = () => {
+    uni.showModal({
+      title: '提示',
+      content: '未绑定承修方账号将无法使用本小程序。是否退出？',
+      confirmText: '退出',
+      cancelText: '取消',
+      success: (res) => {
+        if (!res.confirm) return
+        closeBindPanel()
+        uni.exitMiniProgram({
+          fail: () => {
+            /* H5 等环境无 exit 时忽略 */
+          }
+        })
+      }
+    })
+  }
+
   /**
    * 处理返回
    * @returns void
    */
   const handleBack = () => {
+    if (showBindPanel.value) {
+      exitWithoutBind()
+      return
+    }
     uni.navigateBack({
       fail: () => {
         // 承修方入口即登录页，无历史栈时退出小程序而非进入业务页
@@ -152,64 +263,147 @@
   }
 
   /**
-   * 处理登录
+   * 未同意条款时提示
    * @returns void
    */
-  const handleLogin = async () => {
+  const promptTermsFirst = () => {
+    termsError.value = true
+    setTimeout(() => {
+      termsError.value = false
+    }, 1200)
+    uni.showToast({ title: '请先阅读并同意下方协议', icon: 'none' })
+  }
+
+  /**
+   * 非微信端：无法使用手机号授权
+   * @returns void
+   */
+  const handleNonWeixinLogin = () => {
     if (!isTermsChecked.value) {
-      termsError.value = true
-      setTimeout(() => {
-        termsError.value = false
-      }, 1200)
+      promptTermsFirst()
       return
     }
+    uni.showToast({ title: '请在微信小程序中打开承修方端完成登录', icon: 'none' })
+  }
 
-    if (!username.value.trim() || !password.value) {
-      uni.showToast({ title: '请输入用户名和密码', icon: 'none' })
+  const closeBindPanel = () => {
+    showBindPanel.value = false
+    pendingPhoneCode.value = ''
+    bindUsername.value = ''
+    bindPassword.value = ''
+    showBindPassword.value = false
+  }
+
+  /**
+   * 认领绑定并登录（/api/auth/mp-bind-login）
+   * @returns void
+   */
+  const handleBindSubmit = async () => {
+    const usernameOrPhone = bindUsername.value.trim()
+    if (!usernameOrPhone) {
+      uni.showToast({ title: '请输入用户名或手机号', icon: 'none' })
+      return
+    }
+    if (!bindPassword.value) {
+      uni.showToast({ title: '请输入密码', icon: 'none' })
+      return
+    }
+    if (!pendingPhoneCode.value) {
+      uni.showToast({ title: '请重新进行手机号一键登录', icon: 'none' })
+      closeBindPanel()
       return
     }
 
     isLoggingIn.value = true
-
     try {
-      const loginRes = await loginApi({
-        username: username.value.trim(),
-        password: password.value
+      const wxLogin = await new Promise<{ code: string }>((resolve, reject) => {
+        uni.login({ provider: 'weixin', success: resolve, fail: reject })
       })
-      const result = loginRes.data
+      if (!wxLogin.code) {
+        uni.showToast({ title: '获取微信登录凭证失败，请重试', icon: 'none' })
+        return
+      }
+      const loginRes = await mpBindLoginApi({
+        code: wxLogin.code,
+        usernameOrPhone,
+        password: bindPassword.value,
+        phoneCode: pendingPhoneCode.value
+      })
+      const result = loginRes.data as LoginResult & { status?: string }
 
-      let info = result.userInfo as SysUserInfo
-      const companies = (result.companies?.length ? result.companies : info.companies) ?? []
-
-      // 后端要求选择网点时：本地弹窗选择并回填 currentCompany*
-      if (result.needChooseCompany && companies.length > 0) {
-        const index = await new Promise<number>((resolve, reject) => {
-          uni.showActionSheet({
-            itemList: companies.map((c) => c.companyName),
-            success: (res) => resolve(res.tapIndex),
-            fail: (err) => reject(err)
-          })
-        }).catch(() => -1)
-
-        if (index >= 0) {
-          const chosen = companies[index] as CompanySimple
-          info = {
-            ...info,
-            currentCompanyId: chosen.id,
-            currentCompanyName: chosen.companyName,
-            currentTypeCode: chosen.typeCode
-          }
-        } else {
-          // 用户取消选择：不继续进入业务页
-          return
-        }
+      if (!result.token || !result.userInfo) {
+        uni.showToast({
+          title: getApiMessage(loginRes, '绑定失败，请检查账号密码'),
+          icon: 'none'
+        })
+        return
       }
 
-      userStore.login(result.token, info)
-      uni.showToast({ title: getApiMessage(loginRes, '登录成功'), icon: 'success' })
-      setTimeout(() => {
-        uni.reLaunch({ url: '/pages/index/index' })
-      }, 500)
+      closeBindPanel()
+      await finalizeMpLoginSession(loginRes as ApiResponse<LoginResult>, result as LoginResult)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '绑定失败，请稍后重试'
+      uni.showToast({ title: message || '绑定失败，请稍后重试', icon: 'none' })
+    } finally {
+      isLoggingIn.value = false
+    }
+  }
+
+  /**
+   * 微信小程序：用户授权手机号后取 phoneCode，再 uni.login 取 code，POST /api/auth/mp-login（MpLoginDTO：code + phoneCode）
+   * @param e getPhoneNumber 回调事件
+   * @returns void
+   */
+  const handleWeixinMpLogin = async (e: { detail?: { errMsg?: string; code?: string } }) => {
+    if (!isTermsChecked.value) {
+      promptTermsFirst()
+      return
+    }
+
+    const errMsg = e?.detail?.errMsg ?? ''
+    if (errMsg !== 'getPhoneNumber:ok') {
+      if (errMsg.includes('deny') || errMsg.includes('cancel')) {
+        uni.showToast({ title: '需要授权手机号才能完成登录', icon: 'none' })
+      }
+      return
+    }
+    const phoneCode = e?.detail?.code
+    if (!phoneCode) {
+      uni.showToast({ title: '未获取到手机号授权，请升级微信后重试', icon: 'none' })
+      return
+    }
+
+    isLoggingIn.value = true
+    try {
+      const wxLogin = await new Promise<{ code: string }>((resolve, reject) => {
+        uni.login({ provider: 'weixin', success: resolve, fail: reject })
+      })
+      if (!wxLogin.code) {
+        uni.showToast({ title: '获取微信登录凭证失败，请重试', icon: 'none' })
+        return
+      }
+      const loginRes = await mpLoginApi({ code: wxLogin.code, phoneCode })
+      const result = loginRes.data
+
+      if (result.status === 'UNBIND') {
+        pendingPhoneCode.value = phoneCode
+        bindUsername.value = ''
+        bindPassword.value = ''
+        showBindPanel.value = true
+        uni.showToast({ title: '请绑定已有承修方账号', icon: 'none' })
+        return
+      }
+
+      if (!result.token || !result.userInfo) {
+        uni.showToast({
+          title: getApiMessage(loginRes, '登录失败，请重试'),
+          icon: 'none',
+          duration: 2800
+        })
+        return
+      }
+
+      await finalizeMpLoginSession(loginRes as ApiResponse<LoginResult>, result as LoginResult)
     } catch (err) {
       const message = err instanceof Error ? err.message : '登录失败，请稍后重试'
       uni.showToast({ title: message || '登录失败，请稍后重试', icon: 'none' })
@@ -384,66 +578,14 @@
       letter-spacing: 0.025em;
     }
 
-    /* Login Form */
-    .login-form {
-      margin-top: 90rpx;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      max-width: 440px;
-      padding: 0 $space-sm;
-    }
-
-    .login-form-title {
+    .login-hint {
       display: block;
+      margin-top: 48rpx;
       font-size: 13px;
-      font-weight: 600;
-      color: rgba(255, 255, 255, 0.5);
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      margin-bottom: 2px;
-    }
-
-    .input-card {
-      padding: 8rpx $space-md;
-      border-radius: $radius-md;
-      background-color: #ffffff2e;
-      border: 1.5px solid rgba(255, 255, 255, 0.08);
-      @include flex-row;
-      align-items: center;
-      gap: 8px;
-      transition:
-        border-color 0.2s ease,
-        box-shadow 0.2s ease,
-        transform 0.2s ease;
-
-      &:focus-within {
-        border-color: rgba($primary, 0.68);
-        box-shadow: 0 0 0 4px rgba($primary, 0.14);
-        transform: translateY(-1px);
-      }
-    }
-
-    .input-label {
-      font-size: 26rpx;
-      color: rgb(255 255 255 / 82%);
-      letter-spacing: 0.08em;
-      min-width: 120rpx;
-    }
-
-    .input {
-      height: 80rpx;
-      flex: 1;
-      font-size: 15px;
-      color: $text-main;
-      background-color: rgb(255 255 255 / 0%);
-      padding: 0 $space-md;
-      border-radius: $radius-md;
-      color: rgb(255 255 255 / 82%);
-    }
-
-    .input-placeholder {
-      color: rgba(255, 255, 255, 0.5);
+      line-height: 1.6;
+      color: rgba(255, 255, 255, 0.45);
+      letter-spacing: 0.02em;
+      max-width: 440px;
     }
 
     /* Bottom Actions */
@@ -495,6 +637,12 @@
       position: relative;
       overflow: hidden;
       border: none;
+
+      &.login-btn-native {
+        margin: 0;
+        line-height: 56px;
+        text-align: center;
+      }
 
       &::after {
         border: none;
@@ -619,9 +767,8 @@
         margin-bottom: 10px;
       }
 
-      .login-form {
-        margin-top: 22px;
-        gap: 12px;
+      .login-hint {
+        margin-top: 36rpx;
       }
 
       .bottom-actions {
@@ -629,6 +776,125 @@
         border-top-left-radius: 30px;
         border-top-right-radius: 30px;
       }
+    }
+
+    /* 认领绑定弹层 */
+    .bind-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      box-sizing: border-box;
+      background: rgba(2, 6, 23, 0.75);
+      backdrop-filter: blur(8px);
+    }
+
+    .bind-card {
+      width: 100%;
+      max-width: 384px;
+      padding: 28px 22px;
+      border-radius: 20px;
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
+    }
+
+    .bind-title {
+      display: block;
+      font-size: 18px;
+      font-weight: 700;
+      color: $surface-white;
+      margin-bottom: 10px;
+      letter-spacing: 0.02em;
+    }
+
+    .bind-desc {
+      display: block;
+      font-size: 13px;
+      line-height: 1.55;
+      color: $text-slate-400;
+      margin-bottom: 20px;
+    }
+
+    .bind-input-row {
+      position: relative;
+      width: 100%;
+      margin-bottom: 14px;
+    }
+
+    .bind-input {
+      width: 100%;
+      height: 48px;
+      padding: 0 14px;
+      box-sizing: border-box;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: $surface-white;
+      font-size: 15px;
+
+      &--suffix {
+        padding-right: 44px;
+      }
+
+      &--suffix-pwd {
+        padding-right: 76px;
+      }
+    }
+
+    .bind-input-suffix {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      pointer-events: auto;
+    }
+
+    .bind-input-suffix--pwd {
+      right: 6px;
+      gap: 2px;
+    }
+
+    .bind-input-icon-hit {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+
+      &:active {
+        background: rgba(255, 255, 255, 0.08);
+      }
+    }
+
+    .bind-placeholder {
+      color: rgba(255, 255, 255, 0.35);
+    }
+
+    .bind-submit {
+      margin-top: 8px;
+    }
+
+    .bind-cancel {
+      margin-top: 16px;
+      text-align: center;
+      padding: 8px;
+    }
+
+    .bind-cancel text {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.45);
+    }
+
+    .bind-cancel:active text {
+      color: rgba(255, 255, 255, 0.65);
     }
   }
 </style>

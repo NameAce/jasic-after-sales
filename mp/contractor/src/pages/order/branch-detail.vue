@@ -18,7 +18,15 @@
     </view>
 
     <!-- 主内容区域 -->
-    <scroll-view class="main-content" scroll-y>
+    <scroll-view
+      class="main-content"
+      scroll-y
+      lower-threshold="120"
+      refresher-enabled
+      :refresher-triggered="refresherTriggered"
+      @refresherrefresh="onRefresherRefresh"
+      @scrolltolower="loadMoreBranchOrders"
+    >
       <view class="order-list-scroll">
         <!-- 统计数据 -->
         <view class="stats-dashboard">
@@ -51,8 +59,9 @@
           other-brand-label="非佳士品牌"
           :show-inbound-transfer-tag="(order) => hasInboundTransferFromSite(order.transferFromSite)"
           :show-transferred-tag="() => false"
+          show-repair-site-rows
           card-class="order-card--branch-badges"
-          :show-no-more="filteredOrders.length > 0"
+          :show-no-more="hasLoadedAllFiltered && filteredOrders.length > 0"
           @order-click="onOrderClick"
         >
         </OrderCardList>
@@ -62,7 +71,7 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, computed } from 'vue'
+  import { ref, computed, watch } from 'vue'
   import { onLoad } from '@dcloudio/uni-app'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import OrderCardList from '@/components/OrderCardList/OrderCardList.vue'
@@ -71,6 +80,8 @@
   import type { OrderListItem } from '@/models/order'
   import { ORDER_STATUS_TEXT_MAP } from '@/utils/orderStatus'
   import { hasInboundTransferFromSite } from '@/utils/orderTransfer'
+  import { useScrollRefresher } from '@/utils/useScrollRefresher'
+  import { isWorkOrderPendingTechAcceptMainStatus } from '@/utils/workOrderMainStatus'
 
   // 网点名称
   const branchName = ref('')
@@ -80,6 +91,8 @@
   const activeTab = ref('all')
   // 工单列表
   const orderList = ref<OrderListItem[]>([])
+  const LIST_PAGE_STEP = 15
+  const listDisplayLimit = ref(LIST_PAGE_STEP)
   // 二级Tab栏
   const branchDetailTabs = ['all', 'pending', 'processing', 'completed', 'closed'] as const
   // 二级Tab栏类型
@@ -89,6 +102,15 @@
   const parseInitialTab = (raw: unknown): BranchDetailTab => {
     const t = raw != null ? String(raw) : ''
     return branchDetailTabs.includes(t as BranchDetailTab) ? (t as BranchDetailTab) : 'all'
+  }
+
+  const loadOrdersForBranchName = async (name: string) => {
+    listDisplayLimit.value = LIST_PAGE_STEP
+    try {
+      orderList.value = await fetchOrdersByBranch(name)
+    } catch {
+      orderList.value = []
+    }
   }
 
   /**
@@ -101,13 +123,7 @@
     const rawName = options?.name != null ? decodeURIComponent(String(options.name)) : ''
     if (rawName) {
       branchName.value = rawName
-      fetchOrdersByBranch(rawName)
-        .then((list) => {
-          orderList.value = list
-        })
-        .catch(() => {
-          orderList.value = []
-        })
+      loadOrdersForBranchName(rawName)
       return
     }
     const id = options?.id
@@ -117,17 +133,25 @@
           const b = branches.find((x) => String(x.id) === String(id))
           if (b) {
             branchName.value = b.name
-            return fetchOrdersByBranch(b.name)
+            return loadOrdersForBranchName(b.name)
           }
-          return []
-        })
-        .then((list) => {
-          orderList.value = list
+          branchName.value = ''
+          orderList.value = []
         })
         .catch(() => {
           orderList.value = []
         })
     }
+  })
+
+  const { refresherTriggered, onRefresherRefresh } = useScrollRefresher(async () => {
+    const name = branchName.value?.trim()
+    if (!name) return
+    await loadOrdersForBranchName(name)
+  })
+
+  watch([activeTab, searchQuery], () => {
+    listDisplayLimit.value = LIST_PAGE_STEP
   })
 
   /**
@@ -146,7 +170,9 @@
    */
   const stats = computed(() => {
     const all = orderList.value
-    const pending = all.filter((o) => o.status === 'pending').length
+    const pending = all.filter(
+      (o) => o.status === 'pending' && isWorkOrderPendingTechAcceptMainStatus(o.mainStatus)
+    ).length
     const processing = all.filter((o) => o.status === 'processing').length
     const completed = all.filter((o) => o.status === 'completed' || o.status === 'closed').length
     return [
@@ -183,22 +209,52 @@
    * @param order 工单
    * @returns 状态文本
    */
-  const listStatusText = (order: OrderListItem) => statusTextMap[order.status]
+  const listStatusText = (order: OrderListItem) => {
+    if (order.status === 'pending') {
+      if (isWorkOrderPendingTechAcceptMainStatus(order.mainStatus)) return '待接单'
+      return '待派单'
+    }
+    return statusTextMap[order.status]
+  }
 
   /**
-   * 过滤工单列表
-   * @returns 过滤后的工单列表
+   * 按 Tab / 搜索过滤后的全集（再经 listDisplayLimit 分页展示）
    */
-  const filteredOrders = computed(() => {
+  const filteredOrdersAll = computed(() => {
     const q = searchQuery.value?.trim()
     const tab = activeTab.value
 
     return orderList.value.filter((o) => {
-      if (tab !== 'all' && o.status !== tab) return false
+      if (tab === 'pending') {
+        if (o.status !== 'pending' || !isWorkOrderPendingTechAcceptMainStatus(o.mainStatus))
+          return false
+      } else if (tab !== 'all' && o.status !== tab) return false
       if (!q) return true
-      return o.id.includes(q) || o.desc.includes(q)
+      return (
+        o.id.includes(q) ||
+        (o.orderNo ?? '').includes(q) ||
+        (o.barcode ?? '').includes(q) ||
+        (o.faultDesc ?? '').includes(q) ||
+        (o.desc ?? '').includes(q)
+      )
     })
   })
+  // 分页展示
+  const filteredOrders = computed(() => filteredOrdersAll.value.slice(0, listDisplayLimit.value))
+  // 是否已加载所有过滤后的工单
+  const hasLoadedAllFiltered = computed(
+    () =>
+      filteredOrdersAll.value.length > 0 &&
+      filteredOrders.value.length >= filteredOrdersAll.value.length
+  )
+
+  /**
+   * 加载更多工单
+   */
+  const loadMoreBranchOrders = () => {
+    if (filteredOrders.value.length >= filteredOrdersAll.value.length) return
+    listDisplayLimit.value += LIST_PAGE_STEP
+  }
 
   /**
    * 空列表标题

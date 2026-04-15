@@ -53,13 +53,35 @@
               required
             >
               <FormItemAnchor name="faultDescription" />
-              <!-- 故障描述选择 -->
-              <uni-data-select
-                v-model="formData.faultDescription"
-                :localdata="faultDescriptionOptionsFromApi"
-                placeholder="请选择"
-                @change="handleFaultDescriptionChange"
-              />
+              <view class="fault-desc-picker" @click="openFaultDescDropdown">
+                <text :class="['fault-desc-picker-text', { placeholder: !selectedFaultDescText }]">
+                  {{ selectedFaultDescText || '请选择' }}
+                </text>
+                <uni-icons type="down" size="15" color="#cbd5e1" />
+              </view>
+              <view v-if="showFaultDescDropdown" class="fault-desc-dropdown">
+                <view
+                  v-for="option in faultDescriptionOptionsFromApi"
+                  :key="option.value"
+                  class="fault-desc-option"
+                  @click.stop="toggleDraftFaultDesc(option.value)"
+                >
+                  <checkbox
+                    :checked="draftFaultDesc.includes(option.value)"
+                    color="#f26604"
+                    style="transform: scale(0.8); transform-origin: center"
+                  />
+                  <text class="fault-desc-option-text">{{ option.text }}</text>
+                </view>
+                <view class="fault-desc-dropdown-actions">
+                  <view class="dropdown-btn dropdown-btn--cancel" @click.stop="cancelFaultDescSelect">
+                    取消
+                  </view>
+                  <view class="dropdown-btn dropdown-btn--confirm" @click.stop="confirmFaultDescSelect">
+                    确定
+                  </view>
+                </view>
+              </view>
             </uni-forms-item>
 
             <!-- 故障说明备注 -->
@@ -232,7 +254,7 @@
     warrantyCode: '',
     centerId: null,
     repairType: 'STORE',
-    faultDescription: '',
+    faultDescription: [],
     images: [] as unknown[],
     shippingCode: [] as unknown[],
     faultRemark: '',
@@ -257,24 +279,30 @@
   const barcodeQueryHasFaultDescription = ref(false)
   /** 条码查询返回的故障描述下拉（来自接口 data.faultOptions） */
   const faultDescriptionOptionsFromApi = ref<{ text: string; value: string }[]>([])
+  const showFaultDescDropdown = ref(false)
+  const draftFaultDesc = ref<string[]>([])
   /** 有条码但查询失败时，仍须展示并必填故障说明备注 */
   const queryFailedWithBarcode = ref(false)
 
   /** 是否为「其它 / 其他故障」类选项（展示并必填故障说明备注） */
-  const isOtherFaultSelection = (value: string) => {
-    const v = String(value ?? '').trim()
-    if (!v) return false
-    if (/^(other|others)$/i.test(v)) return true
-    const opt = faultDescriptionOptionsFromApi.value.find((o) => o.value === v)
-    const text = (opt?.text ?? '').trim()
+  const isOtherFaultSelection = (value: string | string[]) => {
+    const values = Array.isArray(value)
+      ? value.map((item) => String(item ?? '').trim()).filter(Boolean)
+      : [String(value ?? '').trim()].filter(Boolean)
+    if (values.length === 0) return false
     const label =
       typeof lastBarcodeInfo.value?.otherFaultLabel === 'string'
         ? lastBarcodeInfo.value.otherFaultLabel.trim()
         : ''
-    if (label && (v === label || text === label)) return true
-    if (/(其它|其他)/.test(text) && /故障/.test(text)) return true
-    if (/(其它|其他)/.test(v) && /故障/.test(v)) return true
-    return false
+    return values.some((v) => {
+      if (/^(other|others)$/i.test(v)) return true
+      const opt = faultDescriptionOptionsFromApi.value.find((o) => o.value === v)
+      const text = (opt?.text ?? '').trim()
+      if (label && (v === label || text === label)) return true
+      if (/(其它|其他)/.test(text) && /故障/.test(text)) return true
+      if (/(其它|其他)/.test(v) && /故障/.test(v)) return true
+      return false
+    })
   }
 
   /** 按条码 / 查询结果同步是否展示「故障说明备注」 */
@@ -293,6 +321,51 @@
       return
     }
     showFaultRemark.value = false
+  }
+
+  const normalizeFaultDescSelection = (value: string | string[]) => {
+    const values = Array.isArray(value) ? value : [value]
+    return values.map((item) => String(item ?? '').trim()).filter(Boolean)
+  }
+
+  const selectedFaultDescText = computed(() => {
+    const selectedValues = normalizeFaultDescSelection(formData.value.faultDescription)
+    const selectedTexts = selectedValues
+      .map((value) => {
+        const option = faultDescriptionOptionsFromApi.value.find((item) => item.value === value)
+        return option?.text || value
+      })
+      .map((item) => String(item ?? '').trim())
+      .filter(Boolean)
+    return selectedTexts.join('、')
+  })
+
+  const openFaultDescDropdown = () => {
+    draftFaultDesc.value = normalizeFaultDescSelection(formData.value.faultDescription)
+    showFaultDescDropdown.value = true
+  }
+
+  const toggleDraftFaultDesc = (value: string) => {
+    const val = String(value ?? '').trim()
+    if (!val) return
+    if (draftFaultDesc.value.includes(val)) {
+      draftFaultDesc.value = draftFaultDesc.value.filter((x) => x !== val)
+    } else {
+      draftFaultDesc.value = [...draftFaultDesc.value, val]
+    }
+  }
+
+  const cancelFaultDescSelect = () => {
+    showFaultDescDropdown.value = false
+    draftFaultDesc.value = []
+  }
+
+  const confirmFaultDescSelect = () => {
+    formData.value.faultDescription = [...draftFaultDesc.value]
+    showFaultDescDropdown.value = false
+    draftFaultDesc.value = []
+    getFormRef()?.clearValidate?.(['faultDescription'])
+    handleFaultDescriptionChange(formData.value.faultDescription)
   }
 
   // 表单规则
@@ -495,7 +568,7 @@
       }
       if (!hasFd) {
         if (!skipClearFaultFieldsWhenNoOptions) {
-          formData.value.faultDescription = ''
+          formData.value.faultDescription = []
           formData.value.faultRemark = ''
           nextTick(() => {
             getFormRef()?.clearValidate?.(['faultDescription', 'faultRemark'])
@@ -551,7 +624,7 @@
    * @param e - 故障描述
    * @returns void
    */
-  const handleFaultDescriptionChange = (e: string) => {
+  const handleFaultDescriptionChange = (e: string | string[]) => {
     const nextShow = isOtherFaultSelection(e)
     showFaultRemark.value = nextShow
     if (!nextShow) {
@@ -578,7 +651,7 @@
     (val, oldVal) => {
       if (isApplyingJasicRepairDraft.value) {
         if (!val) {
-          formData.value.faultDescription = ''
+          formData.value.faultDescription = []
           showFaultRemark.value = true
         } else {
           nextTick(() => {
@@ -591,11 +664,13 @@
         lastBarcodeInfo.value = null
         barcodeQueryHasFaultDescription.value = false
         faultDescriptionOptionsFromApi.value = []
+        showFaultDescDropdown.value = false
+        draftFaultDesc.value = []
         queryFailedWithBarcode.value = false
       }
       // 如果条形码为空，则清空故障描述
       if (!val) {
-        formData.value.faultDescription = ''
+        formData.value.faultDescription = []
         showFaultRemark.value = true
       } else {
         nextTick(() => {
@@ -639,13 +714,18 @@
     if (!barcodeQueryHasFaultDescription.value) {
       return ''
     }
-    const descOption = faultDescriptionOptionsFromApi.value.find(
-      (o) => o.value === formData.value.faultDescription
-    )
-    if (isOtherFaultSelection(formData.value.faultDescription)) {
-      return descOption?.text || '其它故障'
-    }
-    return descOption?.text || formData.value.faultDescription || ''
+    const selectedValues = Array.isArray(formData.value.faultDescription)
+      ? formData.value.faultDescription
+      : [formData.value.faultDescription]
+    const selectedTexts = selectedValues
+      .map((value) => {
+        const option = faultDescriptionOptionsFromApi.value.find((o) => o.value === value)
+        return option?.text || value
+      })
+      .map((item) => String(item ?? '').trim())
+      .filter(Boolean)
+    if (selectedTexts.length === 0) return ''
+    return selectedTexts.join('、')
   }
   /**
    * 从条码查询结果解析保修状态枚举（与后端一致）
@@ -671,8 +751,14 @@
   }
 
   const resolveFaultItemsForSubmit = (): string[] => {
-    if (barcodeQueryHasFaultDescription.value && formData.value.faultDescription) {
-      return [formData.value.faultDescription]
+    if (barcodeQueryHasFaultDescription.value) {
+      const selectedValues = Array.isArray(formData.value.faultDescription)
+        ? formData.value.faultDescription
+        : [formData.value.faultDescription]
+      const normalized = selectedValues.map((x) => String(x ?? '').trim()).filter(Boolean)
+      if (normalized.length > 0) {
+        return normalized
+      }
     }
     const raw = lastBarcodeInfo.value?.faultItems
     if (Array.isArray(raw) && raw.length > 0) {
@@ -847,7 +933,7 @@
       warrantyCode: '',
       centerId: null,
       repairType: 'STORE',
-      faultDescription: '',
+      faultDescription: [],
       images: [],
       shippingCode: [],
       faultRemark: '',
@@ -945,4 +1031,84 @@
     }
   }
 
+  .fault-desc-picker {
+    @include flex-row;
+    align-items: center;
+    justify-content: space-between;
+    gap: $space-sm;
+    height: 80rpx;
+    padding: 0 $space-md;
+    border: 1rpx solid $border-color;
+    border-radius: $radius-input;
+    background-color: $bg-light;
+    box-sizing: border-box;
+  }
+
+  .fault-desc-picker-text {
+    flex: 1;
+    min-width: 0;
+    font-size: $space-input;
+    color: $text-main;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &.placeholder {
+      color: $text-placeholder;
+    }
+  }
+
+  .fault-desc-dropdown {
+    margin-top: $space-sm;
+    border: 2rpx solid $border-light;
+    border-radius: $radius-md;
+    background: $bg-card;
+    padding: $space-sm;
+  }
+
+  .fault-desc-option {
+    @include flex-row;
+    align-items: center;
+    gap: $space-xs;
+    padding: 12rpx 8rpx;
+  }
+
+  .fault-desc-option-text {
+    font-size: 26rpx;
+    color: $text-main;
+  }
+
+  .fault-desc-dropdown-actions {
+    @include flex-row;
+    justify-content: flex-end;
+    gap: $space-sm;
+    padding-top: $space-sm;
+  }
+
+  .dropdown-btn {
+    font-size: 24rpx;
+    padding: 10rpx 20rpx;
+    border-radius: $radius-sm;
+  }
+
+  .dropdown-btn--cancel {
+    color: $text-secondary;
+    background: $bg-light;
+  }
+
+  .dropdown-btn--confirm {
+    color: $text-bg;
+    background: $primary;
+  }
+
+  :deep(.uni-data-checklist .checklist-box.is--default.is-checked .checkbox__inner-icon),
+  :deep(.uni-data-checklist .checklist-box.is--default.is-checked .radio__inner-icon),
+  :deep(.uni-data-checklist .checklist-box.is--default.is-checked .uni-icons) {
+    color: $primary !important;
+  }
+
+  :deep(.uni-data-checklist .checklist-box.is--default .checkbox__inner) {
+    width: 26rpx;
+    height: 26rpx;
+  }
 </style>

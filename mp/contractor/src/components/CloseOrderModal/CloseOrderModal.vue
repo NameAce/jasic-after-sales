@@ -1,15 +1,30 @@
 <template>
-  <CommonModal v-model="visible" title="工单关闭原因" animation="slide-up">
+  <CommonModal
+    v-model="visible"
+    :title="noFaultRequired ? '工单关闭原因（无故障）' : '工单关闭原因'"
+    animation="slide-up"
+  >
     <view class="modal-content">
+      <text v-if="noFaultRequired" class="no-fault-tip">无故障关单时关闭原因必填，请如实填写。</text>
       <!-- 输入关闭原因 -->
       <view class="textarea-wrap">
+        <view v-if="noFaultRequired" class="field-label-row">
+          <text class="field-label">关闭原因</text>
+          <text class="text-red">*</text>
+        </view>
         <textarea
           v-model="reason"
           class="reason-input"
-          placeholder="请输入关闭的具体原因..."
+          :class="{ 'reason-input--with-label': noFaultRequired }"
+          placeholder-class="reason-input-placeholder"
+          :placeholder="
+            noFaultRequired
+              ? '请填写关闭原因（无故障必填），如：已指导用户解决、用户申请取消…'
+              : '请输入关闭的具体原因...'
+          "
           :maxlength="200"
           :cursor-spacing="20"
-        />
+        ></textarea>
         <view class="char-count">{{ reason.length }}/200</view>
       </view>
 
@@ -52,9 +67,14 @@
    * 组件属性
    * @param modelValue 是否显示弹窗
    */
-  const props = defineProps<{
-    modelValue: boolean
-  }>()
+  const props = withDefaults(
+    defineProps<{
+      modelValue: boolean
+      /** 无故障关单链路：关闭原因必填（文案与校验提示） */
+      noFaultRequired?: boolean
+    }>(),
+    { noFaultRequired: false }
+  )
 
   /**
    * 组件事件
@@ -109,11 +129,15 @@
    * 确认提交
    */
   const onConfirm = () => {
-    if (!reason.value.trim()) {
-      uni.showToast({ title: '请输入关闭原因', icon: 'none' })
+    const text = reason.value.trim()
+    if (!text) {
+      uni.showToast({
+        title: props.noFaultRequired ? '请填写关闭原因（无故障必填）' : '请输入关闭原因',
+        icon: 'none'
+      })
       return
     }
-    emit('confirm', reason.value)
+    emit('confirm', text)
     visible.value = false
     // 重置状态
     reason.value = ''
@@ -126,20 +150,57 @@
     padding: 32rpx;
   }
 
+  .no-fault-tip {
+    display: block;
+    font-size: 26rpx;
+    color: $text-slate-500;
+    line-height: 1.5;
+    margin-bottom: 24rpx;
+  }
+
+  .field-label-row {
+    display: flex;
+    align-items: center;
+    gap: 4rpx;
+    margin-bottom: 16rpx;
+  }
+
+  .field-label {
+    font-size: 28rpx;
+    font-weight: 600;
+    color: $text-slate-800;
+  }
+
+  .text-red {
+    color: $red-500;
+    font-size: 28rpx;
+    font-weight: bold;
+  }
+
   .textarea-wrap {
-    background-color: $surface-slate-50;
     border-radius: 24rpx;
-    padding: 24rpx;
+    padding: 0;
     margin-bottom: 32rpx;
     position: relative;
   }
 
   .reason-input {
     width: 100%;
-    height: 200rpx;
-    font-size: 28rpx;
-    color: $text-slate-700;
+    min-height: 100rpx;
+    padding: $space-md;
+    @include form-field-soft;
+    font-size: 26rpx;
+    color: $text-slate-900;
     line-height: 1.5;
+    box-sizing: border-box;
+
+    &--with-label {
+      min-height: 100rpx;
+    }
+  }
+
+  :deep(.reason-input-placeholder) {
+    color: $text-slate-400;
   }
 
   .char-count {

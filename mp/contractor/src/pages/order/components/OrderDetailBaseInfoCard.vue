@@ -9,9 +9,9 @@
         <text class="info-label">工单编号</text>
         <text class="info-value">{{ base.orderNo }}</text>
       </view>
-      <view v-if="hasVal(base.orderTypeName)" class="info-item">
+      <view v-if="hasVal(base.brandTypeLabel)" class="info-item">
         <text class="info-label">工单类型</text>
-        <view :class="['tag-value', orderTypeTagClass]">{{ base.orderTypeName }}</view>
+        <view :class="['tag-value', orderTypeTagClass]">{{ base.brandTypeLabel }}</view>
       </view>
       <view v-if="hasVal(base.submitTime)" class="info-item">
         <text class="info-label">提交时间</text>
@@ -31,7 +31,7 @@
     base: OrderDetail['base']
   }>()
 
-  const orderTypeTagClass = computed(() => getOrderTypeTagClass(props.base.orderTypeName))
+  const orderTypeTagClass = computed(() => getOrderTypeTagClass(props.base.brandTypeLabel))
 </script>
 
 <style lang="scss" scoped>

@@ -21,11 +21,12 @@
       <!-- 网点工作台 -->
       <SiteWorkbench
         v-if="!isHqView"
-        :pending-stat-label="pendingStatLabel"
+        :primary-pending-stat="sitePrimaryPendingStat"
         :site-workbench-stats="siteWorkbenchStats"
         :workbench-list-title="workbenchListTitle"
         :workbench-empty-title="workbenchEmptyTitle"
         :workbench-empty-desc="workbenchEmptyDesc"
+        :show-no-more="showSiteWorkbenchNoMore"
         :order-list="orderList"
         :get-order-list-status-text="getOrderListStatusText"
         :show-accept-order-button="showAcceptOrderButton"
@@ -55,6 +56,7 @@
         v-if="userStore.hasPermission(Perms.WORKORDER_ASSIGN)"
         v-model="showAssignModal"
         v-model:selected-tech-id="selectedTechId"
+        :assign-work-order-id="currentOrderId"
         :technician-list="technicianList"
         @close="closeAssignModal"
         @confirm="onAssignConfirm"
@@ -64,8 +66,8 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, computed } from 'vue'
-  import { onShow } from '@dcloudio/uni-app'
+  import { ref, computed, nextTick } from 'vue'
+  import { onShow, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
   import { useAppStore, useUserStore } from '@/stores'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import AssignTechnicianModal, {
@@ -80,6 +82,9 @@
   import { useIndexWorkbench, type HqBranchRow } from './useIndexWorkbench'
   import { assignWorkOrder, fetchAssignUserOptions } from '@/api/order'
   import { getApiMessage } from '@/utils/http'
+
+  /** 派单弹窗：选此项表示派单给自己，在「待接单」中接单（与订单列表页一致） */
+  const DISPATCHER_SELF_TECH_ID = 'dispatcher_self'
 
   const appStore = useAppStore()
   const userStore = useUserStore()
@@ -104,10 +109,12 @@
     workbenchListTitle,
     workbenchEmptyTitle,
     workbenchEmptyDesc,
-    pendingStatLabel,
+    sitePrimaryPendingStat,
     showInboundTransferTag,
     showTransferredTag,
-    branchList
+    branchList,
+    loadMoreSiteWorkbench,
+    showSiteWorkbenchNoMore
   } = useIndexWorkbench()
 
   /** 总部更新时间 */
@@ -119,6 +126,25 @@
       refreshSiteWorkbench()
     } else {
       refreshHqWorkbench()
+    }
+  })
+
+  onPullDownRefresh(async () => {
+    hqUpdatedAt.value = formatTimeHHMM()
+    try {
+      if (!isHqView.value) {
+        await refreshSiteWorkbench()
+      } else {
+        await refreshHqWorkbench()
+      }
+    } finally {
+      uni.stopPullDownRefresh()
+    }
+  })
+
+  onReachBottom(() => {
+    if (!isHqView.value) {
+      loadMoreSiteWorkbench()
     }
   })
 
@@ -168,18 +194,33 @@
    * @param orderId 订单ID
    * @returns void
    */
-  const openAssignModal = async (orderId: string) => {
-    currentOrderId.value = orderId
+  const openAssignModal = async (orderId: string | number) => {
+    const openedFor = String(orderId ?? '').trim()
+    currentOrderId.value = openedFor
     showAssignModal.value = true
     selectedTechId.value = null
-    technicianList.value = []
 
-    const workOrderId = Number(orderId)
+    const base: Technician[] = [
+      {
+        id: DISPATCHER_SELF_TECH_ID,
+        name: '本人（派单员）',
+        avatar: '',
+        isRecommend: true,
+        desc: '派单给自己后，在「待接单」中接单维修',
+        distance: '',
+        time: '',
+        isBusy: false
+      }
+    ]
+    technicianList.value = base
+
+    const workOrderId = Number(openedFor)
     if (!Number.isFinite(workOrderId) || workOrderId <= 0) return
     try {
       uni.showLoading({ title: '加载可派单人员...' })
       const list = await fetchAssignUserOptions(workOrderId)
-      technicianList.value = list.map((u) => ({
+      if (String(currentOrderId.value).trim() !== openedFor) return
+      const mapped: Technician[] = list.map((u) => ({
         id: u.id,
         name: u.realName || u.phone || `用户${u.id}`,
         phone: u.phone || '',
@@ -190,6 +231,7 @@
         time: '',
         isBusy: false
       }))
+      technicianList.value = base.concat(mapped)
     } finally {
       uni.hideLoading()
     }
@@ -221,22 +263,45 @@
    * 确认派单
    * @returns void
    */
-  const onAssignConfirm = async (payload: { selectedTechId: number | string }) => {
-    const workOrderId = Number(currentOrderId.value)
-    const assignedUserId = Number(payload?.selectedTechId)
+  const onAssignConfirm = async (payload: {
+    workOrderId: string | number
+    selectedTechId: number | string
+  }) => {
+    const workOrderId = Number(payload.workOrderId ?? currentOrderId.value)
     if (!Number.isFinite(workOrderId) || workOrderId <= 0) {
       uni.showToast({ title: '工单ID无效', icon: 'none' })
       return
     }
-    if (!Number.isFinite(assignedUserId) || assignedUserId <= 0) {
-      uni.showToast({ title: '维修员ID无效', icon: 'none' })
-      return
+
+    const isSelf = payload?.selectedTechId === DISPATCHER_SELF_TECH_ID
+    const selfId = userStore.userInfo?.id
+    if (isSelf) {
+      if (!selfId || !Number.isFinite(selfId) || selfId <= 0) {
+        uni.showToast({ title: '无法获取当前用户，请重新登录', icon: 'none' })
+        return
+      }
+    } else {
+      const assignedUserId = Number(payload?.selectedTechId)
+      if (!Number.isFinite(assignedUserId) || assignedUserId <= 0) {
+        uni.showToast({ title: '维修员ID无效', icon: 'none' })
+        return
+      }
     }
 
-    const res = await assignWorkOrder({ workOrderId, assignedUserId })
-    uni.showToast({ title: getApiMessage(res, '派单成功'), icon: 'success' })
-    closeAssignModal()
-    await refreshSiteWorkbench()
+    const assignedUserId = isSelf ? Number(selfId) : Number(payload?.selectedTechId)
+    try {
+      const res = await assignWorkOrder({ workOrderId, assignedUserId })
+      if (isSelf) {
+        uni.showToast({ title: '已派单给自己，可在「待接单」中接单', icon: 'none' })
+      } else {
+        uni.showToast({ title: getApiMessage(res, '派单成功'), icon: 'success' })
+      }
+      closeAssignModal()
+      await nextTick()
+      await refreshSiteWorkbench(true)
+    } catch {
+      // assignWorkOrder / http 内已 toast
+    }
   }
 
   /**
@@ -244,7 +309,9 @@
    * @param secondaryTab 二级Tab
    * @returns void
    */
-  const goToOrderListTab = (secondaryTab: 'all' | 'pending' | 'processing' | 'completed') => {
+  const goToOrderListTab = (
+    secondaryTab: 'all' | 'pending' | 'pending_accept' | 'processing' | 'completed'
+  ) => {
     appStore.setOrderListNavTarget({
       primaryTab: 'untransferred',
       secondaryTab
@@ -253,11 +320,16 @@
   }
 
   /**
-   * 接单
+   * 接单：进入详情填写故障判定与维修报价，用户提交后再调接单接口（与工单列表一致）
    * @param orderId 订单ID
    * @returns void
    */
   const onAcceptOrder = (orderId: string) => {
+    const id = Number(orderId)
+    if (!Number.isFinite(id) || id <= 0) {
+      uni.showToast({ title: '工单ID无效', icon: 'none' })
+      return
+    }
     uni.navigateTo({
       url: `/pages/order/detail?id=${orderId}&action=accept`
     })

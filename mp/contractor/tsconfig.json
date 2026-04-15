@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "ignoreDeprecations": "5.0",
+    "noEmit": true,
     "allowJs": true,
     "target": "ESNext",
     "module": "ESNext",

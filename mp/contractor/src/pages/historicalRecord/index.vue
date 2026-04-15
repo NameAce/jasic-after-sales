@@ -7,31 +7,19 @@
     <view v-else class="record-list">
       <view v-for="(record, index) in records" :key="index" class="record-card">
         <!-- 维修说明 -->
-        <view class="section">
+        <view v-if="showRepairDescSection(record)" class="section">
           <text class="section-label">维修说明</text>
-          <text class="section-value font-bold">{{ record.description }}</text>
+          <text class="section-value" style="color: #ef4444; font-weight: 600">
+            {{ recordRepairLine(record) }}
+          </text>
         </view>
-
-        <!-- 故障点图片 -->
-        <view class="section image-section">
-          <text class="section-label">故障点图片</text>
-          <scroll-view scroll-x class="image-scroll-view" :show-scrollbar="false">
-            <view class="image-list">
-              <view v-for="(img, imgIndex) in record.images" :key="imgIndex" class="image-item">
-                <image class="image-content" :src="img.url" mode="aspectFill"></image>
-                <text class="image-label">{{ img.label }}</text>
-              </view>
-            </view>
-          </scroll-view>
-        </view>
-
         <!-- 其它维修说明 -->
-        <view v-if="record.specialInfo" class="special-info">
+        <view v-if="recordOtherSupplement(record)" class="special-info">
           <view class="special-header">
             <uni-icons type="info" size="14" color="#f26604"></uni-icons>
             <text class="special-title">其它维修说明</text>
           </view>
-          <text class="special-content">{{ record.specialInfo }}</text>
+          <text class="special-content">{{ recordOtherSupplement(record) }}</text>
         </view>
 
         <!-- 更换配件 -->
@@ -45,9 +33,27 @@
           </view>
         </view>
 
+        <!-- 故障点图片 -->
+        <view v-if="(record.images || []).length > 0" class="section image-section">
+          <text class="section-label">故障点图片</text>
+          <scroll-view scroll-x class="image-scroll-view" :show-scrollbar="false">
+            <view class="image-list">
+              <view
+                v-for="(img, imgIndex) in record.images"
+                :key="imgIndex"
+                class="image-item"
+                @tap="previewRecordImage(record, imgIndex)"
+              >
+                <image class="image-content" :src="img.url" mode="aspectFill"></image>
+                <text v-if="img.label" class="image-label">{{ img.label }}</text>
+              </view>
+            </view>
+          </scroll-view>
+        </view>
+
         <!-- 底部 -->
         <view class="card-footer">
-          <view class="footer-item location">
+          <view v-if="record.location" class="footer-item location">
             <uni-icons type="location-filled" size="16" color="#9ca3af"></uni-icons>
             <text class="footer-text">{{ record.location }}</text>
           </view>
@@ -68,7 +74,59 @@
   import ListEmpty from '@/components/ListEmpty/ListEmpty.vue'
   import ListNoMore from '@/components/ListNoMore/ListNoMore.vue'
   import { onLoad } from '@dcloudio/uni-app'
+  import { fetchOrderRepairFaultRecords } from '@/api/order'
+  import { WORK_ORDER_REPAIR_FAULTS_HISTORY_STORAGE_KEY } from '@/constants/historicalRecord'
   import type { FaultPointRecord } from '@/models/order'
+  import { previewImages, resolvePreviewableUrl } from '@/utils/mediaPreview'
+
+  /** 与登记表单、详情页一致：选项值为「其它维修说明」时主文案用 otherDesc */
+  const OTHER_REPAIR_DESC = '其它维修说明'
+
+  const hasStructuredRepairFields = (r: FaultPointRecord) =>
+    r.faultDesc !== undefined || r.repairDesc !== undefined || r.otherDesc !== undefined
+
+  /** 旧缓存 description 曾为 faultDesc · repairDesc，仅取维修侧 */
+  const legacyDescriptionRepairOnly = (description: string) => {
+    const d = String(description || '').trim()
+    if (!d) return ''
+    const sep = ' · '
+    const i = d.indexOf(sep)
+    if (i === -1) return d
+    return d.slice(i + sep.length).trim()
+  }
+
+  /** 维修说明主行：仅 repairDesc；为「其它维修说明」时用 otherDesc（不含 faultDesc） */
+  const recordRepairLine = (r: FaultPointRecord) => {
+    if (!hasStructuredRepairFields(r)) {
+      return legacyDescriptionRepairOnly(String(r.description || ''))
+    }
+    const repairDesc = String(r.repairDesc ?? '').trim()
+    const otherDesc = String(r.otherDesc ?? '').trim()
+    return repairDesc === OTHER_REPAIR_DESC ? otherDesc : repairDesc
+  }
+
+  const showRepairDescSection = (r: FaultPointRecord) =>
+    recordRepairLine(r).trim() !== OTHER_REPAIR_DESC
+
+  /** repairDesc 非「其它」且填写了 otherDesc 时展示补充块（避免与主行重复） */
+  const recordOtherSupplement = (r: FaultPointRecord) => {
+    if (!hasStructuredRepairFields(r)) {
+      return String(r.specialInfo || '').trim()
+    }
+    const repairDesc = String(r.repairDesc ?? '').trim()
+    const otherDesc = String(r.otherDesc ?? '').trim()
+    if (!otherDesc || repairDesc === OTHER_REPAIR_DESC) return ''
+    return otherDesc
+  }
+
+  const parseStoredFaultHistory = (raw: string): FaultPointRecord[] => {
+    try {
+      const v = JSON.parse(raw || '[]') as unknown
+      return Array.isArray(v) ? (v as FaultPointRecord[]) : []
+    } catch {
+      return []
+    }
+  }
 
   /**
    * 历史维修记录列表
@@ -76,11 +134,37 @@
    */
   const records = ref<FaultPointRecord[]>([])
 
-  onLoad((options: any) => {
-    const orderId = String(options?.orderId || '')
-    if (orderId) {
-      // 移除 mock 数据源：接口对接后从后端获取历史维修记录
+  const previewRecordImage = (record: FaultPointRecord, imgIndex: number) => {
+    const imgs = record.images || []
+    const urls = imgs.map((img) => resolvePreviewableUrl(img.url)).filter(Boolean)
+    if (!urls.length) return
+    previewImages(urls, imgIndex)
+  }
+
+  onLoad(async (options: any) => {
+    const mode = String(options?.mode || '')
+    if (mode !== 'repairs') {
       records.value = []
+      return
+    }
+    let raw: string
+    try {
+      raw = String(uni.getStorageSync(WORK_ORDER_REPAIR_FAULTS_HISTORY_STORAGE_KEY) || '')
+    } catch {
+      raw = ''
+    }
+    records.value = parseStoredFaultHistory(raw)
+    try {
+      uni.removeStorageSync(WORK_ORDER_REPAIR_FAULTS_HISTORY_STORAGE_KEY)
+    } catch {
+      /* noop */
+    }
+    const orderId = decodeURIComponent(String(options?.orderId || '').trim())
+    if (!orderId) return
+    try {
+      records.value = await fetchOrderRepairFaultRecords(orderId)
+    } catch {
+      /* 接口失败时保留上面从 storage 解析的列表 */
     }
   })
 </script>
@@ -94,8 +178,9 @@
   }
 
   .record-list {
-    @include flex-col;
+    @include flex-column-gap;
     gap: $space-md;
+    margin-bottom: $space-md;
   }
 
   .record-card {
@@ -121,10 +206,6 @@
   .section-value {
     font-size: $font-md;
     color: $text-slate-900;
-
-    &.font-bold {
-      font-weight: 600;
-    }
   }
 
   .image-section {

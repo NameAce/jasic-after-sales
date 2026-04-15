@@ -5,11 +5,10 @@ export type MailReturnFormEcho = {
   receiverName: string
   receiverPhone: string
   receiverAddress: string
+  /** 详情接口寄件快递单号 `sendExpressNo`（只读展示） */
+  sendExpressNo?: string
   receiptImagePaths: string[]
 }
-
-/** 派单员自派后、待本人接单（仍为 pending） */
-export type DispatcherPendingSubState = 'await_self_accept'
 
 /** 后端 `/api/system/work-order/list` 单条记录 */
 export type WorkOrderListVO = {
@@ -22,13 +21,32 @@ export type WorkOrderListVO = {
   customerMobile?: string
   customerName?: string
   displayStatus?: string
+  /** 故障描述（列表接口 WorkOrderListVO） */
+  faultDesc?: string
   hasTransfer?: number
+  /** 最后出库日期（列表接口，字段名以服务端为准，映射层兼容多种别名） */
+  lastOutDate?: string
+  outDate?: string
   id: number
+  isReadonly?: number
   mainStatus?: string
   mainStatusLabel?: string
   orderNo?: string
   productModel?: string
+  /** 维修方式枚举（与详情 serviceMode 一致，列表接口若返回则用于卡片） */
+  serviceMode?: string
+  serviceModeLabel?: string
+  /** 维修报价（列表接口字段名以服务端为准，常见 quoteAmount） */
+  quoteAmount?: number | string
+  /** 受理网点联系电话（已转单/跨网点列表展示） */
+  currentAcceptCompanyPhone?: string
+  /** 质保状态（与详情接口一致，如 IN_WARRANTY / OUT_OF_WARRANTY） */
+  warrantyStatus?: string
+  relationType?: string
   transferCount?: number
+  /** 品牌类型：JASIC | NON_JASIC 等（与详情接口一致） */
+  brandType?: string
+  brandTypeLabel?: string
 }
 
 /** 后端工单列表分页 */
@@ -50,6 +68,8 @@ export type WorkOrderDetailVO = {
   evaluateStatusLabel?: string
   hasTransfer?: number
   transferCount?: number
+  isReadonly?: number
+  relationType?: string
   availableActions?: string[]
 
   assignedUserId?: number
@@ -58,6 +78,9 @@ export type WorkOrderDetailVO = {
   barcode?: string
   brandCode?: string
   brandName?: string
+  /** 品牌类型：JASIC | NON_JASIC */
+  brandType?: string
+  brandTypeLabel?: string
   machineNo?: string
   productModel?: string
   productCode?: string
@@ -85,6 +108,7 @@ export type WorkOrderDetailVO = {
   faultVoiceFiles?: SysFileItemVO[]
 
   serviceMode?: string
+  serviceModeLabel?: string
   warrantyStatus?: string
   reportBizType?: string
   reportBizTypeLabel?: string
@@ -98,6 +122,10 @@ export type WorkOrderDetailVO = {
   returnMethod?: string
   returnExpressNo?: string
   returnVoucherFiles?: SysFileItemVO[]
+  /** 机器回寄收件人（若详情接口返回，用于弹窗回显） */
+  returnReceiverName?: string
+  returnReceiverMobile?: string
+  returnReceiverAddress?: string
 
   quotes?: WorkOrderQuoteVO[]
   repairs?: WorkOrderRepairVO[]
@@ -183,6 +211,7 @@ export type WorkOrderParticipantVO = {
   companyName?: string
   firstParticipateTime?: string
   isCurrentHandler?: number
+  isReadonly?: number
   lastParticipateTime?: string
   participateType?: string
   subjectType?: string
@@ -200,6 +229,19 @@ export type WorkOrderQuoteVO = {
   quoteDesc?: string
   quotedBy?: number
   quotedByName?: string
+  /** 部分环境寄件信息与报价同条返回，映射时与工单根字段互补 */
+  sendExpressNo?: string
+  senderAddress?: string
+  senderMobile?: string
+  senderName?: string
+}
+
+/** 后端工单故障点配件明细 `WorkOrderFaultVO.partList` */
+export type WorkOrderFaultPartVO = {
+  id?: number
+  partName?: string
+  partQty?: number
+  sortNum?: number
 }
 
 /** 后端 `/api/system/work-order/fault` 单条记录 */
@@ -210,9 +252,13 @@ export type WorkOrderFaultVO = {
   createdByName?: string
   faultDesc?: string
   id?: number
+  /** 逗号分隔 URL，部分环境故障点图仍走本字段 */
   imageUrls?: string
   otherDesc?: string
+  /** 配件说明字符串，与 `partList` 二选一或并存（优先 partList） */
   partDesc?: string
+  /** 详情接口：结构化配件明细 */
+  partList?: WorkOrderFaultPartVO[]
   repairDesc?: string
   sortNum?: number
 }
@@ -222,12 +268,25 @@ export type WorkOrderRepairVO = {
   companyId?: number
   companyName?: string
   createTime?: string
+  /** 详情接口：维修登记阶段 REPAIR / RECHECK 等 */
+  registerStage?: string
+  registerStageLabel?: string
   finishedTime?: string
   id?: number
   isFinished?: number
+  otherDesc?: string
+  repairDesc?: string
+  repairSummary?: string
   repairUserId?: number
   repairUserName?: string
   faults?: WorkOrderFaultVO[]
+  faultNewImageFiles?: SysFileItemVO[]
+  faultOldImageFiles?: SysFileItemVO[]
+  machineBarcodeImageFiles?: SysFileItemVO[]
+  machineImageFiles?: SysFileItemVO[]
+  otherImageFiles?: SysFileItemVO[]
+  /** 详情接口若返回与登记提交一致的维修说明多选项 */
+  repairItems?: string[]
 }
 
 /** 后端 `/api/system/work-order/review` 单条记录 */
@@ -248,17 +307,26 @@ export type OrderListItem = {
   id: string
   /** 展示用工单号，有则卡片标题优先显示 */
   orderNo?: string
+  /** 列表接口原始主状态（PENDING_ASSIGN 等） */
+  mainStatus?: string
+  assignedUserId?: number
   status: OrderStatus
+  /** 接口 `brandType` 归一化大写，如 JASIC、NON_JASIC */
+  brandType?: string
+  /** 接口 `brandTypeLabel`，列表卡片优先展示 */
+  brandTypeLabel?: string
+  /** 是否佳士品牌工单，由 `brandType` 推导（与详情一致：缺省 brandType 时默认 true） */
   isJiashi: boolean
-  /** 派单员视角：已派给自己，待本人接单 */
-  dispatcherPendingSubState?: DispatcherPendingSubState
   warrantyText?: string
   warrantyClass?: 'tag-in-warranty' | 'tag-out-warranty'
   phone: string
   barcode?: string
   model?: string
   outDate?: string
-  desc: string
+  /** 列表接口 `faultDesc`，卡片「故障描述」优先展示 */
+  faultDesc?: string
+  /** 兼容旧接口或其它列表来源的摘要文案 */
+  desc?: string
   transferred?: boolean
   source?: string
   transferNetwork?: string
@@ -266,6 +334,12 @@ export type OrderListItem = {
   transferFromSite?: string
   /** 所属网点/服务站名称 */
   siteName?: string
+  /** 维修方式展示文案（由列表 serviceModeLabel / serviceMode 映射） */
+  repairMethodLabel?: string
+  /** 维修价格展示（如 128.00） */
+  repairPriceText?: string
+  /** 维修/受理网点电话 */
+  acceptCompanyPhone?: string
 }
 
 /** 网点列表项 */
@@ -278,14 +352,39 @@ export type BranchItem = {
   completed: number
 }
 
+/** 工单详情页展示的流转节点（来源：后端 flows） */
+export type OrderDetailProcessFlowItem = {
+  time: string
+  title: string
+  detail: string
+}
+
 /** 故障点记录 */
 export type FaultPointRecord = {
+  /** 维修说明汇总（faultDesc · 维修主文案），旧缓存可能仅有本字段 */
   description: string
+  /** 结构化字段（新映射必带，便于历史页按「其它维修说明」规则展示） */
+  faultDesc?: string
+  repairDesc?: string
+  otherDesc?: string
   images: { url: string; label: string }[]
   parts?: { name: string; count: number }[]
+  /** repairDesc 非「其它维修说明」时的补充说明 */
   specialInfo?: string
   location: string
   date: string
+}
+
+/** 复检登记入口：从最近一次「维修登记」repairs 解析出的表单预填（排除复检阶段记录） */
+export type OrderRepairRegistrationEcho = {
+  repairItems: string[]
+  otherDesc: string
+  parts: { partName: string; partQty: number }[]
+  faultOldImageFiles: SysFileItemVO[]
+  faultNewImageFiles: SysFileItemVO[]
+  machineImageFiles: SysFileItemVO[]
+  machineBarcodeImageFiles: SysFileItemVO[]
+  otherImageFiles: SysFileItemVO[]
 }
 
 /** 工单详情 */
@@ -302,6 +401,8 @@ export type OrderDetail = {
   base: {
     orderNo: string
     orderTypeName: string
+    /** 品牌类型文案，如「佳士」/「非佳士」 */
+    brandTypeLabel: string
     submitTime: string
     /** 被转单网点（接收方） */
     transferSite: string
@@ -310,6 +411,8 @@ export type OrderDetail = {
   }
   product: {
     barcode: string
+    /** 商品品牌名（详情 `brandName`） */
+    brandName: string
     model: string
     serialNo: string
     outDate: string
@@ -318,22 +421,42 @@ export type OrderDetail = {
   }
   service: {
     sitePhone: string
+    /** 与后端 `serviceMode` 一致：MAIL 邮寄 / STORE 到店 */
+    serviceMode: 'MAIL' | 'STORE' | ''
     repairMethod: string
     source: string
     senderInfo: string
+    /** 详情 `senderName`，回寄预填 */
+    senderName: string
+    /** 详情 `senderMobile`，回寄预填 */
+    senderMobile: string
+    /** 详情 `senderAddress`，回寄预填 */
+    senderAddress: string
+    /** 详情 `sendExpressNo`，回寄只读展示 */
+    sendExpressNo: string
+    /** 寄件凭证预览图（首图，与 senderVoucherFiles 同步） */
     senderVoucherImg: string
+    /** 寄件快递单/凭证附件 */
+    senderVoucherFiles: { previewUrl: string }[]
+    /** 机器返回方式（回寄/自提等，展示用文案，以后端为准） */
+    returnMethod: string
+    /** 回寄快递单号（只读展示） */
+    returnExpressNo: string
     /** 回寄时弹窗内寄件信息/凭证图回显，缺省则不回显 */
     mailReturnForm?: MailReturnFormEcho
   }
   acceptor: {
+    /** 详情 `currentAcceptCompanyName`，当前受理网点/单位 */
+    currentAcceptCompanyName: string
     sitePhone: string
-    acceptorName: string
   }
   fault: {
     desc: string
     faultExplain: string
     voiceDuration: string
     images: string[]
+    /** 故障视频预览地址列表 */
+    videos: string[]
     videoThumb: string
   }
   repair: {
@@ -346,8 +469,17 @@ export type OrderDetail = {
       date: string
       desc: string
     }
+    /** 最新一条维修（repairs 末条）下的故障点，对应后端 `repairs[].faults` */
+    currentFaults: WorkOrderFaultVO[]
+    /** 除末条维修外的历史故障点（用于与「当前」对比展示） */
     history: FaultPointRecord[]
+    /** 全部维修单下 `faults` 扁平列表，供「查看历史记录」页完整回显 */
+    allRepairsFaultRecords: FaultPointRecord[]
   }
+  /** 工单流转记录（后端 flows） */
+  processFlows: OrderDetailProcessFlowItem[]
+  /** 最近一次维修登记摘要（复检入口用于表单回显） */
+  repairRegistrationEcho?: OrderRepairRegistrationEcho
   contact: {
     phone: string
   }
@@ -361,8 +493,6 @@ export type OrderDetail = {
     satisfaction?: number
     comment?: string
   }
-  /** 派单员自派待接单 */
-  dispatcherPendingSubState?: DispatcherPendingSubState
 }
 
 /**
@@ -382,12 +512,14 @@ export const createEmptyOrderDetail = (): OrderDetail => ({
   base: {
     orderNo: '',
     orderTypeName: '',
+    brandTypeLabel: '',
     submitTime: '',
     transferSite: '',
     transferFromSite: '',
   },
   product: {
     barcode: '',
+    brandName: '',
     model: '',
     serialNo: '',
     outDate: '',
@@ -396,20 +528,29 @@ export const createEmptyOrderDetail = (): OrderDetail => ({
   },
   service: {
     sitePhone: '',
+    serviceMode: '',
     repairMethod: '',
     source: '',
     senderInfo: '',
+    senderName: '',
+    senderMobile: '',
+    senderAddress: '',
+    sendExpressNo: '',
     senderVoucherImg: '',
+    senderVoucherFiles: [],
+    returnMethod: '',
+    returnExpressNo: '',
   },
   acceptor: {
+    currentAcceptCompanyName: '',
     sitePhone: '',
-    acceptorName: '',
   },
   fault: {
     desc: '',
     faultExplain: '',
     voiceDuration: '',
     images: [],
+    videos: [],
     videoThumb: '',
   },
   repair: {
@@ -422,8 +563,11 @@ export const createEmptyOrderDetail = (): OrderDetail => ({
       date: '',
       desc: '',
     },
+    currentFaults: [],
     history: [],
+    allRepairsFaultRecords: [],
   },
+  processFlows: [],
   contact: {
     phone: '',
   },
@@ -434,22 +578,37 @@ const emptyMailReturnEcho: MailReturnFormEcho = {
   receiverName: '',
   receiverPhone: '',
   receiverAddress: '',
+  sendExpressNo: '',
   receiptImagePaths: [],
 }
 
 /**
  * 获取寄件信息（用于 ReturnMethodModal 初始值）
+ * 姓名/电话/地址/寄件单号：优先详情寄件字段，缺省再用 `mailReturnForm` 补齐。
+ * 回寄快递单号照片：始终不预填，由用户在弹窗内自行上传（不从详情 `senderVoucherFiles` / `returnVoucherFiles` 带入）。
  * @param detail 工单详情
  * @returns 寄件信息
  */
 export const getReturnMethodInitialMail = (detail: OrderDetail | undefined): MailReturnFormEcho => {
-  if (!detail?.service.mailReturnForm) return { ...emptyMailReturnEcho }
-  const f = detail.service.mailReturnForm
+  if (!detail) return { ...emptyMailReturnEcho }
+  const s = detail.service
+  const fromVo: MailReturnFormEcho = {
+    receiverName: String(s.senderName ?? '').trim(),
+    receiverPhone: String(s.senderMobile ?? '').trim(),
+    receiverAddress: String(s.senderAddress ?? '').trim(),
+    sendExpressNo: String(s.sendExpressNo ?? '').trim(),
+    receiptImagePaths: [],
+  }
+  const m = s.mailReturnForm
+  if (!m) {
+    return { ...fromVo }
+  }
   return {
-    receiverName: f.receiverName ?? '',
-    receiverPhone: f.receiverPhone ?? '',
-    receiverAddress: f.receiverAddress ?? '',
-    receiptImagePaths: f.receiptImagePaths?.length ? [...f.receiptImagePaths] : [],
+    receiverName: fromVo.receiverName || String(m.receiverName ?? '').trim(),
+    receiverPhone: fromVo.receiverPhone || String(m.receiverPhone ?? '').trim(),
+    receiverAddress: fromVo.receiverAddress || String(m.receiverAddress ?? '').trim(),
+    sendExpressNo: fromVo.sendExpressNo || String(m.sendExpressNo ?? '').trim(),
+    receiptImagePaths: [],
   }
 }
 
@@ -460,3 +619,4 @@ export const getReturnMethodInitialMail = (detail: OrderDetail | undefined): Mai
  */
 export const cloneOrderDetail = (order?: OrderDetail) =>
   JSON.parse(JSON.stringify(order ?? createEmptyOrderDetail())) as OrderDetail
+

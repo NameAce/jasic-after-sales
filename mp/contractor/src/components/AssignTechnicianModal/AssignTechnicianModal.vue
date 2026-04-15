@@ -21,9 +21,9 @@
         @tap="selectTechnician(tech.id)"
       >
         <view class="avatar-wrap">
-          <image class="avatar" :src="tech.avatar" mode="aspectFill" />
+          <image class="avatar" :src="avatarDisplayUrl(tech.avatar)" mode="aspectFill" />
           <view v-if="selectedId === tech.id" class="check-badge">
-            <text class="material-symbols-outlined icon">check</text>
+            <uni-icons type="checkmarkempty" size="12" color="#fff"></uni-icons>
           </view>
         </view>
 
@@ -60,6 +60,14 @@
   import { computed, ref, watch } from 'vue'
   import CommonModal from '@/components/CommonModal/CommonModal.vue'
 
+  /** 派单弹窗：未设置头像时使用默认维修员形象 */
+  const DEFAULT_ASSIGN_AVATAR = '/static/images/worker.png'
+
+  const avatarDisplayUrl = (avatar?: string) => {
+    const s = (avatar ?? '').trim()
+    return s || DEFAULT_ASSIGN_AVATAR
+  }
+
   /** 维修员类型 */
   export type Technician = {
     id: number | string
@@ -86,12 +94,15 @@
     defineProps<{
       modelValue: boolean
       technicianList: Technician[]
+      /** 当前要派单的工单 ID（与列表/工作台 `order.id` 一致），确认时原样带回，避免异步加载人员期间切换工单导致入参错乱 */
+      assignWorkOrderId?: string | number | null
       title?: string
       searchPlaceholder?: string
       selectedTechId?: number | string | null
       resetOnOpen?: boolean
     }>(),
     {
+      assignWorkOrderId: null,
       title: '指派维修员',
       searchPlaceholder: '搜索姓名/手机号',
       selectedTechId: null,
@@ -108,7 +119,7 @@
     (e: 'update:modelValue', v: boolean): void
     (e: 'update:selectedTechId', v: number | string | null): void
     (e: 'close'): void
-    (e: 'confirm', payload: { selectedTechId: number | string; technician: Technician }): void
+    (e: 'confirm', payload: { workOrderId: string | number; selectedTechId: number | string; technician: Technician }): void
   }>()
 
   /**
@@ -189,7 +200,12 @@
       uni.showToast({ title: '所选维修员不存在', icon: 'none' })
       return
     }
-    emit('confirm', { selectedTechId: selectedId.value, technician: tech })
+    const wid = props.assignWorkOrderId
+    if (wid === null || wid === undefined || wid === '') {
+      uni.showToast({ title: '工单信息缺失，请关闭后重试', icon: 'none' })
+      return
+    }
+    emit('confirm', { workOrderId: wid, selectedTechId: selectedId.value, technician: tech })
   }
 </script>
 
@@ -264,20 +280,18 @@
 
     .check-badge {
       position: absolute;
-      bottom: -8rpx;
-      right: -8rpx;
-      background-color: $primary;
-      color: $surface-white;
-      padding: 4rpx;
+      right: -4rpx;
+      bottom: -4rpx;
+      z-index: 1;
+      box-sizing: border-box;
+      width: 40rpx;
+      height: 40rpx;
       border-radius: 50%;
+      border: 3rpx solid $surface-white;
+      background-color: $primary;
       display: flex;
       align-items: center;
       justify-content: center;
-
-      .icon {
-        font-size: 24rpx;
-        font-weight: bold;
-      }
     }
 
     .avatar {

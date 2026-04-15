@@ -2,8 +2,8 @@
   <view class="site-workbench">
     <view class="stats-section">
       <view class="stat-card primary" @tap="emit('stat-tap', 'pending')">
-        <text class="stat-label">今日{{ pendingStatLabel }}</text>
-        <text class="stat-value">{{ siteWorkbenchStats.pending }}</text>
+        <text class="stat-label">{{ primaryPendingStat.label }}</text>
+        <text class="stat-value">{{ primaryPendingStat.count }}</text>
       </view>
       <view class="stat-card" @tap="emit('stat-tap', 'processing')">
         <text class="stat-label">维修中</text>
@@ -19,7 +19,6 @@
 
     <view class="list-header">
       <text class="list-title">{{ workbenchListTitle }}</text>
-      <text class="badge">{{ orderList.length }}条</text>
     </view>
 
     <OrderCardList
@@ -29,6 +28,7 @@
       other-brand-label="非佳士品牌"
       :empty-title="workbenchEmptyTitle"
       :empty-desc="workbenchEmptyDesc"
+      :show-no-more="showNoMore"
       :show-inbound-transfer-tag="showInboundTransferTag"
       :show-transferred-tag="showTransferredTag"
       @order-click="(o) => emit('order-click', o)"
@@ -59,24 +59,35 @@
   import OrderCardList from '@/components/OrderCardList/OrderCardList.vue'
   import type { OrderListItem } from '@/models/order'
 
-  defineProps<{
-    pendingStatLabel: string
-    siteWorkbenchStats: {
-      pending: number
-      processing: number
-      completed: number
-      closed: number
-    }
-    workbenchListTitle: string
-    workbenchEmptyTitle: string
-    workbenchEmptyDesc: string
-    orderList: OrderListItem[]
-    getOrderListStatusText: (order: OrderListItem) => string
-    showAcceptOrderButton: (order: OrderListItem) => boolean
-    showDispatchOrderButton: (order: OrderListItem) => boolean
-    showInboundTransferTag: (order: OrderListItem) => boolean
-    showTransferredTag: (order: OrderListItem) => boolean
-  }>()
+  const props = withDefaults(
+    defineProps<{
+      /** 首卡：与接口 `status-count` 中 PENDING_ASSIGN / PENDING_TECH_ACCEPT 行的 displayStatus、countNum 一致 */
+      primaryPendingStat: { label: string; count: number }
+      /**
+       * 来自 `GET /api/system/work-order/status-count`（`viewScope: CURRENT`），
+       * 父级 `useIndexWorkbench` 内 `aggregateWorkOrderStatusTabCounts` 聚合后与列表一并刷新。
+       */
+      siteWorkbenchStats: {
+        pendingAssign: number
+        pendingTechAccept: number
+        processing: number
+        completed: number
+        closed: number
+      }
+      workbenchListTitle: string
+      workbenchEmptyTitle: string
+      workbenchEmptyDesc: string
+      /** 工单列表已加载完全部分页数据时展示「没有更多了」 */
+      showNoMore?: boolean
+      orderList: OrderListItem[]
+      getOrderListStatusText: (order: OrderListItem) => string
+      showAcceptOrderButton: (order: OrderListItem) => boolean
+      showDispatchOrderButton: (order: OrderListItem) => boolean
+      showInboundTransferTag: (order: OrderListItem) => boolean
+      showTransferredTag: (order: OrderListItem) => boolean
+    }>(),
+    { showNoMore: false }
+  )
 
   const emit = defineEmits<{
     (e: 'stat-tap', tab: 'pending' | 'processing' | 'completed'): void
@@ -141,15 +152,6 @@
       font-size: $font-lg;
       font-weight: bold;
       color: $text-slate-900;
-    }
-
-    .badge {
-      background-color: $primary-alpha-10;
-      color: $primary;
-      font-size: 20rpx;
-      padding: 4rpx 12rpx;
-      border-radius: $radius-pill;
-      font-weight: bold;
     }
   }
 </style>

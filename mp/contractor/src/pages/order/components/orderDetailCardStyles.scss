@@ -77,16 +77,28 @@
       }
     }
 
-    .image-grid {
+    /* 故障视频与图片同一网格：等宽单元、1:1 占位，横向并排换行 */
+    .fault-media-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: $space-sm;
 
-      .grid-img {
+      .fault-media-cell {
         width: 100%;
         aspect-ratio: 1 / 1;
         border-radius: $radius-md;
         background-color: $surface-slate-100;
+        overflow: hidden;
+      }
+
+      .fault-media-tap {
+        position: relative;
+      }
+
+      .fault-video {
+        width: 100%;
+        height: 100%;
+        display: block;
       }
     }
   }
@@ -95,6 +107,52 @@
 .od-fault-point-info {
   @include flex-col;
   gap: $space-lg;
+
+  .flow-block {
+    @include flex-col;
+    gap: $space-md;
+
+    .flow-block-title {
+      font-size: $font-sm;
+      font-weight: bold;
+      color: $text-slate-700;
+    }
+
+    .flow-item {
+      @include flex-col;
+      gap: $space-xs;
+      padding: $space-md;
+      background: $surface-slate-50;
+      border-radius: $radius-md;
+      border-left: 4rpx solid rgba($primary, 0.35);
+
+      .flow-item-head {
+        @include flex-between;
+        align-items: flex-start;
+        gap: $space-sm;
+      }
+
+      .flow-item-title {
+        flex: 1;
+        font-size: $font-sm;
+        font-weight: 600;
+        color: $text-slate-700;
+        line-height: 1.4;
+      }
+
+      .flow-item-time {
+        flex-shrink: 0;
+        font-size: 20rpx;
+        color: $text-slate-400;
+      }
+
+      .flow-item-detail {
+        font-size: $font-sm;
+        color: $text-slate-600;
+        line-height: 1.5;
+      }
+    }
+  }
 
   .history-header {
     @include flex-between;
@@ -116,22 +174,29 @@
 
   .history-record {
     @include surface-muted-box;
-    border-left: 4rpx solid rgba($primary, 0.3);
+    border-left: 4rpx solid $primary;
 
     .record-top {
       @include flex-between;
-      margin-bottom: $space-xs;
+      align-items: center;
+      margin-bottom: $space-sm;
 
       .record-label {
         font-size: $font-sm;
-        font-weight: bold;
-        color: $text-slate-700;
+        font-weight: 600;
+        color: $text-slate-900;
       }
 
       .record-date {
+        flex-shrink: 0;
         font-size: 20rpx;
         color: $text-slate-400;
       }
+    }
+
+    .record-body {
+      @include flex-col;
+      gap: $space-xs;
     }
 
     .record-desc {
@@ -156,6 +221,10 @@
       align-items: flex-start;
     }
 
+    &.align-center {
+      align-items: center;
+    }
+
     .info-label {
       color: $text-slate-500;
 
@@ -177,6 +246,30 @@
         text-align: right;
         line-height: 1.4;
       }
+    }
+
+    .tag-value {
+      flex-shrink: 0;
+      padding: 4rpx $space-sm;
+      font-size: $font-sm;
+      font-weight: 500;
+      border-radius: $radius-sm;
+      line-height: 1.4;
+    }
+
+    .tag-fault-judge-green {
+      background-color: rgba($status-completed-text, 0.14);
+      color: $status-completed-text;
+    }
+
+    .tag-fault-judge-red {
+      background-color: rgba($red-600, 0.14);
+      color: $red-600;
+    }
+
+    .tag-fault-judge-neutral {
+      @include surface-muted;
+      color: $text-slate-500;
     }
   }
 

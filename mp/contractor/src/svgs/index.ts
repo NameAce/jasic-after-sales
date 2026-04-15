@@ -1,3 +1,4 @@
+export { default as addressManualIcon } from './address-manual.svg'
 import addAPhotoIcon from './add-a-photo.svg'
 import completeCheckIcon from './complete-check.svg'
 import editIcon from './edit.svg'
@@ -21,6 +22,7 @@ import submitQuoteIcon from './submit-quote.svg'
 import storeIcon from './store.svg'
 import volumeUpIcon from './volume-up.svg'
 import verifiedIcon from './verified.svg'
+export { default as wechatChatIcon } from './wechat-chat.svg'
 
 export {
   addAPhotoIcon,

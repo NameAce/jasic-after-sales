@@ -81,22 +81,48 @@
             <uni-easyinput v-model="formData.customerName" placeholder="请输入客户姓名" />
           </uni-forms-item>
 
-          <!-- 故障描述：默认显示；商品查询无结果/无预设列表时隐藏，改填故障说明备注 -->
+          <!-- 故障描述：仅当条码查询接口返回非空 faultOptions 时展示（下拉多选） -->
           <uni-forms-item
-            v-if="showFaultDescriptionSelect"
+            v-if="barcodeQueryHasFaultDescription"
             label="故障描述"
             name="faultDescription"
             required
           >
-            <uni-data-select
-              v-model="formData.faultDescription"
-              :localdata="resolvedFaultDescriptionOptions"
-              placeholder="请选择"
-              @change="handleFaultDescriptionChange"
-            />
+            <view class="fault-desc-picker" @click="openFaultDescDropdown">
+              <text :class="['fault-desc-picker-text', { placeholder: !selectedFaultDescText }]">
+                {{ selectedFaultDescText || '请选择' }}
+              </text>
+              <uni-icons type="down" size="15" color="#cbd5e1" />
+            </view>
+            <view v-if="showFaultDescDropdown" class="fault-desc-dropdown">
+              <view
+                v-for="option in faultDescriptionOptionsFromApi"
+                :key="option.value"
+                class="fault-desc-option"
+                @click.stop="toggleDraftFaultDesc(option.value)"
+              >
+                <checkbox
+                  :checked="draftFaultDesc.includes(option.value)"
+                  color="#f26604"
+                  style="transform: scale(0.8); transform-origin: center"
+                />
+                <text class="fault-desc-option-text">{{ option.text }}</text>
+              </view>
+              <view class="fault-desc-dropdown-actions">
+                <view class="dropdown-btn dropdown-btn--cancel" @click.stop="cancelFaultDescSelect">
+                  取消
+                </view>
+                <view
+                  class="dropdown-btn dropdown-btn--confirm"
+                  @click.stop="confirmFaultDescSelect"
+                >
+                  确定
+                </view>
+              </view>
+            </view>
           </uni-forms-item>
 
-          <!-- 故障说明备注：无预设列表时必填；有列表且选「其它故障」时必填 -->
+          <!-- 故障说明备注：无故障下拉时整段必填；有下拉时仅「其它/其他故障」类选项必填 -->
           <uni-forms-item v-if="showFaultRemark" label="故障说明备注" name="faultRemark" required>
             <uni-easyinput
               v-model="formData.faultRemark"
@@ -111,14 +137,14 @@
             <RepairTypeSelector v-model="formData.repairType" :options="repairTypes" />
           </uni-forms-item>
 
-          <!-- 寄件信息（仅佳士品牌显示） -->
+          <!-- 寄件信息（仅佳士品牌且邮寄；交互对齐售后端） -->
           <uni-forms-item v-if="showShippingInfo" label="寄件信息" name="shippingInfo" required>
-            <uni-easyinput
-              v-model="formData.shippingInfo"
-              type="textarea"
-              auto-height
-              placeholder="请输入寄件信息"
-            />
+            <view class="shipping-address-btn" @click="chooseShippingAddress">
+              <text :class="['shipping-address-text', { placeholder: !formData.shippingInfo }]">{{
+                shippingInfoDisplay
+              }}</text>
+              <uni-icons type="right" size="14" color="#94a3b8" />
+            </view>
           </uni-forms-item>
         </view>
       </view>
@@ -134,17 +160,7 @@
         </view>
 
         <view v-show="showSupplementSection" class="card card-shadow form-padding">
-          <!-- 故障语音说明：录音条（VoiceInputField）+ 列表播放（VoicePlaybackList，与售后页组件拆分一致） -->
-          <VoiceInputField v-model="formData.voiceList" :show-recorded-list="false" />
-          <view v-if="!formData.voiceList.length" class="voice-empty-hint">
-            <text>暂无录音</text>
-          </view>
-          <VoicePlaybackList
-            v-else
-            :items="voicePlaybackItems"
-            deletable
-            @remove="onVoicePlaybackRemove"
-          />
+          <VoiceInputField v-model="formData.voiceList" />
 
           <!-- 故障视频/图片 -->
           <MediaUploadField
@@ -154,8 +170,8 @@
             file-mediatype="all"
             :limit="4"
             :del-icon="true"
-            @select="handleFaultMediaSelect"
-            @delete="handleFaultMediaDelete"
+            @select="onFaultMediaChange"
+            @delete="onFaultMediaChange"
           />
 
           <!-- 寄件快递图片 -->
@@ -167,8 +183,6 @@
             :limit="2"
             :max-file-size="1024 * 1024 * 10"
             :del-icon="true"
-            @select="handleExpressImageSelect"
-            @delete="handleExpressImageDelete"
           />
         </view>
       </view>
@@ -189,7 +203,7 @@
   </base-button>
 
   <!-- 报修提示弹窗 -->
-  <view v-if="showWarrantyModal" class="modal-mask" @click="showWarrantyModal = false">
+  <view v-if="showWarrantyModal" class="modal-mask" @click="onWarrantyModalBackdropClick">
     <view class="modal-content" @click.stop>
       <view class="modal-body">
         <view class="modal-icon-box">
@@ -198,7 +212,7 @@
         <view class="modal-title">报修提示</view>
         <view class="modal-desc">无条码或无法识别条码，系统默认该机器已过保</view>
         <view class="modal-actions">
-          <button class="btn-cancel" @click="showWarrantyModal = false">取消</button>
+          <button class="btn-cancel" @click="onWarrantyModalBackdropClick">取消</button>
           <button
             v-if="userStore.hasPermission(Perms.WORKORDER_ADD)"
             class="btn-confirm"
@@ -217,27 +231,44 @@
    * 建维修订单：提交/确认提交需 ORDER_CREATE（按钮级）；主体类型仅影响文案/表单项展示。
    */
   import { ref, computed, watch, nextTick, onMounted, onActivated } from 'vue'
+  import { onShow } from '@dcloudio/uni-app'
+  import { useAppStore } from '@/stores'
   import { useUserStore } from '@/stores/modules/user'
   import { Perms } from '@/utils/permissions'
+  import { REPAIR_TYPE_OPTIONS } from '@/constants/repairForm'
   import BaseButton from '@/components/BaseButton/BaseButton.vue'
   import RepairTypeSelector from '@/components/RepairTypeSelector/RepairTypeSelector.vue'
   import MediaUploadField from '@/components/MediaUploadField/MediaUploadField.vue'
   import VoiceInputField from '@/components/VoiceInputField/VoiceInputField.vue'
-  import VoicePlaybackList from '@/components/VoicePlaybackList/VoicePlaybackList.vue'
-  import type { VoicePlaybackItem } from '@/components/VoicePlaybackList/VoicePlaybackList.vue'
   import {
     createProxyWorkOrder,
     createUpstreamFirstWorkOrder,
     createUpstreamHqWorkOrder,
     fetchProxyBarcodeInfo,
     fetchUpstreamFirstBarcodeInfo,
+    type WorkOrderCreateBarcodeInfoVO,
     type WorkOrderProxyCreateDTO,
     type WorkOrderUpstreamCreateDTO
   } from '@/api/order'
   import { getApiMessage } from '@/utils/http'
   import { MOBILE_PATTERN } from '@/utils/validation'
+  import { validateFaultMediaSelection } from '@/utils/repairMediaLimits'
+  import {
+    asUnknownArray,
+    collectVoucherFileIds,
+    collectVoiceFileIds,
+    hasUnuploadedMediaItems,
+    partitionFaultMediaFileIds
+  } from '@/utils/workOrderFileIds'
+  import { takeSelectedShippingAddress, type SelectedShippingAddress } from '@/utils/addressStorage'
+  import {
+    resolveSendExpressNoForSubmit,
+    resolveShippingSubmitFields
+  } from '@/utils/shippingSubmitFields'
+  import { toastIfMediaUploading } from '@/utils/mediaUploadLock'
 
   // 用户商店
+  const appStore = useAppStore()
   const userStore = useUserStore()
 
   /**
@@ -250,22 +281,21 @@
   const repairEntryTab = ref<'proxy' | 'upstream'>('proxy')
   // 是否显示客户手机号码
   const showContactMobileField = computed(() => repairEntryTab.value === 'proxy')
-  // 设置维修入口标签
-  const setRepairEntryTab = (tab: 'proxy' | 'upstream') => {
-    repairEntryTab.value = tab
-    nextTick(() => {
-      const fr = formRef.value as { clearValidate?: (names?: string[]) => void } | null
-      fr?.clearValidate?.(['contactMobile'])
-    })
-  }
 
   // 表单引用
   const formRef = ref(null)
 
   // 表单类型
   const formType = 'jasic'
-  // 草稿存储键
-  const DRAFT_KEY = 'jasicRepairDraft'
+  /** 旧版单一草稿键（仅迁移后删除） */
+  const DRAFT_KEY_LEGACY = 'jasicRepairDraft'
+  const DRAFT_KEY_PROXY = 'jasicRepairDraft_proxy'
+  const DRAFT_KEY_UPSTREAM = 'jasicRepairDraft_upstream'
+  /** 上次停留的 tab，用于两个 tab 均有暂存时决定首屏 */
+  const DRAFT_LAST_TAB_KEY = 'jasicRepairDraft_lastTab'
+
+  const draftStorageKey = (tab: 'proxy' | 'upstream') =>
+    tab === 'upstream' ? DRAFT_KEY_UPSTREAM : DRAFT_KEY_PROXY
   // 创建初始表单数据
   const createInitialFormData = () => ({
     // 保修码
@@ -274,10 +304,10 @@
     contactMobile: '',
     // 客户姓名（仅代客户填写）
     customerName: '',
-    // 维修路径（仅送店 / 邮寄）
-    repairType: 'shop',
+    // 维修路径（STORE=送店 / MAIL=邮寄，与售后端一致）
+    repairType: 'STORE' as 'STORE' | 'MAIL',
     // 故障描述
-    faultDescription: '',
+    faultDescription: [] as string[],
     // 故障视频/图片
     images: [],
     // 寄件快递单号
@@ -286,52 +316,98 @@
     faultRemark: '',
     // 寄件信息
     shippingInfo: '',
-    // 语音列表（tempFilePath + duration 毫秒，与 VoiceInputField / VoicePlaybackList 一致）
-    voiceList: [] as { tempFilePath: string; duration: number }[]
+    // 语音列表（tempFilePath + duration 毫秒）
+    voiceList: [] as { tempFilePath: string; duration: number }[],
+    /** 一级报修佳士：目标受理公司 ID（uni-data-select 用字符串） */
+    targetCompanyId: ''
   })
+
+  const normalizeRepairType = (r: unknown): 'STORE' | 'MAIL' => {
+    if (r === 'MAIL' || r === 'mail') return 'MAIL'
+    return 'STORE'
+  }
+
+  type FormRef = { clearValidate?: (names?: string[]) => void }
+  const getFormRef = () => formRef.value as FormRef | null
 
   // 状态
   const formData = ref(createInitialFormData())
 
-  /** 供 VoicePlaybackList 使用：url + duration（毫秒） */
-  const voicePlaybackItems = computed<VoicePlaybackItem[]>(() =>
-    (formData.value.voiceList || []).map((v) => ({
-      url: v.tempFilePath,
-      duration: v.duration
-    }))
-  )
+  /** 最近一次条码查询返回（提交时 faultItems 等可兜底） */
+  const lastBarcodeInfo = ref<WorkOrderCreateBarcodeInfoVO | null>(null)
+  /** 仅当查询返回非空 faultOptions 时展示故障描述下拉 */
+  const barcodeQueryHasFaultDescription = ref(false)
+  const faultDescriptionOptionsFromApi = ref<{ text: string; value: string }[]>([])
+  /** 有条码但查询失败时仍须展示并必填故障说明备注 */
+  const queryFailedWithBarcode = ref(false)
+  /** 初始无条码时与售后端一致：展示故障说明备注 */
+  const showFaultRemark = ref(true)
+  const selectedShippingAddress = ref<SelectedShippingAddress | null>(null)
 
-  /**
-   * 从播放列表删除一条（与表单 voiceList 同步）
-   * @param index - 索引
-   */
-  const onVoicePlaybackRemove = (index: number) => {
-    const list = [...(formData.value.voiceList || [])]
-    if (index < 0 || index >= list.length) return
-    list.splice(index, 1)
-    formData.value.voiceList = list
-  }
+  const shippingInfoDisplay = computed(() => formData.value.shippingInfo || '请选择寄件信息')
 
   // 是否显示寄件信息（仅佳士品牌且选择邮寄维修）
   const showShippingInfo = computed(
-    () => formType === 'jasic' && formData.value.repairType === 'mail'
+    () => formType === 'jasic' && formData.value.repairType === 'MAIL'
   )
 
   const OTHER_FAULT_VALUE = 'other'
 
-  /** 预设故障选项（未查询时兜底） */
-  const DEFAULT_FAULT_DESCRIPTION_OPTIONS = [
-    { text: '其它故障', value: OTHER_FAULT_VALUE },
-    { text: '无法开机', value: 'no_power' },
-    { text: '无法焊接', value: 'no_weld' },
-    { text: '显示异常', value: 'display_error' },
-    { text: '按键失灵', value: 'key_failure' }
-  ]
+  /**
+   * 将条码查询返回的 targetCompanyOptions 映射为 uni-data-select 结构。
+   */
+  const mapTargetCompanyOptionsToSelect = (raw: unknown) => {
+    if (!Array.isArray(raw)) return []
+    return raw
+      .map((item) => {
+        const o = item as { id?: number; companyName?: string; companyCode?: string }
+        const id = Number(o?.id)
+        if (!Number.isFinite(id) || id <= 0) return null
+        const name = String(o?.companyName || o?.companyCode || '').trim() || `公司#${id}`
+        return { text: name, value: String(id) }
+      })
+      .filter((x): x is { text: string; value: string } => x != null)
+  }
+
+  /**
+   * 一级报修佳士：根据条码查询结果同步目标受理公司（多选时保留用户已选且仍合法）。
+   */
+  const syncUpstreamTargetCompanyFromBarcodeInfo = (
+    info: WorkOrderCreateBarcodeInfoVO | null | undefined
+  ) => {
+    if (repairEntryTab.value !== 'upstream') {
+      formData.value.targetCompanyId = ''
+      return
+    }
+    if (!userStore.isPrimaryDealer) {
+      formData.value.targetCompanyId = ''
+      return
+    }
+    const opts = mapTargetCompanyOptionsToSelect(info?.targetCompanyOptions)
+    const defId = Number(info?.defaultTargetCompanyId)
+    const hqId = Number(info?.hqCompanyId)
+    const cur = Number(formData.value.targetCompanyId)
+    const curInOpts = opts.some((o) => Number(o.value) === cur)
+
+    if (opts.length > 1) {
+      if (!Number.isFinite(cur) || cur <= 0 || !curInOpts) {
+        const defOk =
+          Number.isFinite(defId) && defId > 0 && opts.some((o) => Number(o.value) === defId)
+        formData.value.targetCompanyId = defOk ? String(defId) : ''
+      }
+    } else if (opts.length === 1) {
+      formData.value.targetCompanyId = opts[0].value
+    } else {
+      const fallback = Number.isFinite(defId) && defId > 0 ? defId : hqId
+      formData.value.targetCompanyId =
+        Number.isFinite(fallback) && fallback > 0 ? String(fallback) : ''
+    }
+  }
 
   /**
    * 将后端故障选项映射为 uni-data-select 所需结构。
-   * - 其它故障统一归一化为 value=other，便于沿用现有「备注必填」逻辑；
-   * - 其余选项使用自身文本作为 value，避免与后端定义不一致。
+   * - 其它故障统一归一化为 value=other；
+   * - 其余选项使用自身文本作为 value。
    */
   const mapFaultOptionsToSelect = (faultOptions: unknown, otherFaultLabel?: string) => {
     if (!Array.isArray(faultOptions)) return []
@@ -360,37 +436,49 @@
 
   /** 当前条码是否已完成一次商品查询（含失败/无结果，便于校验「先查询」） */
   const warrantyQueried = ref(false)
-  /**
-   * 查询返回的预设故障列表：
-   * null — 尚未根据当前条码查询，下拉使用本地默认项；
-   * [] — 已查询但无商品/无预设/查询失败 → 隐藏下拉，仅填备注；
-   * 非空 — 使用接口返回项。
-   */
-  const productFaultDescriptionOptions = ref<{ text: string; value: string }[] | null>(null)
-  // 是否显示故障描述选择
-  const showFaultDescriptionSelect = computed(() => {
-    const opts = productFaultDescriptionOptions.value
-    if (opts === null) return true
-    return opts.length > 0
-  })
 
-  // 是否显示故障说明备注
-  const showFaultRemark = computed(() => {
-    const opts = productFaultDescriptionOptions.value
-    if (opts === null) {
-      return formType === 'jasic' && formData.value.faultDescription === OTHER_FAULT_VALUE
+  const normalizeFaultDescriptionValue = (val: unknown): string[] => {
+    if (Array.isArray(val)) return val.map((x) => String(x)).filter(Boolean)
+    const single = String(val ?? '').trim()
+    return single ? [single] : []
+  }
+
+  /** 是否为「其它 / 其他故障」类选项（展示并必填故障说明备注） */
+  const isOtherFaultSelection = (value: string) => {
+    const v = String(value ?? '').trim()
+    if (!v) return false
+    if (/^(other|others)$/i.test(v)) return true
+    const opt = faultDescriptionOptionsFromApi.value.find((o) => o.value === v)
+    const text = (opt?.text ?? '').trim()
+    const label =
+      typeof lastBarcodeInfo.value?.otherFaultLabel === 'string'
+        ? lastBarcodeInfo.value.otherFaultLabel.trim()
+        : ''
+    if (label && (v === label || text === label)) return true
+    if (/(其它|其他)/.test(text) && /故障/.test(text)) return true
+    if (/(其它|其他)/.test(v) && /故障/.test(v)) return true
+    return false
+  }
+
+  /** 按条码 / 查询结果同步是否展示「故障说明备注」 */
+  const syncShowFaultRemarkFromState = () => {
+    const code = String(formData.value.warrantyCode ?? '').trim()
+    if (!code) {
+      showFaultRemark.value = true
+      return
     }
-    if (!warrantyQueried.value) return false
-    if (opts.length === 0) return true
-    return formType === 'jasic' && formData.value.faultDescription === OTHER_FAULT_VALUE
-  })
-
-  // 解析故障描述选项
-  const resolvedFaultDescriptionOptions = computed(() => {
-    const opts = productFaultDescriptionOptions.value
-    if (opts === null) return DEFAULT_FAULT_DESCRIPTION_OPTIONS
-    return opts
-  })
+    if (barcodeQueryHasFaultDescription.value) {
+      showFaultRemark.value = normalizeFaultDescriptionValue(formData.value.faultDescription).some((v) =>
+        isOtherFaultSelection(v)
+      )
+      return
+    }
+    if (lastBarcodeInfo.value || queryFailedWithBarcode.value) {
+      showFaultRemark.value = true
+      return
+    }
+    showFaultRemark.value = false
+  }
 
   // 校验规则（「报修一级/报修佳士」不包含手机号校验）
   const formRules = computed(() => {
@@ -402,14 +490,14 @@
         rules: [{ required: true, errorMessage: '请选择维修路径' }]
       }
     }
-    if (showFaultDescriptionSelect.value) {
+    if (barcodeQueryHasFaultDescription.value) {
       base.faultDescription = {
-        rules: [{ required: true, errorMessage: '请选择故障描述' }]
+        rules: [{ required: true, errorMessage: '请填写故障描述' }]
       }
     }
     if (showFaultRemark.value) {
       base.faultRemark = {
-        rules: [{ required: true, errorMessage: '请输入故障说明备注' }]
+        rules: [{ required: true, errorMessage: '请填写故障说明备注' }]
       }
     }
     if (repairEntryTab.value === 'proxy') {
@@ -423,9 +511,9 @@
         rules: [{ required: true, errorMessage: '请输入客户姓名' }]
       }
     }
-    if (formType === 'jasic' && formData.value.repairType === 'mail') {
+    if (formType === 'jasic' && formData.value.repairType === 'MAIL') {
       base.shippingInfo = {
-        rules: [{ required: true, errorMessage: '请输入寄件信息' }]
+        rules: [{ required: true, errorMessage: '请填写寄件信息' }]
       }
     }
     return base
@@ -442,25 +530,87 @@
 
   // 用于避免“回显草稿”时触发 warrantyCode 监听器清空数据
   const isRestoringDraft = ref(false)
+  /** 切换入口 tab 恢复快照时避免 warrantyCode 监听误清空 */
+  const isRestoringTabSnapshot = ref(false)
 
-  // 维修路径选项
-  const repairTypes = [
-    { label: '送店维修', value: 'shop', icon: 'shop-filled' },
-    { label: '邮寄维修', value: 'mail', icon: 'paperplane-filled' }
-  ]
+  type RepairEntryTabSnapshot = {
+    formData: ReturnType<typeof createInitialFormData>
+    warrantyQueried: boolean
+    lastBarcodeInfo: WorkOrderCreateBarcodeInfoVO | null
+    barcodeQueryHasFaultDescription: boolean
+    faultDescriptionOptionsFromApi: { text: string; value: string }[]
+    queryFailedWithBarcode: boolean
+    showFaultRemark: boolean
+    selectedShippingAddress: SelectedShippingAddress | null
+    showSupplementSection: boolean
+  }
+
+  const tabFormSnapshots = ref<Partial<Record<'proxy' | 'upstream', RepairEntryTabSnapshot>>>({})
 
   /**
-   * 监听维修路径变化
-   * @param val 维修路径
+   * 将本地存储的一条 tab 草稿解析为切换 tab 用的快照结构。
    */
+  const parseTabDraftToSnapshot = (raw: unknown): RepairEntryTabSnapshot | null => {
+    if (!raw || typeof raw !== 'object') return null
+    const d = raw as {
+      formType?: string
+      warrantyQueried?: boolean
+      barcodeQueryHasFaultDescription?: boolean
+      faultDescriptionOptionsFromApi?: { text: string; value: string }[]
+      productFaultDescriptionOptions?: { text: string; value: string }[] | null
+      lastBarcodeInfo?: WorkOrderCreateBarcodeInfoVO | null
+      queryFailedWithBarcode?: boolean
+      formData?: Partial<ReturnType<typeof createInitialFormData>>
+      showFaultRemark?: boolean
+      selectedShippingAddress?: SelectedShippingAddress | null
+      showSupplementSection?: boolean
+    }
+    if (d.formType !== formType) return null
+
+    let faultOpts: { text: string; value: string }[] = []
+    let hasFd = false
+    if (Array.isArray(d.faultDescriptionOptionsFromApi)) {
+      faultOpts = d.faultDescriptionOptionsFromApi
+      hasFd = !!d.barcodeQueryHasFaultDescription
+    } else if (Array.isArray(d.productFaultDescriptionOptions)) {
+      faultOpts = d.productFaultDescriptionOptions
+      hasFd = d.productFaultDescriptionOptions.length > 0
+    }
+
+    const formMerged = {
+      ...createInitialFormData(),
+      ...(d.formData || {})
+    }
+    formMerged.repairType = normalizeRepairType(formMerged.repairType)
+    formMerged.faultDescription = normalizeFaultDescriptionValue(formMerged.faultDescription)
+
+    return {
+      formData: JSON.parse(JSON.stringify(formMerged)) as ReturnType<typeof createInitialFormData>,
+      warrantyQueried: !!d.warrantyQueried,
+      lastBarcodeInfo:
+        d.lastBarcodeInfo && typeof d.lastBarcodeInfo === 'object'
+          ? (JSON.parse(JSON.stringify(d.lastBarcodeInfo)) as WorkOrderCreateBarcodeInfoVO)
+          : null,
+      barcodeQueryHasFaultDescription: hasFd,
+      faultDescriptionOptionsFromApi: [...faultOpts],
+      queryFailedWithBarcode: !!d.queryFailedWithBarcode,
+      showFaultRemark: typeof d.showFaultRemark === 'boolean' ? d.showFaultRemark : true,
+      selectedShippingAddress: d.selectedShippingAddress
+        ? ({ ...d.selectedShippingAddress } as SelectedShippingAddress)
+        : null,
+      showSupplementSection: !!d.showSupplementSection
+    }
+  }
+
+  const repairTypes = REPAIR_TYPE_OPTIONS
+
   watch(
     () => formData.value.repairType,
     (val) => {
-      if (val !== 'mail') {
-        nextTick(() => {
-          const fr = formRef.value as { clearValidate?: (names?: string[]) => void } | null
-          fr?.clearValidate?.(['shippingInfo'])
-        })
+      if (val === 'STORE') {
+        formData.value.shippingInfo = ''
+        selectedShippingAddress.value = null
+        nextTick(() => getFormRef()?.clearValidate?.(['shippingInfo']))
       }
     }
   )
@@ -470,6 +620,7 @@
    * @returns void
    */
   const handleScan = () => {
+    if (toastIfMediaUploading()) return
     uni.scanCode({
       success: (res) => {
         formData.value.warrantyCode = res.result
@@ -482,230 +633,383 @@
    * @returns void
    */
   const toggleSupplementSection = () => {
+    if (toastIfMediaUploading()) return
     showSupplementSection.value = !showSupplementSection.value
   }
 
   /**
    * 查询条码信息（按入口区分：代客户填写 / 报修一级）
-   * @returns void
+   * @param options.silentToast - 进入页自动查询时不弹成功提示
+   * @param options.skipClearFaultFieldsWhenNoOptions - 自动查询且接口无故障下拉时不清空已填备注（与暂存恢复配合）
    */
-  const checkWarranty = () => {
-    if (!formData.value.warrantyCode) return uni.showToast({ title: '请输入条形码', icon: 'none' })
+  const checkWarranty = async (options?: {
+    silentToast?: boolean
+    skipClearFaultFieldsWhenNoOptions?: boolean
+    /** 进入页自动查询且有条码故障下拉时保留已填故障项（与暂存恢复一致） */
+    preserveFaultFieldsWhenHasOptions?: boolean
+  }) => {
+    const silentToast = options?.silentToast ?? false
+    const skipClearFaultFieldsWhenNoOptions = options?.skipClearFaultFieldsWhenNoOptions ?? false
+    const preserveFaultFieldsWhenHasOptions = options?.preserveFaultFieldsWhenHasOptions ?? false
+    if (!silentToast && toastIfMediaUploading()) return
+    if (!formData.value.warrantyCode) {
+      return uni.showToast({ title: '请输入条形码', icon: 'none', duration: 1500 })
+    }
     uni.showLoading({ title: '查询中...' })
+    const upstreamTid = Number(formData.value.targetCompanyId)
     const request =
       repairEntryTab.value === 'upstream'
-        ? fetchUpstreamFirstBarcodeInfo(formData.value.warrantyCode)
+        ? fetchUpstreamFirstBarcodeInfo(
+            formData.value.warrantyCode,
+            userStore.isPrimaryDealer && Number.isFinite(upstreamTid) && upstreamTid > 0
+              ? upstreamTid
+              : undefined
+          )
         : fetchProxyBarcodeInfo(formData.value.warrantyCode)
 
-    request
-      .then((info) => {
-        uni.hideLoading()
-        const list = mapFaultOptionsToSelect(info?.faultOptions, info?.otherFaultLabel)
-        uni.showToast({ title: info?.warrantyStatus || '查询成功', icon: 'success' })
-        warrantyQueried.value = true
-        productFaultDescriptionOptions.value = list
-        if (list.length === 0) {
-          formData.value.faultDescription = OTHER_FAULT_VALUE
+    try {
+      const { data: info, msg } = await request
+      uni.hideLoading()
+      const list = mapFaultOptionsToSelect(info?.faultOptions, info?.otherFaultLabel)
+      faultDescriptionOptionsFromApi.value = list
+      const hasFd = list.length > 0
+      barcodeQueryHasFaultDescription.value = hasFd
+      queryFailedWithBarcode.value = false
+      lastBarcodeInfo.value = info && typeof info === 'object' ? info : null
+      warrantyQueried.value = true
+      syncUpstreamTargetCompanyFromBarcodeInfo(info)
+
+      if (!hasFd) {
+        if (!skipClearFaultFieldsWhenNoOptions) {
+          formData.value.faultDescription = []
           formData.value.faultRemark = ''
+          nextTick(() => {
+            getFormRef()?.clearValidate?.(['faultDescription', 'faultRemark', 'targetCompanyId'])
+            syncShowFaultRemarkFromState()
+          })
         } else {
-          formData.value.faultDescription = ''
+          nextTick(() => syncShowFaultRemarkFromState())
+        }
+      } else {
+        if (!preserveFaultFieldsWhenHasOptions) {
+          formData.value.faultDescription = []
           formData.value.faultRemark = ''
         }
         nextTick(() => {
-          const fr = formRef.value as { clearValidate?: (names?: string[]) => void } | null
-          fr?.clearValidate?.(['faultDescription', 'faultRemark'])
+          getFormRef()?.clearValidate?.(['faultDescription', 'faultRemark', 'targetCompanyId'])
+          syncShowFaultRemarkFromState()
         })
-      })
-      .catch((err: unknown) => {
-        uni.hideLoading()
-        if (err instanceof Error && err.message) {
-          // api 层已提示，这里不重复弹错误文案
-        }
-        warrantyQueried.value = true
-        productFaultDescriptionOptions.value = []
-        formData.value.faultDescription = OTHER_FAULT_VALUE
-        formData.value.faultRemark = ''
-        // 清空表单校验
-        nextTick(() => {
-          const fr = formRef.value as { clearValidate?: (names?: string[]) => void } | null
-          fr?.clearValidate?.(['faultDescription', 'faultRemark'])
-        })
-      })
+      }
+
+      if (!silentToast) {
+        const title = msg.trim() || info?.warrantyStatus || '查询成功'
+        uni.showToast({ title, icon: 'success', duration: 1500 })
+      }
+    } catch {
+      uni.hideLoading()
+      faultDescriptionOptionsFromApi.value = []
+      barcodeQueryHasFaultDescription.value = false
+      lastBarcodeInfo.value = null
+      queryFailedWithBarcode.value = !!String(formData.value.warrantyCode ?? '').trim()
+      warrantyQueried.value = true
+      if (userStore.isPrimaryDealer && repairEntryTab.value === 'upstream') {
+        formData.value.targetCompanyId = ''
+      }
+      nextTick(() => syncShowFaultRemarkFromState())
+    }
   }
 
   /**
-   * 故障描述变化
-   * @param e 事件
-   * @returns void
+   * 进入页面且条码已有值时自动查询一次（恢复故障描述下拉与 lastBarcodeInfo）
    */
-  const handleFaultDescriptionChange = (e: unknown) => {
-    const val = typeof e === 'string' ? e : (e as { detail?: { value?: string } })?.detail?.value
-    if (formType !== 'jasic' || !showFaultDescriptionSelect.value) return
-    if (val !== OTHER_FAULT_VALUE) {
-      formData.value.faultRemark = ''
+  const tryAutoQueryBarcodeOnEnter = () => {
+    const code = String(formData.value.warrantyCode ?? '').trim()
+    if (!code) return
+    void checkWarranty({
+      silentToast: true,
+      skipClearFaultFieldsWhenNoOptions: true,
+      preserveFaultFieldsWhenHasOptions: true
+    })
+  }
+
+  const captureRepairEntryTabSnapshot = (): RepairEntryTabSnapshot => ({
+    formData: JSON.parse(JSON.stringify(formData.value)) as ReturnType<
+      typeof createInitialFormData
+    >,
+    warrantyQueried: warrantyQueried.value,
+    lastBarcodeInfo: lastBarcodeInfo.value
+      ? (JSON.parse(JSON.stringify(lastBarcodeInfo.value)) as WorkOrderCreateBarcodeInfoVO)
+      : null,
+    barcodeQueryHasFaultDescription: barcodeQueryHasFaultDescription.value,
+    faultDescriptionOptionsFromApi: [...faultDescriptionOptionsFromApi.value],
+    queryFailedWithBarcode: queryFailedWithBarcode.value,
+    showFaultRemark: showFaultRemark.value,
+    selectedShippingAddress: selectedShippingAddress.value
+      ? ({ ...selectedShippingAddress.value } as SelectedShippingAddress)
+      : null,
+    showSupplementSection: showSupplementSection.value
+  })
+
+  const applyRepairEntryTabSnapshot = (snap: RepairEntryTabSnapshot | null) => {
+    isRestoringTabSnapshot.value = true
+    try {
+      if (!snap) {
+        formData.value = createInitialFormData()
+        warrantyQueried.value = false
+        lastBarcodeInfo.value = null
+        barcodeQueryHasFaultDescription.value = false
+        faultDescriptionOptionsFromApi.value = []
+        queryFailedWithBarcode.value = false
+        showFaultRemark.value = true
+        selectedShippingAddress.value = null
+        showSupplementSection.value = false
+        showWarrantyModal.value = false
+      } else {
+        formData.value = {
+          ...createInitialFormData(),
+          ...snap.formData
+        }
+        formData.value.repairType = normalizeRepairType(formData.value.repairType)
+        warrantyQueried.value = snap.warrantyQueried
+        lastBarcodeInfo.value = snap.lastBarcodeInfo
+          ? (JSON.parse(JSON.stringify(snap.lastBarcodeInfo)) as WorkOrderCreateBarcodeInfoVO)
+          : null
+        barcodeQueryHasFaultDescription.value = snap.barcodeQueryHasFaultDescription
+        faultDescriptionOptionsFromApi.value = [...snap.faultDescriptionOptionsFromApi]
+        queryFailedWithBarcode.value = snap.queryFailedWithBarcode
+        showFaultRemark.value = snap.showFaultRemark
+        selectedShippingAddress.value = snap.selectedShippingAddress
+          ? ({ ...snap.selectedShippingAddress } as SelectedShippingAddress)
+          : null
+        showSupplementSection.value = snap.showSupplementSection
+        showWarrantyModal.value = false
+      }
+    } finally {
       nextTick(() => {
-        // 清空表单校验
-        const fr = formRef.value as { clearValidate?: (names?: string[]) => void } | null
-        fr?.clearValidate?.(['faultRemark'])
+        isRestoringTabSnapshot.value = false
+        getFormRef()?.clearValidate?.([
+          'contactMobile',
+          'customerName',
+          'repairType',
+          'faultDescription',
+          'faultRemark',
+          'shippingInfo',
+          'targetCompanyId'
+        ])
+        syncShowFaultRemarkFromState()
+        if (String(formData.value.warrantyCode ?? '').trim()) {
+          tryAutoQueryBarcodeOnEnter()
+        }
       })
     }
   }
 
   /**
-   * 监听条码变化
-   * @returns void
+   * 切换报修入口：离开前保存当前 tab 快照；进入目标 tab 时恢复快照或空表。
    */
+  const setRepairEntryTab = (tab: 'proxy' | 'upstream') => {
+    if (toastIfMediaUploading()) return
+    if (tab === repairEntryTab.value) return
+    const from = repairEntryTab.value
+    tabFormSnapshots.value = {
+      ...tabFormSnapshots.value,
+      [from]: captureRepairEntryTabSnapshot()
+    }
+    repairEntryTab.value = tab
+    applyRepairEntryTabSnapshot(tabFormSnapshots.value[tab] ?? null)
+  }
+
+  const showFaultDescDropdown = ref(false)
+  const draftFaultDesc = ref<string[]>([])
+
+  const selectedFaultDescText = computed(() => {
+    const vals = normalizeFaultDescriptionValue(formData.value.faultDescription)
+    if (vals.length === 0) return ''
+    return vals
+      .map((v) => {
+        const opt = faultDescriptionOptionsFromApi.value.find((o) => o.value === v)
+        return opt?.text || v
+      })
+      .join('、')
+  })
+
+  const openFaultDescDropdown = () => {
+    if (toastIfMediaUploading()) return
+    draftFaultDesc.value = [...normalizeFaultDescriptionValue(formData.value.faultDescription)]
+    showFaultDescDropdown.value = true
+  }
+
+  const toggleDraftFaultDesc = (value: string) => {
+    if (draftFaultDesc.value.includes(value)) {
+      draftFaultDesc.value = draftFaultDesc.value.filter((x) => x !== value)
+    } else {
+      draftFaultDesc.value = [...draftFaultDesc.value, value]
+    }
+  }
+
+  const cancelFaultDescSelect = () => {
+    showFaultDescDropdown.value = false
+    draftFaultDesc.value = []
+  }
+
+  const confirmFaultDescSelect = () => {
+    formData.value.faultDescription = [...draftFaultDesc.value]
+    showFaultDescDropdown.value = false
+    draftFaultDesc.value = []
+    const nextShow = formData.value.faultDescription.some((v) => isOtherFaultSelection(v))
+    showFaultRemark.value = nextShow
+    if (!nextShow) {
+      formData.value.faultRemark = ''
+      nextTick(() => getFormRef()?.clearValidate?.(['faultRemark']))
+    }
+  }
+
   watch(
     () => formData.value.warrantyCode,
-    () => {
-      if (isRestoringDraft.value) return
-      warrantyQueried.value = false
-      productFaultDescriptionOptions.value = null
-      formData.value.faultDescription = ''
-      formData.value.faultRemark = ''
+    (val, oldVal) => {
+      if (isRestoringDraft.value || isRestoringTabSnapshot.value) return
+      if (val !== oldVal) {
+        lastBarcodeInfo.value = null
+        barcodeQueryHasFaultDescription.value = false
+        faultDescriptionOptionsFromApi.value = []
+        queryFailedWithBarcode.value = false
+        warrantyQueried.value = false
+      }
+      if (!val) {
+        formData.value.faultDescription = []
+        formData.value.targetCompanyId = ''
+        showFaultRemark.value = true
+      } else {
+        nextTick(() => syncShowFaultRemarkFromState())
+      }
     }
   )
 
-  /**
-   * 选择故障视频/图片
-   * @param e 事件
-   * @returns void
-   */
-  const handleFaultMediaSelect = (e) => {
-    const files = e.tempFiles
-    let videoCount = 0
-    let imageCount = 0
-    // 统计视频和图片数量
-    files.forEach((file) => {
-      if (file.fileType === 'video') {
-        videoCount++
-      } else if (file.fileType === 'image') {
-        imageCount++
-      }
-    })
+  type FaultMediaPickEvent = { tempFiles: { fileType?: string }[] }
 
-    // 校验视频数量
-    if (videoCount > 1) {
-      uni.showToast({
-        title: '最多只能上传1个视频',
-        icon: 'none'
-      })
-      return
-    }
-
-    // 校验图片数量
-    if (imageCount > 3) {
-      uni.showToast({
-        title: '最多只能上传3张图片',
-        icon: 'none'
-      })
-      return
-    }
+  const onFaultMediaChange = (e: FaultMediaPickEvent) => {
+    validateFaultMediaSelection(e.tempFiles)
   }
 
-  /**
-   * 删除故障视频/图片
-   * @returns void
-   */
-  const handleFaultMediaDelete = () => {
-    // 删除处理
+  /** 进入「我的地址」选择寄件地址（selectShipping），返回后由 onShow 中 applyShippingPickFromStorage 回填 */
+  const chooseShippingAddress = () => {
+    if (toastIfMediaUploading()) return
+    uni.navigateTo({ url: '/pages/address/index?mode=selectShipping' })
   }
 
-  /**
-   * 选择寄件快递图片
-   * @returns void
-   */
-  const handleExpressImageSelect = () => {
-    // 选择处理
-  }
-
-  /**
-   * 删除寄件快递图片
-   * @returns void
-   */
-  const handleExpressImageDelete = () => {
-    // 删除处理
-  }
-
-  /**
-   * 从上传文件列表中提取 fileId/id 数组
-   * @param files 文件列表
-   * @returns 文件ID数组
-   */
-  const extractFileIds = (files: unknown): number[] => {
-    if (!Array.isArray(files)) return []
-    return files
-      .map((item) => {
-        if (!item || typeof item !== 'object') return undefined
-        const obj = item as Record<string, unknown>
-        const candidates = [obj.fileId, obj.id, obj.value]
-        for (const c of candidates) {
-          const n = Number(c)
-          if (Number.isFinite(n) && n > 0) return n
+  const getFaultDescriptionTextsForSubmit = () => {
+    if (!barcodeQueryHasFaultDescription.value) return [] as string[]
+    const selectedValues = normalizeFaultDescriptionValue(formData.value.faultDescription)
+    return selectedValues
+      .map((selectedValue) => {
+        const opt = faultDescriptionOptionsFromApi.value.find((o) => o.value === selectedValue)
+        if (isOtherFaultSelection(selectedValue)) {
+          return opt?.text || '其它故障'
         }
-        return undefined
+        return opt?.text || selectedValue || ''
       })
-      .filter((id): id is number => typeof id === 'number')
+      .filter((x) => String(x).trim().length > 0)
+  }
+
+  const resolveFaultItemsForSubmit = (): string[] => {
+    const selectedValues = normalizeFaultDescriptionValue(formData.value.faultDescription)
+    if (barcodeQueryHasFaultDescription.value && selectedValues.length > 0) {
+      const texts = getFaultDescriptionTextsForSubmit()
+      return texts.length > 0 ? texts : selectedValues
+    }
+    const raw = lastBarcodeInfo.value?.faultOptions
+    if (Array.isArray(raw) && raw.length > 0) {
+      return raw.map((x) => String(x)).filter((s) => s.length > 0)
+    }
+    return []
+  }
+
+  const buildMediaShippingPayload = (customerMobile: string, customerName: string) => {
+    const faultMedia = partitionFaultMediaFileIds(asUnknownArray(formData.value.images))
+    const senderVoucherFileIds = collectVoucherFileIds(asUnknownArray(formData.value.shippingCode))
+    const faultVoiceFileIds = collectVoiceFileIds(asUnknownArray(formData.value.voiceList))
+    const isMail = formData.value.repairType === 'MAIL'
+    const shippingSubmitFields = resolveShippingSubmitFields(
+      selectedShippingAddress.value,
+      formData.value.shippingInfo,
+      { fallbackName: customerName, fallbackMobile: customerMobile }
+    )
+    return {
+      faultImageFileIds: faultMedia.faultImageFileIds,
+      faultVideoFileIds: faultMedia.faultVideoFileIds,
+      faultVoiceFileIds,
+      senderVoucherFileIds,
+      sendExpressNo: isMail ? resolveSendExpressNoForSubmit(formData.value.shippingCode) : '',
+      senderAddress: isMail ? shippingSubmitFields.senderAddress : '',
+      senderMobile: isMail ? shippingSubmitFields.senderMobile : customerMobile,
+      senderName: isMail ? shippingSubmitFields.senderName : customerName,
+      serviceMode: (isMail ? 'MAIL' : 'STORE') as 'MAIL' | 'STORE'
+    }
   }
 
   /**
    * 构建「代客户填写」创建工单 DTO
-   * @returns DTO
    */
   const buildProxyCreateDto = (): WorkOrderProxyCreateDTO => {
-    const barcode = String(formData.value.warrantyCode || '').trim()
+    const api = lastBarcodeInfo.value
+    const barcodeTrim = String(formData.value.warrantyCode || '').trim()
+    const barcodeFromApi = api?.barcode != null ? String(api.barcode).trim() : ''
     const customerMobile = String(formData.value.contactMobile || '').trim()
     const customerName = String(formData.value.customerName || '').trim()
-    const faultDescription = String(formData.value.faultDescription || '').trim()
     const faultRemark = String(formData.value.faultRemark || '').trim()
-    const serviceMode = formData.value.repairType === 'mail' ? 'MAIL' : 'STORE'
+    const m = buildMediaShippingPayload(customerMobile, customerName)
 
     return {
-      barcode,
+      barcode: barcodeFromApi || barcodeTrim,
       customerMobile,
       customerName,
-      faultImageFileIds: extractFileIds(formData.value.images),
-      faultItems: faultDescription ? [faultDescription] : [],
+      faultImageFileIds: m.faultImageFileIds,
+      faultItems: resolveFaultItemsForSubmit(),
       faultRemark,
-      faultVideoFileIds: [],
-      faultVoiceFileIds: [],
-      sendExpressNo: '',
-      senderAddress: serviceMode === 'MAIL' ? String(formData.value.shippingInfo || '').trim() : '',
-      senderMobile: customerMobile,
-      senderName: customerName,
-      senderVoucherFileIds: extractFileIds(formData.value.shippingCode),
-      serviceMode
+      faultVideoFileIds: m.faultVideoFileIds,
+      faultVoiceFileIds: m.faultVoiceFileIds,
+      sendExpressNo: m.sendExpressNo,
+      senderAddress: m.senderAddress,
+      senderMobile: m.senderMobile,
+      senderName: m.senderName,
+      senderVoucherFileIds: m.senderVoucherFileIds,
+      serviceMode: m.serviceMode
     }
   }
 
   /**
-   * 构建「二级报修一级」创建工单 DTO
-   * @returns DTO
+   * 构建「二级报修一级 / 报修佳士」创建工单 DTO
    */
   const buildUpstreamFirstCreateDto = (): WorkOrderUpstreamCreateDTO => {
-    const barcode = String(formData.value.warrantyCode || '').trim()
+    const api = lastBarcodeInfo.value
+    const barcodeTrim = String(formData.value.warrantyCode || '').trim()
+    const barcodeFromApi = api?.barcode != null ? String(api.barcode).trim() : ''
     const customerMobile = String(formData.value.contactMobile || '').trim()
     const customerName = String(formData.value.customerName || '').trim()
-    const faultDescription = String(formData.value.faultDescription || '').trim()
     const faultRemark = String(formData.value.faultRemark || '').trim()
-    const serviceMode = formData.value.repairType === 'mail' ? 'MAIL' : 'STORE'
+    const m = buildMediaShippingPayload(customerMobile, customerName)
 
-    return {
-      barcode,
+    const dto: WorkOrderUpstreamCreateDTO = {
+      barcode: barcodeFromApi || barcodeTrim,
       customerMobile,
       customerName,
-      faultImageFileIds: extractFileIds(formData.value.images),
-      faultItems: faultDescription ? [faultDescription] : [],
+      faultImageFileIds: m.faultImageFileIds,
+      faultItems: resolveFaultItemsForSubmit(),
       faultRemark,
-      faultVideoFileIds: [],
-      faultVoiceFileIds: [],
-      sendExpressNo: '',
-      senderAddress: serviceMode === 'MAIL' ? String(formData.value.shippingInfo || '').trim() : '',
-      senderMobile: customerMobile,
-      senderName: customerName,
-      senderVoucherFileIds: extractFileIds(formData.value.shippingCode),
-      serviceMode
+      faultVideoFileIds: m.faultVideoFileIds,
+      faultVoiceFileIds: m.faultVoiceFileIds,
+      sendExpressNo: m.sendExpressNo,
+      senderAddress: m.senderAddress,
+      senderMobile: m.senderMobile,
+      senderName: m.senderName,
+      senderVoucherFileIds: m.senderVoucherFileIds,
+      serviceMode: m.serviceMode
     }
+    const hqTid = Number(formData.value.targetCompanyId)
+    if (userStore.isPrimaryDealer && Number.isFinite(hqTid) && hqTid > 0) {
+      dto.targetCompanyId = hqTid
+    }
+    return dto
   }
 
   /**
@@ -714,47 +1018,63 @@
    */
   const resetFormState = () => {
     repairEntryTab.value = 'proxy'
-    // 重置表单数据
+    tabFormSnapshots.value = {}
     formData.value = createInitialFormData()
     warrantyQueried.value = false
-    productFaultDescriptionOptions.value = null
+    lastBarcodeInfo.value = null
+    barcodeQueryHasFaultDescription.value = false
+    faultDescriptionOptionsFromApi.value = []
+    queryFailedWithBarcode.value = false
+    showFaultRemark.value = true
+    selectedShippingAddress.value = null
     showSupplementSection.value = false
     showWarrantyModal.value = false
 
-    // 清空表单校验
     nextTick(() => {
-      const fr = formRef.value as { clearValidate?: (names?: string[]) => void } | null
-      fr?.clearValidate?.([
+      getFormRef()?.clearValidate?.([
         'contactMobile',
         'customerName',
         'repairType',
         'faultDescription',
         'faultRemark',
-        'shippingInfo'
+        'shippingInfo',
+        'targetCompanyId'
       ])
     })
   }
 
+  const buildTabDraftPayload = () => ({
+    formType,
+    savedAt: Date.now(),
+    warrantyQueried: warrantyQueried.value,
+    barcodeQueryHasFaultDescription: barcodeQueryHasFaultDescription.value,
+    faultDescriptionOptionsFromApi: [...faultDescriptionOptionsFromApi.value],
+    lastBarcodeInfo: lastBarcodeInfo.value
+      ? (JSON.parse(JSON.stringify(lastBarcodeInfo.value)) as WorkOrderCreateBarcodeInfoVO)
+      : null,
+    queryFailedWithBarcode: queryFailedWithBarcode.value,
+    showFaultRemark: showFaultRemark.value,
+    selectedShippingAddress: selectedShippingAddress.value
+      ? ({ ...selectedShippingAddress.value } as SelectedShippingAddress)
+      : null,
+    showSupplementSection: showSupplementSection.value,
+    formData: formData.value
+  })
+
   /**
-   * 保存草稿
+   * 保存草稿（按当前 tab 分键存储，互不覆盖）
    * @returns void
    */
   const handleSaveDraft = () => {
-    // 保存草稿
+    if (toastIfMediaUploading()) return
     try {
-      uni.setStorageSync(DRAFT_KEY, {
-        formType,
-        repairEntryTab: repairEntryTab.value,
-        warrantyQueried: warrantyQueried.value,
-        // 仅用于恢复「故障描述下拉是否显示/选项内容」
-        productFaultDescriptionOptions: productFaultDescriptionOptions.value,
-        savedAt: Date.now(),
-        formData: formData.value
-      })
-      uni.showToast({ title: '暂存成功', icon: 'success' })
+      const tab = repairEntryTab.value
+      uni.setStorageSync(draftStorageKey(tab), buildTabDraftPayload())
+      uni.setStorageSync(DRAFT_LAST_TAB_KEY, tab)
+      uni.showToast({ title: '暂存成功', icon: 'success', duration: 1500 })
     } catch (_e) {
       void _e
-      uni.showToast({ title: '暂存失败', icon: 'none' })
+      uni.showToast({ title: '暂存失败', icon: 'none', duration: 1500 })
     }
   }
 
@@ -763,6 +1083,7 @@
    * @returns void
    */
   const handleResetForm = () => {
+    if (toastIfMediaUploading()) return
     uni.showModal({
       title: '确认重置',
       content: '将清空本次填写内容，是否继续？',
@@ -771,7 +1092,7 @@
       success: (res) => {
         if (res.confirm) {
           resetFormState()
-          uni.showToast({ title: '已重置', icon: 'none' })
+          uni.showToast({ title: '已重置', icon: 'none', duration: 1500 })
         }
       }
     })
@@ -783,32 +1104,35 @@
    */
   const handleSubmitClick = () => {
     if (submitting.value) return
+    if (toastIfMediaUploading()) return
     if (!userStore.hasPermission(Perms.WORKORDER_ADD)) {
-      uni.showToast({ title: '暂无权限', icon: 'none' })
+      uni.showToast({ title: '暂无权限', icon: 'none', duration: 1500 })
       return
     }
 
-    // 先做校验，避免上传/提交逻辑里再处理错误
-    formRef.value
-      ?.validate()
+    const validatePromise = (
+      getFormRef() as { validate?: () => Promise<unknown> } | null
+    )?.validate?.()
+    if (!validatePromise) {
+      uni.showToast({ title: '请完善必填项', icon: 'none', duration: 1500 })
+      return
+    }
+    validatePromise
       .then(() => {
         if (formData.value.warrantyCode && !warrantyQueried.value) {
-          uni.showToast({ title: '请先查询商品', icon: 'none' })
+          uni.showToast({ title: '请先查询商品', icon: 'none', duration: 1500 })
           return
         }
 
-        // 如果没有条形码，显示报修提示弹窗（默认该机器已过保）
         if (!formData.value.warrantyCode) {
           showWarrantyModal.value = true
           return
         }
 
-        // 执行提交
         performSubmit()
       })
       .catch(() => {
-        // uni-forms 内部会展示对应的校验提示
-        uni.showToast({ title: '请完善必填项', icon: 'none' })
+        uni.showToast({ title: '请完善必填项', icon: 'none', duration: 1500 })
       })
   }
 
@@ -818,6 +1142,15 @@
    */
   const performSubmit = () => {
     if (submitting.value) return
+    if (toastIfMediaUploading()) return
+    if (
+      hasUnuploadedMediaItems(asUnknownArray(formData.value.images)) ||
+      hasUnuploadedMediaItems(asUnknownArray(formData.value.shippingCode)) ||
+      hasUnuploadedMediaItems(asUnknownArray(formData.value.voiceList))
+    ) {
+      uni.showToast({ title: '图片/语音正在上传，请稍候再试', icon: 'none', duration: 1500 })
+      return
+    }
     submitting.value = true
 
     showWarrantyModal.value = false
@@ -832,15 +1165,30 @@
     request
       .then((res) => {
         uni.hideLoading()
-        uni.showToast({ title: getApiMessage(res, '提交成功') })
+        uni.showToast({ title: getApiMessage(res, '提交成功'), duration: 1500 })
 
-        // 提交成功后清理草稿，并恢复初始填写状态
+        // 提交成功后仅清理当前 tab 的暂存，并恢复初始填写状态
+        const submittedTab = repairEntryTab.value
         try {
-          uni.removeStorageSync(DRAFT_KEY)
+          uni.removeStorageSync(draftStorageKey(submittedTab))
+          const otherTab: 'proxy' | 'upstream' =
+            submittedTab === 'proxy' ? 'upstream' : 'proxy'
+          const otherRaw = uni.getStorageSync(draftStorageKey(otherTab)) as unknown
+          if (parseTabDraftToSnapshot(otherRaw)) {
+            uni.setStorageSync(DRAFT_LAST_TAB_KEY, otherTab)
+          } else {
+            uni.removeStorageSync(DRAFT_LAST_TAB_KEY)
+          }
+          uni.removeStorageSync(DRAFT_KEY_LEGACY)
         } catch (_e) {
           void _e
         }
         resetFormState()
+
+        setTimeout(() => {
+          appStore.markOrderListScrollRefresherOnNextShow()
+          uni.switchTab({ url: '/pages/order/list' })
+        }, 1500)
       })
       .catch(() => {
         // http 层和 api 层已统一提示，这里只兜底恢复按钮态
@@ -851,67 +1199,80 @@
       })
   }
 
+  /** 将旧版单一草稿迁移到对应 tab 键并删除旧键 */
+  const migrateLegacyJasicDraftIfNeeded = () => {
+    try {
+      const legacy = uni.getStorageSync(DRAFT_KEY_LEGACY) as unknown
+      if (!legacy || typeof legacy !== 'object') return
+      const d = legacy as { formType?: string; repairEntryTab?: 'proxy' | 'upstream' }
+      if (d.formType !== formType) return
+      const snap = parseTabDraftToSnapshot(legacy)
+      if (!snap) {
+        uni.removeStorageSync(DRAFT_KEY_LEGACY)
+        return
+      }
+      const tab = d.repairEntryTab === 'upstream' ? 'upstream' : 'proxy'
+      uni.setStorageSync(draftStorageKey(tab), {
+        formType,
+        savedAt: Date.now(),
+        warrantyQueried: snap.warrantyQueried,
+        barcodeQueryHasFaultDescription: snap.barcodeQueryHasFaultDescription,
+        faultDescriptionOptionsFromApi: snap.faultDescriptionOptionsFromApi,
+        lastBarcodeInfo: snap.lastBarcodeInfo,
+        queryFailedWithBarcode: snap.queryFailedWithBarcode,
+        showFaultRemark: snap.showFaultRemark,
+        selectedShippingAddress: snap.selectedShippingAddress,
+        showSupplementSection: snap.showSupplementSection,
+        formData: snap.formData
+      })
+      uni.setStorageSync(DRAFT_LAST_TAB_KEY, tab)
+      uni.removeStorageSync(DRAFT_KEY_LEGACY)
+    } catch (_e) {
+      void _e
+    }
+  }
+
   /**
-   * 恢复草稿
-   * @returns void
+   * 恢复草稿：两个 tab 各自一份，切换 tab 时与内存快照一致
    */
   const restoreDraft = () => {
-    // 恢复草稿
     try {
-      const draft = uni.getStorageSync(DRAFT_KEY) as unknown
-      if (!draft || typeof draft !== 'object') return
+      migrateLegacyJasicDraftIfNeeded()
 
-      // 解析草稿数据
-      const d = draft as {
-        formType?: string
-        repairEntryTab?: 'proxy' | 'upstream'
-        warrantyQueried?: boolean
-        productFaultDescriptionOptions?: { text: string; value: string }[] | null
-        formData?: Partial<ReturnType<typeof createInitialFormData>>
+      const snapProxy = parseTabDraftToSnapshot(uni.getStorageSync(DRAFT_KEY_PROXY))
+      const snapUpstream = parseTabDraftToSnapshot(uni.getStorageSync(DRAFT_KEY_UPSTREAM))
+      if (!snapProxy && !snapUpstream) return
+
+      const lastStored = uni.getStorageSync(DRAFT_LAST_TAB_KEY) as unknown
+      let activeTab: 'proxy' | 'upstream'
+      if (snapProxy && snapUpstream) {
+        activeTab = lastStored === 'upstream' ? 'upstream' : 'proxy'
+      } else if (snapUpstream) {
+        activeTab = 'upstream'
+      } else {
+        activeTab = 'proxy'
       }
-
-      // 校验表单类型
-      if (d.formType !== formType) return
 
       isRestoringDraft.value = true
+      tabFormSnapshots.value = {}
+      if (snapProxy) tabFormSnapshots.value.proxy = snapProxy
+      if (snapUpstream) tabFormSnapshots.value.upstream = snapUpstream
 
-      // tabs / 查询状态 / 下拉选项
-      repairEntryTab.value = d.repairEntryTab === 'upstream' ? 'upstream' : 'proxy'
-      warrantyQueried.value = !!d.warrantyQueried
-
-      if (Array.isArray(d.productFaultDescriptionOptions)) {
-        productFaultDescriptionOptions.value = d.productFaultDescriptionOptions
-      } else {
-        productFaultDescriptionOptions.value = null
-      }
-
-      // 表单数据（合并初始值，避免缺字段导致 UI 异常）
-      formData.value = {
-        ...createInitialFormData(),
-        ...(d.formData || {})
-      }
-
-      // 额外 UI 状态不从草稿恢复，保持默认更可控
-      showSupplementSection.value = false
-      showWarrantyModal.value = false
-
-      nextTick(() => {
-        const fr = formRef.value as { clearValidate?: (names?: string[]) => void } | null
-        fr?.clearValidate?.([
-          'contactMobile',
-          'customerName',
-          'repairType',
-          'faultDescription',
-          'faultRemark',
-          'shippingInfo'
-        ])
-      })
+      repairEntryTab.value = activeTab
+      applyRepairEntryTabSnapshot(tabFormSnapshots.value[activeTab] ?? null)
     } catch (_e) {
-      // 静默失败：读取草稿不是必须动作
       void _e
     } finally {
       isRestoringDraft.value = false
     }
+  }
+
+  const applyShippingPickFromStorage = () => {
+    const picked = takeSelectedShippingAddress()
+    if (!picked) return
+    selectedShippingAddress.value = picked
+    formData.value.shippingInfo = `${picked.name} ${picked.phone}\n${picked.fullAddress}`
+    nextTick(() => getFormRef()?.clearValidate?.(['shippingInfo']))
   }
 
   onMounted(() => {
@@ -920,15 +1281,26 @@
 
   onActivated(() => {
     restoreDraft()
+    applyShippingPickFromStorage()
+  })
+
+  onShow(() => {
+    applyShippingPickFromStorage()
   })
 
   /**
    * 确认提交按钮点击
    * @returns void
    */
+  const onWarrantyModalBackdropClick = () => {
+    if (toastIfMediaUploading()) return
+    showWarrantyModal.value = false
+  }
+
   const confirmSubmit = () => {
+    if (toastIfMediaUploading()) return
     if (!userStore.hasPermission(Perms.WORKORDER_ADD)) {
-      uni.showToast({ title: '暂无权限', icon: 'none' })
+      uni.showToast({ title: '暂无权限', icon: 'none', duration: 1500 })
       return
     }
     performSubmit()
@@ -1045,6 +1417,102 @@
     }
   }
 
+  // 寄件信息：与表单内 uni-data-select / 售后端选择行一致（灰底、圆角、高度与字号对齐）
+  .shipping-address-btn {
+    @include flex-row;
+    align-items: center;
+    justify-content: space-between;
+    gap: $space-sm;
+    height: 80rpx;
+    padding: 0 $space-md;
+    border-radius: $radius-input;
+    background-color: $surface-slate-50;
+    box-sizing: border-box;
+  }
+
+  .shipping-address-text {
+    flex: 1;
+    min-width: 0;
+    font-size: $space-input;
+    color: $text-main;
+    line-height: 1.4;
+    white-space: pre-wrap;
+
+    &.placeholder {
+      color: $text-placeholder;
+    }
+  }
+
+  .fault-desc-picker {
+    @include flex-row;
+    align-items: center;
+    justify-content: space-between;
+    gap: $space-sm;
+    height: 80rpx;
+    padding: 0 $space-md;
+    border: 1rpx solid $border-color;
+    border-radius: $radius-input;
+    background-color: $surface-slate-50;
+    box-sizing: border-box;
+  }
+
+  .fault-desc-picker-text {
+    flex: 1;
+    min-width: 0;
+    font-size: $space-input;
+    color: $text-main;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &.placeholder {
+      color: $text-placeholder;
+    }
+  }
+
+  .fault-desc-dropdown {
+    margin-top: $space-sm;
+    border: 2rpx solid $surface-slate-200;
+    border-radius: $radius-md;
+    background: $surface-white;
+    padding: $space-sm;
+  }
+
+  .fault-desc-option {
+    @include flex-row;
+    align-items: center;
+    gap: $space-xs;
+    padding: 12rpx 8rpx;
+  }
+
+  .fault-desc-option-text {
+    font-size: 26rpx;
+    color: $text-main;
+  }
+
+  .fault-desc-dropdown-actions {
+    @include flex-row;
+    justify-content: flex-end;
+    gap: $space-sm;
+    padding-top: $space-sm;
+  }
+
+  .dropdown-btn {
+    font-size: 24rpx;
+    padding: 10rpx 20rpx;
+    border-radius: $radius-sm;
+  }
+
+  .dropdown-btn--cancel {
+    color: $text-secondary;
+    background: $surface-slate-50;
+  }
+
+  .dropdown-btn--confirm {
+    color: $surface-white;
+    background: $primary;
+  }
+
   // 报修提示弹窗
   .modal-mask {
     position: fixed;
@@ -1132,16 +1600,5 @@
         }
       }
     }
-  }
-
-  /* 与 VoiceInputField 占位一致：无录音时仅展示提示（录音条在上方组件内） */
-  .voice-empty-hint {
-    padding: $space-md;
-    text-align: center;
-    color: $text-placeholder;
-    font-size: $font-sm;
-    background-color: #f9f9f9;
-    border-radius: $radius-md;
-    margin-bottom: $space-sm;
   }
 </style>

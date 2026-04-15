@@ -23,8 +23,11 @@ export function useOrderDetailPage(options: {
   detailEntryAction: Ref<DetailEntryAction>
   currentTab: Ref<number>
   faultJudgeSelect: Ref<string>
+  /** 无故障「维修完成」依赖关单权限；无权限时不应占底部操作栏 */
+  canCompleteNoFaultRepair?: Ref<boolean>
 }) {
-  const { order, orderStatus, detailEntryAction, currentTab, faultJudgeSelect } = options
+  const { order, orderStatus, detailEntryAction, currentTab, faultJudgeSelect, canCompleteNoFaultRepair } =
+    options
   const userStore = useUserStore()
 
   const isPending = computed(() => orderStatus.value === 'pending')
@@ -62,11 +65,9 @@ export function useOrderDetailPage(options: {
 
   const hasBottomActionBar = computed(() => {
     if (currentTab.value !== 1) return false
-    if (
-      isPending.value &&
-      canEditFaultJudge.value &&
-      (faultJudgeSelect.value === '无故障' || faultJudgeSelect.value === '有故障')
-    ) {
+    const fj = faultJudgeSelect.value
+    const noFaultOk = fj === '无故障' && (canCompleteNoFaultRepair?.value ?? true)
+    if (isPending.value && canEditFaultJudge.value && (fj === '有故障' || noFaultOk)) {
       return true
     }
     if (
@@ -80,7 +81,10 @@ export function useOrderDetailPage(options: {
 
   const showEvaluateTab = computed(() => isClosed.value)
 
-  const hasFaultPoint = computed(() => hasVal(order.value.faultPoint?.current?.date))
+  /** 仅当详情接口返回 repairs 下 faults（映射为 currentFaults）时展示故障点区块 */
+  const hasFaultPoint = computed(
+    () => (order.value.faultPoint?.currentFaults?.length ?? 0) > 0
+  )
 
   const hasRepairProcessContent = computed(
     () =>
@@ -94,7 +98,7 @@ export function useOrderDetailPage(options: {
   const hasOrderBaseInfo = computed(
     () =>
       hasVal(order.value.base.orderNo) ||
-      hasVal(order.value.base.orderTypeName) ||
+      hasVal(order.value.base.brandTypeLabel) ||
       hasVal(order.value.base.submitTime)
   )
 

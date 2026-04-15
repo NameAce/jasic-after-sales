@@ -43,15 +43,24 @@
     </CustomNavBar>
 
     <!-- 总部 - 网点工单视图 -->
-    <scroll-view v-if="showBranchView" class="main-content" scroll-y>
+    <scroll-view
+      v-if="showBranchView"
+      class="main-content"
+      scroll-y
+      lower-threshold="120"
+      refresher-enabled
+      :refresher-triggered="branchViewRefresherTriggered"
+      @refresherrefresh="onBranchViewRefresherRefresh"
+      @scrolltolower="loadMoreBranches"
+    >
       <!-- 网点统计概览 -->
       <view class="branch-summary-header">
         <text class="branch-summary-title">网点统计概览</text>
-        <text class="branch-summary-count">共 {{ branchList.length }} 个分中心</text>
+        <text class="branch-summary-count">共 {{ branchTotalCount }} 个分中心</text>
       </view>
       <!-- 网点列表 -->
       <view class="branch-list-container">
-        <view v-for="branch in branchList" :key="branch.id" class="branch-card">
+        <view v-for="branch in branchDisplayList" :key="branch.id" class="branch-card">
           <view class="branch-card-header" @tap="goToBranchDetail(branch, 'all')">
             <view class="branch-info">
               <view class="branch-icon-wrap">
@@ -88,6 +97,7 @@
           </view>
         </view>
       </view>
+      <ListNoMore v-if="branchDisplayList.length > 0 && hasLoadedAllBranches" />
     </scroll-view>
 
     <!-- 工单列表视图 -->
@@ -96,18 +106,20 @@
       class="main-content order-list-scroll"
       scroll-y
       lower-threshold="120"
+      refresher-enabled
+      :refresher-triggered="orderListRefresherTriggered"
+      @refresherrefresh="onOrderListRefresherRefresh"
       @scrolltolower="loadMoreOrders"
     >
       <OrderCardList
-        :orders="filteredOrders"
+        :orders="orderList"
         :status-text="listStatusText"
         :empty-title="listEmptyTitle"
         :empty-desc="listEmptyDesc"
         :show-inbound-transfer-tag="showInboundTransferTag"
-        :show-transferred-tag="
-          (order) => !!order.transferred && !isHqUser
-        "
-        :show-no-more="filteredOrders.length > 0 && hasLoadedAll"
+        :show-transferred-tag="(order) => !!order.transferred && !isHqUser"
+        :show-repair-site-rows="primaryTab === 'transferred'"
+        :show-no-more="orderList.length > 0 && hasLoadedAll"
         @order-click="onOrderClick"
       >
         <!-- 额外信息 -->
@@ -130,14 +142,14 @@
           >
             <template v-if="showDispatcherActionBlock(order)">
               <button
-                v-if="order.status === 'pending' && !isDispatcherAwaitSelfAccept(order)"
+                v-if="order.status === 'pending' && isOrderPendingAssign(order)"
                 class="btn-action primary"
                 @tap.stop="openAssignModal(order.id)"
               >
                 派单
               </button>
               <button
-                v-else-if="order.status === 'pending' && isDispatcherAwaitSelfAccept(order)"
+                v-else-if="order.status === 'pending' && isOrderPendingTechAccept(order)"
                 class="btn-action primary"
                 @tap.stop="onAcceptOrder(order.id)"
               >
@@ -163,7 +175,7 @@
                   复检登记
                 </button>
                 <button
-                  v-if="order.isJiashi && userStore.hasPermission(Perms.WORKORDER_TRANSFER)"
+                  v-if="userStore.hasPermission(Perms.WORKORDER_TRANSFER)"
                   class="btn-action primary"
                   @tap.stop="openTransferModal(order.id)"
                 >
@@ -200,6 +212,7 @@
     <AssignTechnicianModal
       v-model="showAssignModal"
       v-model:selected-tech-id="selectedTechId"
+      :assign-work-order-id="currentOrderId"
       :technician-list="technicianList"
       @close="closeAssignModal"
       @confirm="onAssignConfirm"
@@ -207,12 +220,16 @@
     <!-- 机器返回方式弹窗 -->
     <ReturnMethodModal
       v-model="showReturnMethodModal"
-      :initial-mail="returnMethodInitialMail"
+      :initial-mail="returnMethodInitialMailMerged"
       @confirm="onReturnMethodConfirm"
     />
 
     <!-- 工单关闭弹窗 -->
-    <CloseOrderModal v-model="showCloseOrderModal" @confirm="onCloseOrderConfirm" />
+    <CloseOrderModal
+      v-model="showCloseOrderModal"
+      no-fault-required
+      @confirm="onCloseOrderConfirm"
+    />
   </view>
 </template>
 
@@ -226,6 +243,7 @@
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import TabBar from '@/components/TabBar/TabBar.vue'
   import OrderCardList from '@/components/OrderCardList/OrderCardList.vue'
+  import ListNoMore from '@/components/ListNoMore/ListNoMore.vue'
   import TransferModal from '@/components/TransferModal/TransferModal.vue'
   import AssignTechnicianModal, {
     type Technician
@@ -233,15 +251,18 @@
   import ReturnMethodModal from '@/components/ReturnMethodModal/ReturnMethodModal.vue'
   import CloseOrderModal from '@/components/CloseOrderModal/CloseOrderModal.vue'
   import {
+    applyWorkOrderListSearchKeyword,
+    assignWorkOrder,
     fetchBranchList,
     fetchAssignUserOptions,
     fetchOrderDetail,
     fetchOrderListPage,
     closeWorkOrder,
-    techAcceptWorkOrder,
     transferWorkOrder,
     fetchTransferTargetOptions,
-    type OrderListQuery
+    WORK_ORDER_FAULT_CLOSE_REASON,
+    type OrderListQuery,
+    type ReturnMethodConfirmPayload
   } from '@/api/order'
   import {
     getReturnMethodInitialMail,
@@ -257,16 +278,16 @@
   import { ORDER_STATUS_TEXT_MAP } from '@/utils/orderStatus'
   import { Perms } from '@/utils/permissions'
   import { getApiMessage } from '@/utils/http'
+  import { takeSelectedShippingAddress } from '@/utils/addressStorage'
   import { storeIcon } from '@/svgs'
+  import { useScrollRefresher } from '@/utils/useScrollRefresher'
+  import { isWorkOrderPendingTechAcceptMainStatus } from '@/utils/workOrderMainStatus'
 
   type PrimaryTab = 'untransferred' | 'transferred'
   type SecondaryTab = 'all' | 'pending' | 'pending_accept' | 'processing' | 'completed' | 'closed'
 
-  /** 派单弹窗：选此项表示派单给自己，进入「待接单」 */
+  /** 派单弹窗：选此项表示派单给自己，进入「待接单」（mainStatus=PENDING_TECH_ACCEPT） */
   const DISPATCHER_SELF_TECH_ID = 'dispatcher_self'
-  // 派单员侧操作条：选此项表示派单给自己，进入「待接单」
-  const isDispatcherAwaitSelfAccept = (order: OrderListItem) =>
-    order.dispatcherPendingSubState === 'await_self_accept'
 
   // 应用商店
   const appStore = useAppStore()
@@ -295,14 +316,10 @@
   })
 
   // 是否显示网点概览视图（总部 + 网点工单tab）
-  const showBranchView = computed(
-    () => isHqUser.value && primaryTab.value === 'transferred'
-  )
+  const showBranchView = computed(() => isHqUser.value && primaryTab.value === 'transferred')
 
   // 是否为总部"总部处理"视图
-  const isHqProcessView = computed(
-    () => isHqUser.value && primaryTab.value === 'untransferred'
-  )
+  const isHqProcessView = computed(() => isHqUser.value && primaryTab.value === 'untransferred')
   // 接单权限用户：已转单且当前网点为转出方时不展示接单/登记等按钮
   const canOperateOrder = computed(
     () => userStore.hasPermission(Perms.WORKORDER_ACCEPT) || isHqProcessView.value
@@ -336,15 +353,21 @@
   // 状态文本映射
   const statusTextMap = ORDER_STATUS_TEXT_MAP
 
+  /** 待接单：仅 mainStatus=PENDING_TECH_ACCEPT */
+  const isOrderPendingTechAccept = (order: OrderListItem) =>
+    order.status === 'pending' && isWorkOrderPendingTechAcceptMainStatus(order.mainStatus)
+
+  /** 待派单：pending 且非 PENDING_TECH_ACCEPT（含 PENDING_ASSIGN、空值等） */
+  const isOrderPendingAssign = (order: OrderListItem) =>
+    order.status === 'pending' && !isWorkOrderPendingTechAcceptMainStatus(order.mainStatus)
+
   /**
-   * 列表卡片状态文案：派单员视角区分「待派单 / 待接单」
-   * @param order 工单
-   * @returns 状态文本
+   * 列表卡片状态文案：派单员视角按接口 mainStatus 区分「待派单 / 待接单」
    */
   const listStatusText = (order: OrderListItem) => {
     const status = order.status
     if (userStore.hasPermission(Perms.WORKORDER_ASSIGN) && status === 'pending') {
-      return isDispatcherAwaitSelfAccept(order) ? '待接单' : '待派单'
+      return isOrderPendingTechAccept(order) ? '待接单' : '待派单'
     }
     return statusTextMap[status]
   }
@@ -427,11 +450,28 @@
     refreshOrders()
   }
 
+  /** 地址簿选中的寄件信息（onShow 写入，与 ReturnMethodModal 的 initial-mail 合并） */
+  const mailReturnAddressOverride = ref<{
+    receiverName: string
+    receiverPhone: string
+    receiverAddress: string
+  } | null>(null)
+
   /**
-   * 从其他页面（如"我的"页面）跳转过来时，应用目标 tab
+   * 从其他页面（如"我的"页面）跳转过来时，应用目标 tab；
+   * 表单提交等场景若已标记，则走 scroll-view 下拉刷新（refresher）以与手动下拉一致。
    * @returns void
    */
-  onShow(() => {
+  onShow(async () => {
+    const picked = takeSelectedShippingAddress()
+    if (picked) {
+      mailReturnAddressOverride.value = {
+        receiverName: picked.name,
+        receiverPhone: picked.phone,
+        receiverAddress: picked.fullAddress
+      }
+    }
+
     const target = appStore.consumeOrderListNavTarget()
     if (target) {
       primaryTab.value = target.primaryTab
@@ -442,22 +482,24 @@
       scrollSecondaryTabIntoView(sec)
     }
 
+    const useScrollRefresherUi = appStore.consumeOrderListScrollRefresherOnNextShow()
+
     if (showBranchView.value) {
       baseOrderList.value = []
-      refreshBranches()
+      if (useScrollRefresherUi) await onBranchViewRefresherRefresh()
+      else await refreshBranches()
       return
     }
-    refreshOrders()
-    if (isHqUser.value) refreshBranches()
+    if (useScrollRefresherUi) await onOrderListRefresherRefresh()
+    else await refreshOrders()
+    if (isHqUser.value) await refreshBranches()
   })
 
   // ==================== 工单列表 ====================
-  // 派单员在弹窗中选择「本人」后，本地标记为待本人接单（演示用，对接接口后可删）
-  const selfAssignedPendingOrderIds = ref<Set<string>>(new Set())
 
   const baseOrderList = ref<OrderListItem[]>([])
   const pageNum = ref(1)
-  const pageSize = 20
+  const pageSize = 10
   const totalOrders = ref(0)
   const loadingMore = ref(false)
   const requestVersion = ref(0)
@@ -466,7 +508,9 @@
   )
 
   /**
-   * 二级 Tab → 接口 mainStatus（与后端字典一致时可再调整映射）
+   * 二级 Tab → 列表接口 mainStatus
+   * - 待派单：PENDING_ASSIGN
+   * - 待接单：PENDING_TECH_ACCEPT
    */
   const secondaryTabToMainStatus = (tab: SecondaryTab): string | undefined => {
     if (tab === 'all') return undefined
@@ -503,14 +547,13 @@
       const query: OrderListQuery = {
         pageNum: pageNum.value,
         pageSize,
-        companyId: userStore.userInfo?.currentCompanyId
+        companyId: userStore.userInfo?.currentCompanyId,
+        viewScope: 'ALL',
+        hasTransfer: primary === 'transferred' ? 1 : 0
       }
 
-      // 与占位「工单号或故障描述」对齐：接口无故障描述字段时用工单号模糊；条码可改为传 barcode
-      if (q) query.orderNo = q
-
-      // 一级 Tab：未转单/已转单由接口字段 hasTransfer 区分
-      query.hasTransfer = primary === 'transferred' ? 1 : 0
+      // 与接口约定一致：含中文→客户姓名模糊；长数字→条码；否则工单号模糊（避免多条件 AND 同时传）
+      applyWorkOrderListSearchKeyword(query, q)
 
       const ms = secondaryTabToMainStatus(secondary)
       if (ms !== undefined) query.mainStatus = ms
@@ -547,10 +590,10 @@
       const query: OrderListQuery = {
         pageNum: nextPage,
         pageSize,
-        companyId: userStore.userInfo?.currentCompanyId
+        companyId: userStore.userInfo?.currentCompanyId,
+        viewScope: primary === 'transferred' ? 'HISTORY' : 'CURRENT'
       }
-      if (q) query.orderNo = q
-      query.hasTransfer = primary === 'transferred' ? 1 : 0
+      applyWorkOrderListSearchKeyword(query, q)
       const ms = secondaryTabToMainStatus(secondary)
       if (ms !== undefined) query.mainStatus = ms
 
@@ -568,57 +611,8 @@
     }
   }
 
-  /**
-   * 与 mock 全量工单同源，并合并派单给自己的本地状态
-   * @returns 工单列表（包含派单给自己后的本地状态）
-   */
-  const orderList = computed<OrderListItem[]>(() => {
-    const base = baseOrderList.value
-    const local = selfAssignedPendingOrderIds.value
-    return base.map((o) => {
-      if (local.has(o.id)) {
-        return { ...o, dispatcherPendingSubState: 'await_self_accept' as const }
-      }
-      return o
-    })
-  })
-
-  /**
-   * 过滤工单列表
-   * @returns 过滤后的工单列表（根据一级Tab、二级Tab、搜索关键词过滤）
-   */
-  const filteredOrders = computed(() => {
-    const q = searchQuery.value?.trim()
-    const primary = primaryTab.value
-    const secondary = secondaryTab.value
-    // 过滤工单列表
-    return orderList.value.filter((o) => {
-      // 总部处理视图：已转单时不展示
-      if (!isHqUser.value) {
-        const isTransferred = !!o.transferred
-        if (primary === 'untransferred' && isTransferred) return false
-        if (primary === 'transferred' && !isTransferred) return false
-      }
-      // 二级Tab：全部时，不进行过滤
-      if (secondary === 'all') {
-        // pass
-      } else if (userStore.hasPermission(Perms.WORKORDER_ASSIGN) && secondary === 'pending') {
-        if (o.status !== 'pending' || isDispatcherAwaitSelfAccept(o)) return false
-      } else if (userStore.hasPermission(Perms.WORKORDER_ASSIGN) && secondary === 'pending_accept') {
-        if (o.status !== 'pending' || !isDispatcherAwaitSelfAccept(o)) return false
-      } else if (o.status !== secondary) {
-        return false
-      }
-      // 搜索关键词：不进行过滤
-      if (!q) return true
-      return (
-        o.id.includes(q) ||
-        (o.orderNo?.includes(q) ?? false) ||
-        (o.barcode?.includes(q) ?? false) ||
-        o.desc.includes(q)
-      )
-    })
-  })
+  /** 列表数据与接口分页一致；一级/二级 Tab 与搜索在 refreshOrders / loadMoreOrders 中通过 query 请求服务端筛选。 */
+  const orderList = computed<OrderListItem[]>(() => baseOrderList.value)
 
   // 搜索：防抖后刷新列表（接口仅支持工单号/条码等字段时，可按需扩展 query）
   watch(
@@ -641,17 +635,46 @@
   // ==================== 网点列表（总部-网点工单） ====================
 
   const baseBranchList = ref<BranchItem[]>([])
+  const BRANCH_PAGE_STEP = 15
+  const branchVisibleLimit = ref(BRANCH_PAGE_STEP)
+  const branchTotalCount = computed(() => baseBranchList.value.length)
+  const branchDisplayList = computed<BranchItem[]>(() =>
+    baseBranchList.value.slice(0, branchVisibleLimit.value)
+  )
+  const hasLoadedAllBranches = computed(
+    () =>
+      baseBranchList.value.length > 0 &&
+      branchDisplayList.value.length >= baseBranchList.value.length
+  )
 
   const refreshBranches = async () => {
     try {
       baseBranchList.value = await fetchBranchList()
+      branchVisibleLimit.value = BRANCH_PAGE_STEP
     } catch {
       baseBranchList.value = []
+      branchVisibleLimit.value = BRANCH_PAGE_STEP
     }
   }
 
-  // 网点列表（总部-网点工单）
-  const branchList = computed<BranchItem[]>(() => baseBranchList.value)
+  const loadMoreBranches = () => {
+    if (branchDisplayList.value.length >= baseBranchList.value.length) return
+    branchVisibleLimit.value += BRANCH_PAGE_STEP
+  }
+
+  const {
+    refresherTriggered: orderListRefresherTriggered,
+    onRefresherRefresh: onOrderListRefresherRefresh
+  } = useScrollRefresher(async () => {
+    await refreshOrders()
+  })
+
+  const {
+    refresherTriggered: branchViewRefresherTriggered,
+    onRefresherRefresh: onBranchViewRefresherRefresh
+  } = useScrollRefresher(async () => {
+    await refreshBranches()
+  })
 
   // ==================== 派单员操作 ====================
 
@@ -669,7 +692,7 @@
   // 当前派单工单ID
   const currentOrderId = ref('')
   // 选中维修员ID
-  const selectedTechId = ref<number | string | null>(1)
+  const selectedTechId = ref<number | string | null>(null)
 
   /**
    * 维修员列表
@@ -764,11 +787,10 @@
       transferReason.value = ''
       currentTransferOrderId.value = ''
 
+      await nextTick()
+      await refreshOrders()
+
       uni.showToast({ title: getApiMessage(res, '转单已提交'), icon: 'success' })
-      // 提交成功后刷新列表（避免本地状态与后端不一致）
-      setTimeout(() => {
-        refreshOrders()
-      }, 300)
     } catch {
       // http.ts / api 内已 toast；这里兜底避免 loading 不消失
     } finally {
@@ -781,8 +803,9 @@
    * @param orderId 当前派单工单ID
    * @returns void
    */
-  const openAssignModal = (orderId: string) => {
-    currentOrderId.value = orderId
+  const openAssignModal = (orderId: string | number) => {
+    const openedFor = String(orderId ?? '').trim()
+    currentOrderId.value = openedFor
     showAssignModal.value = true
     selectedTechId.value = null
 
@@ -805,10 +828,11 @@
     ]
     technicianList.value = base
 
-    const workOrderId = Number(orderId)
+    const workOrderId = Number(openedFor)
     if (!Number.isFinite(workOrderId) || workOrderId <= 0) return
     fetchAssignUserOptions(workOrderId)
       .then((list) => {
+        if (String(currentOrderId.value).trim() !== openedFor) return
         const mapped: Technician[] = list.map((u) => ({
           id: u.id,
           name: u.realName || u.phone || `用户${u.id}`,
@@ -834,22 +858,55 @@
   const closeAssignModal = () => {
     showAssignModal.value = false
     currentOrderId.value = ''
+    selectedTechId.value = null
     technicianList.value = []
   }
 
   /**
-   * 确认派单
+   * 确认派单：PUT `/api/system/work-order/assign`（assignedUserId + workOrderId）
+   * @param payload 所选维修员
    * @returns void
    */
-  const onAssignConfirm = () => {
-    const oid = currentOrderId.value
-    if (selectedTechId.value === DISPATCHER_SELF_TECH_ID && oid) {
-      selfAssignedPendingOrderIds.value = new Set(selfAssignedPendingOrderIds.value).add(oid)
-      uni.showToast({ title: '已派单给自己，可在「待接单」中接单', icon: 'none' })
-    } else {
-      uni.showToast({ title: '派单成功', icon: 'success' })
+  const onAssignConfirm = async (payload: {
+    workOrderId: string | number
+    selectedTechId: number | string
+  }) => {
+    const workOrderId = Number(payload.workOrderId ?? currentOrderId.value)
+    if (!Number.isFinite(workOrderId) || workOrderId <= 0) {
+      uni.showToast({ title: '工单ID无效', icon: 'none' })
+      return
     }
-    closeAssignModal()
+
+    const isSelf = payload?.selectedTechId === DISPATCHER_SELF_TECH_ID
+    const selfId = userStore.userInfo?.id
+    if (isSelf) {
+      if (!selfId || !Number.isFinite(selfId) || selfId <= 0) {
+        uni.showToast({ title: '无法获取当前用户，请重新登录', icon: 'none' })
+        return
+      }
+    } else {
+      const assignedUserId = Number(payload?.selectedTechId)
+      if (!Number.isFinite(assignedUserId) || assignedUserId <= 0) {
+        uni.showToast({ title: '维修员ID无效', icon: 'none' })
+        return
+      }
+    }
+
+    const assignedUserId = isSelf ? Number(selfId) : Number(payload?.selectedTechId)
+    try {
+      const res = await assignWorkOrder({ workOrderId, assignedUserId })
+      if (isSelf) {
+        uni.showToast({ title: '已派单给自己，可在「待接单」中接单', icon: 'none' })
+      } else {
+        uni.showToast({ title: getApiMessage(res, '派单成功'), icon: 'success' })
+      }
+      closeAssignModal()
+      setTimeout(() => {
+        refreshOrders()
+      }, 300)
+    } catch {
+      // assignWorkOrder / http 内已 toast
+    }
   }
 
   // ==================== 维修工程师 & 总部操作 ====================
@@ -910,25 +967,53 @@
     return base.filter((a) => {
       if (a.key === 'accept') return userStore.hasPermission(Perms.WORKORDER_ACCEPT)
       if (a.key === 'repair') return userStore.hasPermission(Perms.WORKORDER_REPAIR) || hq
-      if (a.key === 'returnMethod') return userStore.hasPermission(Perms.WORKORDER_ACCEPT) || hq
+      if (a.key === 'returnMethod')
+        return (
+          userStore.hasPermission(Perms.WORKORDER_CLOSE) &&
+          (userStore.hasPermission(Perms.WORKORDER_ACCEPT) || hq)
+        )
       if (a.key === 'recheck') return userStore.hasPermission(Perms.WORKORDER_REVIEW) || hq
       return true
     })
   }
 
   /**
-   * 派单员侧操作条（与「总部处理」一级 Tab 及状态组合条件，与模板原 v-if 一致）
+   * 派单权限用户：工单已指派给他人（assignedUserId 与当前账号 id 不一致）时仅可查看，不可操作
+   */
+  const isDispatcherOrderAssignedToOther = (order: OrderListItem) => {
+    if (!userStore.hasPermission(Perms.WORKORDER_ASSIGN)) return false
+    const aid = order.assignedUserId
+    if (aid === undefined || aid === null) return false
+    const assigned = Number(aid)
+    if (!Number.isFinite(assigned) || assigned <= 0) return false
+    const selfId = userStore.userInfo?.id
+    if (!Number.isFinite(selfId)) return false
+    return assigned !== Number(selfId)
+  }
+
+  /**
+   * 派单员侧操作条（「总部处理/未转单」一级 Tab）
+   * - 有派单权限：待接单/派单、维修中（有转单权时）、已完成（复检/转单按权限）
+   * - 仅有转单权限：维修中、已完成仍展示转单按钮
    * @param order 工单
-   * @returns 是否展示派单员侧操作条（派单员侧操作条：选此项表示派单给自己，进入「待接单」）
+   * @returns 是否展示派单员侧操作条
    */
   const showDispatcherActionBlock = (order: OrderListItem) => {
-    if (!userStore.hasPermission(Perms.WORKORDER_ASSIGN) || primaryTab.value !== 'untransferred')
-      return false
-    return (
-      order.status === 'pending' ||
-      (order.status === 'processing' && order.isJiashi) ||
-      order.status === 'completed'
-    )
+    if (primaryTab.value !== 'untransferred') return false
+    if (isDispatcherOrderAssignedToOther(order)) return false
+    const hasAssign = userStore.hasPermission(Perms.WORKORDER_ASSIGN)
+    const hasTransfer = userStore.hasPermission(Perms.WORKORDER_TRANSFER)
+    if (hasAssign) {
+      return (
+        order.status === 'pending' ||
+        (order.status === 'processing' && hasTransfer) ||
+        order.status === 'completed'
+      )
+    }
+    if (hasTransfer) {
+      return order.status === 'processing' || order.status === 'completed'
+    }
+    return false
   }
 
   /**
@@ -938,6 +1023,7 @@
    */
   const showOperatorActions = (order: OrderListItem) => {
     if (primaryTab.value === 'transferred') return false
+    if (isDispatcherOrderAssignedToOther(order)) return false
     if (!canOperateOrder.value || !canEngineerOperateTransferredOrder(order)) return false
     // 派单员 pending 仅走上方按钮区：待派单只显示「派单」、待接单只显示「接单」，不与工程师条重复
     if (userStore.hasPermission(Perms.WORKORDER_ASSIGN) && order.status === 'pending') return false
@@ -956,29 +1042,19 @@
   }
 
   /**
-   * 接单
+   * 接单：进入详情填写故障判定与维修报价，用户提交后再调接单接口（与首页一致）
    * @param orderId 工单ID
    * @returns void
    */
-  const onAcceptOrder = async (orderId: string) => {
+  const onAcceptOrder = (orderId: string) => {
     const id = Number(orderId)
     if (!Number.isFinite(id) || id <= 0) {
       uni.showToast({ title: '工单ID无效', icon: 'none' })
       return
     }
-
-    uni.showLoading({ title: '正在接单...' })
-    try {
-      const res = await techAcceptWorkOrder({ workOrderId: id })
-      uni.showToast({ title: getApiMessage(res, '接单成功'), icon: 'success' })
-      setTimeout(() => {
-        refreshOrders()
-      }, 300)
-    } catch {
-      // http.ts / api 内已 toast；这里兜底避免 loading 不消失
-    } finally {
-      uni.hideLoading()
-    }
+    uni.navigateTo({
+      url: `/pages/order/detail?id=${orderId}&action=accept`
+    })
   }
 
   /**
@@ -995,18 +1071,30 @@
   // 当前机器返回方式工单ID
   const currentReturnOrderId = ref('')
   const currentReturnOrderDetail = ref<OrderDetail>()
-  // 当前选择的机器返回方式（用于关闭工单入参）
+  // 当前选择的机器返回方式（展示/状态）
   const currentReturnMethodType = ref<'' | 'self' | 'mail'>('')
+  /** 「无故障」闭环：关闭工单 PUT 需携带刚确认的返回方式 */
+  const closeOrderReturnMethodPayload = ref<ReturnMethodConfirmPayload | null>(null)
   // 工单关闭弹窗
   const showCloseOrderModal = ref(false)
 
-  /**
-   * 机器返回方式初始邮件
-   * @returns 机器返回方式初始邮件
-   */
-  const returnMethodInitialMail = computed(() =>
-    getReturnMethodInitialMail(currentReturnOrderDetail.value)
-  )
+  const returnMethodInitialMailMerged = computed(() => {
+    const base = getReturnMethodInitialMail(currentReturnOrderDetail.value)
+    const o = mailReturnAddressOverride.value
+    if (!o) return base
+    return {
+      ...base,
+      receiverName: o.receiverName,
+      receiverPhone: o.receiverPhone,
+      receiverAddress: o.receiverAddress
+    }
+  })
+
+  watch(showReturnMethodModal, (open, prevOpen) => {
+    if (open && !prevOpen) {
+      mailReturnAddressOverride.value = null
+    }
+  })
 
   /**
    * 打开机器返回方式弹窗
@@ -1017,6 +1105,7 @@
     currentReturnOrderId.value = orderId
     currentReturnOrderDetail.value = undefined
     currentReturnMethodType.value = ''
+    closeOrderReturnMethodPayload.value = null
     fetchOrderDetail(orderId)
       .then((d) => {
         currentReturnOrderDetail.value = d
@@ -1028,31 +1117,65 @@
   }
 
   /**
-   * 确认机器返回方式
+   * 确认机器返回方式：有故障直接关单；无故障先弹关单原因，确认后再关单（入参含返回方式）
    * @param data 机器返回方式数据
    * @returns void
    */
-  const onReturnMethodConfirm = (data: {
-    type: 'self' | 'mail'
-    mail?: {
-      receiverName: string
-      receiverPhone: string
-      receiverAddress: string
-      receiptImagePaths: string[]
-    }
-  }) => {
+  const onReturnMethodConfirm = async (data: ReturnMethodConfirmPayload) => {
     currentReturnMethodType.value = data.type
-    uni.showToast({
-      title: `工单 ${currentReturnOrderId.value} 已选择 ${data.type === 'self' ? '自提' : '回寄'}`,
-      icon: 'none'
-    })
-    // 与详情页一致：仅「无故障」维修完成流程需在返回方式后填写关闭原因；有故障不弹关闭工单
-    const detail = currentReturnOrderDetail.value
-    if (detail?.repair?.faultJudge === '无故障') {
+    const id = Number(currentReturnOrderId.value)
+    if (!Number.isFinite(id) || id <= 0) {
+      uni.showToast({ title: '工单ID无效', icon: 'none' })
+      return
+    }
+
+    const judge = String(currentReturnOrderDetail.value?.repair?.faultJudge ?? '').trim()
+
+    if (judge === '有故障') {
+      const base = {
+        workOrderId: id,
+        closeReason: WORK_ORDER_FAULT_CLOSE_REASON,
+        returnMethod: data.type === 'self' ? '自提' : '回寄'
+      } as const
+      const dto =
+        data.type === 'mail'
+          ? {
+              ...base,
+              ...(data.mail.returnVoucherFileIds.length
+                ? { returnVoucherFileIds: data.mail.returnVoucherFileIds }
+                : {})
+            }
+          : base
+
+      uni.showLoading({ title: '提交中...' })
+      try {
+        const res = await closeWorkOrder(dto)
+        closeOrderReturnMethodPayload.value = null
+        uni.showToast({ title: getApiMessage(res, '工单已关闭'), icon: 'success' })
+        setTimeout(() => {
+          refreshOrders()
+        }, 300)
+      } catch {
+        // closeWorkOrder 内已 toast
+      } finally {
+        uni.hideLoading()
+      }
+      return
+    }
+
+    if (judge === '无故障') {
+      uni.showToast({
+        title: `工单 ${currentReturnOrderId.value} 已选择 ${data.type === 'self' ? '自提' : '回寄'}`,
+        icon: 'none'
+      })
+      closeOrderReturnMethodPayload.value = data
       setTimeout(() => {
         showCloseOrderModal.value = true
       }, 500)
+      return
     }
+
+    uni.showToast({ title: '工单状态未就绪，请稍后重试', icon: 'none' })
   }
 
   /**
@@ -1066,21 +1189,37 @@
       uni.showToast({ title: '工单ID无效', icon: 'none' })
       return
     }
-    const method = currentReturnMethodType.value
-    if (method !== 'self' && method !== 'mail') {
-      uni.showToast({ title: '请先选择机器返回方式', icon: 'none' })
+    const payload = closeOrderReturnMethodPayload.value
+    if (!payload) {
+      uni.showToast({ title: '请先完成机器返回方式', icon: 'none' })
       return
     }
 
+    const cr = (reason || '').trim()
+    if (!cr) {
+      uni.showToast({ title: '请填写关闭原因（无故障必填）', icon: 'none' })
+      return
+    }
+
+    const base = {
+      workOrderId: id,
+      closeReason: cr,
+      returnMethod: payload.type === 'self' ? '自提' : '回寄'
+    } as const
+    const dto =
+      payload.type === 'mail'
+        ? {
+            ...base,
+            ...(payload.mail.returnVoucherFileIds.length
+              ? { returnVoucherFileIds: payload.mail.returnVoucherFileIds }
+              : {})
+          }
+        : base
+
     uni.showLoading({ title: '正在关闭...' })
     try {
-      const res = await closeWorkOrder({
-        workOrderId: id,
-        closeReason: (reason || '').trim(),
-        returnMethod: method === 'self' ? 'SELF' : 'MAIL',
-        returnExpressNo: '',
-        returnVoucherFileIds: []
-      })
+      const res = await closeWorkOrder(dto)
+      closeOrderReturnMethodPayload.value = null
       uni.showToast({ title: getApiMessage(res, '工单已关闭'), icon: 'success' })
       // 关闭成功后刷新列表（避免本地状态与后端不一致）
       setTimeout(() => {

@@ -19,11 +19,16 @@ $text-placeholder: #909399;
 $text-strong: #333333;
 
 $text-slate-900: #0f172a;
+$text-slate-800: #1e293b;
 $text-slate-700: #334155;
 $text-slate-600: #475569;
 $text-slate-500: #64748b;
 $text-slate-400: #94a3b8;
 $text-dark: $text-slate-900;
+$text-body: $text-slate-700;
+$text-label: $text-slate-600;
+$text-desc: $text-slate-500;
+$text-muted: $text-slate-400;
 
 // ========== 边框 ==========
 $border-color: #ebeef5;
@@ -37,6 +42,7 @@ $radius-input: 18rpx;
 $radius-lg: 24rpx;
 $radius-xl: 48rpx;
 $radius-pill: 999rpx;
+$radius-round: $radius-pill;
 
 // ========== 间距 ==========
 $space-xs: 8rpx;
@@ -47,6 +53,7 @@ $space-xl: 48rpx;
 $space-input: 28rpx;
 
 // ========== 字体尺寸 ==========
+$font-xs: 22rpx;
 $font-sm: 24rpx;
 $font-md: 28rpx;
 $font-lg: 32rpx;
@@ -84,6 +91,7 @@ $red-50: #fef2f2;
 $red-400: #f87171;
 $red-500: #ef4444;
 $red-600: #dc2626;
+$danger: $red-500;
 $orange-800: #c2410c;
 $violet-600: #7c3aed;
 $yellow-700: #ca8a04;

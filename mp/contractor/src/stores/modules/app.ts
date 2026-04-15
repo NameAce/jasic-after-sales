@@ -31,6 +31,17 @@ export const useAppStore = defineStore('app', () => {
     return target
   }
 
+  /** 表单提交等场景进入工单库 tab 时，触发与 scroll-view 下拉刷新一致的加载反馈 */
+  const orderListScrollRefresherOnNextShow = ref(false)
+  const markOrderListScrollRefresherOnNextShow = () => {
+    orderListScrollRefresherOnNextShow.value = true
+  }
+  const consumeOrderListScrollRefresherOnNextShow = () => {
+    const v = orderListScrollRefresherOnNextShow.value
+    orderListScrollRefresherOnNextShow.value = false
+    return v
+  }
+
   /**
    * 初始化应用/系统信息
    * @returns void
@@ -50,8 +61,11 @@ export const useAppStore = defineStore('app', () => {
   return {
     statusBarHeight,
     orderListNavTarget,
+    orderListScrollRefresherOnNextShow,
     initAppInfo,
     setOrderListNavTarget,
-    consumeOrderListNavTarget
+    consumeOrderListNavTarget,
+    markOrderListScrollRefresherOnNextShow,
+    consumeOrderListScrollRefresherOnNextShow
   }
 })

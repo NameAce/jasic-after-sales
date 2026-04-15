@@ -3,7 +3,7 @@
     <!-- 内容 -->
     <view class="modal-body">
       <view class="form-group">
-        <text class="label">选择转单网点</text>
+        <text class="label">选择转单网点<text class="text-red">*</text></text>
         <view class="select-wrap">
           <picker mode="selector" :range="networkList" range-key="name" @change="onNetworkChange">
             <view class="picker-value">
@@ -17,7 +17,7 @@
       </view>
       <!-- 转单原因说明 -->
       <view class="form-group">
-        <text class="label">转单原因说明</text>
+        <text class="label">转单原因说明<text class="text-red">*</text></text>
         <textarea
           v-model="reasonValue"
           class="textarea"

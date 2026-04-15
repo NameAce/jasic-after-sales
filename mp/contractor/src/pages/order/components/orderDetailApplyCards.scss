@@ -55,9 +55,10 @@
       line-height: 1.4;
     }
 
-    .tag-method-purple {
-      background-color: rgba($violet-600, 0.12);
-      color: $violet-600;
+    /* 寄修 / 邮寄 / MAIL：与详情顶栏主色一致 */
+    .tag-method-mail-orange {
+      background-color: rgba(242, 102, 4, 0.1);
+      color: #f26604;
     }
 
     .tag-method-yellow {
@@ -101,6 +102,18 @@
     .tag-warranty-red {
       background-color: rgba($red-600, 0.14);
       color: $red-600;
+    }
+
+    &.voucher-row {
+      align-items: flex-start;
+    }
+
+    .shipping-voucher-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: $space-sm;
+      max-width: 420rpx;
     }
 
     .shipping-img {

@@ -6,9 +6,7 @@ import globals from 'globals'
 import vueParser from 'vue-eslint-parser'
 import { readFileSync } from 'fs'
 
-const autoImports = JSON.parse(
-  readFileSync('./.eslintrc-auto-import.json', 'utf-8')
-)
+const autoImports = JSON.parse(readFileSync('./.eslintrc-auto-import.json', 'utf-8'))
 
 export default [
   {
@@ -23,7 +21,7 @@ export default [
     files: ['**/*.{js,ts,vue}'],
 
     languageOptions: {
-      parser: vueParser, 
+      parser: vueParser,
       parserOptions: {
         parser: tseslint.parser, // ⭐ 再用 ts parser 解析 script
         ecmaVersion: 'latest',
@@ -35,6 +33,7 @@ export default [
 
         uni: 'readonly',
         wx: 'readonly',
+        getCurrentPages: 'readonly',
         console: 'readonly'
       }
     },

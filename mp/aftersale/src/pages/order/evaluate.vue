@@ -13,16 +13,12 @@
         <view class="section">
           <view class="technician-card">
             <view class="avatar-wrap">
-              <image
-                class="avatar"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuD6WAmZjNixQ0DFB7uvPBuqPVdEjienUwTzvUxHj3gzGu-O7sPvnsMMht-aoO4C57OpIbWPMnsXZ0wUs0O6PBCWg57lJv-r_lFtp-J_Af9_Ru_PesWm1Msz6ZYbHO4FFwmXcVfQkYW1Z9ki-zhxlkd14SqgddK7oFK6HfXHeLmNtr5MN8EU6-Emxs4lWlRQDFTlj9mZ3BxfO29CJWDAo8UnTZbt7lpoprofFVDAHdpL4qTgmTE8cT04bubRMUY1Zo2Ae0DIif9gRjo"
-                mode="aspectFill"
-              ></image>
+              <image class="avatar" :src="technicianAvatarSrc" mode="aspectFill" />
             </view>
             <view class="info">
               <view class="name-row">
-                <text class="name">张师傅</text>
-                <text class="badge">高级维修员</text>
+                <text class="name">{{ technicianDisplayName || '—' }}</text>
+                <text v-if="technicianOrgLabel" class="badge">{{ technicianOrgLabel }}</text>
               </view>
               <text class="order-no">订单号: {{ orderNoDisplay || '—' }}</text>
             </view>
@@ -69,7 +65,12 @@
         <!-- 快速标签区域 -->
         <view class="section tags-section">
           <text class="section-title">您对服务满意吗？</text>
-          <scroll-view scroll-x class="tags-scroll" :show-scrollbar="false">
+          <scroll-view
+            v-if="showQuickTagScroll"
+            scroll-x
+            class="tags-scroll"
+            :show-scrollbar="false"
+          >
             <view class="tags-container">
               <view
                 v-for="tag in availableTags"
@@ -99,7 +100,7 @@
         </view>
 
         <!-- 照片上传区域 -->
-        <view class="section upload-section">
+        <view v-if="showEvaluatePhotoUpload" class="section upload-section">
           <MediaUploadField
             v-model="formData.photos"
             label="维修成果上传"
@@ -118,9 +119,9 @@
 </template>
 
 <script setup lang="ts">
-  import { reactive, ref } from 'vue'
+  import { computed, reactive, ref } from 'vue'
   import { onLoad } from '@dcloudio/uni-app'
-  import { evaluateCustomerWorkOrderAPI } from '@/api/order'
+  import { evaluateCustomerWorkOrderAPI, getOrderDetailAPI } from '@/api/order'
   import FormItemAnchor from '@/components/FormItemAnchor/FormItemAnchor.vue'
   import MediaUploadField from '@/components/MediaUploadField/MediaUploadField.vue'
   import BaseButton from '@/components/BaseButton/BaseButton.vue'
@@ -129,10 +130,54 @@
 
   const workOrderId = ref(0)
   const orderNoDisplay = ref('')
+  const technicianDisplayName = ref('')
+  const technicianOrgLabel = ref('')
+  const technicianAvatar = ref('')
   const submitting = ref(false)
   const scrollIntoView = ref('')
 
+  const DEFAULT_TECHNICIAN_AVATAR = '/static/images/worker.png'
+
+  const technicianAvatarSrc = computed(() => {
+    const u = technicianAvatar.value.trim()
+    return u || DEFAULT_TECHNICIAN_AVATAR
+  })
+
+  /**
+   * 与工单详情同源：拉取详情填充维修员与工单号展示
+   */
+  const loadDetailForHeader = async () => {
+    const id = workOrderId.value
+    if (!id) return
+    try {
+      const res = await getOrderDetailAPI({ id: String(id) })
+      const d = res.result
+      if (!d) return
+      const no = String(d.base?.orderNo ?? '').trim()
+      if (no) orderNoDisplay.value = no
+      const t = d.technician
+      if (t) {
+        technicianDisplayName.value = String(t.name ?? '').trim()
+        technicianOrgLabel.value = String(t.orgLabel ?? '').trim()
+        technicianAvatar.value = String(t.avatar ?? '').trim()
+      }
+    } catch {
+      /* 失败时保留路由传入的订单号，头像使用默认图 */
+    }
+  }
+
+  /** 与 `list.vue` 中 `navigateTo` 的 `events` 键名一致，用于返回前通知上一页刷新列表 */
+  const WORK_ORDER_EVALUATED_EVENT = 'workOrderEvaluated'
+
+  type OpenerEventChannel = { emit: (eventName: string, ...args: unknown[]) => void }
+
+  let openerEventChannel: OpenerEventChannel | undefined
+
   onLoad((options?: Record<string, string>) => {
+    const pages = getCurrentPages()
+    const cur = pages[pages.length - 1] as { getOpenerEventChannel?: () => OpenerEventChannel }
+    openerEventChannel = cur.getOpenerEventChannel?.()
+
     const raw = options?.id ?? options?.workOrderId
     const n = Number(raw)
     if (Number.isFinite(n) && n > 0) {
@@ -141,6 +186,7 @@
     if (options?.orderNo) {
       orderNoDisplay.value = decodeURIComponent(options.orderNo)
     }
+    void loadDetailForHeader()
   })
 
   // 表单数据
@@ -152,6 +198,12 @@
     feedback: '',
     photos: []
   })
+
+  /** 为 false 时隐藏横向快捷标签区域 */
+  const showQuickTagScroll = false
+
+  /** 为 false 时隐藏维修成果上传 */
+  const showEvaluatePhotoUpload = false
 
   // 可用标签
   const availableTags = ['专业性强', '准时到达', '维修速度快', '价格公道', '服务态度好']
@@ -220,20 +272,19 @@
     uni.showLoading({ title: '提交中...', mask: true })
     try {
       const content = formData.feedback.trim()
-      const tagsStr = formData.tags.length ? formData.tags.join(',') : ''
       const res = await evaluateCustomerWorkOrderAPI({
         qualityScore: formData.qualityRating,
         satisfactionScore: formData.satisfactionRating,
         timelinessScore: formData.efficiencyRating,
         workOrderId: workOrderId.value,
-        ...(content ? { content } : {}),
-        ...(tagsStr ? { tags: tagsStr } : {})
+        ...(content ? { content } : {})
       })
       uni.showToast({
         title: res.msg,
         icon: 'success',
         duration: 1500
       })
+      openerEventChannel?.emit(WORK_ORDER_EVALUATED_EVENT)
       setTimeout(() => {
         uni.navigateBack()
       }, 1500)
@@ -333,45 +384,6 @@
         font-size: 26rpx;
         font-weight: 600;
         color: $text-body;
-      }
-    }
-  }
-
-  .tags-section {
-    .section-title {
-      font-size: $font-md;
-      font-weight: 700;
-      color: $text-dark;
-      margin-bottom: $space-lg;
-      display: block;
-    }
-
-    .tags-scroll {
-      width: 100%;
-      white-space: nowrap;
-
-      .tags-container {
-        display: inline-flex;
-        gap: $space-sm;
-      }
-    }
-
-    .tag-item {
-      padding: 12rpx 24rpx;
-      border-radius: $radius-round;
-      font-size: $font-sm;
-      font-weight: 500;
-      color: $text-body;
-      background-color: $bg-card;
-      border: 2rpx solid $border-light;
-      transition: all 0.2s;
-
-      &.active {
-        background-color: $primary;
-        color: #ffffff;
-        border-color: $primary;
-        font-weight: 600;
-        box-shadow: 0 4rpx 12rpx rgba($primary, 0.15);
       }
     }
   }

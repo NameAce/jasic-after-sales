@@ -240,6 +240,13 @@
           .text { color: list.nth($pair, 2); }
         }
       }
+
+      &.status-badge--pending-tech-accept {
+        background-color: $red-50;
+        .text {
+          color: $red-600;
+        }
+      }
     }
   }
 
@@ -409,6 +416,13 @@
       background-color: $tag-transfer-bg;
       .text {
         color: $tag-transfer-text;
+      }
+    }
+
+    &.status-badge--pending-tech-accept {
+      background-color: $red-50;
+      .text {
+        color: $red-600;
       }
     }
 

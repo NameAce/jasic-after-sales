@@ -25,19 +25,6 @@
       </view>
     </view>
 
-    <!-- 统计数据 -->
-    <view class="stats-row">
-      <view
-        v-for="(stat, idx) in statsData"
-        :key="idx"
-        class="stat-card"
-        @click="onOrderClick(stat.status)"
-      >
-        <text class="stat-label">{{ stat.label }}</text>
-        <text :class="['stat-value', { 'primary-text': stat.highlight }]">{{ stat.value }}</text>
-      </view>
-    </view>
-
     <!-- 功能列表 -->
     <view class="menu-list-wrap">
       <view class="menu-list">
@@ -75,53 +62,20 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, ref } from 'vue'
-  import { onShow } from '@dcloudio/uni-app'
+  import { computed } from 'vue'
   import { useUserStore } from '@/stores/modules/user'
-  import { useAppStore } from '@/stores/modules/app'
   import { Perms } from '@/utils/permissions'
   import { buildUserProfile, DEFAULT_MY_MENU } from '@/models/user'
-  import { fetchWorkOrderStatusCount, mapMainStatusToOrderStatus } from '@/api/order'
-  import type { OrderStatus } from '@/models/order'
-  import { verifiedIcon, postAddIcon, menuInfoIcon, logoutIcon } from '@/svgs'
+  import { verifiedIcon, postAddIcon, menuInfoIcon, logoutIcon, locationOnIcon } from '@/svgs'
   // 菜单图标映射
   const MENU_ICON_MAP: Record<string, string> = {
     post_add: postAddIcon,
+    address: locationOnIcon,
     info: menuInfoIcon
   }
 
   // 用户商店
   const userStore = useUserStore()
-  const appStore = useAppStore()
-
-  type StatusCounts = Record<OrderStatus, number>
-  const statusCounts = ref<StatusCounts>({
-    pending: 0,
-    processing: 0,
-    completed: 0,
-    closed: 0
-  })
-
-  async function refreshStatusCounts() {
-    try {
-      const list = await fetchWorkOrderStatusCount({
-        viewScope: 'CURRENT'
-      })
-      const next: StatusCounts = { pending: 0, processing: 0, completed: 0, closed: 0 }
-      list.forEach((it) => {
-        const s = mapMainStatusToOrderStatus(it.mainStatus)
-        const n = Number(it.countNum ?? 0)
-        next[s] += Number.isFinite(n) ? n : 0
-      })
-      statusCounts.value = next
-    } catch {
-      // http.ts 已做 toast；这里保留上次值/默认值即可
-    }
-  }
-
-  onShow(() => {
-    refreshStatusCounts()
-  })
 
   /**
    * 用户信息
@@ -140,31 +94,14 @@
     }
   })
 
-  /**
-   * 统计数据
-   * @returns 统计数据
-   */
-  const statsData = computed(() => {
-    const c = statusCounts.value
-    return [
-      {
-        label: userStore.hasPermission(Perms.WORKORDER_ASSIGN) ? '今日派单' : '今日接单',
-        value: c.pending,
-        status: 'pending',
-        highlight: false
-      },
-      { label: '维修中', value: c.processing, status: 'processing', highlight: true },
-      {
-        label: '月度完成',
-        value: c.completed + c.closed,
-        status: 'completed',
-        highlight: false
-      }
-    ]
+  /** 功能菜单（建维修单需工单新增权限；其余入口展示，具体操作权限在各页控制） */
+  const menuItems = computed(() => {
+    const withoutRepairCreate = DEFAULT_MY_MENU.filter(
+      (item) => item.link !== '/pages/jasicRepair/index'
+    )
+    if (userStore.hasPermission(Perms.WORKORDER_ADD)) return DEFAULT_MY_MENU
+    return withoutRepairCreate
   })
-
-  /** 功能菜单（入口均展示；具体操作权限在各页按钮上控制） */
-  const menuItems = computed(() => DEFAULT_MY_MENU)
 
   /**
    * 菜单项点击
@@ -173,19 +110,6 @@
    */
   const onMenuItemTap = (item: { link?: string }) => {
     if (item.link) uni.navigateTo({ url: item.link })
-  }
-
-  /**
-   * 跳转到工单库：一级tab为"总部处理/未转单"，二级tab为对应状态
-   * @param status 状态
-   * @returns void
-   */
-  const onOrderClick = (status: string) => {
-    appStore.setOrderListNavTarget({
-      primaryTab: 'untransferred',
-      secondaryTab: status as 'pending' | 'processing' | 'completed'
-    })
-    uni.switchTab({ url: '/pages/order/list' })
   }
 
   /**
@@ -305,48 +229,6 @@
             opacity: 0.7;
             font-weight: normal;
           }
-        }
-      }
-    }
-  }
-
-  .stats-row {
-    margin-top: -80rpx;
-    padding: 0 40rpx;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 32rpx;
-    position: relative;
-    z-index: 10;
-
-    .stat-card {
-      background-color: $surface-white;
-      padding: 20rpx 0;
-      border-radius: 48rpx;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      box-shadow:
-        0 20rpx 50rpx -10rpx rgba(0, 0, 0, 0.05),
-        0 16rpx 20rpx -12rpx rgba(0, 0, 0, 0.05);
-
-      .stat-label {
-        color: $text-slate-400;
-        font-size: 24rpx;
-        font-weight: bold;
-        text-transform: uppercase;
-        letter-spacing: 2rpx;
-        margin-bottom: 16rpx;
-      }
-
-      .stat-value {
-        color: $text-slate-900;
-        font-size: 48rpx;
-        font-weight: 900;
-
-        &.primary-text {
-          color: $primary;
         }
       }
     }

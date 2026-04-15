@@ -22,12 +22,38 @@
           <!-- 故障描述 -->
           <uni-forms-item label="故障描述" name="faultDescription" required>
             <FormItemAnchor name="faultDescription" />
-            <uni-easyinput
-              v-model="formData.faultDescription"
-              type="textarea"
-              auto-height
-              placeholder="请详细描述产品故障现象，以便我们更快为您处理..."
-            />
+            <view class="fault-desc-picker" @click="openFaultDescDropdown">
+              <text :class="['fault-desc-picker-text', { placeholder: !selectedFaultDescText }]">
+                {{ selectedFaultDescText || '请选择' }}
+              </text>
+              <uni-icons type="down" size="15" color="#cbd5e1" />
+            </view>
+            <view v-if="showFaultDescDropdown" class="fault-desc-dropdown">
+              <view
+                v-for="option in faultDescriptionOptions"
+                :key="option.value"
+                class="fault-desc-option"
+                @click.stop="toggleDraftFaultDesc(option.value)"
+              >
+                <checkbox
+                  :checked="draftFaultDesc.includes(option.value)"
+                  color="#f26604"
+                  style="transform: scale(0.8); transform-origin: center"
+                />
+                <text class="fault-desc-option-text">{{ option.text }}</text>
+              </view>
+              <view class="fault-desc-dropdown-actions">
+                <view class="dropdown-btn dropdown-btn--cancel" @click.stop="cancelFaultDescSelect">
+                  取消
+                </view>
+                <view
+                  class="dropdown-btn dropdown-btn--confirm"
+                  @click.stop="confirmFaultDescSelect"
+                >
+                  确定
+                </view>
+              </view>
+            </view>
           </uni-forms-item>
 
           <!-- 选择维修路径 -->
@@ -175,6 +201,72 @@
   // 使用补充说明
   const { showSupplementSection, toggleSupplementSection } = useSupplementSection(false)
   const userStore = useUserStore()
+  const faultDescriptionOptions = ref([
+    { text: '2', value: '2' },
+    { text: '3', value: '3' },
+    { text: '其它故障', value: 'OTHER' }
+  ])
+  const showFaultDescDropdown = ref(false)
+  const draftFaultDesc = ref<string[]>([])
+  const selectedFaultDescText = computed(() => {
+    const selectedValues = normalizeFaultDescSelection(formData.value.faultDescription)
+    const selectedTexts = selectedValues
+      .map(
+        (value) => faultDescriptionOptions.value.find((item) => item.value === value)?.text || value
+      )
+      .map((item) => String(item ?? '').trim())
+      .filter(Boolean)
+    return selectedTexts.join('、')
+  })
+
+  const normalizeFaultDescSelection = (value: string | string[]) => {
+    if (Array.isArray(value)) {
+      return value.map((item) => String(item ?? '').trim()).filter(Boolean)
+    }
+    return String(value ?? '')
+      .split(/[、，,]/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((item) => {
+        const matched = faultDescriptionOptions.value.find((option) => option.text === item)
+        return matched?.value ?? item
+      })
+  }
+
+  const openFaultDescDropdown = () => {
+    draftFaultDesc.value = normalizeFaultDescSelection(formData.value.faultDescription)
+    showFaultDescDropdown.value = true
+  }
+
+  const toggleDraftFaultDesc = (value: string) => {
+    const val = String(value ?? '').trim()
+    if (!val) return
+    if (draftFaultDesc.value.includes(val)) {
+      draftFaultDesc.value = draftFaultDesc.value.filter((x) => x !== val)
+    } else {
+      draftFaultDesc.value = [...draftFaultDesc.value, val]
+    }
+  }
+
+  const cancelFaultDescSelect = () => {
+    showFaultDescDropdown.value = false
+    draftFaultDesc.value = []
+  }
+
+  const confirmFaultDescSelect = () => {
+    const selectedTexts = draftFaultDesc.value
+      .map(
+        (value) => faultDescriptionOptions.value.find((item) => item.value === value)?.text || value
+      )
+      .map((item) => String(item ?? '').trim())
+      .filter(Boolean)
+    formData.value.faultDescription = selectedTexts.join('、')
+    showFaultDescDropdown.value = false
+    draftFaultDesc.value = []
+    const form = formRef.value as { clearValidate?: (names?: string[]) => void } | null
+    form?.clearValidate?.(['faultDescription'])
+  }
+
   // 是否恢复暂存
   const hasRestoredRepairDraft = ref(false)
   // 重置后仅在实际再次进入页面（非从地图选点返回）时从本地恢复暂存
@@ -441,6 +533,8 @@
    * @returns void
    */
   const resetForm = () => {
+    showFaultDescDropdown.value = false
+    draftFaultDesc.value = []
     needReapplyDraftAfterReset.value = true
     clearServicePointSelection()
     showSupplementSection.value = false
@@ -477,4 +571,85 @@
   }
 </script>
 
-<style lang="scss"></style>
+<style lang="scss">
+  .fault-desc-picker {
+    @include flex-row;
+    align-items: center;
+    justify-content: space-between;
+    gap: $space-sm;
+    height: 80rpx;
+    padding: 0 $space-md;
+    border: 1rpx solid $border-color;
+    border-radius: $radius-input;
+    background-color: $bg-light;
+    box-sizing: border-box;
+  }
+
+  .fault-desc-picker-text {
+    flex: 1;
+    min-width: 0;
+    font-size: $space-input;
+    color: $text-main;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &.placeholder {
+      color: $text-placeholder;
+    }
+  }
+
+  .fault-desc-dropdown {
+    margin-top: $space-sm;
+    border: 2rpx solid $border-light;
+    border-radius: $radius-md;
+    background: $bg-card;
+    padding: $space-sm;
+  }
+
+  .fault-desc-option {
+    @include flex-row;
+    align-items: center;
+    gap: $space-xs;
+    padding: 12rpx 8rpx;
+  }
+
+  .fault-desc-option-text {
+    font-size: 26rpx;
+    color: $text-main;
+  }
+
+  .fault-desc-dropdown-actions {
+    @include flex-row;
+    justify-content: flex-end;
+    gap: $space-sm;
+    padding-top: $space-sm;
+  }
+
+  .dropdown-btn {
+    font-size: 24rpx;
+    padding: 10rpx 20rpx;
+    border-radius: $radius-sm;
+  }
+
+  .dropdown-btn--cancel {
+    color: $text-secondary;
+    background: $bg-light;
+  }
+
+  .dropdown-btn--confirm {
+    color: $text-bg;
+    background: $primary;
+  }
+
+  :deep(.uni-data-checklist .checklist-box.is--default.is-checked .checkbox__inner-icon),
+  :deep(.uni-data-checklist .checklist-box.is--default.is-checked .radio__inner-icon),
+  :deep(.uni-data-checklist .checklist-box.is--default.is-checked .uni-icons) {
+    color: $primary !important;
+  }
+
+  :deep(.uni-data-checklist .checklist-box.is--default .checkbox__inner) {
+    width: 26rpx;
+    height: 26rpx;
+  }
+</style>

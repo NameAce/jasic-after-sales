@@ -1,18 +1,16 @@
 <template>
   <view class="order-list-layout">
     <custom-nav-bar title="工单列表" surface="sticky" :shadow="false">
-      <!-- 搜索框 -->
       <view class="search-wrap">
         <view class="search-box">
           <uni-icons type="search" size="18" color="#94a3b8" class="search-icon"></uni-icons>
           <input
             v-model="searchKeyword"
             class="search-input"
-            placeholder="搜索工单号或故障描述"
+            placeholder="在当前已加载列表中筛选：工单号、条码、型号等"
             confirm-type="search"
           />
         </view>
-
         <!-- 工单状态标签 -->
         <scroll-view class="tabs" scroll-x :show-scrollbar="false">
           <view class="tabs-inner">
@@ -20,7 +18,7 @@
               v-for="(tab, index) in tabs"
               :key="index"
               :class="['tab-item', currentTab === index ? 'active' : '']"
-              @click="currentTab = index"
+              @click="selectTab(index)"
             >
               <text class="tab-text">{{ tab }}</text>
             </view>
@@ -32,51 +30,60 @@
       <!-- 工单列表 -->
       <scroll-view class="main-content" scroll-y :lower-threshold="100" @scrolltolower="loadMore">
         <view class="order-list page-padding">
-          <view v-if="filteredOrderList.length === 0" class="empty-hint">
+          <view v-if="loading && orderList.length === 0" class="list-end-hint list-loading-top">
+            <text class="list-end-text">加载中...</text>
+          </view>
+          <view v-else-if="!loading && orderList.length === 0" class="empty-hint">
             <view class="empty-icon-wrap">
               <image class="empty-list-illus" :src="emptyOrderListIcon" mode="aspectFit" />
             </view>
             <text class="empty-title">暂无相关工单</text>
             <text class="empty-desc">{{
-              searchKeyword.trim()
-                ? '未找到匹配的工单，请更换关键词重试'
-                : currentTab === 0
-                  ? '当前没有任何工单记录'
-                  : `当前没有"${tabs[currentTab]}"的工单`
+              currentTab === 0 ? '当前没有任何工单记录' : `当前没有"${tabs[currentTab]}"的工单`
             }}</text>
           </view>
           <view
-            v-for="order in filteredOrderList"
-            :key="order.id"
+            v-else-if="!loading && orderList.length > 0 && displayOrderList.length === 0"
+            class="empty-hint"
+          >
+            <view class="empty-icon-wrap">
+              <image class="empty-list-illus" :src="emptyOrderListIcon" mode="aspectFit" />
+            </view>
+            <text class="empty-title">暂无匹配结果</text>
+            <text class="empty-desc">当前关键词在已加载的工单中没有匹配项，可清空关键词或上拉加载更多后再试</text>
+          </view>
+          <view
+            v-for="order in displayOrderList"
+            :key="`${order.id}-${order.orderNo}`"
             class="order-card"
             @click="goToOrderDetail(order.id, order.status)"
           >
             <!-- 头部 -->
             <view class="card-header">
               <view class="order-info">
-                <view class="id-wrap">
+                <view v-if="hasDisplayText(order.orderNo)" class="id-wrap">
                   <text class="id-main">{{ order.orderNo }}</text>
                 </view>
               </view>
               <view
                 :class="`status-badge ${order.status === '待接单' ? 'status-pending' : order.status === '维修中' ? 'status-repairing' : order.status === '已完成' ? 'status-finished' : 'status-closed'}`"
               >
-                {{ order.status }}
+                {{ orderStatusText(order) }}
               </view>
             </view>
 
             <!-- 工单类型（佳士-橙 / 非佳士-灰）、机器型号（有条码才显示-红） -->
             <view class="tags">
               <text :class="['tag', order.isJasic ? 'tag-jasic' : 'tag-non-jasic']">
-                {{ order.isJasic ? '佳士' : '非佳士' }}
+                {{ orderBrandTypeText(order) }}
               </text>
-              <text v-if="hasBarcode(order)" class="tag tag-model">{{ order.modelName }}</text>
+              <text v-if="showModelTag(order)" class="tag tag-model">{{ order.modelName }}</text>
             </view>
 
             <!-- 待接单：维修方式、条码（有条码才显示）；其余状态：网点、电话、方式、价格、条码（有条码才显示） -->
             <view class="details-grid">
               <template v-if="order.status === '待接单'">
-                <view class="detail-item">
+                <view v-if="hasDisplayText(order.repairType)" class="detail-item">
                   <text class="d-label">维修方式</text>
                   <text class="d-value">{{ order.repairType }}</text>
                 </view>
@@ -86,21 +93,21 @@
                 </view>
               </template>
               <template v-else>
-                <view class="detail-item">
+                <view v-if="hasDisplayText(order.centerName)" class="detail-item">
                   <text class="d-label">维修网点</text>
                   <text class="d-value">{{ order.centerName }}</text>
                 </view>
-                <view class="detail-item">
+                <view v-if="hasDisplayText(order.phone)" class="detail-item">
                   <text class="d-label">网点电话</text>
                   <text class="d-value text-primary">{{ order.phone }}</text>
                 </view>
-                <view class="detail-item">
+                <view v-if="hasDisplayText(order.repairType)" class="detail-item">
                   <text class="d-label">维修方式</text>
                   <text class="d-value">{{ order.repairType }}</text>
                 </view>
-                <view class="detail-item">
+                <view v-if="hasDisplayText(order.price)" class="detail-item">
                   <text class="d-label">维修价格</text>
-                  <text class="d-value font-bold">{{ order.price || '—' }}</text>
+                  <text class="d-value font-bold">{{ order.price }}</text>
                 </view>
                 <view v-if="hasBarcode(order)" class="detail-item detail-item-full">
                   <text class="d-label">条码</text>
@@ -118,7 +125,7 @@
 
             <!-- 底部 -->
             <view class="card-footer">
-              <view class="time-wrap">
+              <view v-if="hasDisplayText(order.time)" class="time-wrap">
                 <image class="time-icon" :src="scheduleIcon" mode="aspectFit" />
                 <text class="time-text">{{ order.time }}</text>
               </view>
@@ -140,7 +147,7 @@
               </view>
             </view>
           </view>
-          <view v-if="filteredOrderList.length > 0" class="list-end-hint">
+          <view v-if="orderList.length > 0" class="list-end-hint">
             <text class="list-end-text">{{
               loadingMore ? '加载中...' : hasMore ? '上拉加载更多' : '没有更多了'
             }}</text>
@@ -184,7 +191,7 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, computed, watch } from 'vue'
+  import { ref, computed } from 'vue'
   import { onLoad, onShow } from '@dcloudio/uni-app'
   import {
     getOrderListAPI,
@@ -216,7 +223,7 @@
   const hasMore = ref(true)
   const loading = ref(false)
   const loadingMore = ref(false)
-  // 搜索关键词
+  /** 模糊筛选关键词（仅过滤当前已加载到本地的列表，不额外请求接口） */
   const searchKeyword = ref('')
 
   /**
@@ -228,21 +235,52 @@
     return Boolean(order.qrCode?.trim())
   }
 
-  /**
-   * 过滤工单列表
-   * @returns OrderListItemDTO[]
-   */
-  const filteredOrderList = computed(() => {
+  /** 接口有返回非空文案时才展示对应行 */
+  function hasDisplayText(v?: string | null) {
+    return Boolean(String(v ?? '').trim())
+  }
+
+  /** 非佳士：有型号即展示；佳士：仍仅在有条码时展示型号 */
+  function showModelTag(order: OrderListItemDTO) {
+    if (order.isJasic) return hasBarcode(order)
+    return Boolean(order.modelName?.trim())
+  }
+
+  /** 列表状态角标：优先接口 `displayStatus`，与映射后的 `status` 对齐样式 */
+  function orderStatusText(order: OrderListItemDTO) {
+    const fromApi = String(order.displayStatus ?? '').trim()
+    return fromApi || order.status
+  }
+
+  /** 品牌类型：优先接口 `brandTypeLabel`（如佳士品牌），否则用佳士/非佳士简写 */
+  function orderBrandTypeText(order: OrderListItemDTO) {
+    const fromApi = String(order.brandTypeLabel ?? '').trim()
+    return fromApi || (order.isJasic ? '佳士' : '非佳士')
+  }
+
+  /** 在已加载的 orderList 上做前端模糊匹配（与 Tab、分页接口数据一致，不单独打 keyword 接口） */
+  const displayOrderList = computed(() => {
     const list = orderList.value
     const kw = searchKeyword.value.trim().toLowerCase()
     if (!kw) return list
-    return list.filter(
-      (o) =>
-        o.orderNo.toLowerCase().includes(kw) ||
-        o.description.toLowerCase().includes(kw) ||
-        o.qrCode.toLowerCase().includes(kw) ||
-        o.modelName.toLowerCase().includes(kw)
-    )
+    return list.filter((o) => {
+      const blob = [
+        o.orderNo,
+        o.description,
+        o.qrCode,
+        o.modelName,
+        o.phone,
+        o.centerName,
+        o.displayStatus,
+        o.brandTypeLabel,
+        o.repairType,
+        o.price,
+        o.time
+      ]
+        .map((x) => String(x ?? '').toLowerCase())
+        .join('\u0000')
+      return blob.includes(kw)
+    })
   })
 
   /**
@@ -296,6 +334,13 @@
     loadOrderList(true)
   }
 
+  /** 切换 Tab：更新状态并请求接口（全部不传 tabStatus，其余传 WAIT_ACCEPT 等） */
+  function selectTab(index: number) {
+    if (currentTab.value === index) return
+    currentTab.value = index
+    reloadOrderList()
+  }
+
   /**
    * 触底加载更多
    * @returns void
@@ -324,10 +369,6 @@
    * @returns void
    */
   onShow(() => {
-    reloadOrderList()
-  })
-
-  watch(currentTab, () => {
     reloadOrderList()
   })
 
@@ -434,7 +475,15 @@
   const goToEvaluate = (id: string, orderNo?: string) => {
     let url = `/pages/order/evaluate?id=${encodeURIComponent(id)}`
     if (orderNo) url += `&orderNo=${encodeURIComponent(orderNo)}`
-    uni.navigateTo({ url })
+    uni.navigateTo({
+      url,
+      events: {
+        /** 评价页提交成功后 emit，上一页立即拉新列表 */
+        workOrderEvaluated: () => {
+          reloadOrderList()
+        }
+      }
+    })
   }
 </script>
 
@@ -448,7 +497,7 @@
     overflow: hidden;
   }
 
-  /* 整页限高，仅列表区域滚动，导航+搜索+标签始终留在顶部 */
+  /* 整页限高，仅列表区域滚动，导航与 Tab 留在顶部 */
   .order-list-page.page-container.page-index {
     flex: 1;
     min-height: 0;
@@ -568,6 +617,11 @@
       .list-end-text {
         font-size: $font-sm;
         color: $text-muted;
+      }
+
+      &.list-loading-top {
+        padding-top: $space-xl;
+        padding-bottom: $space-md;
       }
     }
   }

@@ -11,10 +11,12 @@
         <!-- 统计卡片 -->
         <view class="hq-stats-grid">
           <!-- 待接单 -->
-          <view class="hq-stat-card hq-stat-card--accent" @tap="emit('stat-tap', 'pending')">
+          <view class="hq-stat-card hq-stat-card--accent" @tap="emit('stat-tap', 'pending_accept')">
             <text class="hq-stat-label">待接单</text>
             <view class="hq-stat-foot">
-              <text class="hq-stat-num hq-stat-num--accent">{{ hqNetworkStats.pending }}</text>
+              <text class="hq-stat-num hq-stat-num--accent">{{
+                hqNetworkStats.pendingTechAccept
+              }}</text>
               <text
                 class="hq-pill"
                 :class="'hq-pill--' + mockHqRealtimeStatBadges.pending.variant"
@@ -123,7 +125,7 @@
     hqUpdatedAt: string
     /** 全网实时统计 */
     hqNetworkStats: {
-      pending: number
+      pendingTechAccept: number
       processing: number
       completed: number
       closed: number
@@ -133,7 +135,7 @@
   }>()
 
   const emit = defineEmits<{
-    (e: 'stat-tap', tab: 'pending' | 'processing' | 'completed'): void
+    (e: 'stat-tap', tab: 'pending_accept' | 'processing' | 'completed'): void
     (e: 'view-all-branches'): void
     (e: 'branch-tap', branch: HqBranchRow): void
   }>()

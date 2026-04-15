@@ -68,7 +68,9 @@
               </view>
               <view v-if="hasStr(order.base.orderTypeName)" class="info-item">
                 <text class="info-label">工单类型</text>
-                <text class="info-value text-primary">{{ order.base.orderTypeName }}</text>
+                <text :class="['info-value', 'tag', order.isJasic ? 'tag-jasic' : 'tag-non-jasic']">
+                  {{ order.base.orderTypeName }}
+                </text>
               </view>
               <view v-if="hasStr(order.base.submitTime)" class="info-item">
                 <text class="info-label">提交时间</text>
@@ -107,7 +109,7 @@
                 <text class="group-title">故障图片</text>
                 <view class="image-grid">
                   <image
-                    v-for="(img, idx) in order.fault.images"
+                    v-for="(img, idx) in faultImagePreviewUrls"
                     :key="'fi-' + idx"
                     class="grid-img"
                     mode="widthFix"
@@ -135,9 +137,11 @@
               <text class="section-title">维修信息</text>
             </view>
             <view class="info-list">
-              <view v-if="hasStr(order.repair.faultJudge)" class="info-item">
+              <view v-if="hasStr(order.repair.faultJudge)" class="info-item align-center">
                 <text class="info-label">故障判定</text>
-                <text class="info-value">{{ order.repair.faultJudge }}</text>
+                <view :class="['warranty-judge-tag', faultJudgeTagClass]">
+                  <text class="warranty-judge-tag-text">{{ order.repair.faultJudge }}</text>
+                </view>
               </view>
               <view v-if="hasStr(order.repair.quoteAmount)" class="info-item">
                 <text class="info-label">维修报价</text>
@@ -201,24 +205,18 @@
                   <text class="info-label" style="margin-bottom: 16rpx; display: block"
                     >回寄快递单号</text
                   >
-                  <view
-                    class="shipping-card"
-                    @click="previewSingleImage(order.repair.returnExpressVoucherImg)"
+                  <text
+                    v-if="hasStr(order.repair.returnExpressNo)"
+                    class="return-express-no-text"
+                    >{{ order.repair.returnExpressNo }}</text
                   >
-                    <image
-                      v-if="hasStr(order.repair.returnExpressVoucherImg)"
-                      class="shipping-bg"
-                      mode="aspectFill"
-                      :src="order.repair.returnExpressVoucherImg"
-                    ></image>
-                    <view class="shipping-overlay">
-                      <image class="icon" :src="localShippingIcon" mode="aspectFit" />
-                      <text v-if="hasStr(order.repair.returnExpressNo)" class="number">{{
-                        order.repair.returnExpressNo
-                      }}</text>
-                    </view>
-                    <view class="shipping-tag">物流凭证</view>
-                  </view>
+                  <image
+                    v-if="hasStr(order.repair.returnExpressVoucherImg)"
+                    class="return-express-voucher-img"
+                    mode="widthFix"
+                    :src="order.repair.returnExpressVoucherImg"
+                    @click="previewSingleImage(order.repair.returnExpressVoucherImg)"
+                  />
                 </view>
               </template>
             </view>
@@ -279,36 +277,34 @@
 
         <!-- 外部卡片 -->
         <template v-if="currentTab === 0">
-          <!-- 商品信息（任一有值则显示整块） -->
-          <view
-            v-if="
-              hasStr(order.product.barcode) ||
-              hasStr(order.product.model) ||
-              hasStr(order.product.serialNo) ||
-              (isNonJasicBrand && hasStr(order.product.brandName))
-            "
-            class="card-box"
-          >
+          <!-- 商品信息（任一有值则显示整块；主信息顺序与 UI 稿一致：型号 / 品牌 / 质保判定） -->
+          <view v-if="hasProductInfoCard" class="card-box">
             <view class="section-header">
               <view class="section-mark"></view>
               <text class="section-title">商品信息</text>
             </view>
             <view class="info-list">
-              <view v-if="hasStr(order.product.barcode)" class="info-item">
-                <text class="info-label">条形码</text>
-                <text class="info-value">{{ order.product.barcode }}</text>
-              </view>
               <view v-if="hasStr(order.product.model)" class="info-item">
                 <text class="info-label">机器型号</text>
                 <text class="info-value">{{ order.product.model }}</text>
               </view>
+              <view v-if="hasStr(productBrandLine)" class="info-item">
+                <text class="info-label">品牌</text>
+                <text class="info-value">{{ productBrandLine }}</text>
+              </view>
+              <view v-if="hasStr(order.product.warrantyClass)" class="info-item align-center">
+                <text class="info-label">质保判定</text>
+                <view :class="['warranty-judge-tag', warrantyJudgeTagClass]">
+                  <text class="warranty-judge-tag-text">{{ order.product.warrantyClass }}</text>
+                </view>
+              </view>
+              <view v-if="hasStr(order.product.barcode)" class="info-item">
+                <text class="info-label">条形码</text>
+                <text class="info-value">{{ order.product.barcode }}</text>
+              </view>
               <view v-if="hasStr(order.product.serialNo)" class="info-item">
                 <text class="info-label">机器小号</text>
                 <text class="info-value">{{ order.product.serialNo }}</text>
-              </view>
-              <view v-if="isNonJasicBrand && hasStr(order.product.brandName)" class="info-item">
-                <text class="info-label">品牌</text>
-                <text class="info-value">{{ order.product.brandName }}</text>
               </view>
             </view>
           </view>
@@ -328,8 +324,8 @@
                 <text class="info-label">维修方式</text>
                 <view class="tag-primary">{{ serviceModeLabel }}</view>
               </view>
-              <!-- 到店时不显示寄件信息和寄件快递单号 -->
-              <template v-if="serviceModeLabel !== '到店'">
+              <!-- 到店/送店维修不显示寄件信息与寄件快递单号（兼容文案与 STORE 编码） -->
+              <template v-if="!isInStoreRepair">
                 <view v-if="hasStr(order.service.senderInfo)" class="info-item align-top">
                   <text class="info-label shrink">寄件信息</text>
                   <text class="info-value text-right">{{ order.service.senderInfo }}</text>
@@ -402,7 +398,7 @@
                 <text class="group-title">故障图片</text>
                 <view class="image-grid">
                   <image
-                    v-for="(img, idx) in order.fault.images"
+                    v-for="(img, idx) in faultImagePreviewUrls"
                     :key="'fi2-' + idx"
                     class="grid-img"
                     mode="widthFix"
@@ -461,7 +457,6 @@
   } from '@/components/VoicePlaybackList/VoicePlaybackList.vue'
   import {
     contactPhoneIcon,
-    localShippingIcon,
     playCircleIcon,
     statusBuildCircleIcon,
     statusCheckCircleIcon,
@@ -502,8 +497,16 @@
   // 工单信息
   const order = ref<OrderDetailDTO>({
     status: '已关闭',
+    isJasic: true,
     base: { orderNo: '', orderTypeName: '', submitTime: '' },
-    product: { barcode: '', model: '', serialNo: '' },
+    product: {
+      barcode: '',
+      model: '',
+      serialNo: '',
+      brandName: undefined,
+      productName: undefined,
+      warrantyClass: undefined
+    },
     service: { sitePhone: '', repairMethod: '', senderInfo: '', senderVoucherImg: '' },
     acceptor: { sitePhone: '', acceptorName: '' },
     fault: {
@@ -517,7 +520,7 @@
     },
     repair: {
       faultJudge: '',
-      quoteAmount: '0.00',
+      quoteAmount: '',
       quoteDesc: '',
       repairTime: '',
       returnMethod: '',
@@ -567,12 +570,45 @@
   /** 非空字符串（trim 后） */
   const hasStr = (v: unknown) => v != null && String(v).trim().length > 0
 
-  /** 通过工单类型文案判断是否非佳士报修 */
-  const isNonJasicBrand = computed(() => {
-    const orderTypeName = String(order.value.base.orderTypeName ?? '')
-      .trim()
-      .toUpperCase()
-    return orderTypeName.includes('非佳士') || orderTypeName.includes('NON_JASIC')
+  /** 「品牌」展示：优先 brandName，否则用接口 productName 兜底 */
+  const productBrandLine = computed(() => {
+    const p = order.value.product
+    const b = String(p.brandName ?? '').trim()
+    if (b) return b
+    return String(p.productName ?? '').trim()
+  })
+
+  /** 故障判定：有故障红标、无故障绿标（其余中性灰） */
+  const faultJudgeTagClass = computed(() => {
+    const t = String(order.value.repair.faultJudge ?? '').trim()
+    if (!t) return 'is-neutral'
+    if (t.includes('无故障')) return 'is-in'
+    if (t.includes('有故障')) return 'is-out'
+    return 'is-neutral'
+  })
+
+  /** 质保判定角标样式类（与 `formatWarrantyJudgeLabel` 语义对齐，保外用 #dc2626 系） */
+  const warrantyJudgeTagClass = computed(() => {
+    const t = String(order.value.product.warrantyClass ?? '').trim()
+    if (!t) return 'is-neutral'
+    if (t.includes('保外')) return 'is-out'
+    if (t.includes('保内')) return 'is-in'
+    const u = t.toUpperCase().replace(/-/g, '_')
+    if (u.includes('OUT_OF_WARRANTY') || u === 'OUT') return 'is-out'
+    if (u.includes('IN_WARRANTY') || u === 'IN') return 'is-in'
+    return 'is-neutral'
+  })
+
+  /** 商品信息卡片是否有任一可展示字段 */
+  const hasProductInfoCard = computed(() => {
+    const p = order.value.product
+    return (
+      hasStr(p.model) ||
+      hasStr(productBrandLine.value) ||
+      hasStr(p.warrantyClass) ||
+      hasStr(p.barcode) ||
+      hasStr(p.serialNo)
+    )
   })
 
   /**
@@ -634,10 +670,23 @@
     return hasStr(b.orderNo) || hasStr(b.orderTypeName) || hasStr(b.submitTime)
   })
 
+  /** 故障图片预览地址：优先接口 `faultImageFiles`，否则兼容旧字段 `fault.images` */
+  const faultImagePreviewUrls = computed(() => {
+    const files = order.value.faultImageFiles
+    if (files?.length) {
+      return files
+        .slice()
+        .sort((a, b) => (Number(a.sortNum) || 0) - (Number(b.sortNum) || 0))
+        .map((f) => String(f.previewUrl ?? '').trim())
+        .filter((x) => hasStr(x))
+    }
+    return (order.value.fault.images ?? []).filter((x) => hasStr(x))
+  })
+
   /** 故障图片/视频是否有内容 */
   const hasFaultMedia = computed(() => {
     const f = order.value.fault
-    return (f.images?.length ?? 0) > 0 || hasStr(f.videoUrl) || hasStr(f.videoThumb)
+    return faultImagePreviewUrls.value.length > 0 || hasStr(f.videoUrl) || hasStr(f.videoThumb)
   })
 
   /** 是否有故障视频 */
@@ -685,7 +734,7 @@
     const s = order.value.service
     if (hasStr(s.sitePhone)) return true
     if (hasStr(serviceModeLabel.value)) return true
-    if (serviceModeLabel.value !== '到店') {
+    if (!isInStoreRepair.value) {
       if (hasStr(s.senderInfo)) return true
       if (hasStr(s.senderVoucherImg)) return true
     }
@@ -696,6 +745,15 @@
   const serviceModeLabel = computed(() => {
     const service = order.value.service as { serviceModeLabel?: string; repairMethod?: string }
     return String(service.serviceModeLabel ?? service.repairMethod ?? '').trim()
+  })
+
+  /** 是否到店/送店类维修（与寄件信息互斥；兼容「送店维修」、STORE 等） */
+  const isInStoreRepair = computed(() => {
+    const t = serviceModeLabel.value
+    if (!t) return false
+    const u = t.toUpperCase().replace(/-/g, '_')
+    if (u === 'STORE' || u === 'SHOP') return true
+    return /到店|送店/.test(t)
   })
 
   /** 受理方信息是否有可展示字段 */
@@ -859,7 +917,7 @@
    * @param current - 当前图片地址
    */
   const previewFaultImages = (current: string) => {
-    const urls = (order.value.fault.images ?? []).filter((x) => hasStr(x))
+    const urls = faultImagePreviewUrls.value
     if (!urls.length || !hasStr(current)) return
     uni.previewImage({
       urls,
@@ -1064,7 +1122,7 @@
     }
   }
 
-  // info-list 扩展：快递凭证卡片
+  // info-list 扩展：快递凭证等
   .info-list {
     .mt-16 {
       margin-top: $space-sm;
@@ -1077,52 +1135,58 @@
       border: 2rpx solid $border-light;
     }
 
-    .info-item-col .shipping-card {
-      position: relative;
-      width: 100%;
-      aspect-ratio: 2 / 1;
-      border-radius: $radius-md;
-      background-color: $bg-hover;
-      overflow: hidden;
-      border: 2rpx solid #e2e8f0;
-
-      .shipping-bg {
-        width: 100%;
-        height: 100%;
-      }
-
-      .shipping-overlay {
-        position: absolute;
-        inset: 0;
-        background-color: rgba(0, 0, 0, 0.4);
-        @include flex-column-center;
-        gap: $space-sm;
-
-        .icon {
-          width: 64rpx;
-          height: 64rpx;
-          opacity: 0.9;
-        }
-
-        .number {
-          color: #fff;
-          font-size: $font-xl;
-          font-weight: bold;
-          letter-spacing: 2rpx;
-          text-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.3);
-        }
-      }
-
-      .shipping-tag {
-        position: absolute;
-        top: $space-sm;
-        right: $space-sm;
-        background-color: $primary;
-        color: #fff;
-        padding: 4rpx $space-sm;
-        border-radius: $radius-sm;
-        font-size: $font-xs;
+    .info-item-col {
+      .return-express-no-text {
+        display: block;
+        font-size: $font-lg;
         font-weight: 500;
+        color: #0f172a;
+        margin-bottom: $space-sm;
+        letter-spacing: 1rpx;
+      }
+
+      .return-express-voucher-img {
+        display: block;
+        width: 200rpx;
+        border-radius: $radius-md;
+        border: 2rpx solid #e2e8f0;
+      }
+    }
+
+    /* 质保判定角标（保外/保内：同结构半透明底 + 饱和色字） */
+    .warranty-judge-tag {
+      flex-shrink: 0;
+      padding: 6rpx 20rpx;
+      border-radius: 8rpx;
+      line-height: 1.2;
+
+      .warranty-judge-tag-text {
+        font-size: $font-sm;
+        font-weight: 500;
+      }
+
+      &.is-out {
+        background-color: rgba(220, 38, 38, 0.14);
+
+        .warranty-judge-tag-text {
+          color: #dc2626;
+        }
+      }
+
+      &.is-in {
+        background-color: rgba(22, 163, 74, 0.14);
+
+        .warranty-judge-tag-text {
+          color: #16a34a;
+        }
+      }
+
+      &.is-neutral {
+        background-color: #f1f5f9;
+
+        .warranty-judge-tag-text {
+          color: #64748b;
+        }
       }
     }
   }

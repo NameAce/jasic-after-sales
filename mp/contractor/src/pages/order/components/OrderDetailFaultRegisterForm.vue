@@ -7,52 +7,79 @@
     </view>
     <!-- 维修说明内容 -->
     <view class="fault-register-v2">
-      <!-- 故障描述 -->
-      <view v-if="faultDescOptions.length" class="form-item-v2">
-        <text class="form-label-v2">故障描述</text>
-        <picker mode="selector" :range="faultDescOptions" @change="onFaultDescPicker">
-          <view class="form-picker-v2">
-            <text :class="['picker-text', faultDesc ? '' : 'placeholder']">
-              {{ faultDesc || '请选择' }}
-            </text>
-            <uni-icons type="down" size="24" color="#cbd5e1"></uni-icons>
-          </view>
-        </picker>
-      </view>
-      <!-- 维修说明 -->
+      <!-- 维修说明（下拉多选） -->
       <view class="form-item-v2">
-        <text class="form-label-v2">维修说明</text>
-        <picker mode="selector" :range="repairDescOptions" @change="onRepairDescPicker">
-          <view class="form-picker-v2">
-            <text :class="['picker-text', repairDesc ? '' : 'placeholder']">
-              {{ repairDesc || '请选择' }}
-            </text>
-            <uni-icons type="down" size="24" color="#cbd5e1"></uni-icons>
+        <text class="form-label-v2">维修说明 <text class="text-red">*</text></text>
+        <view class="form-picker-v2" @click="openRepairDescDropdown">
+          <text :class="['picker-text', selectedRepairDescText ? '' : 'placeholder']">
+            {{ selectedRepairDescText || '请选择' }}
+          </text>
+          <uni-icons type="down" size="15" color="#cbd5e1"></uni-icons>
+        </view>
+        <view v-if="showRepairDescDropdown" class="repair-desc-dropdown">
+          <view
+            v-for="option in repairDescOptions"
+            :key="option"
+            class="repair-desc-option"
+            @click.stop="toggleDraftRepairDesc(option)"
+          >
+            <checkbox
+              class="repair-desc-checkbox"
+              :checked="draftRepairDesc.includes(option)"
+              color="#f26604"
+              style="transform: scale(0.8); transform-origin: center;"
+            />
+            <text class="repair-desc-option-text">{{ option }}</text>
           </view>
-        </picker>
+          <view class="repair-desc-dropdown-actions">
+            <view class="dropdown-btn dropdown-btn--cancel" @click.stop="cancelRepairDescSelect">
+              取消
+            </view>
+            <view class="dropdown-btn dropdown-btn--confirm" @click.stop="confirmRepairDescSelect">
+              确定
+            </view>
+          </view>
+        </view>
       </view>
 
       <!-- 其它维修说明 -->
-      <view v-if="repairDesc === '其它维修说明'" class="form-item-v2">
+      <view v-if="repairDesc.includes('其它维修说明')" class="form-item-v2">
         <text class="form-label-v2">其它维修说明 <text class="text-red">*</text></text>
         <textarea
           v-model="otherRepairDesc"
           class="form-textarea-v2"
           placeholder="请输入其它维修说明"
+          auto-height
         />
       </view>
 
-      <!-- 更换配件 -->
+      <!-- 更换配件：首行仅加号新增，后续行仅减号删除（删除后不入参） -->
       <view class="form-item-v2">
         <text class="form-label-v2">更换配件 <text class="text-red">*</text></text>
-        <view class="form-row-v2">
-          <input v-model="replacePart" class="form-input-v2 flex-1" placeholder="配件名称" />
-          <input
-            v-model="replaceQuantity"
-            class="form-input-v2 w-20"
-            type="number"
-            placeholder="数量"
-          />
+        <view v-for="(row, idx) in replaceParts" :key="row.id" class="replace-part-row">
+          <view class="form-row-v2 form-row-v2--with-actions">
+            <input
+              v-model="row.part"
+              class="form-input-v2 flex-1"
+              placeholder="请输入配件名称"
+              placeholder-class="form-placeholder-v2"
+            />
+            <input
+              v-model="row.quantity"
+              class="form-input-v2 w-20"
+              type="number"
+              placeholder="数量"
+              placeholder-class="form-placeholder-v2"
+            />
+            <view class="replace-part-actions">
+              <view v-if="idx > 0" class="replace-part-icon-btn" @click="removeReplacePartRow(idx)">
+                <uni-icons type="minus" size="22" color="#64748b" />
+              </view>
+              <view v-if="idx === 0" class="replace-part-icon-btn" @click="addReplacePartRow">
+                <uni-icons type="plus" size="22" color="#64748b" />
+              </view>
+            </view>
+          </view>
         </view>
       </view>
 
@@ -126,12 +153,12 @@
               </template>
             </MediaUploadField>
           </view>
-          <view class="upload-grid-item">
+          <view class="upload-grid-item upload-grid-item--other-files">
             <MediaUploadField
               v-model="otherImages"
               :show-label-row="false"
               file-mediatype="image"
-              :limit="5"
+              :limit="1"
               :del-icon="true"
             >
               <template #add>
@@ -149,18 +176,29 @@
 </template>
 
 <script setup lang="ts">
-  import { computed } from 'vue'
+  import { computed, ref } from 'vue'
   import MediaUploadField from '@/components/MediaUploadField/MediaUploadField.vue'
   import { addAPhotoIcon } from '@/svgs'
   import type { WorkOrderRepairFaultOptionVO } from '@/api/order'
 
   const OTHER_REPAIR_DESC = '其它维修说明'
 
-  /** 故障点登记 Form */
-  const props = defineProps<{
-    isRecheck: boolean
-    faultOptions?: WorkOrderRepairFaultOptionVO[]
-  }>()
+  type ReplacePartRowModel = { id: number; part: string; quantity: string }
+
+  const maxReplacePartRowId = (rows: ReplacePartRowModel[]) =>
+    rows.reduce((m, r) => Math.max(m, r.id), 0)
+
+  /** 故障点登记 Form（复检与维修共用，isRecheck 仅影响区块标题） */
+  const props = withDefaults(
+    defineProps<{
+      isRecheck?: boolean
+      faultOptions?: WorkOrderRepairFaultOptionVO[]
+    }>(),
+    {
+      isRecheck: false,
+      faultOptions: () => []
+    }
+  )
 
   const normalizedFaultOptions = computed(() => {
     const list = props.faultOptions ?? []
@@ -175,31 +213,47 @@
       }))
   })
 
-  const faultDescOptions = computed(() => normalizedFaultOptions.value.map((x) => x.faultDesc))
-
   const repairDescOptions = computed(() => {
     const list = normalizedFaultOptions.value
-    const selectedFault = faultDesc.value?.trim()
-    const base =
-      selectedFault && list.length
-        ? list.find((x) => x.faultDesc === selectedFault)?.repairOptions ?? []
-        : []
-    // 始终允许兜底输入
-    const out = base.slice()
-    if (!out.includes(OTHER_REPAIR_DESC)) out.push(OTHER_REPAIR_DESC)
+    const seen = new Set<string>()
+    const out: string[] = []
+    for (const x of list) {
+      for (const r of x.repairOptions) {
+        if (!seen.has(r)) {
+          seen.add(r)
+          out.push(r)
+        }
+      }
+    }
+    if (!seen.has(OTHER_REPAIR_DESC)) out.push(OTHER_REPAIR_DESC)
     return out
   })
 
-  /** 故障描述 */
-  const faultDesc = defineModel<string>('faultDesc', { default: '' })
-  /** 维修说明 */
-  const repairDesc = defineModel<string>('repairDesc', { default: '' })
+  /** 维修说明（多选） */
+  const repairDesc = defineModel<string[]>('repairDesc', { default: () => [] })
   /** 其它维修说明 */
   const otherRepairDesc = defineModel<string>('otherRepairDesc', { default: '' })
-  /** 更换配件 */
-  const replacePart = defineModel<string>('replacePart', { default: '' })
-  /** 更换配件数量 */
-  const replaceQuantity = defineModel<string>('replaceQuantity', { default: '' })
+  /** 更换配件（多行；已删除行不会出现在提交数据中）
+   * defineModel 的 default 不能引用本 setup 内声明的变量，首行 id 用字面量 */
+  const replaceParts = defineModel<ReplacePartRowModel[]>('replaceParts', {
+    default: () => [{ id: 1, part: '', quantity: '' }]
+  })
+
+  const addReplacePartRow = () => {
+    const nextId = maxReplacePartRowId(replaceParts.value) + 1
+    replaceParts.value = [...replaceParts.value, { id: nextId, part: '', quantity: '' }]
+  }
+
+  const removeReplacePartRow = (index: number) => {
+    const prev = replaceParts.value
+    const list = prev.filter((_, i) => i !== index)
+    if (list.length > 0) {
+      replaceParts.value = list
+      return
+    }
+    const nextId = maxReplacePartRowId(prev) + 1
+    replaceParts.value = [{ id: nextId, part: '', quantity: '' }]
+  }
   /** 故障点旧图片 */
   const faultOldImages = defineModel<unknown[]>('faultOldImages', { default: () => [] })
   /** 故障点新图片 */
@@ -213,25 +267,35 @@
   /** 其它图片 */
   const otherImages = defineModel<unknown[]>('otherImages', { default: () => [] })
 
-  /**
-   * 故障描述选择
-   * @param e 事件
-   */
-  const onFaultDescPicker = (e: { detail: { value: string | number } }) => {
-    const idx = Number(e.detail.value)
-    faultDesc.value = faultDescOptions.value[idx] ?? ''
-    // 切换故障后重置维修说明，避免不匹配
-    repairDesc.value = ''
-    otherRepairDesc.value = ''
+  const showRepairDescDropdown = ref(false)
+  const draftRepairDesc = ref<string[]>([])
+  const selectedRepairDescText = computed(() => repairDesc.value.join('、'))
+
+  const openRepairDescDropdown = () => {
+    draftRepairDesc.value = [...repairDesc.value]
+    showRepairDescDropdown.value = true
   }
 
-  /**
-   * 维修说明选择
-   * @param e 事件
-   */
-  const onRepairDescPicker = (e: { detail: { value: string | number } }) => {
-    const idx = Number(e.detail.value)
-    repairDesc.value = repairDescOptions.value[idx] ?? ''
+  const toggleDraftRepairDesc = (option: string) => {
+    if (draftRepairDesc.value.includes(option)) {
+      draftRepairDesc.value = draftRepairDesc.value.filter((x) => x !== option)
+      return
+    }
+    draftRepairDesc.value = [...draftRepairDesc.value, option]
+  }
+
+  const cancelRepairDescSelect = () => {
+    showRepairDescDropdown.value = false
+    draftRepairDesc.value = []
+  }
+
+  const confirmRepairDescSelect = () => {
+    repairDesc.value = [...draftRepairDesc.value]
+    if (!repairDesc.value.includes(OTHER_REPAIR_DESC)) {
+      otherRepairDesc.value = ''
+    }
+    showRepairDescDropdown.value = false
+    draftRepairDesc.value = []
   }
 </script>
 
@@ -274,6 +338,49 @@
         }
       }
 
+      .repair-desc-dropdown {
+        margin-top: $space-sm;
+        border: 2rpx solid $surface-slate-200;
+        border-radius: $radius-md;
+        background: $surface-white;
+        padding: $space-sm;
+      }
+
+      .repair-desc-option {
+        @include flex-row;
+        align-items: center;
+        gap: $space-xs;
+        padding: 12rpx 8rpx;
+      }
+
+      .repair-desc-option-text {
+        font-size: 26rpx;
+        color: $text-main;
+      }
+
+      .repair-desc-dropdown-actions {
+        @include flex-row;
+        justify-content: flex-end;
+        gap: $space-sm;
+        padding-top: $space-sm;
+      }
+
+      .dropdown-btn {
+        font-size: 24rpx;
+        padding: 10rpx 20rpx;
+        border-radius: $radius-sm;
+      }
+
+      .dropdown-btn--cancel {
+        color: $text-secondary;
+        background: $surface-slate-50;
+      }
+
+      .dropdown-btn--confirm {
+        color: $surface-white;
+        background: $primary;
+      }
+
       .form-textarea-v2 {
         width: 100%;
         @include form-field-soft;
@@ -289,6 +396,7 @@
 
       .form-row-v2 {
         @include flex-row;
+        align-items: center;
         gap: $space-sm;
 
         .flex-1 {
@@ -310,6 +418,33 @@
             color: $text-slate-400;
           }
         }
+
+        &--with-actions {
+          flex-wrap: nowrap;
+        }
+      }
+
+      .replace-part-row + .replace-part-row {
+        margin-top: $space-sm;
+      }
+
+      .replace-part-actions {
+        @include flex-row;
+        align-items: center;
+        flex-shrink: 0;
+        gap: 4rpx;
+      }
+
+      .replace-part-icon-btn {
+        width: 72rpx;
+        height: 72rpx;
+        @include flex-column-center;
+        border-radius: $radius-md;
+        background: $surface-slate-50;
+
+        &:active {
+          opacity: 0.85;
+        }
       }
     }
 
@@ -319,13 +454,38 @@
 
     .upload-section-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: $space-md;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: $space-sm;
       margin-top: $space-sm;
 
       .upload-grid-item {
         width: 100%;
       }
+
+      /**
+       * 其它图片多选：已选缩略图需横向排列；原 1/3 列宽过窄会被迫竖排。
+       * 仅拉宽格子，不改动 #add 插槽里的上传入口样式。
+       */
+      .upload-grid-item--other-files {
+        grid-column: 1 / -1;
+
+        :deep(.uni-file-picker) {
+          display: block;
+          width: 100%;
+          flex: none !important;
+        }
+
+        :deep(.uni-file-picker__container) {
+          flex-direction: row;
+          flex-wrap: wrap;
+          align-items: flex-start;
+        }
+      }
+    }
+
+    :deep(.form-placeholder-v2) {
+      color: #94a3b8;
+      font-size: 26rpx;
     }
 
     .upload-grid-box {

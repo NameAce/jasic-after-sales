@@ -42,6 +42,21 @@ export const http = <T>(options: UniApp.RequestOptions) => {
       success(res) {
         const apiRes = (res.data || {}) as ApiResponse<T>
         if (res.statusCode >= 200 && res.statusCode < 300) {
+          // 业务约定：登录态失效等，统一提示并回登录页
+          if (String(apiRes.code) === 'A0100') {
+            uni.removeStorageSync('token')
+            const msg = getApiMessage(apiRes, '请重新登录')
+            uni.showModal({
+              title: '提示',
+              content: msg,
+              showCancel: false,
+              success: () => {
+                uni.reLaunch({ url: '/pages/login/index' })
+              },
+            })
+            reject(apiRes)
+            return
+          }
           resolve(apiRes)
         } else if (res.statusCode === 401) {
           // 避免 http 层依赖 store，打断循环引用链

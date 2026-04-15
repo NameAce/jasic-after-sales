@@ -27,7 +27,7 @@ export interface JasicRepairDraftForm {
   warrantyCode: string
   centerId: string | number | null
   repairType: string
-  faultDescription: string
+  faultDescription: string[]
   images: unknown[]
   shippingCode: unknown[]
   faultRemark: string
@@ -135,10 +135,21 @@ export function applyJasicRepairDraft(
   queryFailedWithBarcode?: Ref<boolean>
 ): void {
   if (!draft?.formData) return
+  const normalizeFaultDescription = (value: unknown): string[] => {
+    if (Array.isArray(value)) {
+      return value.map((item) => String(item ?? '').trim()).filter(Boolean)
+    }
+    const single = String(value ?? '').trim()
+    return single ? [single] : []
+  }
+  const normalizedFormData: JasicRepairDraftForm = {
+    ...draft.formData,
+    faultDescription: normalizeFaultDescription((draft.formData as { faultDescription?: unknown }).faultDescription)
+  }
   if (preserveServicePoint) {
-    formData.value = { ...draft.formData, centerId: formData.value.centerId }
+    formData.value = { ...normalizedFormData, centerId: formData.value.centerId }
   } else {
-    formData.value = { ...draft.formData }
+    formData.value = { ...normalizedFormData }
     selectedCenterDisplay.value = draft.selectedCenterDisplay ?? ''
   }
   showSupplementSection.value = !!draft.showSupplementSection
