@@ -139,13 +139,15 @@ public class WorkOrderController extends BaseController {
     }
 
     /**
-     * 查询维修登记可选故障与维修说明
+     * 查询维修/复检登记可选故障与维修说明。
+     *
+     * 这里不在接口层硬编码单一 repair 权限，避免复检动作复用同一配置接口时，
+     * 被提前拦在接口层；实例级权限仍由 service 内的 repair/review 判断兜底。
      *
      * @param workOrderId 工单ID
      * @return 故障与维修说明选项
      */
-    @ApiOperation(value = "查询维修登记可选故障与维修说明")
-    @SaCheckPermission("workorder:repair")
+    @ApiOperation(value = "查询维修/复检登记可选故障与维修说明")
     @GetMapping("/{workOrderId}/repair-fault-options")
     public Result<List<WorkOrderRepairFaultOptionVO>> listRepairFaultOptions(@PathVariable Long workOrderId) {
         return Result.ok(workOrderService.listRepairFaultOptions(workOrderId));

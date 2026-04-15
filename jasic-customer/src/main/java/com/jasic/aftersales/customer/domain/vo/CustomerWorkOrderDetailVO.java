@@ -4,7 +4,6 @@ import com.jasic.aftersales.common.enums.BrandTypeEnum;
 import com.jasic.aftersales.system.domain.vo.WorkOrderEvaluationVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderQuoteVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairVO;
-import com.jasic.aftersales.system.domain.vo.WorkOrderReviewVO;
 import com.jasic.aftersales.system.domain.vo.SysFileItemVO;
 import lombok.Data;
 
@@ -205,10 +204,6 @@ public class CustomerWorkOrderDetailVO implements Serializable {
     /** 维修登记列表 */
     @ApiModelProperty(value = "维修登记列表")
     private List<WorkOrderRepairVO> repairs;
-
-    /** 复检记录列表 */
-    @ApiModelProperty(value = "复检记录列表")
-    private List<WorkOrderReviewVO> reviews;
 
     /** 客户评价 */
     @ApiModelProperty(value = "客户评价")

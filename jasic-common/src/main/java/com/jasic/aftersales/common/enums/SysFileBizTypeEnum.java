@@ -24,7 +24,22 @@ public enum SysFileBizTypeEnum {
     WORK_ORDER_SENDER_VOUCHER("WORK_ORDER_SENDER_VOUCHER", "工单寄件凭证"),
 
     /** 回寄凭证 */
-    WORK_ORDER_RETURN_VOUCHER("WORK_ORDER_RETURN_VOUCHER", "工单回寄凭证");
+    WORK_ORDER_RETURN_VOUCHER("WORK_ORDER_RETURN_VOUCHER", "工单回寄凭证"),
+
+    /** 维修登记旧故障图片 */
+    WORK_ORDER_REPAIR_OLD_IMAGE("WORK_ORDER_REPAIR_OLD_IMAGE", "维修登记旧故障图片"),
+
+    /** 维修登记新故障图片 */
+    WORK_ORDER_REPAIR_NEW_IMAGE("WORK_ORDER_REPAIR_NEW_IMAGE", "维修登记新故障图片"),
+
+    /** 维修登记机器正面照片 */
+    WORK_ORDER_REPAIR_MACHINE_IMAGE("WORK_ORDER_REPAIR_MACHINE_IMAGE", "维修登记机器正面照片"),
+
+    /** 维修登记机器条码照片 */
+    WORK_ORDER_REPAIR_BARCODE_IMAGE("WORK_ORDER_REPAIR_BARCODE_IMAGE", "维修登记机器条码照片"),
+
+    /** 维修登记其他图片 */
+    WORK_ORDER_REPAIR_OTHER_IMAGE("WORK_ORDER_REPAIR_OTHER_IMAGE", "维修登记其他图片");
 
     private final String code;
 

@@ -618,6 +618,7 @@ CREATE TABLE `work_order_repair` (
   `work_order_id`  bigint unsigned  NOT NULL                COMMENT '工单ID',
   `company_id`     bigint unsigned  NOT NULL                COMMENT '维修公司ID',
   `repair_user_id` bigint unsigned  NOT NULL                COMMENT '维修员ID',
+  `register_stage` varchar(32)      NOT NULL DEFAULT 'REPAIR' COMMENT '登记阶段（REPAIR=维修登记，RECHECK=复检登记）',
   `is_finished`    tinyint unsigned DEFAULT 0               COMMENT '是否维修完成（1=是，0=否）',
   `finished_time`  datetime         DEFAULT NULL            COMMENT '完成时间',
   `create_time`    datetime         NOT NULL                COMMENT '创建时间',
@@ -640,8 +641,8 @@ CREATE TABLE `work_order_fault` (
   `fault_desc`    varchar(500)     NOT NULL                COMMENT '故障描述',
   `repair_desc`   varchar(500)     DEFAULT NULL            COMMENT '维修说明',
   `other_desc`    varchar(500)     DEFAULT NULL            COMMENT '其他维修说明',
-  `part_desc`     varchar(500)     DEFAULT NULL            COMMENT '配件信息',
-  `image_urls`    text             DEFAULT NULL            COMMENT '图片地址集合',
+  `part_name`     varchar(500)     DEFAULT NULL            COMMENT '配件名称',
+  `part_qty`      int unsigned     DEFAULT NULL            COMMENT '配件数量',
   `sort_num`      int unsigned     DEFAULT 0               COMMENT '排序号',
   `created_by`    bigint unsigned  NOT NULL                COMMENT '登记人ID',
   `create_time`   datetime         NOT NULL                COMMENT '创建时间',
@@ -651,25 +652,6 @@ CREATE TABLE `work_order_fault` (
   KEY `idx_work_order_fault_time` (`work_order_id`, `create_time`),
   KEY `idx_fault_company` (`company_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='工单故障点记录表';
-
--- -------------------------------------------
--- 28. 工单复检记录表
--- -------------------------------------------
-DROP TABLE IF EXISTS `work_order_review`;
-CREATE TABLE `work_order_review` (
-  `id`                 bigint unsigned  NOT NULL AUTO_INCREMENT COMMENT '主键',
-  `work_order_id`      bigint unsigned  NOT NULL                COMMENT '工单ID',
-  `company_id`         bigint unsigned  NOT NULL                COMMENT '复检公司ID',
-  `review_user_id`     bigint unsigned  NOT NULL                COMMENT '复检人ID',
-  `review_result`      varchar(32)      NOT NULL                COMMENT '复检结果',
-  `review_desc`        varchar(500)     DEFAULT NULL            COMMENT '复检说明',
-  `is_continue_repair` tinyint unsigned DEFAULT 0               COMMENT '是否继续维修（1=是，0=否）',
-  `create_time`        datetime         NOT NULL                COMMENT '创建时间',
-  `update_time`        datetime         NOT NULL                COMMENT '更新时间',
-  PRIMARY KEY (`id`),
-  KEY `idx_work_order_review_time` (`work_order_id`, `create_time`),
-  KEY `idx_review_company` (`company_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='工单复检记录表';
 
 -- -------------------------------------------
 -- 29. 工单评价表

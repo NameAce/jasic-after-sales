@@ -177,10 +177,6 @@ public class WorkOrderDetailVO extends WorkOrderListVO {
     @ApiModelProperty(value = "维修登记列表")
     private List<WorkOrderRepairVO> repairs;
 
-    /** 复检记录列表 */
-    @ApiModelProperty(value = "复检记录列表")
-    private List<WorkOrderReviewVO> reviews;
-
     /** 流转历史列表 */
     @ApiModelProperty(value = "流转历史列表")
     private List<WorkOrderFlowVO> flows;

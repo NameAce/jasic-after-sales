@@ -40,13 +40,13 @@ public class WorkOrderFaultVO implements Serializable {
     @ApiModelProperty(value = "其他维修说明")
     private String otherDesc;
 
-    /** 配件信息 */
-    @ApiModelProperty(value = "配件信息")
-    private String partDesc;
+    /** 配件名称 */
+    @ApiModelProperty(value = "配件名称")
+    private String partName;
 
-    /** 图片地址集合 */
-    @ApiModelProperty(value = "图片地址集合")
-    private String imageUrls;
+    /** 配件数量 */
+    @ApiModelProperty(value = "配件数量")
+    private Integer partQty;
 
     /** 排序号 */
     @ApiModelProperty(value = "排序号")

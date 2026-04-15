@@ -66,18 +66,6 @@ public class WorkOrderStatusFlow {
     }
 
     /**
-     * 复检后的主状态。
-     *
-     * @param continueRepair 是否继续维修
-     * @return 主状态编码
-     */
-    public static String afterReview(boolean continueRepair) {
-        return continueRepair
-                ? WorkOrderStatusConstants.MainStatus.IN_PROGRESS
-                : WorkOrderStatusConstants.MainStatus.COMPLETED;
-    }
-
-    /**
      * 关闭后的主状态。
      *
      * @return 主状态编码

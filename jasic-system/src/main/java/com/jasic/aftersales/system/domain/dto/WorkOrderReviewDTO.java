@@ -1,12 +1,12 @@
 package com.jasic.aftersales.system.domain.dto;
 
-import lombok.Data;
-
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
-import java.io.Serializable;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
+import lombok.Data;
+
+import javax.validation.constraints.NotNull;
+import java.io.Serializable;
+import java.util.List;
 
 /**
  * 工单复检参数
@@ -25,16 +25,43 @@ public class WorkOrderReviewDTO implements Serializable {
     @NotNull(message = "工单ID不能为空")
     private Long workOrderId;
 
-    /** 复检结果 */
-    @ApiModelProperty(value = "复检结果", required = true)
-    @NotBlank(message = "复检结果不能为空")
-    private String reviewResult;
+    /** 手工填写的维修说明 */
+    @ApiModelProperty(value = "手工填写的维修说明")
+    private String repairDesc;
 
-    /** 复检说明 */
-    @ApiModelProperty(value = "复检说明")
-    private String reviewDesc;
+    /** 维修说明选项 */
+    @ApiModelProperty(value = "维修说明选项")
+    private List<String> repairItems;
 
-    /** 是否继续维修（1=是，0=否） */
-    @ApiModelProperty(value = "是否继续维修（1=是，0=否）")
-    private Integer isContinueRepair;
+    /** 其他维修说明 */
+    @ApiModelProperty(value = "其他维修说明")
+    private String otherDesc;
+
+    /** 配件名称 */
+    @ApiModelProperty(value = "配件名称")
+    private String partName;
+
+    /** 配件数量 */
+    @ApiModelProperty(value = "配件数量")
+    private Integer partQty;
+
+    /** 故障处旧图片文件ID */
+    @ApiModelProperty(value = "故障处旧图片文件ID")
+    private List<Long> faultOldImageFileIds;
+
+    /** 故障处新图片文件ID */
+    @ApiModelProperty(value = "故障处新图片文件ID")
+    private List<Long> faultNewImageFileIds;
+
+    /** 机器正面照片文件ID */
+    @ApiModelProperty(value = "机器正面照片文件ID")
+    private List<Long> machineImageFileIds;
+
+    /** 机器条码照片文件ID */
+    @ApiModelProperty(value = "机器条码照片文件ID")
+    private List<Long> machineBarcodeImageFileIds;
+
+    /** 其他图片文件ID */
+    @ApiModelProperty(value = "其他图片文件ID")
+    private List<Long> otherImageFileIds;
 }

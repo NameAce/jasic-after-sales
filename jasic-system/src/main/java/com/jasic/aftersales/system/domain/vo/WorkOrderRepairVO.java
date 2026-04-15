@@ -41,6 +41,14 @@ public class WorkOrderRepairVO implements Serializable {
     @ApiModelProperty(value = "维修员姓名")
     private String repairUserName;
 
+    /** 登记阶段 */
+    @ApiModelProperty(value = "登记阶段", allowableValues = "REPAIR,RECHECK")
+    private String registerStage;
+
+    /** 登记阶段名称 */
+    @ApiModelProperty(value = "登记阶段名称")
+    private String registerStageLabel;
+
     /** 是否维修完成 */
     @ApiModelProperty(value = "是否维修完成")
     private Integer isFinished;
@@ -58,4 +66,24 @@ public class WorkOrderRepairVO implements Serializable {
     /** 故障点列表 */
     @ApiModelProperty(value = "故障点列表")
     private List<WorkOrderFaultVO> faults;
+
+    /** 故障处旧图片文件列表 */
+    @ApiModelProperty(value = "故障处旧图片文件列表")
+    private List<SysFileItemVO> faultOldImageFiles;
+
+    /** 故障处新图片文件列表 */
+    @ApiModelProperty(value = "故障处新图片文件列表")
+    private List<SysFileItemVO> faultNewImageFiles;
+
+    /** 机器正面照片文件列表 */
+    @ApiModelProperty(value = "机器正面照片文件列表")
+    private List<SysFileItemVO> machineImageFiles;
+
+    /** 机器条码照片文件列表 */
+    @ApiModelProperty(value = "机器条码照片文件列表")
+    private List<SysFileItemVO> machineBarcodeImageFiles;
+
+    /** 其他图片文件列表 */
+    @ApiModelProperty(value = "其他图片文件列表")
+    private List<SysFileItemVO> otherImageFiles;
 }

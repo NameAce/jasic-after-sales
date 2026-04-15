@@ -35,6 +35,9 @@ public class WorkOrderRepair extends BaseEntity {
     /** 维修员ID */
     private Long repairUserId;
 
+    /** 登记阶段（REPAIR/RECHECK） */
+    private String registerStage;
+
     /** 是否维修完成（1=是，0=否） */
     private Integer isFinished;
 

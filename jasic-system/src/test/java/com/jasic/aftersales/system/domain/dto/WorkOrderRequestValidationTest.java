@@ -7,7 +7,6 @@ import javax.validation.ConstraintViolation;
 import javax.validation.Validation;
 import javax.validation.Validator;
 import javax.validation.ValidatorFactory;
-import java.util.Collections;
 import java.util.Set;
 
 /**
@@ -26,15 +25,13 @@ public class WorkOrderRequestValidationTest {
     }
 
     @Test
-    public void shouldRequireReviewResult() {
+    public void shouldRequireReviewWorkOrderId() {
         WorkOrderReviewDTO dto = new WorkOrderReviewDTO();
-        dto.setWorkOrderId(1L);
-        dto.setReviewResult("   ");
 
         Set<ConstraintViolation<WorkOrderReviewDTO>> violations = validator.validate(dto);
 
         Assert.assertTrue(violations.stream()
-                .anyMatch(item -> "复检结果不能为空".equals(item.getMessage())));
+                .anyMatch(item -> "工单ID不能为空".equals(item.getMessage())));
     }
 
     @Test
@@ -62,17 +59,12 @@ public class WorkOrderRequestValidationTest {
     }
 
     @Test
-    public void shouldCascadeValidateFaultItems() {
-        WorkOrderFaultItemDTO faultItem = new WorkOrderFaultItemDTO();
-        faultItem.setFaultDesc("   ");
-
+    public void shouldRequireRepairWorkOrderId() {
         WorkOrderRepairDTO dto = new WorkOrderRepairDTO();
-        dto.setWorkOrderId(1L);
-        dto.setFaults(Collections.singletonList(faultItem));
 
         Set<ConstraintViolation<WorkOrderRepairDTO>> violations = validator.validate(dto);
 
         Assert.assertTrue(violations.stream()
-                .anyMatch(item -> "故障描述不能为空".equals(item.getMessage())));
+                .anyMatch(item -> "工单ID不能为空".equals(item.getMessage())));
     }
 }

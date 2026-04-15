@@ -16,11 +16,9 @@ import com.jasic.aftersales.common.enums.WorkOrderRelationTypeEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.system.domain.dto.WorkOrderAssignDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderCloseDTO;
-import com.jasic.aftersales.system.domain.dto.WorkOrderFaultItemDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderProxyCreateDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderQuoteDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderRepairDTO;
-import com.jasic.aftersales.system.domain.dto.WorkOrderReviewDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTechAcceptDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTransferDTO;
 import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
@@ -33,7 +31,6 @@ import com.jasic.aftersales.system.domain.entity.WorkOrder;
 import com.jasic.aftersales.system.domain.entity.WorkOrderCustomer;
 import com.jasic.aftersales.system.domain.entity.WorkOrderFlow;
 import com.jasic.aftersales.system.domain.entity.WorkOrderQuote;
-import com.jasic.aftersales.system.domain.entity.WorkOrderReview;
 import com.jasic.aftersales.system.domain.query.WorkOrderQuery;
 import com.jasic.aftersales.system.domain.vo.WorkOrderCreateBarcodeInfoVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderListVO;
@@ -51,7 +48,6 @@ import com.jasic.aftersales.system.mapper.WorkOrderCustomerMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderQuoteMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderRepairMapper;
-import com.jasic.aftersales.system.mapper.WorkOrderReviewMapper;
 import com.jasic.aftersales.system.service.IFaultRepairConfigService;
 import com.jasic.aftersales.system.service.ISysConfigService;
 import com.jasic.aftersales.system.service.WorkOrderNotifyEventService;
@@ -192,7 +188,6 @@ public class WorkOrderServiceImplTest {
 
         WorkOrderRepairDTO dto = new WorkOrderRepairDTO();
         dto.setWorkOrderId(workOrder.getId());
-        dto.setFaults(Collections.emptyList());
 
         try {
             service.saveRepair(dto);
@@ -717,6 +712,7 @@ public class WorkOrderServiceImplTest {
         workOrder.setId(6L);
         workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.IN_PROGRESS);
         workOrder.setCurrentAcceptCompanyId(3L);
+        workOrder.setFaultDesc("主板故障");
 
         WorkOrderQuote currentQuote = new WorkOrderQuote();
         currentQuote.setWorkOrderId(workOrder.getId());
@@ -738,6 +734,7 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderFaultMapper", createNoopProxy(com.jasic.aftersales.system.mapper.WorkOrderFaultMapper.class, "insert"));
         setField(service, "workOrderFlowMapper", createNoopProxy(WorkOrderFlowMapper.class, "insert"));
         setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(Collections.emptyList()));
+        setField(service, "sysFileService", createNoopProxy(com.jasic.aftersales.system.service.SysFileService.class, "replaceBizFiles"));
         setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
             @Override
             public boolean canSaveRepair(WorkOrder target) {
@@ -755,7 +752,7 @@ public class WorkOrderServiceImplTest {
         dto.setWorkOrderId(workOrder.getId());
         dto.setQuoteAmount(new BigDecimal("120.00"));
         dto.setQuoteDesc("复检前调价");
-        dto.setFaults(Collections.singletonList(buildFaultItem("主板故障", "更换主板", "主板")));
+        fillRepairSubmission(dto, "更换主板", "主板", 1);
 
         runWithLoginContext(101L, new ThrowingRunnable() {
             @Override
@@ -780,6 +777,7 @@ public class WorkOrderServiceImplTest {
         workOrder.setId(6L);
         workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.IN_PROGRESS);
         workOrder.setCurrentAcceptCompanyId(3L);
+        workOrder.setFaultDesc("主板故障");
         List<WorkOrderFlow> insertedFlows = new ArrayList<>();
         int[] updateCount = new int[1];
         int[] notifyCount = new int[1];
@@ -792,6 +790,7 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderFaultMapper", createNoopProxy(com.jasic.aftersales.system.mapper.WorkOrderFaultMapper.class, "insert"));
         setField(service, "workOrderFlowMapper", createFlowMapperProxy(insertedFlows));
         setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(Collections.emptyList()));
+        setField(service, "sysFileService", createNoopProxy(com.jasic.aftersales.system.service.SysFileService.class, "replaceBizFiles"));
         setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
             @Override
             public boolean canSaveRepair(WorkOrder target) {
@@ -808,8 +807,7 @@ public class WorkOrderServiceImplTest {
 
         WorkOrderRepairDTO dto = new WorkOrderRepairDTO();
         dto.setWorkOrderId(workOrder.getId());
-        dto.setIsFinished(0);
-        dto.setFaults(Collections.singletonList(buildFaultItem("主板故障", "更换主板", "主板")));
+        fillRepairSubmission(dto, "更换主板", "主板", 1);
 
         runWithLoginContext(101L, new ThrowingRunnable() {
             @Override
@@ -849,7 +847,7 @@ public class WorkOrderServiceImplTest {
         WorkOrderRepairDTO dto = new WorkOrderRepairDTO();
         dto.setWorkOrderId(workOrder.getId());
         dto.setQuoteAmount(new BigDecimal("88.00"));
-        dto.setFaults(Collections.singletonList(buildFaultItem("风扇故障", "更换风扇", "风扇")));
+        fillRepairSubmission(dto, "更换风扇", "风扇", 1);
 
         try {
             service.saveRepair(dto);
@@ -857,90 +855,6 @@ public class WorkOrderServiceImplTest {
         } catch (ServiceException ex) {
             Assert.assertEquals("请先提交报价，再在维修登记中调整报价", ex.getMessage());
         }
-    }
-
-    @Test
-    public void shouldMoveWorkOrderBackToInProgressWhenReviewRequestsContinueRepair() throws Exception {
-        WorkOrder workOrder = new WorkOrder();
-        workOrder.setId(8L);
-        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.COMPLETED);
-        workOrder.setCurrentAcceptCompanyId(3L);
-        workOrder.setCompletedTime(LocalDateTime.now());
-        List<WorkOrderReview> insertedReviews = new ArrayList<>();
-        int[] updateCount = new int[1];
-        UserParticipantRecorder participantRecorder = new UserParticipantRecorder();
-
-        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
-        setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, updateCount));
-        setField(service, "workOrderReviewMapper", createReviewMapperProxy(insertedReviews));
-        setField(service, "workOrderFlowMapper", createNoopProxy(WorkOrderFlowMapper.class, "insert"));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
-            @Override
-            public boolean canReview(WorkOrder target) {
-                return true;
-            }
-        });
-        setField(service, "workOrderUserParticipantService", participantRecorder);
-
-        WorkOrderReviewDTO dto = new WorkOrderReviewDTO();
-        dto.setWorkOrderId(workOrder.getId());
-        dto.setReviewResult("继续维修");
-        dto.setReviewDesc("复检后仍需继续处理");
-
-        runWithLoginContext(101L, new ThrowingRunnable() {
-            @Override
-            public void run() throws Exception {
-                service.saveReview(dto);
-            }
-        });
-
-        Assert.assertEquals(1, updateCount[0]);
-        Assert.assertEquals(WorkOrderStatusConstants.MainStatus.IN_PROGRESS, workOrder.getMainStatus());
-        Assert.assertNull(workOrder.getCompletedTime());
-        Assert.assertEquals(1, insertedReviews.size());
-        Assert.assertEquals(Integer.valueOf(1), insertedReviews.get(0).getIsContinueRepair());
-        Assert.assertEquals(Long.valueOf(3L), insertedReviews.get(0).getCompanyId());
-        Assert.assertEquals(Long.valueOf(101L), insertedReviews.get(0).getReviewUserId());
-        Assert.assertEquals(Collections.singletonList("3-101-REVIEW"), participantRecorder.records);
-    }
-
-    @Test
-    public void shouldKeepCompletedWhenReviewPasses() throws Exception {
-        WorkOrder workOrder = new WorkOrder();
-        workOrder.setId(9L);
-        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.COMPLETED);
-        workOrder.setCurrentAcceptCompanyId(3L);
-        workOrder.setCompletedTime(LocalDateTime.now());
-        List<WorkOrderReview> insertedReviews = new ArrayList<>();
-        int[] updateCount = new int[1];
-
-        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
-        setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, updateCount));
-        setField(service, "workOrderReviewMapper", createReviewMapperProxy(insertedReviews));
-        setField(service, "workOrderFlowMapper", createNoopProxy(WorkOrderFlowMapper.class, "insert"));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
-            @Override
-            public boolean canReview(WorkOrder target) {
-                return true;
-            }
-        });
-
-        WorkOrderReviewDTO dto = new WorkOrderReviewDTO();
-        dto.setWorkOrderId(workOrder.getId());
-        dto.setReviewResult("通过");
-        dto.setReviewDesc("复检通过");
-
-        runWithLoginContext(101L, new ThrowingRunnable() {
-            @Override
-            public void run() throws Exception {
-                service.saveReview(dto);
-            }
-        });
-
-        Assert.assertEquals(0, updateCount[0]);
-        Assert.assertEquals(WorkOrderStatusConstants.MainStatus.COMPLETED, workOrder.getMainStatus());
-        Assert.assertEquals(1, insertedReviews.size());
-        Assert.assertEquals(Integer.valueOf(0), insertedReviews.get(0).getIsContinueRepair());
     }
 
     @Test
@@ -1124,23 +1038,6 @@ public class WorkOrderServiceImplTest {
     }
 
     @Test
-    public void shouldDeriveContinueRepairFromReviewResult() throws Exception {
-        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
-        Method normalizeReviewResult = WorkOrderServiceImpl.class
-                .getDeclaredMethod("normalizeReviewResult", String.class);
-        normalizeReviewResult.setAccessible(true);
-        Method resolveContinueRepair = WorkOrderServiceImpl.class
-                .getDeclaredMethod("resolveContinueRepair", String.class);
-        resolveContinueRepair.setAccessible(true);
-
-        String reviewResult = (String) normalizeReviewResult.invoke(service, "继续维修");
-        Integer continueRepair = (Integer) resolveContinueRepair.invoke(service, reviewResult);
-
-        Assert.assertEquals("继续维修", reviewResult);
-        Assert.assertEquals(Integer.valueOf(1), continueRepair);
-    }
-
-    @Test
     public void shouldSkipEvaluationInviteWhenCurrentQuoteIsNoFault() throws Exception {
         WorkOrderQuote currentQuote = new WorkOrderQuote();
         currentQuote.setWorkOrderId(4L);
@@ -1156,107 +1053,6 @@ public class WorkOrderServiceImplTest {
         Boolean noFault = (Boolean) isNoFaultWorkOrder.invoke(service, 4L);
 
         Assert.assertTrue(noFault);
-    }
-
-    @Test
-    public void shouldRequirePartDescWhenFaultItemHasRepairContent() throws Exception {
-        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
-        setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(Collections.emptyList()));
-
-        WorkOrderFaultItemDTO faultItem = new WorkOrderFaultItemDTO();
-        faultItem.setFaultDesc("电源故障");
-        faultItem.setRepairDesc("更换电源板");
-
-        try {
-            invokeNormalizeRepairFaults(service, buildRepairWorkOrder(), Collections.singletonList(faultItem));
-            Assert.fail("预期应拒绝缺少配件信息的故障点");
-        } catch (ServiceException ex) {
-            Assert.assertEquals("配件信息不能为空", ex.getMessage());
-        }
-    }
-
-    @Test
-    public void shouldRequireOtherDescWhenOtherRepairOptionSelected() throws Exception {
-        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
-        setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(Collections.singletonList(
-                buildRepairFaultOption("电源故障", Collections.singletonList("更换电源板"))
-        )));
-
-        WorkOrderFaultItemDTO faultItem = new WorkOrderFaultItemDTO();
-        faultItem.setFaultDesc("电源故障");
-        faultItem.setPartDesc("电源板");
-        faultItem.setRepairItems(Arrays.asList("更换电源板", "其它维修说明"));
-
-        try {
-            invokeNormalizeRepairFaults(service, buildRepairWorkOrder(), Collections.singletonList(faultItem));
-            Assert.fail("预期应拒绝缺少其他维修说明的维修登记");
-        } catch (ServiceException ex) {
-            Assert.assertEquals("选择其它维修说明时，其他维修说明不能为空", ex.getMessage());
-        }
-    }
-
-    @Test
-    public void shouldSnapshotRepairItemsWhenRepairConfigMatched() throws Exception {
-        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
-        setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(Collections.singletonList(
-                buildRepairFaultOption("电源故障", Arrays.asList("更换电源板", "清洁接线"))
-        )));
-
-        WorkOrderFaultItemDTO faultItem = new WorkOrderFaultItemDTO();
-        faultItem.setFaultDesc("电源故障");
-        faultItem.setPartDesc("电源板");
-        faultItem.setRepairItems(Collections.singletonList("更换电源板"));
-
-        List<WorkOrderFaultItemDTO> result = invokeNormalizeRepairFaults(
-                service,
-                buildRepairWorkOrder(),
-                Collections.singletonList(faultItem)
-        );
-
-        Assert.assertEquals(1, result.size());
-        Assert.assertEquals("电源故障", result.get(0).getFaultDesc());
-        Assert.assertEquals("更换电源板", result.get(0).getRepairDesc());
-        Assert.assertEquals(Collections.singletonList("更换电源板"), result.get(0).getRepairItems());
-    }
-
-    @Test
-    public void shouldRejectManualRepairDescWhenFaultConfigMatched() throws Exception {
-        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
-        setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(Collections.singletonList(
-                buildRepairFaultOption("电源故障", Arrays.asList("更换电源板", "清洁接线"))
-        )));
-
-        WorkOrderFaultItemDTO faultItem = new WorkOrderFaultItemDTO();
-        faultItem.setFaultDesc("电源故障");
-        faultItem.setPartDesc("电源板");
-        faultItem.setRepairDesc("手工输入维修说明");
-
-        try {
-            invokeNormalizeRepairFaults(service, buildRepairWorkOrder(), Collections.singletonList(faultItem));
-            Assert.fail("预期应拒绝绕过配置的手工维修说明");
-        } catch (ServiceException ex) {
-            Assert.assertEquals("请选择配置内的维修说明", ex.getMessage());
-        }
-    }
-
-    @Test
-    public void shouldRejectFaultDescOutsideConfiguredRange() throws Exception {
-        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
-        setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(Collections.singletonList(
-                buildRepairFaultOption("电源故障", Collections.singletonList("更换电源板"))
-        )));
-
-        WorkOrderFaultItemDTO faultItem = new WorkOrderFaultItemDTO();
-        faultItem.setFaultDesc("非配置故障");
-        faultItem.setPartDesc("电源板");
-        faultItem.setRepairDesc("手工输入维修说明");
-
-        try {
-            invokeNormalizeRepairFaults(service, buildRepairWorkOrder(), Collections.singletonList(faultItem));
-            Assert.fail("预期应拒绝配置范围外的故障描述");
-        } catch (ServiceException ex) {
-            Assert.assertEquals("故障描述不在当前配置范围内", ex.getMessage());
-        }
     }
 
     private WorkOrderMapper createWorkOrderMapperProxy(WorkOrder workOrder) {
@@ -1493,24 +1289,6 @@ public class WorkOrderServiceImplTest {
         );
     }
 
-    private WorkOrderReviewMapper createReviewMapperProxy(List<WorkOrderReview> insertedReviews) {
-        InvocationHandler handler = new InvocationHandler() {
-            @Override
-            public Object invoke(Object proxy, Method method, Object[] args) {
-                if ("insert".equals(method.getName())) {
-                    insertedReviews.add((WorkOrderReview) args[0]);
-                    return 1;
-                }
-                return defaultValue(method.getReturnType());
-            }
-        };
-        return (WorkOrderReviewMapper) Proxy.newProxyInstance(
-                WorkOrderReviewMapper.class.getClassLoader(),
-                new Class<?>[]{WorkOrderReviewMapper.class},
-                handler
-        );
-    }
-
     @SuppressWarnings("unchecked")
     private <T> T createNoopProxy(Class<T> type, String successMethodName) {
         InvocationHandler handler = new InvocationHandler() {
@@ -1653,23 +1431,6 @@ public class WorkOrderServiceImplTest {
         return method.invoke(target);
     }
 
-    @SuppressWarnings("unchecked")
-    private List<WorkOrderFaultItemDTO> invokeNormalizeRepairFaults(WorkOrderServiceImpl service,
-                                                                    WorkOrder workOrder,
-                                                                    List<WorkOrderFaultItemDTO> faults) throws Exception {
-        Method method = WorkOrderServiceImpl.class
-                .getDeclaredMethod("normalizeRepairFaults", WorkOrder.class, List.class);
-        method.setAccessible(true);
-        try {
-            return (List<WorkOrderFaultItemDTO>) method.invoke(service, workOrder, faults);
-        } catch (InvocationTargetException ex) {
-            if (ex.getCause() instanceof ServiceException) {
-                throw (ServiceException) ex.getCause();
-            }
-            throw ex;
-        }
-    }
-
     private WorkOrderRepairFaultOptionVO buildRepairFaultOption(String faultDesc, List<String> repairOptions) {
         WorkOrderRepairFaultOptionVO option = new WorkOrderRepairFaultOptionVO();
         option.setFaultDesc(faultDesc);
@@ -1677,12 +1438,10 @@ public class WorkOrderServiceImplTest {
         return option;
     }
 
-    private WorkOrderFaultItemDTO buildFaultItem(String faultDesc, String repairDesc, String partDesc) {
-        WorkOrderFaultItemDTO item = new WorkOrderFaultItemDTO();
-        item.setFaultDesc(faultDesc);
-        item.setRepairDesc(repairDesc);
-        item.setPartDesc(partDesc);
-        return item;
+    private void fillRepairSubmission(WorkOrderRepairDTO dto, String repairDesc, String partName, Integer partQty) {
+        dto.setRepairDesc(repairDesc);
+        dto.setPartName(partName);
+        dto.setPartQty(partQty);
     }
 
     private SysCompany buildCompany(Long companyId, String companyName, String typeCode) {

@@ -44,13 +44,11 @@ import com.jasic.aftersales.system.domain.entity.WorkOrderFault;
 import com.jasic.aftersales.system.domain.entity.WorkOrderFlow;
 import com.jasic.aftersales.system.domain.entity.WorkOrderQuote;
 import com.jasic.aftersales.system.domain.entity.WorkOrderRepair;
-import com.jasic.aftersales.system.domain.entity.WorkOrderReview;
 import com.jasic.aftersales.system.domain.vo.WorkOrderEvaluationVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderFaultVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderQuoteVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairFaultOptionVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairVO;
-import com.jasic.aftersales.system.domain.vo.WorkOrderReviewVO;
 import com.jasic.aftersales.system.domain.vo.SysFileItemVO;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
 import com.jasic.aftersales.system.mapper.HqFirstContractMapper;
@@ -66,7 +64,6 @@ import com.jasic.aftersales.system.mapper.WorkOrderFlowMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderQuoteMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderRepairMapper;
-import com.jasic.aftersales.system.mapper.WorkOrderReviewMapper;
 import com.jasic.aftersales.system.service.IFaultRepairConfigService;
 import com.jasic.aftersales.system.service.WorkOrderNotifyEventService;
 import com.jasic.aftersales.system.service.WorkOrderParticipantService;
@@ -109,6 +106,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     private static final BigDecimal MIN_LATITUDE = BigDecimal.valueOf(-90);
     private static final BigDecimal MAX_LATITUDE = BigDecimal.valueOf(90);
     private static final String FAULT_JUDGE_NO_FAULT = "无故障";
+    private static final String REGISTER_STAGE_RECHECK = "RECHECK";
     private static final double EARTH_RADIUS_KM = 6371.0088D;
     private static final String OTHER_FAULT_LABEL = "其它故障";
     private static final String FAULT_DESC_SEPARATOR = "；";
@@ -118,6 +116,13 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
             SysFileBizTypeEnum.WORK_ORDER_FAULT_VOICE,
             SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER,
             SysFileBizTypeEnum.WORK_ORDER_RETURN_VOUCHER
+    );
+    private static final List<SysFileBizTypeEnum> WORK_ORDER_REPAIR_FILE_BIZ_TYPES = Arrays.asList(
+            SysFileBizTypeEnum.WORK_ORDER_REPAIR_OLD_IMAGE,
+            SysFileBizTypeEnum.WORK_ORDER_REPAIR_NEW_IMAGE,
+            SysFileBizTypeEnum.WORK_ORDER_REPAIR_MACHINE_IMAGE,
+            SysFileBizTypeEnum.WORK_ORDER_REPAIR_BARCODE_IMAGE,
+            SysFileBizTypeEnum.WORK_ORDER_REPAIR_OTHER_IMAGE
     );
 
     @Resource
@@ -134,9 +139,6 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
 
     @Resource
     private WorkOrderFaultMapper workOrderFaultMapper;
-
-    @Resource
-    private WorkOrderReviewMapper workOrderReviewMapper;
 
     @Resource
     private WorkOrderEvaluationMapper workOrderEvaluationMapper;
@@ -463,7 +465,6 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         detail.setAssignedUserName(userNameMap.get(workOrder.getAssignedUserId()));
         detail.setQuotes(listQuoteVos(workOrderId));
         detail.setRepairs(listRepairVos(workOrderId));
-        detail.setReviews(listReviewVos(workOrderId));
         detail.setEvaluation(getEvaluationVo(workOrderId));
         return detail;
     }
@@ -592,6 +593,13 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return sysFileService.listBizFileMap(WORK_ORDER_FILE_BIZ_TYPES, workOrderId);
     }
 
+    private Map<SysFileBizTypeEnum, List<SysFileItemVO>> buildRepairFileMap(Long repairId) {
+        if (repairId == null) {
+            return Collections.emptyMap();
+        }
+        return sysFileService.listBizFileMap(WORK_ORDER_REPAIR_FILE_BIZ_TYPES, repairId);
+    }
+
     private void fillAttachmentDetail(CustomerWorkOrderDetailVO detail,
                                       Map<SysFileBizTypeEnum, List<SysFileItemVO>> fileMap) {
         if (detail == null) {
@@ -603,6 +611,19 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         detail.setFaultVoiceFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_FAULT_VOICE, Collections.emptyList()));
         detail.setSenderVoucherFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER, Collections.emptyList()));
         detail.setReturnVoucherFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_RETURN_VOUCHER, Collections.emptyList()));
+    }
+
+    private void fillRepairAttachmentDetail(WorkOrderRepairVO repair,
+                                            Map<SysFileBizTypeEnum, List<SysFileItemVO>> fileMap) {
+        if (repair == null) {
+            return;
+        }
+        Map<SysFileBizTypeEnum, List<SysFileItemVO>> safeFileMap = fileMap == null ? Collections.emptyMap() : fileMap;
+        repair.setFaultOldImageFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_REPAIR_OLD_IMAGE, Collections.emptyList()));
+        repair.setFaultNewImageFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_REPAIR_NEW_IMAGE, Collections.emptyList()));
+        repair.setMachineImageFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_REPAIR_MACHINE_IMAGE, Collections.emptyList()));
+        repair.setMachineBarcodeImageFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_REPAIR_BARCODE_IMAGE, Collections.emptyList()));
+        repair.setOtherImageFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_REPAIR_OTHER_IMAGE, Collections.emptyList()));
     }
 
     private void replaceWorkOrderCreateFiles(Long workOrderId, List<Long> faultImageFileIds, List<Long> faultVideoFileIds,
@@ -1557,10 +1578,13 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
             vo.setCompanyName(companyNameMap.get(repair.getCompanyId()));
             vo.setRepairUserId(repair.getRepairUserId());
             vo.setRepairUserName(userNameMap.get(repair.getRepairUserId()));
+            vo.setRegisterStage(repair.getRegisterStage());
+            vo.setRegisterStageLabel(REGISTER_STAGE_RECHECK.equals(repair.getRegisterStage()) ? "复检登记" : "维修登记");
             vo.setIsFinished(repair.getIsFinished());
             vo.setFinishedTime(repair.getFinishedTime());
             vo.setCreateTime(repair.getCreateTime());
             vo.setFaults(faultMap.getOrDefault(repair.getId(), Collections.emptyList()));
+            fillRepairAttachmentDetail(vo, buildRepairFileMap(repair.getId()));
             result.add(vo);
         }
         return result;
@@ -1589,44 +1613,14 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
             vo.setCompanyId(fault.getCompanyId());
             vo.setFaultDesc(fault.getFaultDesc());
             vo.setRepairDesc(fault.getRepairDesc());
-            vo.setPartDesc(fault.getPartDesc());
-            vo.setImageUrls(fault.getImageUrls());
+            vo.setOtherDesc(fault.getOtherDesc());
+            vo.setPartName(fault.getPartName());
+            vo.setPartQty(fault.getPartQty());
             vo.setSortNum(fault.getSortNum());
             vo.setCreatedBy(fault.getCreatedBy());
             vo.setCreatedByName(userNameMap.get(fault.getCreatedBy()));
             vo.setCreateTime(fault.getCreateTime());
             result.computeIfAbsent(fault.getRepairId(), key -> new ArrayList<>()).add(vo);
-        }
-        return result;
-    }
-
-    private List<WorkOrderReviewVO> listReviewVos(Long workOrderId) {
-        LambdaQueryWrapper<WorkOrderReview> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(WorkOrderReview::getWorkOrderId, workOrderId)
-                .orderByDesc(WorkOrderReview::getCreateTime);
-        List<WorkOrderReview> reviews = workOrderReviewMapper.selectList(wrapper);
-        if (reviews.isEmpty()) {
-            return Collections.emptyList();
-        }
-        Map<Long, String> companyNameMap = buildCompanyNameMap(
-                reviews.stream().map(WorkOrderReview::getCompanyId).collect(Collectors.toSet())
-        );
-        Map<Long, String> userNameMap = buildUserNameMap(
-                reviews.stream().map(WorkOrderReview::getReviewUserId).collect(Collectors.toSet())
-        );
-        List<WorkOrderReviewVO> result = new ArrayList<>();
-        for (WorkOrderReview review : reviews) {
-            WorkOrderReviewVO vo = new WorkOrderReviewVO();
-            vo.setId(review.getId());
-            vo.setCompanyId(review.getCompanyId());
-            vo.setCompanyName(companyNameMap.get(review.getCompanyId()));
-            vo.setReviewUserId(review.getReviewUserId());
-            vo.setReviewUserName(userNameMap.get(review.getReviewUserId()));
-            vo.setReviewResult(review.getReviewResult());
-            vo.setReviewDesc(review.getReviewDesc());
-            vo.setIsContinueRepair(review.getIsContinueRepair());
-            vo.setCreateTime(review.getCreateTime());
-            result.add(vo);
         }
         return result;
     }
