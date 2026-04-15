@@ -314,29 +314,11 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertTrue(relationTags.contains(WorkOrderRelationTagEnum.CREATOR_COMPANY));
     }
 
-    /*@Test
-    public void shouldAllowAssignedDispatcherTransferAndQuoteAtSameTime() throws Exception {
-        setCurrentServiceContext(1001L);
-        setEmptyMapperDependencies();
-        grantPermissions("workorder:transfer", "workorder:quote");
-
-        WorkOrder workOrder = buildWorkOrder(17L, 900L, 1001L, 1001L, 101L);
-        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.IN_PROGRESS);
-
-        List<String> actions = service.listAvailableActions(workOrder);
-
-        Assert.assertEquals(WorkOrderRelationTypeEnum.CURRENT_ASSIGNEE, service.resolveRelationType(workOrder));
-        Assert.assertTrue(service.canTransfer(workOrder));
-        Assert.assertTrue(service.canQuote(workOrder));
-        Assert.assertTrue(actions.contains(WorkOrderActionEnum.TRANSFER.getCode()));
-        Assert.assertTrue(actions.contains(WorkOrderActionEnum.QUOTE.getCode()));
-    }*/
-
     @Test
     public void shouldRejectTransferForAssignedTechWithoutTransferPermission() throws Exception {
         setCurrentServiceContext(1001L);
         setEmptyMapperDependencies();
-        grantPermissions("workorder:quote");
+        grantPermissions("workorder:repair");
 
         WorkOrder workOrder = buildWorkOrder(18L, 900L, 1001L, 1001L, 101L);
         workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.IN_PROGRESS);

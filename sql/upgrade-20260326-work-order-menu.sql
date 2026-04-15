@@ -85,12 +85,6 @@ WHERE @service_work_order_menu_id IS NOT NULL
   AND NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `parent_id` = @service_work_order_menu_id AND `menu_type` = 'F' AND `perms` = 'workorder:transfer');
 
 INSERT INTO `sys_menu` (`subject_type`, `menu_name`, `parent_id`, `menu_type`, `path`, `component`, `perms`, `icon`, `order_num`, `is_visible`, `status`, `create_time`, `update_time`)
-SELECT 'SERVICE', '维修报价', @service_work_order_menu_id, 'F', NULL, NULL, 'workorder:quote', NULL, 6, 1, 1, NOW(), NOW()
-FROM DUAL
-WHERE @service_work_order_menu_id IS NOT NULL
-  AND NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `parent_id` = @service_work_order_menu_id AND `menu_type` = 'F' AND `perms` = 'workorder:quote');
-
-INSERT INTO `sys_menu` (`subject_type`, `menu_name`, `parent_id`, `menu_type`, `path`, `component`, `perms`, `icon`, `order_num`, `is_visible`, `status`, `create_time`, `update_time`)
 SELECT 'SERVICE', '维修登记', @service_work_order_menu_id, 'F', NULL, NULL, 'workorder:repair', NULL, 7, 1, 1, NOW(), NOW()
 FROM DUAL
 WHERE @service_work_order_menu_id IS NOT NULL
@@ -187,12 +181,6 @@ WHERE @hq_work_order_menu_id IS NOT NULL
   AND NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `parent_id` = @hq_work_order_menu_id AND `menu_type` = 'F' AND `perms` = 'workorder:transfer');
 
 INSERT INTO `sys_menu` (`subject_type`, `menu_name`, `parent_id`, `menu_type`, `path`, `component`, `perms`, `icon`, `order_num`, `is_visible`, `status`, `create_time`, `update_time`)
-SELECT 'HQ', '维修报价', @hq_work_order_menu_id, 'F', NULL, NULL, 'workorder:quote', NULL, 6, 1, 1, NOW(), NOW()
-FROM DUAL
-WHERE @hq_work_order_menu_id IS NOT NULL
-  AND NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `parent_id` = @hq_work_order_menu_id AND `menu_type` = 'F' AND `perms` = 'workorder:quote');
-
-INSERT INTO `sys_menu` (`subject_type`, `menu_name`, `parent_id`, `menu_type`, `path`, `component`, `perms`, `icon`, `order_num`, `is_visible`, `status`, `create_time`, `update_time`)
 SELECT 'HQ', '维修登记', @hq_work_order_menu_id, 'F', NULL, NULL, 'workorder:repair', NULL, 7, 1, 1, NOW(), NOW()
 FROM DUAL
 WHERE @hq_work_order_menu_id IS NOT NULL
@@ -221,7 +209,7 @@ WHERE tc.`subject_type` = 'SERVICE'
   AND (
     (m.`parent_id` = 0 AND m.`path` = 'afterSales')
     OR (m.`parent_id` = @service_root_id AND m.`path` = 'workOrder')
-    OR m.`perms` IN ('workorder:list', 'workorder:add', 'workorder:assign', 'workorder:accept', 'workorder:transfer', 'workorder:quote', 'workorder:repair', 'workorder:review', 'workorder:close')
+    OR m.`perms` IN ('workorder:list', 'workorder:add', 'workorder:assign', 'workorder:accept', 'workorder:transfer', 'workorder:repair', 'workorder:review', 'workorder:close')
   )
   AND NOT EXISTS (
     SELECT 1
@@ -238,7 +226,7 @@ WHERE tc.`subject_type` = 'HQ'
   AND (
     (m.`parent_id` = 0 AND m.`path` = 'afterSales')
     OR (m.`parent_id` = @hq_root_id AND m.`path` = 'workOrder')
-    OR m.`perms` IN ('workorder:list', 'workorder:add', 'workorder:assign', 'workorder:accept', 'workorder:transfer', 'workorder:quote', 'workorder:repair', 'workorder:review', 'workorder:close')
+    OR m.`perms` IN ('workorder:list', 'workorder:add', 'workorder:assign', 'workorder:accept', 'workorder:transfer', 'workorder:repair', 'workorder:review', 'workorder:close')
   )
   AND NOT EXISTS (
     SELECT 1
@@ -279,7 +267,7 @@ WHERE rt.`role_key` = 'repairer'
   AND (
     (m.`parent_id` = 0 AND m.`path` = 'afterSales')
     OR (m.`menu_type` = 'C' AND m.`path` = 'workOrder')
-    OR m.`perms` IN ('workorder:list', 'workorder:accept', 'workorder:quote', 'workorder:repair')
+    OR m.`perms` IN ('workorder:list', 'workorder:accept', 'workorder:repair')
   )
   AND NOT EXISTS (
     SELECT 1

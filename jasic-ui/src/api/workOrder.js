@@ -64,10 +64,6 @@ export function transferWorkOrder(data) {
   return request({ url: '/system/work-order/transfer', method: 'put', data })
 }
 
-export function quoteWorkOrder(data) {
-  return request({ url: '/system/work-order/quote', method: 'post', data })
-}
-
 export function repairWorkOrder(data) {
   return request({ url: '/system/work-order/repair', method: 'post', data })
 }

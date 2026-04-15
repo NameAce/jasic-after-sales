@@ -17,7 +17,6 @@ import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.system.domain.dto.WorkOrderAssignDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderCloseDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderProxyCreateDTO;
-import com.jasic.aftersales.system.domain.dto.WorkOrderQuoteDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderRepairDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTechAcceptDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTransferDTO;
@@ -436,48 +435,6 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(1, insertedQuotes.size());
         Assert.assertEquals("RETURN_METHOD", insertedFlows.get(2).getActionType());
         Assert.assertEquals("CLOSE", insertedFlows.get(3).getActionType());
-    }
-
-    @Test
-    public void shouldRecordQuoteParticipationWhenSavingQuote() throws Exception {
-        WorkOrder workOrder = new WorkOrder();
-        workOrder.setId(18L);
-        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.IN_PROGRESS);
-        workOrder.setCurrentAcceptCompanyId(3L);
-        List<WorkOrderQuote> quotes = new ArrayList<>();
-        List<WorkOrderQuote> insertedQuotes = new ArrayList<>();
-        List<WorkOrderFlow> insertedFlows = new ArrayList<>();
-        UserParticipantRecorder participantRecorder = new UserParticipantRecorder();
-
-        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
-        setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
-        setField(service, "workOrderQuoteMapper", createMutableQuoteMapperProxy(quotes, insertedQuotes, new int[1]));
-        setField(service, "workOrderFlowMapper", createFlowMapperProxy(insertedFlows));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
-            @Override
-            public boolean canQuote(WorkOrder target) {
-                return true;
-            }
-        });
-        setField(service, "workOrderUserParticipantService", participantRecorder);
-
-        WorkOrderQuoteDTO dto = new WorkOrderQuoteDTO();
-        dto.setWorkOrderId(workOrder.getId());
-        dto.setFaultJudge("有故障");
-        dto.setQuoteAmount(new BigDecimal("88.00"));
-        dto.setQuoteDesc("重新报价");
-
-        runWithLoginContext(101L, new ThrowingRunnable() {
-            @Override
-            public void run() throws Exception {
-                service.saveQuote(dto);
-            }
-        });
-
-        Assert.assertEquals(1, insertedQuotes.size());
-        Assert.assertEquals(1, insertedFlows.size());
-        Assert.assertEquals("QUOTE", insertedFlows.get(0).getActionType());
-        Assert.assertEquals(Collections.singletonList("3-101-QUOTE"), participantRecorder.records);
     }
 
     @Test

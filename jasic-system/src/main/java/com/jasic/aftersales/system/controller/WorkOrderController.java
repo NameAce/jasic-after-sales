@@ -10,7 +10,6 @@ import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.dto.WorkOrderAssignDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderCloseDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderProxyCreateDTO;
-import com.jasic.aftersales.system.domain.dto.WorkOrderQuoteDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderRepairDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderSendExpressDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTechAcceptDTO;
@@ -289,21 +288,6 @@ public class WorkOrderController extends BaseController {
     @PutMapping("/transfer")
     public Result<Void> transfer(@Validated @RequestBody WorkOrderTransferDTO dto) {
         workOrderService.transfer(dto);
-        return Result.ok();
-    }
-
-    /**
-     * 保存报价
-     *
-     * @param dto 报价参数
-     * @return 操作结果
-     */
-    @ApiOperation(value = "保存报价")
-    @SaCheckPermission("workorder:quote")
-    @OperLog(title = "工单管理", operType = OperTypeEnum.UPDATE)
-    @PostMapping("/quote")
-    public Result<Void> saveQuote(@Validated @RequestBody WorkOrderQuoteDTO dto) {
-        workOrderService.saveQuote(dto);
         return Result.ok();
     }
 

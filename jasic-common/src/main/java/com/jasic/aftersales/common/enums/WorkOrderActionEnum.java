@@ -35,8 +35,8 @@ public enum WorkOrderActionEnum {
     /** 将工单转交到其他服务公司，并切换当前受理公司。 */
     TRANSFER("TRANSFER", "转单", "workorder:transfer"),
 
-    /** 提交或更新报价，可能在接单时首报，也可能在处理中重新报价。 */
-    QUOTE("QUOTE", "报价", "workorder:quote"),
+    /** 报价留痕动作，接单首报或维修登记改价都会落该动作。 */
+    QUOTE("QUOTE", "报价", ""),
 
     /** 提交维修登记，并把工单推进到已完成阶段。 */
     REPAIR_FINISH("REPAIR_FINISH", "维修登记", "workorder:repair"),

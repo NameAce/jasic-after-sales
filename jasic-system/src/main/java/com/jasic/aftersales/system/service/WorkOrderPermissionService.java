@@ -49,7 +49,6 @@ public class WorkOrderPermissionService {
             WorkOrderActionEnum.UPLOAD_SEND_EXPRESS,
             WorkOrderActionEnum.TECH_ACCEPT,
             WorkOrderActionEnum.TRANSFER,
-            WorkOrderActionEnum.QUOTE,
             WorkOrderActionEnum.REPAIR_FINISH,
             WorkOrderActionEnum.REVIEW,
             WorkOrderActionEnum.RETURN_METHOD,
@@ -322,11 +321,6 @@ public class WorkOrderPermissionService {
                 return isAssignee
                         && WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT.equals(mainStatus)
                         && hasActionPermission(action);
-            case QUOTE:
-                // 报价动作沿用当前维修员语义，且仅处理中可做。
-                return isAssignee
-                        && WorkOrderStatusConstants.MainStatus.IN_PROGRESS.equals(mainStatus)
-                        && hasActionPermission(action);
             case REPAIR_FINISH:
                 // 维修登记沿用“维修员 + 处理中 + repair 权限”约束。
                 return isAssignee
@@ -383,16 +377,6 @@ public class WorkOrderPermissionService {
      */
     public boolean canTransfer(WorkOrder workOrder) {
         return canExecute(workOrder, WorkOrderActionEnum.TRANSFER);
-    }
-
-    /**
-     * 判断当前登录人是否允许执行报价操作。
-     *
-     * @param workOrder 工单实体
-     * @return true 表示允许报价
-     */
-    public boolean canQuote(WorkOrder workOrder) {
-        return canExecute(workOrder, WorkOrderActionEnum.QUOTE);
     }
 
     /**

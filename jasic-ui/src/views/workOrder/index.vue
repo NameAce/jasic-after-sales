@@ -656,24 +656,10 @@
           />
         </template>
 
-        <template v-else-if="actionDialogAction === 'QUOTE'">
-          <el-form-item label="故障判断">
-            <el-select v-model="actionForm.faultJudge" placeholder="请选择故障判断" style="width: 100%;">
-              <el-option v-for="item in faultJudgeOptions" :key="item" :label="item" :value="item" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="报价金额">
-            <el-input-number v-model="actionForm.quoteAmount" :min="0" :precision="2" :controls="false" style="width: 100%;" />
-          </el-form-item>
-          <el-form-item label="报价说明">
-            <el-input v-model="actionForm.quoteDesc" type="textarea" :rows="3" placeholder="请输入报价说明" />
-          </el-form-item>
-        </template>
-
         <template v-else-if="actionDialogAction === 'REPAIR_FINISH' || actionDialogAction === 'REVIEW'">
           <el-alert
             v-if="actionDialogAction === 'REPAIR_FINISH' && !actionForm.faultJudge"
-            title="当前暂无有效报价；如需调整报价，请先通过“报价”动作确认故障判断"
+            title="当前暂无有效报价；如需调整报价，请先确认工单已完成接单首报"
             type="warning"
             :closable="false"
             show-icon
@@ -681,7 +667,7 @@
           />
           <template v-if="actionDialogAction === 'REPAIR_FINISH'">
             <el-form-item label="故障判断">
-              <el-input :value="actionForm.faultJudge || '请先在报价动作中确认故障判断'" disabled />
+              <el-input :value="actionForm.faultJudge || '当前暂无首次报价，请联系管理员排查工单数据'" disabled />
             </el-form-item>
             <el-form-item label="报价金额">
               <el-input-number v-model="actionForm.quoteAmount" :min="0" :precision="2" :controls="false" style="width: 100%;" />
@@ -836,7 +822,6 @@ import {
   listRepairFaultOptions,
   listTransferTargetOptions,
   listWorkOrder,
-  quoteWorkOrder,
   repairWorkOrder,
   reviewWorkOrder,
   techAcceptWorkOrder,
@@ -895,7 +880,6 @@ const ACTION_META = {
   ASSIGN: { label: '派单', title: '派单', type: 'primary' },
   TECH_ACCEPT: { label: '维修员接单', title: '维修员接单', type: 'primary' },
   TRANSFER: { label: '转单', title: '转单', type: 'warning' },
-  QUOTE: { label: '报价', title: '报价', type: 'primary' },
   REPAIR_FINISH: { label: '维修登记', title: '维修登记', type: 'primary' },
   REVIEW: { label: '复检', title: '复检登记', type: 'warning' },
   UPLOAD_SEND_EXPRESS: { label: '上传寄件单号', title: '上传寄件单号', type: 'primary' },
@@ -1720,7 +1704,7 @@ export default {
       const form = buildDefaultActionForm()
       const currentQuote = this.getCurrentValidQuote()
       form.workOrderId = currentWorkOrderId
-      if (action === 'QUOTE' || action === 'REPAIR_FINISH') {
+      if (action === 'REPAIR_FINISH') {
         this.fillQuoteForm(form, currentQuote)
       }
       if (action === 'REPAIR_FINISH') {
@@ -1810,10 +1794,6 @@ export default {
         this.$message.error('请输入故障判定')
         return false
       }
-      if (this.actionDialogAction === 'QUOTE' && !this.actionForm.faultJudge) {
-        this.$message.error('请输入故障判定')
-        return false
-      }
       if ((this.actionDialogAction === 'REPAIR_FINISH' || this.actionDialogAction === 'REVIEW')
         && !this.validateRepairActionForm()) {
         return false
@@ -1855,13 +1835,6 @@ export default {
             faultJudge: this.actionForm.faultJudge,
             quoteAmount: this.actionForm.faultJudge === FAULT_JUDGE_HAS_FAULT ? this.actionForm.quoteAmount : undefined,
             quoteDesc: this.actionForm.faultJudge === FAULT_JUDGE_HAS_FAULT ? this.actionForm.quoteDesc : ''
-          }
-        case 'QUOTE':
-          return {
-            workOrderId,
-            faultJudge: this.actionForm.faultJudge,
-            quoteAmount: this.actionForm.quoteAmount,
-            quoteDesc: this.actionForm.quoteDesc
           }
         case 'REPAIR_FINISH':
           return {
@@ -1922,8 +1895,6 @@ export default {
           return techAcceptWorkOrder(payload)
         case 'TRANSFER':
           return transferWorkOrder(payload)
-        case 'QUOTE':
-          return quoteWorkOrder(payload)
         case 'REPAIR_FINISH':
           return repairWorkOrder(payload)
         case 'REVIEW':

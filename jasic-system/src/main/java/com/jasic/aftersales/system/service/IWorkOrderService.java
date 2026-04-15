@@ -4,7 +4,6 @@ import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.system.domain.dto.WorkOrderAssignDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderCloseDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderProxyCreateDTO;
-import com.jasic.aftersales.system.domain.dto.WorkOrderQuoteDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderRepairDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderSendExpressDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTechAcceptDTO;
@@ -129,13 +128,6 @@ public interface IWorkOrderService {
      * @param dto 转单参数
      */
     void transfer(WorkOrderTransferDTO dto);
-
-    /**
-     * 保存报价
-     *
-     * @param dto 报价参数
-     */
-    void saveQuote(WorkOrderQuoteDTO dto);
 
     /**
      * 提交维修登记

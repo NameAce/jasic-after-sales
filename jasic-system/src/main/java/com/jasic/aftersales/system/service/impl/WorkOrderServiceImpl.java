@@ -23,7 +23,6 @@ import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.dto.WorkOrderAssignDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderCloseDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderProxyCreateDTO;
-import com.jasic.aftersales.system.domain.dto.WorkOrderQuoteDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderRepairDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderSendExpressDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTechAcceptDTO;
@@ -629,29 +628,6 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                 fromCompanyId, dto.getTargetCompanyId(), fromCompanyId, dto.getRemark());
         workOrderParticipantService.transferParticipant(workOrder.getId(), fromCompanyId, fromSubjectType,
                 dto.getTargetCompanyId(), targetSubjectType);
-    }
-
-    /**
-     * 保存报价信息。
-     *
-     * @param dto 报价参数
-     */
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void saveQuote(WorkOrderQuoteDTO dto) {
-        WorkOrder workOrder = requireWorkOrder(dto.getWorkOrderId());
-        if (!workOrderPermissionService.canQuote(workOrder)) {
-            throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u62a5\u4ef7");
-        }
-        String faultJudge = normalizeFaultJudge(dto.getFaultJudge(), "\u6545\u969c\u5224\u5b9a\u4e0d\u80fd\u4e3a\u7a7a");
-        LocalDateTime actionTime = LocalDateTime.now();
-        WorkOrderQuote quote = replaceCurrentQuote(workOrder, faultJudge, dto.getQuoteAmount(), dto.getQuoteDesc());
-
-        saveFlow(workOrder.getId(), WorkOrderActionEnum.QUOTE.getCode(), workOrder.getMainStatus(), workOrder.getMainStatus(),
-                workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
-                workOrder.getCurrentAcceptCompanyId(), quote.getQuoteDesc());
-        recordUserParticipation(workOrder.getId(), workOrder.getCurrentAcceptCompanyId(), SecurityContext.getCurrentUserId(),
-                WorkOrderUserParticipationActionEnum.QUOTE, actionTime);
     }
 
     /**
