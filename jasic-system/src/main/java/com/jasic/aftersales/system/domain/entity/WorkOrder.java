@@ -117,6 +117,9 @@ public class WorkOrder extends BaseEntity {
     /** 归属总部ID */
     private Long hqCompanyId;
 
+    /** 绑定的故障与维修配置ID */
+    private Long faultRepairConfigId;
+
     /** 是否发生过转单（1=是，0=否） */
     private Integer hasTransfer;
 

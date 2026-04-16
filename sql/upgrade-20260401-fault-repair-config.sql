@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS `fault_repair_config` (
   `create_time`   datetime         NOT NULL                COMMENT '创建时间',
   `update_time`   datetime         NOT NULL                COMMENT '更新时间',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_fault_repair_config_product` (`company_id`, `product_code`, `product_model`),
+  KEY `idx_fault_repair_config_product` (`company_id`, `product_code`, `product_model`),
   KEY `idx_fault_repair_config_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='故障与维修配置表';
 
@@ -109,11 +109,6 @@ SELECT 'PLATFORM', '配置修改', @fault_repair_config_menu_id, 'F', NULL, NULL
 WHERE @fault_repair_config_menu_id IS NOT NULL
   AND NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `parent_id` = @fault_repair_config_menu_id AND `menu_type` = 'F' AND `perms` = 'system:faultRepairConfig:update');
 
-INSERT INTO `sys_menu` (`subject_type`, `menu_name`, `parent_id`, `menu_type`, `path`, `component`, `perms`, `icon`, `order_num`, `is_visible`, `status`, `create_time`, `update_time`)
-SELECT 'PLATFORM', '配置删除', @fault_repair_config_menu_id, 'F', NULL, NULL, 'system:faultRepairConfig:remove', NULL, 4, 1, 1, NOW(), NOW()
-WHERE @fault_repair_config_menu_id IS NOT NULL
-  AND NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `parent_id` = @fault_repair_config_menu_id AND `menu_type` = 'F' AND `perms` = 'system:faultRepairConfig:remove');
-
 INSERT INTO `sys_role_menu` (`role_id`, `menu_id`, `create_time`, `update_time`)
 SELECT 1, m.`id`, NOW(), NOW()
 FROM `sys_menu` m
@@ -123,8 +118,7 @@ WHERE m.`subject_type` = 'PLATFORM'
     OR m.`perms` IN (
       'system:faultRepairConfig:list',
       'system:faultRepairConfig:add',
-      'system:faultRepairConfig:update',
-      'system:faultRepairConfig:remove'
+      'system:faultRepairConfig:update'
     )
   )
   AND NOT EXISTS (
@@ -143,8 +137,7 @@ WHERE m.`subject_type` = 'PLATFORM'
     OR m.`perms` IN (
       'system:faultRepairConfig:list',
       'system:faultRepairConfig:add',
-      'system:faultRepairConfig:update',
-      'system:faultRepairConfig:remove'
+      'system:faultRepairConfig:update'
     )
   )
   AND NOT EXISTS (

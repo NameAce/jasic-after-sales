@@ -247,6 +247,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         workOrder.setCurrentAcceptCompanyId(serviceCompany.getId());
         workOrder.setCreateCompanyId(serviceCompany.getId());
         workOrder.setHqCompanyId(hqCompanyId);
+        workOrder.setFaultRepairConfigId(resolveCreateFaultRepairConfigId(barcodeArchive, hqCompanyId));
         workOrder.setHasTransfer(0);
         workOrder.setTransferCount(0);
         workOrderMapper.insert(workOrder);
@@ -256,6 +257,17 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         saveCreateFlow(workOrder.getId(), customerId, serviceCompany.getId(), workOrder.getMainStatus());
         workOrderParticipantService.initParticipants(workOrder, "SERVICE");
         return workOrder.getId();
+    }
+
+    private Long resolveCreateFaultRepairConfigId(MachineBarcode barcodeArchive, Long hqCompanyId) {
+        if (barcodeArchive == null || hqCompanyId == null || faultRepairConfigService == null) {
+            return null;
+        }
+        return faultRepairConfigService.findEnabledConfigId(
+                hqCompanyId,
+                barcodeArchive.getProductCode(),
+                barcodeArchive.getProductModel()
+        );
     }
 
     /**

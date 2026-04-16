@@ -340,7 +340,10 @@ public class WorkOrderPermissionService {
                         && hasActionPermission(action);
             case RETURN_METHOD:
             case CLOSE:
-                // 当前实现里返还方式和关闭都挂在 close 权限点下，且只允许完成态执行。
+                // 这里控制的是“独立关闭工单”动作：返回方式与关闭原因统一在完成态关闭弹窗里填写，
+                // 因此仍然只允许 COMPLETED -> CLOSED。
+                // 接单时选择“无故障”后的自动闭单，走的是 TECH_ACCEPT 服务内部流程，
+                // 不通过独立 close 动作放行，否则会把待接单阶段错误暴露成单独的关闭按钮。
                 return inCurrentAcceptCompany
                         && WorkOrderStatusConstants.MainStatus.COMPLETED.equals(mainStatus)
                         && hasActionPermission(action);
@@ -412,11 +415,14 @@ public class WorkOrderPermissionService {
     /**
      * 判断当前登录人是否允许关闭工单。
      *
-     * <p>关闭动作当前要求：</p>
+     * <p>这里判断的是“独立关闭工单”动作当前要求：</p>
      * <p>1. 当前用户能查看该工单。</p>
      * <p>2. 当前登录公司就是工单当前受理公司。</p>
      * <p>3. 工单主状态已进入已完成。</p>
      * <p>4. 当前账号具备 `workorder:close` 基础权限点。</p>
+     *
+     * <p>注意：维修员在接单时选择“无故障”后的自动闭单，不走本方法，
+     * 而是由 `techAccept` 在接单事务内直接落 RETURN_METHOD/CLOSE 流转记录并收口为已关闭。</p>
      *
      * <p>这里不再硬性要求单值 `relationType` 必须等于“管理岗”，
      * 从而允许一人多岗场景下的兼岗人员在满足条件时执行关闭。</p>

@@ -61,7 +61,7 @@
           </template>
         </el-table-column>
         <el-table-column label="更新时间" prop="updateTime" width="160" />
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="操作" width="120" fixed="right">
           <template slot-scope="{ row }">
             <el-button
               type="text"
@@ -72,21 +72,13 @@
               查看
             </el-button>
             <el-button
+              v-if="row.status === 1"
               type="text"
               size="mini"
               v-hasPerms="['system:faultRepairConfig:update']"
               @click="handleEdit(row)"
             >
               编辑
-            </el-button>
-            <el-button
-              type="text"
-              size="mini"
-              style="color: #F56C6C;"
-              v-hasPerms="['system:faultRepairConfig:remove']"
-              @click="handleDelete(row)"
-            >
-              删除
             </el-button>
           </template>
         </el-table-column>
@@ -225,7 +217,6 @@
 <script>
 import {
   addFaultRepairConfig,
-  deleteFaultRepairConfig,
   getFaultRepairConfig,
   listFaultRepairConfig,
   listFaultRepairConfigCompanyOptions,
@@ -329,17 +320,6 @@ export default {
         this.detail = this.normalizeForm(res.data)
         this.detailVisible = true
       })
-    },
-    handleDelete(row) {
-      this.$confirm('确认删除当前配置？', '提示', { type: 'warning' }).then(() => {
-        return deleteFaultRepairConfig(row.id)
-      }).then(res => {
-        if (!res) {
-          return
-        }
-        this.$message.success('删除成功')
-        this.getList()
-      }).catch(() => {})
     },
     normalizeForm(data) {
       const form = buildDefaultForm()

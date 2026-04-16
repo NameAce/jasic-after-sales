@@ -342,6 +342,33 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertTrue(actions.contains(WorkOrderActionEnum.REPAIR_FINISH.getCode()));
     }
 
+    @Test
+    public void shouldAllowCloseForCompletedCurrentAcceptCompanyWhenHasClosePermission() throws Exception {
+        setCurrentServiceContext(1001L);
+        setEmptyMapperDependencies();
+        grantPermissions("workorder:close");
+
+        WorkOrder workOrder = buildWorkOrder(24L, 900L, 1001L, 2001L, 202L);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.COMPLETED);
+
+        Assert.assertTrue(service.canClose(workOrder));
+        Assert.assertTrue(service.listAvailableActions(workOrder).contains(WorkOrderActionEnum.CLOSE.getCode()));
+    }
+
+    @Test
+    public void shouldNotExposeIndependentCloseForPendingTechAcceptAssignee() throws Exception {
+        setCurrentServiceContext(1001L);
+        setEmptyMapperDependencies();
+        grantPermissions("workorder:accept", "workorder:close");
+
+        WorkOrder workOrder = buildWorkOrder(25L, 900L, 1001L, 2001L, 101L);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT);
+
+        Assert.assertTrue(service.canTechAccept(workOrder));
+        Assert.assertFalse(service.canClose(workOrder));
+        Assert.assertFalse(service.listAvailableActions(workOrder).contains(WorkOrderActionEnum.CLOSE.getCode()));
+    }
+
     private void setCurrentHqRegionContext() {
         SecurityContext.setCurrentCompanyId(900L);
         SecurityContext.setCurrentSubjectType("HQ");

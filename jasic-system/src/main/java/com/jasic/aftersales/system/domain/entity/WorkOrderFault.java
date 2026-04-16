@@ -36,6 +36,9 @@ public class WorkOrderFault extends BaseEntity {
     /** 故障描述 */
     private String faultDesc;
 
+    /** 其它故障说明 */
+    private String faultRemark;
+
     /** 维修说明 */
     private String repairDesc;
 

@@ -29,6 +29,7 @@ import com.jasic.aftersales.system.domain.dto.WorkOrderSendExpressDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTechAcceptDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderReviewDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTransferDTO;
+import com.jasic.aftersales.system.domain.dto.WorkOrderUpdateProductModelDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderUpstreamCreateDTO;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
 import com.jasic.aftersales.system.domain.entity.SysCompanyType;
@@ -649,19 +650,24 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         if (!workOrderPermissionService.canSaveRepair(workOrder)) {
             throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u767b\u8bb0\u7ef4\u4fee");
         }
-        NormalizedRepairContent repairContent = validateRepairContent(workOrder, dto.getRepairDesc(), dto.getRepairItems(), dto.getOtherDesc(),
+        validateRepairProductModelBeforeRegister(workOrder, resolveRegisterStageLabel(REGISTER_STAGE_REPAIR));
+        validateRepairConfigBindingBeforeRegister(workOrder);
+        RepairFaultSelection faultSelection = resolveRepairFaultSelectionForSaveRepair(workOrder, dto.getFaultItems(), dto.getFaultRemark());
+        NormalizedRepairContent repairContent = validateRepairContent(workOrder, faultSelection.getFaultItems(),
+                dto.getRepairDesc(), dto.getRepairItems(), dto.getOtherDesc(),
                 dto.getPartList(),
                 dto.getFaultOldImageFileIds(), dto.getFaultNewImageFileIds(),
                 dto.getMachineImageFileIds(), dto.getMachineBarcodeImageFileIds(), dto.getOtherImageFileIds());
         LocalDateTime actionTime = LocalDateTime.now();
         boolean quoteAdjusted = saveRepairQuoteIfNeeded(workOrder, dto);
         WorkOrderRepair repair = createRepairRecord(workOrder, REGISTER_STAGE_REPAIR, actionTime);
-        saveFault(workOrder, repair.getId(), workOrder.getCurrentAcceptCompanyId(),
+        saveFault(repair.getId(), workOrder.getId(), workOrder.getCurrentAcceptCompanyId(), faultSelection,
                 repairContent);
         bindRepairFiles(repair.getId(), workOrder.getCurrentAcceptCompanyId(),
                 dto.getFaultOldImageFileIds(), dto.getFaultNewImageFileIds(),
                 dto.getMachineImageFileIds(), dto.getMachineBarcodeImageFileIds(), dto.getOtherImageFileIds());
-        String repairRemark = buildRepairRemark(workOrder.getFaultDesc(), repairContent.getRepairDesc(), repairContent.getRepairItems());
+        String repairRemark = buildRepairRemark(faultSelection.getFaultDesc(), faultSelection.getFaultRemark(),
+                repairContent.getRepairDesc(), repairContent.getRepairItems());
 
         String beforeStatus = workOrder.getMainStatus();
         workOrder.setMainStatus(WorkOrderStatusFlow.afterRepairFinish());
@@ -691,19 +697,24 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         if (!workOrderPermissionService.canReview(workOrder)) {
             throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u590d\u68c0");
         }
-        NormalizedRepairContent repairContent = validateRepairContent(workOrder, dto.getRepairDesc(), dto.getRepairItems(), dto.getOtherDesc(),
+        validateRepairProductModelBeforeRegister(workOrder, resolveRegisterStageLabel(REGISTER_STAGE_RECHECK));
+        validateRepairConfigBindingBeforeRegister(workOrder);
+        RepairFaultSelection faultSelection = resolveRepairFaultSelectionForReview(workOrder);
+        NormalizedRepairContent repairContent = validateRepairContent(workOrder, faultSelection.getFaultItems(),
+                dto.getRepairDesc(), dto.getRepairItems(), dto.getOtherDesc(),
                 dto.getPartList(),
                 dto.getFaultOldImageFileIds(), dto.getFaultNewImageFileIds(),
                 dto.getMachineImageFileIds(), dto.getMachineBarcodeImageFileIds(), dto.getOtherImageFileIds());
         LocalDateTime actionTime = LocalDateTime.now();
         String beforeStatus = workOrder.getMainStatus();
         WorkOrderRepair repair = createRepairRecord(workOrder, REGISTER_STAGE_RECHECK, actionTime);
-        saveFault(workOrder, repair.getId(), workOrder.getCurrentAcceptCompanyId(),
+        saveFault(repair.getId(), workOrder.getId(), workOrder.getCurrentAcceptCompanyId(), faultSelection,
                 repairContent);
         bindRepairFiles(repair.getId(), workOrder.getCurrentAcceptCompanyId(),
                 dto.getFaultOldImageFileIds(), dto.getFaultNewImageFileIds(),
                 dto.getMachineImageFileIds(), dto.getMachineBarcodeImageFileIds(), dto.getOtherImageFileIds());
-        String repairRemark = buildRepairRemark(workOrder.getFaultDesc(), repairContent.getRepairDesc(), repairContent.getRepairItems());
+        String repairRemark = buildRepairRemark(faultSelection.getFaultDesc(), faultSelection.getFaultRemark(),
+                repairContent.getRepairDesc(), repairContent.getRepairItems());
         saveFlow(workOrder.getId(), WorkOrderActionEnum.REVIEW.getCode(), beforeStatus, workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                 workOrder.getCurrentAcceptCompanyId(), repairRemark);
@@ -858,11 +869,60 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     @Override
     public List<WorkOrderRepairFaultOptionVO> listRepairFaultOptions(Long workOrderId) {
         WorkOrder workOrder = requireWorkOrder(workOrderId);
-        return faultRepairConfigService.listRepairFaultOptions(
+        if (workOrder.getFaultRepairConfigId() == null) {
+            return Collections.emptyList();
+        }
+        return faultRepairConfigService.listRepairFaultOptionsByConfigId(workOrder.getFaultRepairConfigId());
+    }
+
+    /**
+     * 查询维修/复检前可补录的机器型号选项。
+     *
+     * @param workOrderId 工单ID
+     * @param keyword 机型关键字
+     * @return 机型选项
+     */
+    @Override
+    public List<String> listRepairProductModelOptions(Long workOrderId, String keyword) {
+        WorkOrder workOrder = requireWorkOrder(workOrderId);
+        validateRepairProductModelPreparationAllowed(workOrder);
+        ensureRepairProductModelCanBeSupplemented(workOrder);
+        return faultRepairConfigService.listEnabledProductModels(workOrder.getHqCompanyId(), keyword);
+    }
+
+    /**
+     * 补录维修/复检前缺失的机器型号。
+     *
+     * @param dto 补录参数
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateRepairProductModel(WorkOrderUpdateProductModelDTO dto) {
+        WorkOrder workOrder = requireWorkOrder(dto.getWorkOrderId());
+        validateRepairProductModelPreparationAllowed(workOrder);
+        ensureRepairProductModelCanBeSupplemented(workOrder);
+        String productModel = normalizeRequiredText(dto.getProductModel(), "机器型号不能为空");
+        List<String> enabledProductModels = faultRepairConfigService.listEnabledProductModels(workOrder.getHqCompanyId(), null);
+        if (enabledProductModels.isEmpty()) {
+            throw new ServiceException("当前归属总部未配置启用机型，请先维护故障与维修配置");
+        }
+        boolean matched = enabledProductModels.stream()
+                .map(this::normalizeNullableText)
+                .anyMatch(item -> StrUtil.equals(item, productModel));
+        if (!matched) {
+            throw new ServiceException("请选择当前归属总部已启用的机器型号");
+        }
+        Long faultRepairConfigId = faultRepairConfigService.findEnabledConfigId(
                 workOrder.getHqCompanyId(),
                 workOrder.getProductCode(),
-                workOrder.getProductModel()
+                productModel
         );
+        if (faultRepairConfigId == null) {
+            throw new ServiceException("当前总部未配置故障与维修配置，请先维护");
+        }
+        workOrder.setProductModel(productModel);
+        workOrder.setFaultRepairConfigId(faultRepairConfigId);
+        workOrderMapper.updateById(workOrder);
     }
 
     /**
@@ -1077,6 +1137,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             vo.setId(fault.getId());
             vo.setCompanyId(fault.getCompanyId());
             vo.setFaultDesc(fault.getFaultDesc());
+            vo.setFaultRemark(fault.getFaultRemark());
             vo.setRepairDesc(fault.getRepairDesc());
             vo.setOtherDesc(fault.getOtherDesc());
             vo.setPartList(partMap.getOrDefault(fault.getId(), Collections.emptyList()));
@@ -1236,6 +1297,51 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
     /**
+     * 维修/复检前补录机型沿用实例级维修/复检权限判断，避免额外放开其它人可改工单基础信息。
+     *
+     * @param workOrder 工单实体
+     */
+    private void validateRepairProductModelPreparationAllowed(WorkOrder workOrder) {
+        if (workOrderPermissionService.canSaveRepair(workOrder) || workOrderPermissionService.canReview(workOrder)) {
+            return;
+        }
+        throw new ServiceException("当前工单不允许补录机器型号");
+    }
+
+    private void ensureRepairProductModelCanBeSupplemented(WorkOrder workOrder) {
+        if (requiresRepairProductModelSupplement(workOrder)) {
+            return;
+        }
+        if (normalizeNullableText(workOrder == null ? null : workOrder.getProductModel()) != null) {
+            throw new ServiceException("当前工单已存在机器型号，不能重复补录");
+        }
+        throw new ServiceException("当前工单无需补录机器型号");
+    }
+
+    private void validateRepairProductModelBeforeRegister(WorkOrder workOrder, String registerStageLabel) {
+        if (!requiresRepairProductModelSupplement(workOrder)) {
+            return;
+        }
+        throw new ServiceException("佳士品牌工单缺少机器型号，请先补录机器型号后再进行" + registerStageLabel);
+    }
+
+    private void validateRepairConfigBindingBeforeRegister(WorkOrder workOrder) {
+        if (workOrder == null || !BrandTypeEnum.JASIC.equals(workOrder.getBrandType())) {
+            return;
+        }
+        if (workOrder.getFaultRepairConfigId() != null) {
+            return;
+        }
+        throw new ServiceException("当前总部未配置故障与维修配置，请先维护");
+    }
+
+    private boolean requiresRepairProductModelSupplement(WorkOrder workOrder) {
+        return workOrder != null
+                && BrandTypeEnum.JASIC.equals(workOrder.getBrandType())
+                && normalizeNullableText(workOrder.getProductModel()) == null;
+    }
+
+    /**
      * 非平台用户必须具备当前公司上下文，否则无法计算权限和数据范围。
      *
      * @return 当前公司ID
@@ -1310,6 +1416,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         entity.setCreateCompanyId(currentCompanyId);
         entity.setCreateEntryType(createEntryType);
         entity.setHqCompanyId(hqCompanyId);
+        entity.setFaultRepairConfigId(resolveCreateFaultRepairConfigId(barcodeArchive, hqCompanyId));
         entity.setHasTransfer(0);
         entity.setTransferCount(0);
         workOrderMapper.insert(entity);
@@ -1319,6 +1426,17 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         saveFlow(entity.getId(), WorkOrderActionEnum.CREATE.getCode(), null, entity.getMainStatus(), null, targetCompanyId, currentCompanyId, null);
         workOrderParticipantService.initParticipants(entity, resolveCreateCompanySubjectType(currentCompanyId));
         return entity.getId();
+    }
+
+    private Long resolveCreateFaultRepairConfigId(MachineBarcode barcodeArchive, Long hqCompanyId) {
+        if (barcodeArchive == null || hqCompanyId == null || faultRepairConfigService == null) {
+            return null;
+        }
+        return faultRepairConfigService.findEnabledConfigId(
+                hqCompanyId,
+                barcodeArchive.getProductCode(),
+                barcodeArchive.getProductModel()
+        );
     }
 
     /**
@@ -1395,7 +1513,8 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return true;
     }
 
-    private NormalizedRepairContent validateRepairContent(WorkOrder workOrder, String repairDesc, List<String> repairItems,
+    private NormalizedRepairContent validateRepairContent(WorkOrder workOrder, List<String> faultItems,
+                                                          String repairDesc, List<String> repairItems,
                                                           String otherDesc, List<WorkOrderFaultPartItemDTO> partList,
                                                           List<Long> faultOldImageFileIds, List<Long> faultNewImageFileIds,
                                                           List<Long> machineImageFileIds, List<Long> machineBarcodeImageFileIds,
@@ -1412,7 +1531,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         validateSingleImageLimit(machineImageFileIds, "\u673a\u5668\u6b63\u9762\u7167\u7247");
         validateSingleImageLimit(machineBarcodeImageFileIds, "\u673a\u5668\u6761\u7801\u7167\u7247");
         validateSingleImageLimit(otherImageFileIds, "\u5176\u4ed6\u56fe\u7247");
-        return normalizeRepairContent(workOrder, repairDesc, repairItems, otherDesc, partList);
+        return normalizeRepairContent(workOrder, faultItems, repairDesc, repairItems, otherDesc, partList);
     }
 
     private boolean hasRepairContent(String repairDesc, List<String> repairItems, String otherDesc,
@@ -1460,14 +1579,15 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
     }
 
-    private NormalizedRepairContent normalizeRepairContent(WorkOrder workOrder, String repairDesc, List<String> repairItems,
+    private NormalizedRepairContent normalizeRepairContent(WorkOrder workOrder, List<String> faultItems,
+                                                           String repairDesc, List<String> repairItems,
                                                            String otherDesc, List<WorkOrderFaultPartItemDTO> partList) {
         List<NormalizedFaultPart> normalizedPartList = normalizeFaultPartList(partList);
         if (normalizedPartList.isEmpty()) {
             throw new ServiceException("\u8bf7\u81f3\u5c11\u586b\u5199\u4e00\u6761\u914d\u4ef6\u660e\u7ec6");
         }
         Map<String, Set<String>> optionMap = buildRepairOptionMap(workOrder);
-        Set<String> allowedOptions = buildAllowedRepairOptions(workOrder, optionMap);
+        Set<String> allowedOptions = buildAllowedRepairOptions(faultItems, optionMap);
         List<String> normalizedRepairItems = normalizeRepairItems(repairItems);
         String normalizedOtherDesc = normalizeNullableText(otherDesc);
         String storedRepairDesc = normalizeNullableText(repairDesc);
@@ -1517,11 +1637,15 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return result;
     }
 
-    private String buildRepairRemark(String faultDesc, String repairDesc, List<String> repairItems) {
+    private String buildRepairRemark(String faultDesc, String faultRemark, String repairDesc, List<String> repairItems) {
         String normalizedFaultDesc = normalizeNullableText(faultDesc);
+        String normalizedFaultRemark = normalizeNullableText(faultRemark);
         String normalizedRepairDesc = normalizeNullableText(repairDesc);
         if (repairItems != null && !repairItems.isEmpty()) {
             normalizedRepairDesc = String.join(FAULT_DESC_SEPARATOR, normalizeRepairItems(repairItems));
+        }
+        if (normalizedFaultDesc != null && normalizedFaultRemark != null) {
+            normalizedFaultDesc = normalizedFaultDesc + "（" + normalizedFaultRemark + "）";
         }
         if (normalizedFaultDesc == null) {
             return normalizedRepairDesc;
@@ -2366,21 +2490,23 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return repair;
     }
 
-    private void saveFault(WorkOrder workOrder, Long repairId, Long companyId, NormalizedRepairContent repairContent) {
+    private void saveFault(Long repairId, Long workOrderId, Long companyId, RepairFaultSelection faultSelection,
+                           NormalizedRepairContent repairContent) {
         if (repairContent == null) {
             throw new ServiceException("\u7ef4\u4fee\u5185\u5bb9\u4e0d\u80fd\u4e3a\u7a7a");
         }
         WorkOrderFault fault = new WorkOrderFault();
-        fault.setWorkOrderId(workOrder.getId());
+        fault.setWorkOrderId(workOrderId);
         fault.setRepairId(repairId);
         fault.setCompanyId(companyId);
-        fault.setFaultDesc(normalizeRequiredText(workOrder.getFaultDesc(), "\u5de5\u5355\u6545\u969c\u63cf\u8ff0\u4e0d\u80fd\u4e3a\u7a7a"));
+        fault.setFaultDesc(normalizeRequiredText(faultSelection.getFaultDesc(), "\u5de5\u5355\u6545\u969c\u63cf\u8ff0\u4e0d\u80fd\u4e3a\u7a7a"));
+        fault.setFaultRemark(faultSelection.getFaultRemark());
         fault.setRepairDesc(repairContent.getRepairDesc());
         fault.setOtherDesc(repairContent.getOtherDesc());
         fault.setSortNum(1);
         fault.setCreatedBy(SecurityContext.getCurrentUserId());
         workOrderFaultMapper.insert(fault);
-        saveFaultParts(workOrder.getId(), fault.getId(), companyId, repairContent.getPartList());
+        saveFaultParts(workOrderId, fault.getId(), companyId, repairContent.getPartList());
     }
 
     private void saveFaultParts(Long workOrderId, Long faultId, Long companyId, List<NormalizedFaultPart> partList) {
@@ -2433,10 +2559,11 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
      * @return 故障与维修说明映射
      */
     private Map<String, Set<String>> buildRepairOptionMap(WorkOrder workOrder) {
-        List<WorkOrderRepairFaultOptionVO> options = faultRepairConfigService.listRepairFaultOptions(
-                workOrder.getHqCompanyId(),
-                workOrder.getProductCode(),
-                workOrder.getProductModel()
+        if (workOrder == null || workOrder.getFaultRepairConfigId() == null) {
+            return Collections.emptyMap();
+        }
+        List<WorkOrderRepairFaultOptionVO> options = faultRepairConfigService.listRepairFaultOptionsByConfigId(
+                workOrder.getFaultRepairConfigId()
         );
         if (options == null || options.isEmpty()) {
             return Collections.emptyMap();
@@ -2457,16 +2584,101 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return result;
     }
 
-    private Set<String> buildAllowedRepairOptions(WorkOrder workOrder, Map<String, Set<String>> optionMap) {
-        if (workOrder == null || optionMap == null || optionMap.isEmpty()) {
-            return Collections.emptySet();
+    private RepairFaultSelection resolveRepairFaultSelectionForSaveRepair(WorkOrder workOrder, List<String> faultItems,
+                                                                         String faultRemark) {
+        Map<String, Set<String>> optionMap = buildRepairOptionMap(workOrder);
+        if (optionMap.isEmpty()) {
+            return buildFallbackRepairFaultSelection(workOrder);
         }
-        List<String> faultDescs = splitFaultDescSelections(workOrder.getFaultDesc());
-        if (faultDescs.isEmpty()) {
+        List<String> normalizedFaultItems = normalizeFaultItems(faultItems);
+        if (normalizedFaultItems.isEmpty()) {
+            throw new ServiceException("请选择故障描述");
+        }
+        Set<String> duplicateCheck = new HashSet<>();
+        for (String faultItem : normalizedFaultItems) {
+            if (!duplicateCheck.add(faultItem)) {
+                throw new ServiceException("故障描述不能重复");
+            }
+            if (!optionMap.containsKey(faultItem) && !OTHER_FAULT_LABEL.equals(faultItem)) {
+                throw new ServiceException("故障描述不在当前配置范围内");
+            }
+        }
+        String normalizedFaultRemark = normalizeNullableText(faultRemark);
+        if (normalizedFaultItems.contains(OTHER_FAULT_LABEL) && normalizedFaultRemark == null) {
+            throw new ServiceException("选择其它故障时必须填写其它故障说明");
+        }
+        if (!normalizedFaultItems.contains(OTHER_FAULT_LABEL)) {
+            normalizedFaultRemark = null;
+        }
+        return new RepairFaultSelection(String.join(FAULT_DESC_SEPARATOR, normalizedFaultItems),
+                normalizedFaultItems,
+                normalizedFaultRemark);
+    }
+
+    private RepairFaultSelection resolveRepairFaultSelectionForReview(WorkOrder workOrder) {
+        Map<String, Set<String>> optionMap = buildRepairOptionMap(workOrder);
+        if (optionMap.isEmpty()) {
+            return buildFallbackRepairFaultSelection(workOrder);
+        }
+        WorkOrderFault firstRepairFault = findFirstRepairFault(workOrder.getId());
+        if (firstRepairFault == null) {
+            throw new ServiceException("未找到首次维修确认故障，无法提交复检登记");
+        }
+        List<String> normalizedFaultItems = splitFaultDescSelections(firstRepairFault.getFaultDesc());
+        if (normalizedFaultItems.isEmpty()) {
+            throw new ServiceException("首次维修确认故障缺失，无法提交复检登记");
+        }
+        return new RepairFaultSelection(firstRepairFault.getFaultDesc(),
+                normalizedFaultItems,
+                normalizeNullableText(firstRepairFault.getFaultRemark()));
+    }
+
+    private RepairFaultSelection buildFallbackRepairFaultSelection(WorkOrder workOrder) {
+        if (workOrder == null) {
+            throw new ServiceException("工单不存在");
+        }
+        String faultDesc = normalizeNullableText(workOrder.getFaultDesc());
+        String faultRemark = normalizeNullableText(workOrder.getFaultRemark());
+        if (faultDesc == null) {
+            faultDesc = OTHER_FAULT_LABEL;
+        }
+        return new RepairFaultSelection(faultDesc,
+                splitFaultDescSelections(faultDesc),
+                faultRemark);
+    }
+
+    private WorkOrderFault findFirstRepairFault(Long workOrderId) {
+        if (workOrderId == null) {
+            return null;
+        }
+        LambdaQueryWrapper<WorkOrderRepair> repairWrapper = new LambdaQueryWrapper<>();
+        repairWrapper.eq(WorkOrderRepair::getWorkOrderId, workOrderId)
+                .eq(WorkOrderRepair::getRegisterStage, REGISTER_STAGE_REPAIR)
+                .orderByAsc(WorkOrderRepair::getCreateTime)
+                .orderByAsc(WorkOrderRepair::getId);
+        List<WorkOrderRepair> repairs = workOrderRepairMapper.selectList(repairWrapper);
+        if (repairs == null || repairs.isEmpty()) {
+            return null;
+        }
+        Long repairId = repairs.get(0).getId();
+        if (repairId == null) {
+            return null;
+        }
+        LambdaQueryWrapper<WorkOrderFault> faultWrapper = new LambdaQueryWrapper<>();
+        faultWrapper.eq(WorkOrderFault::getWorkOrderId, workOrderId)
+                .eq(WorkOrderFault::getRepairId, repairId)
+                .orderByAsc(WorkOrderFault::getSortNum)
+                .orderByAsc(WorkOrderFault::getId);
+        List<WorkOrderFault> faults = workOrderFaultMapper.selectList(faultWrapper);
+        return faults == null || faults.isEmpty() ? null : faults.get(0);
+    }
+
+    private Set<String> buildAllowedRepairOptions(List<String> faultItems, Map<String, Set<String>> optionMap) {
+        if (faultItems == null || faultItems.isEmpty() || optionMap == null || optionMap.isEmpty()) {
             return Collections.emptySet();
         }
         Set<String> result = new LinkedHashSet<>();
-        for (String faultDesc : faultDescs) {
+        for (String faultDesc : faultItems) {
             result.addAll(optionMap.getOrDefault(faultDesc, Collections.emptySet()));
         }
         return result;
@@ -2500,6 +2712,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
         return result;
     }
+
 
     /**
      * 校验维修说明去重且仍落在当前故障的允许范围内。
@@ -2616,6 +2829,33 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
 
         private String getFaultDesc() {
             return faultDesc;
+        }
+
+        private String getFaultRemark() {
+            return faultRemark;
+        }
+    }
+
+    private static class RepairFaultSelection {
+
+        private final String faultDesc;
+
+        private final List<String> faultItems;
+
+        private final String faultRemark;
+
+        private RepairFaultSelection(String faultDesc, List<String> faultItems, String faultRemark) {
+            this.faultDesc = faultDesc;
+            this.faultItems = faultItems;
+            this.faultRemark = faultRemark;
+        }
+
+        private String getFaultDesc() {
+            return faultDesc;
+        }
+
+        private List<String> getFaultItems() {
+            return faultItems;
         }
 
         private String getFaultRemark() {

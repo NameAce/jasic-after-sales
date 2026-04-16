@@ -15,6 +15,7 @@ import com.jasic.aftersales.system.domain.dto.WorkOrderSendExpressDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTechAcceptDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderReviewDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTransferDTO;
+import com.jasic.aftersales.system.domain.dto.WorkOrderUpdateProductModelDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderUpstreamCreateDTO;
 import com.jasic.aftersales.system.domain.query.WorkOrderQuery;
 import com.jasic.aftersales.system.domain.vo.WorkOrderCreateBarcodeInfoVO;
@@ -150,6 +151,23 @@ public class WorkOrderController extends BaseController {
     @GetMapping("/{workOrderId}/repair-fault-options")
     public Result<List<WorkOrderRepairFaultOptionVO>> listRepairFaultOptions(@PathVariable Long workOrderId) {
         return Result.ok(workOrderService.listRepairFaultOptions(workOrderId));
+    }
+
+    /**
+     * 查询维修/复检前可补录的机器型号选项。
+     *
+     * 这里同样不在接口层硬编码 repair/review 某一个权限点，
+     * 统一由 service 按工单实例权限判断当前人是否允许补录。
+     *
+     * @param workOrderId 工单ID
+     * @param keyword 机型关键字
+     * @return 机器型号选项
+     */
+    @ApiOperation(value = "查询维修/复检前可补录的机器型号选项")
+    @GetMapping("/{workOrderId}/repair-product-model-options")
+    public Result<List<String>> listRepairProductModelOptions(@PathVariable Long workOrderId,
+                                                              @RequestParam(required = false) String keyword) {
+        return Result.ok(workOrderService.listRepairProductModelOptions(workOrderId, keyword));
     }
 
     /**
@@ -318,6 +336,20 @@ public class WorkOrderController extends BaseController {
     @PostMapping("/review")
     public Result<Void> saveReview(@Validated @RequestBody WorkOrderReviewDTO dto) {
         workOrderService.saveReview(dto);
+        return Result.ok();
+    }
+
+    /**
+     * 补录维修/复检前缺失的机器型号。
+     *
+     * @param dto 补录参数
+     * @return 操作结果
+     */
+    @ApiOperation(value = "补录维修/复检前缺失的机器型号")
+    @OperLog(title = "工单管理", operType = OperTypeEnum.UPDATE)
+    @PutMapping("/repair-product-model")
+    public Result<Void> updateRepairProductModel(@Validated @RequestBody WorkOrderUpdateProductModelDTO dto) {
+        workOrderService.updateRepairProductModel(dto);
         return Result.ok();
     }
 

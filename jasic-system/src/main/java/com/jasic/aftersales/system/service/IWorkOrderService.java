@@ -9,6 +9,7 @@ import com.jasic.aftersales.system.domain.dto.WorkOrderSendExpressDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTechAcceptDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderReviewDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTransferDTO;
+import com.jasic.aftersales.system.domain.dto.WorkOrderUpdateProductModelDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderUpstreamCreateDTO;
 import com.jasic.aftersales.system.domain.query.WorkOrderQuery;
 import com.jasic.aftersales.system.domain.vo.WorkOrderCreateBarcodeInfoVO;
@@ -187,4 +188,20 @@ public interface IWorkOrderService {
      * @return 故障与维修说明选项
      */
     List<WorkOrderRepairFaultOptionVO> listRepairFaultOptions(Long workOrderId);
+
+    /**
+     * 查询维修/复检前可补录的机器型号选项。
+     *
+     * @param workOrderId 工单ID
+     * @param keyword 机型关键字
+     * @return 机器型号选项
+     */
+    List<String> listRepairProductModelOptions(Long workOrderId, String keyword);
+
+    /**
+     * 补录维修/复检前缺失的机器型号。
+     *
+     * @param dto 补录参数
+     */
+    void updateRepairProductModel(WorkOrderUpdateProductModelDTO dto);
 }

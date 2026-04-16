@@ -12,7 +12,6 @@ import com.jasic.aftersales.system.domain.vo.FaultRepairConfigVO;
 import com.jasic.aftersales.system.domain.vo.SysCompanySimpleVO;
 import com.jasic.aftersales.system.service.IFaultRepairConfigService;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -70,14 +69,6 @@ public class FaultRepairConfigController extends BaseController {
     @PutMapping
     public Result<Void> update(@Validated @RequestBody FaultRepairConfigDTO dto) {
         faultRepairConfigService.update(dto);
-        return Result.ok();
-    }
-
-    @SaCheckPermission("system:faultRepairConfig:remove")
-    @OperLog(title = "故障与维修配置", operType = OperTypeEnum.DELETE)
-    @DeleteMapping("/{id}")
-    public Result<Void> remove(@PathVariable Long id) {
-        faultRepairConfigService.remove(id);
         return Result.ok();
     }
 }

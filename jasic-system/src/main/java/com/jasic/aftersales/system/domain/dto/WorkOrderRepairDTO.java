@@ -34,6 +34,14 @@ public class WorkOrderRepairDTO implements Serializable {
     @ApiModelProperty(value = "调整后的报价说明")
     private String quoteDesc;
 
+    /** 维修侧故障描述选项 */
+    @ApiModelProperty(value = "维修侧故障描述选项")
+    private List<String> faultItems;
+
+    /** 其它故障说明 */
+    @ApiModelProperty(value = "其它故障说明")
+    private String faultRemark;
+
     /** 手工填写的维修说明 */
     @ApiModelProperty(value = "手工填写的维修说明")
     private String repairDesc;

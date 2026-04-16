@@ -1,14 +1,20 @@
 package com.jasic.aftersales.system.service.impl;
 
+import com.jasic.aftersales.common.enums.SubjectTypeEnum;
+import com.jasic.aftersales.common.exception.ServiceException;
+import com.jasic.aftersales.system.domain.dto.FaultRepairConfigDTO;
+import com.jasic.aftersales.system.domain.dto.FaultRepairConfigFaultDTO;
 import com.jasic.aftersales.system.domain.entity.FaultRepairConfig;
 import com.jasic.aftersales.system.domain.entity.FaultRepairConfigFault;
 import com.jasic.aftersales.system.domain.entity.FaultRepairConfigOption;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
+import com.jasic.aftersales.system.domain.entity.SysCompanyType;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairFaultOptionVO;
 import com.jasic.aftersales.system.mapper.FaultRepairConfigFaultMapper;
 import com.jasic.aftersales.system.mapper.FaultRepairConfigMapper;
 import com.jasic.aftersales.system.mapper.FaultRepairConfigOptionMapper;
 import com.jasic.aftersales.system.mapper.SysCompanyMapper;
+import com.jasic.aftersales.system.service.ISysCompanyTypeService;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -16,6 +22,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -68,10 +75,200 @@ public class FaultRepairConfigServiceImplTest {
         Assert.assertTrue(result.isEmpty());
     }
 
+    @Test
+    public void shouldReturnRepairFaultOptionsByBoundConfigId() throws Exception {
+        FaultRepairConfigServiceImpl service = new FaultRepairConfigServiceImpl();
+        FaultRepairConfig config = buildConfig(3L, 9L, "P-300", "M-500");
+        config.setStatus(0);
+        setField(service, "faultRepairConfigMapper",
+                createConfigMapperProxy(Collections.singletonList(config)));
+        setField(service, "faultRepairConfigFaultMapper",
+                createFaultMapperProxy(Collections.singletonList(buildFault(31L, 3L, "面板故障"))));
+        setField(service, "faultRepairConfigOptionMapper",
+                createOptionMapperProxy(Collections.singletonList(buildOption(301L, 31L, "更换面板"))));
+        setField(service, "sysCompanyMapper",
+                createCompanyMapperProxy(Collections.singletonList(buildCompany(9L, "总部A"))));
+
+        List<WorkOrderRepairFaultOptionVO> result = service.listRepairFaultOptionsByConfigId(3L);
+
+        Assert.assertEquals(1, result.size());
+        Assert.assertEquals("面板故障", result.get(0).getFaultDesc());
+        Assert.assertEquals(Collections.singletonList("更换面板"), result.get(0).getRepairOptions());
+    }
+
+    @Test
+    public void shouldListDistinctEnabledProductModelsByCompanyAndKeyword() throws Exception {
+        FaultRepairConfigServiceImpl allOptionsService = new FaultRepairConfigServiceImpl();
+        setField(allOptionsService, "faultRepairConfigMapper",
+                createConfigMapperProxy(Arrays.asList(
+                        buildConfig(1L, 9L, "P-100", "M-200"),
+                        buildConfig(2L, 9L, "P-101", "M-200"),
+                        buildConfig(3L, 9L, "P-102", "M-300"),
+                        buildConfig(4L, 9L, "P-103", null)
+                )));
+        FaultRepairConfigServiceImpl filteredOptionsService = new FaultRepairConfigServiceImpl();
+        setField(filteredOptionsService, "faultRepairConfigMapper",
+                createConfigMapperProxy(Collections.singletonList(
+                        buildConfig(5L, 9L, "P-104", "M-300")
+                )));
+
+        List<String> allOptions = allOptionsService.listEnabledProductModels(9L, null);
+        List<String> filteredOptions = filteredOptionsService.listEnabledProductModels(9L, "300");
+
+        Assert.assertEquals(Arrays.asList("M-200", "M-300"), allOptions);
+        Assert.assertEquals(Collections.singletonList("M-300"), filteredOptions);
+    }
+
+    @Test
+    public void shouldFindLatestEnabledConfigIdByModelWhenProductCodeMissing() throws Exception {
+        FaultRepairConfigServiceImpl service = new FaultRepairConfigServiceImpl();
+        setField(service, "faultRepairConfigMapper",
+                createConfigMapperProxy(Arrays.asList(
+                        buildConfig(5L, 9L, "P-500", "M-900"),
+                        buildConfig(4L, 9L, "P-400", "M-900")
+                )));
+
+        Long configId = service.findEnabledConfigId(9L, null, "M-900");
+
+        Assert.assertEquals(Long.valueOf(5L), configId);
+    }
+
+    @Test
+    public void shouldDisableCurrentConfigAndInsertNewVersionWhenEditingEnabledConfig() throws Exception {
+        FaultRepairConfigServiceImpl service = new FaultRepairConfigServiceImpl();
+        List<FaultRepairConfig> storedConfigs = new ArrayList<>();
+        FaultRepairConfig current = buildConfig(1L, 9L, "P-100", "M-200");
+        current.setRemark("旧备注");
+        storedConfigs.add(current);
+        List<FaultRepairConfig> insertedConfigs = new ArrayList<>();
+        List<FaultRepairConfigFault> insertedFaults = new ArrayList<>();
+        List<FaultRepairConfigOption> insertedOptions = new ArrayList<>();
+        setField(service, "faultRepairConfigMapper",
+                createMutableConfigMapperProxy(storedConfigs, insertedConfigs));
+        setField(service, "faultRepairConfigFaultMapper",
+                createMutableFaultMapperProxy(insertedFaults));
+        setField(service, "faultRepairConfigOptionMapper",
+                createMutableOptionMapperProxy(insertedOptions));
+        setField(service, "sysCompanyMapper",
+                createCompanyMapperProxy(Collections.singletonList(buildCompany(9L, "总部A", "HQ"))));
+        setField(service, "companyTypeService", createCompanyTypeServiceStub());
+
+        FaultRepairConfigDTO dto = new FaultRepairConfigDTO();
+        dto.setId(1L);
+        dto.setCompanyId(9L);
+        dto.setProductCode("P-100");
+        dto.setProductModel("M-200");
+        dto.setStatus(1);
+        dto.setRemark("新备注");
+        FaultRepairConfigFaultDTO fault = new FaultRepairConfigFaultDTO();
+        fault.setFaultDesc("面板故障");
+        fault.setRepairOptions(Arrays.asList("更换面板", "检查排线"));
+        dto.setFaults(Collections.singletonList(fault));
+
+        service.update(dto);
+
+        Assert.assertEquals(Integer.valueOf(0), current.getStatus());
+        Assert.assertEquals(2, storedConfigs.size());
+        Assert.assertEquals(1, insertedConfigs.size());
+        FaultRepairConfig latest = insertedConfigs.get(0);
+        Assert.assertNotNull(latest.getId());
+        Assert.assertNotEquals(current.getId(), latest.getId());
+        Assert.assertEquals(Integer.valueOf(1), latest.getStatus());
+        Assert.assertEquals("新备注", latest.getRemark());
+        Assert.assertEquals(1, insertedFaults.size());
+        Assert.assertEquals(latest.getId(), insertedFaults.get(0).getConfigId());
+        Assert.assertEquals("面板故障", insertedFaults.get(0).getFaultDesc());
+        Assert.assertEquals(2, insertedOptions.size());
+    }
+
+    @Test
+    public void shouldRejectEditingDisabledHistoryConfig() throws Exception {
+        FaultRepairConfigServiceImpl service = new FaultRepairConfigServiceImpl();
+        FaultRepairConfig history = buildConfig(1L, 9L, "P-100", "M-200");
+        history.setStatus(0);
+        setField(service, "faultRepairConfigMapper",
+                createConfigMapperProxy(Collections.singletonList(history)));
+
+        FaultRepairConfigDTO dto = new FaultRepairConfigDTO();
+        dto.setId(1L);
+        dto.setCompanyId(9L);
+        dto.setStatus(1);
+
+        try {
+            service.update(dto);
+            Assert.fail("预期应拒绝编辑停用历史配置");
+        } catch (ServiceException ex) {
+            Assert.assertEquals("停用历史配置不允许编辑", ex.getMessage());
+        }
+    }
+
     private FaultRepairConfigMapper createConfigMapperProxy(List<FaultRepairConfig> configs) {
         InvocationHandler handler = new InvocationHandler() {
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectList".equals(method.getName())) {
+                    return configs;
+                }
+                if ("selectById".equals(method.getName()) && args != null && args.length > 0) {
+                    for (FaultRepairConfig config : configs) {
+                        if (config != null && config.getId() != null && config.getId().equals(args[0])) {
+                            return config;
+                        }
+                    }
+                    return null;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (FaultRepairConfigMapper) Proxy.newProxyInstance(
+                FaultRepairConfigMapper.class.getClassLoader(),
+                new Class<?>[]{FaultRepairConfigMapper.class},
+                handler
+        );
+    }
+
+    private FaultRepairConfigMapper createMutableConfigMapperProxy(List<FaultRepairConfig> configs,
+                                                                   List<FaultRepairConfig> insertedConfigs) {
+        InvocationHandler handler = new InvocationHandler() {
+            private long nextId = configs.stream()
+                    .map(FaultRepairConfig::getId)
+                    .filter(id -> id != null)
+                    .mapToLong(Long::longValue)
+                    .max()
+                    .orElse(0L);
+
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectById".equals(method.getName()) && args != null && args.length > 0) {
+                    for (FaultRepairConfig config : configs) {
+                        if (config != null && config.getId() != null && config.getId().equals(args[0])) {
+                            return config;
+                        }
+                    }
+                    return null;
+                }
+                if ("selectOne".equals(method.getName())) {
+                    return null;
+                }
+                if ("updateById".equals(method.getName()) && args != null && args.length > 0) {
+                    FaultRepairConfig entity = (FaultRepairConfig) args[0];
+                    for (int i = 0; i < configs.size(); i++) {
+                        if (configs.get(i).getId().equals(entity.getId())) {
+                            configs.set(i, entity);
+                            return 1;
+                        }
+                    }
+                    return 0;
+                }
+                if ("insert".equals(method.getName()) && args != null && args.length > 0) {
+                    FaultRepairConfig entity = (FaultRepairConfig) args[0];
+                    if (entity.getId() == null) {
+                        entity.setId(++nextId);
+                    }
+                    configs.add(entity);
+                    insertedConfigs.add(entity);
+                    return 1;
+                }
                 if ("selectList".equals(method.getName())) {
                     return configs;
                 }
@@ -102,6 +299,31 @@ public class FaultRepairConfigServiceImplTest {
         );
     }
 
+    private FaultRepairConfigFaultMapper createMutableFaultMapperProxy(List<FaultRepairConfigFault> insertedFaults) {
+        InvocationHandler handler = new InvocationHandler() {
+            private long nextId = 0L;
+
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("insert".equals(method.getName()) && args != null && args.length > 0) {
+                    FaultRepairConfigFault entity = (FaultRepairConfigFault) args[0];
+                    entity.setId(++nextId);
+                    insertedFaults.add(entity);
+                    return 1;
+                }
+                if ("selectList".equals(method.getName())) {
+                    return Collections.emptyList();
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (FaultRepairConfigFaultMapper) Proxy.newProxyInstance(
+                FaultRepairConfigFaultMapper.class.getClassLoader(),
+                new Class<?>[]{FaultRepairConfigFaultMapper.class},
+                handler
+        );
+    }
+
     private FaultRepairConfigOptionMapper createOptionMapperProxy(List<FaultRepairConfigOption> options) {
         InvocationHandler handler = new InvocationHandler() {
             @Override
@@ -119,12 +341,45 @@ public class FaultRepairConfigServiceImplTest {
         );
     }
 
+    private FaultRepairConfigOptionMapper createMutableOptionMapperProxy(List<FaultRepairConfigOption> insertedOptions) {
+        InvocationHandler handler = new InvocationHandler() {
+            private long nextId = 0L;
+
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("insert".equals(method.getName()) && args != null && args.length > 0) {
+                    FaultRepairConfigOption entity = (FaultRepairConfigOption) args[0];
+                    entity.setId(++nextId);
+                    insertedOptions.add(entity);
+                    return 1;
+                }
+                if ("selectList".equals(method.getName())) {
+                    return Collections.emptyList();
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (FaultRepairConfigOptionMapper) Proxy.newProxyInstance(
+                FaultRepairConfigOptionMapper.class.getClassLoader(),
+                new Class<?>[]{FaultRepairConfigOptionMapper.class},
+                handler
+        );
+    }
+
     private SysCompanyMapper createCompanyMapperProxy(List<SysCompany> companies) {
         InvocationHandler handler = new InvocationHandler() {
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectList".equals(method.getName())) {
                     return companies;
+                }
+                if ("selectById".equals(method.getName()) && args != null && args.length > 0) {
+                    for (SysCompany company : companies) {
+                        if (company != null && company.getId() != null && company.getId().equals(args[0])) {
+                            return company;
+                        }
+                    }
+                    return null;
                 }
                 return defaultValue(method.getReturnType());
             }
@@ -169,6 +424,43 @@ public class FaultRepairConfigServiceImplTest {
         company.setId(id);
         company.setCompanyName(companyName);
         return company;
+    }
+
+    private SysCompany buildCompany(Long id, String companyName, String typeCode) {
+        SysCompany company = buildCompany(id, companyName);
+        company.setTypeCode(typeCode);
+        return company;
+    }
+
+    private ISysCompanyTypeService createCompanyTypeServiceStub() {
+        return new ISysCompanyTypeService() {
+            @Override
+            public List<SysCompanyType> listAll() {
+                SysCompanyType type = new SysCompanyType();
+                type.setTypeCode("HQ");
+                type.setTypeName("总部");
+                type.setSubjectType(SubjectTypeEnum.HQ.getCode());
+                return Collections.singletonList(type);
+            }
+
+            @Override
+            public SysCompanyType getById(Long id) {
+                return null;
+            }
+
+            @Override
+            public Long save(SysCompanyType entity) {
+                return null;
+            }
+
+            @Override
+            public void update(SysCompanyType entity) {
+            }
+
+            @Override
+            public void remove(Long id) {
+            }
+        };
     }
 
     private void setField(Object target, String fieldName, Object value) throws Exception {

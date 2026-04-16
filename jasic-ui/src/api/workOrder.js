@@ -24,6 +24,10 @@ export function getUpstreamFirstCreateBarcodeInfo(params) {
   return request({ url: '/system/work-order/create/upstream-first/barcode-info', method: 'get', params })
 }
 
+export function listUpstreamFirstCreateTargetOptions() {
+  return request({ url: '/system/work-order/create/upstream-first/target-options', method: 'get' })
+}
+
 export function getUpstreamHqCreateBarcodeInfo(params) {
   return request({ url: '/system/work-order/create/upstream-hq/barcode-info', method: 'get', params })
 }
@@ -38,6 +42,10 @@ export function listTransferTargetOptions(workOrderId) {
 
 export function listRepairFaultOptions(workOrderId) {
   return request({ url: `/system/work-order/${workOrderId}/repair-fault-options`, method: 'get' })
+}
+
+export function listRepairProductModelOptions(workOrderId, params) {
+  return request({ url: `/system/work-order/${workOrderId}/repair-product-model-options`, method: 'get', params })
 }
 
 export function createProxyWorkOrder(data) {
@@ -70,6 +78,10 @@ export function repairWorkOrder(data) {
 
 export function reviewWorkOrder(data) {
   return request({ url: '/system/work-order/review', method: 'post', data })
+}
+
+export function updateRepairProductModel(data) {
+  return request({ url: '/system/work-order/repair-product-model', method: 'put', data })
 }
 
 export function updateWorkOrderSendExpress(data) {

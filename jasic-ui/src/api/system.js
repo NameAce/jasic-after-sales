@@ -206,9 +206,6 @@ export function addFaultRepairConfig(data) {
 export function updateFaultRepairConfig(data) {
   return request({ url: '/system/fault-repair-config', method: 'put', data })
 }
-export function deleteFaultRepairConfig(id) {
-  return request({ url: `/system/fault-repair-config/${id}`, method: 'delete' })
-}
 
 // --- Role Template ---
 export function listRoleTemplate(typeCode) {

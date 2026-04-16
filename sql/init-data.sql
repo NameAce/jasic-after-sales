@@ -234,8 +234,7 @@ INSERT INTO `sys_menu` (`id`, `subject_type`, `menu_name`, `parent_id`, `menu_ty
 (109, 'PLATFORM', '故障与维修配置', 1, 'C', 'faultRepairConfig', 'system/faultRepairConfig/index', NULL, 'el-icon-setting', 8, 1, 1, NOW(), NOW()),
 (1091, 'PLATFORM', '配置查询', 109, 'F', NULL, NULL, 'system:faultRepairConfig:list', NULL, 1, 1, 1, NOW(), NOW()),
 (1092, 'PLATFORM', '配置新增', 109, 'F', NULL, NULL, 'system:faultRepairConfig:add', NULL, 2, 1, 1, NOW(), NOW()),
-(1093, 'PLATFORM', '配置修改', 109, 'F', NULL, NULL, 'system:faultRepairConfig:update', NULL, 3, 1, 1, NOW(), NOW()),
-(1094, 'PLATFORM', '配置删除', 109, 'F', NULL, NULL, 'system:faultRepairConfig:remove', NULL, 4, 1, 1, NOW(), NOW());
+(1093, 'PLATFORM', '配置修改', 109, 'F', NULL, NULL, 'system:faultRepairConfig:update', NULL, 3, 1, 1, NOW(), NOW());
 
 INSERT INTO `sys_role_menu` (`role_id`, `menu_id`, `create_time`, `update_time`) VALUES
 (1, 108, NOW(), NOW()),
@@ -244,8 +243,7 @@ INSERT INTO `sys_role_menu` (`role_id`, `menu_id`, `create_time`, `update_time`)
 (1, 109, NOW(), NOW()),
 (1, 1091, NOW(), NOW()),
 (1, 1092, NOW(), NOW()),
-(1, 1093, NOW(), NOW()),
-(1, 1094, NOW(), NOW());
+(1, 1093, NOW(), NOW());
 
 INSERT INTO `sys_type_code_menu` (`type_code`, `menu_id`, `create_time`, `update_time`) VALUES
 ('PLATFORM', 108, NOW(), NOW()),
@@ -254,8 +252,7 @@ INSERT INTO `sys_type_code_menu` (`type_code`, `menu_id`, `create_time`, `update
 ('PLATFORM', 109, NOW(), NOW()),
 ('PLATFORM', 1091, NOW(), NOW()),
 ('PLATFORM', 1092, NOW(), NOW()),
-('PLATFORM', 1093, NOW(), NOW()),
-('PLATFORM', 1094, NOW(), NOW());
+('PLATFORM', 1093, NOW(), NOW());
 
 -- -------------------------------------------
 -- 14. 同步任务菜单与权限

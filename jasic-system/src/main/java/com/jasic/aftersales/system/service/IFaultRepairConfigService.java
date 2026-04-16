@@ -49,13 +49,6 @@ public interface IFaultRepairConfigService {
     void update(FaultRepairConfigDTO dto);
 
     /**
-     * 删除配置
-     *
-     * @param id 配置ID
-     */
-    void remove(Long id);
-
-    /**
      * 查询归属总部选项
      *
      * @return 公司选项
@@ -71,4 +64,31 @@ public interface IFaultRepairConfigService {
      * @return 故障与维修说明选项
      */
     List<WorkOrderRepairFaultOptionVO> listRepairFaultOptions(Long companyId, String productCode, String productModel);
+
+    /**
+     * 按已绑定配置ID查询维修故障选项。
+     *
+     * @param configId 配置ID
+     * @return 故障与维修说明选项
+     */
+    List<WorkOrderRepairFaultOptionVO> listRepairFaultOptionsByConfigId(Long configId);
+
+    /**
+     * 按总部和产品信息匹配当前应绑定的启用配置ID。
+     *
+     * @param companyId    归属总部ID
+     * @param productCode  物料编码
+     * @param productModel 产品型号
+     * @return 配置ID
+     */
+    Long findEnabledConfigId(Long companyId, String productCode, String productModel);
+
+    /**
+     * 查询指定总部下启用状态的产品型号选项。
+     *
+     * @param companyId 归属总部ID
+     * @param keyword 产品型号关键字
+     * @return 产品型号选项
+     */
+    List<String> listEnabledProductModels(Long companyId, String keyword);
 }

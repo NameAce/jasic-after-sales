@@ -22,6 +22,7 @@ import com.jasic.aftersales.customer.domain.vo.CustomerServiceCompanyOptionVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderLatestSummaryVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderListVO;
 import com.jasic.aftersales.framework.security.StpCustomerUtil;
+import com.jasic.aftersales.customer.mapper.CUserMapper;
 import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
 import com.jasic.aftersales.system.domain.entity.HqFirstContract;
 import com.jasic.aftersales.system.domain.entity.MachineBarcode;
@@ -43,6 +44,7 @@ import com.jasic.aftersales.system.mapper.WorkOrderQuoteMapper;
 import com.jasic.aftersales.system.service.IFaultRepairConfigService;
 import com.jasic.aftersales.system.service.ISysConfigService;
 import com.jasic.aftersales.system.service.SysFileService;
+import com.jasic.aftersales.system.service.WorkOrderParticipantService;
 import com.jasic.aftersales.system.service.WorkOrderNotifyEventService;
 import org.junit.Assert;
 import org.junit.Test;
@@ -165,6 +167,54 @@ public class CustomerWorkOrderServiceImplTest {
         } catch (InvocationTargetException ex) {
             Assert.assertTrue(ex.getTargetException() instanceof ServiceException);
         }
+    }
+
+    @Test
+    public void shouldPersistFaultRepairConfigIdForJasicBarcodeCreate() throws Exception {
+        CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
+        CUser customer = new CUser();
+        customer.setId(200L);
+        customer.setNickname("客户A");
+        customer.setPhone("13800138000");
+        customer.setStatus(1);
+        WorkOrder[] insertedWorkOrder = new WorkOrder[1];
+        List<WorkOrderFlow> insertedFlows = new ArrayList<>();
+
+        setField(service, "cUserMapper", createCUserMapperProxy(customer));
+        setField(service, "sysCompanyMapper", createCompanyMapperProxy(buildFirstCompany(), buildHqCompany()));
+        setField(service, "machineBarcodeMapper", createMachineBarcodeMapperProxy(buildMachineBarcode(21L)));
+        setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(91L, "Fault A"));
+        setField(service, "workOrderMapper", createInsertWorkOrderMapperProxy(insertedWorkOrder));
+        setField(service, "workOrderFlowMapper", createWorkOrderFlowMapperProxy(insertedFlows));
+        setField(service, "sysFileService", createNoopSysFileServiceProxy());
+        setField(service, "workOrderParticipantService", new WorkOrderParticipantService() {
+            @Override
+            public void initParticipants(WorkOrder workOrder, String createSubjectType) {
+            }
+        });
+
+        CustomerWorkOrderCreateDTO dto = new CustomerWorkOrderCreateDTO();
+        dto.setBrandType(BrandTypeEnum.JASIC);
+        dto.setBarcode("JASIC-001");
+        dto.setServiceCompanyId(11L);
+        dto.setServiceMode("STORE");
+        dto.setFaultItems(Collections.singletonList("Fault A"));
+
+        final Long[] createdId = new Long[1];
+        runWithCustomerLoginContext(200L, new ThrowingRunnable() {
+            @Override
+            public void run() throws Exception {
+                createdId[0] = service.create(dto);
+            }
+        });
+
+        Assert.assertEquals(Long.valueOf(1001L), createdId[0]);
+        Assert.assertNotNull(insertedWorkOrder[0]);
+        Assert.assertEquals(Long.valueOf(91L), getLongFieldValue(insertedWorkOrder[0], "faultRepairConfigId"));
+        Assert.assertEquals("MODEL-A", insertedWorkOrder[0].getProductModel());
+        Assert.assertEquals(Long.valueOf(21L), insertedWorkOrder[0].getHqCompanyId());
+        Assert.assertEquals(1, insertedFlows.size());
+        Assert.assertEquals("CREATE", insertedFlows.get(0).getActionType());
     }
 
     @Test
@@ -747,7 +797,28 @@ public class CustomerWorkOrderServiceImplTest {
         );
     }
 
+    private CUserMapper createCUserMapperProxy(CUser customer) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectById".equals(method.getName())) {
+                    return customer;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (CUserMapper) Proxy.newProxyInstance(
+                CUserMapper.class.getClassLoader(),
+                new Class<?>[]{CUserMapper.class},
+                handler
+        );
+    }
+
     private IFaultRepairConfigService createFaultRepairConfigServiceProxy(String... faultDescs) {
+        return createFaultRepairConfigServiceProxy(null, faultDescs);
+    }
+
+    private IFaultRepairConfigService createFaultRepairConfigServiceProxy(Long configId, String... faultDescs) {
         InvocationHandler handler = new InvocationHandler() {
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
@@ -760,6 +831,9 @@ public class CustomerWorkOrderServiceImplTest {
                         result.add(option);
                     }
                     return result;
+                }
+                if ("findEnabledConfigId".equals(method.getName())) {
+                    return configId;
                 }
                 return defaultValue(method.getReturnType());
             }
@@ -836,6 +910,26 @@ public class CustomerWorkOrderServiceImplTest {
                 }
                 if ("updateById".equals(method.getName())) {
                     updateCount[0]++;
+                    return 1;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (WorkOrderMapper) Proxy.newProxyInstance(
+                WorkOrderMapper.class.getClassLoader(),
+                new Class<?>[]{WorkOrderMapper.class},
+                handler
+        );
+    }
+
+    private WorkOrderMapper createInsertWorkOrderMapperProxy(WorkOrder[] insertedHolder) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("insert".equals(method.getName())) {
+                    WorkOrder workOrder = (WorkOrder) args[0];
+                    workOrder.setId(1001L);
+                    insertedHolder[0] = workOrder;
                     return 1;
                 }
                 return defaultValue(method.getReturnType());
@@ -950,6 +1044,20 @@ public class CustomerWorkOrderServiceImplTest {
         );
     }
 
+    private SysFileService createNoopSysFileServiceProxy() {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (SysFileService) Proxy.newProxyInstance(
+                SysFileService.class.getClassLoader(),
+                new Class<?>[]{SysFileService.class},
+                handler
+        );
+    }
+
     private void setField(Object target, String fieldName, Object value) throws Exception {
         Field field = CustomerWorkOrderServiceImpl.class.getDeclaredField(fieldName);
         field.setAccessible(true);
@@ -995,6 +1103,12 @@ public class CustomerWorkOrderServiceImplTest {
         Method method = selection.getClass().getDeclaredMethod(methodName);
         method.setAccessible(true);
         return (String) method.invoke(selection);
+    }
+
+    private Long getLongFieldValue(Object target, String fieldName) throws Exception {
+        Field field = target.getClass().getDeclaredField(fieldName);
+        field.setAccessible(true);
+        return (Long) field.get(target);
     }
 
     private Object defaultValue(Class<?> returnType) {
