@@ -266,7 +266,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             }
         }
         List<WorkOrderStatusCountVO> result = new ArrayList<>();
-        result.add(buildStatusCountVo("ALL", "\u5168\u90e8", countMap.values().stream().mapToLong(Long::longValue).sum()));
+        result.add(buildStatusCountVo("ALL", "全部", countMap.values().stream().mapToLong(Long::longValue).sum()));
         result.add(buildStatusCountVo(
                 WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN,
                 resolveMainStatusLabel(WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN),
@@ -305,14 +305,14 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     public WorkOrderDetailVO getById(Long workOrderId) {
         WorkOrder entity = workOrderMapper.selectById(workOrderId);
         if (entity == null) {
-            throw new ServiceException("\u5de5\u5355\u4e0d\u5b58\u5728");
+            throw new ServiceException("工单不存在");
         }
         if (!workOrderPermissionService.canView(entity)) {
-            throw new ServiceException("\u65e0\u6743\u67e5\u770b\u8be5\u5de5\u5355");
+            throw new ServiceException("无权查看该工单");
         }
         WorkOrderDetailVO detail = workOrderMapper.selectDetailById(workOrderId);
         if (detail == null) {
-            throw new ServiceException("\u5de5\u5355\u8be6\u60c5\u4e0d\u5b58\u5728");
+            throw new ServiceException("工单详情不存在");
         }
         detail.setParticipants(workOrderMapper.selectParticipantList(workOrderId));
         detail.setQuotes(listQuoteVos(workOrderId));
@@ -533,7 +533,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     public void assign(WorkOrderAssignDTO dto) {
         WorkOrder workOrder = requireWorkOrder(dto.getWorkOrderId());
         if (!workOrderPermissionService.canAssign(workOrder)) {
-            throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u6d3e\u5355");
+            throw new ServiceException("当前工单不允许派单");
         }
         validateAssignedUser(dto.getAssignedUserId(), workOrder.getCurrentAcceptCompanyId());
         String beforeStatus = workOrder.getMainStatus();
@@ -555,9 +555,9 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     public void techAccept(WorkOrderTechAcceptDTO dto) {
         WorkOrder workOrder = requireWorkOrder(dto.getWorkOrderId());
         if (!workOrderPermissionService.canTechAccept(workOrder)) {
-            throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u63a5\u5355");
+            throw new ServiceException("当前工单不允许接单");
         }
-        String faultJudge = normalizeFaultJudge(dto.getFaultJudge(), "\u6545\u969c\u5224\u5b9a\u4e0d\u80fd\u4e3a\u7a7a");
+        String faultJudge = normalizeFaultJudge(dto.getFaultJudge(), "故障判定不能为空");
         String beforeStatus = workOrder.getMainStatus();
         String acceptedStatus = WorkOrderStatusFlow.afterTechAccept();
         LocalDateTime actionTime = LocalDateTime.now();
@@ -565,7 +565,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         workOrder.setMainStatus(acceptedStatus);
         if (FAULT_JUDGE_NO_FAULT.equals(faultJudge)) {
             String returnMethod = normalizeReturnMethod(dto.getReturnMethod());
-            String closeReason = normalizeRequiredText(dto.getCloseReason(), "\u5173\u95ed\u539f\u56e0\u4e0d\u80fd\u4e3a\u7a7a");
+            String closeReason = normalizeRequiredText(dto.getCloseReason(), "关闭原因不能为空");
             validateCloseReturnInfo(returnMethod, dto.getReturnVoucherFileIds());
             LocalDateTime now = actionTime;
             workOrder.setReturnMethod(returnMethod);
@@ -616,7 +616,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     public void transfer(WorkOrderTransferDTO dto) {
         WorkOrder workOrder = requireWorkOrder(dto.getWorkOrderId());
         if (!workOrderPermissionService.canTransfer(workOrder)) {
-            throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u8f6c\u5355");
+            throw new ServiceException("当前工单不允许转单");
         }
         validateTransferTarget(workOrder, dto.getTargetCompanyId());
         String targetSubjectType = resolveCompanySubjectType(dto.getTargetCompanyId());
@@ -648,7 +648,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     public void saveRepair(WorkOrderRepairDTO dto) {
         WorkOrder workOrder = requireWorkOrder(dto.getWorkOrderId());
         if (!workOrderPermissionService.canSaveRepair(workOrder)) {
-            throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u767b\u8bb0\u7ef4\u4fee");
+            throw new ServiceException("当前工单不允许登记维修");
         }
         validateRepairProductModelBeforeRegister(workOrder, resolveRegisterStageLabel(REGISTER_STAGE_REPAIR));
         validateRepairConfigBindingBeforeRegister(workOrder);
@@ -695,7 +695,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     public void saveReview(WorkOrderReviewDTO dto) {
         WorkOrder workOrder = requireWorkOrder(dto.getWorkOrderId());
         if (!workOrderPermissionService.canReview(workOrder)) {
-            throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u590d\u68c0");
+            throw new ServiceException("当前工单不允许复检");
         }
         validateRepairProductModelBeforeRegister(workOrder, resolveRegisterStageLabel(REGISTER_STAGE_RECHECK));
         validateRepairConfigBindingBeforeRegister(workOrder);
@@ -732,9 +732,9 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     public void updateSendExpress(WorkOrderSendExpressDTO dto) {
         WorkOrder workOrder = requireWorkOrder(dto.getWorkOrderId());
         if (!workOrderPermissionService.canUpdateSendExpress(workOrder)) {
-            throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u4e0a\u4f20\u5bc4\u4ef6\u5feb\u9012\u5355\u53f7");
+            throw new ServiceException("当前工单不允许上传寄件快递单号");
         }
-        workOrder.setSendExpressNo(normalizeRequiredText(dto.getSendExpressNo(), "\u5bc4\u4ef6\u5feb\u9012\u5355\u53f7\u4e0d\u80fd\u4e3a\u7a7a"));
+        workOrder.setSendExpressNo(normalizeRequiredText(dto.getSendExpressNo(), "寄件快递单号不能为空"));
         workOrderMapper.updateById(workOrder);
         sysFileService.replaceBizFiles(
                 SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER,
@@ -755,10 +755,10 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     public void close(WorkOrderCloseDTO dto) {
         WorkOrder workOrder = requireWorkOrder(dto.getWorkOrderId());
         if (!workOrderPermissionService.canClose(workOrder)) {
-            throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u5173\u95ed");
+            throw new ServiceException("当前工单不允许关闭");
         }
         String returnMethod = normalizeReturnMethod(dto.getReturnMethod());
-        String closeReason = normalizeRequiredText(dto.getCloseReason(), "\u5173\u95ed\u539f\u56e0\u4e0d\u80fd\u4e3a\u7a7a");
+        String closeReason = normalizeRequiredText(dto.getCloseReason(), "关闭原因不能为空");
         validateCloseReturnInfo(dto);
         saveFlow(workOrder.getId(), WorkOrderActionEnum.RETURN_METHOD.getCode(), workOrder.getMainStatus(), workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
@@ -820,7 +820,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     public List<WorkOrderUserOptionVO> listAssignUserOptions(Long workOrderId) {
         WorkOrder workOrder = requireWorkOrder(workOrderId);
         if (!workOrderPermissionService.canAssign(workOrder)) {
-            throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u6d3e\u5355");
+            throw new ServiceException("当前工单不允许派单");
         }
         Set<Long> userIds = listCompanyAcceptEnabledUserIds(workOrder.getCurrentAcceptCompanyId());
         if (userIds.isEmpty()) {
@@ -845,7 +845,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     public List<SysCompanySimpleVO> listTransferTargetOptions(Long workOrderId) {
         WorkOrder workOrder = requireWorkOrder(workOrderId);
         if (!workOrderPermissionService.canTransfer(workOrder)) {
-            throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u8f6c\u5355");
+            throw new ServiceException("当前工单不允许转单");
         }
         List<Long> targetCompanyIds = resolveTransferTargetCompanyIds(workOrder);
         if (targetCompanyIds.isEmpty()) {
@@ -933,7 +933,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     private void normalizeQuery(WorkOrderQuery query) {
         workOrderPermissionService.fillQueryScope(query);
         if (!SecurityContext.isPlatformUser() && query.getCompanyId() == null) {
-            throw new ServiceException("\u5f53\u524d\u516c\u53f8\u4e0d\u80fd\u4e3a\u7a7a");
+            throw new ServiceException("当前公司不能为空");
         }
         if (query.getViewScope() == null || query.getViewScope().trim().isEmpty()) {
             query.setViewScope("CURRENT");
@@ -1291,7 +1291,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     private WorkOrder requireWorkOrder(Long workOrderId) {
         WorkOrder workOrder = workOrderMapper.selectById(workOrderId);
         if (workOrder == null) {
-            throw new ServiceException("\u5de5\u5355\u4e0d\u5b58\u5728");
+            throw new ServiceException("工单不存在");
         }
         return workOrder;
     }
@@ -1349,7 +1349,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     private Long requireCurrentCompanyId() {
         Long currentCompanyId = SecurityContext.getCurrentCompanyId();
         if (currentCompanyId == null) {
-            throw new ServiceException("\u5f53\u524d\u516c\u53f8\u4e0d\u80fd\u4e3a\u7a7a");
+            throw new ServiceException("当前公司不能为空");
         }
         return currentCompanyId;
     }
@@ -1376,8 +1376,8 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                                      String createEntryType) {
         Long currentCompanyId = requireCurrentCompanyId();
         Long currentUserId = SecurityContext.getCurrentUserId();
-        String normalizedCustomerName = normalizeRequiredText(customerName, "\u5ba2\u6237\u59d3\u540d\u4e0d\u80fd\u4e3a\u7a7a");
-        String normalizedCustomerMobile = normalizeRequiredText(customerMobile, "\u5ba2\u6237\u624b\u673a\u53f7\u4e0d\u80fd\u4e3a\u7a7a");
+        String normalizedCustomerName = normalizeRequiredText(customerName, "客户姓名不能为空");
+        String normalizedCustomerMobile = normalizeRequiredText(customerMobile, "客户手机号不能为空");
         String normalizedBarcode = normalizeNullableText(barcode);
         String normalizedServiceMode = normalizeServiceMode(serviceMode);
         validateCreateSendInfo(normalizedServiceMode, senderName, senderMobile, senderAddress);
@@ -1452,13 +1452,13 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             return;
         }
         if (isBlank(senderName)) {
-            throw new ServiceException("\u5bc4\u4fee\u5de5\u5355\u5fc5\u987b\u586b\u5199\u5bc4\u4ef6\u4eba\u59d3\u540d");
+            throw new ServiceException("寄修工单必须填写寄件人姓名");
         }
         if (isBlank(senderMobile)) {
-            throw new ServiceException("\u5bc4\u4fee\u5de5\u5355\u5fc5\u987b\u586b\u5199\u5bc4\u4ef6\u4eba\u624b\u673a\u53f7");
+            throw new ServiceException("寄修工单必须填写寄件人手机号");
         }
         if (isBlank(senderAddress)) {
-            throw new ServiceException("\u5bc4\u4fee\u5de5\u5355\u5fc5\u987b\u586b\u5199\u5bc4\u4ef6\u5730\u5740");
+            throw new ServiceException("寄修工单必须填写寄件地址");
         }
     }
 
@@ -1479,7 +1479,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             return;
         }
         if (returnVoucherFileIds == null || returnVoucherFileIds.isEmpty()) {
-            throw new ServiceException("\u56de\u5bc4\u65f6\u5fc5\u987b\u4e0a\u4f20\u56de\u5bc4\u51ed\u8bc1");
+            throw new ServiceException("回寄时必须上传回寄凭证");
         }
     }
 
@@ -1495,7 +1495,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         String nextQuoteDesc = normalizeNullableText(dto == null ? null : dto.getQuoteDesc());
         if (currentQuote == null) {
             if (nextQuoteAmount != null || nextQuoteDesc != null) {
-                throw new ServiceException("\u8bf7\u5148\u63d0\u4ea4\u62a5\u4ef7\uff0c\u518d\u5728\u7ef4\u4fee\u767b\u8bb0\u4e2d\u8c03\u6574\u62a5\u4ef7");
+                throw new ServiceException("请先提交报价，再在维修登记中调整报价");
             }
             return false;
         }
@@ -1504,7 +1504,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
         String faultJudge = normalizeFaultJudge(
                 currentQuote.getFaultJudge(),
-                "\u5f53\u524d\u6709\u6548\u62a5\u4ef7\u7684\u6545\u969c\u5224\u5b9a\u4e0d\u80fd\u4e3a\u7a7a"
+                "当前有效报价的故障判定不能为空"
         );
         WorkOrderQuote quote = replaceCurrentQuote(workOrder, faultJudge, nextQuoteAmount, nextQuoteDesc);
         saveFlow(workOrder.getId(), WorkOrderActionEnum.QUOTE.getCode(), workOrder.getMainStatus(), workOrder.getMainStatus(),
@@ -1520,17 +1520,17 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                                                           List<Long> machineImageFileIds, List<Long> machineBarcodeImageFileIds,
                                                           List<Long> otherImageFileIds) {
         if (workOrder == null) {
-            throw new ServiceException("\u5de5\u5355\u4e0d\u5b58\u5728");
+            throw new ServiceException("工单不存在");
         }
         if (!hasRepairContent(repairDesc, repairItems, otherDesc, partList,
                 faultOldImageFileIds, faultNewImageFileIds, machineImageFileIds, machineBarcodeImageFileIds, otherImageFileIds)) {
-            throw new ServiceException("\u8bf7\u81f3\u5c11\u586b\u5199\u4e00\u9879\u7ef4\u4fee\u5185\u5bb9");
+            throw new ServiceException("请至少填写一项维修内容");
         }
-        validateSingleImageLimit(faultOldImageFileIds, "\u6545\u969c\u5904\u65e7\u56fe\u7247");
-        validateSingleImageLimit(faultNewImageFileIds, "\u6545\u969c\u5904\u65b0\u56fe\u7247");
-        validateSingleImageLimit(machineImageFileIds, "\u673a\u5668\u6b63\u9762\u7167\u7247");
-        validateSingleImageLimit(machineBarcodeImageFileIds, "\u673a\u5668\u6761\u7801\u7167\u7247");
-        validateSingleImageLimit(otherImageFileIds, "\u5176\u4ed6\u56fe\u7247");
+        validateSingleImageLimit(faultOldImageFileIds, "故障处旧图片");
+        validateSingleImageLimit(faultNewImageFileIds, "故障处新图片");
+        validateSingleImageLimit(machineImageFileIds, "机器正面照片");
+        validateSingleImageLimit(machineBarcodeImageFileIds, "机器条码照片");
+        validateSingleImageLimit(otherImageFileIds, "其他图片");
         return normalizeRepairContent(workOrder, faultItems, repairDesc, repairItems, otherDesc, partList);
     }
 
@@ -1575,7 +1575,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
         long count = fileIds.stream().filter(item -> item != null).count();
         if (count > 1) {
-            throw new ServiceException(fieldName + "\u6700\u591a\u53ea\u80fd\u4e0a\u4f201\u5f20");
+            throw new ServiceException(fieldName + "最多只能上传1张");
         }
     }
 
@@ -1584,7 +1584,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                                                            String otherDesc, List<WorkOrderFaultPartItemDTO> partList) {
         List<NormalizedFaultPart> normalizedPartList = normalizeFaultPartList(partList);
         if (normalizedPartList.isEmpty()) {
-            throw new ServiceException("\u8bf7\u81f3\u5c11\u586b\u5199\u4e00\u6761\u914d\u4ef6\u660e\u7ec6");
+            throw new ServiceException("请至少填写一条配件明细");
         }
         Map<String, Set<String>> optionMap = buildRepairOptionMap(workOrder);
         Set<String> allowedOptions = buildAllowedRepairOptions(faultItems, optionMap);
@@ -1593,7 +1593,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         String storedRepairDesc = normalizeNullableText(repairDesc);
         if (!allowedOptions.isEmpty()) {
             if (normalizedRepairItems.isEmpty()) {
-                throw new ServiceException("\u8bf7\u9009\u62e9\u7ef4\u4fee\u8bf4\u660e");
+                throw new ServiceException("请选择维修说明");
             }
             validateRepairItems(normalizedRepairItems, allowedOptions);
             storedRepairDesc = String.join(FAULT_DESC_SEPARATOR, normalizedRepairItems);
@@ -1601,10 +1601,10 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             validateRepairItems(normalizedRepairItems, Collections.emptySet());
             storedRepairDesc = String.join(FAULT_DESC_SEPARATOR, normalizedRepairItems);
         } else {
-            storedRepairDesc = normalizeRequiredText(storedRepairDesc, "\u7ef4\u4fee\u8bf4\u660e\u4e0d\u80fd\u4e3a\u7a7a");
+            storedRepairDesc = normalizeRequiredText(storedRepairDesc, "维修说明不能为空");
         }
         if (normalizedRepairItems.contains(OTHER_REPAIR_OPTION) && normalizedOtherDesc == null) {
-            throw new ServiceException("\u9009\u62e9\u5176\u5b83\u7ef4\u4fee\u8bf4\u660e\u65f6\uff0c\u5176\u4ed6\u7ef4\u4fee\u8bf4\u660e\u4e0d\u80fd\u4e3a\u7a7a");
+            throw new ServiceException("选择其它维修说明时，其他维修说明不能为空");
         }
         if (!normalizedRepairItems.contains(OTHER_REPAIR_OPTION)) {
             normalizedOtherDesc = null;
@@ -1627,10 +1627,10 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                 continue;
             }
             if (normalizedPartName == null) {
-                throw new ServiceException("\u914d\u4ef6\u540d\u79f0\u4e0d\u80fd\u4e3a\u7a7a");
+                throw new ServiceException("配件名称不能为空");
             }
             if (partQty == null || partQty <= 0) {
-                throw new ServiceException("\u914d\u4ef6\u6570\u91cf\u5fc5\u987b\u662f\u6b63\u6574\u6570");
+                throw new ServiceException("配件数量必须是正整数");
             }
             result.add(new NormalizedFaultPart(normalizedPartName, partQty));
         }
@@ -1866,11 +1866,11 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
      */
     private void validateAssignedUser(Long userId, Long companyId) {
         if (userId == null || !listCompanyAcceptEnabledUserIds(companyId).contains(userId)) {
-            throw new ServiceException("\u6d3e\u5355\u5bf9\u8c61\u5fc5\u987b\u662f\u5f53\u524d\u53d7\u7406\u516c\u53f8\u4e0b\u53ef\u63a5\u5355\u7684\u542f\u7528\u7528\u6237");
+            throw new ServiceException("派单对象必须是当前受理公司下可接单的启用用户");
         }
         SysUser user = sysUserMapper.selectById(userId);
         if (user == null || user.getStatus() == null || user.getStatus() != 1) {
-            throw new ServiceException("\u6d3e\u5355\u5bf9\u8c61\u5fc5\u987b\u662f\u542f\u7528\u72b6\u6001\u7684\u53ef\u63a5\u5355\u7528\u6237");
+            throw new ServiceException("派单对象必须是启用状态的可接单用户");
         }
     }
 
@@ -1882,24 +1882,24 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
      */
     private void validateTransferTarget(WorkOrder workOrder, Long targetCompanyId) {
         if (targetCompanyId == null) {
-            throw new ServiceException("\u76ee\u6807\u516c\u53f8\u4e0d\u80fd\u4e3a\u7a7a");
+            throw new ServiceException("目标公司不能为空");
         }
         if (targetCompanyId.equals(workOrder.getCurrentAcceptCompanyId())) {
-            throw new ServiceException("\u76ee\u6807\u516c\u53f8\u4e0d\u80fd\u548c\u5f53\u524d\u53d7\u7406\u516c\u53f8\u76f8\u540c");
+            throw new ServiceException("目标公司不能和当前受理公司相同");
         }
         List<Long> targetCompanyIds = resolveTransferTargetCompanyIds(workOrder);
         if (!targetCompanyIds.contains(targetCompanyId)) {
-            throw new ServiceException("\u5f53\u524d\u5de5\u5355\u4e0d\u5141\u8bb8\u8f6c\u5230\u8be5\u76ee\u6807\u516c\u53f8");
+            throw new ServiceException("当前工单不允许转到该目标公司");
         }
     }
 
     private void validateCreateHqCompany(Long currentCompanyId, Long hqCompanyId) {
         List<Long> hqCompanyIds = resolveCreateHqCompanyIds(currentCompanyId);
         if (hqCompanyIds.isEmpty()) {
-            throw new ServiceException("\u5f53\u524d\u516c\u53f8\u6ca1\u6709\u53ef\u9009\u5f52\u5c5e\u603b\u90e8");
+            throw new ServiceException("当前公司没有可选归属总部");
         }
         if (!hqCompanyIds.contains(hqCompanyId)) {
-            throw new ServiceException("\u5f53\u524d\u516c\u53f8\u4e0d\u5141\u8bb8\u5f52\u5c5e\u5230\u8be5\u603b\u90e8");
+            throw new ServiceException("当前公司不允许归属到该总部");
         }
     }
 
@@ -1947,7 +1947,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     private MachineBarcode requireActiveMachineBarcode(String barcode) {
         MachineBarcode barcodeArchive = findActiveMachineBarcode(barcode);
         if (barcodeArchive == null) {
-            throw new ServiceException("\u5f53\u524d\u6761\u7801\u672a\u7ef4\u62a4\u6863\u6848\u4fe1\u606f");
+            throw new ServiceException("当前条码未维护档案信息");
         }
         return barcodeArchive;
     }
@@ -1957,7 +1957,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
     private MachineBarcode findActiveMachineBarcode(String barcode) {
-        String normalizedBarcode = normalizeRequiredText(barcode, "\u673a\u5668\u6761\u7801\u4e0d\u80fd\u4e3a\u7a7a");
+        String normalizedBarcode = normalizeRequiredText(barcode, "机器条码不能为空");
         LambdaQueryWrapper<MachineBarcode> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(MachineBarcode::getBarcode, normalizedBarcode)
                 .eq(MachineBarcode::getStatus, 1)
@@ -1978,10 +1978,10 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     private SysCompany requireActiveHqCompany(Long hqCompanyId) {
         SysCompany company = sysCompanyMapper.selectById(hqCompanyId);
         if (company == null || (company.getStatus() != null && company.getStatus() == 0)) {
-            throw new ServiceException("\u5f52\u5c5e\u603b\u90e8\u4e0d\u5b58\u5728");
+            throw new ServiceException("归属总部不存在");
         }
         if ("SITE_FIRST".equals(company.getTypeCode()) || "SITE_SECOND".equals(company.getTypeCode())) {
-            throw new ServiceException("\u5f52\u5c5e\u603b\u90e8\u7c7b\u578b\u4e0d\u6b63\u786e");
+            throw new ServiceException("归属总部类型不正确");
         }
         return company;
     }
@@ -2044,10 +2044,10 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
         List<Long> hqCompanyIds = resolveCreateHqCompanyIds(currentCompanyId);
         if (hqCompanyIds.isEmpty()) {
-            throw new ServiceException("\u5f53\u524d\u6761\u7801\u5f52\u5c5e\u603b\u90e8\u6682\u65e0\u6cd5\u81ea\u52a8\u8bc6\u522b\uff0c\u8bf7\u8054\u7cfb\u7ba1\u7406\u5458\u5b8c\u5584\u6761\u7801\u914d\u7f6e");
+            throw new ServiceException("当前条码归属总部暂无法自动识别，请联系管理员完善条码配置");
         }
         if (hqCompanyIds.size() > 1) {
-            throw new ServiceException("\u5f53\u524d\u6761\u7801\u5f52\u5c5e\u603b\u90e8\u5b58\u5728\u591a\u4e2a\u5019\u9009\u9879\uff0c\u8bf7\u8054\u7cfb\u7ba1\u7406\u5458\u5b8c\u5584\u6761\u7801\u914d\u7f6e");
+            throw new ServiceException("当前条码归属总部存在多个候选项，请联系管理员完善条码配置");
         }
         return hqCompanyIds.get(0);
     }
@@ -2080,7 +2080,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     private Long resolveSelectedTargetCompanyId(Long selectedTargetCompanyId, List<SysCompanySimpleVO> targetOptions,
                                                String emptyMessage) {
         if (targetOptions == null || targetOptions.isEmpty()) {
-            throw new ServiceException("\u5f53\u524d\u6ca1\u6709\u53ef\u9009\u7684\u4e0a\u6e38\u53d7\u7406\u516c\u53f8");
+            throw new ServiceException("当前没有可选的上游受理公司");
         }
         Set<Long> allowedIds = targetOptions.stream()
                 .map(SysCompanySimpleVO::getId)
@@ -2093,7 +2093,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             throw new ServiceException(emptyMessage);
         }
         if (!allowedIds.contains(selectedTargetCompanyId)) {
-            throw new ServiceException("\u9009\u62e9\u7684\u4e0a\u6e38\u53d7\u7406\u516c\u53f8\u4e0d\u5728\u5141\u8bb8\u8303\u56f4\u5185");
+            throw new ServiceException("选择的上游受理公司不在允许范围内");
         }
         return selectedTargetCompanyId;
     }
@@ -2163,7 +2163,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                 .distinct()
                 .collect(Collectors.toList());
         if (firstCompanyIds.isEmpty()) {
-            throw new ServiceException("\u5f53\u524d\u516c\u53f8\u672a\u914d\u7f6e\u53ef\u62a5\u4fee\u7684\u4e00\u7ea7\u516c\u53f8");
+            throw new ServiceException("当前公司未配置可报修的一级公司");
         }
         LambdaQueryWrapper<HqFirstContract> contractWrapper = new LambdaQueryWrapper<>();
         contractWrapper.in(HqFirstContract::getFirstCompanyId, firstCompanyIds)
@@ -2177,7 +2177,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                 .distinct()
                 .collect(Collectors.toList());
         if (allowedFirstCompanyIds.isEmpty()) {
-            throw new ServiceException("\u5f53\u524d\u6761\u7801\u672a\u5339\u914d\u5230\u53ef\u62a5\u4fee\u7684\u4e00\u7ea7\u516c\u53f8");
+            throw new ServiceException("当前条码未匹配到可报修的一级公司");
         }
         return buildCompanySimpleVoList(allowedFirstCompanyIds);
     }
@@ -2197,7 +2197,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
         List<Long> hqCompanyIds = resolveCreateHqCompanyIds(currentCompanyId);
         if (hqCompanyIds.isEmpty()) {
-            throw new ServiceException("\u5f53\u524d\u516c\u53f8\u672a\u914d\u7f6e\u53ef\u62a5\u4fee\u7684\u4f73\u58eb\u603b\u90e8");
+            throw new ServiceException("当前公司未配置可报修的佳士总部");
         }
         return buildCompanySimpleVoList(hqCompanyIds);
     }
@@ -2228,25 +2228,25 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             if (!hasProductScope) {
                 return new CustomerFaultSelection(null, normalizeNullableText(faultRemark));
             }
-            throw new ServiceException("\u8bf7\u9009\u62e9\u6545\u969c\u63cf\u8ff0");
+            throw new ServiceException("请选择故障描述");
         }
         LinkedHashSet<String> allowedFaultOptions = new LinkedHashSet<>();
         if (hasProductScope) {
             List<String> configuredFaultOptions = listConfiguredFaultOptions(hqCompanyId, productCode, productModel);
             if (configuredFaultOptions.isEmpty()) {
-                throw new ServiceException("\u5f53\u524d\u4ea7\u54c1\u672a\u914d\u7f6e\u6545\u969c\u9879\uff0c\u4e0d\u80fd\u5efa\u5355\uff0c\u8bf7\u8054\u7cfb\u7ba1\u7406\u5458\u5b8c\u5584\u914d\u7f6e");
+                throw new ServiceException("当前产品未配置故障项，不能建单，请联系管理员完善配置");
             }
             allowedFaultOptions.addAll(configuredFaultOptions);
         }
         allowedFaultOptions.add(OTHER_FAULT_LABEL);
         for (String faultItem : normalizedFaultItems) {
             if (!allowedFaultOptions.contains(faultItem)) {
-                throw new ServiceException("\u6545\u969c\u63cf\u8ff0\u4e0d\u5728\u53ef\u9009\u8303\u56f4\u5185");
+                throw new ServiceException("故障描述不在可选范围内");
             }
         }
         String normalizedFaultRemark = normalizeNullableText(faultRemark);
         if (normalizedFaultItems.contains(OTHER_FAULT_LABEL) && normalizedFaultRemark == null) {
-            throw new ServiceException("\u9009\u62e9\u5176\u5b83\u6545\u969c\u65f6\u5fc5\u987b\u586b\u5199\u6545\u969c\u8bf4\u660e");
+            throw new ServiceException("选择其它故障时必须填写故障说明");
         }
         return new CustomerFaultSelection(String.join(FAULT_DESC_SEPARATOR, normalizedFaultItems), normalizedFaultRemark);
     }
@@ -2266,7 +2266,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         LinkedHashSet<String> result = new LinkedHashSet<>();
         result.addAll(listConfiguredFaultOptions(hqCompanyId, productCode, productModel));
         if (result.isEmpty()) {
-            throw new ServiceException("\u5f53\u524d\u4ea7\u54c1\u672a\u914d\u7f6e\u6545\u969c\u9879\uff0c\u4e0d\u80fd\u5efa\u5355\uff0c\u8bf7\u8054\u7cfb\u7ba1\u7406\u5458\u5b8c\u5584\u914d\u7f6e");
+            throw new ServiceException("当前产品未配置故障项，不能建单，请联系管理员完善配置");
         }
         result.add(OTHER_FAULT_LABEL);
         return new ArrayList<>(result);
@@ -2347,13 +2347,13 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     private String resolveCompanySubjectType(Long companyId) {
         SysCompany company = sysCompanyMapper.selectById(companyId);
         if (company == null) {
-            throw new ServiceException("\u76ee\u6807\u516c\u53f8\u4e0d\u5b58\u5728");
+            throw new ServiceException("目标公司不存在");
         }
         LambdaQueryWrapper<SysCompanyType> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysCompanyType::getTypeCode, company.getTypeCode());
         SysCompanyType companyType = sysCompanyTypeMapper.selectOne(wrapper);
         if (companyType == null) {
-            throw new ServiceException("\u76ee\u6807\u516c\u53f8\u7c7b\u578b\u4e0d\u5b58\u5728");
+            throw new ServiceException("目标公司类型不存在");
         }
         return companyType.getSubjectType();
     }
@@ -2361,7 +2361,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     private String requireCompanyTypeCode(Long companyId) {
         SysCompany company = sysCompanyMapper.selectById(companyId);
         if (company == null) {
-            throw new ServiceException("\u5f53\u524d\u53d7\u7406\u516c\u53f8\u4e0d\u5b58\u5728");
+            throw new ServiceException("当前受理公司不存在");
         }
         return company.getTypeCode();
     }
@@ -2397,7 +2397,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         if (FAULT_JUDGE_HAS_FAULT.equals(normalized) || FAULT_JUDGE_NO_FAULT.equals(normalized)) {
             return normalized;
         }
-        throw new ServiceException("\u6545\u969c\u5224\u5b9a\u53ea\u80fd\u4e3a\u6709\u6545\u969c\u6216\u65e0\u6545\u969c");
+        throw new ServiceException("故障判定只能为有故障或无故障");
     }
 
     /**
@@ -2407,11 +2407,11 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
      * @return 规范化后的服务方式编码
      */
     private String normalizeServiceMode(String serviceMode) {
-        String normalized = normalizeRequiredText(serviceMode, "\u670d\u52a1\u65b9\u5f0f\u4e0d\u80fd\u4e3a\u7a7a");
+        String normalized = normalizeRequiredText(serviceMode, "服务方式不能为空");
         if (ServiceModeEnum.getByCode(normalized) != null) {
             return normalized;
         }
-        throw new ServiceException("\u670d\u52a1\u65b9\u5f0f\u4ec5\u652f\u6301 MAIL \u6216 STORE");
+        throw new ServiceException("服务方式仅支持 MAIL 或 STORE");
     }
 
     private String normalizeNullableText(String value) {
@@ -2428,11 +2428,11 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
      * @return 规范化后的返回方式
      */
     private String normalizeReturnMethod(String returnMethod) {
-        String normalized = normalizeRequiredText(returnMethod, "\u673a\u5668\u8fd4\u56de\u65b9\u5f0f\u4e0d\u80fd\u4e3a\u7a7a");
+        String normalized = normalizeRequiredText(returnMethod, "机器返回方式不能为空");
         if (RETURN_METHOD_PICKUP.equals(normalized) || RETURN_METHOD_MAIL.equals(normalized)) {
             return normalized;
         }
-        throw new ServiceException("\u673a\u5668\u8fd4\u56de\u65b9\u5f0f\u4e0d\u5408\u6cd5");
+        throw new ServiceException("机器返回方式不合法");
     }
 
     private WorkOrder buildWorkOrderSnapshot(WorkOrderListVO target) {
@@ -2493,13 +2493,13 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     private void saveFault(Long repairId, Long workOrderId, Long companyId, RepairFaultSelection faultSelection,
                            NormalizedRepairContent repairContent) {
         if (repairContent == null) {
-            throw new ServiceException("\u7ef4\u4fee\u5185\u5bb9\u4e0d\u80fd\u4e3a\u7a7a");
+            throw new ServiceException("维修内容不能为空");
         }
         WorkOrderFault fault = new WorkOrderFault();
         fault.setWorkOrderId(workOrderId);
         fault.setRepairId(repairId);
         fault.setCompanyId(companyId);
-        fault.setFaultDesc(normalizeRequiredText(faultSelection.getFaultDesc(), "\u5de5\u5355\u6545\u969c\u63cf\u8ff0\u4e0d\u80fd\u4e3a\u7a7a"));
+        fault.setFaultDesc(normalizeRequiredText(faultSelection.getFaultDesc(), "工单故障描述不能为空"));
         fault.setFaultRemark(faultSelection.getFaultRemark());
         fault.setRepairDesc(repairContent.getRepairDesc());
         fault.setOtherDesc(repairContent.getOtherDesc());
@@ -2722,17 +2722,17 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
      */
     private void validateRepairItems(List<String> repairItems, Set<String> allowedOptions) {
         if (repairItems.isEmpty()) {
-            throw new ServiceException("\u7ef4\u4fee\u8bf4\u660e\u4e0d\u80fd\u4e3a\u7a7a");
+            throw new ServiceException("维修说明不能为空");
         }
         Set<String> duplicateCheck = new HashSet<>();
         for (String repairItem : repairItems) {
             if (!duplicateCheck.add(repairItem)) {
-                throw new ServiceException("\u7ef4\u4fee\u8bf4\u660e\u4e0d\u80fd\u91cd\u590d");
+                throw new ServiceException("维修说明不能重复");
             }
             if (!allowedOptions.isEmpty()
                     && !allowedOptions.contains(repairItem)
                     && !OTHER_REPAIR_OPTION.equals(repairItem)) {
-                throw new ServiceException("\u7ef4\u4fee\u8bf4\u660e\u4e0d\u5728\u5f53\u524d\u6545\u969c\u914d\u7f6e\u8303\u56f4\u5185");
+                throw new ServiceException("维修说明不在当前故障配置范围内");
             }
         }
     }

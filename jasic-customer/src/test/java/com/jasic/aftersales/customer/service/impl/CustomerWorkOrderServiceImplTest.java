@@ -19,6 +19,7 @@ import com.jasic.aftersales.customer.domain.entity.CUser;
 import com.jasic.aftersales.customer.domain.vo.CustomerBarcodeInfoVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerNearbyServiceCompanyVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerServiceCompanyOptionVO;
+import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderDetailVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderLatestSummaryVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerWorkOrderListVO;
 import com.jasic.aftersales.framework.security.StpCustomerUtil;
@@ -31,6 +32,7 @@ import com.jasic.aftersales.system.domain.entity.WorkOrder;
 import com.jasic.aftersales.system.domain.entity.WorkOrderEvaluation;
 import com.jasic.aftersales.system.domain.entity.WorkOrderFlow;
 import com.jasic.aftersales.system.domain.entity.WorkOrderQuote;
+import com.jasic.aftersales.system.domain.entity.WorkOrderRepair;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairFaultOptionVO;
 import com.jasic.aftersales.system.domain.vo.SysFileItemVO;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
@@ -41,6 +43,7 @@ import com.jasic.aftersales.system.mapper.WorkOrderEvaluationMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderFlowMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderQuoteMapper;
+import com.jasic.aftersales.system.mapper.WorkOrderRepairMapper;
 import com.jasic.aftersales.system.service.IFaultRepairConfigService;
 import com.jasic.aftersales.system.service.ISysConfigService;
 import com.jasic.aftersales.system.service.SysFileService;
@@ -471,6 +474,39 @@ public class CustomerWorkOrderServiceImplTest {
     }
 
     @Test
+    public void shouldReturnCurrentAcceptCompanyPhoneInWorkOrderDetail() throws Exception {
+        CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(81L);
+        workOrder.setCustomerId(200L);
+        workOrder.setCurrentAcceptCompanyId(31L);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN);
+        workOrder.setEvaluateStatus("NOT_OPEN");
+
+        setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder, new int[1]));
+        setField(service, "sysCompanyMapper", createCompanyMapperProxy(
+                buildNearbyCompany(31L, "Service A", "FIRST", "113.0000", "23.0000")
+        ));
+        setField(service, "workOrderQuoteMapper", createWorkOrderQuoteMapperProxy(Collections.<WorkOrderQuote>emptyList()));
+        setField(service, "workOrderRepairMapper", createWorkOrderRepairMapperProxy(Collections.<WorkOrderRepair>emptyList()));
+        setField(service, "workOrderEvaluationMapper",
+                createWorkOrderEvaluationMapperProxy(new ArrayList<WorkOrderEvaluation>(), 0L));
+        setField(service, "sysFileService", createNoopSysFileServiceProxy());
+
+        final CustomerWorkOrderDetailVO[] result = new CustomerWorkOrderDetailVO[1];
+        runWithCustomerLoginContext(200L, new ThrowingRunnable() {
+            @Override
+            public void run() {
+                result[0] = service.getById(81L);
+            }
+        });
+
+        Assert.assertNotNull(result[0]);
+        Assert.assertEquals("Service A", result[0].getCurrentAcceptCompanyName());
+        Assert.assertEquals("0755-00000031", result[0].getCurrentAcceptCompanyPhone());
+    }
+
+    @Test
     public void shouldHideUploadSenderVoucherWhenCurrentVoucherAlreadyExists() throws Exception {
         CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
         WorkOrder workOrder = new WorkOrder();
@@ -748,6 +784,19 @@ public class CustomerWorkOrderServiceImplTest {
                         }
                     }
                 }
+                if ("selectBatchIds".equals(method.getName())) {
+                    List<SysCompany> result = new ArrayList<>();
+                    Iterable<?> companyIds = (Iterable<?>) args[0];
+                    for (Object companyId : companyIds) {
+                        for (SysCompany company : companies) {
+                            if (company != null && company.getId().equals(companyId)) {
+                                result.add(company);
+                                break;
+                            }
+                        }
+                    }
+                    return result;
+                }
                 if ("selectList".equals(method.getName())) {
                     List<SysCompany> result = new ArrayList<>();
                     Collections.addAll(result, companies);
@@ -973,6 +1022,23 @@ public class CustomerWorkOrderServiceImplTest {
         return (WorkOrderQuoteMapper) Proxy.newProxyInstance(
                 WorkOrderQuoteMapper.class.getClassLoader(),
                 new Class<?>[]{WorkOrderQuoteMapper.class},
+                handler
+        );
+    }
+
+    private WorkOrderRepairMapper createWorkOrderRepairMapperProxy(List<WorkOrderRepair> repairs) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectList".equals(method.getName())) {
+                    return repairs;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (WorkOrderRepairMapper) Proxy.newProxyInstance(
+                WorkOrderRepairMapper.class.getClassLoader(),
+                new Class<?>[]{WorkOrderRepairMapper.class},
                 handler
         );
     }

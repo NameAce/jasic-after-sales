@@ -477,9 +477,11 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         detail.setCreateTime(workOrder.getCreateTime());
         fillAttachmentDetail(detail, buildWorkOrderFileMap(workOrderId));
 
-        Map<Long, String> companyNameMap = buildCompanyNameMap(Collections.singleton(workOrder.getCurrentAcceptCompanyId()));
+        Map<Long, SysCompany> companyMap = buildCompanyMap(Collections.singleton(workOrder.getCurrentAcceptCompanyId()));
         Map<Long, String> userNameMap = buildUserNameMap(Collections.singleton(workOrder.getAssignedUserId()));
-        detail.setCurrentAcceptCompanyName(companyNameMap.get(workOrder.getCurrentAcceptCompanyId()));
+        SysCompany currentAcceptCompany = companyMap.get(workOrder.getCurrentAcceptCompanyId());
+        detail.setCurrentAcceptCompanyName(currentAcceptCompany == null ? null : currentAcceptCompany.getCompanyName());
+        detail.setCurrentAcceptCompanyPhone(currentAcceptCompany == null ? null : currentAcceptCompany.getContactPhone());
         detail.setAssignedUserName(userNameMap.get(workOrder.getAssignedUserId()));
         detail.setQuotes(listQuoteVos(workOrderId));
         detail.setRepairs(listRepairVos(workOrderId));
@@ -1256,15 +1258,34 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return WorkOrderStatusConstants.resolveDisplayStatusLabel(mainStatus);
     }
 
-    private Map<Long, String> buildCompanyNameMap(Set<Long> companyIds) {
+    private Map<Long, SysCompany> buildCompanyMap(Set<Long> companyIds) {
         if (companyIds == null || companyIds.isEmpty()) {
             return Collections.emptyMap();
         }
-        List<SysCompany> companies = sysCompanyMapper.selectBatchIds(companyIds);
-        Map<Long, String> map = new HashMap<>(companies.size());
+        List<Long> validCompanyIds = companyIds.stream().filter(id -> id != null).collect(Collectors.toList());
+        if (validCompanyIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<SysCompany> companies = sysCompanyMapper.selectBatchIds(validCompanyIds);
+        Map<Long, SysCompany> map = new HashMap<>(companies.size());
         for (SysCompany company : companies) {
             if (company != null) {
-                map.put(company.getId(), company.getCompanyName());
+                map.put(company.getId(), company);
+            }
+        }
+        return map;
+    }
+
+    private Map<Long, String> buildCompanyNameMap(Set<Long> companyIds) {
+        Map<Long, SysCompany> companyMap = buildCompanyMap(companyIds);
+        if (companyMap.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<Long, String> map = new HashMap<>(companyMap.size());
+        for (Map.Entry<Long, SysCompany> entry : companyMap.entrySet()) {
+            SysCompany company = entry.getValue();
+            if (company != null) {
+                map.put(entry.getKey(), company.getCompanyName());
             }
         }
         return map;
