@@ -3,7 +3,7 @@
     <!-- 搜索 -->
     <view class="atm-search">
       <view class="search-box">
-        <uni-icons type="search" size="24" color="#cbd5e1"></uni-icons>
+        <uni-icons type="search" size="24" color="#cbd5e1" class="icon"></uni-icons>
         <input
           v-model="searchQuery"
           class="input"
@@ -221,6 +221,7 @@
       .icon {
         position: absolute;
         left: 24rpx;
+        pointer-events: none;
         color: $text-slate-400;
         font-size: 40rpx;
       }

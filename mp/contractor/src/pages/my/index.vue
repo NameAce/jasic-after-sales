@@ -2,11 +2,16 @@
   <view class="my-page">
     <!-- 头部区域 -->
     <view class="header-section">
+      <custom-nav-bar title="我的" surface="transparent" tone="light" :show-back="false" />
       <!-- 用户信息 -->
       <view class="profile-info">
         <view class="avatar-container">
           <view class="avatar-wrap">
-            <image class="avatar-img" mode="aspectFill" :src="profileData.avatar" />
+            <image
+              class="avatar-img"
+              mode="aspectFill"
+              :src="profileData.avatar || defaultAvatar"
+            />
           </view>
           <view class="verified-badge">
             <image class="icon-verified" :src="verifiedIcon" mode="aspectFit" />
@@ -27,29 +32,32 @@
 
     <!-- 功能列表 -->
     <view class="menu-list-wrap">
-      <view class="menu-list">
-        <view
-          v-for="(item, idx) in menuItems"
-          :key="idx"
-          class="menu-item"
-          hover-class="menu-item-hover"
-          @tap="onMenuItemTap(item)"
-        >
-          <view class="menu-item-left">
-            <view class="icon-wrap">
-              <image
-                v-if="MENU_ICON_MAP[item.icon]"
-                class="menu-icon-img"
-                :src="MENU_ICON_MAP[item.icon]"
-                mode="aspectFit"
-              />
+      <view class="common-feature-card">
+        <text class="common-feature-title">常用功能</text>
+
+        <view class="menu-list">
+          <view
+            v-for="(item, idx) in menuItems"
+            :key="idx"
+            class="menu-item"
+            hover-class="menu-item-hover"
+            @tap="onMenuItemTap(item)"
+          >
+            <view class="menu-item-left">
+              <view class="icon-wrap">
+                <image
+                  v-if="MENU_ICON_MAP[item.icon]"
+                  class="menu-icon-img"
+                  :src="MENU_ICON_MAP[item.icon]"
+                  mode="aspectFit"
+                />
+              </view>
+              <text class="menu-text">{{ item.label }}</text>
             </view>
-            <text class="menu-text">{{ item.label }}</text>
+            <uni-icons type="right" size="18" color="#cbd5e1"></uni-icons>
           </view>
-          <uni-icons type="right" size="18" color="#cbd5e1"></uni-icons>
         </view>
       </view>
-
       <!-- 退出当前账号 -->
       <view class="logout-wrap">
         <button class="btn-logout" hover-class="btn-logout-hover" @tap="onLogout">
@@ -67,6 +75,8 @@
   import { Perms } from '@/utils/permissions'
   import { buildUserProfile, DEFAULT_MY_MENU } from '@/models/user'
   import { verifiedIcon, postAddIcon, menuInfoIcon, logoutIcon, locationOnIcon } from '@/svgs'
+  import defaultAvatar from '@/static/images/default-avatar.jpg'
+  import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   // 菜单图标映射
   const MENU_ICON_MAP: Record<string, string> = {
     post_add: postAddIcon,
@@ -139,23 +149,23 @@
   }
 
   .header-section {
-    background: $my-header-gradient;
-    padding: 0 48rpx 106rpx;
-    padding-top: calc(var(--status-bar-height) + 100rpx);
-    border-bottom-left-radius: 64rpx;
-    border-bottom-right-radius: 64rpx;
+    background: $primary;
+    padding: 0 48rpx 96rpx;
+    border-bottom-left-radius: 48rpx;
+    border-bottom-right-radius: 48rpx;
+    box-shadow: 0 20rpx 30rpx -6rpx rgba(0, 0, 0, 0.1);
 
     .profile-info {
       display: flex;
       align-items: center;
-      gap: 40rpx;
+      gap: 32rpx;
 
       .avatar-container {
         position: relative;
 
         .avatar-wrap {
-          width: 140rpx;
-          height: 140rpx;
+          width: 160rpx;
+          height: 160rpx;
           border-radius: 50%;
           border: 6rpx solid rgba(255, 255, 255, 0.3);
           background-color: rgba(255, 255, 255, 0.1);
@@ -202,6 +212,7 @@
             color: $surface-white;
             font-size: 48rpx;
             font-weight: bold;
+            line-height: 1.2;
             letter-spacing: -1rpx;
           }
 
@@ -222,7 +233,7 @@
           align-items: center;
           gap: 12rpx;
           color: rgba(255, 255, 255, 0.9);
-          font-size: 26rpx;
+          font-size: 28rpx;
           font-weight: 500;
 
           .id-label {
@@ -235,20 +246,70 @@
   }
 
   .menu-list-wrap {
-    margin-top: 32rpx;
+    margin-top: -48rpx;
     padding: 0 40rpx;
     display: flex;
     flex-direction: column;
     gap: 24rpx;
 
-    .menu-list {
+    .common-feature-card {
       background-color: $surface-white;
       border-radius: 24rpx;
-      overflow: hidden;
+      padding: 32rpx;
       box-shadow:
         0 20rpx 50rpx -10rpx rgba(0, 0, 0, 0.05),
         0 16rpx 20rpx -12rpx rgba(0, 0, 0, 0.05);
 
+      .common-feature-title {
+        display: block;
+        color: #0f172a;
+        font-size: 34rpx;
+        font-weight: 600;
+        margin-bottom: 20rpx;
+      }
+
+      .common-feature-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14rpx 0;
+        transition: background-color 0.2s;
+
+        &-hover {
+          background-color: $surface-slate-50;
+        }
+
+        .common-feature-left {
+          display: flex;
+          align-items: center;
+          gap: 18rpx;
+        }
+
+        .common-feature-icon-wrap {
+          width: 40rpx;
+          height: 40rpx;
+          border-radius: 50%;
+          background-color: rgba(251, 146, 60, 0.16);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .common-feature-icon {
+          width: 26rpx;
+          height: 26rpx;
+          display: block;
+        }
+
+        .common-feature-text {
+          color: #334155;
+          font-size: 30rpx;
+          font-weight: 500;
+        }
+      }
+    }
+
+    .menu-list {
       .menu-item {
         display: flex;
         align-items: center;
@@ -282,9 +343,9 @@
           }
 
           .menu-text {
-            color: $text-slate-700;
-            font-weight: 600;
-            font-size: 26rpx;
+            color: #334155;
+            font-weight: 500;
+            font-size: 30rpx;
           }
         }
       }
@@ -297,8 +358,8 @@
         width: 100%;
         background-color: $surface-white;
         color: $red-500;
-        font-weight: bold;
-        font-size: 28rpx;
+        font-weight: 600;
+        font-size: 32rpx;
         padding: 40rpx 0;
         border-radius: 48rpx;
         box-shadow:

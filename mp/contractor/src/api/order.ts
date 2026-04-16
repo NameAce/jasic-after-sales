@@ -309,11 +309,13 @@ function mapWorkOrderToListItem(vo: WorkOrderListVO): OrderListItem {
   const repairMethodLabel = repairMethodRaw || undefined
   const repairPriceText = formatListRepairPriceText(vo.quoteAmount)
   const acceptPhone = String(vo.currentAcceptCompanyPhone ?? '').trim()
+  const assignedUserName = String(vo.assignedUserName ?? '').trim()
   return {
     id: String(vo.id),
     orderNo: vo.orderNo,
     mainStatus: vo.mainStatus,
     assignedUserId: vo.assignedUserId,
+    assignedUserName: assignedUserName || undefined,
     status,
     brandType: brandNorm || undefined,
     brandTypeLabel: brandTypeLabelRaw || undefined,
@@ -1172,11 +1174,19 @@ export type WorkOrderTechAcceptDTO = {
   /** 工单ID */
   workOrderId: number
   /** 故障判定（与详情页一致：有故障 | 无故障） */
-  faultJudge?: string
+  faultJudge: string
   /** 维修报价金额 */
   quoteAmount?: number
   /** 报价说明 */
   quoteDesc?: string
+  /** 关闭原因（无故障场景） */
+  closeReason?: string
+  /** 机器返回方式（与后端一致：自提 | 回寄） */
+  returnMethod?: string
+  /** 回寄快递单号 */
+  returnExpressNo?: string
+  /** 回寄凭证文件ID */
+  returnVoucherFileIds?: number[]
 }
 
 /** 维修登记 / 复检 body 内配件明细（WorkOrderFaultPartItemDTO） */

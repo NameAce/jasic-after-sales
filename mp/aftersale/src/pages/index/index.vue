@@ -150,6 +150,7 @@
     taskCompleteIcon,
     tvGenIcon
   } from '@/svgs'
+  import { log } from 'node:console'
 
   /** 首页报修卡片背景（本地 static，小程序用 image 更稳） */
   const cardJasicBg = '/static/images/card-jasic-bg.jpg'

@@ -72,15 +72,6 @@
             />
           </uni-forms-item>
 
-          <uni-forms-item
-            v-if="showContactMobileField"
-            label="客户姓名"
-            name="customerName"
-            required
-          >
-            <uni-easyinput v-model="formData.customerName" placeholder="请输入客户姓名" />
-          </uni-forms-item>
-
           <!-- 故障描述：仅当条码查询接口返回非空 faultOptions 时展示（下拉多选） -->
           <uni-forms-item
             v-if="barcodeQueryHasFaultDescription"
@@ -413,7 +404,14 @@
     if (!Array.isArray(faultOptions)) return []
     const otherLabel = String(otherFaultLabel || '').trim()
     const list = faultOptions
-      .map((item) => String(item || '').trim())
+      .map((item) => {
+        if (typeof item === 'string') return item.trim()
+        if (item && typeof item === 'object') {
+          const o = item as { label?: unknown; text?: unknown; value?: unknown; name?: unknown }
+          return String(o.label ?? o.text ?? o.value ?? o.name ?? '').trim()
+        }
+        return String(item ?? '').trim()
+      })
       .filter(Boolean)
       .map((label) => {
         const isOther =
@@ -506,9 +504,6 @@
           { required: true, errorMessage: '请输入客户手机号码' },
           { pattern: MOBILE_PATTERN, errorMessage: '请输入正确的手机号码' }
         ]
-      }
-      base.customerName = {
-        rules: [{ required: true, errorMessage: '请输入客户姓名' }]
       }
     }
     if (formType === 'jasic' && formData.value.repairType === 'MAIL') {
@@ -670,6 +665,7 @@
     try {
       const { data: info, msg } = await request
       uni.hideLoading()
+      // 故障描述下拉严格使用条码查询返回的 faultOptions
       const list = mapFaultOptionsToSelect(info?.faultOptions, info?.otherFaultLabel)
       faultDescriptionOptionsFromApi.value = list
       const hasFd = list.length > 0
@@ -789,7 +785,6 @@
         isRestoringTabSnapshot.value = false
         getFormRef()?.clearValidate?.([
           'contactMobile',
-          'customerName',
           'repairType',
           'faultDescription',
           'faultRemark',
@@ -1033,7 +1028,6 @@
     nextTick(() => {
       getFormRef()?.clearValidate?.([
         'contactMobile',
-        'customerName',
         'repairType',
         'faultDescription',
         'faultRemark',

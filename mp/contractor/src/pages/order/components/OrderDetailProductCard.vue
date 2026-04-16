@@ -5,11 +5,7 @@
       <text class="section-title">商品信息</text>
     </view>
     <view class="od-apply-info-list">
-      <view v-if="hasVal(product.model)" class="info-item">
-        <text class="info-label">机器型号</text>
-        <text class="info-value">{{ product.model }}</text>
-      </view>
-      <view v-else-if="showModelInput" class="info-item info-item--input">
+      <view v-if="showModelInput" class="info-item info-item--input">
         <text class="info-label">机器型号</text>
         <input
           v-model.trim="modelInputValue"
@@ -19,6 +15,10 @@
           placeholder-class="model-input-placeholder-v2"
           :maxlength="60"
         />
+      </view>
+      <view v-else-if="hasVal(product.model)" class="info-item">
+        <text class="info-label">机器型号</text>
+        <text class="info-value">{{ product.model }}</text>
       </view>
       <view v-if="hasVal(product.brandName)" class="info-item">
         <text class="info-label">品牌</text>
@@ -60,6 +60,7 @@
   const show = computed(() => {
     const p = props.product
     return (
+      !!props.showModelInput ||
       hasVal(p.model) ||
       hasVal(p.brandName) ||
       hasVal(p.barcode) ||

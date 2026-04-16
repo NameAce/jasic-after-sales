@@ -124,6 +124,10 @@
       >
         <!-- 额外信息 -->
         <template #extra-info="{ order }">
+          <view v-if="getAssignedUserName(order)" class="info-item">
+            <text class="label">当前维修人员</text>
+            <text class="value value-repair-assignee">{{ getAssignedUserName(order) }}</text>
+          </view>
           <view v-if="isHqProcessView && order.source" class="info-item">
             <text class="label">申请来源</text>
             <text class="value">{{ order.source }}</text>
@@ -286,9 +290,6 @@
   type PrimaryTab = 'untransferred' | 'transferred'
   type SecondaryTab = 'all' | 'pending' | 'pending_accept' | 'processing' | 'completed' | 'closed'
 
-  /** 派单弹窗：选此项表示派单给自己，进入「待接单」（mainStatus=PENDING_TECH_ACCEPT） */
-  const DISPATCHER_SELF_TECH_ID = 'dispatcher_self'
-
   // 应用商店
   const appStore = useAppStore()
   // 用户商店
@@ -371,6 +372,10 @@
     }
     return statusTextMap[status]
   }
+
+  /** 兼容字段类型未同步时读取当前处理人姓名 */
+  const getAssignedUserName = (order: OrderListItem) =>
+    ((order as { assignedUserName?: string }).assignedUserName ?? '').trim()
 
   // 搜索关键词
   const searchQuery = ref('')
@@ -814,28 +819,20 @@
       return
     }
 
-    const base: Technician[] = [
-      {
-        id: DISPATCHER_SELF_TECH_ID,
-        name: '本人（派单员）',
-        avatar: '',
-        isRecommend: true,
-        desc: '派单给自己后，在「待接单」中接单维修',
-        distance: '',
-        time: '',
-        isBusy: false
-      }
-    ]
-    technicianList.value = base
+    technicianList.value = []
 
     const workOrderId = Number(openedFor)
     if (!Number.isFinite(workOrderId) || workOrderId <= 0) return
     fetchAssignUserOptions(workOrderId)
       .then((list) => {
         if (String(currentOrderId.value).trim() !== openedFor) return
+        const selfId = Number(userStore.userInfo?.id)
         const mapped: Technician[] = list.map((u) => ({
           id: u.id,
-          name: u.realName || u.phone || `用户${u.id}`,
+          name:
+            Number(u.id) === selfId
+              ? `${u.realName || u.phone || `用户${u.id}`}（本人）`
+              : u.realName || u.phone || `用户${u.id}`,
           phone: u.phone || '',
           avatar: '',
           desc: u.phone || '',
@@ -844,7 +841,7 @@
           time: '',
           isBusy: false
         }))
-        technicianList.value = base.concat(mapped)
+        technicianList.value = mapped
       })
       .catch(() => {
         // http.ts 内已有 toast；这里不重复提示
@@ -877,22 +874,13 @@
       return
     }
 
-    const isSelf = payload?.selectedTechId === DISPATCHER_SELF_TECH_ID
-    const selfId = userStore.userInfo?.id
-    if (isSelf) {
-      if (!selfId || !Number.isFinite(selfId) || selfId <= 0) {
-        uni.showToast({ title: '无法获取当前用户，请重新登录', icon: 'none' })
-        return
-      }
-    } else {
-      const assignedUserId = Number(payload?.selectedTechId)
-      if (!Number.isFinite(assignedUserId) || assignedUserId <= 0) {
-        uni.showToast({ title: '维修员ID无效', icon: 'none' })
-        return
-      }
+    const assignedUserId = Number(payload?.selectedTechId)
+    if (!Number.isFinite(assignedUserId) || assignedUserId <= 0) {
+      uni.showToast({ title: '维修员ID无效', icon: 'none' })
+      return
     }
-
-    const assignedUserId = isSelf ? Number(selfId) : Number(payload?.selectedTechId)
+    const selfId = Number(userStore.userInfo?.id)
+    const isSelf = Number.isFinite(selfId) && selfId > 0 && assignedUserId === selfId
     try {
       const res = await assignWorkOrder({ workOrderId, assignedUserId })
       if (isSelf) {
@@ -1268,6 +1256,12 @@
 
 <style lang="scss" scoped>
   .order-list-page {
+    /* 插槽渲染在 OrderCardList 内，需穿透 scoped */
+    :deep(.value-repair-assignee) {
+      color: $emerald-600;
+      font-weight: 600;
+    }
+
     .order-list-scroll {
       padding-top: $space-md;
       box-sizing: border-box;

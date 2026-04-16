@@ -108,9 +108,7 @@
           <OrderDetailProductCard
             v-model:model-input="machineModelInput"
             :product="order.product"
-            :show-model-input="
-              canEditFaultPoint && hasVal(order.product?.barcode) && !hasVal(order.product?.model)
-            "
+            :show-model-input="canEditFaultPoint && !!order.brand?.isJiashi"
           />
           <OrderDetailServiceCard :service="order.service" />
         </template>
@@ -220,7 +218,6 @@
   import OrderDetailServiceCard from './components/OrderDetailServiceCard.vue'
   import OrderDetailStatusBanner from './components/OrderDetailStatusBanner.vue'
   import {
-    closeWorkOrder,
     fetchOrderDetail,
     fetchRepairFaultOptions,
     submitWorkOrderRepair,
@@ -301,6 +298,8 @@
 
   // 维修中 - 故障点登记
   const machineModelInput = ref('')
+  /** 仅佳士且详情无型号时，维修登记/复检提交需强制补填机器型号 */
+  const requireMachineModelForJiashi = ref(false)
   const repairDescSelect = ref<string[]>([])
   // 其它维修说明
   const otherRepairDesc = ref('')
@@ -472,6 +471,8 @@
         orderStatus.value = detail.status
       }
       machineModelInput.value = String(detail.product?.model ?? '').trim()
+      requireMachineModelForJiashi.value =
+        !!detail.brand?.isJiashi && !hasVal(detail.product?.model)
 
       // 待接单·接单入口：用详情当前报价（quotes → repair.faultJudge 等）回显表单
       if (detailEntryAction.value === 'accept' && detail.status === 'pending') {
@@ -539,7 +540,8 @@
       }
 
       // 维修登记 / 复检：默认进「维修过程」；
-      // 仅在「有条码且机器型号为空」时，首次进「申请内容」便于补全型号
+      // 佳士品牌仅在「机器型号为空」时，首次进「申请内容」便于补全型号；
+      // 非佳士默认进「维修过程」
       if (
         !repairEntryTabInitialized.value &&
         (detailEntryAction.value === 'repair' || detailEntryAction.value === 'recheck')
@@ -550,9 +552,9 @@
           detailEntryAction.value === 'recheck' && orderStatus.value === 'completed'
         if (repairEntry || recheckEntry) {
           repairEntryTabInitialized.value = true
-          const hasBarcode = hasVal(order.value.product?.barcode)
+          const isJiashiBrand = !!order.value.brand?.isJiashi
           const hasModel = hasVal(order.value.product?.model)
-          currentTab.value = hasBarcode && !hasModel ? 0 : 1
+          currentTab.value = isJiashiBrand && !hasModel ? 0 : 1
         }
       }
     } catch (e) {
@@ -620,7 +622,7 @@
   }
 
   /**
-   * 携带返回方式数据调用关闭工单
+   * 无故障维修完成：携带返回方式数据调用维修员接单接口（tech-accept）
    */
   const submitCloseOrderWithReturnPayload = async (
     payload: ReturnMethodConfirmPayload,
@@ -637,10 +639,20 @@
       return
     }
 
+    const parsedQuote = parseOptionalRepairQuoteAmount(repairQuoteInput.value)
+    if (!parsedQuote.ok) {
+      uni.showToast({ title: '维修报价格式不正确', icon: 'none' })
+      return
+    }
+    const qd = (quoteDescInput.value || '').trim()
+
     const base = {
       workOrderId: wid,
+      faultJudge: '无故障',
       closeReason: cr,
-      returnMethod: payload.type === 'self' ? '自提' : '回寄'
+      returnMethod: payload.type === 'self' ? '自提' : '回寄',
+      ...(parsedQuote.value !== undefined ? { quoteAmount: parsedQuote.value } : {}),
+      ...(qd ? { quoteDesc: qd } : {})
     } as const
     const dto =
       payload.type === 'mail'
@@ -654,7 +666,7 @@
 
     uni.showLoading({ title: '提交中...' })
     try {
-      const res = await closeWorkOrder(dto)
+      const res = await techAcceptWorkOrder(dto)
       appStore.markOrderListScrollRefresherOnNextShow()
       closeOrderReturnMethodPayload.value = null
       uni.showToast({
@@ -666,7 +678,7 @@
         uni.navigateBack()
       }, 1500)
     } catch {
-      // closeWorkOrder 内已 toast
+      // techAcceptWorkOrder 内已 toast
     } finally {
       uni.hideLoading()
     }
@@ -761,6 +773,20 @@
     if (!canOperateTransferredOrder.value) {
       uni.showToast({ title: '转出网点不可操作此工单', icon: 'none' })
       return
+    }
+
+    // 仅“佳士品牌且详情原始型号为空”时，提交维修登记/复检需强制补填机器型号
+    if (requireMachineModelForJiashi.value) {
+      const machineModel = String(machineModelInput.value || '').trim()
+      if (!machineModel) {
+        currentTab.value = 0
+        uni.showToast({ title: '请填写机器型号', icon: 'none' })
+        return
+      }
+      machineModelInput.value = machineModel
+      if (order.value.product) {
+        order.value.product.model = machineModel
+      }
     }
 
     const repairItems = repairDescSelect.value.map((x) => String(x || '').trim()).filter(Boolean)

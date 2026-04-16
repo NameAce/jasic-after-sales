@@ -6,6 +6,7 @@ const KEY_OTHER = 'repairFormDraft_other_v1'
 const KEY_JASIC = 'repairFormDraft_jasic_v1'
 
 export interface OtherRepairDraftForm {
+  warrantyCode: string
   centerId: string | number | null
   faultDescription: string
   repairType: string
@@ -85,10 +86,14 @@ export function applyOtherRepairDraft(
   preserveServicePoint: boolean
 ): void {
   if (!draft?.formData) return
+  const normalizedFormData: OtherRepairDraftForm = {
+    warrantyCode: String((draft.formData as { warrantyCode?: unknown }).warrantyCode ?? ''),
+    ...draft.formData
+  }
   if (preserveServicePoint) {
-    formData.value = { ...draft.formData, centerId: formData.value.centerId }
+    formData.value = { ...normalizedFormData, centerId: formData.value.centerId }
   } else {
-    formData.value = { ...draft.formData }
+    formData.value = { ...normalizedFormData }
     selectedCenterDisplay.value = draft.selectedCenterDisplay ?? ''
   }
   showSupplementSection.value = !!draft.showSupplementSection
@@ -160,7 +165,7 @@ export function applyJasicRepairDraft(
     barcodeQueryHasFaultDescription.value =
       draft.barcodeQueryHasFaultDescription ??
       (!!formData.value.warrantyCode &&
-        (formData.value.faultDescription !== '' || formData.value.faultRemark !== ''))
+        (formData.value.faultDescription.length > 0 || formData.value.faultRemark !== ''))
   }
   // 须在 formData 赋值之后：watch(条码) 会先清空查询态，这里再写回暂存的查询结果
   if (lastBarcodeInfo) {

@@ -310,6 +310,8 @@ export type OrderListItem = {
   /** 列表接口原始主状态（PENDING_ASSIGN 等） */
   mainStatus?: string
   assignedUserId?: number
+  /** 当前处理人姓名（有值时列表可展示） */
+  assignedUserName?: string
   status: OrderStatus
   /** 接口 `brandType` 归一化大写，如 JASIC、NON_JASIC */
   brandType?: string

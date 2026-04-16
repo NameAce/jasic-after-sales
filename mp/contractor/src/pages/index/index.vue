@@ -83,9 +83,6 @@
   import { assignWorkOrder, fetchAssignUserOptions } from '@/api/order'
   import { getApiMessage } from '@/utils/http'
 
-  /** 派单弹窗：选此项表示派单给自己，在「待接单」中接单（与订单列表页一致） */
-  const DISPATCHER_SELF_TECH_ID = 'dispatcher_self'
-
   const appStore = useAppStore()
   const userStore = useUserStore()
   /** 是否是总部工作台 */
@@ -199,20 +196,7 @@
     currentOrderId.value = openedFor
     showAssignModal.value = true
     selectedTechId.value = null
-
-    const base: Technician[] = [
-      {
-        id: DISPATCHER_SELF_TECH_ID,
-        name: '本人（派单员）',
-        avatar: '',
-        isRecommend: true,
-        desc: '派单给自己后，在「待接单」中接单维修',
-        distance: '',
-        time: '',
-        isBusy: false
-      }
-    ]
-    technicianList.value = base
+    technicianList.value = []
 
     const workOrderId = Number(openedFor)
     if (!Number.isFinite(workOrderId) || workOrderId <= 0) return
@@ -220,9 +204,13 @@
       uni.showLoading({ title: '加载可派单人员...' })
       const list = await fetchAssignUserOptions(workOrderId)
       if (String(currentOrderId.value).trim() !== openedFor) return
+      const selfId = Number(userStore.userInfo?.id)
       const mapped: Technician[] = list.map((u) => ({
         id: u.id,
-        name: u.realName || u.phone || `用户${u.id}`,
+        name:
+          Number(u.id) === selfId
+            ? `${u.realName || u.phone || `用户${u.id}`}（本人）`
+            : u.realName || u.phone || `用户${u.id}`,
         phone: u.phone || '',
         avatar: '',
         desc: u.phone || '',
@@ -231,7 +219,7 @@
         time: '',
         isBusy: false
       }))
-      technicianList.value = base.concat(mapped)
+      technicianList.value = mapped
     } finally {
       uni.hideLoading()
     }
@@ -273,22 +261,13 @@
       return
     }
 
-    const isSelf = payload?.selectedTechId === DISPATCHER_SELF_TECH_ID
-    const selfId = userStore.userInfo?.id
-    if (isSelf) {
-      if (!selfId || !Number.isFinite(selfId) || selfId <= 0) {
-        uni.showToast({ title: '无法获取当前用户，请重新登录', icon: 'none' })
-        return
-      }
-    } else {
-      const assignedUserId = Number(payload?.selectedTechId)
-      if (!Number.isFinite(assignedUserId) || assignedUserId <= 0) {
-        uni.showToast({ title: '维修员ID无效', icon: 'none' })
-        return
-      }
+    const assignedUserId = Number(payload?.selectedTechId)
+    if (!Number.isFinite(assignedUserId) || assignedUserId <= 0) {
+      uni.showToast({ title: '维修员ID无效', icon: 'none' })
+      return
     }
-
-    const assignedUserId = isSelf ? Number(selfId) : Number(payload?.selectedTechId)
+    const selfId = Number(userStore.userInfo?.id)
+    const isSelf = Number.isFinite(selfId) && selfId > 0 && assignedUserId === selfId
     try {
       const res = await assignWorkOrder({ workOrderId, assignedUserId })
       if (isSelf) {

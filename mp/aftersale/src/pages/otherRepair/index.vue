@@ -9,8 +9,31 @@
       label-position="top"
       label-width="auto"
     >
-      <!-- 表单内容 -->
       <view class="form-content page-padding">
+        <view class="card card-shadow">
+          <view class="card-header">
+            <view class="icon-box">
+              <uni-icons type="vip-filled" size="24" color="#f26604"></uni-icons>
+            </view>
+            <view class="header-text">
+              <view>商品查询</view>
+              <text>请输入或扫描产品条形码查询状态</text>
+            </view>
+          </view>
+          <view class="search-box">
+            <view class="search-box-main">
+              <FormItemAnchor name="warrantyCode" />
+              <uni-easyinput
+                v-model="formData.warrantyCode"
+                placeholder="输入产品条形码"
+                suffix-icon="scan"
+                @icon-click="handleScan"
+              />
+            </view>
+            <button class="btn btn-primary mini-btn" @click="checkWarranty">查询</button>
+          </view>
+        </view>
+        <!-- 表单内容 -->
         <!-- 必填信息 -->
         <RepairFormSectionHeader title="必填信息" />
         <!-- 必填信息卡片 -->
@@ -150,7 +173,12 @@
   import { useUserStore } from '@/stores/modules/user'
   import { useServicePointSelection } from '@/composables/useServicePointSelection'
   import { useSupplementSection } from '@/composables/useSupplementSection'
-  import { createCustomerWorkOrderAPI, type CreateCustomerWorkOrderDTO } from '@/api/order'
+  import {
+    createCustomerWorkOrderAPI,
+    getBarcodeInfoAPI,
+    mapBarcodeFaultOptions,
+    type CreateCustomerWorkOrderDTO
+  } from '@/api/order'
   import { scrollToFirstInvalidUniFormField } from '@/utils/formFieldScrollFocus'
   import { validateFaultMediaSelection } from '@/utils/repairMediaLimits'
   import {
@@ -168,6 +196,7 @@
   } from '@/utils/repairDraftStorage'
   import { takeSelectedShippingAddress, type SelectedShippingAddress } from '@/utils/addressStorage'
   import { parseUnknownError } from '@/utils/errorMessage'
+  import { API_SUCCESS_CODE } from '@/utils/http'
   import {
     resolveSendExpressNoForSubmit,
     resolveShippingSubmitFields
@@ -176,6 +205,7 @@
   const formRef = ref(null)
   // 表单数据
   const formData: Ref<OtherRepairDraftForm> = ref({
+    warrantyCode: '',
     centerId: null,
     faultDescription: '',
     repairType: 'STORE',
@@ -201,13 +231,10 @@
   // 使用补充说明
   const { showSupplementSection, toggleSupplementSection } = useSupplementSection(false)
   const userStore = useUserStore()
-  const faultDescriptionOptions = ref([
-    { text: '2', value: '2' },
-    { text: '3', value: '3' },
-    { text: '其它故障', value: 'OTHER' }
-  ])
+  const faultDescriptionOptions = ref<{ text: string; value: string }[]>([])
   const showFaultDescDropdown = ref(false)
   const draftFaultDesc = ref<string[]>([])
+  const TOAST_DURATION = 1500
   const selectedFaultDescText = computed(() => {
     const selectedValues = normalizeFaultDescSelection(formData.value.faultDescription)
     const selectedTexts = selectedValues
@@ -234,6 +261,10 @@
   }
 
   const openFaultDescDropdown = () => {
+    if (faultDescriptionOptions.value.length === 0) {
+      uni.showToast({ title: '请先查询条码获取故障描述', icon: 'none', duration: TOAST_DURATION })
+      return
+    }
     draftFaultDesc.value = normalizeFaultDescSelection(formData.value.faultDescription)
     showFaultDescDropdown.value = true
   }
@@ -265,6 +296,48 @@
     draftFaultDesc.value = []
     const form = formRef.value as { clearValidate?: (names?: string[]) => void } | null
     form?.clearValidate?.(['faultDescription'])
+  }
+
+  const handleScan = () => {
+    uni.scanCode({
+      success: (res) => {
+        formData.value.warrantyCode = res.result
+      }
+    })
+  }
+
+  const checkWarranty = async () => {
+    const barcode = String(formData.value.warrantyCode ?? '').trim()
+    if (!barcode) {
+      uni.showToast({ title: '请输入条形码', icon: 'none', duration: TOAST_DURATION })
+      return
+    }
+    uni.showLoading({ title: '查询中...' })
+    try {
+      const res = await getBarcodeInfoAPI({ barcode })
+      const mapped = mapBarcodeFaultOptions(res.result?.faultOptions)
+      faultDescriptionOptions.value = mapped
+      formData.value.faultDescription = ''
+      showFaultDescDropdown.value = false
+      draftFaultDesc.value = []
+      const form = formRef.value as { clearValidate?: (names?: string[]) => void } | null
+      form?.clearValidate?.(['faultDescription'])
+      uni.hideLoading()
+      uni.showToast({
+        title: mapped.length > 0 ? res.msg : '未查询到故障描述选项',
+        icon: res.code === API_SUCCESS_CODE && mapped.length > 0 ? 'success' : 'none',
+        duration: TOAST_DURATION
+      })
+    } catch (err: unknown) {
+      uni.hideLoading()
+      faultDescriptionOptions.value = []
+      formData.value.faultDescription = ''
+      uni.showToast({
+        title: parseUnknownError(err, '查询失败'),
+        icon: 'none',
+        duration: TOAST_DURATION
+      })
+    }
   }
 
   // 是否恢复暂存
@@ -424,7 +497,7 @@
     )
 
     const base: CreateCustomerWorkOrderDTO = {
-      barcode: '',
+      barcode: String(formData.value.warrantyCode ?? '').trim(),
       brandCode: brandNameTrim || 'OTHER',
       brandName: brandNameTrim || undefined,
       brandType: CUSTOMER_WORK_ORDER_REPORT_BIZ_TYPE.NON_JASIC,
@@ -539,6 +612,7 @@
     clearServicePointSelection()
     showSupplementSection.value = false
     formData.value = {
+      warrantyCode: '',
       centerId: null,
       faultDescription: '',
       repairType: 'STORE',
@@ -572,6 +646,54 @@
 </script>
 
 <style lang="scss">
+  .card-header {
+    @include flex-row;
+    justify-content: flex-start;
+    gap: $space-md;
+
+    .icon-box {
+      padding: $space-sm;
+      background-color: rgba($primary, 0.1);
+      border-radius: $radius-md;
+    }
+
+    .header-text {
+      view {
+        font-size: $font-md;
+        font-weight: bold;
+      }
+      text {
+        font-size: $font-sm;
+        color: $text-secondary;
+      }
+    }
+  }
+
+  .search-box {
+    @include flex-row;
+    gap: $space-sm;
+
+    .search-box-main {
+      position: relative;
+      flex: 1;
+    }
+
+    .btn {
+      flex: none;
+
+      &.mini-btn {
+        width: auto;
+        height: 88rpx;
+        margin: 0;
+      }
+
+      &:active {
+        opacity: 0.9;
+        transform: scale(0.98);
+      }
+    }
+  }
+
   .fault-desc-picker {
     @include flex-row;
     align-items: center;

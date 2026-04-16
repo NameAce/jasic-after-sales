@@ -35,6 +35,7 @@ export function useOrderDetailPage(options: {
   const isCompleted = computed(() => orderStatus.value === 'completed')
   const isClosed = computed(() => orderStatus.value === 'closed')
 
+  // 转单权限
   const canOperateTransferredOrder = computed(() =>
     canCurrentSiteOperateTransferredOrder(
       order.value.transferred,
