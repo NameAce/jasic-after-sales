@@ -747,7 +747,9 @@ public class CustomerWorkOrderServiceImplTest {
         company.setStatus(1);
         company.setCompanyName(companyName);
         company.setContactPhone("0755-000000" + id);
-        company.setAddress("Service Address " + id);
+        company.setDetailAddress("Service Address " + id);
+        company.setFullAddress("GuangdongShenzhenService Address " + id);
+        company.setGeocodeStatus("SUCCESS");
         if (longitude != null) {
             company.setLongitude(new BigDecimal(longitude));
         }

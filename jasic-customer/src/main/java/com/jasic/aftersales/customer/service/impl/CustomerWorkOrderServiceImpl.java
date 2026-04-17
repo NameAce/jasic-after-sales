@@ -104,6 +104,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     private static final DateTimeFormatter ORDER_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final int DEFAULT_NEARBY_LIMIT = 20;
     private static final int MAX_NEARBY_LIMIT = 50;
+    private static final String GEOCODE_STATUS_SUCCESS = "SUCCESS";
     private static final BigDecimal MIN_LONGITUDE = BigDecimal.valueOf(-180);
     private static final BigDecimal MAX_LONGITUDE = BigDecimal.valueOf(180);
     private static final BigDecimal MIN_LATITUDE = BigDecimal.valueOf(-90);
@@ -312,7 +313,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
                                                                                 Integer limit) {
         validateCoordinate(longitude, latitude);
         int normalizedLimit = normalizeNearbyLimit(limit);
-        List<SysCompany> companies = listActiveServiceCompanies();
+        List<SysCompany> companies = listNearbyEnabledServiceCompanies();
         if (companies.isEmpty()) {
             return Collections.emptyList();
         }
@@ -998,6 +999,24 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return sysCompanyMapper.selectList(wrapper);
     }
 
+    private List<SysCompany> listNearbyEnabledServiceCompanies() {
+        Set<String> typeCodes = new LinkedHashSet<>();
+        typeCodes.addAll(CompanyCategoryEnum.getFirstLevelTypeCodes());
+        typeCodes.addAll(CompanyCategoryEnum.getSecondLevelTypeCodes());
+        if (typeCodes.isEmpty()) {
+            return Collections.emptyList();
+        }
+        LambdaQueryWrapper<SysCompany> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(SysCompany::getTypeCode, typeCodes)
+                .eq(SysCompany::getStatus, 1)
+                .eq(SysCompany::getGeocodeStatus, GEOCODE_STATUS_SUCCESS)
+                .isNotNull(SysCompany::getLongitude)
+                .isNotNull(SysCompany::getLatitude)
+                .orderByAsc(SysCompany::getCompanyName)
+                .orderByAsc(SysCompany::getId);
+        return sysCompanyMapper.selectList(wrapper);
+    }
+
     /**
      * 仅在寄修模式下保留寄件字段，其余模式统一清空。
      *
@@ -1300,7 +1319,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         vo.setTypeCode(company.getTypeCode());
         vo.setTypeName(resolveServiceCompanyTypeName(company.getTypeCode()));
         vo.setContactPhone(company.getContactPhone());
-        vo.setAddress(company.getAddress());
+        vo.setAddress(resolveCompanyAddress(company));
         vo.setLongitude(company.getLongitude());
         vo.setLatitude(company.getLatitude());
         vo.setDistanceKm(calculateDistanceKm(longitude, latitude, company.getLongitude(), company.getLatitude()));
@@ -1315,8 +1334,16 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         vo.setTypeCode(company.getTypeCode());
         vo.setTypeName(resolveServiceCompanyTypeName(company.getTypeCode()));
         vo.setContactPhone(company.getContactPhone());
-        vo.setAddress(company.getAddress());
+        vo.setAddress(resolveCompanyAddress(company));
         return vo;
+    }
+
+    private String resolveCompanyAddress(SysCompany company) {
+        String fullAddress = normalizeText(company.getFullAddress());
+        if (fullAddress != null) {
+            return fullAddress;
+        }
+        return normalizeText(company.getDetailAddress());
     }
 
     private String resolveServiceCompanyTypeName(String typeCode) {

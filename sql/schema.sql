@@ -27,38 +27,64 @@ CREATE TABLE `sys_company_type` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='鍏徃绫诲瀷瀛楀吀琛?;
 
 -- -------------------------------------------
--- 2. 鍏徃琛?
+-- 2. 中国行政区划标准表
+-- -------------------------------------------
+DROP TABLE IF EXISTS `sys_area`;
+CREATE TABLE `sys_area` (
+  `area_code`    varchar(6)       NOT NULL                COMMENT '行政区编码',
+  `area_name`    varchar(64)      NOT NULL                COMMENT '行政区名称',
+  `parent_code`  varchar(6)       NOT NULL                COMMENT '父级编码',
+  `area_level`   varchar(16)      NOT NULL                COMMENT '层级(PROVINCE/CITY/DISTRICT)',
+  `full_name`    varchar(255)     DEFAULT NULL            COMMENT '完整名称',
+  `sort_num`     int              DEFAULT 0               COMMENT '排序',
+  `status`       tinyint unsigned DEFAULT 1               COMMENT '状态(1=启用,0=停用)',
+  `create_time`  datetime         NOT NULL                COMMENT '创建时间',
+  `update_time`  datetime         NOT NULL                COMMENT '更新时间',
+  PRIMARY KEY (`area_code`),
+  KEY `idx_sys_area_parent` (`parent_code`, `sort_num`),
+  KEY `idx_sys_area_level` (`area_level`, `status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='中国行政区划标准表';
+
+-- -------------------------------------------
+-- 3. 公司表
 -- -------------------------------------------
 DROP TABLE IF EXISTS `sys_company`;
 CREATE TABLE `sys_company` (
-  `id`            bigint unsigned  NOT NULL AUTO_INCREMENT COMMENT '涓婚敭',
-  `company_name`  varchar(128)     NOT NULL                COMMENT '鍏徃鍚嶇О',
-  `company_short_name` varchar(128) DEFAULT NULL           COMMENT '鍏徃绠€绉?',
-  `company_code`  varchar(64)      DEFAULT NULL            COMMENT '鍏徃缂栫爜',
-  `type_code`     varchar(32)      NOT NULL                COMMENT '鍏徃绫诲瀷缂栫爜',
-  `contact_name`  varchar(64)      NOT NULL                COMMENT '鑱旂郴浜?,
-  `contact_phone` varchar(20)      NOT NULL                COMMENT '鑱旂郴鐢佃瘽',
-  `address`       varchar(256)     NOT NULL                COMMENT '鍏徃鍦板潃',
-  `province_name` varchar(64)      DEFAULT NULL            COMMENT '鐪佷唤',
-  `city_name`     varchar(64)      DEFAULT NULL            COMMENT '鍩庡競',
-  `district_name` varchar(64)      DEFAULT NULL            COMMENT '鍖哄幙',
-  `longitude`     decimal(10,6)    DEFAULT NULL            COMMENT '缁忓害',
-  `latitude`      decimal(10,6)    DEFAULT NULL            COMMENT '绾害',
-  `service_phone` varchar(32)      DEFAULT NULL            COMMENT '瀹㈡湇鐢佃瘽',
-  `source_type`   varchar(16)      NOT NULL DEFAULT 'MANUAL' COMMENT '鏉ユ簮绫诲瀷',
-  `sales_org`     varchar(64)      DEFAULT NULL            COMMENT '閿€鍞粍缁?',
-  `status`        tinyint unsigned DEFAULT 1               COMMENT '鐘舵€侊紙1=姝ｅ父锛?=鍋滅敤锛?,
-  `remark`        varchar(256)     DEFAULT NULL            COMMENT '澶囨敞',
-  `create_time`   datetime         NOT NULL                COMMENT '鍒涘缓鏃堕棿',
-  `update_time`   datetime         NOT NULL                COMMENT '鏇存柊鏃堕棿',
+  `id`               bigint unsigned  NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `company_name`     varchar(128)     NOT NULL                COMMENT '公司名称',
+  `company_short_name` varchar(128)   DEFAULT NULL            COMMENT '公司简称',
+  `company_code`     varchar(64)      DEFAULT NULL            COMMENT '公司编码',
+  `type_code`        varchar(32)      NOT NULL                COMMENT '公司类型编码',
+  `contact_name`     varchar(64)      NOT NULL                COMMENT '联系人',
+  `contact_phone`    varchar(20)      NOT NULL                COMMENT '联系电话',
+  `province_code`    varchar(6)       NOT NULL                COMMENT '省份编码',
+  `province_name`    varchar(64)      NOT NULL                COMMENT '省份名称',
+  `city_code`        varchar(6)       NOT NULL                COMMENT '城市编码',
+  `city_name`        varchar(64)      NOT NULL                COMMENT '城市名称',
+  `district_code`    varchar(6)       NOT NULL                COMMENT '区县编码',
+  `district_name`    varchar(64)      NOT NULL                COMMENT '区县名称',
+  `detail_address`   varchar(255)     NOT NULL                COMMENT '详细地址',
+  `full_address`     varchar(255)     DEFAULT NULL            COMMENT '完整地址',
+  `geocode_status`   varchar(16)      NOT NULL                COMMENT '地理解析状态',
+  `longitude`        decimal(10,6)    DEFAULT NULL            COMMENT '经度',
+  `latitude`         decimal(10,6)    DEFAULT NULL            COMMENT '纬度',
+  `service_phone`    varchar(32)      DEFAULT NULL            COMMENT '客服电话',
+  `source_type`      varchar(16)      NOT NULL DEFAULT 'MANUAL' COMMENT '来源类型',
+  `sales_org`        varchar(64)      DEFAULT NULL            COMMENT '销售组织',
+  `status`           tinyint unsigned DEFAULT 1               COMMENT '状态(1=正常,0=停用)',
+  `remark`           varchar(256)     DEFAULT NULL            COMMENT '备注',
+  `create_time`      datetime         NOT NULL                COMMENT '创建时间',
+  `update_time`      datetime         NOT NULL                COMMENT '更新时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_company_code` (`company_code`),
   UNIQUE KEY `uk_company_sales_org` (`sales_org`),
-  KEY `idx_type_code` (`type_code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='鍏徃琛?;
+  KEY `idx_type_code` (`type_code`),
+  KEY `idx_company_region` (`province_code`, `city_code`, `district_code`),
+  KEY `idx_company_geocode_status` (`geocode_status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='公司表';
 
 -- -------------------------------------------
--- 3. 澶у尯琛?
+-- 4. 澶у尯琛?
 -- -------------------------------------------
 DROP TABLE IF EXISTS `sys_region`;
 CREATE TABLE `sys_region` (

@@ -8,6 +8,7 @@ import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.system.domain.entity.CrmBizCompanySnapshot;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
+import com.jasic.aftersales.system.domain.entity.SysArea;
 import com.jasic.aftersales.system.domain.query.CrmBizCompanySnapshotQuery;
 import com.jasic.aftersales.system.domain.vo.CrmBizCompanyImportPreviewVO;
 import com.jasic.aftersales.system.domain.vo.CrmBizCompanySnapshotVO;
@@ -15,6 +16,7 @@ import com.jasic.aftersales.system.domain.vo.CrmBizCompanySyncSummaryVO;
 import com.jasic.aftersales.system.mapper.CrmBizCompanySnapshotMapper;
 import com.jasic.aftersales.system.mapper.SysCompanyMapper;
 import com.jasic.aftersales.system.service.ICrmBizCompanySnapshotService;
+import com.jasic.aftersales.system.service.ISysAreaService;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -64,6 +66,9 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
 
     @Resource
     private SysCompanyMapper sysCompanyMapper;
+
+    @Resource
+    private ISysAreaService sysAreaService;
 
     @Override
     public PageResult<CrmBizCompanySnapshotVO> listPage(CrmBizCompanySnapshotQuery query) {
@@ -306,6 +311,12 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
 
     private CrmBizCompanyImportPreviewVO buildImportPreview(CrmBizCompanySnapshot snapshot, SysCompany existingCompany) {
         CrmBizCompanyImportPreviewVO vo = new CrmBizCompanyImportPreviewVO();
+        ISysAreaService.AreaMatchResult areaMatchResult = sysAreaService.matchRegion(
+                snapshot.getProvinceName(),
+                snapshot.getCityName(),
+                snapshot.getDistrictName(),
+                snapshot.getCompanyAddress()
+        );
         vo.setCustId(snapshot.getCustId());
         vo.setCompanyName(snapshot.getCustName());
         vo.setCompanyShortName(snapshot.getCompanyShortName());
@@ -314,10 +325,12 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
         vo.setTypeCode(resolveTypeCode(snapshot.getCustRage()));
         vo.setContactName(snapshot.getJuristicCustId());
         vo.setContactPhone(resolveContactPhone(snapshot));
-        vo.setAddress(snapshot.getCompanyAddress());
-        vo.setProvinceName(snapshot.getProvinceName());
-        vo.setCityName(snapshot.getCityName());
-        vo.setDistrictName(snapshot.getDistrictName());
+        vo.setDetailAddress(snapshot.getCompanyAddress());
+        fillMatchedArea(vo, areaMatchResult);
+        vo.setCrmProvinceName(snapshot.getProvinceName());
+        vo.setCrmCityName(snapshot.getCityName());
+        vo.setCrmDistrictName(snapshot.getDistrictName());
+        vo.setAreaMatched(areaMatchResult.isMatched());
         vo.setServicePhone(null);
         vo.setSourceType(SOURCE_TYPE_CRM);
         vo.setStatus(resolveLocalStatus(snapshot.getCustState()));
@@ -331,6 +344,27 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
         vo.setCanImport(disabledReason == null);
         vo.setImportDisabledReason(disabledReason);
         return vo;
+    }
+
+    private void fillMatchedArea(CrmBizCompanyImportPreviewVO vo, ISysAreaService.AreaMatchResult areaMatchResult) {
+        if (areaMatchResult == null) {
+            return;
+        }
+        SysArea province = areaMatchResult.getProvince();
+        SysArea city = areaMatchResult.getCity();
+        SysArea district = areaMatchResult.getDistrict();
+        if (province != null) {
+            vo.setProvinceCode(province.getAreaCode());
+            vo.setProvinceName(province.getAreaName());
+        }
+        if (city != null) {
+            vo.setCityCode(city.getAreaCode());
+            vo.setCityName(city.getAreaName());
+        }
+        if (district != null) {
+            vo.setDistrictCode(district.getAreaCode());
+            vo.setDistrictName(district.getAreaName());
+        }
     }
 
     private String resolveImportDisabledReason(CrmBizCompanySnapshot snapshot, SysCompany existingCompany) {

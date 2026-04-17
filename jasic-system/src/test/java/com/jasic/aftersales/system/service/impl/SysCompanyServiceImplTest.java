@@ -2,16 +2,19 @@ package com.jasic.aftersales.system.service.impl;
 
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.system.domain.dto.SysCompanyDTO;
+import com.jasic.aftersales.system.domain.entity.SysArea;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
 import com.jasic.aftersales.system.domain.entity.SysCompanyType;
 import com.jasic.aftersales.system.domain.entity.SysRoleTemplate;
 import com.jasic.aftersales.system.domain.entity.SysUser;
+import com.jasic.aftersales.system.mapper.SysAreaMapper;
 import com.jasic.aftersales.system.mapper.SysCompanyMapper;
 import com.jasic.aftersales.system.mapper.SysRoleTemplateMapper;
 import com.jasic.aftersales.system.mapper.SysUserCompanyMapper;
 import com.jasic.aftersales.system.mapper.SysUserMapper;
 import com.jasic.aftersales.system.mapper.SysUserRoleMapper;
 import com.jasic.aftersales.system.service.ICompanyGeoResolver;
+import com.jasic.aftersales.system.service.ISysAreaService;
 import com.jasic.aftersales.system.service.ISysCompanyTypeService;
 import com.jasic.aftersales.system.service.ISysConfigService;
 import com.jasic.aftersales.system.service.ISysRoleTemplateService;
@@ -25,8 +28,10 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -39,6 +44,7 @@ public class SysCompanyServiceImplTest {
     public void shouldRejectUnknownCompanyTypeWhenSaving() throws Exception {
         SysCompanyServiceImpl service = new SysCompanyServiceImpl();
         setField(service, "companyTypeService", createCompanyTypeService(Collections.singletonList(buildCompanyType("SITE_FIRST", "SERVICE"))));
+        setField(service, "sysAreaService", createAreaService());
 
         SysCompanyDTO dto = buildCompanyDto();
         dto.setTypeCode("UNKNOWN");
@@ -60,6 +66,7 @@ public class SysCompanyServiceImplTest {
         setField(service, "sysUserMapper", createUserMapperProxy(userState));
         setField(service, "userIdentityValidator", createIdentityValidator(createUserMapperProxy(userState)));
         setField(service, "companyGeoResolver", createGeoResolver(new BigDecimal("113.930000"), new BigDecimal("22.540000")));
+        setField(service, "sysAreaService", createAreaService());
 
         Long id = service.save(buildCompanyDto());
 
@@ -68,6 +75,8 @@ public class SysCompanyServiceImplTest {
         Assert.assertEquals("MANUAL", companyState.insertedCompany.getSourceType());
         Assert.assertEquals(new BigDecimal("113.930000"), companyState.insertedCompany.getLongitude());
         Assert.assertEquals(new BigDecimal("22.540000"), companyState.insertedCompany.getLatitude());
+        Assert.assertEquals("SUCCESS", companyState.insertedCompany.getGeocodeStatus());
+        Assert.assertEquals("广东省深圳市南山区科技园", companyState.insertedCompany.getFullAddress());
         Assert.assertEquals(1, userState.insertCount);
     }
 
@@ -80,6 +89,7 @@ public class SysCompanyServiceImplTest {
         setField(service, "sysUserMapper", createUserMapperProxy(userState));
         setField(service, "userIdentityValidator", createIdentityValidator(createUserMapperProxy(userState)));
         setField(service, "companyGeoResolver", createGeoResolver(new BigDecimal("113.930000"), new BigDecimal("22.540000")));
+        setField(service, "sysAreaService", createAreaService());
 
         SysCompanyDTO dto = buildCompanyDto();
         dto.setTypeCode("HQ_A");
@@ -102,6 +112,7 @@ public class SysCompanyServiceImplTest {
         setField(service, "sysUserMapper", createUserMapperProxy(userState));
         setField(service, "userIdentityValidator", createIdentityValidator(createUserMapperProxy(userState)));
         setField(service, "companyGeoResolver", createGeoResolver(new BigDecimal("113.930000"), new BigDecimal("22.540000")));
+        setField(service, "sysAreaService", createAreaService());
 
         SysCompanyDTO dto = buildCompanyDto();
         dto.setSalesOrg("1000");
@@ -112,6 +123,28 @@ public class SysCompanyServiceImplTest {
         } catch (ServiceException ex) {
             Assert.assertEquals("非总部公司不能维护销售组织", ex.getMessage());
         }
+    }
+
+    @Test
+    public void shouldSaveFailedGeocodeStatusWhenAddressCannotBeResolved() throws Exception {
+        SysCompanyServiceImpl service = createServiceWithBasicDeps(Collections.singletonList(buildCompanyType("SITE_FIRST", "SERVICE")));
+        CompanyMapperState companyState = new CompanyMapperState();
+        UserMapperState userState = new UserMapperState();
+        setField(service, "sysCompanyMapper", createCompanyMapperProxy(companyState));
+        setField(service, "sysUserMapper", createUserMapperProxy(userState));
+        setField(service, "userIdentityValidator", createIdentityValidator(createUserMapperProxy(userState)));
+        setField(service, "sysAreaService", createAreaService());
+        setField(service, "companyGeoResolver", (ICompanyGeoResolver) address -> {
+            throw new ServiceException("地址解析失败");
+        });
+
+        service.save(buildCompanyDto());
+
+        Assert.assertNotNull(companyState.insertedCompany);
+        Assert.assertEquals("FAILED", companyState.insertedCompany.getGeocodeStatus());
+        Assert.assertNull(companyState.insertedCompany.getLongitude());
+        Assert.assertNull(companyState.insertedCompany.getLatitude());
+        Assert.assertEquals(1, userState.insertCount);
     }
 
     private SysCompanyServiceImpl createServiceWithBasicDeps(List<SysCompanyType> companyTypes) throws Exception {
@@ -132,7 +165,10 @@ public class SysCompanyServiceImplTest {
         dto.setTypeCode("SITE_FIRST");
         dto.setContactName("张三");
         dto.setContactPhone("13800138000");
-        dto.setAddress(" 深圳市南山区科技园 ");
+        dto.setProvinceCode("440000");
+        dto.setCityCode("440300");
+        dto.setDistrictCode("440305");
+        dto.setDetailAddress(" 科技园 ");
         dto.setAdminUsername("first_admin");
         dto.setStatus(1);
         return dto;
@@ -143,6 +179,55 @@ public class SysCompanyServiceImplTest {
         type.setTypeCode(typeCode);
         type.setSubjectType(subjectType);
         return type;
+    }
+
+    private ISysAreaService createAreaService() {
+        SysArea province = buildArea("440000", "广东省", ISysAreaService.ROOT_PARENT_CODE, ISysAreaService.LEVEL_PROVINCE);
+        SysArea city = buildArea("440300", "深圳市", "440000", ISysAreaService.LEVEL_CITY);
+        SysArea district = buildArea("440305", "南山区", "440300", ISysAreaService.LEVEL_DISTRICT);
+        Map<String, SysArea> areaStore = new LinkedHashMap<>();
+        areaStore.put(province.getAreaCode(), province);
+        areaStore.put(city.getAreaCode(), city);
+        areaStore.put(district.getAreaCode(), district);
+
+        return new ISysAreaService() {
+            @Override
+            public List<com.jasic.aftersales.system.domain.vo.SysAreaOptionVO> listOptionsByParentCode(String parentCode) {
+                return Collections.emptyList();
+            }
+
+            @Override
+            public SysArea getByAreaCode(String areaCode) {
+                return areaStore.get(areaCode);
+            }
+
+            @Override
+            public Map<String, SysArea> getByAreaCodes(java.util.Collection<String> areaCodes) {
+                Map<String, SysArea> result = new LinkedHashMap<>();
+                for (String areaCode : areaCodes) {
+                    SysArea area = areaStore.get(areaCode);
+                    if (area != null) {
+                        result.put(areaCode, area);
+                    }
+                }
+                return result;
+            }
+
+            @Override
+            public AreaMatchResult matchRegion(String provinceName, String cityName, String districtName, String detailAddress) {
+                return new AreaMatchResult(province, city, district);
+            }
+        };
+    }
+
+    private SysArea buildArea(String areaCode, String areaName, String parentCode, String areaLevel) {
+        SysArea area = new SysArea();
+        area.setAreaCode(areaCode);
+        area.setAreaName(areaName);
+        area.setParentCode(parentCode);
+        area.setAreaLevel(areaLevel);
+        area.setStatus(1);
+        return area;
     }
 
     private ISysCompanyTypeService createCompanyTypeService(List<SysCompanyType> companyTypes) {

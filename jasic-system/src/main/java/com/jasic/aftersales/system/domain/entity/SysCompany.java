@@ -37,13 +37,23 @@ public class SysCompany extends BaseEntity {
 
     private String contactPhone;
 
-    private String address;
+    private String provinceCode;
 
     private String provinceName;
 
+    private String cityCode;
+
     private String cityName;
 
+    private String districtCode;
+
     private String districtName;
+
+    private String detailAddress;
+
+    private String fullAddress;
+
+    private String geocodeStatus;
 
     private BigDecimal longitude;
 

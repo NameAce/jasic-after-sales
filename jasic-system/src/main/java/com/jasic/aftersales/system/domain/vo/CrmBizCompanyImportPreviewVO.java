@@ -42,17 +42,38 @@ public class CrmBizCompanyImportPreviewVO implements Serializable {
     @ApiModelProperty(value = "联系电话")
     private String contactPhone;
 
-    @ApiModelProperty(value = "公司地址")
-    private String address;
+    @ApiModelProperty(value = "详细地址")
+    private String detailAddress;
 
-    @ApiModelProperty(value = "省份")
+    @ApiModelProperty(value = "省份编码")
+    private String provinceCode;
+
+    @ApiModelProperty(value = "省份名称")
     private String provinceName;
 
-    @ApiModelProperty(value = "城市")
+    @ApiModelProperty(value = "城市编码")
+    private String cityCode;
+
+    @ApiModelProperty(value = "城市名称")
     private String cityName;
 
-    @ApiModelProperty(value = "区县")
+    @ApiModelProperty(value = "区县编码")
+    private String districtCode;
+
+    @ApiModelProperty(value = "区县名称")
     private String districtName;
+
+    @ApiModelProperty(value = "CRM 原始省份")
+    private String crmProvinceName;
+
+    @ApiModelProperty(value = "CRM 原始城市")
+    private String crmCityName;
+
+    @ApiModelProperty(value = "CRM 原始区县")
+    private String crmDistrictName;
+
+    @ApiModelProperty(value = "是否已匹配标准行政区")
+    private Boolean areaMatched;
 
     @ApiModelProperty(value = "客服电话")
     private String servicePhone;

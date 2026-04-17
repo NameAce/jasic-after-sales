@@ -37,6 +37,14 @@ export function getExternalCompanyImportPreview(custId) {
   return request({ url: `/org/company/external/${custId}/import-preview`, method: 'get' })
 }
 
+export function listAreaOptions(parentCode) {
+  return request({ url: '/org/area/options', method: 'get', params: { parentCode } })
+}
+
+export function getAreaDetail(areaCode) {
+  return request({ url: `/org/area/${areaCode}`, method: 'get' })
+}
+
 // --- 签约关系管理 ---
 export function listHqFirstContract(params) {
   return request({ url: '/org/contract/hq-first/list', method: 'get', params })

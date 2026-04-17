@@ -6,7 +6,6 @@ import lombok.Data;
 
 import javax.validation.constraints.NotBlank;
 import java.io.Serializable;
-import java.math.BigDecimal;
 
 /**
  * 公司新增/修改参数
@@ -45,27 +44,33 @@ public class SysCompanyDTO implements Serializable {
     @NotBlank(message = "联系电话不能为空")
     private String contactPhone;
 
-    @ApiModelProperty(value = "公司地址", required = true)
-    @NotBlank(message = "公司地址不能为空")
-    private String address;
+    @ApiModelProperty(value = "省份编码", required = true)
+    @NotBlank(message = "省份不能为空")
+    private String provinceCode;
 
-    @ApiModelProperty(value = "省份")
+    @ApiModelProperty(value = "省份名称")
     private String provinceName;
 
-    @ApiModelProperty(value = "城市")
+    @ApiModelProperty(value = "城市编码", required = true)
+    @NotBlank(message = "城市不能为空")
+    private String cityCode;
+
+    @ApiModelProperty(value = "城市名称")
     private String cityName;
 
-    @ApiModelProperty(value = "区县")
+    @ApiModelProperty(value = "区县编码", required = true)
+    @NotBlank(message = "区县不能为空")
+    private String districtCode;
+
+    @ApiModelProperty(value = "区县名称")
     private String districtName;
+
+    @ApiModelProperty(value = "详细地址", required = true)
+    @NotBlank(message = "详细地址不能为空")
+    private String detailAddress;
 
     @ApiModelProperty(value = "管理员用户名，新增时必填")
     private String adminUsername;
-
-    @ApiModelProperty(value = "经度")
-    private BigDecimal longitude;
-
-    @ApiModelProperty(value = "纬度")
-    private BigDecimal latitude;
 
     @ApiModelProperty(value = "客服电话")
     private String servicePhone;

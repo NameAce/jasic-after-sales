@@ -65,7 +65,14 @@
             {{ formatRegion(row) }}
           </template>
         </el-table-column>
-        <el-table-column label="地址" prop="address" min-width="220" show-overflow-tooltip />
+        <el-table-column label="详细地址" prop="detailAddress" min-width="220" show-overflow-tooltip />
+        <el-table-column label="地理解析" width="100" align="center">
+          <template slot-scope="{ row }">
+            <el-tag :type="row.geocodeStatus === 'SUCCESS' ? 'success' : 'danger'" size="mini">
+              {{ row.geocodeStatus === 'SUCCESS' ? 'SUCCESS' : 'FAILED' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="状态" prop="status" width="80" align="center">
           <template slot-scope="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="mini">
@@ -92,8 +99,8 @@
       />
     </el-card>
 
-    <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="680px" append-to-body>
-      <el-form ref="form" :model="form" :rules="rules" label-width="100px">
+    <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="760px" append-to-body>
+      <el-form ref="form" :model="form" :rules="rules" label-width="110px">
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="公司名称" prop="companyName">
@@ -153,27 +160,63 @@
           </el-col>
         </el-row>
 
-        <el-row :gutter="16">
-          <el-col :span="8">
-            <el-form-item label="省份" prop="provinceName">
-              <el-input v-model="form.provinceName" placeholder="请输入省份" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="城市" prop="cityName">
-              <el-input v-model="form.cityName" placeholder="请输入城市" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="区县" prop="districtName">
-              <el-input v-model="form.districtName" placeholder="请输入区县" />
-            </el-form-item>
-          </el-col>
-        </el-row>
+        <div class="address-block">
+          <div class="address-block__title">地址信息</div>
+          <el-alert
+            v-if="shouldShowCrmAreaHint"
+            :title="crmAreaHintTitle"
+            :type="form.areaMatched ? 'info' : 'warning'"
+            :closable="false"
+            show-icon
+            class="address-block__alert"
+          />
+          <el-row :gutter="16">
+            <el-col :span="8">
+              <el-form-item label="省份" prop="provinceCode">
+                <el-select
+                  v-model="form.provinceCode"
+                  placeholder="请选择省份"
+                  filterable
+                  :loading="provinceLoading"
+                  @change="handleProvinceChange"
+                >
+                  <el-option v-for="item in provinceOptions" :key="item.areaCode" :label="item.areaName" :value="item.areaCode" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+            <el-col :span="8">
+              <el-form-item label="城市" prop="cityCode">
+                <el-select
+                  v-model="form.cityCode"
+                  placeholder="请选择城市"
+                  filterable
+                  :disabled="!form.provinceCode"
+                  :loading="cityLoading"
+                  @change="handleCityChange"
+                >
+                  <el-option v-for="item in cityOptions" :key="item.areaCode" :label="item.areaName" :value="item.areaCode" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+            <el-col :span="8">
+              <el-form-item label="区县" prop="districtCode">
+                <el-select
+                  v-model="form.districtCode"
+                  placeholder="请选择区县"
+                  filterable
+                  :disabled="!form.cityCode"
+                  :loading="districtLoading"
+                >
+                  <el-option v-for="item in districtOptions" :key="item.areaCode" :label="item.areaName" :value="item.areaCode" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+          </el-row>
 
-        <el-form-item label="地址" prop="address">
-          <el-input v-model="form.address" placeholder="请输入公司地址" />
-        </el-form-item>
+          <el-form-item label="详细地址" prop="detailAddress" class="address-block__detail">
+            <el-input v-model="form.detailAddress" placeholder="请输入详细地址" />
+          </el-form-item>
+        </div>
 
         <el-form-item v-if="isHqType(form.typeCode)" label="销售组织" prop="salesOrg">
           <el-input v-model="form.salesOrg" placeholder="请输入销售组织" />
@@ -281,6 +324,7 @@ import {
   deleteCompany,
   getCompany,
   getExternalCompanyImportPreview,
+  listAreaOptions,
   listCompany,
   listCompanyType,
   listExternalCompany,
@@ -305,6 +349,12 @@ export default {
       lastAutoAdminUsername: '',
       submitLoading: false,
       companyCodeLocked: false,
+      provinceOptions: [],
+      cityOptions: [],
+      districtOptions: [],
+      provinceLoading: false,
+      cityLoading: false,
+      districtLoading: false,
       externalDialogVisible: false,
       externalLoading: false,
       externalCompanyList: [],
@@ -317,7 +367,7 @@ export default {
         { value: 3, label: '注销' },
         { value: 4, label: '资料已保存' },
         { value: 5, label: '申请注销' },
-        { value: 6, label: '资料未填充' },
+        { value: 6, label: '资料未填写' },
         { value: 9, label: '删除' }
       ],
       rules: {
@@ -335,7 +385,10 @@ export default {
         typeCode: [{ required: true, message: '请选择公司类型', trigger: 'change' }],
         contactName: [{ required: true, message: '请输入联系人', trigger: 'blur' }],
         contactPhone: [{ required: true, message: '请输入联系电话', trigger: 'blur' }],
-        address: [{ required: true, message: '请输入公司地址', trigger: 'blur' }],
+        provinceCode: [{ required: true, message: '请选择省份', trigger: 'change' }],
+        cityCode: [{ required: true, message: '请选择城市', trigger: 'change' }],
+        districtCode: [{ required: true, message: '请选择区县', trigger: 'change' }],
+        detailAddress: [{ required: true, message: '请输入详细地址', trigger: 'blur' }],
         adminUsername: [{
           validator: (rule, value, callback) => {
             if (!this.form.id && !value) {
@@ -349,8 +402,24 @@ export default {
       }
     }
   },
+  computed: {
+    shouldShowCrmAreaHint() {
+      return !!(this.form.sourceType === 'CRM' && this.formatCrmRegion())
+    },
+    crmAreaHintTitle() {
+      const crmRegion = this.formatCrmRegion()
+      if (!crmRegion) {
+        return ''
+      }
+      if (this.form.areaMatched) {
+        return `CRM 原始地区：${crmRegion}`
+      }
+      return `CRM 原始地区：${crmRegion}，未匹配上标准行政区，请重新选择省市区`
+    }
+  },
   created() {
     this.loadTypeCodeOptions()
+    this.loadProvinceOptions()
     this.getList()
   },
   methods: {
@@ -366,6 +435,40 @@ export default {
         })
       })
     },
+    loadProvinceOptions() {
+      this.provinceLoading = true
+      listAreaOptions('').then(res => {
+        this.provinceOptions = (res && res.data) || []
+      }).finally(() => {
+        this.provinceLoading = false
+      })
+    },
+    loadCityOptions(parentCode) {
+      if (!parentCode) {
+        this.cityOptions = []
+        return Promise.resolve([])
+      }
+      this.cityLoading = true
+      return listAreaOptions(parentCode).then(res => {
+        this.cityOptions = (res && res.data) || []
+        return this.cityOptions
+      }).finally(() => {
+        this.cityLoading = false
+      })
+    },
+    loadDistrictOptions(parentCode) {
+      if (!parentCode) {
+        this.districtOptions = []
+        return Promise.resolve([])
+      }
+      this.districtLoading = true
+      return listAreaOptions(parentCode).then(res => {
+        this.districtOptions = (res && res.data) || []
+        return this.districtOptions
+      }).finally(() => {
+        this.districtLoading = false
+      })
+    },
     getSubjectType(typeCode) {
       return this.typeCodeMap[typeCode] || ''
     },
@@ -377,6 +480,9 @@ export default {
     },
     formatRegion(row) {
       return [row.provinceName, row.cityName, row.districtName].filter(Boolean).join(' / ') || '-'
+    },
+    formatCrmRegion() {
+      return [this.form.crmProvinceName, this.form.crmCityName, this.form.crmDistrictName].filter(Boolean).join(' / ')
     },
     normalizeText(value) {
       return value == null ? '' : String(value).trim()
@@ -426,15 +532,81 @@ export default {
         contactName: '',
         contactPhone: '',
         servicePhone: '',
+        provinceCode: '',
         provinceName: '',
+        cityCode: '',
         cityName: '',
+        districtCode: '',
         districtName: '',
-        address: '',
+        detailAddress: '',
         salesOrg: '',
         sourceType: 'MANUAL',
         adminUsername: '',
-        status: 1
+        status: 1,
+        geocodeStatus: '',
+        crmProvinceName: '',
+        crmCityName: '',
+        crmDistrictName: '',
+        areaMatched: false
       }
+    },
+    syncAreaNames() {
+      this.form.provinceName = this.resolveAreaName(this.provinceOptions, this.form.provinceCode)
+      this.form.cityName = this.resolveAreaName(this.cityOptions, this.form.cityCode)
+      this.form.districtName = this.resolveAreaName(this.districtOptions, this.form.districtCode)
+    },
+    resolveAreaName(options, code) {
+      const matched = (options || []).find(item => item.areaCode === code)
+      return matched ? matched.areaName : ''
+    },
+    resetCityAndDistrict() {
+      this.form.cityCode = ''
+      this.form.cityName = ''
+      this.form.districtCode = ''
+      this.form.districtName = ''
+      this.cityOptions = []
+      this.districtOptions = []
+    },
+    resetDistrict() {
+      this.form.districtCode = ''
+      this.form.districtName = ''
+      this.districtOptions = []
+    },
+    handleProvinceChange(value) {
+      this.form.provinceCode = value
+      this.form.provinceName = this.resolveAreaName(this.provinceOptions, value)
+      this.resetCityAndDistrict()
+      if (value) {
+        this.loadCityOptions(value)
+      }
+    },
+    handleCityChange(value) {
+      this.form.cityCode = value
+      this.form.cityName = this.resolveAreaName(this.cityOptions, value)
+      this.resetDistrict()
+      if (value) {
+        this.loadDistrictOptions(value)
+      }
+    },
+    initAreaSelections() {
+      this.cityOptions = []
+      this.districtOptions = []
+      const provinceCode = this.form.provinceCode
+      const cityCode = this.form.cityCode
+      const districtCode = this.form.districtCode
+      if (!provinceCode) {
+        return Promise.resolve()
+      }
+      return this.loadCityOptions(provinceCode).then(() => {
+        this.form.provinceName = this.resolveAreaName(this.provinceOptions, provinceCode) || this.form.provinceName
+        this.form.cityName = this.resolveAreaName(this.cityOptions, cityCode) || this.form.cityName
+        if (!cityCode) {
+          return null
+        }
+        return this.loadDistrictOptions(cityCode).then(() => {
+          this.form.districtName = this.resolveAreaName(this.districtOptions, districtCode) || this.form.districtName
+        })
+      })
     },
     getList() {
       this.loading = true
@@ -480,7 +652,9 @@ export default {
       this.form = Object.assign(this.createEmptyForm(), prefill)
       this.resetAdminUsernameLinkState(this.form)
       this.dialogVisible = true
-      this.$nextTick(() => this.$refs.form && this.$refs.form.clearValidate())
+      this.initAreaSelections().finally(() => {
+        this.$nextTick(() => this.$refs.form && this.$refs.form.clearValidate())
+      })
     },
     handleEdit(row) {
       this.openEditDialog(row.id)
@@ -493,7 +667,9 @@ export default {
         this.form = Object.assign(this.createEmptyForm(), res.data || {})
         this.resetAdminUsernameLinkState(this.form)
         this.dialogVisible = true
-        this.$nextTick(() => this.$refs.form && this.$refs.form.clearValidate())
+        this.initAreaSelections().finally(() => {
+          this.$nextTick(() => this.$refs.form && this.$refs.form.clearValidate())
+        })
       })
     },
     openExternalDialog() {
@@ -526,23 +702,59 @@ export default {
           contactName: preview.contactName || '',
           contactPhone: preview.contactPhone || '',
           servicePhone: preview.servicePhone || '',
+          provinceCode: preview.provinceCode || '',
           provinceName: preview.provinceName || '',
+          cityCode: preview.cityCode || '',
           cityName: preview.cityName || '',
+          districtCode: preview.districtCode || '',
           districtName: preview.districtName || '',
-          address: preview.address || '',
+          detailAddress: preview.detailAddress || '',
           sourceType: preview.sourceType || 'CRM',
-          status: preview.status == null ? 1 : preview.status
+          status: preview.status == null ? 1 : preview.status,
+          crmProvinceName: preview.crmProvinceName || '',
+          crmCityName: preview.crmCityName || '',
+          crmDistrictName: preview.crmDistrictName || '',
+          areaMatched: !!preview.areaMatched
         })
       })
+    },
+    buildSubmitPayload() {
+      this.syncAreaNames()
+      return {
+        id: this.form.id,
+        companyName: this.normalizeText(this.form.companyName),
+        companyShortName: this.normalizeText(this.form.companyShortName),
+        companyCode: this.normalizeText(this.form.companyCode),
+        typeCode: this.normalizeText(this.form.typeCode),
+        contactName: this.normalizeText(this.form.contactName),
+        contactPhone: this.normalizeText(this.form.contactPhone),
+        servicePhone: this.normalizeText(this.form.servicePhone),
+        provinceCode: this.normalizeText(this.form.provinceCode),
+        provinceName: this.normalizeText(this.form.provinceName),
+        cityCode: this.normalizeText(this.form.cityCode),
+        cityName: this.normalizeText(this.form.cityName),
+        districtCode: this.normalizeText(this.form.districtCode),
+        districtName: this.normalizeText(this.form.districtName),
+        detailAddress: this.normalizeText(this.form.detailAddress),
+        salesOrg: this.normalizeText(this.form.salesOrg),
+        sourceType: this.normalizeText(this.form.sourceType),
+        adminUsername: this.normalizeText(this.form.adminUsername),
+        status: this.form.status,
+        remark: this.normalizeText(this.form.remark)
+      }
     },
     submitForm() {
       this.$refs.form.validate(valid => {
         if (!valid) return
         this.submitLoading = true
         const api = this.form.id ? updateCompany : addCompany
-        api(this.form).then(res => {
+        api(this.buildSubmitPayload()).then(res => {
           if (!res) return
-          this.$message.success('操作成功')
+          if (res.data && res.data.geocodeStatus === 'FAILED') {
+            this.$message.warning('地址已保存，但经纬度解析失败，请检查主档地址')
+          } else {
+            this.$message.success('操作成功')
+          }
           this.dialogVisible = false
           this.getList()
         }).finally(() => {
@@ -574,5 +786,28 @@ export default {
 
 .table-toolbar {
   margin-bottom: 12px;
+}
+
+.address-block {
+  margin-bottom: 22px;
+  padding: 16px 16px 2px;
+  border: 1px solid #dfe7f5;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+}
+
+.address-block__title {
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2d3d;
+}
+
+.address-block__alert {
+  margin-bottom: 14px;
+}
+
+.address-block__detail {
+  margin-bottom: 0;
 }
 </style>

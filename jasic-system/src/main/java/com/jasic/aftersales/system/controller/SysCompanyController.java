@@ -12,6 +12,7 @@ import com.jasic.aftersales.system.domain.entity.SysCompany;
 import com.jasic.aftersales.system.domain.query.SysCompanyQuery;
 import com.jasic.aftersales.system.domain.vo.CrmBizCompanyImportPreviewVO;
 import com.jasic.aftersales.system.domain.vo.CrmBizCompanySnapshotVO;
+import com.jasic.aftersales.system.domain.vo.SysCompanySaveResultVO;
 import com.jasic.aftersales.system.service.ICrmBizCompanySnapshotService;
 import com.jasic.aftersales.system.service.ISysCompanyService;
 import org.springframework.validation.annotation.Validated;
@@ -101,9 +102,9 @@ public class SysCompanyController extends BaseController {
     @SaCheckPermission("org:company:add")
     @OperLog(title = "公司管理", operType = OperTypeEnum.INSERT)
     @PostMapping
-    public Result<Long> save(@Validated @RequestBody SysCompanyDTO dto) {
+    public Result<SysCompanySaveResultVO> save(@Validated @RequestBody SysCompanyDTO dto) {
         Long id = companyService.save(dto);
-        return Result.ok(id);
+        return Result.ok(buildSaveResult(companyService.getById(id)));
     }
 
     /**
@@ -116,9 +117,9 @@ public class SysCompanyController extends BaseController {
     @SaCheckPermission("org:company:update")
     @OperLog(title = "公司管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
-    public Result<Void> update(@Validated @RequestBody SysCompanyDTO dto) {
+    public Result<SysCompanySaveResultVO> update(@Validated @RequestBody SysCompanyDTO dto) {
         companyService.update(dto);
-        return Result.ok();
+        return Result.ok(buildSaveResult(companyService.getById(dto.getId())));
     }
 
     /**
@@ -134,5 +135,14 @@ public class SysCompanyController extends BaseController {
     public Result<Void> remove(@PathVariable Long id) {
         companyService.remove(id);
         return Result.ok();
+    }
+
+    private SysCompanySaveResultVO buildSaveResult(SysCompany company) {
+        SysCompanySaveResultVO vo = new SysCompanySaveResultVO();
+        if (company != null) {
+            vo.setId(company.getId());
+            vo.setGeocodeStatus(company.getGeocodeStatus());
+        }
+        return vo;
     }
 }
