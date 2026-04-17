@@ -62,7 +62,7 @@
 <style lang="scss" scoped>
   .od-top-section {
     background-color: $primary;
-    color: $surface-white;
+    color: $text-bg;
     padding-bottom: 64rpx;
   }
 
@@ -126,7 +126,7 @@
           box-shadow: 0 0 0 8rpx rgba(255, 255, 255, 0.1);
 
           &.active {
-            background-color: $surface-white;
+            background-color: $bg-card;
             box-shadow: 0 0 0 8rpx rgba(255, 255, 255, 0.2);
           }
         }
@@ -138,7 +138,7 @@
 
           &.active {
             font-weight: bold;
-            color: $surface-white;
+            color: $text-bg;
           }
         }
       }

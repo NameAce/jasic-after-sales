@@ -42,7 +42,7 @@
               <text :class="regionText ? 'val' : 'placeholder'">{{
                 regionText || '请选择省市区'
               }}</text>
-              <uni-icons type="down" size="12" color="#94a3b8"></uni-icons>
+              <uni-icons type="down" size="12" :color="themeColors.textMuted"></uni-icons>
             </view>
           </picker>
         </view>
@@ -74,6 +74,7 @@
   import { createCustomerAddressAPI, updateCompanyAddressAPI } from '@/api/address'
   import { unwrap } from '@/utils/http'
   import { loadAddresses, saveAddresses, type SavedAddress } from '@/utils/addressStorage'
+  import { themeColors } from '@/theme/colors'
 
   const scrollIntoView = ref('')
   const focusField = ref('')
@@ -128,11 +129,11 @@
    * @param options - 选项
    */
   onLoad((options?: Record<string, string>) => {
-    const id = options?.id
+    const id = decodeURIComponent(String(options?.id ?? '')).trim()
     if (id) {
       editId.value = id
       // 加载地址列表
-      const found = loadAddresses().find((a) => a.id === id)
+      const found = loadAddresses().find((a) => String(a.id) === id)
       if (found) {
         form.name = found.name
         form.phone = found.phone

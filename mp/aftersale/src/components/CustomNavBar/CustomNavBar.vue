@@ -1,7 +1,10 @@
 <template>
   <view :class="rootClass" :style="rootStyle">
     <view class="custom-nav-bar__row custom-nav-bar__row--center">
-      <view v-if="showBack" class="custom-nav-bar__back" @click="handleBack">
+      <view v-if="$slots.left" class="custom-nav-bar__left">
+        <slot name="left" />
+      </view>
+      <view v-else-if="showBack" class="custom-nav-bar__back" @click="handleBack">
         <uni-icons type="left" :size="backIconSize" :color="iconColor" />
       </view>
       <view v-else class="custom-nav-bar__side-spacer" />
@@ -17,12 +20,15 @@
 
 <script setup lang="ts">
   import { computed } from 'vue'
+  import { themeColors } from '@/constants/theme'
   import { useAppStore } from '@/stores'
 
   const props = withDefaults(
     defineProps<{
       /** 导航标题 */
       title: string
+      /** 标题对齐方式 */
+      titleAlign?: 'left' | 'center' | 'right'
       /** 是否显示返回区（占位或按钮） */
       showBack?: boolean
       /**
@@ -32,7 +38,7 @@
        * transparent: 透明底，配合 tone 用于有色背景上
        * plain: 仅排版，无背景边线（登录页 fixed 顶栏）
        */
-      surface?: 'bar' | 'sticky' | 'frosted' | 'transparent' | 'plain'
+      surface?: 'bar' | 'sticky' | 'frosted' | 'transparent' | 'plain' | 'workbench'
       /** transparent 时：dark 深色图标 / light 浅色图标与标题 */
       tone?: 'dark' | 'light'
       /** 同时覆盖标题与返回图标颜色 */
@@ -49,6 +55,7 @@
     }>(),
     {
       showBack: true,
+      titleAlign: 'center',
       surface: 'bar',
       tone: 'dark',
       shadow: true,
@@ -68,21 +75,34 @@
   const iconColor = computed(() => {
     if (props.color) return props.color
     if (props.backIconColor) return props.backIconColor
-    if (props.surface === 'transparent' && props.tone === 'light') return '#ffffff'
-    return '#0f172a'
+    if (props.surface === 'transparent' && props.tone === 'light') return themeColors.textBg
+    return themeColors.textDark
   })
 
   const titleStyle = computed(() => {
+    const style: Record<string, string> = {
+      textAlign: props.titleAlign
+    }
     if (props.color) {
-      return { color: props.color }
+      style.color = props.color
+      return style
     }
     if (props.surface === 'transparent' && props.tone === 'light') {
-      return { color: '#ffffff' }
+      style.color = themeColors.textBg
+      return style
     }
-    return {}
+    return style
   })
 
   const rootStyle = computed(() => {
+    if (props.surface === 'workbench') {
+      const style: Record<string, string> = {}
+      if (props.background) {
+        style.background = props.background
+      }
+      return style
+    }
+
     const style: Record<string, string> = {
       paddingTop: `${statusBarHeight.value}px`,
       paddingLeft: '32rpx',
@@ -109,7 +129,6 @@
     uni.navigateBack()
   }
 </script>
-
 <style lang="scss" scoped>
   @use '@/styles/mixins.scss' as *;
 
@@ -213,6 +232,48 @@
       font-size: $font-xl;
       font-weight: 700;
       color: $text-dark;
+    }
+  }
+
+  .custom-nav-bar--workbench {
+    position: sticky;
+    top: 0;
+    z-index: 9999;
+    background-color: $bg-card;
+    padding: $space-lg;
+    padding-top: calc(var(--status-bar-height) + #{$space-lg});
+    padding-bottom: $space-sm;
+    border-bottom: 2rpx solid $bg-hover;
+
+    .custom-nav-bar__row--center {
+      width: 100%;
+      @include flex-between;
+    }
+
+    .custom-nav-bar__left {
+      width: 80rpx;
+      height: 80rpx;
+      flex-shrink: 0;
+      @include flex-center;
+    }
+
+    .custom-nav-bar__title {
+      flex: 1;
+      text-align: left;
+      padding: 0 $space-md;
+      font-size: 36rpx;
+      font-weight: 700;
+      color: $text-dark;
+      line-height: 1.25;
+    }
+
+    .custom-nav-bar__right {
+      width: 96rpx;
+      min-height: 80rpx;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      flex-shrink: 0;
     }
   }
 

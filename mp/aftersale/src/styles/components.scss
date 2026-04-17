@@ -92,12 +92,12 @@
   @include flex-row;
   justify-content: space-between;
   align-items: center;
-  border: 1px solid #f0f0f0;
+  border: 1px solid $border-muted;
   border-radius: $radius-md;
   padding: 18rpx 24rpx;
   min-height: 80rpx;
   box-sizing: border-box;
-  background-color: #f8fafc;
+  background-color: $bg-input;
 }
 
 .shipping-address-text {
@@ -109,7 +109,7 @@
   word-break: break-all;
 
   &.placeholder {
-    color: #909399;
+    color: $text-placeholder;
   }
 }
 
@@ -131,7 +131,7 @@
 }
 
 .btn-secondary {
-  background: #f5f5f5;
+  background: $bg-secondary-btn;
   color: $text-main;
   border: 1rpx solid $border-color;
 }
@@ -306,50 +306,50 @@
 // ============= 状态徽章 =============
 
 .status-badge {
-  font-size: $font-xs;
+  font-size: 20rpx;
   font-weight: bold;
   padding: $space-xs $space-sm;
-  border-radius: $radius-round;
+  border-radius: $radius-pill;
 
   &.status-pending {
-    background-color: rgba($primary, 0.1);
+    background-color: $status-pending-bg;
     color: $primary;
   }
 
   &.status-repairing {
-    background-color: #e6f0ff;
-    color: #135bec;
+    background-color: $status-processing-bg;
+    color: $status-processing-text;
   }
 
   &.status-finished {
-    background-color: #e6f4ea;
-    color: #16a34a;
+    background-color: $status-completed-bg;
+    color: $status-completed-text;
   }
 
   &.status-closed {
-    background-color: $bg-hover;
-    color: $text-label;
+    background-color: $status-closed-bg;
+    color: $status-closed-text;
   }
 }
 
 // ============= 工单类型标签 =============
 
 .tag-jasic {
-  background-color: #fff7ed;
-  color: #ea580c;
-  border-color: #ffedd5;
+  background-color: $tag-brand-bg;
+  color: $tag-brand-text;
+  border-color: $tag-brand-border;
 }
 
 .tag-non-jasic {
-  background-color: rgba(100, 116, 139, 0.14);
-  color: #64748b;
-  border-color: rgba(100, 116, 139, 0.22);
+  background-color: $tag-neutral-bg;
+  color: $text-slate-500;
+  border-color: $tag-neutral-border;
 }
 
 .tag-model {
-  background-color: #fef2f2;
-  color: #dc2626;
-  border-color: #fecaca;
+  background-color: $danger-tint-bg;
+  color: $warranty-out;
+  border-color: $danger-tint-border;
   font-weight: 600;
 }
 
@@ -369,7 +369,7 @@
 
     .empty-icon {
       font-size: 80rpx;
-      color: #cbd5e1;
+      color: $icon-slate-light;
     }
   }
 
@@ -498,17 +498,17 @@
 }
 
 .tag-success {
-  background: #e1f3d8;
+  background: $tag-success-soft-bg;
   color: $success;
 }
 
 .tag-warning {
-  background: #fdf6ec;
+  background: $tag-warning-soft-bg;
   color: $warning;
 }
 
 .tag-danger {
-  background: #fde2e2;
+  background: $tag-danger-soft-bg;
   color: $danger;
 }
 

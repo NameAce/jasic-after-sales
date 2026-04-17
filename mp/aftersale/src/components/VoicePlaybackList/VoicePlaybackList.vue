@@ -11,7 +11,7 @@
           <uni-icons
             :type="playingIndex === index ? 'circle-filled' : 'circle'"
             size="20"
-            color="#f26604"
+            :color="themeColor.primary"
           />
         </view>
         <view class="progress-bar">
@@ -28,6 +28,7 @@
 
 <script setup lang="ts">
   import { ref, onUnmounted, nextTick } from 'vue'
+  import { themeColor } from '@/constants/theme'
 
   /** 与报修页录音条目一致：duration 为毫秒（可选，用于解码前展示） */
   export interface VoicePlaybackItem {
@@ -347,7 +348,7 @@
         .progress-bar {
           flex: 1;
           height: 8rpx;
-          background-color: #d9dfe6;
+          background-color: $surface-track;
           border-radius: 4rpx;
           overflow: hidden;
 

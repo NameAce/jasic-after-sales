@@ -1,9 +1,16 @@
 <template>
-  <custom-nav-bar :title="navTitle" surface="sticky" />
-  <view class="page-index">
-    <!-- 内容 -->
-    <scroll-view class="page-padding" scroll-y>
-      <view class="section">
+  <view class="addr-page-root">
+    <custom-nav-bar :title="navTitle" surface="sticky" />
+    <scroll-view
+      class="addr-scroll"
+      scroll-y
+      lower-threshold="120"
+      refresher-enabled
+      :refresher-triggered="refresherTriggered"
+      @refresherrefresh="onRefresherRefresh"
+      @scrolltolower="loadMoreAddresses"
+    >
+      <view class="page-index page-padding section">
         <view class="action-row">
           <view class="action-card wechat" @click="importFromWeChat">
             <image class="action-icon" :src="wechatChatIcon" mode="aspectFit" />
@@ -11,7 +18,7 @@
               <text class="action-title">从微信导入</text>
               <text class="action-desc">使用微信收货地址快速填写</text>
             </view>
-            <uni-icons type="right" size="12" color="#94a3b8"></uni-icons>
+            <uni-icons type="right" size="12" :color="themeColor.textMuted"></uni-icons>
           </view>
           <view class="action-card manual" @click="goManualAdd">
             <image class="action-icon" :src="addressManualIcon" mode="aspectFit" />
@@ -19,7 +26,7 @@
               <text class="action-title">手动填写</text>
               <text class="action-desc">自行输入收件人、电话与详细地址</text>
             </view>
-            <uni-icons type="right" size="12" color="#94a3b8"></uni-icons>
+            <uni-icons type="right" size="12" :color="themeColor.textMuted"></uni-icons>
           </view>
         </view>
 
@@ -34,7 +41,7 @@
 
         <view v-if="isSelectMode && addresses.length > 0">
           <view
-            v-for="item in addresses"
+            v-for="item in visibleAddresses"
             :key="item.id"
             class="addr-swipe-item"
             @click="selectAddressForRepair(item)"
@@ -57,7 +64,7 @@
         <!-- 地址卡片：左滑露出删除 -->
         <uni-swipe-action v-if="!isSelectMode && addresses.length > 0">
           <uni-swipe-action-item
-            v-for="item in addresses"
+            v-for="item in visibleAddresses"
             :key="item.id"
             class="addr-swipe-item"
             :right-options="swipeDeleteOptions"
@@ -76,7 +83,7 @@
               <view class="addr-top">
                 <text class="addr-line addr-top-left">{{ fullAddress(item) }}</text>
                 <view class="addr-edit-btn addr-top-right" @click.stop="goEdit(item.id)">
-                  <uni-icons type="compose" size="20" color="#64748b" />
+                  <uni-icons type="compose" size="20" :color="themeColor.textLabel" />
                 </view>
               </view>
               <view v-if="item.isDefault !== 1" class="addr-actions" @click.stop>
@@ -85,6 +92,7 @@
             </view>
           </uni-swipe-action-item>
         </uni-swipe-action>
+        <ListNoMore v-if="visibleAddresses.length > 0 && hasLoadedAllAddresses" />
       </view>
     </scroll-view>
   </view>
@@ -107,10 +115,19 @@
     saveSelectedShippingAddress,
     type SavedAddress
   } from '@/utils/addressStorage'
+  import { themeColor } from '@/constants/theme'
   import { addressManualIcon, wechatChatIcon } from '@/svgs'
+  import ListNoMore from '@/components/ListNoMore/ListNoMore.vue'
+  import { useScrollRefresher } from '@/utils/useScrollRefresher'
 
   // 保存地址列表
   const addresses = ref<SavedAddress[]>([])
+  const ADDR_PAGE_STEP = 15
+  const addrVisibleLimit = ref(ADDR_PAGE_STEP)
+  const visibleAddresses = computed(() => addresses.value.slice(0, addrVisibleLimit.value))
+  const hasLoadedAllAddresses = computed(
+    () => addresses.value.length > 0 && visibleAddresses.value.length >= addresses.value.length
+  )
   const isSelectMode = ref(false)
   const navTitle = computed(() => (isSelectMode.value ? '选择寄件信息' : '我的地址'))
 
@@ -119,7 +136,7 @@
     {
       text: '删除',
       style: {
-        backgroundColor: '#fa3534'
+        backgroundColor: themeColor.danger
       }
     }
   ]
@@ -151,9 +168,20 @@
       const list = sorted.map(customerAddressVOToSavedAddress)
       saveAddresses(list)
       addresses.value = list
+      addrVisibleLimit.value = ADDR_PAGE_STEP
     } catch {
       addresses.value = loadAddresses()
+      addrVisibleLimit.value = ADDR_PAGE_STEP
     }
+  }
+
+  const { refresherTriggered, onRefresherRefresh } = useScrollRefresher(async () => {
+    await refresh()
+  })
+
+  const loadMoreAddresses = () => {
+    if (visibleAddresses.value.length >= addresses.value.length) return
+    addrVisibleLimit.value += ADDR_PAGE_STEP
   }
 
   /**
@@ -307,6 +335,20 @@
 </script>
 
 <style lang="scss" scoped>
+  .addr-page-root {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  .addr-scroll {
+    flex: 1;
+    height: 0;
+    min-height: 0;
+  }
+
   .section {
     @include flex-column-gap;
     flex: 1;
@@ -322,10 +364,13 @@
   }
 
   .action-card {
-    @include white-card($radius-lg, 28rpx $space-lg);
+    background-color: $bg-card;
+    border-radius: $radius-lg;
+    padding: 28rpx $space-lg;
+    border: 2rpx solid $bg-hover;
+    box-sizing: border-box;
     @include flex-row;
     gap: $space-md;
-    box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
 
     &:active {
       opacity: 0.92;
@@ -351,7 +396,7 @@
     .action-title {
       font-size: $font-lg;
       font-weight: 600;
-      color: $text-dark;
+      color: $text-slate-900;
     }
 
     .action-desc {
@@ -371,30 +416,32 @@
     background-color: $bg-card;
     border-radius: $radius-lg;
     padding: 64rpx $space-lg;
-    border: 2rpx dashed #e2e8f0;
+    border: 2rpx dashed $border-slate;
 
     .empty-title {
       display: block;
       font-size: 30rpx;
-      color: $text-label;
+      color: $text-slate-500;
       margin-bottom: 12rpx;
     }
 
     .empty-desc {
       font-size: 26rpx;
-      color: $text-muted;
+      color: $text-slate-400;
       line-height: 1.5;
     }
   }
 
   .addr-swipe-item {
-    margin-bottom: $space-md;
     @include flex-column-gap;
   }
 
   .addr-card {
-    @include white-card;
+    background-color: $bg-card;
+    border-radius: $radius-lg;
     padding: 28rpx $space-lg;
+    border: 2rpx solid $bg-hover;
+    box-sizing: border-box;
 
     .addr-top {
       @include flex-row;
@@ -442,17 +489,17 @@
     .addr-name {
       font-size: $font-lg;
       font-weight: 600;
-      color: $text-dark;
+      color: $text-slate-900;
     }
 
     .addr-phone {
       font-size: $font-md;
-      color: $text-label;
+      color: $text-slate-500;
     }
 
     .addr-line {
       font-size: $font-md;
-      color: $text-body;
+      color: $text-slate-700;
       line-height: 1.5;
     }
 

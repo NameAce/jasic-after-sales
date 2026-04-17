@@ -241,7 +241,7 @@
     .badge-text {
       font-size: 10px;
       font-weight: bold;
-      color: $surface-slate-300;
+      color: $icon-slate-light;
       text-transform: uppercase;
       letter-spacing: 0.15em;
     }
@@ -250,7 +250,7 @@
       display: block;
       font-size: 28px;
       font-weight: bold;
-      color: $surface-white;
+      color: $text-bg;
       margin-bottom: 12px;
       letter-spacing: -0.025em;
       line-height: 1.2;
@@ -316,7 +316,7 @@
 
     .login-btn {
       width: 100%;
-      color: $surface-white;
+      color: $text-bg;
       font-weight: bold;
       padding: 0;
       height: 56px;

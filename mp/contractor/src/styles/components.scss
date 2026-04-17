@@ -6,7 +6,7 @@
   @include flex-column;
   gap: $space-sm;
 
-  background-color: $surface-white;
+  background-color: $bg-card;
   border-radius: $radius-lg;
   border: 1rpx solid $border-color;
   padding: $space-md $space-lg;
@@ -15,6 +15,25 @@
 // 阴影
 .card-shadow {
   box-shadow: 7rpx 7rpx 0px 0px rgba(0, 0, 0, 0.1);
+}
+
+/* 内容页壳：与全局 `page` 灰底一致，需整页灰底时给根节点加 class */
+.page-surface-default {
+  min-height: 100vh;
+  box-sizing: border-box;
+  background-color: $bg-page;
+}
+
+.section-header {
+  @include section-header-with-mark;
+
+  .section-mark {
+    @include section-mark;
+  }
+
+  .section-title {
+    @include section-title;
+  }
 }
 
 // 文件选择器--------------------------------------------------
@@ -36,11 +55,11 @@
 
 .btn-primary {
   background: $primary;
-  color: $surface-white;
+  color: $text-bg;
 }
 
 .btn-secondary {
-  background: $surface-page;
+  background: $bg-page;
   color: $text-main;
   border: 1rpx solid $border-color;
 }
@@ -52,7 +71,7 @@
 
 :deep(.uni-easyinput .is-input-border) {
   border-radius: $radius-input !important;
-  background-color: $surface-slate-50 !important;
+  background-color: $bg-light !important;
 }
 
 :deep(.uni-easyinput__content) {
@@ -66,7 +85,7 @@
 
 :deep(.uni-select) {
   border-radius: $radius-input !important;
-  background-color: $surface-slate-50 !important;
+  background-color: $bg-light !important;
   height: 80rpx;
   font-size: $space-input !important;
 }

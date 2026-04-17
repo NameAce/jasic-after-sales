@@ -6,9 +6,8 @@ const KEY_OTHER = 'repairFormDraft_other_v1'
 const KEY_JASIC = 'repairFormDraft_jasic_v1'
 
 export interface OtherRepairDraftForm {
-  warrantyCode: string
   centerId: string | number | null
-  faultDescription: string
+  faultRemark: string
   repairType: string
   shippingInfo: string
   voiceList: VoiceItem[]
@@ -86,9 +85,19 @@ export function applyOtherRepairDraft(
   preserveServicePoint: boolean
 ): void {
   if (!draft?.formData) return
+  const fd = draft.formData as Partial<OtherRepairDraftForm> & { faultDescription?: string }
   const normalizedFormData: OtherRepairDraftForm = {
-    warrantyCode: String((draft.formData as { warrantyCode?: unknown }).warrantyCode ?? ''),
-    ...draft.formData
+    centerId: fd.centerId ?? null,
+    faultRemark:
+      String(fd.faultRemark ?? '').trim() ||
+      String(fd.faultDescription ?? '').trim(),
+    repairType: String(fd.repairType ?? 'STORE'),
+    shippingInfo: String(fd.shippingInfo ?? ''),
+    voiceList: Array.isArray(fd.voiceList) ? fd.voiceList : [],
+    images: Array.isArray(fd.images) ? fd.images : [],
+    shippingCode: Array.isArray(fd.shippingCode) ? fd.shippingCode : [],
+    brandName: String(fd.brandName ?? ''),
+    modelName: String(fd.modelName ?? '')
   }
   if (preserveServicePoint) {
     formData.value = { ...normalizedFormData, centerId: formData.value.centerId }

@@ -20,19 +20,25 @@
   @use '@/styles/index.scss';
   @use '@/uni.scss';
 
-  /* 全局页面底部安全距离 */
   page {
-    // 底部安全距离（兼容旧版本 iOS）
-    background-color: $surface-page;
+    background-color: $bg-page;
     min-height: 100vh;
     font-family: 'SimHei', '黑体', 'Heiti SC', sans-serif;
   }
 
+  /* 纵向块级流式布局（勿用含 justify-content:center 的 flex-column，避免整页垂直居中） */
   .page-index {
-    // 组件之间的间隔
-    @include flex-column;
-    gap: $space-lg;
+    @include flex-column-gap;
+    min-height: 100vh;
+    background-color: $bg-page;
+  }
+
+  .page-padding {
     padding: 0 $space-lg env(safe-area-inset-bottom);
     box-sizing: border-box;
+  }
+
+  .page-padding-no-safe {
+    padding-bottom: 0;
   }
 </style>

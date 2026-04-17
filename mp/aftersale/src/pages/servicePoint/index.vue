@@ -1,5 +1,7 @@
 <template>
-  <view class="page-index page-padding">
+  <view class="page-index">
+    <custom-nav-bar title="选择附近网点" surface="sticky" />
+    <view class="page-padding service-point-body">
     <!-- 网点列表 -->
     <view
       v-for="(item, index) in servicePointList"
@@ -8,7 +10,7 @@
       @click="selectPoint(item)"
     >
       <view class="item-left">
-        <uni-icons type="location-filled" size="20" color="#909399"></uni-icons>
+        <uni-icons type="location-filled" size="20" :color="themeColor.info"></uni-icons>
         <view v-if="item.serviced">服务过</view>
       </view>
       <view class="item-content">
@@ -18,15 +20,16 @@
       <view class="item-right">
         <view class="action-icons">
           <view @click.stop="navigateToPoint(item)">
-            <uni-icons type="navigate-filled" size="18" color="#909399"></uni-icons>
+            <uni-icons type="navigate-filled" size="18" :color="themeColor.info"></uni-icons>
             <view>{{ item.distance }}</view>
           </view>
           <view @click.stop="callPhone(item)">
-            <uni-icons type="phone-filled" size="18" color="#909399"></uni-icons>
+            <uni-icons type="phone-filled" size="18" :color="themeColor.info"></uni-icons>
             <view>电话</view>
           </view>
         </view>
       </view>
+    </view>
     </view>
   </view>
 </template>
@@ -34,6 +37,8 @@
 <script setup lang="ts">
   import { ref } from 'vue'
   import { onLoad } from '@dcloudio/uni-app'
+  import { themeColor } from '@/constants/theme'
+  import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import {
     getNearbyServiceCompanyOptionsAPI,
     mapNearbyToServicePoint,
@@ -173,8 +178,10 @@
 </script>
 
 <style lang="scss" scoped>
-  .page-index.page-padding {
-    padding-top: $space-lg;
+  .service-point-body {
+    @include flex-column-gap;
+    flex: 1;
+    min-height: 0;
   }
 
   .service-point-item {

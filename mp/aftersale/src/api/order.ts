@@ -1,29 +1,11 @@
 import { http } from '@/utils/http'
-// 故障点图片项
-export interface FaultPointImageItem {
-  url: string
-  label?: string
-}
+import type { FaultPointRecord } from '@/models/order'
+import {
+  mapCustomerRepairsToAllFaultPointRecords,
+  type CustomerRepairForHistory,
+} from '@/api/mapRepairsToFaultPointRecords'
 
-// 故障点配件项
-export interface FaultPointPartItem {
-  name: string
-  count: number
-}
-
-// 故障点维修记录
-export interface FaultPointMaintenanceRecord {
-  description: string
-  images: FaultPointImageItem[]
-  parts?: FaultPointPartItem[]
-  specialInfo?: string
-  location: string
-  date: string
-  /** 与登记表单、详情一致时的结构化字段（由详情映射写入） */
-  faultDesc?: string
-  repairDesc?: string
-  otherDesc?: string
-}
+export type FaultPointMaintenanceRecord = FaultPointRecord
 
 // 工单详情
 export interface OrderDetailDTO {
@@ -213,6 +195,8 @@ export interface CustomerWorkOrderDetailDTO {
       partDesc: string
       repairDesc: string
       sortNum: number
+      /** 与 contractor 详情一致：结构化配件（若有则优先于 partDesc） */
+      partList?: Array<{ id?: number; partName?: string; partQty?: number; sortNum?: number }>
     }>
     finishedTime: string
     id: number
@@ -222,6 +206,12 @@ export interface CustomerWorkOrderDetailDTO {
     repairSummary: string
     repairUserId: number
     repairUserName: string
+    /** 与 contractor 维修登记附件一致（客户详情若返回则并入历史图） */
+    faultOldImageFiles?: CustomerWorkOrderFileDTO[]
+    faultNewImageFiles?: CustomerWorkOrderFileDTO[]
+    machineImageFiles?: CustomerWorkOrderFileDTO[]
+    machineBarcodeImageFiles?: CustomerWorkOrderFileDTO[]
+    otherImageFiles?: CustomerWorkOrderFileDTO[]
   }>
   returnExpressNo: string
   returnMethod: string
@@ -395,50 +385,9 @@ export function mapCustomerWorkOrderDetailToOrderDetailDTO(r: CustomerWorkOrderD
   const outletPhone = String(r.sitePhone ?? '').trim()
   const returnReceiverTitle = [r.senderName, r.senderMobile].filter(Boolean).join(' ').trim()
 
-  const faultPointRecords: FaultPointMaintenanceRecord[] = (r.repairs ?? [])
-    .flatMap((rep) => {
-      const repDate = String(rep.finishedTime || rep.createTime || '').trim()
-      const repLocation = String(rep.companyName || r.currentAcceptCompanyName || '').trim()
-      const repDesc = String(rep.repairDesc || rep.repairSummary || '').trim()
-      const repOther = String(rep.otherDesc || '').trim()
-      const faults = rep.faults ?? []
-      if (faults.length === 0) {
-        return repDesc
-          ? [
-              {
-                description: repDesc,
-                faultDesc: '',
-                repairDesc: repDesc,
-                otherDesc: repOther,
-                images: [],
-                specialInfo: repOther || undefined,
-                location: repLocation,
-                date: repDate,
-              },
-            ]
-          : []
-      }
-      return faults.map((f) => {
-        const faultDesc = String(f.faultDesc ?? '').trim()
-        const repairDesc = String(f.repairDesc ?? '').trim()
-        const otherDesc = String(f.otherDesc ?? '').trim() || repOther
-        const imgs = splitCommaUrls(f.imageUrls).map((url, idx) => ({
-          url,
-          label: `图片${idx + 1}`,
-        }))
-        return {
-          description: String(f.repairDesc || f.faultDesc || repDesc || '').trim(),
-          faultDesc,
-          repairDesc,
-          otherDesc,
-          images: imgs,
-          specialInfo: otherDesc || undefined,
-          location: repLocation,
-          date: String(f.createTime || repDate || '').trim(),
-        }
-      })
-    })
-    .filter((x) => x.description || (x.images?.length ?? 0) > 0)
+  const faultPointRecords: FaultPointMaintenanceRecord[] = mapCustomerRepairsToAllFaultPointRecords(
+    r.repairs as CustomerRepairForHistory[] | undefined,
+  )
 
   const repairsSorted = [...(r.repairs ?? [])].sort((a, b) => {
     const ta = Date.parse(String(a.createTime || '')) || 0
@@ -560,6 +509,19 @@ export const getOrderDetailAPI = (data: { id: string }) => {
     ...res,
     result: mapCustomerWorkOrderDetailToOrderDetailDTO(res.result),
   }))
+}
+
+/**
+ * 仅拉取详情中的故障点历史列表（与 `mapCustomerWorkOrderDetailToOrderDetailDTO` 的 `faultPoint.records` 同源；历史页先读 storage 再请求覆盖，与 contractor 一致）。
+ */
+export async function fetchOrderRepairFaultRecords(id: string): Promise<FaultPointMaintenanceRecord[]> {
+  const wid = String(id || '').trim()
+  if (!wid) {
+    uni.showToast({ title: '工单ID无效', icon: 'none' })
+    throw new Error('工单ID无效')
+  }
+  const res = await getOrderDetailAPI({ id: wid })
+  return res.result?.faultPoint?.records ?? []
 }
 
 /**

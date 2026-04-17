@@ -3,11 +3,17 @@
     <custom-nav-bar title="工单列表" surface="sticky" :shadow="false">
       <view class="search-wrap">
         <view class="search-box">
-          <uni-icons type="search" size="18" color="#94a3b8" class="search-icon"></uni-icons>
+          <uni-icons
+            type="search"
+            size="18"
+            :color="themeColors.textMuted"
+            class="search-icon"
+          ></uni-icons>
           <input
             v-model="searchKeyword"
             class="search-input"
-            placeholder="在当前已加载列表中筛选：工单号、条码、型号等"
+            placeholder="请输入工单号"
+            placeholder-class="placeholder-text"
             confirm-type="search"
           />
         </view>
@@ -28,7 +34,15 @@
     </custom-nav-bar>
     <view :class="['page-container page-index order-list-page', showUploadModal ? 'blur-bg' : '']">
       <!-- 工单列表 -->
-      <scroll-view class="main-content" scroll-y :lower-threshold="100" @scrolltolower="loadMore">
+      <scroll-view
+        class="main-content"
+        scroll-y
+        :lower-threshold="100"
+        refresher-enabled
+        :refresher-triggered="orderListRefresherTriggered"
+        @refresherrefresh="onOrderListRefresherRefresh"
+        @scrolltolower="loadMore"
+      >
         <view class="order-list page-padding">
           <view v-if="loading && orderList.length === 0" class="list-end-hint list-loading-top">
             <text class="list-end-text">加载中...</text>
@@ -50,7 +64,9 @@
               <image class="empty-list-illus" :src="emptyOrderListIcon" mode="aspectFit" />
             </view>
             <text class="empty-title">暂无匹配结果</text>
-            <text class="empty-desc">当前关键词在已加载的工单中没有匹配项，可清空关键词或上拉加载更多后再试</text>
+            <text class="empty-desc"
+              >当前关键词在已加载的工单中没有匹配项，可清空关键词、下拉刷新或上拉加载更多后再试</text
+            >
           </view>
           <view
             v-for="order in displayOrderList"
@@ -72,12 +88,14 @@
               </view>
             </view>
 
-            <!-- 工单类型（佳士-橙 / 非佳士-灰）、机器型号（有条码才显示-红） -->
-            <view class="tags">
-              <text :class="['tag', order.isJasic ? 'tag-jasic' : 'tag-non-jasic']">
-                {{ orderBrandTypeText(order) }}
-              </text>
-              <text v-if="showModelTag(order)" class="tag tag-model">{{ order.modelName }}</text>
+            <!-- 工单类型、型号标签（结构与 contractor OrderCardList.tags-wrap 一致） -->
+            <view class="tags-wrap">
+              <view :class="['tag', order.isJasic ? 'tag-brand' : 'tag-other-brand']">
+                <text class="text">{{ orderBrandTypeText(order) }}</text>
+              </view>
+              <view v-if="showModelTag(order)" class="tag tag-model">
+                <text class="text">{{ order.modelName }}</text>
+              </view>
             </view>
 
             <!-- 待接单：维修方式、条码（有条码才显示）；其余状态：网点、电话、方式、价格、条码（有条码才显示） -->
@@ -149,7 +167,7 @@
           </view>
           <view v-if="orderList.length > 0" class="list-end-hint">
             <text class="list-end-text">{{
-              loadingMore ? '加载中...' : hasMore ? '上拉加载更多' : '没有更多了'
+              loadingMore ? '加载中...' : hasMore ? '下拉刷新或上拉加载更多' : '没有更多了'
             }}</text>
           </view>
         </view>
@@ -201,7 +219,9 @@
   } from '@/api/order'
   import { uploadCustomerFile } from '@/api/file'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
+  import { themeColors } from '@/constants/theme'
   import { emptyOrderListIcon, photoCameraIcon, scheduleIcon } from '@/svgs'
+  import { useScrollRefresher } from '@/utils/useScrollRefresher'
 
   // 工单状态标签
   const tabs = ['全部', '待接单', '维修中', '已完成', '已关闭'] as const
@@ -218,7 +238,7 @@
   const orderList = ref<OrderListItemDTO[]>([])
   // 分页状态
   const pageNum = ref(1)
-  const pageSize = 20
+  const pageSize = 10
   const total = ref(0)
   const hasMore = ref(true)
   const loading = ref(false)
@@ -331,8 +351,15 @@
     pageNum.value = 1
     total.value = 0
     hasMore.value = true
-    loadOrderList(true)
+    return loadOrderList(true)
   }
+
+  const {
+    refresherTriggered: orderListRefresherTriggered,
+    onRefresherRefresh: onOrderListRefresherRefresh
+  } = useScrollRefresher(async () => {
+    await reloadOrderList()
+  })
 
   /** 切换 Tab：更新状态并请求接口（全部不传 tabStatus，其余传 WAIT_ACCEPT 等） */
   function selectTab(index: number) {
@@ -508,6 +535,7 @@
   .search-wrap {
     background-color: $bg-card;
     @include flex-column-gap;
+    box-sizing: border-box;
 
     .search-box {
       @include flex-row;
@@ -515,6 +543,7 @@
       height: 88rpx;
       border-radius: $radius-lg;
       padding: 0 $space-lg;
+      box-sizing: border-box;
 
       .search-icon {
         margin-right: $space-sm;
@@ -522,43 +551,59 @@
 
       .search-input {
         flex: 1;
+        height: 100%;
         font-size: $font-md;
-        color: $text-dark;
+        color: $text-slate-900;
         background: transparent;
       }
+    }
+
+    /* 原生 input 占位符 class 不参与 scoped 哈希 */
+    :deep(.placeholder-text) {
+      color: $text-slate-400;
     }
   }
 
   .tabs {
     width: 100%;
-    border-bottom: 2rpx solid $border-light;
+    border-bottom: 2rpx solid $bg-hover;
     white-space: nowrap;
+    box-sizing: border-box;
 
     .tabs-inner {
       display: inline-flex;
       padding: 0 $space-lg;
-      gap: $space-xl;
+      gap: 48rpx;
     }
 
     .tab-item {
       @include flex-column-center;
-      padding: $space-sm 0 $space-md;
+      position: relative;
       flex-shrink: 0;
-      border-bottom: 4rpx solid transparent;
+      padding: $space-sm 0 $space-md;
+      box-sizing: border-box;
 
       .tab-text {
         font-size: $font-md;
         font-weight: 500;
-        color: $text-label;
+        color: $text-main;
         transition: color 0.2s;
       }
 
       &.active {
-        border-bottom-color: $primary;
-
         .tab-text {
           font-weight: bold;
           color: $primary;
+        }
+
+        &::after {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 4rpx;
+          background-color: $primary;
         }
       }
     }
@@ -567,28 +612,35 @@
   .main-content {
     flex: 1;
     min-height: 0;
+    height: 0;
     overflow-y: auto;
     box-sizing: border-box;
+    padding-bottom: 40rpx;
   }
 
   .order-list {
-    @include flex-column-gap;
+    display: flex;
+    flex-direction: column;
     padding-top: $space-lg;
+    gap: 0;
 
     .empty-hint {
-      @include empty-state;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
       padding: 160rpx 64rpx 120rpx;
+      box-sizing: border-box;
 
       .empty-icon-wrap {
         width: 520rpx;
         max-width: 92%;
         height: 200rpx;
-        border-radius: 24rpx;
-        background-color: $bg-hover;
         @include flex-center;
-        margin-bottom: $space-lg;
-        padding: 20rpx 24rpx;
+        padding: 0 24rpx;
         box-sizing: border-box;
+        margin-bottom: $space-lg;
 
         .empty-list-illus {
           width: 100%;
@@ -599,13 +651,13 @@
       .empty-title {
         font-size: $font-lg;
         font-weight: 600;
-        color: $text-label;
+        color: $text-slate-500;
         margin-bottom: 12rpx;
       }
 
       .empty-desc {
         font-size: 26rpx;
-        color: $text-muted;
+        color: $text-slate-400;
         line-height: 1.5;
       }
     }
@@ -627,9 +679,13 @@
   }
 
   .order-card {
-    @include white-card;
+    background-color: $bg-card;
+    border-radius: $radius-lg;
+    padding: $space-lg;
+    margin-bottom: $space-lg;
+    border: 2rpx solid $bg-hover;
+    box-sizing: border-box;
     @include flex-column;
-    box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.02);
 
     .card-header {
       @include flex-between;
@@ -643,17 +699,58 @@
         .id-main {
           font-size: $font-lg;
           font-weight: bold;
-          color: $text-dark;
-          letter-spacing: -0.5rpx;
+          color: $text-slate-900;
+          letter-spacing: -0.025em;
         }
       }
     }
 
-    .tags {
+    .tags-wrap {
       display: flex;
       flex-wrap: wrap;
       gap: $space-sm;
       margin-bottom: $space-lg;
+
+      .tag {
+        padding: 4rpx $space-sm;
+        border-radius: $radius-sm;
+        border: 2rpx solid transparent;
+        box-sizing: border-box;
+        @include flex-center;
+
+        .text {
+          font-size: 22rpx;
+          font-weight: 500;
+        }
+
+        &.tag-brand {
+          background-color: $tag-brand-bg;
+          border-color: $tag-brand-border;
+
+          .text {
+            color: $tag-brand-text;
+          }
+        }
+
+        &.tag-other-brand {
+          background-color: $tag-neutral-bg;
+          border-color: $tag-neutral-border;
+
+          .text {
+            color: $text-slate-600;
+          }
+        }
+
+        &.tag-model {
+          background-color: $danger-tint-bg;
+          border-color: $danger-tint-border;
+
+          .text {
+            color: $warranty-out;
+            font-weight: 600;
+          }
+        }
+      }
     }
 
     .details-grid {
@@ -672,12 +769,12 @@
 
         .d-label {
           font-size: 22rpx;
-          color: $text-muted;
+          color: $text-slate-400;
         }
 
         .d-value {
           font-size: 26rpx;
-          color: $text-body;
+          color: $text-slate-700;
           font-weight: 500;
 
           &.text-primary {
@@ -685,7 +782,7 @@
           }
           &.font-bold {
             font-weight: bold;
-            color: $text-dark;
+            color: $text-slate-900;
           }
         }
       }
@@ -708,13 +805,14 @@
 
     .card-footer {
       @include flex-between;
-      padding-top: $space-md;
-      border-top: 2rpx solid $border-lighter;
+      align-items: flex-end;
+      gap: $space-md;
+      flex-wrap: wrap;
 
       .time-wrap {
         @include flex-row;
         gap: $space-xs;
-        color: $text-muted;
+        color: $text-slate-400;
 
         .time-icon {
           width: 26rpx;
@@ -728,20 +826,21 @@
       }
 
       .action-wrap {
-        display: flex;
+        @include flex-row;
+        flex-wrap: wrap;
         justify-content: flex-end;
         gap: $space-md;
         flex: 1;
 
         .btn-action {
           margin: 0;
-          padding: 0 $space-lg;
-          height: 56rpx;
-          line-height: 56rpx;
-          border-radius: $radius-round;
-          font-size: $font-sm;
+          padding: 2rpx $space-lg;
+          min-width: 0;
+          border-radius: 10rpx;
+          font-size: 26rpx;
           font-weight: bold;
           @include btn-reset;
+          @include flex-center;
 
           &.primary {
             @include btn-primary-solid;
@@ -794,7 +893,7 @@
       .modal-handle {
         width: 96rpx;
         height: 12rpx;
-        background-color: #e5e7eb;
+        background-color: $border-neutral;
         border-radius: $radius-round;
       }
     }

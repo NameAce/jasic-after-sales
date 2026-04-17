@@ -231,7 +231,7 @@
         height: 80rpx;
         padding-left: 80rpx;
         border-radius: 24rpx;
-        background-color: $surface-slate-100;
+        background-color: $bg-hover;
         font-size: 28rpx;
         color: $text-slate-900;
         box-sizing: border-box;
@@ -253,10 +253,10 @@
     display: flex;
     align-items: center;
     gap: 32rpx;
-    background-color: $surface-white;
+    background-color: $bg-card;
     padding: 20rpx 32rpx;
     border-radius: 24rpx;
-    border: 2rpx solid $surface-slate-100;
+    border: 2rpx solid $bg-hover;
     box-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.05);
     margin-bottom: 24rpx;
 
@@ -265,7 +265,7 @@
       background-color: rgba(242, 102, 4, 0.05);
 
       .avatar {
-        border: 4rpx solid $surface-white;
+        border: 4rpx solid $bg-card;
       }
     }
 
@@ -288,7 +288,7 @@
       width: 40rpx;
       height: 40rpx;
       border-radius: 50%;
-      border: 3rpx solid $surface-white;
+      border: 3rpx solid $bg-card;
       background-color: $primary;
       display: flex;
       align-items: center;
@@ -361,7 +361,7 @@
 
   .atm-actions {
     @include modal-footer-bar;
-    background-color: $surface-white;
+    background-color: $bg-card;
     padding: $space-sm $space-lg;
   }
 </style>

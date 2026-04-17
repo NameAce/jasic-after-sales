@@ -228,8 +228,8 @@
     .tag-item {
       padding: 12rpx 32rpx;
       border-radius: 999rpx;
-      border: 2rpx solid $surface-slate-200;
-      background-color: $surface-slate-50;
+      border: 2rpx solid $border-slate;
+      background-color: $bg-light;
       font-size: 26rpx;
       color: $text-slate-600;
       transition: all 0.3s;

@@ -5,7 +5,7 @@
 /* 工单列表 / 工作台：多页共用的标题栏、搜索、空状态、工单卡片 */
 .page-index.order-list-page {
   @include flex-col;
-  background-color: $surface-app;
+  background-color: $bg-page;
   min-height: 100vh;
   /* TabBar 页面：可视高度扣减底部占位，避免整页滚动导致顶栏被滚走 */
   height: calc(100vh - var(--window-bottom, 0px));
@@ -22,7 +22,7 @@
 
 .order-list-page .header,
 .page-container .header {
-  background-color: $surface-white;
+  background-color: $bg-card;
   position: sticky;
   top: 0;
   z-index: 10;
@@ -30,7 +30,7 @@
 
 .page-container .header {
   z-index: 20;
-  border-bottom: 2rpx solid $surface-slate-100;
+  border-bottom: 2rpx solid $bg-hover;
 }
 
 .title-bar {
@@ -80,7 +80,7 @@
 
   .search-box {
     @include flex-row;
-    background-color: $surface-slate-100;
+    background-color: $bg-hover;
     border-radius: $radius-lg;
     height: 88rpx;
     padding: 0 $space-lg;
@@ -162,7 +162,7 @@
 
   .empty-icon {
     font-size: 120rpx;
-    color: $surface-slate-300;
+    color: $icon-slate-light;
     margin-bottom: $space-lg;
     font-variation-settings:
       'FILL' 0,
@@ -187,11 +187,11 @@
 }
 
 .order-card {
-  background-color: $surface-white;
+  background-color: $bg-card;
   border-radius: $radius-lg;
   padding: $space-lg;
   margin-bottom: $space-lg;
-  border: 2rpx solid $surface-slate-100;
+  border: 2rpx solid $bg-hover;
 
   .card-header {
     @include flex-between-start;
@@ -377,7 +377,7 @@
 
         &.primary {
           background-color: $primary;
-          color: $surface-white;
+          color: $text-bg;
 
           &:active {
             opacity: 0.9;
@@ -385,7 +385,7 @@
         }
 
         &.outline {
-          background-color: $surface-white;
+          background-color: $bg-card;
           color: $primary;
           border: 2rpx solid $primary;
 

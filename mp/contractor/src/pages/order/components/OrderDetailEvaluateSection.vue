@@ -104,7 +104,7 @@
 
       .od-star-char {
         font-size: 32rpx;
-        color: $surface-slate-200;
+        color: $border-slate;
 
         &.active {
           color: #f59e0b;

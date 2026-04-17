@@ -1,76 +1,80 @@
 <template>
-  <view class="page-container">
-    <!-- 暂无历史维修记录 -->
-    <ListEmpty v-if="records.length === 0" title="暂无历史维修记录" />
+  <view class="historical-record-page">
+    <CustomNavBar title="故障点历史记录" surface="sticky" />
+    <view class="page-container">
+      <!-- 暂无历史维修记录 -->
+      <ListEmpty v-if="records.length === 0" title="暂无历史维修记录" />
 
-    <!-- 历史维修记录列表 -->
-    <view v-else class="record-list">
-      <view v-for="(record, index) in records" :key="index" class="record-card">
-        <!-- 维修说明 -->
-        <view v-if="showRepairDescSection(record)" class="section">
-          <text class="section-label">维修说明</text>
-          <text class="section-value" style="color: #ef4444; font-weight: 600">
-            {{ recordRepairLine(record) }}
-          </text>
-        </view>
-        <!-- 其它维修说明 -->
-        <view v-if="recordOtherSupplement(record)" class="special-info">
-          <view class="special-header">
-            <uni-icons type="info" size="14" color="#f26604"></uni-icons>
-            <text class="special-title">其它维修说明</text>
+      <!-- 历史维修记录列表 -->
+      <view v-else class="record-list">
+        <view v-for="(record, index) in records" :key="index" class="record-card">
+          <!-- 维修说明 -->
+          <view v-if="showRepairDescSection(record)" class="section">
+            <text class="section-label">维修说明</text>
+            <text class="section-value section-value--emphasis">
+              {{ recordRepairLine(record) }}
+            </text>
           </view>
-          <text class="special-content">{{ recordOtherSupplement(record) }}</text>
-        </view>
-
-        <!-- 更换配件 -->
-        <view v-if="record.parts && record.parts.length > 0" class="section">
-          <text class="section-label">更换配件</text>
-          <view class="parts-list">
-            <view v-for="(part, pIndex) in record.parts" :key="pIndex" class="part-tag">
-              <text class="part-name">{{ part.name }}</text>
-              <text class="part-count">x{{ part.count }}</text>
+          <!-- 其它维修说明 -->
+          <view v-if="recordOtherSupplement(record)" class="special-info">
+            <view class="special-header">
+              <uni-icons type="info" size="14" color="#f26604"></uni-icons>
+              <text class="special-title">其它维修说明</text>
             </view>
+            <text class="special-content">{{ recordOtherSupplement(record) }}</text>
           </view>
-        </view>
 
-        <!-- 故障点图片 -->
-        <view v-if="(record.images || []).length > 0" class="section image-section">
-          <text class="section-label">故障点图片</text>
-          <scroll-view scroll-x class="image-scroll-view" :show-scrollbar="false">
-            <view class="image-list">
-              <view
-                v-for="(img, imgIndex) in record.images"
-                :key="imgIndex"
-                class="image-item"
-                @tap="previewRecordImage(record, imgIndex)"
-              >
-                <image class="image-content" :src="img.url" mode="aspectFill"></image>
-                <text v-if="img.label" class="image-label">{{ img.label }}</text>
+          <!-- 更换配件 -->
+          <view v-if="record.parts && record.parts.length > 0" class="section">
+            <text class="section-label">更换配件</text>
+            <view class="parts-list">
+              <view v-for="(part, pIndex) in record.parts" :key="pIndex" class="part-tag">
+                <text class="part-name">{{ part.name }}</text>
+                <text class="part-count">x{{ part.count }}</text>
               </view>
             </view>
-          </scroll-view>
-        </view>
-
-        <!-- 底部 -->
-        <view class="card-footer">
-          <view v-if="record.location" class="footer-item location">
-            <uni-icons type="location-filled" size="16" color="#9ca3af"></uni-icons>
-            <text class="footer-text">{{ record.location }}</text>
           </view>
-          <view class="footer-item time">
-            <uni-icons type="calendar-filled" size="16" color="#9ca3af"></uni-icons>
-            <text class="footer-text">{{ record.date }}</text>
+
+          <!-- 故障点图片 -->
+          <view v-if="(record.images || []).length > 0" class="section image-section">
+            <text class="section-label">故障点图片</text>
+            <scroll-view scroll-x class="image-scroll-view" :show-scrollbar="false">
+              <view class="image-list">
+                <view
+                  v-for="(img, imgIndex) in record.images"
+                  :key="imgIndex"
+                  class="image-item"
+                  @tap="previewRecordImage(record, imgIndex)"
+                >
+                  <image class="image-content" :src="img.url" mode="aspectFill"></image>
+                  <text v-if="img.label" class="image-label">{{ img.label }}</text>
+                </view>
+              </view>
+            </scroll-view>
+          </view>
+
+          <!-- 底部 -->
+          <view class="card-footer">
+            <view v-if="record.location" class="footer-item location">
+              <uni-icons type="location-filled" size="16" color="#9ca3af"></uni-icons>
+              <text class="footer-text">{{ record.location }}</text>
+            </view>
+            <view class="footer-item time">
+              <uni-icons type="calendar-filled" size="16" color="#9ca3af"></uni-icons>
+              <text class="footer-text">{{ record.date }}</text>
+            </view>
           </view>
         </view>
       </view>
-    </view>
 
-    <ListNoMore v-if="records.length > 0" />
+      <ListNoMore v-if="records.length > 0" />
+    </view>
   </view>
 </template>
 
 <script setup lang="ts">
   import { ref } from 'vue'
+  import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import ListEmpty from '@/components/ListEmpty/ListEmpty.vue'
   import ListNoMore from '@/components/ListNoMore/ListNoMore.vue'
   import { onLoad } from '@dcloudio/uni-app'
@@ -170,10 +174,15 @@
 </script>
 
 <style lang="scss" scoped>
-  .page-container {
+  .historical-record-page {
     min-height: 100vh;
-    background-color: $surface-slate-50;
+    background-color: $bg-light;
+    box-sizing: border-box;
+  }
+
+  .page-container {
     padding: $space-md;
+    padding-bottom: 40rpx;
     box-sizing: border-box;
   }
 
@@ -186,10 +195,10 @@
   .record-card {
     @include flex-col;
     gap: $space-lg;
-    background-color: $surface-white;
+    background-color: $bg-card;
     border-radius: $radius-md;
     padding: $space-lg;
-    border: 1px solid $surface-slate-100;
+    border: 1px solid $bg-hover;
   }
 
   .section {
@@ -206,6 +215,11 @@
   .section-value {
     font-size: $font-md;
     color: $text-slate-900;
+
+    &--emphasis {
+      color: $red-500;
+      font-weight: 600;
+    }
   }
 
   .image-section {
@@ -233,8 +247,8 @@
     width: 112rpx;
     height: 112rpx;
     border-radius: 12rpx;
-    border: 1px solid $surface-slate-100;
-    background-color: $surface-slate-100;
+    border: 1px solid $bg-hover;
+    background-color: $bg-hover;
   }
 
   .image-label {
@@ -281,10 +295,10 @@
   .part-tag {
     @include flex-row;
     gap: 12rpx;
-    background-color: $surface-slate-50;
+    background-color: $bg-light;
     padding: $space-xs 20rpx;
     border-radius: $radius-pill;
-    border: 1px solid $surface-slate-100;
+    border: 1px solid $bg-hover;
   }
 
   .part-name {
@@ -300,7 +314,7 @@
 
   .card-footer {
     padding-top: $space-md;
-    border-top: 1px solid $surface-slate-50;
+    border-top: 1px solid $bg-light;
     @include flex-between;
     flex-wrap: wrap;
     gap: $space-sm;

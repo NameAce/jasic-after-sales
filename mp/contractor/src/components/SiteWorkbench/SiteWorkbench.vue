@@ -101,20 +101,20 @@
       gap: $space-xs;
       border-radius: $radius-lg;
       padding: 18rpx 28rpx;
-      background-color: $surface-white;
-      border: 2rpx solid $surface-slate-100;
+      background-color: $bg-card;
+      border: 2rpx solid $bg-hover;
       box-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.05);
 
       &.primary {
         background-color: $primary;
         border: none;
-        color: $surface-white;
+        color: $text-bg;
 
         .stat-label {
           color: rgba(255, 255, 255, 0.8);
         }
         .stat-value {
-          color: $surface-white;
+          color: $text-bg;
         }
       }
 

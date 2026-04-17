@@ -30,7 +30,7 @@
           <text class="card-title">我的工单</text>
           <view class="card-more">
             <text>查看全部</text>
-            <uni-icons type="right" size="12" color="#94a3b8"></uni-icons>
+            <uni-icons type="right" size="12" :color="themeColors.textMuted"></uni-icons>
           </view>
         </view>
         <view class="grid-4">
@@ -80,7 +80,7 @@
               <image class="location-on-icon" :src="locationOnIcon" mode="aspectFit" />
               <text class="list-item-text">我的地址</text>
             </view>
-            <uni-icons type="right" size="12" color="#94a3b8"></uni-icons>
+            <uni-icons type="right" size="12" :color="themeColors.textMuted"></uni-icons>
           </view>
         </view>
       </view>
@@ -96,7 +96,7 @@
               <image class="info-circle-icon" :src="infoCircleIcon" mode="aspectFit" />
               <text class="list-item-text">关于我们</text>
             </view>
-            <uni-icons type="right" size="12" color="#94a3b8"></uni-icons>
+            <uni-icons type="right" size="12" :color="themeColors.textMuted"></uni-icons>
           </view>
         </view>
       </view>
@@ -117,6 +117,7 @@
   import { logoutAPI } from '@/api/user'
   import { getWorkOrderStatusCountAPI, type MyOrderCountsDTO } from '@/api/order'
   import { isLoggedIn } from '@/utils/auth'
+  import { themeColors } from '@/constants/theme'
   import {
     assignmentLateIcon,
     cancelPresentationIcon,
@@ -250,7 +251,7 @@
 
   .header-section {
     background-color: $primary;
-    color: #fff;
+    color: $primary-contrast;
     padding: $space-lg;
     padding-bottom: 96rpx;
     border-bottom-left-radius: $radius-xxl;
@@ -269,7 +270,7 @@
         width: 160rpx;
         height: 160rpx;
         border-radius: 50%;
-        background-color: #fff;
+        background-color: $primary-contrast;
         overflow: hidden;
 
         .avatar-img {
@@ -282,7 +283,7 @@
         position: absolute;
         bottom: 0;
         right: 0;
-        background-color: #facc15;
+        background-color: $vip-badge-bg;
         border-radius: 50%;
         padding: $space-xs;
         border: 4rpx solid $primary;
@@ -411,8 +412,8 @@
           position: absolute;
           top: $space-xs;
           right: 24rpx;
-          background-color: #ef4444;
-          color: #fff;
+          background-color: $danger-emphasis;
+          color: $primary-contrast;
           font-size: $font-xs;
           width: 32rpx;
           height: 32rpx;

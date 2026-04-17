@@ -35,7 +35,11 @@
                 :enable-progress-gesture="false"
               />
               <view class="mixed-video-badge">
-                <uni-icons type="videocam" size="20" color="#fff"></uni-icons>
+                <uni-icons
+                  type="videocam"
+                  size="20"
+                  :color="themeColor.primaryContrast"
+                ></uni-icons>
               </view>
             </template>
             <image v-else class="mixed-thumb" mode="aspectFill" :src="tileImageSrc(item)" />
@@ -49,9 +53,9 @@
           @click="chooseMixedMedia"
         >
           <view class="add-box-icon-wrap">
-            <uni-icons type="camera" size="26" color="#909399"></uni-icons>
+            <uni-icons type="camera" size="26" :color="themeColor.info"></uni-icons>
             <view class="add-box-plus">
-              <uni-icons type="plusempty" size="10" color="#909399"></uni-icons>
+              <uni-icons type="plusempty" size="10" :color="themeColor.info"></uni-icons>
             </view>
           </view>
           <text class="add-box-text">{{ addText }}</text>
@@ -76,9 +80,9 @@
     >
       <view class="file-picker-add-box">
         <view class="add-box-icon-wrap">
-          <uni-icons type="camera" size="26" color="#909399"></uni-icons>
+          <uni-icons type="camera" size="26" :color="themeColor.info"></uni-icons>
           <view class="add-box-plus">
-            <uni-icons type="plusempty" size="10" color="#909399"></uni-icons>
+            <uni-icons type="plusempty" size="10" :color="themeColor.info"></uni-icons>
           </view>
         </view>
         <text class="add-box-text">{{ addText }}</text>
@@ -89,6 +93,7 @@
 
 <script setup lang="ts">
   import { computed } from 'vue'
+  import { themeColor } from '@/constants/theme'
   import { uploadCustomerFile } from '@/api/file'
   import { validateFaultMediaSelection } from '@/utils/repairMediaLimits'
   import { isVideoMediaItem } from '@/utils/workOrderFileIds'
@@ -459,7 +464,6 @@
     emit('delete', e)
   }
 </script>
-
 <style lang="scss">
   // 故障视频/图片上传数量备注
   .shipping-label {
@@ -573,7 +577,7 @@
       position: absolute;
       width: 30rpx;
       height: 4rpx;
-      background-color: #fff;
+      background-color: $primary-contrast;
       border-radius: 2rpx;
     }
     &::before {

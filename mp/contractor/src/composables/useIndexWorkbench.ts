@@ -11,12 +11,12 @@ import {
   canCurrentSiteOperateTransferredOrder,
   hasInboundTransferFromSite
 } from '@/utils/orderTransfer'
+import { ORDER_STATUS_TEXT_MAP } from '@/utils/orderStatus'
 import {
   getPendingDisplayLabel,
   isMainStatusPendingAssign,
   normalizeWorkOrderMainStatus,
-  ORDER_STATUS_TEXT_MAP
-} from '@/utils/orderStatus'
+} from '@/utils/workOrderMainStatus'
 import { Perms } from '@/utils/permissions'
 
 export type HqBranchRow = {

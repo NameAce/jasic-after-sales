@@ -12,7 +12,7 @@
       <uni-icons
         :type="item.icon"
         size="20"
-        :color="modelValue === item.value ? '#f26604' : '#909399'"
+        :color="modelValue === item.value ? themeColor.primary : themeColor.info"
       ></uni-icons>
       <text>{{ item.label }}</text>
     </view>
@@ -20,6 +20,8 @@
 </template>
 
 <script setup lang="ts">
+  import { themeColor } from '@/constants/theme'
+
   interface RepairTypeOption {
     label: string
     value: string
@@ -44,7 +46,6 @@
     emit('update:modelValue', value)
   }
 </script>
-
 <style scoped lang="scss">
   .repair-types {
     display: grid;

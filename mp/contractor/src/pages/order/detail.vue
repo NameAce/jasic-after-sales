@@ -2,8 +2,8 @@
   <CustomNavBar
     title="工单详情"
     surface="sticky"
-    color="#ffffff"
-    background="#f26604"
+    :color="themeColors.textBg"
+    :background="themeColors.primary"
     :show-shadow="false"
   />
   <view class="page-container order-detail-page">
@@ -12,11 +12,6 @@
     <!-- 主内容区域 -->
     <view class="main-content" :class="{ 'main-content--with-bottom-bar': hasBottomActionBar }">
       <view class="content-wrap">
-        <view v-if="isTransferredOutViewer" class="transfer-out-tip">
-          <text class="transfer-out-tip-text">
-            该工单已转出，当前为转出网点视角，仅可查看，不可接单或登记。
-          </text>
-        </view>
         <!-- 标签容器 -->
         <view class="tab-container">
           <!-- 标签栏 -->
@@ -202,6 +197,7 @@
 <script setup lang="ts">
   import { ref, computed, watch } from 'vue'
   import { onLoad, onShow } from '@dcloudio/uni-app'
+  import { themeColors } from '@/theme/colors'
   import BaseButton from '@/components/BaseButton/BaseButton.vue'
   import CloseOrderModal from '@/components/CloseOrderModal/CloseOrderModal.vue'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
@@ -358,7 +354,6 @@
     isCompleted,
     isClosed,
     canOperateTransferredOrder,
-    isTransferredOutViewer,
     canEditFaultJudge,
     canEditFaultPoint,
     hasBottomActionBar,
@@ -922,7 +917,7 @@
     /* 勿写 min-height:100vh：上方还有 CustomNavBar 占位，与 100vh 叠加会使整页高度 > 视口，短内容也会出现滚动条 */
     width: 100%;
     box-sizing: border-box;
-    background-color: $surface-app;
+    background-color: $bg-page;
     @include flex-col;
 
     .main-content {
@@ -952,19 +947,6 @@
       gap: $space-lg;
     }
 
-    .transfer-out-tip {
-      padding: 20rpx $space-md;
-      background: $primary-alpha-10;
-      border-radius: $radius-md;
-      border: 2rpx solid $primary-alpha-25;
-
-      .transfer-out-tip-text {
-        font-size: 26rpx;
-        color: $orange-800;
-        line-height: 1.5;
-      }
-    }
-
     .tab-container {
       @include sheet-white;
     }
@@ -973,7 +955,7 @@
       display: flex;
       justify-content: space-around;
       padding: 0 $space-lg;
-      border-bottom: 2rpx solid $surface-slate-50;
+      border-bottom: 2rpx solid $bg-light;
 
       .tab-item {
         padding: $space-lg 0;

@@ -5,7 +5,7 @@
       <!-- 搜索栏 -->
       <view class="search-wrap">
         <view class="search-box">
-          <uni-icons type="search" size="18" color="#94a3b8" class="search-icon"></uni-icons>
+          <uni-icons type="search" size="18" :color="themeColors.textMuted" class="search-icon"></uni-icons>
           <input
             v-model="searchQuery"
             class="search-input"
@@ -68,7 +68,7 @@
               </view>
               <text class="branch-name">{{ branch.name }}</text>
             </view>
-            <uni-icons type="right" size="24" color="#cbd5e1"></uni-icons>
+            <uni-icons type="right" size="24" :color="themeColors.iconSlateLight"></uni-icons>
           </view>
           <!-- 网点工单统计 -->
           <view class="branch-stats">
@@ -243,6 +243,7 @@
    */
   import { ref, computed, nextTick, watch } from 'vue'
   import { onShow } from '@dcloudio/uni-app'
+  import { themeColors } from '@/theme/colors'
   import { useAppStore, useUserStore } from '@/stores'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import TabBar from '@/components/TabBar/TabBar.vue'
@@ -1275,7 +1276,7 @@
 
     .tabs-secondary {
       width: 100%;
-      border-bottom: 2rpx solid $surface-slate-100;
+      border-bottom: 2rpx solid $bg-hover;
 
       .tabs-inner {
         @include tabs-track;
@@ -1290,7 +1291,7 @@
     .branch-summary-header {
       @include flex-between;
       padding: $space-sm $space-lg;
-      background-color: $surface-slate-50;
+      background-color: $bg-light;
 
       .branch-summary-title {
         font-size: 22rpx;
@@ -1309,12 +1310,12 @@
       @include flex-col;
       gap: $space-md;
       padding: $space-md $space-lg;
-      background-color: $surface-slate-50;
+      background-color: $bg-light;
     }
 
     .branch-card {
       @include sheet-white($space-lg);
-      border: 2rpx solid $surface-slate-100;
+      border: 2rpx solid $bg-hover;
 
       .branch-card-header {
         @include flex-between;
@@ -1346,7 +1347,7 @@
 
         .branch-arrow {
           font-size: 40rpx;
-          color: $surface-slate-300;
+          color: $icon-slate-light;
         }
       }
 

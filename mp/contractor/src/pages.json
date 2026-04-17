@@ -54,6 +54,7 @@
 		{
 			"path": "pages/historicalRecord/index",
 			"style": {
+				"navigationStyle": "custom",
 				"navigationBarTitleText": "故障点历史记录",
 				"enablePullDownRefresh": true,
 				"backgroundTextStyle": "dark"

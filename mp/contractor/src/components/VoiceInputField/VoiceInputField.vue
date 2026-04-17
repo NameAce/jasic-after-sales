@@ -87,6 +87,7 @@
 
 <script setup lang="ts">
   import { ref, computed, onUnmounted, nextTick } from 'vue'
+  import { uploadSystemFile } from '@/api/file'
 
   /**
    * 语音项
@@ -94,6 +95,8 @@
   export interface VoiceItem {
     tempFilePath: string
     duration: number
+    fileId?: number
+    url?: string
   }
 
   /** 最短有效录音时长（毫秒），低于此不入库 */
@@ -553,7 +556,7 @@
       vibrateRecordStart()
     })
 
-    recorderManager.onStop((res: any) => {
+    recorderManager.onStop(async (res: any) => {
       endRecordInteraction()
       isRecording.value = false
       recordSessionPending.value = false
@@ -563,7 +566,7 @@
       if (discardNextRecording.value) {
         discardNextRecording.value = false
         clearSlideGesture()
-        uni.showToast({ title: '已取消', icon: 'none' })
+        uni.showToast({ title: '已取消', icon: 'none', duration: 1500 })
         return
       }
 
@@ -572,15 +575,30 @@
       const duration = typeof res.duration === 'number' ? res.duration : 0
       const tempFilePath = res.tempFilePath as string | undefined
       if (!tempFilePath) {
-        uni.showToast({ title: '未生成录音文件', icon: 'none' })
+        uni.showToast({ title: '未生成录音文件', icon: 'none', duration: 1500 })
         return
       }
       if (duration < MIN_DURATION_MS) {
-        uni.showToast({ title: '录音时间太短', icon: 'none' })
+        uni.showToast({ title: '录音时间太短', icon: 'none', duration: 1500 })
         return
       }
-      const record: VoiceItem = { tempFilePath, duration }
-      emit('update:modelValue', [...innerList.value, record])
+      uni.showLoading({ title: '上传中...' })
+      try {
+        const uploaded = await uploadSystemFile(tempFilePath)
+        const record: VoiceItem = {
+          tempFilePath,
+          duration,
+          fileId: uploaded.fileId,
+          url: uploaded.previewUrl
+        }
+        emit('update:modelValue', [...innerList.value, record])
+      } catch (err: unknown) {
+        const msg =
+          (err as { message?: string })?.message || (err as { msg?: string })?.msg || '语音上传失败'
+        uni.showToast({ title: msg, icon: 'none', duration: 1500 })
+      } finally {
+        uni.hideLoading()
+      }
     })
 
     recorderManager.onError((err: unknown) => {
@@ -592,7 +610,7 @@
       clearSlideGesture()
       clearRecordingTimer()
       console.error('录音错误', err)
-      uni.showToast({ title: '录音失败，请重试', icon: 'none' })
+      uni.showToast({ title: '录音失败，请重试', icon: 'none', duration: 1500 })
     })
   }
 

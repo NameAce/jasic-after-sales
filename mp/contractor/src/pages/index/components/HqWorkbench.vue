@@ -197,7 +197,7 @@
     padding: $space-lg;
     border-radius: $radius-lg;
     @include surface-muted;
-    border: 2rpx solid $surface-slate-100;
+    border: 2rpx solid $bg-hover;
     box-sizing: border-box;
 
     &--accent {
@@ -251,7 +251,7 @@
 
     &--neutral {
       color: $text-slate-500;
-      background-color: $surface-slate-100;
+      background-color: $bg-hover;
     }
   }
 
@@ -263,8 +263,8 @@
   .hq-branch-card {
     @include flex-between;
     padding: $space-lg;
-    background-color: $surface-white;
-    border: 2rpx solid $surface-slate-100;
+    background-color: $bg-card;
+    border: 2rpx solid $bg-hover;
     border-radius: $radius-lg;
     box-sizing: border-box;
   }
@@ -318,7 +318,7 @@
     width: 192rpx;
     height: $space-xs;
     border-radius: $radius-pill;
-    background-color: $surface-slate-100;
+    background-color: $bg-hover;
     overflow: hidden;
     margin-bottom: $space-xs;
   }

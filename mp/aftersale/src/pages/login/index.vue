@@ -62,7 +62,12 @@
         <view class="agreement-label">
           <view class="checkbox-wrapper">
             <checkbox-group @change="toggleAgreement">
-              <checkbox :checked="agreed" value="1" color="#f26604" style="transform: scale(0.7)" />
+              <checkbox
+                :checked="agreed"
+                value="1"
+                :color="themeColor.primary"
+                style="transform: scale(0.7)"
+              />
             </checkbox-group>
           </view>
           <view class="agreement-text">
@@ -86,6 +91,7 @@
 
 <script setup lang="ts">
   import { ref } from 'vue'
+  import { themeColor } from '@/constants/theme'
   import { smartphoneIcon } from '@/svgs'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import FormItemAnchor from '@/components/FormItemAnchor/FormItemAnchor.vue'
@@ -223,7 +229,7 @@
       width: 100%;
       height: 100%;
       border-radius: $radius-round;
-      border: 8rpx solid #ffffff;
+      border: 8rpx solid $primary-contrast;
       box-shadow:
         0 40rpx 50rpx -10rpx rgba(0, 0, 0, 0.1),
         0 16rpx 20rpx -12rpx rgba(0, 0, 0, 0.1);
@@ -278,8 +284,8 @@
 
       &.primary {
         background-color: $primary;
-        color: #ffffff;
-        font-size: $font-xl;
+        color: $primary-contrast;
+        font-size: $font-lg;
         font-weight: 700;
       }
 

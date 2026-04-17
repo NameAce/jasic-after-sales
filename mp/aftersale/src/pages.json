@@ -10,7 +10,7 @@
 		{
 			"path": "pages/index/index",
 			"style": {
-				// "navigationStyle": "custom",
+				"navigationStyle": "custom",
 				"navigationBarTitleText": "首页"
 			}
 		},
@@ -38,12 +38,14 @@
 		{
 			"path": "pages/historicalRecord/index",
 			"style": {
+				"navigationStyle": "custom",
 				"navigationBarTitleText": "故障点历史记录"
 			}
 		},
 		{
 			"path": "pages/repairGuide/index",
 			"style": {
+				"navigationStyle": "custom",
 				"navigationBarTitleText": "报修指南"
 			}
 		},
@@ -64,6 +66,7 @@
 		{
 			"path": "pages/servicePoint/index",
 			"style": {
+				"navigationStyle": "custom",
 				"navigationBarTitleText": "选择附近网点"
 			}
 		},

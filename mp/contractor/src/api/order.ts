@@ -14,6 +14,7 @@ import type {
   WorkOrderListVO,
   WorkOrderRepairVO,
 } from '@/models/order'
+import { mapWorkOrderRepairsToAllFaultPointRecords } from './mapRepairsToFaultPointRecords'
 import { isOrderStatus } from '@/utils/orderStatus'
 
 /**
@@ -615,22 +616,6 @@ function resolveSysFileItemPreviewUrl(item: unknown): string {
   return ''
 }
 
-/** 维修登记单条上的 `SysFileItemVO[]` → 历史/详情故障点图列表 */
-function mapSysFileItemsToLabeledImages(
-  files: SysFileItemVO[] | undefined,
-  labelPrefix: string,
-): { url: string; label: string }[] {
-  if (!Array.isArray(files) || !files.length) return []
-  return [...files]
-    .sort((a, b) => Number(a.sortNum ?? 0) - Number(b.sortNum ?? 0))
-    .map((file, i) => {
-      const url = String(resolveSysFileItemPreviewUrl(file) || '').trim()
-      if (!url) return null
-      return { url, label: `${labelPrefix}${i + 1}` }
-    })
-    .filter((x): x is { url: string; label: string } => x != null)
-}
-
 function pickFirstPreviewUrl(files: SysFileItemVO[] | undefined): string {
   if (!Array.isArray(files) || !files.length) return ''
   return resolveSysFileItemPreviewUrl(files[0])
@@ -803,58 +788,6 @@ function faultPartsFromWorkOrderFault(f: WorkOrderFaultVO) {
     .filter((x): x is { name: string; count: number } => x != null)
 }
 
-/** 单条维修登记 `WorkOrderRepairVO` → 若干条故障点历史记录 */
-function mapOneWorkOrderRepairToFaultRecords(r: WorkOrderRepairVO): FaultPointRecord[] {
-  const faults = Array.isArray(r.faults) ? r.faults : []
-  const when = String(r.createTime || '')
-  const site = String(r.companyName || '').trim()
-  const repairLevelImages = [
-    ...mapSysFileItemsToLabeledImages(r.faultOldImageFiles, '旧件图'),
-    ...mapSysFileItemsToLabeledImages(r.faultNewImageFiles, '新件图'),
-    ...mapSysFileItemsToLabeledImages(r.machineImageFiles, '整机图'),
-    ...mapSysFileItemsToLabeledImages(r.machineBarcodeImageFiles, '条码图'),
-    ...mapSysFileItemsToLabeledImages(r.otherImageFiles, '其它图'),
-  ]
-  return faults.map((f) => {
-    const faultDesc = String(f.faultDesc || '').trim()
-    const repairDesc = String(f.repairDesc || '').trim()
-    const otherDesc = String(f.otherDesc || '').trim()
-    const repairMain = repairDesc === '其它维修说明' ? otherDesc : repairDesc
-    const description = [faultDesc, repairMain].filter(Boolean).join(' · ')
-    const specialInfo =
-      otherDesc && repairDesc !== '其它维修说明' ? otherDesc : undefined
-    const fromLegacyUrls = (String(f.imageUrls || '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean) as string[]).map((url, i) => ({ url, label: `图${i + 1}` }))
-    const partsFromList = faultPartsFromWorkOrderFault(f)
-    const parts =
-      partsFromList.length > 0 ? partsFromList : parseRepairPartDesc(String(f.partDesc || ''))
-    return {
-      description,
-      faultDesc,
-      repairDesc,
-      otherDesc,
-      images: [...fromLegacyUrls, ...repairLevelImages],
-      parts,
-      specialInfo,
-      location: site,
-      date: String(f.createTime || when || '').trim(),
-    }
-  })
-}
-
-/**
- * 将详情接口 `data.repairs`（工单维修登记列表）映射为故障点历史列表。
- * 与详情页 `faultPoint.allRepairsFaultRecords` 同源逻辑。
- */
-export function mapWorkOrderRepairsToAllFaultPointRecords(
-  repairs: WorkOrderRepairVO[] | undefined | null,
-): FaultPointRecord[] {
-  const list = Array.isArray(repairs) ? repairs : []
-  return sortWorkOrderRepairsByCreateTime(list).flatMap(mapOneWorkOrderRepairToFaultRecords)
-}
-
 function mapWorkOrderDetailToOrderDetail(vo: WorkOrderDetailVO): OrderDetail {
   const status =
     mapDisplayStatusToOrderStatus(vo.displayStatus) ?? mapMainStatusToOrderStatus(vo.mainStatus)
@@ -902,11 +835,11 @@ function mapWorkOrderDetailToOrderDetail(vo: WorkOrderDetailVO): OrderDetail {
       ? latestRepairFaultsSorted[latestRepairFaultsSorted.length - 1]
       : undefined
 
-  const allRepairsFaultRecords = sortedRepairs.flatMap(mapOneWorkOrderRepairToFaultRecords)
+  const allRepairsFaultRecords = mapWorkOrderRepairsToAllFaultPointRecords(sortedRepairs)
 
   const history =
     sortedRepairs.length && latestRepair
-      ? sortedRepairs.slice(0, -1).flatMap(mapOneWorkOrderRepairToFaultRecords)
+      ? mapWorkOrderRepairsToAllFaultPointRecords(sortedRepairs.slice(0, -1))
       : []
 
   const evalVO = vo.evaluation
