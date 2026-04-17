@@ -39,13 +39,6 @@ import java.util.stream.Collectors;
 /**
  * CRM 公司快照服务实现。
  *
- * <p>实现策略遵循当前业务约定：</p>
- * <ul>
- *     <li>外部 {@code biz_company} 先全量沉淀到本地快照层；</li>
- *     <li>本地公司新增时仅从快照读取预填信息，不直接把外部数据写入 {@code sys_company}；</li>
- *     <li>本地是否已存在公司，统一通过 {@code sys_company.company_code = cust_id} 判断。</li>
- * </ul>
- *
  * @author Codex
  * @date 2026/04/12
  */
@@ -53,6 +46,11 @@ import java.util.stream.Collectors;
 public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotService {
 
     private static final String CRM_BIZ_COMPANY_TABLE = "biz_company";
+    private static final String CRM_BIZ_USER_TABLE = "biz_user_info";
+    private static final String CRM_SAP_COMPANY_TABLE = "sap_company_info";
+    private static final String SOURCE_TYPE_CRM = "CRM";
+    private static final String TYPE_CODE_SITE_FIRST = "SITE_FIRST";
+    private static final String TYPE_CODE_SITE_SECOND = "SITE_SECOND";
     private static final int DEFAULT_BATCH_SIZE = 500;
 
     @Resource(name = "jdbcTemplate")
@@ -72,12 +70,7 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
         Page<CrmBizCompanySnapshot> page = new Page<>(query.getPageNum(), query.getPageSize());
         LambdaQueryWrapper<CrmBizCompanySnapshot> wrapper = new LambdaQueryWrapper<>();
         if (StrUtil.isNotBlank(query.getCompanyCode())) {
-            // 客户编码在 CRM 中是数字主键；若输入非数字，直接构造空结果条件，避免无效全表扫描。
-            if (StrUtil.isNumeric(query.getCompanyCode().trim())) {
-                wrapper.eq(CrmBizCompanySnapshot::getCustId, Long.valueOf(query.getCompanyCode().trim()));
-            } else {
-                wrapper.eq(CrmBizCompanySnapshot::getCustId, -1L);
-            }
+            wrapper.eq(CrmBizCompanySnapshot::getSapCompanyCode, query.getCompanyCode().trim());
         }
         if (StrUtil.isNotBlank(query.getCompanyName())) {
             wrapper.like(CrmBizCompanySnapshot::getCustName, query.getCompanyName().trim());
@@ -95,43 +88,28 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
     @Override
     public CrmBizCompanyImportPreviewVO getImportPreview(Long custId) {
         if (custId == null) {
-            throw new ServiceException("CRM 客户ID不能为空");
+            throw new ServiceException("CRM客户ID不能为空");
         }
         LambdaQueryWrapper<CrmBizCompanySnapshot> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CrmBizCompanySnapshot::getCustId, custId).last("LIMIT 1");
         CrmBizCompanySnapshot snapshot = crmBizCompanySnapshotMapper.selectOne(wrapper);
         if (snapshot == null) {
-            throw new ServiceException("CRM 公司快照不存在，请先执行同步任务");
+            throw new ServiceException("CRM公司快照不存在，请先执行同步任务");
         }
 
-        CrmBizCompanyImportPreviewVO vo = new CrmBizCompanyImportPreviewVO();
-        vo.setCustId(snapshot.getCustId());
-        vo.setCompanyName(snapshot.getCustName());
-        vo.setCompanyCode(String.valueOf(snapshot.getCustId()));
-        vo.setContactName(snapshot.getJuristicCustId());
-        vo.setContactPhone(resolveContactPhone(snapshot));
-        vo.setAddress(snapshot.getCompanyAddress());
-        vo.setStatus(resolveLocalStatus(snapshot.getCustState()));
-        vo.setCustState(snapshot.getCustState());
-        vo.setCustStateLabel(resolveCustStateLabel(snapshot.getCustState()));
-
-        // 导入前先判断本地是否已有同编码公司，避免重复建档。
-        SysCompany existingCompany = findExistingCompanyByCode(vo.getCompanyCode());
-        if (existingCompany != null) {
-            vo.setExistingCompanyId(existingCompany.getId());
-            vo.setExistingCompanyName(existingCompany.getCompanyName());
-        }
-        return vo;
+        SysCompany existingCompany = findExistingCompanyByCode(snapshot.getSapCompanyCode());
+        return buildImportPreview(snapshot, existingCompany);
     }
 
     @Override
     public LocalDateTime getEarliestChangeTime() {
         JdbcTemplate crm = requireCrmJdbcTemplate();
-        // 首次同步既要覆盖历史新增，也要覆盖历史修改，因此同时取 add_date 和 oper_time 的最小值。
         String sql = "SELECT MIN(t.change_time) FROM ("
-                + "SELECT add_date AS change_time FROM " + CRM_BIZ_COMPANY_TABLE + " WHERE add_date IS NOT NULL "
+                + "SELECT b.add_date AS change_time FROM " + CRM_BIZ_COMPANY_TABLE + " b "
+                + "WHERE b.cust_rage IN (0, 3) AND b.add_date IS NOT NULL "
                 + "UNION ALL "
-                + "SELECT oper_time AS change_time FROM " + CRM_BIZ_COMPANY_TABLE + " WHERE oper_time IS NOT NULL"
+                + "SELECT b.oper_time AS change_time FROM " + CRM_BIZ_COMPANY_TABLE + " b "
+                + "WHERE b.cust_rage IN (0, 3) AND b.oper_time IS NOT NULL"
                 + ") t";
         Timestamp timestamp = crm.queryForObject(sql, Timestamp.class);
         return timestamp == null ? null : timestamp.toLocalDateTime();
@@ -140,16 +118,25 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
     @Override
     public CrmBizCompanySyncSummaryVO syncByTimeRange(LocalDateTime startInclusive, LocalDateTime endExclusive) {
         if (startInclusive == null || endExclusive == null || !startInclusive.isBefore(endExclusive)) {
-            throw new ServiceException("CRM 公司同步时间范围不合法");
+            throw new ServiceException("CRM公司同步时间范围不合法");
         }
         JdbcTemplate crm = requireCrmJdbcTemplate();
-        // 按已确认口径：oper_time 命中时间窗，或 add_date 命中时间窗，任一满足即纳入同步。
-        String sql = "SELECT cust_id, cust_name, juristic_cust_id, group_contact_phone, cellphone, "
-                + "company_address, cust_state, add_date, oper_time "
-                + "FROM " + CRM_BIZ_COMPANY_TABLE + " "
-                + "WHERE (oper_time >= ? AND oper_time < ?) "
-                + "OR (add_date >= ? AND add_date < ?) "
-                + "ORDER BY cust_id ASC";
+        String sql = "SELECT b.cust_id, b.cust_name, u.contact_name AS juristic_cust_id, "
+                + "u.cellphone AS group_contact_phone, u.cellphone AS cellphone, "
+                + "b.company_address, b.cust_state, b.add_date, b.oper_time, b.sap_company_code, b.cust_rage, "
+                + "s.sortl AS company_short_name, s.bezei AS province_name, s.sap_city AS city_name, "
+                + "NULL AS district_name "
+                + "FROM " + CRM_BIZ_COMPANY_TABLE + " b "
+                + "LEFT JOIN " + CRM_BIZ_USER_TABLE + " u ON u.user_id = b.account_id "
+                + "LEFT JOIN " + CRM_SAP_COMPANY_TABLE + " s ON s.sap_company_id = ("
+                + "SELECT s2.sap_company_id FROM " + CRM_SAP_COMPANY_TABLE + " s2 "
+                + "WHERE BINARY TRIM(s2.kunnr) = BINARY TRIM(b.sap_company_code) "
+                + "ORDER BY COALESCE(s2.oper_time, s2.add_time) DESC, s2.oper_time DESC, "
+                + "s2.add_time DESC, s2.sap_company_id DESC LIMIT 1"
+                + ") "
+                + "WHERE b.cust_rage IN (0, 3) "
+                + "AND ((b.oper_time >= ? AND b.oper_time < ?) OR (b.add_date >= ? AND b.add_date < ?)) "
+                + "ORDER BY b.cust_id ASC";
 
         List<CrmBizCompanySnapshot> batch = new ArrayList<>(DEFAULT_BATCH_SIZE);
         SyncCounter counter = new SyncCounter();
@@ -199,7 +186,6 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
                 .collect(Collectors.toList());
         Set<Long> existingCustIds = Collections.emptySet();
         if (CollUtil.isNotEmpty(custIds)) {
-            // 先识别本批次内哪些 cust_id 已存在，便于统计新增与更新数量。
             LambdaQueryWrapper<CrmBizCompanySnapshot> wrapper = new LambdaQueryWrapper<>();
             wrapper.in(CrmBizCompanySnapshot::getCustId, custIds);
             existingCustIds = crmBizCompanySnapshotMapper.selectList(wrapper).stream()
@@ -207,17 +193,23 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
                     .collect(Collectors.toCollection(LinkedHashSet::new));
         }
 
-        // 快照层采用幂等 upsert，保证每日增量同步可重复执行而不产生重复数据。
         String sql = "INSERT INTO crm_biz_company_snapshot ("
                 + "cust_id, cust_name, juristic_cust_id, group_contact_phone, cellphone, company_address, "
+                + "sap_company_code, cust_rage, company_short_name, province_name, city_name, district_name, "
                 + "cust_state, add_date, oper_time, last_sync_time, create_time, update_time"
-                + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW()) "
+                + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW()) "
                 + "ON DUPLICATE KEY UPDATE "
                 + "cust_name = VALUES(cust_name), "
                 + "juristic_cust_id = VALUES(juristic_cust_id), "
                 + "group_contact_phone = VALUES(group_contact_phone), "
                 + "cellphone = VALUES(cellphone), "
                 + "company_address = VALUES(company_address), "
+                + "sap_company_code = VALUES(sap_company_code), "
+                + "cust_rage = VALUES(cust_rage), "
+                + "company_short_name = VALUES(company_short_name), "
+                + "province_name = VALUES(province_name), "
+                + "city_name = VALUES(city_name), "
+                + "district_name = VALUES(district_name), "
                 + "cust_state = VALUES(cust_state), "
                 + "add_date = VALUES(add_date), "
                 + "oper_time = VALUES(oper_time), "
@@ -233,10 +225,16 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
                 ps.setString(4, row.getGroupContactPhone());
                 ps.setString(5, row.getCellphone());
                 ps.setString(6, row.getCompanyAddress());
-                ps.setObject(7, row.getCustState());
-                ps.setTimestamp(8, toTimestamp(row.getAddDate()));
-                ps.setTimestamp(9, toTimestamp(row.getOperTime()));
-                ps.setTimestamp(10, toTimestamp(syncTime));
+                ps.setString(7, row.getSapCompanyCode());
+                ps.setObject(8, row.getCustRage());
+                ps.setString(9, row.getCompanyShortName());
+                ps.setString(10, row.getProvinceName());
+                ps.setString(11, row.getCityName());
+                ps.setString(12, row.getDistrictName());
+                ps.setObject(13, row.getCustState());
+                ps.setTimestamp(14, toTimestamp(row.getAddDate()));
+                ps.setTimestamp(15, toTimestamp(row.getOperTime()));
+                ps.setTimestamp(16, toTimestamp(syncTime));
             }
 
             @Override
@@ -259,13 +257,12 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
             return Collections.emptyList();
         }
         List<String> companyCodes = records.stream()
-                .map(item -> item.getCustId() == null ? null : String.valueOf(item.getCustId()))
+                .map(CrmBizCompanySnapshot::getSapCompanyCode)
                 .filter(StrUtil::isNotBlank)
                 .distinct()
                 .collect(Collectors.toList());
         Map<String, SysCompany> existingCompanyMap = new HashMap<>();
         if (CollUtil.isNotEmpty(companyCodes)) {
-            // 快照展示页需要直接看到“已存在/可导入”，因此这里一次性回表补齐本地存在性信息。
             LambdaQueryWrapper<SysCompany> wrapper = new LambdaQueryWrapper<>();
             wrapper.in(SysCompany::getCompanyCode, companyCodes);
             existingCompanyMap = sysCompanyMapper.selectList(wrapper).stream()
@@ -276,24 +273,87 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
         for (CrmBizCompanySnapshot record : records) {
             CrmBizCompanySnapshotVO vo = new CrmBizCompanySnapshotVO();
             vo.setCustId(record.getCustId());
-            vo.setCompanyCode(record.getCustId() == null ? null : String.valueOf(record.getCustId()));
+            vo.setCompanyCode(record.getSapCompanyCode());
+            vo.setCompanyShortName(record.getCompanyShortName());
             vo.setCompanyName(record.getCustName());
             vo.setContactName(record.getJuristicCustId());
             vo.setContactPhone(resolveContactPhone(record));
             vo.setAddress(record.getCompanyAddress());
+            vo.setProvinceName(record.getProvinceName());
+            vo.setCityName(record.getCityName());
+            vo.setDistrictName(record.getDistrictName());
+            vo.setCustRage(record.getCustRage());
+            vo.setTypeCode(resolveTypeCode(record.getCustRage()));
             vo.setCustState(record.getCustState());
             vo.setCustStateLabel(resolveCustStateLabel(record.getCustState()));
             vo.setAddDate(record.getAddDate());
             vo.setOperTime(record.getOperTime());
             vo.setLastSyncTime(record.getLastSyncTime());
+
             SysCompany existingCompany = existingCompanyMap.get(vo.getCompanyCode());
             if (existingCompany != null) {
                 vo.setExistingCompanyId(existingCompany.getId());
                 vo.setExistingCompanyName(existingCompany.getCompanyName());
             }
+
+            String disabledReason = resolveImportDisabledReason(record, existingCompany);
+            vo.setCanImport(disabledReason == null);
+            vo.setImportDisabledReason(disabledReason);
             result.add(vo);
         }
         return result;
+    }
+
+    private CrmBizCompanyImportPreviewVO buildImportPreview(CrmBizCompanySnapshot snapshot, SysCompany existingCompany) {
+        CrmBizCompanyImportPreviewVO vo = new CrmBizCompanyImportPreviewVO();
+        vo.setCustId(snapshot.getCustId());
+        vo.setCompanyName(snapshot.getCustName());
+        vo.setCompanyShortName(snapshot.getCompanyShortName());
+        vo.setCompanyCode(snapshot.getSapCompanyCode());
+        vo.setAdminUsername(resolveDefaultAdminUsername(snapshot.getSapCompanyCode()));
+        vo.setTypeCode(resolveTypeCode(snapshot.getCustRage()));
+        vo.setContactName(snapshot.getJuristicCustId());
+        vo.setContactPhone(resolveContactPhone(snapshot));
+        vo.setAddress(snapshot.getCompanyAddress());
+        vo.setProvinceName(snapshot.getProvinceName());
+        vo.setCityName(snapshot.getCityName());
+        vo.setDistrictName(snapshot.getDistrictName());
+        vo.setServicePhone(null);
+        vo.setSourceType(SOURCE_TYPE_CRM);
+        vo.setStatus(resolveLocalStatus(snapshot.getCustState()));
+        vo.setCustState(snapshot.getCustState());
+        vo.setCustStateLabel(resolveCustStateLabel(snapshot.getCustState()));
+        if (existingCompany != null) {
+            vo.setExistingCompanyId(existingCompany.getId());
+            vo.setExistingCompanyName(existingCompany.getCompanyName());
+        }
+        String disabledReason = resolveImportDisabledReason(snapshot, existingCompany);
+        vo.setCanImport(disabledReason == null);
+        vo.setImportDisabledReason(disabledReason);
+        return vo;
+    }
+
+    private String resolveImportDisabledReason(CrmBizCompanySnapshot snapshot, SysCompany existingCompany) {
+        if (existingCompany != null) {
+            return "本地公司已存在";
+        }
+        if (StrUtil.isBlank(snapshot.getSapCompanyCode())) {
+            return "缺少SAP公司编码，不能导入";
+        }
+        if (resolveTypeCode(snapshot.getCustRage()) == null) {
+            return "客户范围不支持导入";
+        }
+        return null;
+    }
+
+    private String resolveTypeCode(Integer custRage) {
+        if (Objects.equals(custRage, 0)) {
+            return TYPE_CODE_SITE_FIRST;
+        }
+        if (Objects.equals(custRage, 3)) {
+            return TYPE_CODE_SITE_SECOND;
+        }
+        return null;
     }
 
     private SysCompany findExistingCompanyByCode(String companyCode) {
@@ -307,7 +367,7 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
 
     private JdbcTemplate requireCrmJdbcTemplate() {
         if (crmJdbcTemplate == null) {
-            throw new ServiceException("当前未配置客户关系管理（CRM）数据源，请先完善 jasic.crm.datasource");
+            throw new ServiceException("当前未配置CRM数据源，请先完善 jasic.crm.datasource");
         }
         return crmJdbcTemplate;
     }
@@ -317,8 +377,11 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
     }
 
     private Integer resolveLocalStatus(Integer custState) {
-        // 当前导入策略只区分启用/停用：CRM 审核通过映射启用，其余状态统一按停用预置。
         return Objects.equals(custState, 1) ? 1 : 0;
+    }
+
+    private String resolveDefaultAdminUsername(String companyCode) {
+        return StrUtil.trimToNull(companyCode);
     }
 
     private String resolveCustStateLabel(Integer custState) {
@@ -339,7 +402,7 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
             case 5:
                 return "申请注销";
             case 6:
-                return "资料未填写";
+                return "资料未填充";
             case 9:
                 return "删除";
             default:
@@ -365,6 +428,13 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
         snapshot.setGroupContactPhone(StrUtil.trim(rs.getString("group_contact_phone")));
         snapshot.setCellphone(StrUtil.trim(rs.getString("cellphone")));
         snapshot.setCompanyAddress(StrUtil.trim(rs.getString("company_address")));
+        snapshot.setSapCompanyCode(StrUtil.trim(rs.getString("sap_company_code")));
+        int custRage = rs.getInt("cust_rage");
+        snapshot.setCustRage(rs.wasNull() ? null : custRage);
+        snapshot.setCompanyShortName(StrUtil.trim(rs.getString("company_short_name")));
+        snapshot.setProvinceName(StrUtil.trim(rs.getString("province_name")));
+        snapshot.setCityName(StrUtil.trim(rs.getString("city_name")));
+        snapshot.setDistrictName(StrUtil.trim(rs.getString("district_name")));
         int custState = rs.getInt("cust_state");
         snapshot.setCustState(rs.wasNull() ? null : custState);
         snapshot.setAddDate(toLocalDateTime(rs, "add_date"));

@@ -47,6 +47,8 @@ import java.util.stream.Collectors;
 public class SysCompanyServiceImpl implements ISysCompanyService {
 
     private static final String DEFAULT_PASSWORD = "Jasic@123";
+    private static final String SOURCE_TYPE_CRM = "CRM";
+    private static final String SOURCE_TYPE_MANUAL = "MANUAL";
     private static final Integer STATUS_ENABLED = 1;
     private static final Integer STATUS_DISABLED = 0;
 
@@ -80,12 +82,6 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
     @Resource
     private SysUserIdentityValidator userIdentityValidator;
 
-    /**
-     * 分页查询公司列表
-     *
-     * @param query 查询参数
-     * @return 分页结果
-     */
     @Override
     public PageResult<SysCompany> listPage(SysCompanyQuery query) {
         Page<SysCompany> page = new Page<>(query.getPageNum(), query.getPageSize());
@@ -106,12 +102,6 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         return PageResult.of(result.getRecords(), result.getTotal(), query.getPageNum(), query.getPageSize());
     }
 
-    /**
-     * 按业务分类过滤公司
-     *
-     * @param wrapper 查询条件
-     * @param category 分类编码
-     */
     private void applyCategoryFilter(LambdaQueryWrapper<SysCompany> wrapper, String category) {
         CompanyCategoryEnum categoryEnum = CompanyCategoryEnum.getByCode(category);
         if (categoryEnum == null) {
@@ -141,30 +131,22 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         }
     }
 
-    /**
-     * 根据ID查询公司
-     *
-     * @param id 主键ID
-     * @return 公司实体
-     */
     @Override
     public SysCompany getById(Long id) {
         return sysCompanyMapper.selectById(id);
     }
 
-    /**
-     * 新增公司
-     *
-     * @param dto 公司参数
-     * @return 主键ID
-     */
     @Transactional(rollbackFor = Exception.class)
     @Override
     public Long save(SysCompanyDTO dto) {
         normalizeDto(dto);
-        validateCompanyType(dto.getTypeCode());
+        String subjectType = validateCompanyType(dto.getTypeCode());
         validateCompanyStatus(dto.getStatus());
+        validateCompanyCodeRequired(subjectType, dto.getCompanyCode());
         validateCompanyCodeUnique(null, dto.getCompanyCode());
+        applyCreateSourceType(dto);
+        validateSourceType(dto.getSourceType());
+        validateSalesOrg(null, subjectType, dto.getSalesOrg());
         validateAdminTemplate(dto.getTypeCode());
         validateAdminLoginIdentity(dto.getAdminUsername(), dto.getContactPhone());
 
@@ -182,11 +164,6 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         return company.getId();
     }
 
-    /**
-     * 修改公司
-     *
-     * @param dto 公司参数
-     */
     @Override
     public void update(SysCompanyDTO dto) {
         normalizeDto(dto);
@@ -198,9 +175,13 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
             throw new ServiceException("公司不存在");
         }
 
-        validateCompanyType(dto.getTypeCode());
+        String subjectType = validateCompanyType(dto.getTypeCode());
         validateCompanyStatus(dto.getStatus());
+        validateCompanyCodeRequired(subjectType, dto.getCompanyCode());
         validateCompanyCodeUnique(dto.getId(), dto.getCompanyCode());
+        dto.setSourceType(StrUtil.blankToDefault(company.getSourceType(), SOURCE_TYPE_MANUAL));
+        validateSourceType(dto.getSourceType());
+        validateSalesOrg(dto.getId(), subjectType, dto.getSalesOrg());
 
         BigDecimal originalLongitude = company.getLongitude();
         BigDecimal originalLatitude = company.getLatitude();
@@ -221,11 +202,6 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         sysCompanyMapper.updateById(company);
     }
 
-    /**
-     * 删除公司
-     *
-     * @param id 主键ID
-     */
     @Override
     public void remove(Long id) {
         LambdaQueryWrapper<SysUserCompany> wrapper = new LambdaQueryWrapper<>();
@@ -262,12 +238,13 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         }
     }
 
-    private void validateCompanyType(String typeCode) {
-        boolean matched = companyTypeService.listAll().stream()
-                .anyMatch(item -> StrUtil.equals(item.getTypeCode(), typeCode));
-        if (!matched) {
-            throw new ServiceException("公司类型不存在");
+    private String validateCompanyType(String typeCode) {
+        for (SysCompanyType item : companyTypeService.listAll()) {
+            if (StrUtil.equals(item.getTypeCode(), typeCode)) {
+                return item.getSubjectType();
+            }
         }
+        throw new ServiceException("公司类型不存在");
     }
 
     private void validateCompanyStatus(Integer status) {
@@ -279,7 +256,19 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         }
     }
 
+    private void validateCompanyCodeRequired(String subjectType, String companyCode) {
+        if (SubjectTypeEnum.HQ.getCode().equals(subjectType)) {
+            return;
+        }
+        if (StrUtil.isBlank(companyCode)) {
+            throw new ServiceException("公司编码不能为空");
+        }
+    }
+
     private void validateCompanyCodeUnique(Long currentId, String companyCode) {
+        if (StrUtil.isBlank(companyCode)) {
+            return;
+        }
         LambdaQueryWrapper<SysCompany> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysCompany::getCompanyCode, companyCode);
         if (currentId != null) {
@@ -287,6 +276,38 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         }
         if (sysCompanyMapper.selectCount(wrapper) > 0) {
             throw new ServiceException("公司编码已存在");
+        }
+    }
+
+    private void applyCreateSourceType(SysCompanyDTO dto) {
+        if (StrUtil.isBlank(dto.getSourceType())) {
+            dto.setSourceType(SOURCE_TYPE_MANUAL);
+        }
+    }
+
+    private void validateSourceType(String sourceType) {
+        if (!StrUtil.equalsAny(sourceType, SOURCE_TYPE_CRM, SOURCE_TYPE_MANUAL)) {
+            throw new ServiceException("公司来源类型不合法");
+        }
+    }
+
+    private void validateSalesOrg(Long currentId, String subjectType, String salesOrg) {
+        if (!SubjectTypeEnum.HQ.getCode().equals(subjectType)) {
+            if (StrUtil.isNotBlank(salesOrg)) {
+                throw new ServiceException("非总部公司不能维护销售组织");
+            }
+            return;
+        }
+        if (StrUtil.isBlank(salesOrg)) {
+            return;
+        }
+        LambdaQueryWrapper<SysCompany> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysCompany::getSalesOrg, salesOrg);
+        if (currentId != null) {
+            wrapper.ne(SysCompany::getId, currentId);
+        }
+        if (sysCompanyMapper.selectCount(wrapper) > 0) {
+            throw new ServiceException("销售组织已绑定其他总部公司");
         }
     }
 
@@ -326,12 +347,19 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
 
     private void normalizeDto(SysCompanyDTO dto) {
         dto.setCompanyName(normalizeRequiredText(dto.getCompanyName()));
-        dto.setCompanyCode(normalizeRequiredText(dto.getCompanyCode()));
+        dto.setCompanyShortName(normalizeNullableText(dto.getCompanyShortName()));
+        dto.setCompanyCode(normalizeNullableText(dto.getCompanyCode()));
         dto.setTypeCode(normalizeRequiredText(dto.getTypeCode()));
         dto.setContactName(normalizeRequiredText(dto.getContactName()));
         dto.setContactPhone(normalizeRequiredText(dto.getContactPhone()));
         dto.setAddress(normalizeRequiredText(dto.getAddress()));
+        dto.setProvinceName(normalizeNullableText(dto.getProvinceName()));
+        dto.setCityName(normalizeNullableText(dto.getCityName()));
+        dto.setDistrictName(normalizeNullableText(dto.getDistrictName()));
         dto.setAdminUsername(normalizeNullableText(dto.getAdminUsername()));
+        dto.setServicePhone(normalizeNullableText(dto.getServicePhone()));
+        dto.setSourceType(normalizeNullableText(dto.getSourceType()));
+        dto.setSalesOrg(normalizeNullableText(dto.getSalesOrg()));
         dto.setRemark(normalizeNullableText(dto.getRemark()));
     }
 

@@ -39,7 +39,6 @@ import com.jasic.aftersales.system.mapper.SysRegionMapper;
 import com.jasic.aftersales.system.service.ISysCompanyTypeService;
 import com.jasic.aftersales.system.service.ISysContractService;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -67,7 +66,6 @@ public class SysContractServiceImpl implements ISysContractService {
     private static final Integer STATUS_DISABLED = 0;
     private static final String OPERATION_DELETE = "DELETE";
     private static final String CRM_IMPORT_REMARK = "CRM导入初始化";
-    private static final String CRM_COMPANY_MAPPING_TABLE = "crm_company_mapping";
 
     @Resource
     private HqFirstContractMapper hqFirstContractMapper;
@@ -90,9 +88,7 @@ public class SysContractServiceImpl implements ISysContractService {
     @Resource
     private CrmHqFirstContractSnapshotMapper crmHqFirstContractSnapshotMapper;
 
-    @Resource(name = "jdbcTemplate")
-    private JdbcTemplate jdbcTemplate;
-
+    
     @Resource
     private ISysCompanyTypeService companyTypeService;
 
@@ -361,21 +357,12 @@ public class SysContractServiceImpl implements ISysContractService {
     }
 
     private String resolveSalesOrgByHqCompanyId(Long hqCompanyId) {
-        String sql = "SELECT DISTINCT sales_org FROM " + CRM_COMPANY_MAPPING_TABLE + " "
-                + "WHERE hq_company_id = ? AND status = 1 "
-                + "AND sales_org IS NOT NULL AND TRIM(sales_org) <> ''";
-        List<String> salesOrgs = jdbcTemplate.queryForList(sql, String.class, hqCompanyId).stream()
-                .map(StrUtil::trim)
-                .filter(StrUtil::isNotBlank)
-                .distinct()
-                .collect(Collectors.toList());
-        if (CollUtil.isEmpty(salesOrgs)) {
-            throw new ServiceException("当前销售组织未配置总部映射");
+        SysCompany hqCompany = requireCompany(hqCompanyId, "总部公司");
+        String salesOrg = StrUtil.trim(hqCompany.getSalesOrg());
+        if (StrUtil.isBlank(salesOrg)) {
+            throw new ServiceException("当前总部未维护销售组织");
         }
-        if (salesOrgs.size() > 1) {
-            throw new ServiceException("当前总部配置了多个销售组织");
-        }
-        return salesOrgs.get(0);
+        return salesOrg;
     }
 
     private List<CrmHqFirstContractSnapshot> listSnapshotsBySalesOrg(String salesOrg) {

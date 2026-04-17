@@ -22,37 +22,40 @@ public class SysCompany extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 
-    /** 主键 */
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    /** 公司名称 */
     private String companyName;
 
-    /** 公司编码 */
+    private String companyShortName;
+
     private String companyCode;
 
-    /** 公司类型编码 */
     private String typeCode;
 
-    /** 联系人 */
     private String contactName;
 
-    /** 联系电话 */
     private String contactPhone;
 
-    /** 公司地址 */
     private String address;
 
-    /** 经度 */
+    private String provinceName;
+
+    private String cityName;
+
+    private String districtName;
+
     private BigDecimal longitude;
 
-    /** 纬度 */
     private BigDecimal latitude;
 
-    /** 状态（1=正常，0=停用） */
+    private String servicePhone;
+
+    private String sourceType;
+
+    private String salesOrg;
+
     private Integer status;
 
-    /** 备注 */
     private String remark;
 }

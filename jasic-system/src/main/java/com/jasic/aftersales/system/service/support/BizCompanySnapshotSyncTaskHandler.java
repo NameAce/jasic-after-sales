@@ -66,7 +66,8 @@ public class BizCompanySnapshotSyncTaskHandler implements SyncTaskHandler {
         return SyncTaskExecutionResult.builder()
                 .dataStartTime(dataStartTime)
                 .dataEndTime(dataEndTime)
-                .message(String.format("CRM 公司快照同步完成：处理 %d 条，新增 %d 条，更新 %d 条",
+                .message(String.format("CRM 公司快照同步完成：处理 %d 条，新增 %d 条，更新 %d " +
+                                "条",
                         defaultInt(summary.getProcessedCount()),
                         defaultInt(summary.getInsertedCount()),
                         defaultInt(summary.getUpdatedCount())))

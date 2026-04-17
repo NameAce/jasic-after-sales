@@ -32,23 +32,20 @@ import java.util.Map;
 
 /**
  * 公司管理服务测试
- *
- * @author Codex
- * @date 2026/04/02
  */
 public class SysCompanyServiceImplTest {
 
     @Test
     public void shouldRejectUnknownCompanyTypeWhenSaving() throws Exception {
         SysCompanyServiceImpl service = new SysCompanyServiceImpl();
-        setField(service, "companyTypeService", createCompanyTypeService(Collections.singletonList(buildCompanyType("FIRST", "SERVICE"))));
+        setField(service, "companyTypeService", createCompanyTypeService(Collections.singletonList(buildCompanyType("SITE_FIRST", "SERVICE"))));
 
         SysCompanyDTO dto = buildCompanyDto();
         dto.setTypeCode("UNKNOWN");
 
         try {
             service.save(dto);
-            Assert.fail("预期应拒绝未知公司类型");
+            Assert.fail("expected company type validation");
         } catch (ServiceException ex) {
             Assert.assertEquals("公司类型不存在", ex.getMessage());
         }
@@ -56,36 +53,83 @@ public class SysCompanyServiceImplTest {
 
     @Test
     public void shouldResolveCoordinatesWhenSavingCompany() throws Exception {
-        SysCompanyServiceImpl service = new SysCompanyServiceImpl();
+        SysCompanyServiceImpl service = createServiceWithBasicDeps(Collections.singletonList(buildCompanyType("SITE_FIRST", "SERVICE")));
         CompanyMapperState companyState = new CompanyMapperState();
         UserMapperState userState = new UserMapperState();
-
-        setField(service, "companyTypeService", createCompanyTypeService(Collections.singletonList(buildCompanyType("FIRST", "SERVICE"))));
-        setField(service, "companyGeoResolver", createGeoResolver(new BigDecimal("113.930000"), new BigDecimal("22.540000")));
         setField(service, "sysCompanyMapper", createCompanyMapperProxy(companyState));
-        setField(service, "sysRoleTemplateMapper", createRoleTemplateMapperProxy(1L));
         setField(service, "sysUserMapper", createUserMapperProxy(userState));
         setField(service, "userIdentityValidator", createIdentityValidator(createUserMapperProxy(userState)));
-        setField(service, "sysUserCompanyMapper", createNoopMapperProxy(SysUserCompanyMapper.class));
-        setField(service, "sysUserRoleMapper", createNoopMapperProxy(SysUserRoleMapper.class));
-        setField(service, "roleTemplateService", createRoleTemplateService());
-        setField(service, "configService", createConfigService());
+        setField(service, "companyGeoResolver", createGeoResolver(new BigDecimal("113.930000"), new BigDecimal("22.540000")));
 
         Long id = service.save(buildCompanyDto());
 
         Assert.assertEquals(Long.valueOf(1L), id);
         Assert.assertNotNull(companyState.insertedCompany);
+        Assert.assertEquals("MANUAL", companyState.insertedCompany.getSourceType());
         Assert.assertEquals(new BigDecimal("113.930000"), companyState.insertedCompany.getLongitude());
         Assert.assertEquals(new BigDecimal("22.540000"), companyState.insertedCompany.getLatitude());
-        Assert.assertEquals("深圳市南山区科技园", companyState.insertedCompany.getAddress());
         Assert.assertEquals(1, userState.insertCount);
+    }
+
+    @Test
+    public void shouldAllowHqWithoutCompanyCodeWhenSaving() throws Exception {
+        SysCompanyServiceImpl service = createServiceWithBasicDeps(Collections.singletonList(buildCompanyType("HQ_A", "HQ")));
+        CompanyMapperState companyState = new CompanyMapperState();
+        UserMapperState userState = new UserMapperState();
+        setField(service, "sysCompanyMapper", createCompanyMapperProxy(companyState));
+        setField(service, "sysUserMapper", createUserMapperProxy(userState));
+        setField(service, "userIdentityValidator", createIdentityValidator(createUserMapperProxy(userState)));
+        setField(service, "companyGeoResolver", createGeoResolver(new BigDecimal("113.930000"), new BigDecimal("22.540000")));
+
+        SysCompanyDTO dto = buildCompanyDto();
+        dto.setTypeCode("HQ_A");
+        dto.setCompanyCode(null);
+        dto.setSalesOrg("1000");
+
+        service.save(dto);
+
+        Assert.assertNotNull(companyState.insertedCompany);
+        Assert.assertNull(companyState.insertedCompany.getCompanyCode());
+        Assert.assertEquals("1000", companyState.insertedCompany.getSalesOrg());
+    }
+
+    @Test
+    public void shouldRejectSalesOrgForNonHqCompany() throws Exception {
+        SysCompanyServiceImpl service = createServiceWithBasicDeps(Collections.singletonList(buildCompanyType("SITE_FIRST", "SERVICE")));
+        CompanyMapperState companyState = new CompanyMapperState();
+        UserMapperState userState = new UserMapperState();
+        setField(service, "sysCompanyMapper", createCompanyMapperProxy(companyState));
+        setField(service, "sysUserMapper", createUserMapperProxy(userState));
+        setField(service, "userIdentityValidator", createIdentityValidator(createUserMapperProxy(userState)));
+        setField(service, "companyGeoResolver", createGeoResolver(new BigDecimal("113.930000"), new BigDecimal("22.540000")));
+
+        SysCompanyDTO dto = buildCompanyDto();
+        dto.setSalesOrg("1000");
+
+        try {
+            service.save(dto);
+            Assert.fail("expected sales org validation");
+        } catch (ServiceException ex) {
+            Assert.assertEquals("非总部公司不能维护销售组织", ex.getMessage());
+        }
+    }
+
+    private SysCompanyServiceImpl createServiceWithBasicDeps(List<SysCompanyType> companyTypes) throws Exception {
+        SysCompanyServiceImpl service = new SysCompanyServiceImpl();
+        setField(service, "companyTypeService", createCompanyTypeService(companyTypes));
+        setField(service, "sysRoleTemplateMapper", createRoleTemplateMapperProxy(1L));
+        setField(service, "sysUserCompanyMapper", createNoopMapperProxy(SysUserCompanyMapper.class));
+        setField(service, "sysUserRoleMapper", createNoopMapperProxy(SysUserRoleMapper.class));
+        setField(service, "roleTemplateService", createRoleTemplateService());
+        setField(service, "configService", createConfigService());
+        return service;
     }
 
     private SysCompanyDTO buildCompanyDto() {
         SysCompanyDTO dto = new SysCompanyDTO();
         dto.setCompanyName("一级网点A");
         dto.setCompanyCode("FIRST-001");
-        dto.setTypeCode("FIRST");
+        dto.setTypeCode("SITE_FIRST");
         dto.setContactName("张三");
         dto.setContactPhone("13800138000");
         dto.setAddress(" 深圳市南山区科技园 ");
@@ -129,12 +173,7 @@ public class SysCompanyServiceImplTest {
     }
 
     private ICompanyGeoResolver createGeoResolver(BigDecimal longitude, BigDecimal latitude) {
-        return new ICompanyGeoResolver() {
-            @Override
-            public GeoLocation resolve(String address) {
-                return new GeoLocation(longitude, latitude);
-            }
-        };
+        return address -> new ICompanyGeoResolver.GeoLocation(longitude, latitude);
     }
 
     private SysCompanyMapper createCompanyMapperProxy(CompanyMapperState state) {

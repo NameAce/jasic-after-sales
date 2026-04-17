@@ -27,7 +27,6 @@ import com.jasic.aftersales.system.service.ISysCompanyTypeService;
 import org.junit.Assert;
 import org.junit.Test;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
@@ -214,6 +213,7 @@ public class SysContractServiceImplTest {
         Map<Long, SysCompany> companies = new LinkedHashMap<>();
         SysCompany hqCompany = buildCompany(1L, "HQ_A", 1);
         hqCompany.setCompanyCode("HQ001");
+        hqCompany.setSalesOrg("1000");
         companies.put(1L, hqCompany);
         SysCompany firstCompany = buildCompany(2L, "SITE_FIRST", 1);
         firstCompany.setCompanyCode("K001");
@@ -240,7 +240,6 @@ public class SysContractServiceImplTest {
         setField(service, "companyTypeService", createCompanyTypeService());
         setField(service, "crmHqFirstContractSnapshotMapper", createSnapshotMapperProxy(snapshotState));
         setField(service, "hqFirstContractMapper", createHqFirstContractMapperProxy(contractState));
-        setField(service, "jdbcTemplate", createJdbcTemplate(Collections.singletonList("1000")));
 
         CrmHqFirstContractImportQuery query = new CrmHqFirstContractImportQuery();
         query.setHqCompanyId(1L);
@@ -262,6 +261,7 @@ public class SysContractServiceImplTest {
         Map<Long, SysCompany> companies = new LinkedHashMap<>();
         SysCompany hqCompany = buildCompany(1L, "HQ_A", 1);
         hqCompany.setCompanyCode("HQ001");
+        hqCompany.setSalesOrg("1000");
         companies.put(1L, hqCompany);
 
         SysCompany importableCompany = buildCompany(2L, "SITE_FIRST", 1);
@@ -311,7 +311,6 @@ public class SysContractServiceImplTest {
         setField(service, "companyTypeService", createCompanyTypeService());
         setField(service, "crmHqFirstContractSnapshotMapper", createSnapshotMapperProxy(snapshotState));
         setField(service, "hqFirstContractMapper", createHqFirstContractMapperProxy(contractState));
-        setField(service, "jdbcTemplate", createJdbcTemplate(Collections.singletonList("1000")));
 
         CrmHqFirstContractImportDTO dto = new CrmHqFirstContractImportDTO();
         dto.setHqCompanyId(1L);
@@ -553,19 +552,6 @@ public class SysContractServiceImplTest {
         snapshot.setRegionCode(regionCode);
         snapshot.setCrmCompanyName("CRM-" + kunnr);
         return snapshot;
-    }
-
-    private JdbcTemplate createJdbcTemplate(List<String> salesOrgs) {
-        return new JdbcTemplate() {
-            @Override
-            public <T> List<T> queryForList(String sql, Class<T> elementType, Object... args) {
-                List<T> result = new java.util.ArrayList<>();
-                for (String salesOrg : salesOrgs) {
-                    result.add(elementType.cast(salesOrg));
-                }
-                return result;
-            }
-        };
     }
 
     private void setField(Object target, String fieldName, Object value) throws Exception {
