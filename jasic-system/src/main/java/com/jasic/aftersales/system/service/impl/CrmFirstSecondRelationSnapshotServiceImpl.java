@@ -37,6 +37,9 @@ import java.util.stream.Collectors;
 public class CrmFirstSecondRelationSnapshotServiceImpl implements ICrmFirstSecondRelationSnapshotService {
 
     private static final String CRM_RELATION_TABLE = "saas_deal_user_relation";
+    private static final String CRM_BIZ_COMPANY_TABLE = "biz_company";
+    private static final int FIRST_LEVEL_CUST_RAGE = 0;
+    private static final int SECOND_LEVEL_CUST_RAGE = 3;
     private static final int DEFAULT_BATCH_SIZE = 500;
 
     @Resource(name = "jdbcTemplate")
@@ -52,7 +55,14 @@ public class CrmFirstSecondRelationSnapshotServiceImpl implements ICrmFirstSecon
     public LocalDateTime getEarliestChangeTime() {
         JdbcTemplate crm = requireCrmJdbcTemplate();
         Timestamp timestamp = crm.queryForObject(
-                "SELECT MIN(oper_date) FROM " + CRM_RELATION_TABLE + " WHERE oper_date IS NOT NULL",
+                "SELECT MIN(r.oper_date) FROM " + CRM_RELATION_TABLE + " r "
+                        + "WHERE r.oper_date IS NOT NULL "
+                        + "AND EXISTS (SELECT 1 FROM " + CRM_BIZ_COMPANY_TABLE + " first_company "
+                        + "WHERE first_company.cust_id = r.sup_cust_id "
+                        + "AND first_company.cust_rage = " + FIRST_LEVEL_CUST_RAGE + ") "
+                        + "AND EXISTS (SELECT 1 FROM " + CRM_BIZ_COMPANY_TABLE + " second_company "
+                        + "WHERE second_company.cust_id = r.buy_cust_id "
+                        + "AND second_company.cust_rage = " + SECOND_LEVEL_CUST_RAGE + ")",
                 Timestamp.class);
         return timestamp == null ? null : timestamp.toLocalDateTime();
     }
@@ -64,9 +74,15 @@ public class CrmFirstSecondRelationSnapshotServiceImpl implements ICrmFirstSecon
         }
         JdbcTemplate crm = requireCrmJdbcTemplate();
         String sql = "SELECT id, buy_cust_id, sup_cust_id, oper_date "
-                + "FROM " + CRM_RELATION_TABLE + " "
+                + "FROM " + CRM_RELATION_TABLE + " r "
                 + "WHERE oper_date >= ? AND oper_date < ? "
-                + "ORDER BY buy_cust_id ASC, id ASC";
+                + "AND EXISTS (SELECT 1 FROM " + CRM_BIZ_COMPANY_TABLE + " first_company "
+                + "WHERE first_company.cust_id = r.sup_cust_id "
+                + "AND first_company.cust_rage = " + FIRST_LEVEL_CUST_RAGE + ") "
+                + "AND EXISTS (SELECT 1 FROM " + CRM_BIZ_COMPANY_TABLE + " second_company "
+                + "WHERE second_company.cust_id = r.buy_cust_id "
+                + "AND second_company.cust_rage = " + SECOND_LEVEL_CUST_RAGE + ") "
+                + "ORDER BY r.buy_cust_id ASC, r.id ASC";
 
         List<CrmFirstSecondRelationSnapshot> batch = new ArrayList<>(DEFAULT_BATCH_SIZE);
         SyncCounter counter = new SyncCounter();

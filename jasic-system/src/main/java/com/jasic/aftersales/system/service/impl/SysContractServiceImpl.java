@@ -603,15 +603,25 @@ public class SysContractServiceImpl implements ISysContractService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         Map<Long, CrmBizCompanySnapshot> crmCompanyByCustId = loadCrmCompanySnapshotByCustIds(custIds);
+        List<CrmFirstSecondRelationSnapshot> validSourceSnapshots = snapshots.stream()
+                .filter(item -> isValidFirstSecondSourceSnapshot(item, crmCompanyByCustId))
+                .collect(Collectors.toList());
+        if (CollUtil.isEmpty(validSourceSnapshots)) {
+            return Collections.emptyList();
+        }
 
-        Set<String> companyCodes = crmCompanyByCustId.values().stream()
+        Set<String> companyCodes = validSourceSnapshots.stream()
+                .flatMap(item -> java.util.stream.Stream.of(
+                        crmCompanyByCustId.get(item.getFirstCustId()),
+                        crmCompanyByCustId.get(item.getSecondCustId())))
+                .filter(Objects::nonNull)
                 .map(CrmBizCompanySnapshot::getSapCompanyCode)
                 .map(StrUtil::trim)
                 .filter(StrUtil::isNotBlank)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         Map<String, SysCompany> companyByCode = loadCompanyByCode(companyCodes);
 
-        Set<Long> secondCompanyIds = snapshots.stream()
+        Set<Long> secondCompanyIds = validSourceSnapshots.stream()
                 .map(CrmFirstSecondRelationSnapshot::getSecondCustId)
                 .map(crmCompanyByCustId::get)
                 .filter(Objects::nonNull)
@@ -635,8 +645,8 @@ public class SysContractServiceImpl implements ISysContractService {
         }
         companyById.putAll(loadCompanyByIds(conflictFirstCompanyIds));
 
-        List<CrmFirstSecondRelationImportVO> result = new ArrayList<>(snapshots.size());
-        for (CrmFirstSecondRelationSnapshot snapshot : snapshots) {
+        List<CrmFirstSecondRelationImportVO> result = new ArrayList<>(validSourceSnapshots.size());
+        for (CrmFirstSecondRelationSnapshot snapshot : validSourceSnapshots) {
             CrmFirstSecondRelationImportVO vo = new CrmFirstSecondRelationImportVO();
             vo.setId(snapshot.getId());
             vo.setFirstCustId(snapshot.getFirstCustId());
@@ -711,6 +721,19 @@ public class SysContractServiceImpl implements ISysContractService {
             result.add(vo);
         }
         return result;
+    }
+
+    private boolean isValidFirstSecondSourceSnapshot(CrmFirstSecondRelationSnapshot snapshot,
+                                                     Map<Long, CrmBizCompanySnapshot> crmCompanyByCustId) {
+        if (snapshot == null) {
+            return false;
+        }
+        CrmBizCompanySnapshot firstSnapshot = crmCompanyByCustId.get(snapshot.getFirstCustId());
+        if (firstSnapshot == null || !Objects.equals(firstSnapshot.getCustRage(), 0)) {
+            return false;
+        }
+        CrmBizCompanySnapshot secondSnapshot = crmCompanyByCustId.get(snapshot.getSecondCustId());
+        return secondSnapshot != null && Objects.equals(secondSnapshot.getCustRage(), 3);
     }
 
     private void fillSourceCompanyInfo(CrmFirstSecondRelationImportVO vo, CrmBizCompanySnapshot snapshot, boolean first) {
