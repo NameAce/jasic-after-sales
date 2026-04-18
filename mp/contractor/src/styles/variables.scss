@@ -1,50 +1,108 @@
-// ========== 品牌与功能色 ==========
+// =============================================================================
+// aftersale 主题令牌（业务 SCSS 真源）
+// - 主色唯一来源：`$primary`（#f26604）。请勿在页面中另写 #f26604 / #EA5404 等主色 hex。
+// - uni-ui / easycom 使用 `src/uni.scss` 中的 `$uni-primary`，其值必须等于 `$primary`。
+// - 模板里需要字符串颜色时，与 `src/constants/theme.ts` 同步维护（改主色须两处一起改）。
+// =============================================================================
+
+// --- 品牌主色 ---
 $primary: #f26604;
-$primary-light: #ff8533;
+// 主色上的反色（导航栏图标、主按钮字色等）
+$primary-contrast: #ffffff;
+
+// --- 主色浅背景 / 暖色描边（关于页、标签、评价提示条等） ---
+$primary-tint-bg: #fff7ed;
+$primary-tint-cream: #fff5ec;
+$primary-soft-bg: #fff5ee;
+$primary-border-warm: #ffe5d3;
+$primary-border-warm-light: #fde4cf;
+$primary-border-faint: #ffedd5;
+// 浅橙底上的强调字色（略深于 $primary）
+$primary-emphasis: #ea580c;
+
+// --- 功能色（与 uni 语义色可并存；业务组件优先用下列命名） ---
+$success: #7bff93;
+$warning: #ffc56f;
+$danger: #fa3534;
+$info: #909399;
 $icon-color: #dcdcdcf5;
+$bg-input: #f8fafc;
 
-// ========== 表面色 ==========
-$surface-white: #ffffff;
-$surface-slate-50: #f8fafc;
-$surface-slate-100: #f1f5f9;
-$surface-slate-200: #e2e8f0;
-$surface-slate-300: #cbd5e1;
-$surface-page: #f5f5f5;
-$surface-app: #f6f6f8;
+// 工单/质保等界面常用的「实心」绿、琥珀警告（与上方霓虹绿/黄区分用途）
+$success-solid: #16a34a;
+$warning-amber: #f59e0b;
+// 质保「保外」等强警示文案（与 $danger 区分：偏红系 600）
+$warranty-out: #dc2626;
+// 红点、未读角标等（Tailwind red-500；与 $danger #fa3534 略不同）
+$danger-emphasis: #ef4444;
+// 状态徽章「处理中」类信息蓝
+$status-info-bg: #e6f0ff;
+$status-info-text: #135bec;
+$status-success-bg: #e6f4ea;
 
-// ========== 文字 ==========
+// --- 文字 ---
 $text-main: #303133;
 $text-secondary: #606266;
 $text-placeholder: #909399;
-$text-strong: #333333;
+$text-disabled: #c0c4cc;
+$text-bg: #fff;
+$text-dark: #0f172a;
+$text-label: #64748b;
+$text-muted: #94a3b8;
+$text-body: #334155;
+$text-desc: #475569;
+// 次级图标灰（slate-400，略浅于部分列表装饰图标场景）
+$icon-secondary: #9ca3af;
+// 导航返回、星评未激活等
+$text-subtle: #666666;
+// 关闭、弱操作图标
+$text-icon-weak: #999999;
 
-$text-slate-900: #0f172a;
-$text-slate-800: #1e293b;
-$text-slate-700: #334155;
-$text-slate-600: #475569;
-$text-slate-500: #64748b;
-$text-slate-400: #94a3b8;
-$text-dark: $text-slate-900;
-$text-body: $text-slate-700;
-$text-label: $text-slate-600;
-$text-desc: $text-slate-500;
-$text-muted: $text-slate-400;
+// --- 背景 ---
+$bg-page: #f6f6f8;
+$bg-card: #ffffff;
+$bg-light: #f8fafc;
+$bg-hover: #f1f5f9;
+$bg-muted-panel: #f9f9f9;
+$bg-secondary-btn: #f5f5f5;
 
-// ========== 边框 ==========
+// --- 边框 / 分割线 ---
 $border-color: #ebeef5;
-$border-light: $surface-slate-100;
-$border-lighter: $surface-slate-50;
+$border-light: #f1f5f9;
+$border-lighter: #f8fafc;
+// 与 uni $uni-border-1 对齐，浅灰描边（寄件地址条等）
+$border-muted: #f0f0f0;
+// slate-200：卡片描边、虚线框（工单详情等）
+$border-slate: #e2e8f0;
+// gray-200：列表分隔、星评轨道灰
+$border-neutral: #e5e7eb;
 
-// ========== 圆角 ==========
+// --- 标签浅底（uni-tag / 业务 tag-success 等） ---
+$tag-success-soft-bg: #e1f3d8;
+$tag-warning-soft-bg: #fdf6ec;
+$tag-danger-soft-bg: #fde2e2;
+// 型号警示等红系浅底
+$danger-tint-bg: #fef2f2;
+$danger-tint-border: #fecaca;
+
+// --- 图标装饰（下拉箭头、空状态大图标等） ---
+$icon-slate-light: #cbd5e1;
+// 语音条滑块轨道灰（与 `$bg-muted-panel` 搭配）
+$voice-panel-track: #d9dfe6;
+
+// --- 业务点缀 ---
+$vip-badge-bg: #facc15;
+
+// --- 圆角 ---
 $radius-sm: 8rpx;
 $radius-md: 16rpx;
 $radius-input: 18rpx;
 $radius-lg: 24rpx;
-$radius-xl: 48rpx;
-$radius-pill: 999rpx;
-$radius-round: $radius-pill;
+$radius-xl: 32rpx;
+$radius-xxl: 48rpx;
+$radius-round: 999rpx;
 
-// ========== 间距 ==========
+// --- 间距 ---
 $space-xs: 8rpx;
 $space-sm: 16rpx;
 $space-md: 24rpx;
@@ -52,30 +110,57 @@ $space-lg: 32rpx;
 $space-xl: 48rpx;
 $space-input: 28rpx;
 
-// ========== 字体尺寸 ==========
-$font-xs: 22rpx;
+// --- 字体 ---
+$font-xs: 20rpx;
 $font-sm: 24rpx;
 $font-md: 28rpx;
 $font-lg: 32rpx;
-$font-xl: 48rpx;
+$font-xl: 36rpx;
+$font-xxl: 40rpx;
+$font-title: 48rpx;
 
-// ========== 工单 / 状态语义色 ==========
-$status-pending-bg: #ffedd5;
-$status-processing-bg: #e6f0ff;
-$status-processing-text: #135bec;
+// --- 安全距离 ---
+$safe-area-bottom: env(safe-area-inset-bottom);
+
+// =============================================================================
+// Contractor 扩展（B 端独有；主色/页面底勿重复定义，引用上方真源）
+// =============================================================================
+
+// --- 主色辅助（登录渐变等） ---
+$primary-light: #ff8533;
+
+// --- 强调字色 ---
+$text-strong: #333333;
+
+// --- Slate 阶梯（映射至用户端语义，供沿用 $text-slate-* 的页面/组件） ---
+$text-slate-900: $text-dark;
+$slate-950: #020617;
+$text-slate-800: #1e293b;
+$text-slate-700: $text-body;
+$text-slate-600: $text-desc;
+$text-slate-500: $text-label;
+$text-slate-400: $text-muted;
+
+// --- 圆角别名（与 $radius-round 一致） ---
+$radius-pill: $radius-round;
+
+// --- 工单 / 状态语义色 ---
+$status-pending-bg: $primary-border-faint;
+$status-processing-bg: $status-info-bg;
+$status-processing-text: $status-info-text;
 $status-completed-bg: #dcfce7;
-$status-completed-text: #16a34a;
-$status-closed-bg: $surface-slate-50;
-$status-closed-text: $text-slate-400;
+$status-completed-text: $success-solid;
+$status-closed-bg: $bg-light;
+$status-closed-text: $text-muted;
 
-$tag-brand-bg: #fff7ed;
-$tag-brand-border: #ffedd5;
-$tag-brand-text: #ea580c;
+$tag-brand-bg: $primary-tint-bg;
+$tag-brand-border: $primary-border-faint;
+$tag-brand-text: $primary-emphasis;
 $tag-warranty-in-bg: #f0fdf4;
 $tag-warranty-in-border: #dcfce7;
-$tag-warranty-in-text: #16a34a;
-$tag-neutral-bg: $surface-slate-50;
-$tag-neutral-border: $surface-slate-200;
+$tag-warranty-in-text: $success-solid;
+$tag-neutral-bg: $bg-light;
+$tag-neutral-border: $border-slate;
 $tag-transfer-bg: #eff6ff;
 $tag-transfer-border: #bfdbfe;
 $tag-transfer-text: #2563eb;
@@ -86,42 +171,31 @@ $emerald-600: #059669;
 $emerald-50: #ecfdf5;
 $rose-500: #f43f5e;
 $rose-50: #fff1f2;
+$rose-200: #fecaca;
 $amber-500: #f59e0b;
 $red-50: #fef2f2;
 $red-400: #f87171;
 $red-500: #ef4444;
 $red-600: #dc2626;
-$danger: $red-500;
 $orange-800: #c2410c;
 $violet-600: #7c3aed;
 $yellow-700: #ca8a04;
 
-// ========== 登录 / 营销渐变 ==========
+// --- 登录 / 营销渐变 ---
 $login-bg: #080c14;
 $login-gradient: linear-gradient(135deg, $primary-light 0%, $primary 100%);
 $primary-header-end: #ff8235;
 $my-header-gradient: linear-gradient(180deg, $primary 0%, $primary-header-end 100%);
 
-// ========== 主色透明 ==========
+// --- 主色透明叠加 ---
 $primary-alpha-06: rgba($primary, 0.06);
 $primary-alpha-10: rgba($primary, 0.1);
 $primary-alpha-12: rgba($primary, 0.12);
 $primary-alpha-14: rgba(234, 88, 12, 0.14);
 $primary-alpha-25: rgba(234, 88, 12, 0.25);
 
-// ========== 安全区 ==========
-$safe-area-bottom: env(safe-area-inset-bottom);
-
-// ========== 层级（z-index）==========
+// --- 层级（z-index）---
 // 规则：弹窗最高，其次导航栏/TabBar，其他层级保持在其下
 $z-content-fixed: 100;
 $z-nav-tabbar: 900;
 $z-modal: 1000;
-
-// ========== 语音条等 ==========
-$surface-voice: #f9f9f9;
-$surface-voice-border: #d9dfe6;
-
-// aftersale 兼容别名（供复用组件/mixin 使用）
-$bg-card: $surface-white;
-$bg-input: $surface-voice;

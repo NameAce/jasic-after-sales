@@ -21,6 +21,7 @@
 <script setup lang="ts">
   import { computed } from 'vue'
   import { useAppStore } from '@/stores'
+  import { themeColors } from '@/theme/colors'
 
   const props = withDefaults(
     defineProps<{
@@ -79,8 +80,8 @@
   const iconColor = computed(() => {
     if (props.color) return props.color
     if (props.backIconColor) return props.backIconColor
-    if (props.surface === 'transparent' && props.tone === 'light') return '#ffffff'
-    return '#0f172a'
+    if (props.surface === 'transparent' && props.tone === 'light') return themeColors.textBg
+    return themeColors.textDark
   })
 
   /**
@@ -97,7 +98,7 @@
       return style
     }
     if (props.surface === 'transparent' && props.tone === 'light') {
-      style.color = '#ffffff'
+      style.color = themeColors.textBg
       return style
     }
     return style
@@ -149,7 +150,6 @@
     uni.navigateBack()
   }
 </script>
-
 <style lang="scss" scoped>
   @use '@/styles/mixins.scss' as *;
 
@@ -260,11 +260,11 @@
     position: sticky;
     top: 0;
     z-index: $z-nav-tabbar;
-    background-color: $surface-white;
+    background-color: $bg-card;
     padding: $space-lg;
     padding-top: calc(var(--status-bar-height) + #{$space-lg});
     padding-bottom: $space-sm;
-    border-bottom: 2rpx solid $surface-slate-100;
+    border-bottom: 2rpx solid $bg-hover;
 
     .custom-nav-bar__row--center {
       width: 100%;

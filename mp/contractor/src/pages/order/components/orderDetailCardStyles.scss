@@ -87,7 +87,7 @@
         width: 100%;
         aspect-ratio: 1 / 1;
         border-radius: $radius-md;
-        background-color: $surface-slate-100;
+        background-color: $bg-hover;
         overflow: hidden;
       }
 
@@ -122,7 +122,7 @@
       @include flex-col;
       gap: $space-xs;
       padding: $space-md;
-      background: $surface-slate-50;
+      background: $bg-light;
       border-radius: $radius-md;
       border-left: 4rpx solid rgba($primary, 0.35);
 

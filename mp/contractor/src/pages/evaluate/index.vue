@@ -68,7 +68,7 @@
           v-model="feedbackText"
           class="feedback-input"
           placeholder="请分享您的维修体验..."
-          maxlength="200"
+          :maxlength="200"
         ></textarea>
         <text class="counter">{{ feedbackText.length }}/200</text>
       </view>
@@ -194,7 +194,7 @@
 <style lang="scss" scoped>
   .evaluate-page {
     min-height: 100vh;
-    background-color: $surface-white;
+    background-color: $bg-card;
     padding-bottom: calc(100rpx + env(safe-area-inset-bottom));
     @include flex-col;
   }
@@ -206,11 +206,11 @@
   .technician-section {
     .card {
       @include flex-row;
-      background-color: $surface-white;
+      background-color: $bg-card;
       border-radius: $radius-lg;
       padding: $space-lg;
       box-shadow: 0 8rpx 40rpx rgba(0, 0, 0, 0.05);
-      border: 1px solid $surface-slate-50;
+      border: 1px solid $bg-light;
 
       .avatar-wrapper {
         position: relative;
@@ -218,7 +218,7 @@
         height: 128rpx;
         border-radius: 50%;
         overflow: hidden;
-        border: 4rpx solid $surface-slate-50;
+        border: 4rpx solid $bg-light;
 
         .avatar {
           width: 100%;
@@ -311,8 +311,8 @@
       .tag-btn {
         padding: $space-sm $space-lg;
         border-radius: $radius-pill;
-        border: 1px solid $surface-slate-200;
-        background-color: $surface-white;
+        border: 1px solid $border-slate;
+        background-color: $bg-card;
         transition: all 0.2s;
 
         text {
@@ -326,7 +326,7 @@
           box-shadow: 0 4rpx 12rpx rgba($primary, 0.2);
 
           text {
-            color: $surface-white;
+            color: $text-bg;
             font-weight: 500;
           }
         }
@@ -337,7 +337,7 @@
   .feedback-section {
     .textarea-wrapper {
       position: relative;
-      background-color: $surface-slate-50;
+      background-color: $bg-light;
       border-radius: $radius-lg;
       padding: $space-lg;
 
@@ -406,9 +406,9 @@
       }
 
       .upload-btn {
-        border: 2px dashed $surface-slate-200;
+        border: 2px dashed $border-slate;
         @include flex-center;
-        background-color: $surface-white;
+        background-color: $bg-card;
 
         &::after {
           content: '';
@@ -426,7 +426,7 @@
     padding: $space-lg;
     background-color: rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(20rpx);
-    border-top: 1px solid $surface-slate-100;
+    border-top: 1px solid $bg-hover;
     padding-bottom: calc(#{$space-lg} + env(safe-area-inset-bottom));
     z-index: 100;
 
@@ -435,7 +435,7 @@
       height: 100rpx;
       line-height: 100rpx;
       background-color: $primary;
-      color: $surface-white;
+      color: $text-bg;
       border-radius: $radius-pill;
       font-size: 36rpx;
       font-weight: 600;

@@ -8,7 +8,7 @@
         <!-- 商品查询 -->
         <view class="card-header">
           <view class="icon-box">
-            <uni-icons type="vip-filled" size="24" color="#f26604"></uni-icons>
+            <uni-icons type="vip-filled" size="24" :color="themeColors.primary"></uni-icons>
           </view>
           <view class="header-text">
             <view>商品查询</view>
@@ -57,7 +57,7 @@
                 <text :class="['fault-desc-picker-text', { placeholder: !selectedFaultDescText }]">
                   {{ selectedFaultDescText || '请选择' }}
                 </text>
-                <uni-icons type="down" size="15" color="#cbd5e1" />
+                <uni-icons type="down" size="15" :color="themeColors.iconSlateLight" />
               </view>
               <view v-if="showFaultDescDropdown" class="fault-desc-dropdown">
                 <view
@@ -68,7 +68,7 @@
                 >
                   <checkbox
                     :checked="draftFaultDesc.includes(option.value)"
-                    color="#f26604"
+                    :color="themeColors.primary"
                     style="transform: scale(0.8); transform-origin: center"
                   />
                   <text class="fault-desc-option-text">{{ option.text }}</text>
@@ -108,7 +108,7 @@
                 <text :class="['shipping-address-text', { placeholder: !formData.shippingInfo }]">{{
                   shippingInfoDisplay
                 }}</text>
-                <uni-icons type="right" size="14" color="#94a3b8" />
+                <uni-icons type="right" size="14" :color="themeColors.textMuted" />
               </view>
             </uni-forms-item>
           </view>
@@ -167,7 +167,7 @@
     <view class="modal-content" @click.stop>
       <view class="modal-body">
         <view class="modal-icon-box">
-          <uni-icons type="info-filled" size="40" color="#f26604"></uni-icons>
+          <uni-icons type="info-filled" size="40" :color="themeColors.primary"></uni-icons>
         </view>
         <view class="modal-title">报修提示</view>
         <view class="modal-desc">无条码或无法识别条码，系统默认该机器已过保</view>
@@ -191,6 +191,7 @@
   import ServicePointFormItem from '@/components/ServicePointFormItem/ServicePointFormItem.vue'
   import RepairFormSectionHeader from '@/components/RepairFormSectionHeader/RepairFormSectionHeader.vue'
   import FormItemAnchor from '@/components/FormItemAnchor/FormItemAnchor.vue'
+  import { themeColors } from '@/constants/theme'
   import {
     CUSTOMER_WORK_ORDER_REPORT_BIZ_TYPE,
     JASIC_BRAND_CODE,

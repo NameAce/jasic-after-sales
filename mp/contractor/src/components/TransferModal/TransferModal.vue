@@ -165,7 +165,7 @@
       .picker-value {
         height: 96rpx;
         @include form-field-frame;
-        background-color: $surface-white;
+        background-color: $bg-card;
         padding: 0 32rpx;
         @include flex-between;
 
@@ -189,7 +189,7 @@
       width: 100%;
       min-height: 240rpx;
       @include form-field-frame;
-      background-color: $surface-white;
+      background-color: $bg-card;
       padding: 32rpx;
       font-size: 28rpx;
       color: $text-slate-900;

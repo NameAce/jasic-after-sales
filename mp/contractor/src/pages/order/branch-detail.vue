@@ -309,9 +309,9 @@
     }
 
     .tabs-wrap {
-      background-color: $surface-white;
-      border-top: 2rpx solid $surface-slate-100;
-      border-bottom: 2rpx solid $surface-slate-100;
+      background-color: $bg-card;
+      border-top: 2rpx solid $bg-hover;
+      border-bottom: 2rpx solid $bg-hover;
 
       &.sticky-tabs {
         position: sticky;

@@ -103,7 +103,7 @@
   }
 
   .cm-panel {
-    background-color: $surface-white;
+    background-color: $bg-card;
     width: 100%;
     border-radius: 48rpx 48rpx 0 0;
     overflow: hidden;
@@ -131,13 +131,13 @@
     height: 12rpx;
     width: 96rpx;
     border-radius: 9999rpx;
-    background-color: $surface-slate-200;
+    background-color: $border-slate;
   }
 
   .cm-header {
     padding: 16rpx 32rpx 0;
     text-align: center;
-    border-bottom: 2rpx solid $surface-slate-100;
+    border-bottom: 2rpx solid $bg-hover;
     box-sizing: border-box;
   }
 
@@ -160,7 +160,7 @@
 
   .cm-safe-area {
     height: 48rpx;
-    background-color: $surface-white;
+    background-color: $bg-card;
   }
 
   @keyframes cmSlideInFromBottom {

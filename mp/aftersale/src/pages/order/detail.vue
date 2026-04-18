@@ -2,8 +2,8 @@
   <custom-nav-bar
     title="工单详情"
     surface="sticky"
-    color="#ffffff"
-    background="#f26604"
+    :color="themeColors.primaryContrast"
+    :background="themeColors.primary"
     :shadow="false"
   />
   <view class="page-container page-index order-detail-page">
@@ -180,14 +180,7 @@
                   <view class="desc-box">
                     <text
                       v-if="hasStr(order.repair.returnReceiverTitle)"
-                      class="desc-title"
-                      style="
-                        display: block;
-                        font-weight: 500;
-                        font-size: 24rpx;
-                        color: #0f172a;
-                        margin-bottom: 8rpx;
-                      "
+                      class="return-receiver-title"
                       >{{ order.repair.returnReceiverTitle }}</text
                     >
                     <text v-if="hasStr(order.repair.returnAddress)" class="desc-text">{{
@@ -448,10 +441,11 @@
 
 <script setup lang="ts">
   import { ref, computed, watch } from 'vue'
-  import { onLoad } from '@dcloudio/uni-app'
+  import { onLoad, onShow } from '@dcloudio/uni-app'
   import BaseButton from '@/components/BaseButton/BaseButton.vue'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import { getOrderDetailAPI, type OrderDetailDTO } from '@/api/order'
+  import { WORK_ORDER_REPAIR_FAULTS_HISTORY_STORAGE_KEY } from '@/constants/historicalRecord'
   import VoicePlaybackList, {
     type VoicePlaybackItem
   } from '@/components/VoicePlaybackList/VoicePlaybackList.vue'
@@ -464,6 +458,7 @@
     statusTaskAltIcon,
     tvGenIcon
   } from '@/svgs'
+  import { themeColors } from '@/constants/theme'
 
   /**
    * 安全解码路由参数中的中文状态，避免仍带 % 编码时首屏乱码闪现
@@ -547,7 +542,10 @@
     }
 
     syncTabByStatus()
+  })
 
+  /** 每次进入页面拉取详情（含从评价页返回后展示最新评价） */
+  onShow(() => {
     loadDetail()
   })
 
@@ -868,10 +866,14 @@
   })
 
   /**
-   * 是否显示评价Tab
-   * @returns boolean
+   * 是否显示评价 Tab：已有评价内容、仍可评价、或已关闭工单需查看/占位
+   * 注意：接口在用户评价后常返回 canEvaluate=false，不能用 ?? 依赖该字段，否则 Tab 会消失
    */
-  const showEvaluateTab = computed(() => order.value.canEvaluate ?? orderStatus.value === '已关闭')
+  const showEvaluateTab = computed(() => {
+    if (hasEvaluateContent.value) return true
+    if (order.value.canEvaluate === true) return true
+    return orderStatus.value === '已关闭'
+  })
 
   /**
    * 监听评价Tab显示状态
@@ -894,8 +896,16 @@
       uni.showToast({ title: '缺少工单编号', icon: 'none', duration: 1500 })
       return
     }
+    try {
+      uni.setStorageSync(
+        WORK_ORDER_REPAIR_FAULTS_HISTORY_STORAGE_KEY,
+        JSON.stringify(order.value.faultPoint?.records ?? [])
+      )
+    } catch {
+      /* 存储失败仍跳转，历史页展示空 */
+    }
     uni.navigateTo({
-      url: `/pages/historicalRecord/index?orderId=${encodeURIComponent(id)}`
+      url: `/pages/historicalRecord/index?orderId=${encodeURIComponent(id)}&mode=repairs`
     })
   }
 
@@ -969,7 +979,7 @@
 
   .top-section {
     background-color: $primary;
-    color: #fff;
+    color: $primary-contrast;
     padding-bottom: 64rpx;
   }
 
@@ -1031,7 +1041,7 @@
           box-shadow: 0 0 0 $space-xs rgba(255, 255, 255, 0.1);
 
           &.active {
-            background-color: #fff;
+            background-color: $primary-contrast;
             box-shadow: 0 0 0 $space-xs rgba(255, 255, 255, 0.2);
           }
         }
@@ -1043,7 +1053,7 @@
 
           &.active {
             font-weight: bold;
-            color: #fff;
+            color: $primary-contrast;
           }
         }
       }
@@ -1136,11 +1146,19 @@
     }
 
     .info-item-col {
+      .return-receiver-title {
+        display: block;
+        font-weight: 500;
+        font-size: 24rpx;
+        color: $text-dark;
+        margin-bottom: 8rpx;
+      }
+
       .return-express-no-text {
         display: block;
         font-size: $font-lg;
         font-weight: 500;
-        color: #0f172a;
+        color: $text-dark;
         margin-bottom: $space-sm;
         letter-spacing: 1rpx;
       }
@@ -1149,7 +1167,7 @@
         display: block;
         width: 200rpx;
         border-radius: $radius-md;
-        border: 2rpx solid #e2e8f0;
+        border: 2rpx solid $border-slate;
       }
     }
 
@@ -1166,26 +1184,26 @@
       }
 
       &.is-out {
-        background-color: rgba(220, 38, 38, 0.14);
+        background-color: rgba($warranty-out, 0.14);
 
         .warranty-judge-tag-text {
-          color: #dc2626;
+          color: $warranty-out;
         }
       }
 
       &.is-in {
-        background-color: rgba(22, 163, 74, 0.14);
+        background-color: rgba($success-solid, 0.14);
 
         .warranty-judge-tag-text {
-          color: #16a34a;
+          color: $success-solid;
         }
       }
 
       &.is-neutral {
-        background-color: #f1f5f9;
+        background-color: $bg-hover;
 
         .warranty-judge-tag-text {
-          color: #64748b;
+          color: $text-label;
         }
       }
     }
@@ -1333,10 +1351,10 @@
 
         .star-char {
           font-size: $font-xl;
-          color: #e2e8f0;
+          color: $border-slate;
 
           &.active {
-            color: #f59e0b;
+            color: $warning-amber;
           }
         }
       }

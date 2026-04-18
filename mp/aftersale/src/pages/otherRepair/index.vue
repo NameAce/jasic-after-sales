@@ -10,30 +10,6 @@
       label-width="auto"
     >
       <view class="form-content page-padding">
-        <view class="card card-shadow">
-          <view class="card-header">
-            <view class="icon-box">
-              <uni-icons type="vip-filled" size="24" color="#f26604"></uni-icons>
-            </view>
-            <view class="header-text">
-              <view>商品查询</view>
-              <text>请输入或扫描产品条形码查询状态</text>
-            </view>
-          </view>
-          <view class="search-box">
-            <view class="search-box-main">
-              <FormItemAnchor name="warrantyCode" />
-              <uni-easyinput
-                v-model="formData.warrantyCode"
-                placeholder="输入产品条形码"
-                suffix-icon="scan"
-                @icon-click="handleScan"
-              />
-            </view>
-            <button class="btn btn-primary mini-btn" @click="checkWarranty">查询</button>
-          </view>
-        </view>
-        <!-- 表单内容 -->
         <!-- 必填信息 -->
         <RepairFormSectionHeader title="必填信息" />
         <!-- 必填信息卡片 -->
@@ -42,41 +18,15 @@
           <!-- 选择网点 -->
           <ServicePointFormItem :display-text="selectedCenterDisplay" />
 
-          <!-- 故障描述 -->
-          <uni-forms-item label="故障描述" name="faultDescription" required>
-            <FormItemAnchor name="faultDescription" />
-            <view class="fault-desc-picker" @click="openFaultDescDropdown">
-              <text :class="['fault-desc-picker-text', { placeholder: !selectedFaultDescText }]">
-                {{ selectedFaultDescText || '请选择' }}
-              </text>
-              <uni-icons type="down" size="15" color="#cbd5e1" />
-            </view>
-            <view v-if="showFaultDescDropdown" class="fault-desc-dropdown">
-              <view
-                v-for="option in faultDescriptionOptions"
-                :key="option.value"
-                class="fault-desc-option"
-                @click.stop="toggleDraftFaultDesc(option.value)"
-              >
-                <checkbox
-                  :checked="draftFaultDesc.includes(option.value)"
-                  color="#f26604"
-                  style="transform: scale(0.8); transform-origin: center"
-                />
-                <text class="fault-desc-option-text">{{ option.text }}</text>
-              </view>
-              <view class="fault-desc-dropdown-actions">
-                <view class="dropdown-btn dropdown-btn--cancel" @click.stop="cancelFaultDescSelect">
-                  取消
-                </view>
-                <view
-                  class="dropdown-btn dropdown-btn--confirm"
-                  @click.stop="confirmFaultDescSelect"
-                >
-                  确定
-                </view>
-              </view>
-            </view>
+          <!-- 故障备注说明 -->
+          <uni-forms-item label="故障备注说明" name="faultRemark" required>
+            <FormItemAnchor name="faultRemark" />
+            <uni-easyinput
+              v-model="formData.faultRemark"
+              type="textarea"
+              auto-height
+              placeholder="请输入故障备注说明"
+            />
           </uni-forms-item>
 
           <!-- 选择维修路径 -->
@@ -92,7 +42,7 @@
               <text :class="['shipping-address-text', { placeholder: !formData.shippingInfo }]">{{
                 shippingInfoDisplay
               }}</text>
-              <uni-icons type="right" size="14" color="#94a3b8" />
+              <uni-icons type="right" size="14" :color="themeColor.textMuted" />
             </view>
           </uni-forms-item>
         </view>
@@ -170,15 +120,11 @@
     REPAIR_TYPE_OPTIONS,
     REPAIR_TYPE_TO_SERVICE_MODE
   } from '@/constants/repairForm'
+  import { themeColor } from '@/constants/theme'
   import { useUserStore } from '@/stores/modules/user'
   import { useServicePointSelection } from '@/composables/useServicePointSelection'
   import { useSupplementSection } from '@/composables/useSupplementSection'
-  import {
-    createCustomerWorkOrderAPI,
-    getBarcodeInfoAPI,
-    mapBarcodeFaultOptions,
-    type CreateCustomerWorkOrderDTO
-  } from '@/api/order'
+  import { createCustomerWorkOrderAPI, type CreateCustomerWorkOrderDTO } from '@/api/order'
   import { scrollToFirstInvalidUniFormField } from '@/utils/formFieldScrollFocus'
   import { validateFaultMediaSelection } from '@/utils/repairMediaLimits'
   import {
@@ -196,7 +142,6 @@
   } from '@/utils/repairDraftStorage'
   import { takeSelectedShippingAddress, type SelectedShippingAddress } from '@/utils/addressStorage'
   import { parseUnknownError } from '@/utils/errorMessage'
-  import { API_SUCCESS_CODE } from '@/utils/http'
   import {
     resolveSendExpressNoForSubmit,
     resolveShippingSubmitFields
@@ -205,9 +150,8 @@
   const formRef = ref(null)
   // 表单数据
   const formData: Ref<OtherRepairDraftForm> = ref({
-    warrantyCode: '',
     centerId: null,
-    faultDescription: '',
+    faultRemark: '',
     repairType: 'STORE',
     shippingInfo: '',
     voiceList: [] as VoiceItem[],
@@ -231,114 +175,6 @@
   // 使用补充说明
   const { showSupplementSection, toggleSupplementSection } = useSupplementSection(false)
   const userStore = useUserStore()
-  const faultDescriptionOptions = ref<{ text: string; value: string }[]>([])
-  const showFaultDescDropdown = ref(false)
-  const draftFaultDesc = ref<string[]>([])
-  const TOAST_DURATION = 1500
-  const selectedFaultDescText = computed(() => {
-    const selectedValues = normalizeFaultDescSelection(formData.value.faultDescription)
-    const selectedTexts = selectedValues
-      .map(
-        (value) => faultDescriptionOptions.value.find((item) => item.value === value)?.text || value
-      )
-      .map((item) => String(item ?? '').trim())
-      .filter(Boolean)
-    return selectedTexts.join('、')
-  })
-
-  const normalizeFaultDescSelection = (value: string | string[]) => {
-    if (Array.isArray(value)) {
-      return value.map((item) => String(item ?? '').trim()).filter(Boolean)
-    }
-    return String(value ?? '')
-      .split(/[、，,]/)
-      .map((item) => item.trim())
-      .filter(Boolean)
-      .map((item) => {
-        const matched = faultDescriptionOptions.value.find((option) => option.text === item)
-        return matched?.value ?? item
-      })
-  }
-
-  const openFaultDescDropdown = () => {
-    if (faultDescriptionOptions.value.length === 0) {
-      uni.showToast({ title: '请先查询条码获取故障描述', icon: 'none', duration: TOAST_DURATION })
-      return
-    }
-    draftFaultDesc.value = normalizeFaultDescSelection(formData.value.faultDescription)
-    showFaultDescDropdown.value = true
-  }
-
-  const toggleDraftFaultDesc = (value: string) => {
-    const val = String(value ?? '').trim()
-    if (!val) return
-    if (draftFaultDesc.value.includes(val)) {
-      draftFaultDesc.value = draftFaultDesc.value.filter((x) => x !== val)
-    } else {
-      draftFaultDesc.value = [...draftFaultDesc.value, val]
-    }
-  }
-
-  const cancelFaultDescSelect = () => {
-    showFaultDescDropdown.value = false
-    draftFaultDesc.value = []
-  }
-
-  const confirmFaultDescSelect = () => {
-    const selectedTexts = draftFaultDesc.value
-      .map(
-        (value) => faultDescriptionOptions.value.find((item) => item.value === value)?.text || value
-      )
-      .map((item) => String(item ?? '').trim())
-      .filter(Boolean)
-    formData.value.faultDescription = selectedTexts.join('、')
-    showFaultDescDropdown.value = false
-    draftFaultDesc.value = []
-    const form = formRef.value as { clearValidate?: (names?: string[]) => void } | null
-    form?.clearValidate?.(['faultDescription'])
-  }
-
-  const handleScan = () => {
-    uni.scanCode({
-      success: (res) => {
-        formData.value.warrantyCode = res.result
-      }
-    })
-  }
-
-  const checkWarranty = async () => {
-    const barcode = String(formData.value.warrantyCode ?? '').trim()
-    if (!barcode) {
-      uni.showToast({ title: '请输入条形码', icon: 'none', duration: TOAST_DURATION })
-      return
-    }
-    uni.showLoading({ title: '查询中...' })
-    try {
-      const res = await getBarcodeInfoAPI({ barcode })
-      const mapped = mapBarcodeFaultOptions(res.result?.faultOptions)
-      faultDescriptionOptions.value = mapped
-      formData.value.faultDescription = ''
-      showFaultDescDropdown.value = false
-      draftFaultDesc.value = []
-      const form = formRef.value as { clearValidate?: (names?: string[]) => void } | null
-      form?.clearValidate?.(['faultDescription'])
-      uni.hideLoading()
-      uni.showToast({
-        title: mapped.length > 0 ? res.msg : '未查询到故障描述选项',
-        icon: res.code === API_SUCCESS_CODE && mapped.length > 0 ? 'success' : 'none',
-        duration: TOAST_DURATION
-      })
-    } catch (err: unknown) {
-      uni.hideLoading()
-      faultDescriptionOptions.value = []
-      formData.value.faultDescription = ''
-      uni.showToast({
-        title: parseUnknownError(err, '查询失败'),
-        icon: 'none',
-        duration: TOAST_DURATION
-      })
-    }
-  }
 
   // 是否恢复暂存
   const hasRestoredRepairDraft = ref(false)
@@ -424,8 +260,8 @@
       centerId: {
         rules: [{ required: true, errorMessage: '请选择附近网点' }]
       },
-      faultDescription: {
-        rules: [{ required: true, errorMessage: '请填写故障描述' }]
+      faultRemark: {
+        rules: [{ required: true, errorMessage: '请填写故障备注说明' }]
       },
       repairType: {
         rules: [{ required: true, errorMessage: '请选择维修路径' }]
@@ -497,14 +333,14 @@
     )
 
     const base: CreateCustomerWorkOrderDTO = {
-      barcode: String(formData.value.warrantyCode ?? '').trim(),
+      barcode: '',
       brandCode: brandNameTrim || 'OTHER',
       brandName: brandNameTrim || undefined,
       brandType: CUSTOMER_WORK_ORDER_REPORT_BIZ_TYPE.NON_JASIC,
       customerName: String(userStore.userInfo?.name ?? ''),
-      faultDesc: formData.value.faultDescription,
+      faultDesc: '',
       faultItems: [],
-      faultRemark: '',
+      faultRemark: String(formData.value.faultRemark ?? '').trim(),
       productCode: '',
       productModel: String(formData.value.modelName || '').trim(),
       sendExpressNo:
@@ -606,15 +442,12 @@
    * @returns void
    */
   const resetForm = () => {
-    showFaultDescDropdown.value = false
-    draftFaultDesc.value = []
     needReapplyDraftAfterReset.value = true
     clearServicePointSelection()
     showSupplementSection.value = false
     formData.value = {
-      warrantyCode: '',
       centerId: null,
-      faultDescription: '',
+      faultRemark: '',
       repairType: 'STORE',
       shippingInfo: '',
       voiceList: [],
@@ -644,134 +477,3 @@
     })
   }
 </script>
-
-<style lang="scss">
-  .card-header {
-    @include flex-row;
-    justify-content: flex-start;
-    gap: $space-md;
-
-    .icon-box {
-      padding: $space-sm;
-      background-color: rgba($primary, 0.1);
-      border-radius: $radius-md;
-    }
-
-    .header-text {
-      view {
-        font-size: $font-md;
-        font-weight: bold;
-      }
-      text {
-        font-size: $font-sm;
-        color: $text-secondary;
-      }
-    }
-  }
-
-  .search-box {
-    @include flex-row;
-    gap: $space-sm;
-
-    .search-box-main {
-      position: relative;
-      flex: 1;
-    }
-
-    .btn {
-      flex: none;
-
-      &.mini-btn {
-        width: auto;
-        height: 88rpx;
-        margin: 0;
-      }
-
-      &:active {
-        opacity: 0.9;
-        transform: scale(0.98);
-      }
-    }
-  }
-
-  .fault-desc-picker {
-    @include flex-row;
-    align-items: center;
-    justify-content: space-between;
-    gap: $space-sm;
-    height: 80rpx;
-    padding: 0 $space-md;
-    border: 1rpx solid $border-color;
-    border-radius: $radius-input;
-    background-color: $bg-light;
-    box-sizing: border-box;
-  }
-
-  .fault-desc-picker-text {
-    flex: 1;
-    min-width: 0;
-    font-size: $space-input;
-    color: $text-main;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-
-    &.placeholder {
-      color: $text-placeholder;
-    }
-  }
-
-  .fault-desc-dropdown {
-    margin-top: $space-sm;
-    border: 2rpx solid $border-light;
-    border-radius: $radius-md;
-    background: $bg-card;
-    padding: $space-sm;
-  }
-
-  .fault-desc-option {
-    @include flex-row;
-    align-items: center;
-    gap: $space-xs;
-    padding: 12rpx 8rpx;
-  }
-
-  .fault-desc-option-text {
-    font-size: 26rpx;
-    color: $text-main;
-  }
-
-  .fault-desc-dropdown-actions {
-    @include flex-row;
-    justify-content: flex-end;
-    gap: $space-sm;
-    padding-top: $space-sm;
-  }
-
-  .dropdown-btn {
-    font-size: 24rpx;
-    padding: 10rpx 20rpx;
-    border-radius: $radius-sm;
-  }
-
-  .dropdown-btn--cancel {
-    color: $text-secondary;
-    background: $bg-light;
-  }
-
-  .dropdown-btn--confirm {
-    color: $text-bg;
-    background: $primary;
-  }
-
-  :deep(.uni-data-checklist .checklist-box.is--default.is-checked .checkbox__inner-icon),
-  :deep(.uni-data-checklist .checklist-box.is--default.is-checked .radio__inner-icon),
-  :deep(.uni-data-checklist .checklist-box.is--default.is-checked .uni-icons) {
-    color: $primary !important;
-  }
-
-  :deep(.uni-data-checklist .checklist-box.is--default .checkbox__inner) {
-    width: 26rpx;
-    height: 26rpx;
-  }
-</style>

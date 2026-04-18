@@ -1,5 +1,5 @@
 <template>
-  <view class="page-index">
+  <view class="page-index page-padding">
     <!-- 报修入口：代客户填写需填客户手机；报修一级/报修佳士无需手机 -->
     <view class="repair-entry-tabs-wrap">
       <view class="repair-entry-tabs">
@@ -22,7 +22,7 @@
     <view class="card card-shadow">
       <view class="card-header">
         <view class="icon-box">
-          <uni-icons type="vip-filled" size="24" color="#f26604"></uni-icons>
+          <uni-icons type="vip-filled" size="24" :color="themeColors.primary"></uni-icons>
         </view>
         <view class="header-text">
           <view>商品查询</view>
@@ -83,7 +83,7 @@
               <text :class="['fault-desc-picker-text', { placeholder: !selectedFaultDescText }]">
                 {{ selectedFaultDescText || '请选择' }}
               </text>
-              <uni-icons type="down" size="15" color="#cbd5e1" />
+              <uni-icons type="down" size="15" :color="themeColors.iconSlateLight" />
             </view>
             <view v-if="showFaultDescDropdown" class="fault-desc-dropdown">
               <view
@@ -94,7 +94,7 @@
               >
                 <checkbox
                   :checked="draftFaultDesc.includes(option.value)"
-                  color="#f26604"
+                  :color="themeColors.primary"
                   style="transform: scale(0.8); transform-origin: center"
                 />
                 <text class="fault-desc-option-text">{{ option.text }}</text>
@@ -134,7 +134,7 @@
               <text :class="['shipping-address-text', { placeholder: !formData.shippingInfo }]">{{
                 shippingInfoDisplay
               }}</text>
-              <uni-icons type="right" size="14" color="#94a3b8" />
+              <uni-icons type="right" size="14" :color="themeColors.textMuted" />
             </view>
           </uni-forms-item>
         </view>
@@ -198,7 +198,7 @@
     <view class="modal-content" @click.stop>
       <view class="modal-body">
         <view class="modal-icon-box">
-          <uni-icons type="info-filled" size="40" color="#f26604"></uni-icons>
+          <uni-icons type="info-filled" size="40" :color="themeColors.primary"></uni-icons>
         </view>
         <view class="modal-title">报修提示</view>
         <view class="modal-desc">无条码或无法识别条码，系统默认该机器已过保</view>
@@ -223,6 +223,7 @@
    */
   import { ref, computed, watch, nextTick, onMounted, onActivated } from 'vue'
   import { onShow } from '@dcloudio/uni-app'
+  import { themeColors } from '@/theme/colors'
   import { useAppStore } from '@/stores'
   import { useUserStore } from '@/stores/modules/user'
   import { Perms } from '@/utils/permissions'
@@ -1420,7 +1421,7 @@
     height: 80rpx;
     padding: 0 $space-md;
     border-radius: $radius-input;
-    background-color: $surface-slate-50;
+    background-color: $bg-light;
     box-sizing: border-box;
   }
 
@@ -1446,7 +1447,7 @@
     padding: 0 $space-md;
     border: 1rpx solid $border-color;
     border-radius: $radius-input;
-    background-color: $surface-slate-50;
+    background-color: $bg-light;
     box-sizing: border-box;
   }
 
@@ -1466,9 +1467,9 @@
 
   .fault-desc-dropdown {
     margin-top: $space-sm;
-    border: 2rpx solid $surface-slate-200;
+    border: 2rpx solid $border-slate;
     border-radius: $radius-md;
-    background: $surface-white;
+    background: $bg-card;
     padding: $space-sm;
   }
 
@@ -1499,11 +1500,11 @@
 
   .dropdown-btn--cancel {
     color: $text-secondary;
-    background: $surface-slate-50;
+    background: $bg-light;
   }
 
   .dropdown-btn--confirm {
-    color: $surface-white;
+    color: $text-bg;
     background: $primary;
   }
 
@@ -1526,7 +1527,7 @@
   .modal-content {
     width: 100%;
     max-width: 600rpx;
-    background-color: $surface-white;
+    background-color: $bg-card;
     border-radius: $radius-lg;
     padding: $space-xl;
     box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.1);
@@ -1582,14 +1583,14 @@
         }
 
         &.btn-cancel {
-          background-color: $surface-white;
+          background-color: $bg-card;
           border: 1px solid $border-color;
           color: $text-secondary;
         }
 
         &.btn-confirm {
           background-color: $primary;
-          color: $surface-white;
+          color: $text-bg;
           box-shadow: 0 4rpx 12rpx rgba($primary, 0.3);
         }
       }

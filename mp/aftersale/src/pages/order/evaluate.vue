@@ -1,5 +1,10 @@
 <template>
-  <custom-nav-bar title="服务评价" surface="frosted" :back-icon-size="24" back-icon-color="#666" />
+  <custom-nav-bar
+    title="服务评价"
+    surface="frosted"
+    :back-icon-size="24"
+    :back-icon-color="themeColors.textSubtle"
+  />
   <view class="evaluate-page">
     <!-- 内容区域 -->
     <scroll-view
@@ -34,8 +39,8 @@
               <uni-rate
                 v-model="formData.efficiencyRating"
                 :size="24"
-                color="#E5E7EB"
-                active-color="#f26604"
+                :color="themeColors.borderNeutral"
+                :active-color="themeColors.primary"
                 :margin="2"
               ></uni-rate>
             </view>
@@ -44,8 +49,8 @@
               <uni-rate
                 v-model="formData.qualityRating"
                 :size="24"
-                color="#E5E7EB"
-                active-color="#f26604"
+                :color="themeColors.borderNeutral"
+                :active-color="themeColors.primary"
                 :margin="2"
               ></uni-rate>
             </view>
@@ -54,8 +59,8 @@
               <uni-rate
                 v-model="formData.satisfactionRating"
                 :size="24"
-                color="#E5E7EB"
-                active-color="#f26604"
+                :color="themeColors.borderNeutral"
+                :active-color="themeColors.primary"
                 :margin="2"
               ></uni-rate>
             </view>
@@ -127,6 +132,7 @@
   import BaseButton from '@/components/BaseButton/BaseButton.vue'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import { triggerScrollIntoView } from '@/utils/formFieldScrollFocus'
+  import { themeColors } from '@/constants/theme'
 
   const workOrderId = ref(0)
   const orderNoDisplay = ref('')
@@ -354,7 +360,7 @@
 
         .badge {
           font-size: $font-sm;
-          background-color: #fff7ed;
+          background-color: $primary-tint-bg;
           color: $primary;
           padding: $space-xs 20rpx;
           border-radius: $radius-round;
@@ -401,7 +407,7 @@
     transition: all 0.2s;
 
     &:focus-within {
-      background-color: #ffffff;
+      background-color: $bg-card;
       border-color: rgba($primary, 0.3);
     }
 

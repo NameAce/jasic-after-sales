@@ -150,13 +150,13 @@
   }
 
   .tabs-wrap--list {
-    border-bottom: 2rpx solid $surface-slate-100;
+    border-bottom: 2rpx solid $bg-hover;
   }
 
   .tabs-wrap--sheet {
-    background-color: $surface-white;
-    border-top: 2rpx solid $surface-slate-100;
-    border-bottom: 2rpx solid $surface-slate-100;
+    background-color: $bg-card;
+    border-top: 2rpx solid $bg-hover;
+    border-bottom: 2rpx solid $bg-hover;
   }
 
   .tabs-scroll {

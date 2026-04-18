@@ -382,7 +382,7 @@
       padding: $space-md;
       border: 1rpx solid $border-color;
       border-radius: $radius-lg;
-      background-color: $surface-white;
+      background-color: $bg-card;
       transition: all 0.3s;
 
       &.active {
@@ -391,7 +391,7 @@
 
         .radio-icon {
           border: 12rpx solid $primary;
-          background-color: $surface-white;
+          background-color: $bg-card;
         }
       }
 
@@ -405,7 +405,7 @@
         width: 38rpx;
         height: 38rpx;
         border-radius: 50%;
-        border: 4rpx solid $surface-slate-200;
+        border: 4rpx solid $border-slate;
         box-sizing: border-box;
         transition: all 0.3s;
       }
@@ -434,7 +434,7 @@
     }
 
     .address-card {
-      background-color: $surface-slate-50;
+      background-color: $bg-light;
       border-radius: 32rpx;
       padding: 32rpx;
       display: flex;
@@ -543,7 +543,7 @@
       gap: 16rpx;
       padding: 16rpx $space-md;
       margin-bottom: 16rpx;
-      background-color: $surface-slate-50;
+      background-color: $bg-light;
       border-radius: $radius-md;
 
       .info-label {

@@ -42,7 +42,7 @@
               <text :class="regionText ? 'val' : 'placeholder'">{{
                 regionText || '请选择省市区'
               }}</text>
-              <uni-icons type="down" size="12" color="#94a3b8"></uni-icons>
+              <uni-icons type="down" size="12" :color="themeColors.textMuted"></uni-icons>
             </view>
           </picker>
         </view>
@@ -73,6 +73,7 @@
   import { triggerScrollIntoView } from '@/utils/formFieldScrollFocus'
   import { createCustomerAddressAPI, updateCustomerAddressAPI } from '@/api/address'
   import { loadAddresses, saveAddresses, type SavedAddress } from '@/utils/addressStorage'
+  import { themeColors } from '@/constants/theme'
 
   const scrollIntoView = ref('')
   const focusField = ref('')

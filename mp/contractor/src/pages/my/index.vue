@@ -140,9 +140,11 @@
 </script>
 
 <style lang="scss" scoped>
+  @use '@/styles/variables.scss' as *;
+
   .my-page {
     min-height: 100vh;
-    background-color: $surface-slate-50;
+    background-color: $bg-light;
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
@@ -182,7 +184,7 @@
           position: absolute;
           bottom: 4rpx;
           right: 8rpx;
-          background-color: $surface-white;
+          background-color: $bg-card;
           border-radius: 50%;
           padding: 8rpx;
           box-shadow: 0 8rpx 12rpx -2rpx rgba(0, 0, 0, 0.1);
@@ -209,7 +211,7 @@
           gap: 20rpx;
 
           .name {
-            color: $surface-white;
+            color: $primary-contrast;
             font-size: 48rpx;
             font-weight: bold;
             line-height: 1.2;
@@ -222,7 +224,7 @@
             padding: 4rpx 16rpx;
             border-radius: 8rpx;
             font-size: 20rpx;
-            color: $surface-white;
+            color: $primary-contrast;
             font-weight: bold;
             border: 2rpx solid rgba(255, 255, 255, 0.2);
           }
@@ -253,7 +255,7 @@
     gap: 24rpx;
 
     .common-feature-card {
-      background-color: $surface-white;
+      background-color: $bg-card;
       border-radius: 24rpx;
       padding: 32rpx;
       box-shadow:
@@ -276,7 +278,7 @@
         transition: background-color 0.2s;
 
         &-hover {
-          background-color: $surface-slate-50;
+          background-color: $bg-light;
         }
 
         .common-feature-left {
@@ -318,7 +320,7 @@
         transition: background-color 0.2s;
 
         &-hover {
-          background-color: $surface-slate-50;
+          background-color: $bg-light;
         }
 
         .menu-item-left {
@@ -356,7 +358,7 @@
 
       .btn-logout {
         width: 100%;
-        background-color: $surface-white;
+        background-color: $bg-card;
         color: $red-500;
         font-weight: 600;
         font-size: 32rpx;

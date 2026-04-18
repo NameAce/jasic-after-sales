@@ -102,7 +102,7 @@
 
 @mixin btn-primary-solid {
   background-color: $primary;
-  color: #fff;
+  color: $primary-contrast;
   font-weight: bold;
   @include btn-reset;
 
@@ -162,7 +162,7 @@
 
 @mixin modal-btn-confirm {
   background-color: $primary;
-  color: #fff;
+  color: $primary-contrast;
   box-shadow: 0 8rpx 24rpx rgba($primary, 0.3);
 }
 

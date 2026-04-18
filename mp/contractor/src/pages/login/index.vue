@@ -493,7 +493,7 @@
       border-radius: 50%;
       background-color: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.1);
-      color: $surface-white;
+      color: $text-bg;
       transition: all 0.2s;
 
       &:active {
@@ -505,8 +505,8 @@
     .back-icon {
       width: 10px;
       height: 10px;
-      border-left: 2px solid $surface-white;
-      border-bottom: 2px solid $surface-white;
+      border-left: 2px solid $bg-card;
+      border-bottom: 2px solid $bg-card;
       transform: rotate(45deg);
       margin-left: 4px;
     }
@@ -554,7 +554,7 @@
     .badge-text {
       font-size: 10px;
       font-weight: bold;
-      color: $surface-slate-300;
+      color: $icon-slate-light;
       text-transform: uppercase;
       letter-spacing: 0.15em;
     }
@@ -563,7 +563,7 @@
       display: block;
       font-size: 34px;
       font-weight: bold;
-      color: $surface-white;
+      color: $text-bg;
       margin-bottom: 12px;
       letter-spacing: -0.025em;
       line-height: 1.2;
@@ -620,7 +620,7 @@
 
     .login-btn {
       width: 100%;
-      color: $surface-white;
+      color: $text-bg;
       font-weight: bold;
       padding: 0;
       height: 56px;
@@ -806,7 +806,7 @@
       display: block;
       font-size: 18px;
       font-weight: 700;
-      color: $surface-white;
+      color: $text-bg;
       margin-bottom: 10px;
       letter-spacing: 0.02em;
     }
@@ -833,7 +833,7 @@
       border-radius: 12px;
       background: rgba(255, 255, 255, 0.06);
       border: 1px solid rgba(255, 255, 255, 0.1);
-      color: $surface-white;
+      color: $text-bg;
       font-size: 15px;
 
       &--suffix {

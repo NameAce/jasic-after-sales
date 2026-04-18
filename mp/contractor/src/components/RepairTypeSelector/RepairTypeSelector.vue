@@ -9,9 +9,9 @@
     >
       <!-- 图标 -->
       <uni-icons
-        :type="item.icon"
+        :type="item.icon as any"
         size="20"
-        :color="modelValue === item.value ? '#f26604' : '#909399'"
+        :color="modelValue === item.value ? themeColor.primary : themeColor.info"
       ></uni-icons>
       <!-- 标签 -->
       <text>{{ item.label }}</text>
@@ -20,6 +20,8 @@
 </template>
 
 <script setup lang="ts">
+  import { themeColor } from '@/theme/colors'
+
   // 维修路径选项
   interface RepairTypeOption {
     label: string
@@ -48,7 +50,6 @@
     emit('update:modelValue', value)
   }
 </script>
-
 <style scoped lang="scss">
   .repair-types {
     display: grid;

@@ -1,5 +1,7 @@
 <template>
-  <view class="page-guide page-index page-padding">
+  <view class="page-guide page-index">
+    <custom-nav-bar title="报修指南" surface="sticky" />
+    <view class="page-padding guide-body">
     <view class="guide-intro">
       <text class="intro-title">报修流程说明</text>
       <text class="intro-desc">
@@ -37,10 +39,12 @@
         <text>400-888-9999</text>
       </view>
     </view>
+    </view>
   </view>
 </template>
 
 <script setup lang="ts">
+  import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import {
     engineeringIcon,
     headsetMicIcon,
@@ -99,8 +103,10 @@
 </script>
 
 <style lang="scss" scoped>
-  .page-guide.page-index.page-padding {
-    padding-top: $space-lg;
+  .guide-body {
+    @include flex-column-gap;
+    flex: 1;
+    min-height: 0;
   }
 
   .guide-intro {
@@ -141,7 +147,7 @@
         height: 56rpx;
         border-radius: $radius-md;
         background: $primary;
-        color: #fff;
+        color: $primary-contrast;
         font-size: $font-md;
         font-weight: bold;
         @include flex-center;

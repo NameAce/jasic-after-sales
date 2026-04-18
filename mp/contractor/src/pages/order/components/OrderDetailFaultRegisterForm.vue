@@ -340,9 +340,9 @@
 
       .repair-desc-dropdown {
         margin-top: $space-sm;
-        border: 2rpx solid $surface-slate-200;
+        border: 2rpx solid $border-slate;
         border-radius: $radius-md;
-        background: $surface-white;
+        background: $bg-card;
         padding: $space-sm;
       }
 
@@ -373,11 +373,11 @@
 
       .dropdown-btn--cancel {
         color: $text-secondary;
-        background: $surface-slate-50;
+        background: $bg-light;
       }
 
       .dropdown-btn--confirm {
-        color: $surface-white;
+        color: $text-bg;
         background: $primary;
       }
 
@@ -440,7 +440,7 @@
         height: 72rpx;
         @include flex-column-center;
         border-radius: $radius-md;
-        background: $surface-slate-50;
+        background: $bg-light;
 
         &:active {
           opacity: 0.85;
@@ -493,7 +493,7 @@
       height: 100%;
       @include flex-column-center;
       gap: $space-xs;
-      border: 4rpx dashed $surface-slate-200;
+      border: 4rpx dashed $border-slate;
       border-radius: $radius-md;
       background-color: transparent;
       box-sizing: border-box;

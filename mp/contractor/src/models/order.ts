@@ -309,6 +309,10 @@ export type OrderListItem = {
   orderNo?: string
   /** 列表接口原始主状态（PENDING_ASSIGN 等） */
   mainStatus?: string
+  /**
+   * 派单员视角子态：已派给本人、待本人在小程序侧点「接单」前的前端识别（与列表按钮区一致）
+   */
+  dispatcherPendingSubState?: 'await_self_accept'
   assignedUserId?: number
   /** 当前处理人姓名（有值时列表可展示） */
   assignedUserName?: string

@@ -105,8 +105,8 @@
 
     .brand-hero {
       @include white-card($radius-lg, $space-lg);
-      background: linear-gradient(135deg, #fff5ec 0%, #ffffff 65%);
-      border: 2rpx solid #ffe5d3;
+      background: linear-gradient(135deg, $primary-tint-cream 0%, $bg-card 65%);
+      border: 2rpx solid $primary-border-warm;
       @include flex-column;
       gap: $space-sm;
     }
@@ -179,7 +179,7 @@
     .timeline-item {
       position: relative;
       padding-left: 22rpx;
-      border-left: 2rpx solid #fde4cf;
+      border-left: 2rpx solid $primary-border-warm-light;
     }
 
     .timeline-year {

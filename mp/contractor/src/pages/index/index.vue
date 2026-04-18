@@ -336,7 +336,7 @@
     font-family: 'Inter', sans-serif;
     min-height: 100vh;
     width: 100%;
-    background-color: $surface-page;
+    background-color: $bg-page;
     @include flex-col;
     box-sizing: border-box;
   }
@@ -360,7 +360,7 @@
   .dashboard-page--hq {
     width: 100%;
     flex-shrink: 0;
-    background-color: $surface-page;
+    background-color: $bg-page;
   }
 
   .avatar-wrap--hq {

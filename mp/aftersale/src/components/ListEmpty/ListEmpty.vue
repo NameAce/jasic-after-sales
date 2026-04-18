@@ -28,34 +28,43 @@
   @use '@/styles/mixins.scss' as *;
   @use '@/styles/variables.scss' as *;
 
+  /* 与 contractor `order-pages.scss` 中 `.list-empty` 规格一致 */
   .list-empty {
-    min-height: 60vh;
-    @include flex-column;
+    display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: $space-xl;
+    text-align: center;
+    padding: 160rpx 64rpx 120rpx;
     box-sizing: border-box;
   }
 
   .empty-icon-wrap {
-    margin-bottom: $space-md;
+    width: 520rpx;
+    max-width: 92%;
+    height: 200rpx;
+    @include flex-center;
+    padding: 0 24rpx;
+    box-sizing: border-box;
+    margin-bottom: $space-lg;
   }
 
   .empty-list-illus {
-    width: 240rpx;
-    height: 240rpx;
+    width: 100%;
+    height: 160rpx;
   }
 
   .empty-title {
-    font-size: $font-md;
-    color: $text-muted;
-    text-align: center;
+    font-size: $font-lg;
+    font-weight: 600;
+    color: $text-slate-500;
+    margin-bottom: 12rpx;
   }
 
   .empty-desc {
-    margin-top: $space-xs;
-    font-size: $font-sm;
-    color: $text-placeholder;
+    font-size: 26rpx;
+    color: $text-slate-400;
+    line-height: 1.5;
     text-align: center;
   }
 </style>

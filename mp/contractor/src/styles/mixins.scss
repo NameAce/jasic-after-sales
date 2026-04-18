@@ -36,6 +36,11 @@
   justify-content: space-between;
 }
 
+@mixin flex-around {
+  @include flex-row;
+  justify-content: space-around;
+}
+
 @mixin flex-column-gap {
   @include flex-col;
   gap: $space-lg;
@@ -77,10 +82,10 @@
   left: 0;
 
   width: calc(100% - $space-md*2);
-  color: $surface-white;
+  color: $text-bg;
   padding: $space-md $space-md $safe-area-bottom;
   border-radius: $radius-lg;
-  background-color: $surface-white;
+  background-color: $bg-card;
   z-index: $z-content-fixed;
 }
 
@@ -88,7 +93,7 @@
 
 /// 浅灰底（slate-50）
 @mixin surface-muted {
-  background-color: $surface-slate-50;
+  background-color: $bg-light;
 }
 
 /// 浅灰底 + 中圆角；可选内边距（描述块、记录卡片等）
@@ -114,22 +119,22 @@
 
 /// 表单控件：浅底 + 灰描边 + 中圆角（picker / input / textarea 外壳）
 @mixin form-field-frame {
-  background-color: $surface-slate-50;
-  border: 2rpx solid $surface-slate-200;
+  background-color: $bg-light;
+  border: 2rpx solid $border-slate;
   border-radius: $radius-md;
   box-sizing: border-box;
 }
 
 /// 表单控件：浅底 + 中圆角、无描边（行内 picker、输入框）
 @mixin form-field-soft {
-  background-color: $surface-slate-50;
+  background-color: $bg-light;
   border-radius: $radius-md;
   box-sizing: border-box;
 }
 
 /// 白底大圆角面板；$padding 不传则不加 padding（如 Tab 外框）
 @mixin sheet-white($padding: null) {
-  background-color: $surface-white;
+  background-color: $bg-card;
   border-radius: $radius-lg;
   @if $padding != null {
     padding: $padding;
@@ -138,7 +143,7 @@
 
 /// 白底圆角卡片（地址列表、表单块等）；与 sheet-white 等价别名，支持自定义圆角与内边距
 @mixin white-card($radius: $radius-lg, $padding: null) {
-  background-color: $surface-white;
+  background-color: $bg-card;
   border-radius: $radius;
   @if $padding != null {
     padding: $padding;
@@ -152,7 +157,7 @@
   padding: 28rpx 0;
   border-radius: $radius-lg;
   background-color: $primary;
-  color: $surface-white;
+  color: $text-bg;
   font-weight: 600;
   box-sizing: border-box;
 }
@@ -168,7 +173,7 @@
 /// 整页：灰底 + 纵向铺满（工单子页根容器常用）
 @mixin page-column-app {
   min-height: 100vh;
-  background-color: $surface-app;
+  background-color: $bg-page;
   @include flex-col;
 }
 
@@ -187,14 +192,14 @@
   }
 
   &.btn-cancel {
-    background-color: $surface-slate-100;
+    background-color: $bg-hover;
     .text { color: $text-slate-900; }
-    &:active { background-color: $surface-slate-200; }
+    &:active { background-color: $border-slate; }
   }
 
   &.btn-confirm {
     background-color: $primary;
-    .text { color: $surface-white; }
+    .text { color: $text-bg; }
     &:active { opacity: 0.9; }
   }
 }
@@ -253,7 +258,7 @@
 /// Pill/Segment 切换器（报修入口 Tab、工单列表一级 Tab）
 @mixin pill-tabs {
   @include flex-row;
-  background-color: $surface-slate-100;
+  background-color: $bg-hover;
   border-radius: $radius-lg;
   padding: $space-xs;
 
@@ -273,7 +278,7 @@
       background-color: $primary;
 
       .text {
-        color: $surface-white;
+        color: $text-bg;
         font-weight: bold;
       }
     }
@@ -306,9 +311,31 @@
   display: flex;
   gap: $space-md;
   padding: $space-lg;
-  border-top: 2rpx solid $surface-slate-100;
+  border-top: 2rpx solid $bg-hover;
 
   .btns { @include modal-action-btn; }
+}
+
+// ========== 区域标题（与用户端 section-header 一致）==========
+
+@mixin section-header-with-mark {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  margin-bottom: $space-lg;
+}
+
+@mixin section-mark {
+  width: 8rpx;
+  height: $space-lg;
+  background-color: $primary;
+  border-radius: $radius-round;
+}
+
+@mixin section-title {
+  font-size: $font-lg;
+  font-weight: bold;
+  color: $text-dark;
 }
 
 // ========== 导航栏（aftersale 复用）==========
@@ -335,7 +362,7 @@
 @mixin nav-title {
   flex: 1;
   text-align: center;
-  font-size: $font-lg;
+  font-size: $font-xl;
   font-weight: bold;
   color: $text-dark;
 }

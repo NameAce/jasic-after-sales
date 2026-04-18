@@ -45,8 +45,8 @@
           <text class="record-bar__text">{{ recordBarIdleText }}</text>
         </view>
       </view>
-      <!-- 语音列表 -->
-      <view v-if="innerList.length" class="voice-list">
+      <!-- 语音列表（可与 VoicePlaybackList 拆分时关闭） -->
+      <view v-if="innerList.length && showRecordedList" class="voice-list">
         <!-- 语音项 -->
         <view
           v-for="(item, index) in innerList"
@@ -78,7 +78,7 @@
         </view>
       </view>
       <!-- 语音占位符 -->
-      <view v-else class="voice-placeholder">
+      <view v-else-if="showRecordedList" class="voice-placeholder">
         <text>暂无录音</text>
       </view>
     </view>
@@ -113,10 +113,13 @@
       modelValue?: VoiceItem[]
       // 标签
       label?: string
+      /** 是否展示内置列表与「暂无录音」占位（与 VoicePlaybackList 拆分时可置为 false） */
+      showRecordedList?: boolean
     }>(),
     {
       modelValue: () => [],
-      label: '语音说明'
+      label: '语音说明',
+      showRecordedList: true
     }
   )
 

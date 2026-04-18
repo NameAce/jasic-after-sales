@@ -18,7 +18,7 @@
               <text class="action-title">从微信导入</text>
               <text class="action-desc">使用微信收货地址快速填写</text>
             </view>
-            <uni-icons type="right" size="12" color="#94a3b8"></uni-icons>
+            <uni-icons type="right" size="12" :color="themeColor.textMuted"></uni-icons>
           </view>
           <view class="action-card manual" @click="goManualAdd">
             <image class="action-icon" :src="addressManualIcon" mode="aspectFit" />
@@ -26,7 +26,7 @@
               <text class="action-title">手动填写</text>
               <text class="action-desc">自行输入收件人、电话与详细地址</text>
             </view>
-            <uni-icons type="right" size="12" color="#94a3b8"></uni-icons>
+            <uni-icons type="right" size="12" :color="themeColor.textMuted"></uni-icons>
           </view>
         </view>
 
@@ -83,7 +83,7 @@
               <view class="addr-top">
                 <text class="addr-line addr-top-left">{{ fullAddress(item) }}</text>
                 <view class="addr-edit-btn addr-top-right" @click.stop="goEdit(item.id)">
-                  <uni-icons type="compose" size="20" color="#64748b" />
+                  <uni-icons type="compose" size="20" :color="themeColor.textLabel" />
                 </view>
               </view>
               <view v-if="item.isDefault !== 1" class="addr-actions" @click.stop>
@@ -120,6 +120,7 @@
   import { addressManualIcon, wechatChatIcon } from '@/svgs'
   import ListNoMore from '@/components/ListNoMore/ListNoMore.vue'
   import { useScrollRefresher } from '@/utils/useScrollRefresher'
+  import { themeColor } from '@/theme/colors'
 
   // 保存地址列表
   const addresses = ref<SavedAddress[]>([])
@@ -127,8 +128,7 @@
   const addrVisibleLimit = ref(ADDR_PAGE_STEP)
   const visibleAddresses = computed(() => addresses.value.slice(0, addrVisibleLimit.value))
   const hasLoadedAllAddresses = computed(
-    () =>
-      addresses.value.length > 0 && visibleAddresses.value.length >= addresses.value.length
+    () => addresses.value.length > 0 && visibleAddresses.value.length >= addresses.value.length
   )
   const isSelectMode = ref(false)
   const navTitle = computed(() => (isSelectMode.value ? '选择寄件信息' : '我的地址'))
@@ -138,7 +138,7 @@
     {
       text: '删除',
       style: {
-        backgroundColor: '#fa3534',
+        backgroundColor: themeColor.danger,
         color: '#ffffff',
         fontSize: '14px'
       }
@@ -438,7 +438,6 @@
   }
 
   .addr-swipe-item {
-    margin-bottom: $space-md;
     @include flex-column-gap;
   }
 

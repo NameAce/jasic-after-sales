@@ -1,123 +1,126 @@
 <template>
-  <view class="page-index page-padding page-padding-no-safe">
-    <!-- 欢迎语 -->
-    <view class="custom-header">
-      <view class="header-left">
-        <view class="welcome-section">
-          <text class="welcome-title">
-            您好，
-            <text class="text-primary">{{ userName }}</text>
-          </text>
-          <text class="welcome-subtitle">{{ welcomeSubtitle }}</text>
-        </view>
-      </view>
-      <view class="header-right">
-        <view class="icon-btn" @click="goToClosedOrderList">
-          <image class="header-svg-icon" :src="notificationsIcon" mode="aspectFit" />
-          <view v-if="hasClosedOrders" class="notify-dot"></view>
-        </view>
-      </view>
-    </view>
-
-    <!-- 主要操作 -->
-    <view class="main-actions">
-      <view class="action-card card-jasic" @click="goToJasicRepair">
-        <image class="card-bg-img" :src="cardJasicBg" mode="aspectFill" />
-        <view class="card-bg-mask card-bg-mask-jasic"></view>
-        <view class="card-inner">
-          <view class="card-icon-wrap">
-            <image class="jasic-svg-icon" :src="jasicScanIcon" mode="aspectFit" />
+  <custom-nav-bar title="首页" surface="sticky" :show-back="false" :shadow="false" />
+  <view class="page-index">
+    <view class="home-body page-padding page-padding-no-safe">
+      <!-- 欢迎语 -->
+      <view class="custom-header">
+        <view class="header-left">
+          <view class="welcome-section">
+            <text class="welcome-title">
+              您好，
+              <text class="text-primary">{{ userName }}</text>
+            </text>
+            <text class="welcome-subtitle">{{ welcomeSubtitle }}</text>
           </view>
-          <view class="card-text-wrap">
-            <text class="card-title">佳士品牌报修</text>
-            <view class="card-subtitle-wrap">
-              <text class="card-subtitle">扫码报修 · 官方直营</text>
-              <image class="arrow-icon" :src="arrowForwardIcon" mode="aspectFit" />
+        </view>
+        <view class="header-right">
+          <view class="icon-btn" @click="goToClosedOrderList">
+            <image class="header-svg-icon" :src="notificationsIcon" mode="aspectFit" />
+            <view v-if="hasClosedOrders" class="notify-dot"></view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 主要操作 -->
+      <view class="main-actions">
+        <view class="action-card card-jasic" @click="goToJasicRepair">
+          <image class="card-bg-img" :src="cardJasicBg" mode="aspectFill" />
+          <view class="card-bg-mask card-bg-mask-jasic"></view>
+          <view class="card-inner">
+            <view class="card-icon-wrap">
+              <image class="jasic-svg-icon" :src="jasicScanIcon" mode="aspectFit" />
+            </view>
+            <view class="card-text-wrap">
+              <text class="card-title">佳士品牌报修</text>
+              <view class="card-subtitle-wrap">
+                <text class="card-subtitle">扫码报修 · 官方直营</text>
+                <image class="arrow-icon" :src="arrowForwardIcon" mode="aspectFit" />
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <view class="action-card card-other" @click="goToOtherRepair">
+          <image class="card-bg-img" :src="cardOtherBg" mode="aspectFill" />
+          <view class="card-bg-mask card-bg-mask-other"></view>
+          <view class="card-inner">
+            <view class="card-icon-wrap">
+              <image class="other-repair-svg-icon" :src="otherRepairIcon" mode="aspectFit" />
+            </view>
+            <view class="card-text-wrap">
+              <text class="card-title">非佳士报修</text>
+              <view class="card-subtitle-wrap">
+                <text class="card-subtitle">通用维修 · 极速响应</text>
+                <image class="arrow-icon" :src="arrowForwardIcon" mode="aspectFit" />
+              </view>
             </view>
           </view>
         </view>
       </view>
 
-      <view class="action-card card-other" @click="goToOtherRepair">
-        <image class="card-bg-img" :src="cardOtherBg" mode="aspectFill" />
-        <view class="card-bg-mask card-bg-mask-other"></view>
-        <view class="card-inner">
-          <view class="card-icon-wrap">
-            <image class="other-repair-svg-icon" :src="otherRepairIcon" mode="aspectFit" />
-          </view>
-          <view class="card-text-wrap">
-            <text class="card-title">非佳士报修</text>
-            <view class="card-subtitle-wrap">
-              <text class="card-subtitle">通用维修 · 极速响应</text>
-              <image class="arrow-icon" :src="arrowForwardIcon" mode="aspectFit" />
+      <!-- 报修指南 -->
+      <view class="guide-section">
+        <view class="section-header">
+          <text class="section-title">报修指南</text>
+        </view>
+        <view class="guide-card" @click="goToRepairGuide">
+          <view class="guide-line"></view>
+          <view class="guide-step">
+            <view class="step-icon active">
+              <image class="step-svg-icon" :src="editDocumentIcon" mode="aspectFit" />
             </view>
+            <text class="step-text">1. 提交申请</text>
+          </view>
+          <view class="guide-step">
+            <view class="step-icon">
+              <image class="step-svg-icon" :src="engineeringIcon" mode="aspectFit" />
+            </view>
+            <text class="step-text">2. 派单处理</text>
+          </view>
+          <view class="guide-step">
+            <view class="step-icon">
+              <image class="step-svg-icon" :src="homeRepairServiceIcon" mode="aspectFit" />
+            </view>
+            <text class="step-text">3. 进行维修</text>
+          </view>
+          <view class="guide-step">
+            <view class="step-icon">
+              <image class="step-svg-icon" :src="taskCompleteIcon" mode="aspectFit" />
+            </view>
+            <text class="step-text">4. 服务评价</text>
           </view>
         </view>
       </view>
-    </view>
 
-    <!-- 报修指南 -->
-    <view class="guide-section">
-      <view class="section-header">
-        <text class="section-title">报修指南</text>
-      </view>
-      <view class="guide-card" @click="goToRepairGuide">
-        <view class="guide-line"></view>
-        <view class="guide-step">
-          <view class="step-icon active">
-            <image class="step-svg-icon" :src="editDocumentIcon" mode="aspectFit" />
+      <!-- 报修进度（有最新工单时才展示） -->
+      <view v-if="hasLatestOrder" class="status-section">
+        <view class="section-header">
+          <text class="section-title">报修进度</text>
+          <view class="header-right-action" @click="goToOrderList">
+            <text class="action-text">全部订单</text>
+            <uni-icons type="right" size="12" :color="themeColor.primary"></uni-icons>
           </view>
-          <text class="step-text">1. 提交申请</text>
         </view>
-        <view class="guide-step">
-          <view class="step-icon">
-            <image class="step-svg-icon" :src="engineeringIcon" mode="aspectFit" />
-          </view>
-          <text class="step-text">2. 派单处理</text>
-        </view>
-        <view class="guide-step">
-          <view class="step-icon">
-            <image class="step-svg-icon" :src="homeRepairServiceIcon" mode="aspectFit" />
-          </view>
-          <text class="step-text">3. 进行维修</text>
-        </view>
-        <view class="guide-step">
-          <view class="step-icon">
-            <image class="step-svg-icon" :src="taskCompleteIcon" mode="aspectFit" />
-          </view>
-          <text class="step-text">4. 服务评价</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- 报修进度（有最新工单时才展示） -->
-    <view v-if="hasLatestOrder" class="status-section">
-      <view class="section-header">
-        <text class="section-title">报修进度</text>
-        <view class="header-right-action" @click="goToOrderList">
-          <text class="action-text">全部订单</text>
-          <uni-icons type="right" size="12" color="#f26604"></uni-icons>
-        </view>
-      </view>
-      <view class="status-card" @click="goToOrderDetail">
-        <view class="status-top">
-          <view class="status-info">
-            <view class="status-icon-bg">
-              <image class="icon-tv" :src="tvGenIcon" mode="aspectFit" />
-            </view>
-            <view class="status-desc">
-              <text class="status-name">{{ latestOrder.description || '-' }}</text>
-              <text class="status-id">{{ latestOrder.orderNo || '-' }}</text>
+        <view class="status-card" @click="goToOrderDetail">
+          <view class="status-top">
+            <view class="status-info">
+              <view class="status-icon-bg">
+                <image class="icon-tv" :src="tvGenIcon" mode="aspectFit" />
+              </view>
+              <view class="status-desc">
+                <text class="status-name">{{ latestOrder.description || '-' }}</text>
+                <text class="status-id">{{ latestOrder.orderNo || '-' }}</text>
+              </view>
             </view>
           </view>
-        </view>
-        <view class="status-timeline">
-          <view class="timeline-line"></view>
-          <view class="timeline-dot"></view>
-          <text class="timeline-title">{{ latestOrder.timelineTitle || '-' }}</text>
-          <view class="timeline-sub">
-            <image class="icon-time" :src="scheduleIcon" mode="aspectFit" />
-            <text class="time-text">{{ latestOrder.timelineSub || '-' }}</text>
+          <view class="status-timeline">
+            <view class="timeline-line"></view>
+            <view class="timeline-dot"></view>
+            <text class="timeline-title">{{ latestOrder.timelineTitle || '-' }}</text>
+            <view class="timeline-sub">
+              <image class="icon-time" :src="scheduleIcon" mode="aspectFit" />
+              <text class="time-text">{{ latestOrder.timelineSub || '-' }}</text>
+            </view>
           </view>
         </view>
       </view>
@@ -128,6 +131,7 @@
 <script setup lang="ts">
   import { computed, ref } from 'vue'
   import { onShow } from '@dcloudio/uni-app'
+  import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import { useUserStore } from '@/stores'
   import {
     getLatestOrderAPI,
@@ -137,6 +141,7 @@
     type LatestOrderDTO,
     type OrderDetailDTO
   } from '@/api/order'
+  import { themeColor } from '@/constants/theme'
   import { isLoggedIn, requireLogin } from '@/utils/auth'
   import {
     arrowForwardIcon,
@@ -150,8 +155,6 @@
     taskCompleteIcon,
     tvGenIcon
   } from '@/svgs'
-  import { log } from 'node:console'
-
   /** 首页报修卡片背景（本地 static，小程序用 image 更稳） */
   const cardJasicBg = '/static/images/card-jasic-bg.jpg'
   const cardOtherBg = '/static/images/card-other-bg.jpg'
@@ -326,11 +329,14 @@
 </script>
 
 <style lang="scss" scoped>
+  .home-body {
+    @include flex-column-gap;
+    flex: 1;
+    min-height: 0;
+  }
+
   .custom-header {
     @include flex-between;
-    position: sticky;
-    top: 0;
-    z-index: 20;
     background-color: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
     margin: 0 -32rpx;
@@ -367,7 +373,7 @@
           width: 14rpx;
           height: 14rpx;
           border-radius: 50%;
-          background-color: #ef4444;
+          background-color: $danger-emphasis;
         }
       }
     }
@@ -452,7 +458,7 @@
       }
 
       .card-title {
-        color: #fff;
+        color: $primary-contrast;
         font-size: $font-xl;
         font-weight: bold;
         line-height: 1.2;
@@ -466,7 +472,7 @@
         .card-subtitle,
         .arrow-icon {
           font-size: 22rpx;
-          color: rgba(255, 255, 255, 0.8);
+          color: rgba($primary-contrast, 0.8);
         }
         .arrow-icon {
           width: 20rpx;
@@ -482,7 +488,7 @@
       box-shadow: 0 10rpx 30rpx rgba($primary, 0.2);
 
       .card-icon-wrap {
-        background: rgba(255, 255, 255, 0.2);
+        background: rgba($primary-contrast, 0.2);
         backdrop-filter: blur(8px);
         width: 96rpx;
         height: 96rpx;
@@ -578,7 +584,7 @@
         width: 80rpx;
         height: 80rpx;
         border-radius: 50%;
-        background: #fff;
+        background: $bg-card;
         border: 4rpx solid $primary;
         color: $primary;
         box-sizing: border-box;
@@ -586,7 +592,7 @@
 
         &.active {
           background: $primary;
-          color: #fff;
+          color: $primary-contrast;
           box-shadow: 0 4rpx 12rpx rgba($primary, 0.3);
           border: none;
         }
@@ -680,7 +686,7 @@
           height: 24rpx;
           border-radius: 50%;
           background: $primary;
-          border: 6rpx solid #fff;
+          border: 6rpx solid $primary-contrast;
           box-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.1);
           box-sizing: border-box;
         }
