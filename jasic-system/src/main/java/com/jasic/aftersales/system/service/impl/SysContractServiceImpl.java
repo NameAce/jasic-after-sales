@@ -661,8 +661,12 @@ public class SysContractServiceImpl implements ISysContractService {
                 continue;
             }
             fillSourceCompanyInfo(vo, firstSnapshot, true);
-            String firstReason = resolveFirstCompanyImportDisabledReason(firstSnapshot,
-                    companyByCode.get(StrUtil.trim(firstSnapshot.getSapCompanyCode())));
+            SysCompany firstCompany = companyByCode.get(StrUtil.trim(firstSnapshot.getSapCompanyCode()));
+            if (firstCompany != null) {
+                vo.setFirstCompanyId(firstCompany.getId());
+                vo.setLocalFirstCompanyName(firstCompany.getCompanyName());
+            }
+            String firstReason = resolveFirstCompanyImportDisabledReason(firstSnapshot, firstCompany);
             if (firstReason != null) {
                 vo.setCanImport(Boolean.FALSE);
                 vo.setMatchRemark(firstReason);
@@ -678,21 +682,18 @@ public class SysContractServiceImpl implements ISysContractService {
                 continue;
             }
             fillSourceCompanyInfo(vo, secondSnapshot, false);
-            String secondReason = resolveSecondCompanyImportDisabledReason(secondSnapshot,
-                    companyByCode.get(StrUtil.trim(secondSnapshot.getSapCompanyCode())));
+            SysCompany secondCompany = companyByCode.get(StrUtil.trim(secondSnapshot.getSapCompanyCode()));
+            if (secondCompany != null) {
+                vo.setSecondCompanyId(secondCompany.getId());
+                vo.setLocalSecondCompanyName(secondCompany.getCompanyName());
+            }
+            String secondReason = resolveSecondCompanyImportDisabledReason(secondSnapshot, secondCompany);
             if (secondReason != null) {
                 vo.setCanImport(Boolean.FALSE);
                 vo.setMatchRemark(secondReason);
                 result.add(vo);
                 continue;
             }
-
-            SysCompany firstCompany = companyByCode.get(StrUtil.trim(firstSnapshot.getSapCompanyCode()));
-            SysCompany secondCompany = companyByCode.get(StrUtil.trim(secondSnapshot.getSapCompanyCode()));
-            vo.setFirstCompanyId(firstCompany.getId());
-            vo.setLocalFirstCompanyName(firstCompany.getCompanyName());
-            vo.setSecondCompanyId(secondCompany.getId());
-            vo.setLocalSecondCompanyName(secondCompany.getCompanyName());
 
             FirstSecondRelation relation = relationBySecondCompanyId.get(secondCompany.getId());
             if (relation != null) {

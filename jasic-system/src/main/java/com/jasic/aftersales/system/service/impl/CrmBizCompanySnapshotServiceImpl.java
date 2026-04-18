@@ -83,9 +83,8 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
         if (query.getCustState() != null) {
             wrapper.eq(CrmBizCompanySnapshot::getCustState, query.getCustState());
         }
-        wrapper.orderByDesc(CrmBizCompanySnapshot::getOperTime)
-                .orderByDesc(CrmBizCompanySnapshot::getAddDate)
-                .orderByDesc(CrmBizCompanySnapshot::getCustId);
+        wrapper.orderByAsc(CrmBizCompanySnapshot::getSapCompanyCode)
+                .orderByAsc(CrmBizCompanySnapshot::getCustId);
         Page<CrmBizCompanySnapshot> result = crmBizCompanySnapshotMapper.selectPage(page, wrapper);
         return PageResult.of(buildSnapshotVOList(result.getRecords()), result.getTotal(), query.getPageNum(), query.getPageSize());
     }

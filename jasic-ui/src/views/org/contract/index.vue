@@ -246,16 +246,6 @@
       @close="handleFsCrmImportDialogClose"
     >
       <el-form :model="fsCrmImportQuery" :inline="true" size="small" class="crm-import-filter">
-        <el-form-item label="一级公司">
-          <el-select v-model="fsCrmImportQuery.firstCompanyId" placeholder="全部" clearable filterable>
-            <el-option v-for="c in firstOptions" :key="c.id" :label="c.companyName" :value="c.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="二级公司">
-          <el-select v-model="fsCrmImportQuery.secondCompanyId" placeholder="全部" clearable filterable>
-            <el-option v-for="c in secondOptions" :key="c.id" :label="c.companyName" :value="c.id" />
-          </el-select>
-        </el-form-item>
         <el-form-item label="一级编码">
           <el-input
             v-model.trim="fsCrmImportQuery.firstCompanyCode"
@@ -271,6 +261,16 @@
             clearable
             @keyup.enter.native="handleFsCrmImportSearch"
           />
+        </el-form-item>
+        <el-form-item label="本地一级公司">
+          <el-select v-model="fsCrmImportQuery.firstCompanyId" placeholder="全部" clearable filterable>
+            <el-option v-for="c in firstOptions" :key="c.id" :label="c.companyName" :value="c.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="本地二级公司">
+          <el-select v-model="fsCrmImportQuery.secondCompanyId" placeholder="全部" clearable filterable>
+            <el-option v-for="c in secondOptions" :key="c.id" :label="c.companyName" :value="c.id" />
+          </el-select>
         </el-form-item>
         <el-form-item>
           <el-checkbox v-model="fsCrmImportQuery.showAbnormal">查看异常数据</el-checkbox>
