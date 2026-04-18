@@ -11,9 +11,12 @@ import com.jasic.aftersales.common.enums.CompanyCategoryEnum;
 import com.jasic.aftersales.common.enums.SubjectTypeEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.framework.security.SecurityContext;
+import com.jasic.aftersales.system.domain.dto.CrmFirstSecondRelationImportDTO;
 import com.jasic.aftersales.system.domain.dto.CrmHqFirstContractImportDTO;
 import com.jasic.aftersales.system.domain.dto.FirstSecondRelationDTO;
 import com.jasic.aftersales.system.domain.dto.HqFirstContractDTO;
+import com.jasic.aftersales.system.domain.entity.CrmBizCompanySnapshot;
+import com.jasic.aftersales.system.domain.entity.CrmFirstSecondRelationSnapshot;
 import com.jasic.aftersales.system.domain.entity.CrmHqFirstContractSnapshot;
 import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
 import com.jasic.aftersales.system.domain.entity.FirstSecondRelationRecord;
@@ -22,13 +25,18 @@ import com.jasic.aftersales.system.domain.entity.HqFirstContractRecord;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
 import com.jasic.aftersales.system.domain.entity.SysCompanyType;
 import com.jasic.aftersales.system.domain.entity.SysRegion;
+import com.jasic.aftersales.system.domain.query.CrmFirstSecondRelationImportQuery;
 import com.jasic.aftersales.system.domain.query.CrmHqFirstContractImportQuery;
 import com.jasic.aftersales.system.domain.query.FirstSecondRelationQuery;
 import com.jasic.aftersales.system.domain.query.HqFirstContractQuery;
+import com.jasic.aftersales.system.domain.vo.CrmFirstSecondRelationImportResultVO;
+import com.jasic.aftersales.system.domain.vo.CrmFirstSecondRelationImportVO;
 import com.jasic.aftersales.system.domain.vo.CrmHqFirstContractImportResultVO;
 import com.jasic.aftersales.system.domain.vo.CrmHqFirstContractImportVO;
 import com.jasic.aftersales.system.domain.vo.FirstSecondRelationVO;
 import com.jasic.aftersales.system.domain.vo.HqFirstContractVO;
+import com.jasic.aftersales.system.mapper.CrmBizCompanySnapshotMapper;
+import com.jasic.aftersales.system.mapper.CrmFirstSecondRelationSnapshotMapper;
 import com.jasic.aftersales.system.mapper.CrmHqFirstContractSnapshotMapper;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationRecordMapper;
@@ -65,6 +73,7 @@ public class SysContractServiceImpl implements ISysContractService {
     private static final Integer STATUS_ENABLED = 1;
     private static final Integer STATUS_DISABLED = 0;
     private static final String OPERATION_DELETE = "DELETE";
+    private static final String CRM_FIRST_SECOND_IMPORT_REMARK = "CRM导入初始化（一级二级关系）";
     private static final String CRM_IMPORT_REMARK = "CRM导入初始化";
 
     @Resource
@@ -88,7 +97,12 @@ public class SysContractServiceImpl implements ISysContractService {
     @Resource
     private CrmHqFirstContractSnapshotMapper crmHqFirstContractSnapshotMapper;
 
-    
+    @Resource
+    private CrmFirstSecondRelationSnapshotMapper crmFirstSecondRelationSnapshotMapper;
+
+    @Resource
+    private CrmBizCompanySnapshotMapper crmBizCompanySnapshotMapper;
+
     @Resource
     private ISysCompanyTypeService companyTypeService;
 
@@ -294,6 +308,83 @@ public class SysContractServiceImpl implements ISysContractService {
         return PageResult.of(result.getRecords(), result.getTotal(), query.getPageNum(), query.getPageSize());
     }
 
+    @Override
+    public PageResult<CrmFirstSecondRelationImportVO> listCrmFirstSecondImportPage(CrmFirstSecondRelationImportQuery query) {
+        if (query == null) {
+            query = new CrmFirstSecondRelationImportQuery();
+        }
+        List<CrmFirstSecondRelationSnapshot> snapshots = listFirstSecondSnapshots();
+        List<CrmFirstSecondRelationImportVO> records = buildCrmFirstSecondImportVOList(snapshots);
+        records = filterCrmFirstSecondImportRecords(records, query);
+        if (!Boolean.TRUE.equals(query.getShowAbnormal())) {
+            records = records.stream()
+                    .filter(item -> Boolean.TRUE.equals(item.getCanImport()))
+                    .collect(Collectors.toList());
+        }
+        return buildPageResult(records, query.getPageNum(), query.getPageSize());
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public CrmFirstSecondRelationImportResultVO importFirstSecondFromCrm(CrmFirstSecondRelationImportDTO dto) {
+        if (dto == null || CollUtil.isEmpty(dto.getSnapshotIds())) {
+            throw new ServiceException("璇烽€夋嫨瑕佸鍏ョ殑涓€浜岀骇鍏崇郴");
+        }
+        Set<Long> snapshotIds = dto.getSnapshotIds().stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (CollUtil.isEmpty(snapshotIds)) {
+            throw new ServiceException("璇烽€夋嫨瑕佸鍏ョ殑涓€浜岀骇鍏崇郴");
+        }
+
+        LambdaQueryWrapper<CrmFirstSecondRelationSnapshot> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(CrmFirstSecondRelationSnapshot::getId, snapshotIds);
+        List<CrmFirstSecondRelationSnapshot> snapshots = crmFirstSecondRelationSnapshotMapper.selectList(wrapper);
+        Map<Long, CrmFirstSecondRelationImportVO> importVOMap = buildCrmFirstSecondImportVOList(snapshots).stream()
+                .collect(Collectors.toMap(CrmFirstSecondRelationImportVO::getId, item -> item, (a, b) -> a));
+
+        CrmFirstSecondRelationImportResultVO result = new CrmFirstSecondRelationImportResultVO();
+        result.setSelectedCount(snapshotIds.size());
+        for (Long snapshotId : snapshotIds) {
+            CrmFirstSecondRelationImportVO importVO = importVOMap.get(snapshotId);
+            if (importVO == null) {
+                result.setFailedCount(defaultInt(result.getFailedCount()) + 1);
+                continue;
+            }
+            if (Boolean.TRUE.equals(importVO.getExistingRelation())) {
+                result.setExistedCount(defaultInt(result.getExistedCount()) + 1);
+                continue;
+            }
+            if (Boolean.TRUE.equals(importVO.getConflictingRelation())) {
+                result.setConflictCount(defaultInt(result.getConflictCount()) + 1);
+                continue;
+            }
+            if (!Boolean.TRUE.equals(importVO.getCanImport())) {
+                result.setFailedCount(defaultInt(result.getFailedCount()) + 1);
+                continue;
+            }
+
+            FirstSecondRelationDTO saveDTO = new FirstSecondRelationDTO();
+            saveDTO.setFirstCompanyId(importVO.getFirstCompanyId());
+            saveDTO.setSecondCompanyId(importVO.getSecondCompanyId());
+            saveDTO.setStatus(STATUS_ENABLED);
+            saveDTO.setRemark(CRM_FIRST_SECOND_IMPORT_REMARK);
+            try {
+                saveFirstSecond(saveDTO);
+                result.setSuccessCount(defaultInt(result.getSuccessCount()) + 1);
+            } catch (ServiceException ex) {
+                if (isFirstSecondConflictMessage(ex.getMessage())) {
+                    result.setConflictCount(defaultInt(result.getConflictCount()) + 1);
+                } else if (isDuplicateFirstSecondMessage(ex.getMessage())) {
+                    result.setExistedCount(defaultInt(result.getExistedCount()) + 1);
+                } else {
+                    result.setFailedCount(defaultInt(result.getFailedCount()) + 1);
+                }
+            }
+        }
+        return result;
+    }
+
     /**
      * 新增一级-二级从属
      *
@@ -494,27 +585,236 @@ public class SysContractServiceImpl implements ISysContractService {
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
+    private List<CrmFirstSecondRelationSnapshot> listFirstSecondSnapshots() {
+        LambdaQueryWrapper<CrmFirstSecondRelationSnapshot> wrapper = new LambdaQueryWrapper<>();
+        wrapper.orderByDesc(CrmFirstSecondRelationSnapshot::getCrmOperTime)
+                .orderByAsc(CrmFirstSecondRelationSnapshot::getSecondCustId)
+                .orderByDesc(CrmFirstSecondRelationSnapshot::getId);
+        return crmFirstSecondRelationSnapshotMapper.selectList(wrapper);
+    }
+
+    private List<CrmFirstSecondRelationImportVO> buildCrmFirstSecondImportVOList(List<CrmFirstSecondRelationSnapshot> snapshots) {
+        if (CollUtil.isEmpty(snapshots)) {
+            return Collections.emptyList();
+        }
+
+        Set<Long> custIds = snapshots.stream()
+                .flatMap(item -> java.util.stream.Stream.of(item.getFirstCustId(), item.getSecondCustId()))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Map<Long, CrmBizCompanySnapshot> crmCompanyByCustId = loadCrmCompanySnapshotByCustIds(custIds);
+
+        Set<String> companyCodes = crmCompanyByCustId.values().stream()
+                .map(CrmBizCompanySnapshot::getSapCompanyCode)
+                .map(StrUtil::trim)
+                .filter(StrUtil::isNotBlank)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Map<String, SysCompany> companyByCode = loadCompanyByCode(companyCodes);
+
+        Set<Long> secondCompanyIds = snapshots.stream()
+                .map(CrmFirstSecondRelationSnapshot::getSecondCustId)
+                .map(crmCompanyByCustId::get)
+                .filter(Objects::nonNull)
+                .map(CrmBizCompanySnapshot::getSapCompanyCode)
+                .map(StrUtil::trim)
+                .filter(StrUtil::isNotBlank)
+                .map(companyByCode::get)
+                .filter(Objects::nonNull)
+                .map(SysCompany::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Map<Long, FirstSecondRelation> relationBySecondCompanyId = loadFirstSecondRelationBySecondCompanyIds(secondCompanyIds);
+
+        Set<Long> conflictFirstCompanyIds = relationBySecondCompanyId.values().stream()
+                .map(FirstSecondRelation::getFirstCompanyId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Map<Long, SysCompany> companyById = new LinkedHashMap<>();
+        for (SysCompany company : companyByCode.values()) {
+            companyById.put(company.getId(), company);
+        }
+        companyById.putAll(loadCompanyByIds(conflictFirstCompanyIds));
+
+        List<CrmFirstSecondRelationImportVO> result = new ArrayList<>(snapshots.size());
+        for (CrmFirstSecondRelationSnapshot snapshot : snapshots) {
+            CrmFirstSecondRelationImportVO vo = new CrmFirstSecondRelationImportVO();
+            vo.setId(snapshot.getId());
+            vo.setFirstCustId(snapshot.getFirstCustId());
+            vo.setSecondCustId(snapshot.getSecondCustId());
+            vo.setCrmOperTime(snapshot.getCrmOperTime());
+
+            CrmBizCompanySnapshot firstSnapshot = crmCompanyByCustId.get(snapshot.getFirstCustId());
+            if (firstSnapshot == null) {
+                vo.setCanImport(Boolean.FALSE);
+                vo.setMatchRemark("一级来源客户未在CRM公司快照中找到");
+                result.add(vo);
+                continue;
+            }
+            fillSourceCompanyInfo(vo, firstSnapshot, true);
+            String firstReason = resolveFirstCompanyImportDisabledReason(firstSnapshot,
+                    companyByCode.get(StrUtil.trim(firstSnapshot.getSapCompanyCode())));
+            if (firstReason != null) {
+                vo.setCanImport(Boolean.FALSE);
+                vo.setMatchRemark(firstReason);
+                result.add(vo);
+                continue;
+            }
+
+            CrmBizCompanySnapshot secondSnapshot = crmCompanyByCustId.get(snapshot.getSecondCustId());
+            if (secondSnapshot == null) {
+                vo.setCanImport(Boolean.FALSE);
+                vo.setMatchRemark("二级来源客户未在CRM公司快照中找到");
+                result.add(vo);
+                continue;
+            }
+            fillSourceCompanyInfo(vo, secondSnapshot, false);
+            String secondReason = resolveSecondCompanyImportDisabledReason(secondSnapshot,
+                    companyByCode.get(StrUtil.trim(secondSnapshot.getSapCompanyCode())));
+            if (secondReason != null) {
+                vo.setCanImport(Boolean.FALSE);
+                vo.setMatchRemark(secondReason);
+                result.add(vo);
+                continue;
+            }
+
+            SysCompany firstCompany = companyByCode.get(StrUtil.trim(firstSnapshot.getSapCompanyCode()));
+            SysCompany secondCompany = companyByCode.get(StrUtil.trim(secondSnapshot.getSapCompanyCode()));
+            vo.setFirstCompanyId(firstCompany.getId());
+            vo.setLocalFirstCompanyName(firstCompany.getCompanyName());
+            vo.setSecondCompanyId(secondCompany.getId());
+            vo.setLocalSecondCompanyName(secondCompany.getCompanyName());
+
+            FirstSecondRelation relation = relationBySecondCompanyId.get(secondCompany.getId());
+            if (relation != null) {
+                if (Objects.equals(relation.getFirstCompanyId(), firstCompany.getId())) {
+                    vo.setExistingRelation(Boolean.TRUE);
+                    vo.setCanImport(Boolean.FALSE);
+                    vo.setMatchRemark("已存在相同的一级二级关系");
+                } else {
+                    vo.setConflictingRelation(Boolean.TRUE);
+                    vo.setCanImport(Boolean.FALSE);
+                    SysCompany conflictFirst = companyById.get(relation.getFirstCompanyId());
+                    if (conflictFirst == null) {
+                        vo.setMatchRemark("该二级网点已归属其他一级网点");
+                    } else {
+                        vo.setMatchRemark("该二级网点已归属其他一级网点：" + conflictFirst.getCompanyName());
+                    }
+                }
+                result.add(vo);
+                continue;
+            }
+
+            vo.setExistingRelation(Boolean.FALSE);
+            vo.setConflictingRelation(Boolean.FALSE);
+            vo.setCanImport(Boolean.TRUE);
+            vo.setMatchRemark("可导入");
+            result.add(vo);
+        }
+        return result;
+    }
+
+    private void fillSourceCompanyInfo(CrmFirstSecondRelationImportVO vo, CrmBizCompanySnapshot snapshot, boolean first) {
+        if (first) {
+            vo.setFirstCompanyCode(StrUtil.trim(snapshot.getSapCompanyCode()));
+            vo.setFirstCompanyName(snapshot.getCustName());
+            return;
+        }
+        vo.setSecondCompanyCode(StrUtil.trim(snapshot.getSapCompanyCode()));
+        vo.setSecondCompanyName(snapshot.getCustName());
+    }
+
+    private String resolveFirstCompanyImportDisabledReason(CrmBizCompanySnapshot sourceSnapshot, SysCompany localCompany) {
+        if (!Objects.equals(sourceSnapshot.getCustRage(), 0)) {
+            return "一级来源客户不是一级网点";
+        }
+        if (StrUtil.isBlank(sourceSnapshot.getSapCompanyCode())) {
+            return "一级来源客户缺少公司编码";
+        }
+        if (localCompany == null) {
+            return "一级未匹配本地公司";
+        }
+        if (!CompanyCategoryEnum.getFirstLevelTypeCodes().contains(localCompany.getTypeCode())) {
+            return "一级不是启用的SITE_FIRST";
+        }
+        if (!Objects.equals(localCompany.getStatus(), STATUS_ENABLED)) {
+            return "一级本地公司已停用";
+        }
+        return null;
+    }
+
+    private String resolveSecondCompanyImportDisabledReason(CrmBizCompanySnapshot sourceSnapshot, SysCompany localCompany) {
+        if (!Objects.equals(sourceSnapshot.getCustRage(), 3)) {
+            return "二级来源客户不是二级网点";
+        }
+        if (StrUtil.isBlank(sourceSnapshot.getSapCompanyCode())) {
+            return "二级来源客户缺少公司编码";
+        }
+        if (localCompany == null) {
+            return "二级未匹配本地公司";
+        }
+        if (!CompanyCategoryEnum.getSecondLevelTypeCodes().contains(localCompany.getTypeCode())) {
+            return "二级不是启用的SITE_SECOND";
+        }
+        if (!Objects.equals(localCompany.getStatus(), STATUS_ENABLED)) {
+            return "二级本地公司已停用";
+        }
+        return null;
+    }
+
+    private Map<Long, CrmBizCompanySnapshot> loadCrmCompanySnapshotByCustIds(Set<Long> custIds) {
+        if (CollUtil.isEmpty(custIds)) {
+            return Collections.emptyMap();
+        }
+        LambdaQueryWrapper<CrmBizCompanySnapshot> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(CrmBizCompanySnapshot::getCustId, custIds);
+        return crmBizCompanySnapshotMapper.selectList(wrapper).stream()
+                .filter(item -> item.getCustId() != null)
+                .collect(Collectors.toMap(CrmBizCompanySnapshot::getCustId, item -> item, (a, b) -> a, LinkedHashMap::new));
+    }
+
+    private Map<Long, FirstSecondRelation> loadFirstSecondRelationBySecondCompanyIds(Set<Long> secondCompanyIds) {
+        if (CollUtil.isEmpty(secondCompanyIds)) {
+            return Collections.emptyMap();
+        }
+        LambdaQueryWrapper<FirstSecondRelation> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(FirstSecondRelation::getSecondCompanyId, secondCompanyIds);
+        return firstSecondRelationMapper.selectList(wrapper).stream()
+                .filter(item -> item.getSecondCompanyId() != null)
+                .collect(Collectors.toMap(FirstSecondRelation::getSecondCompanyId, item -> item, (a, b) -> a, LinkedHashMap::new));
+    }
+
+    private Map<Long, SysCompany> loadCompanyByIds(Set<Long> companyIds) {
+        if (CollUtil.isEmpty(companyIds)) {
+            return Collections.emptyMap();
+        }
+        LambdaQueryWrapper<SysCompany> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(SysCompany::getId, companyIds);
+        return sysCompanyMapper.selectList(wrapper).stream()
+                .filter(item -> item.getId() != null)
+                .collect(Collectors.toMap(SysCompany::getId, item -> item, (a, b) -> a, LinkedHashMap::new));
+    }
+
     private RegionMatchResult matchRegion(Long hqCompanyId,
                                           String regionCode,
                                           Map<String, List<SysRegion>> regionByCode) {
         if (StrUtil.isBlank(regionCode)) {
-            return RegionMatchResult.fail("CRM 大区编码为空");
+            return RegionMatchResult.fail("CRM大区编码为空");
         }
         List<SysRegion> regions = regionByCode.get(regionCode);
         if (CollUtil.isEmpty(regions)) {
-            return RegionMatchResult.fail("CRM 大区未匹配本地大区");
+            return RegionMatchResult.fail("CRM大区未匹配本地大区");
         }
         for (SysRegion region : regions) {
             if (Objects.equals(region.getCompanyId(), hqCompanyId)) {
                 return RegionMatchResult.success(region);
             }
         }
-        return RegionMatchResult.fail("CRM 大区不属于当前总部");
+        return RegionMatchResult.fail("CRM大区不属于当前总部");
     }
 
-    private PageResult<CrmHqFirstContractImportVO> buildPageResult(List<CrmHqFirstContractImportVO> records,
-                                                                   Integer pageNum,
-                                                                   Integer pageSize) {
+    private <T> PageResult<T> buildPageResult(List<T> records,
+                                              Integer pageNum,
+                                              Integer pageSize) {
         int currentPageNum = pageNum == null || pageNum < 1 ? 1 : pageNum;
         int currentPageSize = pageSize == null || pageSize < 1 ? 10 : pageSize;
         int total = records == null ? 0 : records.size();
@@ -531,11 +831,33 @@ public class SysContractServiceImpl implements ISysContractService {
         if (CollUtil.isEmpty(records)) {
             return Collections.emptyList();
         }
+        String kunnr = StrUtil.trim(query.getKunnr());
         return records.stream()
                 .filter(item -> query.getFirstCompanyId() == null
                         || Objects.equals(item.getFirstCompanyId(), query.getFirstCompanyId()))
                 .filter(item -> query.getRegionId() == null
                         || Objects.equals(item.getRegionId(), query.getRegionId()))
+                .filter(item -> StrUtil.isBlank(kunnr)
+                        || StrUtil.containsIgnoreCase(StrUtil.blankToDefault(item.getKunnr(), ""), kunnr))
+                .collect(Collectors.toList());
+    }
+
+    private List<CrmFirstSecondRelationImportVO> filterCrmFirstSecondImportRecords(List<CrmFirstSecondRelationImportVO> records,
+                                                                                   CrmFirstSecondRelationImportQuery query) {
+        if (CollUtil.isEmpty(records)) {
+            return Collections.emptyList();
+        }
+        String firstCompanyCode = StrUtil.trim(query.getFirstCompanyCode());
+        String secondCompanyCode = StrUtil.trim(query.getSecondCompanyCode());
+        return records.stream()
+                .filter(item -> query.getFirstCompanyId() == null
+                        || Objects.equals(item.getFirstCompanyId(), query.getFirstCompanyId()))
+                .filter(item -> query.getSecondCompanyId() == null
+                        || Objects.equals(item.getSecondCompanyId(), query.getSecondCompanyId()))
+                .filter(item -> StrUtil.isBlank(firstCompanyCode)
+                        || StrUtil.containsIgnoreCase(StrUtil.blankToDefault(item.getFirstCompanyCode(), ""), firstCompanyCode))
+                .filter(item -> StrUtil.isBlank(secondCompanyCode)
+                        || StrUtil.containsIgnoreCase(StrUtil.blankToDefault(item.getSecondCompanyCode(), ""), secondCompanyCode))
                 .collect(Collectors.toList());
     }
 
@@ -714,6 +1036,15 @@ public class SysContractServiceImpl implements ISysContractService {
 
     private int defaultInt(Integer value) {
         return value == null ? 0 : value;
+    }
+
+    private boolean isDuplicateFirstSecondMessage(String message) {
+        return StrUtil.equals(message, "该一级、二级网点的从属关系已存在")
+                || StrUtil.equals(message, "从属关系已存在，请勿重复保存");
+    }
+
+    private boolean isFirstSecondConflictMessage(String message) {
+        return StrUtil.equals(message, "该二级网点已归属其他一级网点");
     }
 
     private boolean isDuplicateHqFirstMessage(String message) {

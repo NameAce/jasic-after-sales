@@ -127,7 +127,7 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="公司类型" prop="typeCode">
-              <el-select v-model="form.typeCode" placeholder="请选择" :disabled="!!form.id">
+              <el-select v-model="form.typeCode" placeholder="请选择" :disabled="!!form.id" @change="handleTypeCodeChange">
                 <el-option v-for="t in typeCodeOptions" :key="t.value" :label="t.label" :value="t.value" />
               </el-select>
             </el-form-item>
@@ -383,6 +383,16 @@ export default {
           trigger: 'blur'
         }],
         typeCode: [{ required: true, message: '请选择公司类型', trigger: 'change' }],
+        salesOrg: [{
+          validator: (rule, value, callback) => {
+            if (this.isHqType(this.form.typeCode) && !this.normalizeText(value)) {
+              callback(new Error('请输入销售组织'))
+            } else {
+              callback()
+            }
+          },
+          trigger: 'blur'
+        }],
         contactName: [{ required: true, message: '请输入联系人', trigger: 'blur' }],
         contactPhone: [{ required: true, message: '请输入联系电话', trigger: 'blur' }],
         provinceCode: [{ required: true, message: '请选择省份', trigger: 'change' }],
@@ -521,6 +531,18 @@ export default {
         return
       }
       this.adminUsernameManuallyEdited = true
+    },
+    handleTypeCodeChange(value) {
+      if (this.isHqType(value)) {
+        if (this.$refs.form) {
+          this.$refs.form.validateField('salesOrg')
+        }
+        return
+      }
+      this.form.salesOrg = ''
+      if (this.$refs.form) {
+        this.$nextTick(() => this.$refs.form.clearValidate('salesOrg'))
+      }
     },
     createEmptyForm() {
       return {
@@ -709,6 +731,7 @@ export default {
           districtCode: preview.districtCode || '',
           districtName: preview.districtName || '',
           detailAddress: preview.detailAddress || '',
+          salesOrg: preview.salesOrg || '',
           sourceType: preview.sourceType || 'CRM',
           status: preview.status == null ? 1 : preview.status,
           crmProvinceName: preview.crmProvinceName || '',
@@ -736,7 +759,7 @@ export default {
         districtCode: this.normalizeText(this.form.districtCode),
         districtName: this.normalizeText(this.form.districtName),
         detailAddress: this.normalizeText(this.form.detailAddress),
-        salesOrg: this.normalizeText(this.form.salesOrg),
+        salesOrg: this.isHqType(this.form.typeCode) ? this.normalizeText(this.form.salesOrg) : '',
         sourceType: this.normalizeText(this.form.sourceType),
         adminUsername: this.normalizeText(this.form.adminUsername),
         status: this.form.status,

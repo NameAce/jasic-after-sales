@@ -7,33 +7,33 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /**
- * CRM 签约导入查询参数。
+ * CRM 一级二级关系导入查询参数
  *
  * @author Codex
- * @date 2026/04/12
+ * @date 2026/04/17
  */
-@ApiModel(description = "CRM 签约导入查询参数")
+@ApiModel(description = "CRM 一级二级关系导入查询参数")
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class CrmHqFirstContractImportQuery extends PageQuery {
+public class CrmFirstSecondRelationImportQuery extends PageQuery {
 
     private static final long serialVersionUID = 1L;
 
-    /** 当前选择的总部公司ID */
-    @ApiModelProperty(value = "当前选择的总部公司ID", required = true)
-    private Long hqCompanyId;
-
-    /** 一级公司ID */
+    /** 一级公司 ID */
     @ApiModelProperty(value = "一级公司ID")
     private Long firstCompanyId;
 
-    /** 大区ID */
-    @ApiModelProperty(value = "大区ID")
-    private Long regionId;
+    /** 二级公司 ID */
+    @ApiModelProperty(value = "二级公司ID")
+    private Long secondCompanyId;
 
-    /** CRM customer code */
-    @ApiModelProperty(value = "CRM customer code")
-    private String kunnr;
+    /** 一级公司编码 */
+    @ApiModelProperty(value = "一级公司编码")
+    private String firstCompanyCode;
+
+    /** 二级公司编码 */
+    @ApiModelProperty(value = "二级公司编码")
+    private String secondCompanyCode;
 
     /** 是否展示异常数据 */
     @ApiModelProperty(value = "是否展示异常数据")

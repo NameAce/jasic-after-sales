@@ -2,7 +2,10 @@ package com.jasic.aftersales.system.service.impl;
 
 import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.common.exception.ServiceException;
+import com.jasic.aftersales.system.domain.dto.CrmFirstSecondRelationImportDTO;
 import com.jasic.aftersales.system.domain.dto.CrmHqFirstContractImportDTO;
+import com.jasic.aftersales.system.domain.entity.CrmBizCompanySnapshot;
+import com.jasic.aftersales.system.domain.entity.CrmFirstSecondRelationSnapshot;
 import com.jasic.aftersales.system.domain.dto.FirstSecondRelationDTO;
 import com.jasic.aftersales.system.domain.dto.HqFirstContractDTO;
 import com.jasic.aftersales.system.domain.entity.CrmHqFirstContractSnapshot;
@@ -13,9 +16,14 @@ import com.jasic.aftersales.system.domain.entity.HqFirstContractRecord;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
 import com.jasic.aftersales.system.domain.entity.SysCompanyType;
 import com.jasic.aftersales.system.domain.entity.SysRegion;
+import com.jasic.aftersales.system.domain.query.CrmFirstSecondRelationImportQuery;
 import com.jasic.aftersales.system.domain.query.CrmHqFirstContractImportQuery;
+import com.jasic.aftersales.system.domain.vo.CrmFirstSecondRelationImportResultVO;
+import com.jasic.aftersales.system.domain.vo.CrmFirstSecondRelationImportVO;
 import com.jasic.aftersales.system.domain.vo.CrmHqFirstContractImportResultVO;
 import com.jasic.aftersales.system.domain.vo.CrmHqFirstContractImportVO;
+import com.jasic.aftersales.system.mapper.CrmBizCompanySnapshotMapper;
+import com.jasic.aftersales.system.mapper.CrmFirstSecondRelationSnapshotMapper;
 import com.jasic.aftersales.system.mapper.CrmHqFirstContractSnapshotMapper;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationRecordMapper;
@@ -328,6 +336,126 @@ public class SysContractServiceImplTest {
         Assert.assertEquals("CRM导入初始化", contractState.insertedEntity.getRemark());
     }
 
+    @Test
+    public void shouldListOnlyImportableFirstSecondRowsWhenListingCrmImportPage() throws Exception {
+        SysContractServiceImpl service = new SysContractServiceImpl();
+        Map<Long, SysCompany> companies = new LinkedHashMap<>();
+        SysCompany firstCompany = buildCompany(1L, "SITE_FIRST", 1);
+        firstCompany.setCompanyCode("F001");
+        firstCompany.setCompanyName("First-A");
+        companies.put(1L, firstCompany);
+        SysCompany secondCompany = buildCompany(10L, "SITE_SECOND", 1);
+        secondCompany.setCompanyCode("S001");
+        secondCompany.setCompanyName("Second-A");
+        companies.put(10L, secondCompany);
+
+        CrmFirstSecondRelationSnapshotMapperState relationSnapshotState = new CrmFirstSecondRelationSnapshotMapperState();
+        relationSnapshotState.selectListResult = Arrays.asList(
+                buildFirstSecondSnapshot(500L, 100L, 200L),
+                buildFirstSecondSnapshot(501L, 101L, 201L)
+        );
+
+        CrmBizCompanySnapshotMapperState companySnapshotState = new CrmBizCompanySnapshotMapperState();
+        companySnapshotState.selectListResult = Arrays.asList(
+                buildCrmCompanySnapshot(100L, "F001", "CRM-First-A", 0),
+                buildCrmCompanySnapshot(200L, "S001", "CRM-Second-A", 3),
+                buildCrmCompanySnapshot(101L, "F999", "CRM-First-B", 0),
+                buildCrmCompanySnapshot(201L, "S999", "CRM-Second-B", 3)
+        );
+
+        FirstSecondRelationMapperState relationState = new FirstSecondRelationMapperState();
+        relationState.selectListResult = Collections.emptyList();
+
+        setField(service, "sysCompanyMapper", createCompanyMapperProxy(companies));
+        setField(service, "crmFirstSecondRelationSnapshotMapper", createFirstSecondSnapshotMapperProxy(relationSnapshotState));
+        setField(service, "crmBizCompanySnapshotMapper", createCrmBizCompanySnapshotMapperProxy(companySnapshotState));
+        setField(service, "firstSecondRelationMapper", createFirstSecondRelationMapperProxy(relationState));
+
+        CrmFirstSecondRelationImportQuery query = new CrmFirstSecondRelationImportQuery();
+        query.setShowAbnormal(false);
+        query.setPageNum(1);
+        query.setPageSize(10);
+
+        PageResult<CrmFirstSecondRelationImportVO> page = service.listCrmFirstSecondImportPage(query);
+
+        Assert.assertEquals(Long.valueOf(1L), page.getTotal());
+        Assert.assertEquals(1, page.getRecords().size());
+        Assert.assertEquals(Long.valueOf(500L), page.getRecords().get(0).getId());
+        Assert.assertEquals(Boolean.TRUE, page.getRecords().get(0).getCanImport());
+    }
+
+    @Test
+    public void shouldCountSuccessExistingConflictAndFailedWhenImportingFirstSecondFromCrm() throws Exception {
+        SysContractServiceImpl service = new SysContractServiceImpl();
+        Map<Long, SysCompany> companies = new LinkedHashMap<>();
+        SysCompany firstCompanyA = buildCompany(1L, "SITE_FIRST", 1);
+        firstCompanyA.setCompanyCode("F001");
+        firstCompanyA.setCompanyName("First-A");
+        companies.put(1L, firstCompanyA);
+        SysCompany firstCompanyB = buildCompany(2L, "SITE_FIRST", 1);
+        firstCompanyB.setCompanyCode("F002");
+        firstCompanyB.setCompanyName("First-B");
+        companies.put(2L, firstCompanyB);
+        SysCompany secondCompanyA = buildCompany(10L, "SITE_SECOND", 1);
+        secondCompanyA.setCompanyCode("S001");
+        secondCompanyA.setCompanyName("Second-A");
+        companies.put(10L, secondCompanyA);
+        SysCompany secondCompanyB = buildCompany(11L, "SITE_SECOND", 1);
+        secondCompanyB.setCompanyCode("S002");
+        secondCompanyB.setCompanyName("Second-B");
+        companies.put(11L, secondCompanyB);
+        SysCompany secondCompanyC = buildCompany(12L, "SITE_SECOND", 1);
+        secondCompanyC.setCompanyCode("S003");
+        secondCompanyC.setCompanyName("Second-C");
+        companies.put(12L, secondCompanyC);
+
+        CrmFirstSecondRelationSnapshotMapperState relationSnapshotState = new CrmFirstSecondRelationSnapshotMapperState();
+        relationSnapshotState.selectListResult = Arrays.asList(
+                buildFirstSecondSnapshot(500L, 100L, 200L),
+                buildFirstSecondSnapshot(501L, 100L, 201L),
+                buildFirstSecondSnapshot(502L, 100L, 202L),
+                buildFirstSecondSnapshot(503L, 100L, 203L)
+        );
+
+        CrmBizCompanySnapshotMapperState companySnapshotState = new CrmBizCompanySnapshotMapperState();
+        companySnapshotState.selectListResult = Arrays.asList(
+                buildCrmCompanySnapshot(100L, "F001", "CRM-First-A", 0),
+                buildCrmCompanySnapshot(200L, "S001", "CRM-Second-A", 3),
+                buildCrmCompanySnapshot(201L, "S002", "CRM-Second-B", 3),
+                buildCrmCompanySnapshot(202L, "S003", "CRM-Second-C", 3),
+                buildCrmCompanySnapshot(203L, "S004", "CRM-Second-D", 3)
+        );
+
+        FirstSecondRelation existingRelation = new FirstSecondRelation();
+        existingRelation.setFirstCompanyId(1L);
+        existingRelation.setSecondCompanyId(11L);
+        FirstSecondRelation conflictRelation = new FirstSecondRelation();
+        conflictRelation.setFirstCompanyId(2L);
+        conflictRelation.setSecondCompanyId(12L);
+        FirstSecondRelationMapperState relationState = new FirstSecondRelationMapperState();
+        relationState.selectListResult = Arrays.asList(existingRelation, conflictRelation);
+        relationState.selectCountResults.add(0L);
+
+        setField(service, "sysCompanyMapper", createCompanyMapperProxy(companies));
+        setField(service, "crmFirstSecondRelationSnapshotMapper", createFirstSecondSnapshotMapperProxy(relationSnapshotState));
+        setField(service, "crmBizCompanySnapshotMapper", createCrmBizCompanySnapshotMapperProxy(companySnapshotState));
+        setField(service, "firstSecondRelationMapper", createFirstSecondRelationMapperProxy(relationState));
+
+        CrmFirstSecondRelationImportDTO dto = new CrmFirstSecondRelationImportDTO();
+        dto.setSnapshotIds(Arrays.asList(500L, 501L, 502L, 503L));
+
+        CrmFirstSecondRelationImportResultVO result = service.importFirstSecondFromCrm(dto);
+
+        Assert.assertEquals(Integer.valueOf(4), result.getSelectedCount());
+        Assert.assertEquals(Integer.valueOf(1), result.getSuccessCount());
+        Assert.assertEquals(Integer.valueOf(1), result.getExistedCount());
+        Assert.assertEquals(Integer.valueOf(1), result.getConflictCount());
+        Assert.assertEquals(Integer.valueOf(1), result.getFailedCount());
+        Assert.assertNotNull(relationState.insertedEntity);
+        Assert.assertEquals(Long.valueOf(1L), relationState.insertedEntity.getFirstCompanyId());
+        Assert.assertEquals(Long.valueOf(10L), relationState.insertedEntity.getSecondCompanyId());
+    }
+
     private SysCompany buildCompany(Long id, String typeCode, Integer status) {
         SysCompany company = new SysCompany();
         company.setId(id);
@@ -433,6 +561,40 @@ public class SysContractServiceImplTest {
         );
     }
 
+    private CrmFirstSecondRelationSnapshotMapper createFirstSecondSnapshotMapperProxy(CrmFirstSecondRelationSnapshotMapperState state) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectList".equals(method.getName())) {
+                    return state.selectListResult;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (CrmFirstSecondRelationSnapshotMapper) Proxy.newProxyInstance(
+                CrmFirstSecondRelationSnapshotMapper.class.getClassLoader(),
+                new Class<?>[]{CrmFirstSecondRelationSnapshotMapper.class},
+                handler
+        );
+    }
+
+    private CrmBizCompanySnapshotMapper createCrmBizCompanySnapshotMapperProxy(CrmBizCompanySnapshotMapperState state) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectList".equals(method.getName())) {
+                    return state.selectListResult;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (CrmBizCompanySnapshotMapper) Proxy.newProxyInstance(
+                CrmBizCompanySnapshotMapper.class.getClassLoader(),
+                new Class<?>[]{CrmBizCompanySnapshotMapper.class},
+                handler
+        );
+    }
+
     private FirstSecondRelationMapper createFirstSecondRelationMapperProxy(FirstSecondRelationMapperState state) {
         InvocationHandler handler = new InvocationHandler() {
             @Override
@@ -445,6 +607,9 @@ public class SysContractServiceImplTest {
                 }
                 if ("selectOne".equals(method.getName())) {
                     return state.selectOneResult;
+                }
+                if ("selectList".equals(method.getName())) {
+                    return state.selectListResult;
                 }
                 if ("insert".equals(method.getName())) {
                     if (state.insertException != null) {
@@ -554,6 +719,23 @@ public class SysContractServiceImplTest {
         return snapshot;
     }
 
+    private CrmFirstSecondRelationSnapshot buildFirstSecondSnapshot(Long id, Long firstCustId, Long secondCustId) {
+        CrmFirstSecondRelationSnapshot snapshot = new CrmFirstSecondRelationSnapshot();
+        snapshot.setId(id);
+        snapshot.setFirstCustId(firstCustId);
+        snapshot.setSecondCustId(secondCustId);
+        return snapshot;
+    }
+
+    private CrmBizCompanySnapshot buildCrmCompanySnapshot(Long custId, String companyCode, String companyName, Integer custRage) {
+        CrmBizCompanySnapshot snapshot = new CrmBizCompanySnapshot();
+        snapshot.setCustId(custId);
+        snapshot.setSapCompanyCode(companyCode);
+        snapshot.setCustName(companyName);
+        snapshot.setCustRage(custRage);
+        return snapshot;
+    }
+
     private void setField(Object target, String fieldName, Object value) throws Exception {
         Field field = SysContractServiceImpl.class.getDeclaredField(fieldName);
         field.setAccessible(true);
@@ -597,10 +779,19 @@ public class SysContractServiceImplTest {
         private List<CrmHqFirstContractSnapshot> selectListResult = Collections.emptyList();
     }
 
+    private static class CrmFirstSecondRelationSnapshotMapperState {
+        private List<CrmFirstSecondRelationSnapshot> selectListResult = Collections.emptyList();
+    }
+
+    private static class CrmBizCompanySnapshotMapperState {
+        private List<CrmBizCompanySnapshot> selectListResult = Collections.emptyList();
+    }
+
     private static class FirstSecondRelationMapperState {
         private final Queue<Long> selectCountResults = new ArrayDeque<>();
         private FirstSecondRelation selectByIdResult;
         private FirstSecondRelation selectOneResult;
+        private List<FirstSecondRelation> selectListResult = Collections.emptyList();
         private DuplicateKeyException insertException;
         private FirstSecondRelation insertedEntity;
         private Long deletedId;

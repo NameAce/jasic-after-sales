@@ -68,6 +68,12 @@ export function importCrmHqFirstContract(data) {
 export function listFirstSecondRelation(params) {
   return request({ url: '/org/contract/first-second/list', method: 'get', params })
 }
+export function listCrmFirstSecondRelationImport(params) {
+  return request({ url: '/org/contract/first-second/crm-import/list', method: 'get', params })
+}
+export function importCrmFirstSecondRelation(data) {
+  return request({ url: '/org/contract/first-second/crm-import', method: 'post', data })
+}
 export function addFirstSecondRelation(data) {
   return request({ url: '/org/contract/first-second', method: 'post', data })
 }

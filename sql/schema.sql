@@ -902,6 +902,26 @@ CREATE TABLE `crm_biz_company_snapshot` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='CRM鍏徃蹇収琛?;
 
 -- -------------------------------------------
+-- 31a. CRM 一级二级关系来源快照表
+-- -------------------------------------------
+DROP TABLE IF EXISTS `crm_first_second_relation_snapshot`;
+CREATE TABLE `crm_first_second_relation_snapshot` (
+  `id`             bigint unsigned  NOT NULL AUTO_INCREMENT COMMENT '涓婚敭',
+  `source_id`      bigint unsigned  DEFAULT NULL            COMMENT 'CRM鍘熷鍏崇郴涓婚敭',
+  `first_cust_id`  bigint unsigned  DEFAULT NULL            COMMENT '涓€绾RM浼佷笟ID',
+  `second_cust_id` bigint unsigned  NOT NULL                COMMENT '浜岀骇CRM浼佷笟ID',
+  `crm_oper_time`  datetime         DEFAULT NULL            COMMENT 'CRM鎿嶄綔鏃堕棿',
+  `last_sync_time` datetime         DEFAULT NULL            COMMENT '鏈€杩戝悓姝ユ椂闂?,
+  `create_time`    datetime         NOT NULL                COMMENT '鍒涘缓鏃堕棿',
+  `update_time`    datetime         NOT NULL                COMMENT '鏇存柊鏃堕棿',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_crm_first_second_relation_second` (`second_cust_id`),
+  UNIQUE KEY `uk_crm_first_second_relation_source` (`source_id`),
+  KEY `idx_crm_first_second_relation_first` (`first_cust_id`),
+  KEY `idx_crm_first_second_relation_oper_time` (`crm_oper_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='CRM涓€绾т簩绾у叧绯绘潵婧愬揩鐓ц〃';
+
+-- -------------------------------------------
 -- 31b. CRM 閿€鍞嚭搴撴壂鐮佸揩鐓ц〃
 -- -------------------------------------------
 DROP TABLE IF EXISTS `crm_warehouse_scan_outstorage_snapshot`;

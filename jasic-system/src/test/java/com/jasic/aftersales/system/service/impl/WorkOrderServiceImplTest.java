@@ -1,4 +1,4 @@
-﻿package com.jasic.aftersales.system.service.impl;
+package com.jasic.aftersales.system.service.impl;
 
 import cn.dev33.satoken.SaManager;
 import cn.dev33.satoken.context.SaTokenContextForThreadLocal;
@@ -31,8 +31,10 @@ import com.jasic.aftersales.system.domain.entity.SysUser;
 import com.jasic.aftersales.system.domain.entity.SysUserCompany;
 import com.jasic.aftersales.system.domain.entity.WorkOrder;
 import com.jasic.aftersales.system.domain.entity.WorkOrderCustomer;
+import com.jasic.aftersales.system.domain.entity.WorkOrderFault;
 import com.jasic.aftersales.system.domain.entity.WorkOrderFlow;
 import com.jasic.aftersales.system.domain.entity.WorkOrderQuote;
+import com.jasic.aftersales.system.domain.entity.WorkOrderRepair;
 import com.jasic.aftersales.system.domain.query.WorkOrderQuery;
 import com.jasic.aftersales.system.domain.vo.WorkOrderCreateBarcodeInfoVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderListVO;
@@ -139,7 +141,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(1, holder[0].getRecords().size());
         Assert.assertEquals("寮€鏈烘棤鍙嶅簲", holder[0].getRecords().get(0).getFaultDesc());
         Assert.assertEquals(BrandTypeEnum.JASIC, holder[0].getRecords().get(0).getBrandType());
-        Assert.assertEquals("浣冲＋鍝佺墝", holder[0].getRecords().get(0).getBrandTypeLabel());
+        Assert.assertEquals("佳士品牌", holder[0].getRecords().get(0).getBrandTypeLabel());
         Assert.assertEquals(0, new BigDecimal("188.50").compareTo(holder[0].getRecords().get(0).getQuoteAmount()));
     }
 
@@ -166,9 +168,9 @@ public class WorkOrderServiceImplTest {
 
         try {
             service.listTransferTargetOptions(workOrder.getId());
-            Assert.fail("棰勬湡搴旀嫆缁濇煡璇㈣浆鍗曠洰鏍?);
+            Assert.fail("预期应拒绝查询转单目标");
         } catch (ServiceException ex) {
-            Assert.assertEquals("褰撳墠宸ュ崟涓嶅厑璁歌浆鍗?, ex.getMessage());
+            Assert.assertEquals("当前工单不允许转单", ex.getMessage());
         }
     }
 
@@ -195,7 +197,7 @@ public class WorkOrderServiceImplTest {
             service.saveRepair(dto);
             Assert.fail("棰勬湡搴旀嫆缁濈┖缁翠慨鐧昏");
         } catch (ServiceException ex) {
-            Assert.assertEquals("璇疯嚦灏戝～鍐欎竴椤圭淮淇唴瀹?, ex.getMessage());
+            Assert.assertEquals("请至少填写一项维修内容", ex.getMessage());
         }
     }
 
@@ -207,11 +209,11 @@ public class WorkOrderServiceImplTest {
         method.setAccessible(true);
 
         try {
-            method.invoke(service, "寰呯‘璁?, "鏁呴殰鍒ゆ柇涓嶈兘涓虹┖");
+            method.invoke(service, "待确认", "故障判定不能为空");
             Assert.fail("棰勬湡搴旀嫆缁濋潪鏋氫妇鏁呴殰鍒ゆ柇");
         } catch (InvocationTargetException ex) {
             Assert.assertTrue(ex.getCause() instanceof ServiceException);
-            Assert.assertEquals("鏁呴殰鍒ゅ畾鍙兘涓烘湁鏁呴殰鎴栨棤鏁呴殰", ex.getCause().getMessage());
+            Assert.assertEquals("故障判定只能为有故障或无故障", ex.getCause().getMessage());
         }
     }
 
@@ -223,7 +225,7 @@ public class WorkOrderServiceImplTest {
         workOrder.setCurrentAcceptCompanyId(2002L);
 
         SysUser adminUser = buildUser(101L, "鑰佹澘璐﹀彿", "13800138000", 1);
-        SysUser normalUser = buildUser(102L, "鏅€氳处鍙?, "13800138001", 1);
+        SysUser normalUser = buildUser(102L, "普通账号", "13800138001", 1);
 
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
@@ -311,7 +313,7 @@ public class WorkOrderServiceImplTest {
 
         WorkOrderTechAcceptDTO dto = new WorkOrderTechAcceptDTO();
         dto.setWorkOrderId(workOrder.getId());
-        dto.setFaultJudge("鏈夋晠闅?);
+        dto.setFaultJudge("有故障");
 
         runWithLoginContext(101L, new ThrowingRunnable() {
             @Override
@@ -322,7 +324,7 @@ public class WorkOrderServiceImplTest {
 
         Assert.assertEquals(WorkOrderStatusConstants.MainStatus.IN_PROGRESS, workOrder.getMainStatus());
         Assert.assertEquals(1, insertedQuotes.size());
-        Assert.assertEquals("鏈夋晠闅?, insertedQuotes.get(0).getFaultJudge());
+        Assert.assertEquals("有故障", insertedQuotes.get(0).getFaultJudge());
         Assert.assertNull(insertedQuotes.get(0).getQuoteAmount());
         Assert.assertNull(insertedQuotes.get(0).getQuoteDesc());
         Assert.assertEquals(Integer.valueOf(1), insertedQuotes.get(0).getIsCurrentValid());
@@ -359,9 +361,9 @@ public class WorkOrderServiceImplTest {
 
         WorkOrderTechAcceptDTO dto = new WorkOrderTechAcceptDTO();
         dto.setWorkOrderId(workOrder.getId());
-        dto.setFaultJudge("鏃犳晠闅?);
-        dto.setReturnMethod("鑷彁");
-        dto.setCloseReason("妫€娴嬫棤鏁呴殰锛屽鎴疯嚜鎻?);
+        dto.setFaultJudge("无故障");
+        dto.setReturnMethod("自提");
+        dto.setCloseReason("检测无故障，客户自提");
 
         runWithLoginContext(101L, new ThrowingRunnable() {
             @Override
@@ -372,13 +374,13 @@ public class WorkOrderServiceImplTest {
 
         Assert.assertEquals(WorkOrderStatusConstants.MainStatus.CLOSED, workOrder.getMainStatus());
         Assert.assertEquals(WorkOrderStatusConstants.EvaluateStatus.NOT_OPEN, workOrder.getEvaluateStatus());
-        Assert.assertEquals("鑷彁", workOrder.getReturnMethod());
-        Assert.assertEquals("妫€娴嬫棤鏁呴殰锛屽鎴疯嚜鎻?, workOrder.getCloseReason());
+        Assert.assertEquals("自提", workOrder.getReturnMethod());
+        Assert.assertEquals("检测无故障，客户自提", workOrder.getCloseReason());
         Assert.assertNotNull(workOrder.getCompletedTime());
         Assert.assertNotNull(workOrder.getClosedTime());
         Assert.assertEquals(workOrder.getCompletedTime(), workOrder.getClosedTime());
         Assert.assertEquals(1, insertedQuotes.size());
-        Assert.assertEquals("鏃犳晠闅?, insertedQuotes.get(0).getFaultJudge());
+        Assert.assertEquals("无故障", insertedQuotes.get(0).getFaultJudge());
         Assert.assertNull(insertedQuotes.get(0).getQuoteAmount());
         Assert.assertNull(insertedQuotes.get(0).getQuoteDesc());
         Assert.assertEquals(4, insertedFlows.size());
@@ -415,11 +417,11 @@ public class WorkOrderServiceImplTest {
 
         WorkOrderTechAcceptDTO dto = new WorkOrderTechAcceptDTO();
         dto.setWorkOrderId(workOrder.getId());
-        dto.setFaultJudge("鏃犳晠闅?);
-        dto.setReturnMethod("鍥炲瘎");
+        dto.setFaultJudge("无故障");
+        dto.setReturnMethod("回寄");
         dto.setReturnExpressNo("   ");
         dto.setReturnVoucherFileIds(Collections.singletonList(128L));
-        dto.setCloseReason("妫€娴嬫棤鏁呴殰锛屽畨鎺掑洖瀵?);
+        dto.setCloseReason("检测无故障，安排回寄");
 
         runWithLoginContext(101L, new ThrowingRunnable() {
             @Override
@@ -430,9 +432,9 @@ public class WorkOrderServiceImplTest {
 
         Assert.assertEquals(WorkOrderStatusConstants.MainStatus.CLOSED, workOrder.getMainStatus());
         Assert.assertEquals(WorkOrderStatusConstants.EvaluateStatus.NOT_OPEN, workOrder.getEvaluateStatus());
-        Assert.assertEquals("鍥炲瘎", workOrder.getReturnMethod());
+        Assert.assertEquals("回寄", workOrder.getReturnMethod());
         Assert.assertNull(workOrder.getReturnExpressNo());
-        Assert.assertEquals("妫€娴嬫棤鏁呴殰锛屽畨鎺掑洖瀵?, workOrder.getCloseReason());
+        Assert.assertEquals("检测无故障，安排回寄", workOrder.getCloseReason());
         Assert.assertNotNull(workOrder.getCompletedTime());
         Assert.assertNotNull(workOrder.getClosedTime());
         Assert.assertEquals(1, insertedQuotes.size());
@@ -485,10 +487,10 @@ public class WorkOrderServiceImplTest {
 
         Object selection = invokePrivateMethod(service, "resolveCreateFaultSelection",
                 new Class<?>[]{List.class, String.class, Long.class, String.class, String.class},
-                Collections.singletonList("鍏跺畠鏁呴殰"), "鏃犵爜鏈哄櫒鎵嬪伐鎻忚堪鏁呴殰", 900L, null, null);
+                Collections.singletonList("其它故障"), "无码机器手工描述故障", 900L, null, null);
 
-        Assert.assertEquals("鍏跺畠鏁呴殰", invokeGetter(selection, "getFaultDesc"));
-        Assert.assertEquals("鏃犵爜鏈哄櫒鎵嬪伐鎻忚堪鏁呴殰", invokeGetter(selection, "getFaultRemark"));
+        Assert.assertEquals("其它故障", invokeGetter(selection, "getFaultDesc"));
+        Assert.assertEquals("无码机器手工描述故障", invokeGetter(selection, "getFaultRemark"));
     }
     @Test
     public void shouldRequireRepairFaultItemsWhenRepairConfigExists() throws Exception {
@@ -543,7 +545,7 @@ public class WorkOrderServiceImplTest {
 
         Assert.assertEquals("主板故障，风扇故障", invokeGetter(selection, "getFaultDesc"));
         Assert.assertEquals("首次维修确认的其它故障说明", invokeGetter(selection, "getFaultRemark"));
-        Assert.assertEquals(Arrays.asList("主板故障", "风扇故障"), invokeGetter(selection, "getFaultItems"));
+        Assert.assertEquals(Collections.singletonList("主板故障，风扇故障"), invokeGetter(selection, "getFaultItems"));
     }
 
     @Test
@@ -565,7 +567,7 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderCustomerMapper", createWorkOrderCustomerMapperProxy(Collections.emptyList()));
 
         Object customerId = invokePrivateMethod(service, "resolveCreateCustomerId",
-                new Class<?>[]{String.class, String.class}, "涓存椂鎶ヤ慨浜?, "13800138000");
+                new Class<?>[]{String.class, String.class}, "临时报修人", "13800138000");
 
         Assert.assertNull(customerId);
     }
@@ -603,10 +605,10 @@ public class WorkOrderServiceImplTest {
             public void run() throws Exception {
                 try {
                     invokePrivateMethod(service, "resolveUpstreamCreateCustomerIdentity", new Class<?>[0]);
-                    Assert.fail("棰勬湡搴旀嫆缁濈己灏戞墜鏈哄彿鐨勪笂娓告姤淇厹搴?);
+                    Assert.fail("预期应拒绝缺少手机号的上游报修入口");
                 } catch (InvocationTargetException ex) {
                     Assert.assertTrue(ex.getCause() instanceof ServiceException);
-                    Assert.assertEquals("褰撳墠鐧诲綍璐﹀彿鏈淮鎶ゆ墜鏈哄彿锛屾棤娉曟彁浜や笂绾ф姤淇?, ex.getCause().getMessage());
+                    Assert.assertEquals("当前登录账号未维护手机号，无法提交上级报修", ex.getCause().getMessage());
                 }
             }
         });
@@ -638,7 +640,7 @@ public class WorkOrderServiceImplTest {
         });
         setField(service, "sysCompanyMapper", createCompanyMapperProxy(Arrays.asList(
                 buildCompany(2002L, "浜岀骇缃戠偣", "SITE_SECOND"),
-                buildCompany(1001L, "涓€绾х綉鐐?, "SITE_FIRST")
+                buildCompany(1001L, "一级网点", "SITE_FIRST")
         )));
         setField(service, "sysCompanyTypeMapper", createCompanyTypeMapperProxy(
                 buildCompanyType("SITE_FIRST", "SERVICE")
@@ -652,7 +654,7 @@ public class WorkOrderServiceImplTest {
         WorkOrderTransferDTO dto = new WorkOrderTransferDTO();
         dto.setWorkOrderId(workOrder.getId());
         dto.setTargetCompanyId(1001L);
-        dto.setRemark("缁翠慨涓嶄簡锛岃浆涓€绾у鐞?);
+        dto.setRemark("维修不了，转一级处理");
 
         runWithLoginContext(101L, new ThrowingRunnable() {
             @Override
@@ -678,7 +680,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(Long.valueOf(1001L), flow.getToCompanyId());
         Assert.assertEquals(Long.valueOf(2002L), flow.getOperatorCompanyId());
         Assert.assertEquals(Long.valueOf(101L), flow.getOperatorUserId());
-        Assert.assertEquals("缁翠慨涓嶄簡锛岃浆涓€绾у鐞?, flow.getRemark());
+        Assert.assertEquals("维修不了，转一级处理", flow.getRemark());
 
         Assert.assertEquals(Long.valueOf(3L), participantRecorder.workOrderId);
         Assert.assertEquals(Long.valueOf(2002L), participantRecorder.fromCompanyId);
@@ -705,7 +707,7 @@ public class WorkOrderServiceImplTest {
             }
         });
         setField(service, "sysCompanyMapper", createCompanyMapperProxy(Collections.singletonList(
-                buildCompany(1001L, "涓€绾х綉鐐?, "SITE_FIRST")
+                buildCompany(1001L, "一级网点", "SITE_FIRST")
         )));
         setField(service, "hqFirstContractMapper", createContractMapperProxy(1L));
 
@@ -717,7 +719,7 @@ public class WorkOrderServiceImplTest {
             service.transfer(dto);
             Assert.fail("棰勬湡搴旀嫆缁濊法瑙勫垯杞崟");
         } catch (ServiceException ex) {
-            Assert.assertEquals("褰撳墠宸ュ崟涓嶅厑璁歌浆鍒拌鐩爣鍏徃", ex.getMessage());
+            Assert.assertEquals("当前工单不允许转到该目标公司", ex.getMessage());
         }
     }
 
@@ -731,7 +733,7 @@ public class WorkOrderServiceImplTest {
 
         WorkOrderQuote currentQuote = new WorkOrderQuote();
         currentQuote.setWorkOrderId(workOrder.getId());
-        currentQuote.setFaultJudge("鏈夋晠闅?);
+        currentQuote.setFaultJudge("有故障");
         currentQuote.setQuoteAmount(new BigDecimal("100.00"));
         currentQuote.setQuoteDesc("棣栨鎶ヤ环");
         currentQuote.setIsCurrentValid(1);
@@ -767,7 +769,7 @@ public class WorkOrderServiceImplTest {
         WorkOrderRepairDTO dto = new WorkOrderRepairDTO();
         dto.setWorkOrderId(workOrder.getId());
         dto.setQuoteAmount(new BigDecimal("120.00"));
-        dto.setQuoteDesc("澶嶆鍓嶈皟浠?);
+        dto.setQuoteDesc("复检前调价");
         fillRepairSubmission(dto, "鏇存崲涓绘澘", "涓绘澘", 1);
 
         runWithLoginContext(101L, new ThrowingRunnable() {
@@ -780,9 +782,9 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(1, updateCount[0]);
         Assert.assertEquals(Integer.valueOf(0), currentQuote.getIsCurrentValid());
         Assert.assertEquals(1, insertedQuotes.size());
-        Assert.assertEquals("鏈夋晠闅?, insertedQuotes.get(0).getFaultJudge());
+        Assert.assertEquals("有故障", insertedQuotes.get(0).getFaultJudge());
         Assert.assertEquals(0, insertedQuotes.get(0).getQuoteAmount().compareTo(new BigDecimal("120.00")));
-        Assert.assertEquals("澶嶆鍓嶈皟浠?, insertedQuotes.get(0).getQuoteDesc());
+        Assert.assertEquals("复检前调价", insertedQuotes.get(0).getQuoteDesc());
         Assert.assertEquals(Integer.valueOf(1), insertedQuotes.get(0).getIsCurrentValid());
         Assert.assertEquals(Arrays.asList("3-101-QUOTE", "3-101-REPAIR"), participantRecorder.records);
     }
@@ -904,9 +906,9 @@ public class WorkOrderServiceImplTest {
 
         try {
             service.updateRepairProductModel(dto);
-            Assert.fail("棰勬湡搴旀嫆缁濋噸澶嶈ˉ褰曟満鍣ㄥ瀷鍙?);
+            Assert.fail("预期应拒绝重复补录机器型号");
         } catch (ServiceException ex) {
-            Assert.assertEquals("褰撳墠宸ュ崟宸插瓨鍦ㄦ満鍣ㄥ瀷鍙凤紝涓嶈兘閲嶅琛ュ綍", ex.getMessage());
+            Assert.assertEquals("当前工单已存在机器型号，不能重复补录", ex.getMessage());
         }
     }
 
@@ -934,9 +936,9 @@ public class WorkOrderServiceImplTest {
 
         try {
             service.saveRepair(dto);
-            Assert.fail("棰勬湡搴旀嫆缁濇湭琛ュ綍鏈哄瀷鐨勭淮淇櫥璁?);
+            Assert.fail("预期应拒绝未补录机型的维修登记");
         } catch (ServiceException ex) {
-            Assert.assertEquals("浣冲＋鍝佺墝宸ュ崟缂哄皯鏈哄櫒鍨嬪彿锛岃鍏堣ˉ褰曟満鍣ㄥ瀷鍙峰悗鍐嶈繘琛岀淮淇櫥璁?, ex.getMessage());
+            Assert.assertEquals("佳士品牌工单缺少机器型号，请先补录机器型号后再进行维修登记", ex.getMessage());
         }
     }
 
@@ -966,7 +968,7 @@ public class WorkOrderServiceImplTest {
             service.saveReview(dto);
             Assert.fail("棰勬湡搴旀嫆缁濇湭琛ュ綍鏈哄瀷鐨勫妫€鐧昏");
         } catch (ServiceException ex) {
-            Assert.assertEquals("浣冲＋鍝佺墝宸ュ崟缂哄皯鏈哄櫒鍨嬪彿锛岃鍏堣ˉ褰曟満鍣ㄥ瀷鍙峰悗鍐嶈繘琛屽妫€鐧昏", ex.getMessage());
+            Assert.assertEquals("佳士品牌工单缺少机器型号，请先补录机器型号后再进行复检登记", ex.getMessage());
         }
     }
 
@@ -994,9 +996,9 @@ public class WorkOrderServiceImplTest {
 
         try {
             service.saveRepair(dto);
-            Assert.fail("棰勬湡搴旀嫆缁濇湭缁戝畾閰嶇疆鐨勭淮淇櫥璁?);
+            Assert.fail("预期应拒绝未绑定配置的维修登记");
         } catch (ServiceException ex) {
-            Assert.assertEquals("褰撳墠鎬婚儴鏈厤缃晠闅滀笌缁翠慨閰嶇疆锛岃鍏堢淮鎶?, ex.getMessage());
+            Assert.assertEquals("当前总部未配置故障与维修配置，请先维护", ex.getMessage());
         }
     }
 
@@ -1027,7 +1029,7 @@ public class WorkOrderServiceImplTest {
             service.saveRepair(dto);
             Assert.fail("棰勬湡搴旀嫆缁濇棤鏈夋晥鎶ヤ环鏃剁殑缁翠慨鏀逛环");
         } catch (ServiceException ex) {
-            Assert.assertEquals("璇峰厛鎻愪氦鎶ヤ环锛屽啀鍦ㄧ淮淇櫥璁颁腑璋冩暣鎶ヤ环", ex.getMessage());
+            Assert.assertEquals("请先提交报价，再在维修登记中调整报价", ex.getMessage());
         }
     }
 
@@ -1049,15 +1051,15 @@ public class WorkOrderServiceImplTest {
 
         WorkOrderCloseDTO dto = new WorkOrderCloseDTO();
         dto.setWorkOrderId(workOrder.getId());
-        dto.setReturnMethod("鍥炲瘎");
-        dto.setCloseReason("瀹㈡埛瑕佹眰鍥炲瘎");
+        dto.setReturnMethod("回寄");
+        dto.setCloseReason("客户要求回寄");
         dto.setReturnExpressNo("   ");
 
         try {
             service.close(dto);
             Assert.fail("棰勬湡搴旀嫆缁濈己灏戝洖瀵勫嚟璇佺殑鍏抽棴璇锋眰");
         } catch (ServiceException ex) {
-            Assert.assertEquals("鍥炲瘎鏃跺繀椤讳笂浼犲洖瀵勫嚟璇?, ex.getMessage());
+            Assert.assertEquals("回寄时必须上传回寄凭证", ex.getMessage());
         }
     }
 
@@ -1069,7 +1071,7 @@ public class WorkOrderServiceImplTest {
         workOrder.setCurrentAcceptCompanyId(3L);
         WorkOrderQuote currentQuote = new WorkOrderQuote();
         currentQuote.setWorkOrderId(workOrder.getId());
-        currentQuote.setFaultJudge("鏈夋晠闅?);
+        currentQuote.setFaultJudge("有故障");
         currentQuote.setIsCurrentValid(1);
         int[] inviteCount = new int[1];
 
@@ -1093,10 +1095,10 @@ public class WorkOrderServiceImplTest {
 
         WorkOrderCloseDTO dto = new WorkOrderCloseDTO();
         dto.setWorkOrderId(workOrder.getId());
-        dto.setReturnMethod("鍥炲瘎");
+        dto.setReturnMethod("回寄");
         dto.setReturnExpressNo("   ");
         dto.setReturnVoucherFileIds(Collections.singletonList(128L));
-        dto.setCloseReason("瀹㈡埛瑕佹眰鍥炲瘎");
+        dto.setCloseReason("客户要求回寄");
 
         runWithLoginContext(101L, new ThrowingRunnable() {
             @Override
@@ -1107,9 +1109,9 @@ public class WorkOrderServiceImplTest {
 
         Assert.assertEquals(WorkOrderStatusConstants.MainStatus.CLOSED, workOrder.getMainStatus());
         Assert.assertEquals(WorkOrderStatusConstants.EvaluateStatus.PENDING_EVALUATE, workOrder.getEvaluateStatus());
-        Assert.assertEquals("鍥炲瘎", workOrder.getReturnMethod());
+        Assert.assertEquals("回寄", workOrder.getReturnMethod());
         Assert.assertNull(workOrder.getReturnExpressNo());
-        Assert.assertEquals("瀹㈡埛瑕佹眰鍥炲瘎", workOrder.getCloseReason());
+        Assert.assertEquals("客户要求回寄", workOrder.getCloseReason());
         Assert.assertEquals(1, inviteCount[0]);
     }
 
@@ -1121,7 +1123,7 @@ public class WorkOrderServiceImplTest {
         workOrder.setCurrentAcceptCompanyId(3L);
         WorkOrderQuote currentQuote = new WorkOrderQuote();
         currentQuote.setWorkOrderId(workOrder.getId());
-        currentQuote.setFaultJudge("鏃犳晠闅?);
+        currentQuote.setFaultJudge("无故障");
         currentQuote.setIsCurrentValid(1);
         int[] updateCount = new int[1];
         int[] inviteCount = new int[1];
@@ -1146,8 +1148,8 @@ public class WorkOrderServiceImplTest {
 
         WorkOrderCloseDTO dto = new WorkOrderCloseDTO();
         dto.setWorkOrderId(workOrder.getId());
-        dto.setReturnMethod("鑷彁");
-        dto.setCloseReason("鏃犳晠闅滐紝瀹㈡埛鑷彁");
+        dto.setReturnMethod("自提");
+        dto.setCloseReason("无故障，客户自提");
 
         runWithLoginContext(101L, new ThrowingRunnable() {
             @Override
@@ -1159,8 +1161,8 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(1, updateCount[0]);
         Assert.assertEquals(WorkOrderStatusConstants.MainStatus.CLOSED, workOrder.getMainStatus());
         Assert.assertEquals(WorkOrderStatusConstants.EvaluateStatus.NOT_OPEN, workOrder.getEvaluateStatus());
-        Assert.assertEquals("鑷彁", workOrder.getReturnMethod());
-        Assert.assertEquals("鏃犳晠闅滐紝瀹㈡埛鑷彁", workOrder.getCloseReason());
+        Assert.assertEquals("自提", workOrder.getReturnMethod());
+        Assert.assertEquals("无故障，客户自提", workOrder.getCloseReason());
         Assert.assertEquals(0, inviteCount[0]);
     }
 
@@ -1172,7 +1174,7 @@ public class WorkOrderServiceImplTest {
         workOrder.setCurrentAcceptCompanyId(3L);
         WorkOrderQuote currentQuote = new WorkOrderQuote();
         currentQuote.setWorkOrderId(workOrder.getId());
-        currentQuote.setFaultJudge("鏈夋晠闅?);
+        currentQuote.setFaultJudge("有故障");
         currentQuote.setIsCurrentValid(1);
         int[] inviteCount = new int[1];
 
@@ -1196,8 +1198,8 @@ public class WorkOrderServiceImplTest {
 
         WorkOrderCloseDTO dto = new WorkOrderCloseDTO();
         dto.setWorkOrderId(workOrder.getId());
-        dto.setReturnMethod("鑷彁");
-        dto.setCloseReason("缁翠慨瀹屾垚");
+        dto.setReturnMethod("自提");
+        dto.setCloseReason("维修完成");
 
         runWithLoginContext(101L, new ThrowingRunnable() {
             @Override
@@ -1215,7 +1217,7 @@ public class WorkOrderServiceImplTest {
     public void shouldSkipEvaluationInviteWhenCurrentQuoteIsNoFault() throws Exception {
         WorkOrderQuote currentQuote = new WorkOrderQuote();
         currentQuote.setWorkOrderId(4L);
-        currentQuote.setFaultJudge("鏃犳晠闅?);
+        currentQuote.setFaultJudge("无故障");
         currentQuote.setIsCurrentValid(1);
 
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();

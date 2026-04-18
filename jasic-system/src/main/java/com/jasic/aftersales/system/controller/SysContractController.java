@@ -6,10 +6,14 @@ import com.jasic.aftersales.common.core.controller.BaseController;
 import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.common.core.domain.Result;
 import com.jasic.aftersales.common.enums.OperTypeEnum;
+import com.jasic.aftersales.system.domain.dto.CrmFirstSecondRelationImportDTO;
 import com.jasic.aftersales.system.domain.dto.CrmHqFirstContractImportDTO;
 import com.jasic.aftersales.system.domain.dto.FirstSecondRelationDTO;
 import com.jasic.aftersales.system.domain.dto.HqFirstContractDTO;
+import com.jasic.aftersales.system.domain.query.CrmFirstSecondRelationImportQuery;
 import com.jasic.aftersales.system.domain.query.CrmHqFirstContractImportQuery;
+import com.jasic.aftersales.system.domain.vo.CrmFirstSecondRelationImportResultVO;
+import com.jasic.aftersales.system.domain.vo.CrmFirstSecondRelationImportVO;
 import com.jasic.aftersales.system.domain.vo.CrmHqFirstContractImportResultVO;
 import com.jasic.aftersales.system.domain.vo.CrmHqFirstContractImportVO;
 import com.jasic.aftersales.system.domain.vo.FirstSecondRelationVO;
@@ -145,6 +149,23 @@ public class SysContractController extends BaseController {
     public Result<PageResult<FirstSecondRelationVO>> listFirstSecondPage(FirstSecondRelationQuery query) {
         PageResult<FirstSecondRelationVO> page = contractService.listFirstSecondPage(query);
         return Result.ok(page);
+    }
+
+    @ApiOperation(value = "CRM一级二级关系导入分页列表")
+    @SaCheckPermission("org:contract:add")
+    @GetMapping("/first-second/crm-import/list")
+    public Result<PageResult<CrmFirstSecondRelationImportVO>> listCrmFirstSecondImportPage(CrmFirstSecondRelationImportQuery query) {
+        PageResult<CrmFirstSecondRelationImportVO> page = contractService.listCrmFirstSecondImportPage(query);
+        return Result.ok(page);
+    }
+
+    @ApiOperation(value = "从CRM来源快照导入一级二级关系")
+    @SaCheckPermission("org:contract:add")
+    @OperLog(title = "绛剧害绠＄悊", operType = OperTypeEnum.INSERT)
+    @PostMapping("/first-second/crm-import")
+    public Result<CrmFirstSecondRelationImportResultVO> importFirstSecondFromCrm(@Validated @RequestBody CrmFirstSecondRelationImportDTO dto) {
+        CrmFirstSecondRelationImportResultVO result = contractService.importFirstSecondFromCrm(dto);
+        return Result.ok(result);
     }
 
     /**

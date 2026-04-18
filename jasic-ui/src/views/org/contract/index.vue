@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="app-container">
     <el-tabs v-model="activeTab" type="card" @tab-click="handleTabClick">
       <el-tab-pane label="总部-一级签约" name="hqFirst" />
@@ -8,7 +8,7 @@
     <el-card v-if="activeTab === 'hqFirst'" shadow="never">
       <el-form :model="hqQuery" :inline="true" size="small" style="margin-bottom: 12px;">
         <el-form-item label="总部公司">
-          <el-select v-model="hqQuery.hqCompanyId" placeholder="全部" clearable>
+          <el-select v-model="hqQuery.hqCompanyId" placeholder="全部" clearable filterable>
             <el-option v-for="c in hqOptions" :key="c.id" :label="c.companyName" :value="c.id" />
           </el-select>
         </el-form-item>
@@ -47,8 +47,8 @@
         :page-size="hqQuery.pageSize"
         :total="hqTotal"
         layout="total, sizes, prev, pager, next, jumper"
-        @size-change="val => { hqQuery.pageSize = val; getHqFirstList() }"
-        @current-change="val => { hqQuery.pageNum = val; getHqFirstList() }"
+        @size-change="handleHqSizeChange"
+        @current-change="handleHqCurrentChange"
       />
     </el-card>
 
@@ -64,6 +64,7 @@
         </el-form-item>
       </el-form>
       <div class="table-toolbar">
+        <el-button type="success" icon="el-icon-download" size="small" v-hasPerms="['org:contract:add']" @click="openFsCrmImportDialog">从来源导入</el-button>
         <el-button type="primary" icon="el-icon-plus" size="small" v-hasPerms="['org:contract:add']" @click="handleAddFirstSecond">新增关系</el-button>
       </div>
       <el-table v-loading="fsLoading" :data="firstSecondList" border stripe>
@@ -83,8 +84,8 @@
         :page-size="fsQuery.pageSize"
         :total="fsTotal"
         layout="total, sizes, prev, pager, next, jumper"
-        @size-change="val => { fsQuery.pageSize = val; getFirstSecondList() }"
-        @current-change="val => { fsQuery.pageNum = val; getFirstSecondList() }"
+        @size-change="handleFsSizeChange"
+        @current-change="handleFsCurrentChange"
       />
     </el-card>
 
@@ -116,8 +117,8 @@
         </el-form-item>
       </el-form>
       <div slot="footer">
-        <el-button @click="hqDialogVisible = false">取 消</el-button>
-        <el-button type="primary" :loading="hqSubmitLoading" @click="submitHqForm">确 定</el-button>
+        <el-button @click="hqDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="hqSubmitLoading" @click="submitHqForm">确定</el-button>
       </div>
     </el-dialog>
 
@@ -149,6 +150,14 @@
           <el-select v-model="crmImportQuery.regionId" placeholder="全部" clearable filterable>
             <el-option v-for="r in crmImportRegionOptions" :key="r.id" :label="r.regionName" :value="r.id" />
           </el-select>
+        </el-form-item>
+        <el-form-item label="客户编码">
+          <el-input
+            v-model.trim="crmImportQuery.kunnr"
+            placeholder="请输入客户编码"
+            clearable
+            @keyup.enter.native="handleCrmImportSearch"
+          />
         </el-form-item>
         <el-form-item>
           <el-checkbox v-model="crmImportQuery.showAbnormal">查看异常数据</el-checkbox>
@@ -205,8 +214,8 @@
         @current-change="handleCrmImportCurrentChange"
       />
       <div slot="footer">
-        <el-button @click="crmImportDialogVisible = false">取 消</el-button>
-        <el-button type="primary" :loading="crmImportSubmitLoading" @click="submitCrmImport">导 入</el-button>
+        <el-button @click="crmImportDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="crmImportSubmitLoading" @click="submitCrmImport">导入</el-button>
       </div>
     </el-dialog>
 
@@ -224,8 +233,94 @@
         </el-form-item>
       </el-form>
       <div slot="footer">
-        <el-button @click="fsDialogVisible = false">取 消</el-button>
-        <el-button type="primary" :loading="fsSubmitLoading" @click="submitFsForm">确 定</el-button>
+        <el-button @click="fsDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="fsSubmitLoading" @click="submitFsForm">确定</el-button>
+      </div>
+    </el-dialog>
+
+    <el-dialog
+      title="从来源导入一级二级关系"
+      :visible.sync="fsCrmImportDialogVisible"
+      width="1180px"
+      append-to-body
+      @close="handleFsCrmImportDialogClose"
+    >
+      <el-form :model="fsCrmImportQuery" :inline="true" size="small" class="crm-import-filter">
+        <el-form-item label="一级公司">
+          <el-select v-model="fsCrmImportQuery.firstCompanyId" placeholder="全部" clearable filterable>
+            <el-option v-for="c in firstOptions" :key="c.id" :label="c.companyName" :value="c.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="二级公司">
+          <el-select v-model="fsCrmImportQuery.secondCompanyId" placeholder="全部" clearable filterable>
+            <el-option v-for="c in secondOptions" :key="c.id" :label="c.companyName" :value="c.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="一级编码">
+          <el-input
+            v-model.trim="fsCrmImportQuery.firstCompanyCode"
+            placeholder="请输入一级公司编码"
+            clearable
+            @keyup.enter.native="handleFsCrmImportSearch"
+          />
+        </el-form-item>
+        <el-form-item label="二级编码">
+          <el-input
+            v-model.trim="fsCrmImportQuery.secondCompanyCode"
+            placeholder="请输入二级公司编码"
+            clearable
+            @keyup.enter.native="handleFsCrmImportSearch"
+          />
+        </el-form-item>
+        <el-form-item>
+          <el-checkbox v-model="fsCrmImportQuery.showAbnormal">查看异常数据</el-checkbox>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" icon="el-icon-search" @click="handleFsCrmImportSearch">搜索</el-button>
+          <el-button @click="resetFsCrmImportQuery">重置</el-button>
+        </el-form-item>
+      </el-form>
+      <el-table
+        ref="fsCrmImportTable"
+        v-loading="fsCrmImportLoading"
+        :data="fsCrmImportList"
+        border
+        stripe
+        row-key="id"
+        @selection-change="handleFsCrmImportSelectionChange"
+      >
+        <el-table-column type="selection" width="55" :selectable="row => row.canImport" />
+        <el-table-column label="一级CRM ID" prop="firstCustId" width="110" />
+        <el-table-column label="一级编码" prop="firstCompanyCode" width="120" />
+        <el-table-column label="一级名称" prop="firstCompanyName" min-width="160" show-overflow-tooltip />
+        <el-table-column label="二级CRM ID" prop="secondCustId" width="110" />
+        <el-table-column label="二级编码" prop="secondCompanyCode" width="120" />
+        <el-table-column label="二级名称" prop="secondCompanyName" min-width="160" show-overflow-tooltip />
+        <el-table-column label="本地一级" prop="localFirstCompanyName" min-width="140" show-overflow-tooltip />
+        <el-table-column label="本地二级" prop="localSecondCompanyName" min-width="140" show-overflow-tooltip />
+        <el-table-column label="来源更新时间" prop="crmOperTime" width="160" />
+        <el-table-column label="导入状态" width="100" align="center">
+          <template slot-scope="{ row }">
+            <el-tag v-if="row.canImport" size="mini" type="success">可导入</el-tag>
+            <el-tag v-else-if="row.existingRelation" size="mini">已存在</el-tag>
+            <el-tag v-else-if="row.conflictingRelation" size="mini" type="danger">冲突</el-tag>
+            <el-tag v-else size="mini" type="warning">异常</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="说明" prop="matchRemark" min-width="220" show-overflow-tooltip />
+      </el-table>
+      <el-pagination
+        style="margin-top: 16px; text-align: right;"
+        :current-page="fsCrmImportQuery.pageNum"
+        :page-size="fsCrmImportQuery.pageSize"
+        :total="fsCrmImportTotal"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="handleFsCrmImportSizeChange"
+        @current-change="handleFsCrmImportCurrentChange"
+      />
+      <div slot="footer">
+        <el-button @click="fsCrmImportDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="fsCrmImportSubmitLoading" @click="submitFsCrmImport">导入</el-button>
       </div>
     </el-dialog>
   </div>
@@ -240,6 +335,8 @@ import {
   listCrmHqFirstContractImport,
   importCrmHqFirstContract,
   listFirstSecondRelation,
+  listCrmFirstSecondRelationImport,
+  importCrmFirstSecondRelation,
   addFirstSecondRelation,
   deleteFirstSecondRelation,
   listCompany
@@ -284,6 +381,7 @@ export default {
         hqCompanyId: undefined,
         firstCompanyId: undefined,
         regionId: undefined,
+        kunnr: '',
         showAbnormal: false
       },
       fsDialogVisible: false,
@@ -292,6 +390,21 @@ export default {
       fsFormRules: {
         firstCompanyId: [{ required: true, message: '请选择一级网点', trigger: 'change' }],
         secondCompanyId: [{ required: true, message: '请选择二级网点', trigger: 'change' }]
+      },
+      fsCrmImportDialogVisible: false,
+      fsCrmImportLoading: false,
+      fsCrmImportSubmitLoading: false,
+      fsCrmImportList: [],
+      fsCrmImportTotal: 0,
+      fsCrmImportSelection: [],
+      fsCrmImportQuery: {
+        pageNum: 1,
+        pageSize: 10,
+        firstCompanyId: undefined,
+        secondCompanyId: undefined,
+        firstCompanyCode: '',
+        secondCompanyCode: '',
+        showAbnormal: false
       }
     }
   },
@@ -316,20 +429,38 @@ export default {
       if (this.activeTab === 'hqFirst') this.getHqFirstList()
       else this.getFirstSecondList()
     },
+    handleHqSizeChange(val) {
+      this.hqQuery.pageNum = 1
+      this.hqQuery.pageSize = val
+      this.getHqFirstList()
+    },
+    handleHqCurrentChange(val) {
+      this.hqQuery.pageNum = val
+      this.getHqFirstList()
+    },
+    handleFsSizeChange(val) {
+      this.fsQuery.pageNum = 1
+      this.fsQuery.pageSize = val
+      this.getFirstSecondList()
+    },
+    handleFsCurrentChange(val) {
+      this.fsQuery.pageNum = val
+      this.getFirstSecondList()
+    },
     getHqFirstList() {
       this.hqLoading = true
       listHqFirstContract(this.hqQuery).then(res => {
         if (!res) return
-        this.hqFirstList = res.data.records
-        this.hqTotal = res.data.total
+        this.hqFirstList = res.data.records || []
+        this.hqTotal = res.data.total || 0
       }).finally(() => { this.hqLoading = false })
     },
     getFirstSecondList() {
       this.fsLoading = true
       listFirstSecondRelation(this.fsQuery).then(res => {
         if (!res) return
-        this.firstSecondList = res.data.records
-        this.fsTotal = res.data.total
+        this.firstSecondList = res.data.records || []
+        this.fsTotal = res.data.total || 0
       }).finally(() => { this.fsLoading = false })
     },
     handleAddHqFirst() {
@@ -342,7 +473,9 @@ export default {
       this.hqDialogTitle = '编辑签约'
       this.hqForm = { ...row }
       if (row.hqCompanyId) {
-        listRegion(row.hqCompanyId).then(res => { if (res) this.regionOptions = res.data || [] })
+        listRegion(row.hqCompanyId).then(res => {
+          if (res) this.regionOptions = res.data || []
+        })
       }
       this.hqDialogVisible = true
     },
@@ -375,6 +508,7 @@ export default {
         hqCompanyId: this.hqQuery.hqCompanyId,
         firstCompanyId: undefined,
         regionId: undefined,
+        kunnr: '',
         showAbnormal: false
       }
       this.crmImportDialogVisible = true
@@ -424,6 +558,7 @@ export default {
         hqCompanyId,
         firstCompanyId: undefined,
         regionId: undefined,
+        kunnr: '',
         showAbnormal: false
       }
       if (hqCompanyId) {
@@ -481,7 +616,7 @@ export default {
     },
     submitCrmImport() {
       if (!this.crmImportSelection.length) {
-        this.$message.warning('请选择要导入的 CRM 签约关系')
+        this.$message.warning('请选择要导入的CRM签约关系')
         return
       }
       this.crmImportSubmitLoading = true
@@ -491,7 +626,7 @@ export default {
       }).then(res => {
         if (!res) return
         const data = res.data || {}
-        this.$message.success(`成功 ${data.successCount || 0} 条，已存在跳过 ${data.existedCount || 0} 条，映射失败 ${data.failedCount || 0} 条`)
+        this.$message.success(`选中 ${data.selectedCount || 0} 条，成功 ${data.successCount || 0} 条，已存在 ${data.existedCount || 0} 条，失败 ${data.failedCount || 0} 条`)
         this.getCrmImportList()
         this.getHqFirstList()
       }).finally(() => {
@@ -527,12 +662,102 @@ export default {
           this.getFirstSecondList()
         })
       }).catch(() => {})
+    },
+    openFsCrmImportDialog() {
+      this.fsCrmImportQuery = {
+        pageNum: 1,
+        pageSize: 10,
+        firstCompanyId: undefined,
+        secondCompanyId: undefined,
+        firstCompanyCode: '',
+        secondCompanyCode: '',
+        showAbnormal: false
+      }
+      this.fsCrmImportDialogVisible = true
+      this.fsCrmImportList = []
+      this.fsCrmImportTotal = 0
+      this.resetFsCrmImportSelection()
+      this.getFsCrmImportList()
+    },
+    getFsCrmImportList() {
+      this.fsCrmImportLoading = true
+      listCrmFirstSecondRelationImport(this.fsCrmImportQuery).then(res => {
+        if (!res) return
+        this.fsCrmImportList = res.data.records || []
+        this.fsCrmImportTotal = res.data.total || 0
+        this.resetFsCrmImportSelection()
+      }).catch(() => {
+        this.fsCrmImportList = []
+        this.fsCrmImportTotal = 0
+        this.resetFsCrmImportSelection()
+      }).finally(() => {
+        this.fsCrmImportLoading = false
+      })
+    },
+    handleFsCrmImportSearch() {
+      this.fsCrmImportQuery.pageNum = 1
+      this.getFsCrmImportList()
+    },
+    resetFsCrmImportQuery() {
+      this.fsCrmImportQuery = {
+        pageNum: 1,
+        pageSize: 10,
+        firstCompanyId: undefined,
+        secondCompanyId: undefined,
+        firstCompanyCode: '',
+        secondCompanyCode: '',
+        showAbnormal: false
+      }
+      this.getFsCrmImportList()
+    },
+    handleFsCrmImportSelectionChange(rows) {
+      this.fsCrmImportSelection = rows || []
+    },
+    handleFsCrmImportSizeChange(val) {
+      this.fsCrmImportQuery.pageNum = 1
+      this.fsCrmImportQuery.pageSize = val
+      this.getFsCrmImportList()
+    },
+    handleFsCrmImportCurrentChange(val) {
+      this.fsCrmImportQuery.pageNum = val
+      this.getFsCrmImportList()
+    },
+    resetFsCrmImportSelection() {
+      this.fsCrmImportSelection = []
+      this.$nextTick(() => {
+        if (this.$refs.fsCrmImportTable) {
+          this.$refs.fsCrmImportTable.clearSelection()
+        }
+      })
+    },
+    submitFsCrmImport() {
+      if (!this.fsCrmImportSelection.length) {
+        this.$message.warning('请选择要导入的一级二级关系')
+        return
+      }
+      this.fsCrmImportSubmitLoading = true
+      importCrmFirstSecondRelation({
+        snapshotIds: this.fsCrmImportSelection.map(item => item.id)
+      }).then(res => {
+        if (!res) return
+        const data = res.data || {}
+        this.$message.success(`选中 ${data.selectedCount || 0} 条，成功 ${data.successCount || 0} 条，已存在 ${data.existedCount || 0} 条，冲突 ${data.conflictCount || 0} 条，失败 ${data.failedCount || 0} 条`)
+        this.getFsCrmImportList()
+        this.getFirstSecondList()
+      }).finally(() => {
+        this.fsCrmImportSubmitLoading = false
+      })
+    },
+    handleFsCrmImportDialogClose() {
+      this.resetFsCrmImportSelection()
     }
   },
   watch: {
     'hqForm.hqCompanyId'(val) {
       if (val) {
-        listRegion(val).then(res => { if (res) this.regionOptions = res.data || [] })
+        listRegion(val).then(res => {
+          if (res) this.regionOptions = res.data || []
+        })
       } else {
         this.regionOptions = []
       }
@@ -542,26 +767,17 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.app-container { padding: 0; }
+.app-container {
+  padding: 0;
+}
+
 .table-toolbar {
   margin-bottom: 12px;
   display: flex;
   gap: 8px;
 }
-.crm-import-toolbar {
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
+
 .crm-import-filter {
   margin-bottom: 12px;
-}
-.crm-import-toolbar__text {
-  color: #606266;
-}
-.crm-import-toolbar__text span {
-  color: #303133;
-  font-weight: 500;
 }
 </style>

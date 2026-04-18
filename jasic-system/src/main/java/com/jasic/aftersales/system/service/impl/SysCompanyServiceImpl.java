@@ -157,7 +157,7 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         validateCompanyCodeUnique(null, dto.getCompanyCode());
         applyCreateSourceType(dto);
         validateSourceType(dto.getSourceType());
-        validateSalesOrg(null, subjectType, dto.getSalesOrg());
+        dto.setSalesOrg(validateSalesOrg(null, subjectType, dto.getSalesOrg()));
         validateAdminTemplate(dto.getTypeCode());
         validateAdminLoginIdentity(dto.getAdminUsername(), dto.getContactPhone());
 
@@ -192,7 +192,7 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         validateCompanyCodeUnique(dto.getId(), dto.getCompanyCode());
         dto.setSourceType(StrUtil.blankToDefault(company.getSourceType(), SOURCE_TYPE_MANUAL));
         validateSourceType(dto.getSourceType());
-        validateSalesOrg(dto.getId(), subjectType, dto.getSalesOrg());
+        dto.setSalesOrg(validateSalesOrg(dto.getId(), subjectType, dto.getSalesOrg()));
 
         ResolvedRegion resolvedRegion = resolveRegion(dto);
         boolean shouldResolve = shouldResolveAddress(company, dto);
@@ -298,15 +298,15 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         }
     }
 
-    private void validateSalesOrg(Long currentId, String subjectType, String salesOrg) {
+    private String validateSalesOrg(Long currentId, String subjectType, String salesOrg) {
         if (!SubjectTypeEnum.HQ.getCode().equals(subjectType)) {
             if (StrUtil.isNotBlank(salesOrg)) {
                 throw new ServiceException("非总部公司不能维护销售组织");
             }
-            return;
+            return null;
         }
         if (StrUtil.isBlank(salesOrg)) {
-            return;
+            throw new ServiceException("总部公司必须维护销售组织");
         }
         LambdaQueryWrapper<SysCompany> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysCompany::getSalesOrg, salesOrg);
@@ -316,6 +316,7 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         if (sysCompanyMapper.selectCount(wrapper) > 0) {
             throw new ServiceException("销售组织已绑定其他总部公司");
         }
+        return salesOrg;
     }
 
     private void validateAdminTemplate(String typeCode) {
