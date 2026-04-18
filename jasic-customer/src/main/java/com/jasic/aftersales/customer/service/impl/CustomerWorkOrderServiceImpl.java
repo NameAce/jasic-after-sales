@@ -68,7 +68,6 @@ import com.jasic.aftersales.system.mapper.WorkOrderMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderQuoteMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderRepairMapper;
 import com.jasic.aftersales.system.service.IFaultRepairConfigService;
-import com.jasic.aftersales.system.service.WorkOrderNotifyEventService;
 import com.jasic.aftersales.system.service.WorkOrderParticipantService;
 import com.jasic.aftersales.system.service.SysFileService;
 import com.jasic.aftersales.system.service.support.MachineBarcodeWarrantyResolver;
@@ -164,9 +163,6 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
 
     @Resource
     private SysUserMapper sysUserMapper;
-
-    @Resource
-    private WorkOrderNotifyEventService workOrderNotifyEventService;
 
     @Resource
     private WorkOrderParticipantService workOrderParticipantService;
@@ -597,8 +593,6 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         flow.setRemark(dto.getContent());
         workOrderFlowMapper.insert(flow);
 
-        workOrderNotifyEventService.recordCustomerEvaluated(workOrder,
-                dto.getTimelinessScore(), dto.getQualityScore(), dto.getSatisfactionScore(), dto.getContent());
     }
 
     /**

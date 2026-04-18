@@ -46,7 +46,6 @@ import com.jasic.aftersales.system.domain.entity.WorkOrderEvaluation;
 import com.jasic.aftersales.system.domain.entity.WorkOrderFault;
 import com.jasic.aftersales.system.domain.entity.WorkOrderFaultPart;
 import com.jasic.aftersales.system.domain.entity.WorkOrderFlow;
-import com.jasic.aftersales.system.domain.entity.WorkOrderNotifyEvent;
 import com.jasic.aftersales.system.domain.entity.WorkOrderQuote;
 import com.jasic.aftersales.system.domain.entity.WorkOrderRepair;
 import com.jasic.aftersales.system.domain.query.WorkOrderQuery;
@@ -57,7 +56,6 @@ import com.jasic.aftersales.system.domain.vo.WorkOrderFaultPartVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderFaultVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderFlowVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderListVO;
-import com.jasic.aftersales.system.domain.vo.WorkOrderNotifyEventVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderQuoteVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairFaultOptionVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairVO;
@@ -81,13 +79,11 @@ import com.jasic.aftersales.system.mapper.WorkOrderFaultPartMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderFlowMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderCustomerMapper;
-import com.jasic.aftersales.system.mapper.WorkOrderNotifyEventMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderQuoteMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderRepairMapper;
 import com.jasic.aftersales.system.service.IFaultRepairConfigService;
 import com.jasic.aftersales.system.service.ISysConfigService;
 import com.jasic.aftersales.system.service.IWorkOrderService;
-import com.jasic.aftersales.system.service.WorkOrderNotifyEventService;
 import com.jasic.aftersales.system.service.WorkOrderParticipantService;
 import com.jasic.aftersales.system.service.WorkOrderPermissionService;
 import com.jasic.aftersales.system.service.WorkOrderUserParticipantService;
@@ -172,16 +168,10 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     private WorkOrderEvaluationMapper workOrderEvaluationMapper;
 
     @Resource
-    private WorkOrderNotifyEventMapper workOrderNotifyEventMapper;
-
-    @Resource
     private WorkOrderPermissionService workOrderPermissionService;
 
     @Resource
     private WorkOrderParticipantService workOrderParticipantService;
-
-    @Resource
-    private WorkOrderNotifyEventService workOrderNotifyEventService;
 
     @Resource
     private WorkOrderUserParticipantService workOrderUserParticipantService;
@@ -319,7 +309,6 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         detail.setRepairs(listRepairVos(workOrderId));
         detail.setFlows(listFlowVos(workOrderId));
         detail.setEvaluation(getEvaluationVo(workOrderId));
-        detail.setNotifyEvents(listNotifyEventVos(workOrderId));
         detail.setAvailableActions(workOrderPermissionService.listAvailableActions(entity));
         fillListSnapshot(detail, entity, buildCurrentValidQuoteAmountMap(Collections.singletonList(workOrderId)));
         detail.setEvaluateStatusLabel(resolveEvaluateStatusLabel(detail.getEvaluateStatus()));
@@ -682,7 +671,6 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
         recordUserParticipation(workOrder.getId(), workOrder.getCurrentAcceptCompanyId(), SecurityContext.getCurrentUserId(),
                 WorkOrderUserParticipationActionEnum.REPAIR, actionTime);
-        workOrderNotifyEventService.recordRepairFinished(workOrder, repairRemark);
     }
 
     /**
@@ -784,9 +772,6 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         saveFlow(workOrder.getId(), WorkOrderActionEnum.CLOSE.getCode(), beforeStatus, workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCloseReason());
-        if (canEvaluate) {
-            workOrderNotifyEventService.recordEvaluationInvite(workOrder);
-        }
     }
 
     /**
@@ -1244,38 +1229,6 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         vo.setContent(evaluation.getContent());
         vo.setCreateTime(evaluation.getCreateTime());
         return vo;
-    }
-
-    private List<WorkOrderNotifyEventVO> listNotifyEventVos(Long workOrderId) {
-        LambdaQueryWrapper<WorkOrderNotifyEvent> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(WorkOrderNotifyEvent::getWorkOrderId, workOrderId)
-                .orderByDesc(WorkOrderNotifyEvent::getCreateTime);
-        List<WorkOrderNotifyEvent> events = workOrderNotifyEventMapper.selectList(wrapper);
-        if (events.isEmpty()) {
-            return Collections.emptyList();
-        }
-        Map<Long, String> companyNameMap = buildCompanyNameMap(
-                events.stream().map(WorkOrderNotifyEvent::getCompanyId).collect(Collectors.toSet())
-        );
-        List<WorkOrderNotifyEventVO> result = new ArrayList<>();
-        for (WorkOrderNotifyEvent event : events) {
-            WorkOrderNotifyEventVO vo = new WorkOrderNotifyEventVO();
-            vo.setId(event.getId());
-            vo.setCompanyId(event.getCompanyId());
-            vo.setCompanyName(companyNameMap.get(event.getCompanyId()));
-            vo.setEventType(event.getEventType());
-            vo.setTriggerNode(event.getTriggerNode());
-            vo.setReceiverType(event.getReceiverType());
-            vo.setReceiverId(event.getReceiverId());
-            vo.setTitleSnapshot(event.getTitleSnapshot());
-            vo.setContentSnapshot(event.getContentSnapshot());
-            vo.setSendStatus(event.getSendStatus());
-            vo.setSendTime(event.getSendTime());
-            vo.setFailReason(event.getFailReason());
-            vo.setCreateTime(event.getCreateTime());
-            result.add(vo);
-        }
-        return result;
     }
 
     private String resolveActionName(String actionType) {

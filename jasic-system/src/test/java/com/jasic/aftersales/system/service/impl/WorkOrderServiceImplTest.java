@@ -55,7 +55,6 @@ import com.jasic.aftersales.system.mapper.WorkOrderQuoteMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderRepairMapper;
 import com.jasic.aftersales.system.service.IFaultRepairConfigService;
 import com.jasic.aftersales.system.service.ISysConfigService;
-import com.jasic.aftersales.system.service.WorkOrderNotifyEventService;
 import com.jasic.aftersales.system.service.WorkOrderParticipantService;
 import com.jasic.aftersales.system.service.WorkOrderPermissionService;
 import com.jasic.aftersales.system.service.WorkOrderUserParticipantService;
@@ -759,11 +758,6 @@ public class WorkOrderServiceImplTest {
                 return true;
             }
         });
-        setField(service, "workOrderNotifyEventService", new WorkOrderNotifyEventService() {
-            @Override
-            public void recordRepairFinished(WorkOrder target, String detail) {
-            }
-        });
         setField(service, "workOrderUserParticipantService", participantRecorder);
 
         WorkOrderRepairDTO dto = new WorkOrderRepairDTO();
@@ -798,7 +792,6 @@ public class WorkOrderServiceImplTest {
         workOrder.setFaultDesc("涓绘澘鏁呴殰");
         List<WorkOrderFlow> insertedFlows = new ArrayList<>();
         int[] updateCount = new int[1];
-        int[] notifyCount = new int[1];
         UserParticipantRecorder participantRecorder = new UserParticipantRecorder();
 
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
@@ -814,12 +807,6 @@ public class WorkOrderServiceImplTest {
             @Override
             public boolean canSaveRepair(WorkOrder target) {
                 return true;
-            }
-        });
-        setField(service, "workOrderNotifyEventService", new WorkOrderNotifyEventService() {
-            @Override
-            public void recordRepairFinished(WorkOrder target, String detail) {
-                notifyCount[0]++;
             }
         });
         setField(service, "workOrderUserParticipantService", participantRecorder);
@@ -841,7 +828,6 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(1, insertedFlows.size());
         Assert.assertEquals("REPAIR_FINISH", insertedFlows.get(0).getActionType());
         Assert.assertEquals(WorkOrderStatusConstants.MainStatus.COMPLETED, insertedFlows.get(0).getAfterStatus());
-        Assert.assertEquals(1, notifyCount[0]);
         Assert.assertEquals(Collections.singletonList("3-101-REPAIR"), participantRecorder.records);
     }
 
@@ -1073,8 +1059,6 @@ public class WorkOrderServiceImplTest {
         currentQuote.setWorkOrderId(workOrder.getId());
         currentQuote.setFaultJudge("有故障");
         currentQuote.setIsCurrentValid(1);
-        int[] inviteCount = new int[1];
-
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, new int[1]));
         setField(service, "workOrderQuoteMapper", createQuoteMapperProxy(Collections.singletonList(currentQuote)));
@@ -1083,12 +1067,6 @@ public class WorkOrderServiceImplTest {
             @Override
             public boolean canClose(WorkOrder target) {
                 return true;
-            }
-        });
-        setField(service, "workOrderNotifyEventService", new WorkOrderNotifyEventService() {
-            @Override
-            public void recordEvaluationInvite(WorkOrder target) {
-                inviteCount[0]++;
             }
         });
         setField(service, "sysFileService", createNoopProxy(com.jasic.aftersales.system.service.SysFileService.class, "replaceBizFiles"));
@@ -1112,7 +1090,6 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals("回寄", workOrder.getReturnMethod());
         Assert.assertNull(workOrder.getReturnExpressNo());
         Assert.assertEquals("客户要求回寄", workOrder.getCloseReason());
-        Assert.assertEquals(1, inviteCount[0]);
     }
 
     @Test
@@ -1126,8 +1103,6 @@ public class WorkOrderServiceImplTest {
         currentQuote.setFaultJudge("无故障");
         currentQuote.setIsCurrentValid(1);
         int[] updateCount = new int[1];
-        int[] inviteCount = new int[1];
-
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, updateCount));
         setField(service, "workOrderQuoteMapper", createQuoteMapperProxy(Collections.singletonList(currentQuote)));
@@ -1136,12 +1111,6 @@ public class WorkOrderServiceImplTest {
             @Override
             public boolean canClose(WorkOrder target) {
                 return true;
-            }
-        });
-        setField(service, "workOrderNotifyEventService", new WorkOrderNotifyEventService() {
-            @Override
-            public void recordEvaluationInvite(WorkOrder target) {
-                inviteCount[0]++;
             }
         });
         setField(service, "sysFileService", createNoopProxy(com.jasic.aftersales.system.service.SysFileService.class, "replaceBizFiles"));
@@ -1163,7 +1132,6 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(WorkOrderStatusConstants.EvaluateStatus.NOT_OPEN, workOrder.getEvaluateStatus());
         Assert.assertEquals("自提", workOrder.getReturnMethod());
         Assert.assertEquals("无故障，客户自提", workOrder.getCloseReason());
-        Assert.assertEquals(0, inviteCount[0]);
     }
 
     @Test
@@ -1176,8 +1144,6 @@ public class WorkOrderServiceImplTest {
         currentQuote.setWorkOrderId(workOrder.getId());
         currentQuote.setFaultJudge("有故障");
         currentQuote.setIsCurrentValid(1);
-        int[] inviteCount = new int[1];
-
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, new int[1]));
         setField(service, "workOrderQuoteMapper", createQuoteMapperProxy(Collections.singletonList(currentQuote)));
@@ -1186,12 +1152,6 @@ public class WorkOrderServiceImplTest {
             @Override
             public boolean canClose(WorkOrder target) {
                 return true;
-            }
-        });
-        setField(service, "workOrderNotifyEventService", new WorkOrderNotifyEventService() {
-            @Override
-            public void recordEvaluationInvite(WorkOrder target) {
-                inviteCount[0]++;
             }
         });
         setField(service, "sysFileService", createNoopProxy(com.jasic.aftersales.system.service.SysFileService.class, "replaceBizFiles"));
@@ -1210,7 +1170,6 @@ public class WorkOrderServiceImplTest {
 
         Assert.assertEquals(WorkOrderStatusConstants.MainStatus.CLOSED, workOrder.getMainStatus());
         Assert.assertEquals(WorkOrderStatusConstants.EvaluateStatus.PENDING_EVALUATE, workOrder.getEvaluateStatus());
-        Assert.assertEquals(1, inviteCount[0]);
     }
 
     @Test
