@@ -1439,6 +1439,12 @@ export default {
       if (this.createForm.barcodeQueried && normalizedBarcode !== this.createForm.queriedBarcode) {
         this.resetCreateQueryState()
       }
+    },
+    '$route.query.detailId': {
+      immediate: true,
+      handler(detailId) {
+        this.syncDetailFromRoute(detailId)
+      }
     }
   },
   created() {
@@ -2485,9 +2491,23 @@ export default {
       this.actionRepairFaultOptions = []
       this.actionRepairConfigLoading = false
       this.getList()
+      this.$store.dispatch('notify/fetchTodoCount').catch(() => {})
       if (shouldReloadDetail && workOrderId) {
         this.openDetail(workOrderId)
       }
+    },
+    syncDetailFromRoute(detailId) {
+      const workOrderId = Number(detailId)
+      if (!Number.isFinite(workOrderId) || workOrderId <= 0) {
+        return
+      }
+      if (this.detailLoading) {
+        return
+      }
+      if (this.detailVisible && this.detail && String(this.detail.id) === String(workOrderId)) {
+        return
+      }
+      this.openDetail(workOrderId)
     },
     statusLabel(status) {
       return STATUS_LABELS[status] || status || '-'

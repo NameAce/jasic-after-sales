@@ -328,13 +328,13 @@ public class SysContractServiceImpl implements ISysContractService {
     @Override
     public CrmFirstSecondRelationImportResultVO importFirstSecondFromCrm(CrmFirstSecondRelationImportDTO dto) {
         if (dto == null || CollUtil.isEmpty(dto.getSnapshotIds())) {
-            throw new ServiceException("璇烽€夋嫨瑕佸鍏ョ殑涓€浜岀骇鍏崇郴");
+            throw new ServiceException("请选择要导入的一二级关系");
         }
         Set<Long> snapshotIds = dto.getSnapshotIds().stream()
                 .filter(Objects::nonNull)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         if (CollUtil.isEmpty(snapshotIds)) {
-            throw new ServiceException("璇烽€夋嫨瑕佸鍏ョ殑涓€浜岀骇鍏崇郴");
+            throw new ServiceException("请选择要导入的一二级关系");
         }
 
         LambdaQueryWrapper<CrmFirstSecondRelationSnapshot> wrapper = new LambdaQueryWrapper<>();

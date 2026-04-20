@@ -1,0 +1,280 @@
+package com.jasic.aftersales.system.service.impl;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.jasic.aftersales.common.exception.ServiceException;
+import com.jasic.aftersales.system.notify.domain.entity.SysNotifyMessage;
+import com.jasic.aftersales.system.notify.domain.entity.SysNotifyMessageLog;
+import com.jasic.aftersales.system.notify.domain.enums.NotifyActionTypeEnum;
+import com.jasic.aftersales.system.notify.domain.enums.NotifyTodoStatusEnum;
+import com.jasic.aftersales.system.notify.domain.query.NotifyMessageQuery;
+import com.jasic.aftersales.system.notify.domain.vo.NotifyMessagePageVO;
+import com.jasic.aftersales.system.notify.mapper.SysNotifyMessageMapper;
+import com.jasic.aftersales.system.notify.service.NotifyMessageLogService;
+import com.jasic.aftersales.system.notify.service.impl.NotifyMessageServiceImpl;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.apache.ibatis.session.Configuration;
+import org.junit.Assert;
+import org.junit.Test;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * NotifyMessageServiceImpl tests.
+ */
+public class NotifyMessageServiceImplTest {
+
+    @Test
+    public void shouldResolveTodoStatusesAsPendingAndRead() throws Exception {
+        NotifyMessageServiceImpl service = new NotifyMessageServiceImpl();
+
+        List<String> statuses = invokeResolveBoxStatuses(service, "TODO");
+
+        Assert.assertEquals(Arrays.asList(
+                NotifyTodoStatusEnum.PENDING.getCode(),
+                NotifyTodoStatusEnum.READ.getCode()
+        ), statuses);
+    }
+
+    @Test
+    public void shouldResolveHistoryStatusesAsDoneAndInvalid() throws Exception {
+        NotifyMessageServiceImpl service = new NotifyMessageServiceImpl();
+
+        List<String> statuses = invokeResolveBoxStatuses(service, "HISTORY");
+
+        Assert.assertEquals(Arrays.asList(
+                NotifyTodoStatusEnum.DONE.getCode(),
+                NotifyTodoStatusEnum.INVALID.getCode()
+        ), statuses);
+    }
+
+    @Test
+    public void shouldFilterPageQueryByCurrentReceiverAndMapRows() throws Exception {
+        NotifyMessageServiceImpl service = new NotifyMessageServiceImpl();
+        MessageMapperState mapperState = new MessageMapperState();
+        mapperState.pageResult = new Page<>(1, 10);
+        mapperState.pageResult.setTotal(1L);
+        mapperState.pageResult.setRecords(Collections.singletonList(buildMessage(11L, 200L, NotifyTodoStatusEnum.PENDING.getCode())));
+        setField(service, "sysNotifyMessageMapper", createMapperProxy(mapperState));
+        setField(service, "notifyMessageLogService", new MemoryNotifyMessageLogService());
+        initTableInfo();
+
+        NotifyMessageQuery query = new NotifyMessageQuery();
+        query.setReceiverId(200L);
+        query.setBox("TODO");
+        query.setPageNum(1);
+        query.setPageSize(10);
+
+        List<NotifyMessagePageVO> rows = service.listPage(query).getRecords();
+
+        Assert.assertEquals(1, rows.size());
+        Assert.assertEquals(Long.valueOf(11L), rows.get(0).getId());
+        Assert.assertNotNull(mapperState.pageWrapper);
+        Assert.assertTrue(mapperState.pageWrapper.getSqlSegment().contains("ORDER BY create_time DESC,id DESC"));
+    }
+
+    @Test
+    public void shouldCountActiveTodo() throws Exception {
+        NotifyMessageServiceImpl service = new NotifyMessageServiceImpl();
+        MessageMapperState mapperState = new MessageMapperState();
+        mapperState.countResult = 3L;
+        setField(service, "sysNotifyMessageMapper", createMapperProxy(mapperState));
+        setField(service, "notifyMessageLogService", new MemoryNotifyMessageLogService());
+        initTableInfo();
+
+        Long count = service.countTodo(500L);
+
+        Assert.assertEquals(Long.valueOf(3L), count);
+        Assert.assertNotNull(mapperState.countWrapper);
+        Assert.assertTrue(mapperState.countWrapper.getSqlSegment().contains("todo_status"));
+    }
+
+    @Test
+    public void shouldRejectReadingOtherUsersMessage() throws Exception {
+        NotifyMessageServiceImpl service = new NotifyMessageServiceImpl();
+        MessageMapperState mapperState = new MessageMapperState();
+        mapperState.messageStore.put(1L, buildMessage(1L, 999L, NotifyTodoStatusEnum.PENDING.getCode()));
+        setField(service, "sysNotifyMessageMapper", createMapperProxy(mapperState));
+        MemoryNotifyMessageLogService logService = new MemoryNotifyMessageLogService();
+        setField(service, "notifyMessageLogService", logService);
+
+        try {
+            service.markRead(1L, 100L);
+            Assert.fail("expected permission isolation");
+        } catch (ServiceException ex) {
+            Assert.assertEquals("消息不存在", ex.getMessage());
+        }
+
+        Assert.assertEquals(0, mapperState.updateCount);
+        Assert.assertEquals(0, logService.logs.size());
+    }
+
+    @Test
+    public void shouldMarkOwnPendingMessageReadAndWriteLog() throws Exception {
+        NotifyMessageServiceImpl service = new NotifyMessageServiceImpl();
+        MessageMapperState mapperState = new MessageMapperState();
+        mapperState.messageStore.put(2L, buildMessage(2L, 100L, NotifyTodoStatusEnum.PENDING.getCode()));
+        setField(service, "sysNotifyMessageMapper", createMapperProxy(mapperState));
+        MemoryNotifyMessageLogService logService = new MemoryNotifyMessageLogService();
+        setField(service, "notifyMessageLogService", logService);
+        initTableInfo();
+
+        service.markRead(2L, 100L);
+
+        Assert.assertEquals(1, mapperState.updateCount);
+        Assert.assertEquals(NotifyTodoStatusEnum.READ.getCode(), mapperState.messageStore.get(2L).getTodoStatus());
+        Assert.assertNotNull(mapperState.messageStore.get(2L).getReadTime());
+        Assert.assertEquals(1, logService.logs.size());
+        Assert.assertEquals(NotifyActionTypeEnum.READ.getCode(), logService.logs.get(0).getActionType());
+    }
+
+    private void initTableInfo() {
+        if (TableInfoHelper.getTableInfo(SysNotifyMessage.class) != null) {
+            return;
+        }
+        Configuration configuration = new Configuration();
+        configuration.setMapUnderscoreToCamelCase(true);
+        MapperBuilderAssistant assistant = new MapperBuilderAssistant(configuration, "test");
+        assistant.setCurrentNamespace(SysNotifyMessageMapper.class.getName());
+        TableInfoHelper.initTableInfo(assistant, SysNotifyMessage.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> invokeResolveBoxStatuses(NotifyMessageServiceImpl service, String box) throws Exception {
+        Method method = NotifyMessageServiceImpl.class.getDeclaredMethod("resolveBoxStatuses", String.class);
+        method.setAccessible(true);
+        return (List<String>) method.invoke(service, box);
+    }
+
+    private SysNotifyMessageMapper createMapperProxy(MessageMapperState state) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                String name = method.getName();
+                if ("selectPage".equals(name)) {
+                    state.pageWrapper = (LambdaQueryWrapper<SysNotifyMessage>) args[1];
+                    return state.pageResult;
+                }
+                if ("selectCount".equals(name)) {
+                    state.countWrapper = (LambdaQueryWrapper<SysNotifyMessage>) args[0];
+                    return state.countResult;
+                }
+                if ("selectById".equals(name)) {
+                    state.lastMessageId = (Long) args[0];
+                    return state.messageStore.get(args[0]);
+                }
+                if ("update".equals(name)) {
+                    state.updateCount++;
+                    SysNotifyMessage message = state.messageStore.get(state.lastMessageId);
+                    if (message != null && NotifyTodoStatusEnum.PENDING.getCode().equals(message.getTodoStatus())) {
+                        message.setTodoStatus(NotifyTodoStatusEnum.READ.getCode());
+                        message.setReadTime(LocalDateTime.now());
+                        return 1;
+                    }
+                    return 0;
+                }
+                if ("selectList".equals(name)) {
+                    return Collections.emptyList();
+                }
+                if ("insert".equals(name)) {
+                    return 1;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (SysNotifyMessageMapper) Proxy.newProxyInstance(
+                SysNotifyMessageMapper.class.getClassLoader(),
+                new Class[]{SysNotifyMessageMapper.class},
+                handler
+        );
+    }
+
+    private Object defaultValue(Class<?> type) {
+        if (type == null || !type.isPrimitive()) {
+            return null;
+        }
+        if (boolean.class.equals(type)) {
+            return false;
+        }
+        if (long.class.equals(type)) {
+            return 0L;
+        }
+        if (int.class.equals(type)) {
+            return 0;
+        }
+        if (short.class.equals(type)) {
+            return (short) 0;
+        }
+        if (byte.class.equals(type)) {
+            return (byte) 0;
+        }
+        if (float.class.equals(type)) {
+            return 0F;
+        }
+        if (double.class.equals(type)) {
+            return 0D;
+        }
+        if (char.class.equals(type)) {
+            return '\0';
+        }
+        return null;
+    }
+
+    private SysNotifyMessage buildMessage(Long id, Long receiverId, String todoStatus) {
+        SysNotifyMessage message = new SysNotifyMessage();
+        message.setId(id);
+        message.setReceiverId(receiverId);
+        message.setTodoStatus(todoStatus);
+        message.setTitle("message-" + id);
+        message.setSummary("summary-" + id);
+        message.setBizType("WORK_ORDER");
+        message.setBizId(88L);
+        message.setBizNo("WO202604180001");
+        message.setRouteType("WORK_ORDER_DETAIL");
+        message.setRouteValue("88");
+        message.setCreateTime(LocalDateTime.of(2026, 4, 18, 10, 20, 30));
+        return message;
+    }
+
+    private void setField(Object target, String fieldName, Object value) throws Exception {
+        Field field = target.getClass().getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(target, value);
+    }
+
+    private static class MessageMapperState {
+        private final Map<Long, SysNotifyMessage> messageStore = new LinkedHashMap<>();
+        private Page<SysNotifyMessage> pageResult;
+        private Long countResult;
+        private LambdaQueryWrapper<SysNotifyMessage> pageWrapper;
+        private LambdaQueryWrapper<SysNotifyMessage> countWrapper;
+        private int updateCount;
+        private Long lastMessageId;
+    }
+
+    private static class MemoryNotifyMessageLogService implements NotifyMessageLogService {
+        private final List<SysNotifyMessageLog> logs = new ArrayList<>();
+
+        @Override
+        public Long createLog(SysNotifyMessageLog notifyMessageLog) {
+            logs.add(notifyMessageLog);
+            return (long) logs.size();
+        }
+
+        @Override
+        public List<SysNotifyMessageLog> listByQuery(com.jasic.aftersales.system.notify.domain.query.NotifyMessageLogQuery query) {
+            return Collections.emptyList();
+        }
+    }
+}

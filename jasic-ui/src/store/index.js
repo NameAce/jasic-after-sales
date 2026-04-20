@@ -1,6 +1,7 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
 import user from './modules/user'
+import notify from './modules/notify'
 import permission from './modules/permission'
 
 Vue.use(Vuex)
@@ -11,11 +12,12 @@ const getters = {
   perms: state => state.user.perms,
   companies: state => state.user.companies,
   currentCompanyId: state => state.user.currentCompanyId,
+  notifyTodoCount: state => state.notify.todoCount,
   routes: state => state.permission.routes,
   addRoutes: state => state.permission.addRoutes
 }
 
 export default new Vuex.Store({
-  modules: { user, permission },
+  modules: { user, notify, permission },
   getters
 })

@@ -96,18 +96,20 @@ const actions = {
     })
   },
 
-  logout({ commit }) {
+  logout({ commit, dispatch }) {
     return new Promise(resolve => {
       logoutApi().finally(() => {
         clearAuthState(commit)
+        dispatch('notify/resetState', null, { root: true })
         resolve()
       })
     })
   },
 
-  resetToken({ commit }) {
+  resetToken({ commit, dispatch }) {
     return new Promise(resolve => {
       clearAuthState(commit)
+      dispatch('notify/resetState', null, { root: true })
       resolve()
     })
   }

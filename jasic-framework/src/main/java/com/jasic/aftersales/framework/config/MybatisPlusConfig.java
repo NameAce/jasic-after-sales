@@ -33,7 +33,11 @@ import java.time.LocalDateTime;
 @Slf4j
 @EnableAsync
 @Configuration
-@MapperScan({"com.jasic.aftersales.system.mapper", "com.jasic.aftersales.customer.mapper"})
+@MapperScan({
+        "com.jasic.aftersales.system.mapper",
+        "com.jasic.aftersales.system.notify.mapper",
+        "com.jasic.aftersales.customer.mapper"
+})
 public class MybatisPlusConfig implements MetaObjectHandler {
 
     /**

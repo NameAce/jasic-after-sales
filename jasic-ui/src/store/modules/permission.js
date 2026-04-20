@@ -62,6 +62,19 @@ export const constantRoutes = [
         meta: { title: '账号中心' }
       }
     ]
+  },
+  {
+    path: '/notify',
+    component: Layout,
+    hidden: true,
+    children: [
+      {
+        path: 'center',
+        name: 'NotifyCenter',
+        component: () => import('@/views/notify/index.vue'),
+        meta: { title: '消息中心' }
+      }
+    ]
   }
 ]
 

@@ -63,6 +63,14 @@ import com.jasic.aftersales.system.domain.vo.WorkOrderStatusCountVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderUserOptionVO;
 import com.jasic.aftersales.system.domain.vo.SysFileItemVO;
 import com.jasic.aftersales.system.domain.vo.SysCompanySimpleVO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyAssignedEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyReadByBizDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoCompleteDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoInvalidateDTO;
+import com.jasic.aftersales.system.notify.domain.enums.NotifyBizTypeEnum;
+import com.jasic.aftersales.system.notify.domain.enums.NotifyInvalidReasonEnum;
+import com.jasic.aftersales.system.notify.service.WorkOrderNotifyFacade;
+import com.jasic.aftersales.system.notify.support.NotifyConstants;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
 import com.jasic.aftersales.system.mapper.HqFirstContractMapper;
 import com.jasic.aftersales.system.mapper.MachineBarcodeMapper;
@@ -215,6 +223,9 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     @Resource
     private SysFileService sysFileService;
 
+    @Resource
+    private WorkOrderNotifyFacade workOrderNotifyFacade;
+
     /**
      * 分页查询工单列表，并补齐列表页所需的状态快照字段。
      *
@@ -304,6 +315,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         if (detail == null) {
             throw new ServiceException("工单详情不存在");
         }
+        markWorkOrderTodoRead(workOrderId);
         detail.setParticipants(workOrderMapper.selectParticipantList(workOrderId));
         detail.setQuotes(listQuoteVos(workOrderId));
         detail.setRepairs(listRepairVos(workOrderId));
@@ -525,6 +537,8 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             throw new ServiceException("当前工单不允许派单");
         }
         validateAssignedUser(dto.getAssignedUserId(), workOrder.getCurrentAcceptCompanyId());
+        Long oldAssignedUserId = workOrder.getAssignedUserId();
+        String operationId = IdUtil.fastSimpleUUID();
         String beforeStatus = workOrder.getMainStatus();
         workOrder.setAssignedUserId(dto.getAssignedUserId());
         workOrder.setMainStatus(WorkOrderStatusFlow.afterAssign());
@@ -532,6 +546,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         saveFlow(workOrder.getId(), WorkOrderActionEnum.ASSIGN.getCode(), beforeStatus, workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                 workOrder.getCurrentAcceptCompanyId(), null);
+        publishAssignedNotifyEvent(workOrder, oldAssignedUserId, dto.getAssignedUserId(), operationId);
     }
 
     /**
@@ -592,6 +607,10 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             saveFlow(workOrder.getId(), WorkOrderActionEnum.CLOSE.getCode(), acceptedStatus, workOrder.getMainStatus(),
                     workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                     workOrder.getCurrentAcceptCompanyId(), workOrder.getCloseReason());
+        }
+        completeWorkOrderTodoByTechAccept(workOrder.getId());
+        if (FAULT_JUDGE_NO_FAULT.equals(faultJudge)) {
+            invalidateWorkOrderTodo(workOrder.getId(), NotifyInvalidReasonEnum.WORK_ORDER_CLOSED.getCode());
         }
     }
 
@@ -671,6 +690,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
         recordUserParticipation(workOrder.getId(), workOrder.getCurrentAcceptCompanyId(), SecurityContext.getCurrentUserId(),
                 WorkOrderUserParticipationActionEnum.REPAIR, actionTime);
+        invalidateWorkOrderTodo(workOrder.getId(), NotifyInvalidReasonEnum.WORK_ORDER_COMPLETED.getCode());
     }
 
     /**
@@ -772,6 +792,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         saveFlow(workOrder.getId(), WorkOrderActionEnum.CLOSE.getCode(), beforeStatus, workOrder.getMainStatus(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCloseReason());
+        invalidateWorkOrderTodo(workOrder.getId(), NotifyInvalidReasonEnum.WORK_ORDER_CLOSED.getCode());
     }
 
     /**
@@ -1247,6 +1268,60 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             throw new ServiceException("工单不存在");
         }
         return workOrder;
+    }
+
+    private void publishAssignedNotifyEvent(WorkOrder workOrder, Long oldAssignedUserId, Long newAssignedUserId, String operationId) {
+        String assignType = resolveAssignType(oldAssignedUserId, newAssignedUserId);
+        if (assignType == null) {
+            return;
+        }
+        NotifyAssignedEventDTO eventDTO = new NotifyAssignedEventDTO();
+        eventDTO.setWorkOrderId(workOrder.getId());
+        eventDTO.setOrderNo(workOrder.getOrderNo());
+        eventDTO.setOldAssignedUserId(oldAssignedUserId);
+        eventDTO.setNewAssignedUserId(newAssignedUserId);
+        eventDTO.setOperatorId(SecurityContext.getCurrentUserId());
+        eventDTO.setAssignType(assignType);
+        eventDTO.setOperationId(operationId);
+        workOrderNotifyFacade.publishAssignedEvent(eventDTO);
+    }
+
+    private String resolveAssignType(Long oldAssignedUserId, Long newAssignedUserId) {
+        if (newAssignedUserId == null) {
+            return null;
+        }
+        if (oldAssignedUserId == null) {
+            return NotifyConstants.ASSIGN_TYPE_ASSIGN;
+        }
+        if (oldAssignedUserId.equals(newAssignedUserId)) {
+            return null;
+        }
+        return NotifyConstants.ASSIGN_TYPE_TRANSFER;
+    }
+
+    private void markWorkOrderTodoRead(Long workOrderId) {
+        NotifyReadByBizDTO dto = new NotifyReadByBizDTO();
+        dto.setBizType(NotifyBizTypeEnum.WORK_ORDER.getCode());
+        dto.setBizId(workOrderId);
+        dto.setReceiverId(SecurityContext.getCurrentUserId());
+        workOrderNotifyFacade.markReadByBiz(dto);
+    }
+
+    private void completeWorkOrderTodoByTechAccept(Long workOrderId) {
+        NotifyTodoCompleteDTO dto = new NotifyTodoCompleteDTO();
+        dto.setBizType(NotifyBizTypeEnum.WORK_ORDER.getCode());
+        dto.setBizId(workOrderId);
+        dto.setReceiverId(SecurityContext.getCurrentUserId());
+        dto.setActionCode(NotifyConstants.ACTION_TECH_ACCEPT);
+        workOrderNotifyFacade.completeTodoByBizAndReceiver(dto);
+    }
+
+    private void invalidateWorkOrderTodo(Long workOrderId, String invalidReason) {
+        NotifyTodoInvalidateDTO dto = new NotifyTodoInvalidateDTO();
+        dto.setBizType(NotifyBizTypeEnum.WORK_ORDER.getCode());
+        dto.setBizId(workOrderId);
+        dto.setInvalidReason(invalidReason);
+        workOrderNotifyFacade.invalidateTodoByBiz(dto);
     }
 
     /**

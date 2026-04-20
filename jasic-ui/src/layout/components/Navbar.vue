@@ -13,6 +13,12 @@
       </el-breadcrumb>
     </div>
     <div class="right-menu">
+      <el-badge :value="notifyBadgeValue" :hidden="!notifyTodoCount" class="notify-entry__badge">
+        <span class="notify-entry" @click="goNotifyCenter">
+          <i class="el-icon-bell" />
+          消息中心
+        </span>
+      </el-badge>
       <el-dropdown v-if="companies.length > 1" trigger="click" @command="handleSwitchCompany" style="margin-right: 16px;">
         <span class="el-dropdown-link company-switcher">
           {{ currentCompanyName }}<i class="el-icon-arrow-down el-icon--right" />
@@ -55,17 +61,29 @@ export default {
   props: {
     isCollapse: { type: Boolean, default: false }
   },
+  created() {
+    this.refreshNotifyCount()
+  },
   computed: {
-    ...mapGetters(['userInfo', 'companies', 'currentCompanyId']),
+    ...mapGetters(['userInfo', 'companies', 'currentCompanyId', 'notifyTodoCount']),
     breadcrumbs() {
       return this.$route.matched.filter(item => item.meta && item.meta.title)
     },
     currentCompanyName() {
       const found = this.companies.find(c => c.id === this.currentCompanyId)
       return found ? found.companyName : '当前公司'
+    },
+    notifyBadgeValue() {
+      return this.notifyTodoCount > 99 ? '99+' : this.notifyTodoCount
     }
   },
   methods: {
+    refreshNotifyCount() {
+      this.$store.dispatch('notify/fetchTodoCount').catch(() => {})
+    },
+    goNotifyCenter() {
+      this.$router.push('/notify/center').catch(() => {})
+    },
     handleCommand(command) {
       if (command === 'accountCenter') {
         this.$router.push('/account/profile').catch(() => {})
@@ -114,6 +132,23 @@ export default {
   .right-menu {
     display: flex;
     align-items: center;
+
+    .notify-entry__badge {
+      margin-right: 16px;
+    }
+
+    .notify-entry {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      color: #5a5e66;
+      font-size: 14px;
+
+      &:hover {
+        color: #409EFF;
+      }
+    }
 
     .el-dropdown-link {
       cursor: pointer;

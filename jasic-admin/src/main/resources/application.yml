@@ -66,6 +66,8 @@ knife4j:
           - com.jasic.aftersales
 
 jasic:
+  notify:
+    consume-interval-seconds: 30
   amap:
     geocode:
       enabled: true
