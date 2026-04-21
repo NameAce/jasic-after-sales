@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 import type { VoiceItem } from '@/components/VoiceInputField/VoiceInputField.vue'
-import type { BarcodeInfoDTO } from '@/api/order'
+import type { BarcodeInfoDTO } from '@/api/workOrder'
 
 const KEY_OTHER = 'repairFormDraft_other_v1'
 const KEY_JASIC = 'repairFormDraft_jasic_v1'

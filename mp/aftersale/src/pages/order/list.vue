@@ -212,11 +212,11 @@
   import { ref, computed } from 'vue'
   import { onLoad, onShow } from '@dcloudio/uni-app'
   import {
-    getOrderListAPI,
+    listCustomerWorkOrder,
     mapWorkOrderListRecordToItem,
-    uploadLogisticsAPI,
-    type OrderListItemDTO
-  } from '@/api/order'
+    updateCustomerWorkOrderSenderVoucher,
+    type OrderListItem
+  } from '@/api/workOrder'
   import { uploadCustomerFile } from '@/api/file'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import { themeColors } from '@/constants/theme'
@@ -235,7 +235,7 @@
   // 当前工单状态标签索引
   const currentTab = ref(0)
   // 工单列表
-  const orderList = ref<OrderListItemDTO[]>([])
+  const orderList = ref<OrderListItem[]>([])
   // 分页状态
   const pageNum = ref(1)
   const pageSize = 10
@@ -251,7 +251,7 @@
    * @param order - 工单
    * @returns boolean
    */
-  function hasBarcode(order: OrderListItemDTO) {
+  function hasBarcode(order: OrderListItem) {
     return Boolean(order.qrCode?.trim())
   }
 
@@ -261,19 +261,19 @@
   }
 
   /** 非佳士：有型号即展示；佳士：仍仅在有条码时展示型号 */
-  function showModelTag(order: OrderListItemDTO) {
+  function showModelTag(order: OrderListItem) {
     if (order.isJasic) return hasBarcode(order)
     return Boolean(order.modelName?.trim())
   }
 
   /** 列表状态角标：优先接口 `displayStatus`，与映射后的 `status` 对齐样式 */
-  function orderStatusText(order: OrderListItemDTO) {
+  function orderStatusText(order: OrderListItem) {
     const fromApi = String(order.displayStatus ?? '').trim()
     return fromApi || order.status
   }
 
   /** 品牌类型：优先接口 `brandTypeLabel`（如佳士品牌），否则用佳士/非佳士简写 */
-  function orderBrandTypeText(order: OrderListItemDTO) {
+  function orderBrandTypeText(order: OrderListItem) {
     const fromApi = String(order.brandTypeLabel ?? '').trim()
     return fromApi || (order.isJasic ? '佳士' : '非佳士')
   }
@@ -318,14 +318,14 @@
       loadingMore.value = true
     }
     try {
-      const res = await getOrderListAPI({
+      const res = await listCustomerWorkOrder({
         pageNum: targetPage,
         pageSize,
         tabStatus: tabStatusMap[currentTab.value]
       })
-      const records = res.result?.records ?? []
+      const records = res.data?.records ?? []
       const mapped = records.map(mapWorkOrderListRecordToItem)
-      const nextTotal = Number(res.result?.total ?? 0)
+      const nextTotal = Number(res.data?.total ?? 0)
       total.value = Number.isFinite(nextTotal) ? nextTotal : 0
       orderList.value = reset ? mapped : [...orderList.value, ...mapped]
       const loadedCount = orderList.value.length
@@ -480,12 +480,12 @@
         uni.showToast({ title: '工单ID无效，请重试', icon: 'none', duration: 1800 })
         return
       }
-      await uploadLogisticsAPI({
+      await updateCustomerWorkOrderSenderVoucher({
         senderVoucherFileIds: [fileId],
         workOrderId
       })
       uni.hideLoading()
-      uni.showToast({ title: '上传成功', icon: 'success' })
+      uni.showToast({ title: '上传成功', icon: 'none', duration: 1500 })
       closeUploadModal()
       reloadOrderList()
     } catch {

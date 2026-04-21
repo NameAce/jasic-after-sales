@@ -76,13 +76,11 @@
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import OrderCardList from '@/components/OrderCardList/OrderCardList.vue'
   import TabBar from '@/components/TabBar/TabBar.vue'
-  import { fetchBranchList, fetchOrdersByBranch } from '@/api/order'
+  import { fetchBranchList, fetchOrdersByBranch } from '@/api/workOrder'
   import type { OrderListItem } from '@/models/order'
   import { ORDER_STATUS_TEXT_MAP } from '@/utils/orderStatus'
   import { hasInboundTransferFromSite } from '@/utils/orderTransfer'
   import { useScrollRefresher } from '@/utils/useScrollRefresher'
-  import { isWorkOrderPendingTechAcceptMainStatus } from '@/utils/workOrderMainStatus'
-
   // 网点名称
   const branchName = ref('')
   // 搜索关键词
@@ -171,10 +169,10 @@
   const stats = computed(() => {
     const all = orderList.value
     const pending = all.filter(
-      (o) => o.status === 'pending' && isWorkOrderPendingTechAcceptMainStatus(o.mainStatus)
+      (o) => o.status === 'PENDING_TECH_ACCEPT'
     ).length
-    const processing = all.filter((o) => o.status === 'processing').length
-    const completed = all.filter((o) => o.status === 'completed' || o.status === 'closed').length
+    const processing = all.filter((o) => o.status === 'IN_PROGRESS').length
+    const completed = all.filter((o) => o.status === 'COMPLETED' || o.status === 'CLOSED').length
     return [
       { label: '总工单', value: all.length },
       { label: '待接单', value: pending },
@@ -210,10 +208,8 @@
    * @returns 状态文本
    */
   const listStatusText = (order: OrderListItem) => {
-    if (order.status === 'pending') {
-      if (isWorkOrderPendingTechAcceptMainStatus(order.mainStatus)) return '待接单'
-      return '待派单'
-    }
+    if (order.status === 'PENDING_TECH_ACCEPT') return '待接单'
+    if (order.status === 'PENDING_ASSIGN') return '待派单'
     return statusTextMap[order.status]
   }
 
@@ -224,11 +220,16 @@
     const q = searchQuery.value?.trim()
     const tab = activeTab.value
 
+    const tabToStatus: Record<Exclude<BranchDetailTab, 'all' | 'pending'>, OrderListItem['status']> = {
+      processing: 'IN_PROGRESS',
+      completed: 'COMPLETED',
+      closed: 'CLOSED',
+    }
+
     return orderList.value.filter((o) => {
       if (tab === 'pending') {
-        if (o.status !== 'pending' || !isWorkOrderPendingTechAcceptMainStatus(o.mainStatus))
-          return false
-      } else if (tab !== 'all' && o.status !== tab) return false
+        if (o.status !== 'PENDING_TECH_ACCEPT') return false
+      } else if (tab !== 'all' && o.status !== tabToStatus[tab]) return false
       if (!q) return true
       return (
         o.id.includes(q) ||

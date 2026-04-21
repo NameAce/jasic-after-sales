@@ -71,8 +71,7 @@
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import FormItemAnchor from '@/components/FormItemAnchor/FormItemAnchor.vue'
   import { triggerScrollIntoView } from '@/utils/formFieldScrollFocus'
-  import { createCustomerAddressAPI, updateCompanyAddressAPI } from '@/api/address'
-  import { unwrap } from '@/utils/http'
+  import { addCompanyAddress, updateCompanyAddress } from '@/api/companyAddress'
   import { loadAddresses, saveAddresses, type SavedAddress } from '@/utils/addressStorage'
   import { themeColors } from '@/theme/colors'
 
@@ -198,7 +197,7 @@
       uni.showLoading({ title: '保存中', mask: true })
       try {
         const fullAddress = `${form.province}${form.city}${form.county}${detail}`
-        await updateCompanyAddressAPI({
+        await updateCompanyAddress({
           id: idNum,
           address: fullAddress,
           contactName: name,
@@ -220,7 +219,7 @@
         if (idx >= 0) list[idx] = payload
         else list.unshift(payload)
         saveAddresses(list)
-        uni.showToast({ title: '已保存', icon: 'success', duration: 1500 })
+        uni.showToast({ title: '已保存', icon: 'none', duration: 1500 })
         setTimeout(() => uni.navigateBack(), 400)
       } catch {
         /* http 已 toast */
@@ -233,13 +232,13 @@
     uni.showLoading({ title: '保存中', mask: true })
     try {
       const fullAddressLine = `${form.province}${form.city}${form.county || ''}${detail}`
-      const res = await createCustomerAddressAPI({
+      const res = await addCompanyAddress({
         address: fullAddressLine,
         contactName: name,
         contactPhone: phone,
         isDefault: 0
       })
-      const serverId = String(unwrap(res))
+      const serverId = String(res.data)
       const payload: SavedAddress = {
         id: serverId,
         name,
@@ -251,7 +250,7 @@
       }
       list.unshift(payload)
       saveAddresses(list)
-      uni.showToast({ title: '已保存', icon: 'success', duration: 1500 })
+      uni.showToast({ title: '已保存', icon: 'none', duration: 1500 })
       setTimeout(() => uni.navigateBack(), 400)
     } catch {
       /* http 已 toast */

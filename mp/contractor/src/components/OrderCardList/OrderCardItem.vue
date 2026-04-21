@@ -4,7 +4,7 @@
       <view class="order-no">
         <text class="value">{{ order.orderNo || order.id }}</text>
       </view>
-      <view :class="['status-badge', order.status]">
+      <view :class="['status-badge', statusBadgeClass(order)]">
         <text class="text">{{ statusText(order) }}</text>
       </view>
     </view>
@@ -91,6 +91,14 @@
 
   // 定义状态文本
   const statusText = (order: OrderListItem) => props.statusText(order)
+  /** 将接口主状态映射到样式类：pending / processing / completed / closed */
+  const statusBadgeClass = (order: OrderListItem) => {
+    if (order.status === 'PENDING_ASSIGN' || order.status === 'PENDING_TECH_ACCEPT') return 'pending'
+    if (order.status === 'IN_PROGRESS') return 'processing'
+    if (order.status === 'COMPLETED') return 'completed'
+    if (order.status === 'CLOSED') return 'closed'
+    return 'pending'
+  }
   // 定义转单标签
   const showInboundTransferTag = (order: OrderListItem) => props.showInboundTransferTag(order)
   // 定义已转单标签

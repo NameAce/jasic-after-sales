@@ -59,10 +59,10 @@ export function mapNearbyToServicePoint(item: NearbyServiceCompanyDTO): ServiceP
 
 const DEFAULT_NEARBY_LIMIT = 20
 
-export const getNearbyServiceCompanyOptionsAPI = (params: NearbyServiceCompanyParams) => {
+export const listNearbyServiceCompanyOptions = (params: NearbyServiceCompanyParams) => {
   const { latitude, longitude, limit = DEFAULT_NEARBY_LIMIT } = params
   return http<NearbyServiceCompanyDTO[]>({
-    url: '/api/customer/work-order/nearby-service-company-options',
+    url: '/customer/work-order/nearby-service-company-options',
     method: 'GET',
     data: { latitude, longitude, limit },
   })

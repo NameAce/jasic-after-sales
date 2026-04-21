@@ -1,5 +1,7 @@
 /**
  * 从上传组件回显对象上解析服务端文件 ID（上传接口回填 fileId / id 后生效）
+ * @param item 上传组件回显对象
+ * @returns 文件ID
  */
 export function parseWorkOrderFileId(item: unknown): number | null {
   if (!item || typeof item !== 'object') return null
@@ -12,6 +14,11 @@ export function parseWorkOrderFileId(item: unknown): number | null {
   return null
 }
 
+/**
+ * 判断是否为视频媒体文件
+ * @param item 上传组件回显对象
+ * @returns 是否为视频媒体文件
+ */
 export function isVideoMediaItem(item: unknown): boolean {
   if (!item || typeof item !== 'object') return false
   const o = item as Record<string, unknown>
@@ -20,6 +27,11 @@ export function isVideoMediaItem(item: unknown): boolean {
   return /\.(mp4|mov|avi|webm|mkv)(\?|$)/i.test(url)
 }
 
+/**
+ * 分割故障媒体文件ID
+ * @param items 上传组件回显对象列表
+ * @returns 故障媒体文件ID列表
+ */
 export function partitionFaultMediaFileIds(
   items: unknown[]
 ): { faultImageFileIds: number[]; faultVideoFileIds: number[] } {
@@ -34,6 +46,11 @@ export function partitionFaultMediaFileIds(
   return { faultImageFileIds, faultVideoFileIds }
 }
 
+/**
+ * 收集寄件凭证文件ID
+ * @param items 上传组件回显对象列表
+ * @returns 寄件凭证文件ID列表
+ */
 export function collectVoucherFileIds(items: unknown[]): number[] {
   const ids: number[] = []
   for (const item of items) {
@@ -43,10 +60,20 @@ export function collectVoucherFileIds(items: unknown[]): number[] {
   return ids
 }
 
+/**
+ * 将未知对象转换为数组
+ * @param v 未知对象
+ * @returns 数组
+ */
 export function asUnknownArray(v: unknown): unknown[] {
   return Array.isArray(v) ? v : []
 }
 
+/**
+ * 收集语音文件ID
+ * @param list 上传组件回显对象列表
+ * @returns 语音文件ID列表
+ */
 export function collectVoiceFileIds(list: unknown[]): number[] {
   return list
     .map((it) => parseWorkOrderFileId(it))

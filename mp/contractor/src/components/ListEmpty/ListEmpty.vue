@@ -23,3 +23,48 @@
     }
   )
 </script>
+
+<style lang="scss" scoped>
+  @use '@/styles/mixins.scss' as *;
+  @use '@/styles/variables.scss' as *;
+
+  /* 与 order-pages.scss 中 `.list-empty` 规格保持一致；此处固化为组件 scoped 样式 */
+  .list-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 160rpx 64rpx 120rpx;
+    box-sizing: border-box;
+  }
+
+  .empty-icon-wrap {
+    width: 520rpx;
+    max-width: 92%;
+    height: 200rpx;
+    @include flex-center;
+    padding: 0 24rpx;
+    box-sizing: border-box;
+    margin-bottom: $space-lg;
+  }
+
+  .empty-list-illus {
+    width: 100%;
+    height: 160rpx;
+  }
+
+  .empty-title {
+    font-size: $font-lg;
+    font-weight: 600;
+    color: $text-slate-500;
+    margin-bottom: 12rpx;
+  }
+
+  .empty-desc {
+    font-size: 26rpx;
+    color: $text-slate-400;
+    line-height: 1.5;
+    text-align: center;
+  }
+</style>

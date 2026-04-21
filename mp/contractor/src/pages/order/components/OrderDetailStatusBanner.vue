@@ -22,7 +22,7 @@
 
 <script setup lang="ts">
   import { computed } from 'vue'
-  import type { OrderStatus } from '@/models/order'
+  import type { WorkOrderMainStatus } from '@/models/order'
   import { ORDER_STATUS_TEXT_MAP, getStatusDesc, getStepIndex } from '@/utils/orderStatus'
   import {
     statusBuildCircleIcon,
@@ -32,7 +32,7 @@
   } from '@/svgs'
 
   const props = defineProps<{
-    status: OrderStatus
+    status: WorkOrderMainStatus
   }>()
 
   const steps = ['待接单', '维修中', '已完成', '已关闭'] as const
@@ -43,13 +43,14 @@
 
   const statusIconSrc = computed(() => {
     switch (props.status) {
-      case 'pending':
+      case 'PENDING_ASSIGN':
+      case 'PENDING_TECH_ACCEPT':
         return statusPendingActionsIcon
-      case 'processing':
+      case 'IN_PROGRESS':
         return statusBuildCircleIcon
-      case 'completed':
+      case 'COMPLETED':
         return statusCheckCircleIcon
-      case 'closed':
+      case 'CLOSED':
         return statusTaskAltIcon
       default:
         return ''

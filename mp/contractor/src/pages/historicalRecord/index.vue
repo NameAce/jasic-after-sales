@@ -78,7 +78,7 @@
   import ListEmpty from '@/components/ListEmpty/ListEmpty.vue'
   import ListNoMore from '@/components/ListNoMore/ListNoMore.vue'
   import { onLoad } from '@dcloudio/uni-app'
-  import { fetchOrderRepairFaultRecords } from '@/api/order'
+  import { getWorkOrderRepairFaultRecords } from '@/api/workOrder'
   import { WORK_ORDER_REPAIR_FAULTS_HISTORY_STORAGE_KEY } from '@/constants/historicalRecord'
   import type { FaultPointRecord } from '@/models/order'
   import { previewImages, resolvePreviewableUrl } from '@/utils/mediaPreview'
@@ -166,7 +166,7 @@
     const orderId = decodeURIComponent(String(options?.orderId || '').trim())
     if (!orderId) return
     try {
-      records.value = await fetchOrderRepairFaultRecords(orderId)
+      records.value = await getWorkOrderRepairFaultRecords(orderId)
     } catch {
       /* 接口失败时保留上面从 storage 解析的列表 */
     }

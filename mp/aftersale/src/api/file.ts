@@ -1,4 +1,4 @@
-import { API_SUCCESS_CODE } from '@/utils/http'
+import { API_SUCCESS_CODE, resolveHttpUrl } from '@/utils/http'
 
 export interface SysFileUploadVO {
   contentType?: string
@@ -14,14 +14,10 @@ type UploadBody = {
   code?: string
   msg?: string
   data?: SysFileUploadVO
-  result?: SysFileUploadVO
 }
 
 function resolveUploadUrl(url: string): string {
-  if (/^https?:\/\//i.test(url)) return url
-  const base = String(import.meta.env.VITE_HTTP || '').replace(/\/$/, '')
-  if (!base) return url
-  return `${base}${url.startsWith('/') ? url : `/${url}`}`
+  return resolveHttpUrl(url)
 }
 
 function parseUploadResponse(raw: string | UploadBody): UploadBody {
@@ -39,7 +35,7 @@ export function uploadCustomerFile(filePath: string): Promise<SysFileUploadVO> {
   return new Promise((resolve, reject) => {
     const token = uni.getStorageSync('token') || ''
     uni.uploadFile({
-      url: resolveUploadUrl('/api/customer/file/upload'),
+      url: resolveUploadUrl('/customer/file/upload'),
       filePath,
       name: 'file',
       header: {
@@ -55,7 +51,7 @@ export function uploadCustomerFile(filePath: string): Promise<SysFileUploadVO> {
           reject(new Error(body.msg || '上传失败'))
           return
         }
-        const data = body.data ?? body.result
+        const data = body.data
         if (!data) {
           reject(new Error('上传返回为空'))
           return

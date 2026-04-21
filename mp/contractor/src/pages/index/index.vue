@@ -80,7 +80,7 @@
   import { Perms } from '@/utils/permissions'
   import { hqMenuIcon, personPinCircleIcon } from '@/svgs'
   import { useIndexWorkbench, type HqBranchRow } from './useIndexWorkbench'
-  import { assignWorkOrder, fetchAssignUserOptions } from '@/api/order'
+  import { assignWorkOrder, listAssignUserOptions } from '@/api/workOrder'
   import { getApiMessage } from '@/utils/http'
 
   const appStore = useAppStore()
@@ -202,7 +202,7 @@
     if (!Number.isFinite(workOrderId) || workOrderId <= 0) return
     try {
       uni.showLoading({ title: '加载可派单人员...' })
-      const list = await fetchAssignUserOptions(workOrderId)
+      const list = await listAssignUserOptions(workOrderId)
       if (String(currentOrderId.value).trim() !== openedFor) return
       const selfId = Number(userStore.userInfo?.id)
       const mapped: Technician[] = list.map((u) => ({
@@ -271,9 +271,9 @@
     try {
       const res = await assignWorkOrder({ workOrderId, assignedUserId })
       if (isSelf) {
-        uni.showToast({ title: '已派单给自己，可在「待接单」中接单', icon: 'none' })
+        uni.showToast({ title: '已派单给自己，可在「待接单」中接单', icon: 'none', duration: 1500 })
       } else {
-        uni.showToast({ title: getApiMessage(res, '派单成功'), icon: 'success' })
+        uni.showToast({ title: getApiMessage(res, '派单成功'), icon: 'none', duration: 1500 })
       }
       closeAssignModal()
       await nextTick()

@@ -11,6 +11,13 @@ type ParseShippingInfoOptions = {
   fallbackMobile?: string
 }
 
+/**
+ * 解析收货地址提交字段
+ * @param selectedAddress 选中的收货地址
+ * @param shippingInfo 收货地址信息
+ * @param options 解析选项
+ * @returns 收货地址提交字段
+ */
 export function resolveShippingSubmitFields(
   selectedAddress: SelectedShippingAddress | null,
   shippingInfo: string,
@@ -37,6 +44,11 @@ export function resolveShippingSubmitFields(
   }
 }
 
+/**
+ * 解析寄件快递单号提交字段
+ * @param raw 原始数据
+ * @returns 寄件快递单号提交字段
+ */
 export function resolveSendExpressNoForSubmit(raw: unknown): string {
   if (typeof raw === 'string' || typeof raw === 'number') {
     return String(raw).trim()

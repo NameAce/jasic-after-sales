@@ -87,8 +87,10 @@ $danger-tint-border: #fecaca;
 
 // --- 图标装饰（下拉箭头、空状态大图标等） ---
 $icon-slate-light: #cbd5e1;
-// 语音滑块等轨道灰
-$surface-track: #d9dfe6;
+// 语音条滑块轨道灰（与 `$bg-muted-panel` 搭配）——双端统一真源
+$voice-panel-track: #d9dfe6;
+// 别名：保留 aftersale 早期命名，引用时等价于 `$voice-panel-track`
+$surface-track: $voice-panel-track;
 
 // --- 业务点缀 ---
 $vip-badge-bg: #facc15;
@@ -123,8 +125,9 @@ $font-title: 48rpx;
 $safe-area-bottom: env(safe-area-inset-bottom);
 
 // =============================================================================
-// 列表/卡片对齐 contractor（与 mp/contractor/src/styles/variables.scss 扩展段等价）
-// 不含 B 端登录/营销渐变；改列表观感时以 contractor 为先再同步此处。
+// aftersale 端侧扩展（与 contractor 扩展段等价的列表 / 卡片语义）
+// - 不含 B 端登录 / 营销渐变（见 contractor variables.scss 扩展段）。
+// - 改列表观感时以 contractor 为先再同步此处。
 // =============================================================================
 
 // --- 强调字色 ---

@@ -444,7 +444,7 @@
   import { onLoad, onShow } from '@dcloudio/uni-app'
   import BaseButton from '@/components/BaseButton/BaseButton.vue'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
-  import { getOrderDetailAPI, type OrderDetailDTO } from '@/api/order'
+  import { getCustomerWorkOrder, type OrderDetail } from '@/api/workOrder'
   import { WORK_ORDER_REPAIR_FAULTS_HISTORY_STORAGE_KEY } from '@/constants/historicalRecord'
   import VoicePlaybackList, {
     type VoicePlaybackItem
@@ -490,7 +490,7 @@
   const orderId = ref<string>('')
 
   // 工单信息
-  const order = ref<OrderDetailDTO>({
+  const order = ref<OrderDetail>({
     status: '已关闭',
     isJasic: true,
     base: { orderNo: '', orderTypeName: '', submitTime: '' },
@@ -556,9 +556,9 @@
   const loadDetail = async () => {
     if (!orderId.value) return
     try {
-      const res = await getOrderDetailAPI({ id: orderId.value })
-      order.value = res.result
-      orderStatus.value = res.result.status || orderStatus.value
+      const res = await getCustomerWorkOrder({ id: orderId.value })
+      order.value = res.data
+      orderStatus.value = res.data.status || orderStatus.value
       syncTabByStatus()
     } catch {
       /* 失败提示由 http 层使用接口 msg */

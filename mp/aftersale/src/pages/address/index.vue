@@ -103,12 +103,12 @@
   import { onLoad, onShow } from '@dcloudio/uni-app'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import {
-    createCustomerAddressAPI,
+    addCustomerAddress,
     customerAddressVOToSavedAddress,
-    deleteCustomerAddressAPI,
-    getCustomerAddressListAPI,
-    setDefaultCustomerAddressAPI
-  } from '@/api/address'
+    deleteCustomerAddress,
+    listCustomerAddress,
+    setDefaultCustomerAddress
+  } from '@/api/customerAddress'
   import {
     loadAddresses,
     saveAddresses,
@@ -162,8 +162,8 @@
    */
   const refresh = async () => {
     try {
-      const res = await getCustomerAddressListAPI()
-      const vos = res.result ?? []
+      const res = await listCustomerAddress()
+      const vos = res.data ?? []
       const sorted = [...vos].sort((a, b) => (b.isDefault ?? 0) - (a.isDefault ?? 0))
       const list = sorted.map(customerAddressVOToSavedAddress)
       saveAddresses(list)
@@ -207,7 +207,7 @@
     uni.chooseAddress({
       success: (res) => {
         uni.showLoading({ title: '保存中', mask: true })
-        createCustomerAddressAPI({
+        addCustomerAddress({
           province: res.provinceName,
           city: res.cityName,
           county: res.countyName || '',
@@ -218,7 +218,7 @@
         })
           .then((apiRes) => {
             const next: SavedAddress = {
-              id: String(apiRes.result),
+              id: String(apiRes.data),
               name: res.userName,
               phone: res.telNumber,
               province: res.provinceName,
@@ -232,7 +232,7 @@
             list.unshift(next)
             saveAddresses(list)
             refresh()
-            uni.showToast({ title: '已保存', icon: 'success', duration: 1500 })
+            uni.showToast({ title: '已保存', icon: 'none', duration: 1500 })
           })
           .catch(() => {
             /* http 已 toast */
@@ -282,10 +282,10 @@
       return
     }
     uni.showLoading({ title: '设置中', mask: true })
-    setDefaultCustomerAddressAPI(idNum)
+    setDefaultCustomerAddress(idNum)
       .then(() => refresh())
       .then(() => {
-        uni.showToast({ title: '已设为默认', icon: 'success', duration: 1500 })
+        uni.showToast({ title: '已设为默认', icon: 'none', duration: 1500 })
       })
       .catch(() => {
         /* http 已 toast */
@@ -313,7 +313,7 @@
           return
         }
         uni.showLoading({ title: '删除中', mask: true })
-        deleteCustomerAddressAPI(idNum)
+        deleteCustomerAddress(idNum)
           .then(() => {
             const list = loadAddresses().filter((a) => a.id !== id)
             saveAddresses(list)
@@ -321,7 +321,7 @@
             return refresh()
           })
           .then(() => {
-            uni.showToast({ title: '已删除', icon: 'success', duration: 1500 })
+            uni.showToast({ title: '已删除', icon: 'none', duration: 1500 })
           })
           .catch(() => {
             /* http 已 toast */

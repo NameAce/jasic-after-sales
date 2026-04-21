@@ -71,7 +71,7 @@
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import FormItemAnchor from '@/components/FormItemAnchor/FormItemAnchor.vue'
   import { triggerScrollIntoView } from '@/utils/formFieldScrollFocus'
-  import { createCustomerAddressAPI, updateCustomerAddressAPI } from '@/api/address'
+  import { addCustomerAddress, updateCustomerAddress } from '@/api/customerAddress'
   import { loadAddresses, saveAddresses, type SavedAddress } from '@/utils/addressStorage'
   import { themeColors } from '@/constants/theme'
 
@@ -193,7 +193,7 @@
       }
       uni.showLoading({ title: '保存中', mask: true })
       try {
-        await updateCustomerAddressAPI({
+        await updateCustomerAddress({
           id: idNum,
           province: form.province,
           city: form.city,
@@ -215,7 +215,7 @@
         if (idx >= 0) list[idx] = payload
         else list.unshift(payload)
         saveAddresses(list)
-        uni.showToast({ title: '已保存', icon: 'success', duration: 1500 })
+        uni.showToast({ title: '已保存', icon: 'none', duration: 1500 })
         setTimeout(() => uni.navigateBack(), 400)
       } catch {
         /* http 已 toast */
@@ -227,7 +227,7 @@
 
     uni.showLoading({ title: '保存中', mask: true })
     try {
-      const res = await createCustomerAddressAPI({
+      const res = await addCustomerAddress({
         province: form.province,
         city: form.city,
         county: form.county || '',
@@ -236,7 +236,7 @@
         contactMobile: phone,
         isDefault: 0
       })
-      const serverId = String(res.result)
+      const serverId = String(res.data)
       const payload: SavedAddress = {
         id: serverId,
         name,
@@ -248,7 +248,7 @@
       }
       list.unshift(payload)
       saveAddresses(list)
-      uni.showToast({ title: '已保存', icon: 'success', duration: 1500 })
+      uni.showToast({ title: '已保存', icon: 'none', duration: 1500 })
       setTimeout(() => uni.navigateBack(), 400)
     } catch {
       /* http 已 toast */

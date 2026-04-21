@@ -1,33 +1,45 @@
 /**
- * 权限标识常量 —— 与后端 sys_menu.perms 一一对应
- * 格式：模块:实体:操作（全端通用，PC 和小程序共用）
+ * 权限标识常量 —— 与后端 `sys_menu.perms` 一一对应
+ *
+ * 命名约定（与 jasic-ui `v-hasPerms="['system:user:add']"` 风格一致）：
+ *   `模块:实体:操作`（全端通用，PC 和小程序共用同一权限字符串）。
  *
  * 工单主线（与后端状态机一致）：待派单(assign) → 待接单(accept) → 维修中(IN_PROGRESS)：
- * 无故障：接单后可走机器返回方式 + 填关单原因关单(close)；有故障（详情接单页）：接单后机器返回方式确认即关单(close)；维修登记(repair)/复检仍可从列表等入口进入。
- * 转单(transfer) 仅在维修中、已完成阶段可用。
+ *   - 无故障：接单后可走机器返回方式 + 填关单原因关单(close)
+ *   - 有故障（详情接单页）：接单后机器返回方式确认即关单(close)
+ *   - 维修登记(repair)/复检(review) 仍可从列表等入口进入
+ *   - 转单(transfer) 仅在维修中、已完成阶段可用
  *
- * 用法：import { Perms } from '@/utils/permissions'，
- * 配合 userStore.hasPermission(Perms.XXX)、canAny([...])、canAll([...]) 在页面/组件内控制按钮与区块展示。
+ * 用法：`import { Perms } from '@/utils/permissions'`，
+ * 配合 `userStore.hasPermission(Perms.XXX)`、`canAny([...])`、`canAll([...])` 在页面/组件内控制按钮与区块展示。
  * 路由仅校验登录（见 `routeGuard.ts`），不按权限码拦截页面进入。
+ *
+ * 阶段 4.4（`三端契约统一计划_5eaf1a62.plan.md`）：
+ *   需要与后端 `sys_menu.perms` 实际文本 **完全对齐**。当前值按「工单模块」命名空间，
+ *   仍沿用 `workorder:xxx` 前缀，待后端给出 `sys_menu.perms` 完整清单后再一次性替换。
+ *   替换时只改 `Perms.*` 右值字符串，所有 `userStore.hasPermission(Perms.XXX)` 调用点自动生效。
+ *
+ * @todo 与后端对齐 `sys_menu.perms` 真实文本后，将下列 `workorder:xxx` 替换为后端字面值。
+ *       如命名空间规范改为 `system:work-order:xxx`，也在此处同步更新。
  */
 export const Perms = {
-  /** 工单查询 */
+  /** 工单查询 · @todo 对齐后端 `sys_menu.perms`（建议 `system:work-order:list`） */
   WORKORDER_LIST: 'workorder:list',
-  /** 工单新增 */
+  /** 工单新增 · @todo 对齐后端 `sys_menu.perms`（建议 `system:work-order:add`） */
   WORKORDER_ADD: 'workorder:add',
-  /** 工单派单 */
+  /** 工单派单 · @todo 对齐后端 `sys_menu.perms`（建议 `system:work-order:assign`） */
   WORKORDER_ASSIGN: 'workorder:assign',
-  /** 工单接单 */
+  /** 工单接单 · @todo 对齐后端 `sys_menu.perms`（建议 `system:work-order:accept`） */
   WORKORDER_ACCEPT: 'workorder:accept',
-  /** 工单转单 */
+  /** 工单转单 · @todo 对齐后端 `sys_menu.perms`（建议 `system:work-order:transfer`） */
   WORKORDER_TRANSFER: 'workorder:transfer',
-  /** 工单报价 */
+  /** 工单报价 · @todo 对齐后端 `sys_menu.perms`（建议 `system:work-order:quote`） */
   WORKORDER_QUOTE: 'workorder:quote',
-  /** 维修登记 */
+  /** 维修登记 · @todo 对齐后端 `sys_menu.perms`（建议 `system:work-order:repair`） */
   WORKORDER_REPAIR: 'workorder:repair',
-  /** 复检登记 */
+  /** 复检登记 · @todo 对齐后端 `sys_menu.perms`（建议 `system:work-order:review`） */
   WORKORDER_REVIEW: 'workorder:review',
-  /** 工单关闭 */
+  /** 工单关闭 · @todo 对齐后端 `sys_menu.perms`（建议 `system:work-order:close`） */
   WORKORDER_CLOSE: 'workorder:close',
 } as const
 

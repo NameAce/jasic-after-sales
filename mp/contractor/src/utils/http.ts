@@ -1,26 +1,148 @@
 /**
- * 统一后端返回格式（与 aftersale 对齐）。
+ * 统一 HTTP 封装（与 jasic-ui/src/utils/request.js 契约对齐）
  *
- * 兼容字段：
- * - `data`：常见后端返回字段
- * - `result`：历史字段（当前项目早期 mock 使用）
+ * 约定：
+ * - 响应体仅 `{ code, msg, data }`；不再兼容 `result` / `message`。
+ * - 成功业务码严格为 `'00000'`。
+ * - 登录失效 `A0100`（或 HTTP 401）：uni.showModal 提示并回登录页；模块内互斥防止重复弹框。
+ * - 无权限 `A0200`：toast 提示「没有操作权限」。
+ * - 其他非 `'00000'`：toast 提示 `msg || '操作失败'`。
+ * - HTTP 非 2xx：toast 取 `res.data.msg || res.data.message || '网络错误'`，与 jasic-ui 行为一致。
+ * - 请求头：`Authorization: <token>`（无 `Bearer` 前缀，三端一致）。
+ *
+ * baseURL 归并（阶段 5.1）：业务路径不再包含 `/api` 前缀，统一由 http 层拼接，
+ * 真源：[jasic-ui/src/utils/request.js](../../../../jasic-ui/src/utils/request.js) `baseURL: '/api'`。
+ * 本端 `API_BASE = VITE_HTTP + '/api'`，所有 `api/*.ts` 业务 URL 与 jasic-ui 字面保持一致。
+ *
+ * 存储 key（阶段 5.4）：token 持久化 key 锁定为 `'token'`（历史引用过多不做破坏性改动），
+ * 新增的业务缓存统一走 `jasic_*` 前缀（如 `jasic_user_info`）。
+ *
+ * 分支顺序契约（三端镜像，禁止调整）：
+ *   success 回调内：statusCode 401 → 非 2xx → 204 → shape 校验 → handleResponseBody code 分发
+ *   fail 回调内：timeout → 其他网络错误
  */
+
+import {
+  API_MSG_AUTH_EXPIRED,
+  API_MSG_BAD_RESPONSE,
+  API_MSG_NETWORK_ERROR,
+  API_MSG_NO_PERMISSION,
+  API_MSG_OPERATION_FAILED,
+  API_MSG_TIMEOUT,
+} from '@/constants/apiMessages'
+
+/** 业务成功码 */
+export const API_SUCCESS_CODE = '00000'
+/** 登录失效业务码 */
+export const API_AUTH_EXPIRED = 'A0100'
+/** 无操作权限业务码 */
+export const API_NO_PERMISSION = 'A0200'
+
+/** 统一后端响应结构（与 jasic-ui 一致） */
 export type ApiResponse<T> = {
-  code: number | string
-  msg?: string
-  message?: string
-  data?: T
-  result?: T
+  code: string
+  msg: string
+  data: T
 }
 
-// Vite/uni-app 环境变量（对应根目录 `.env` 内的 VITE_*）
-const API_BASE = import.meta.env.VITE_HTTP as string | undefined
+/** 模块级互斥：短时间内 A0100/401 并发只弹一次 modal */
+let authExpiredHandling = false
 
+/**
+ * 计算 API baseURL：`VITE_HTTP + '/api'`，与 jasic-ui 的 `axios.create({ baseURL: '/api' })` 对齐。
+ * VITE_HTTP 不存在时回退为 `/api`，避免小程序端空字符串导致的相对路径拼接异常。
+ */
+function resolveApiBase(): string {
+  const raw = String(import.meta.env.VITE_HTTP || '').trim().replace(/\/+$/, '')
+  return `${raw}/api`
+}
+
+/**
+ * 拼接 baseURL：业务相对路径自动拼接 `VITE_HTTP + '/api'`
+ * @param url 相对 URL（业务层约定为不含 `/api` 前缀，如 `/system/work-order/list`）
+ */
 function withBaseUrl(url: string) {
   if (!url) return url
   if (/^https?:\/\//i.test(url)) return url
-  if (!API_BASE) return url
-  return `${API_BASE.replace(/\/+$/, '')}/${url.replace(/^\/+/, '')}`
+  const base = resolveApiBase()
+  return `${base}/${url.replace(/^\/+/, '')}`
+}
+
+/**
+ * 导出用于上传等非 `http()` 通道的同名拼接（api/file.ts 复用）
+ * @param url 相对 URL（不含 `/api` 前缀）
+ */
+export function resolveHttpUrl(url: string): string {
+  return withBaseUrl(url)
+}
+
+function redirectToLogin() {
+  uni.reLaunch({ url: '/pages/login/index' })
+}
+
+/**
+ * 处理授权过期：清 token → 弹窗 → reLaunch 登录页
+ * 与 jasic-ui 契约一致：文案固定「登录已过期，请重新登录」，模块级互斥防止重复弹框。
+ */
+function handleAuthExpired() {
+  if (authExpiredHandling) return
+  authExpiredHandling = true
+  try {
+    uni.removeStorageSync('token')
+  } catch {
+    /* ignore */
+  }
+  uni.showModal({
+    title: '提示',
+    content: API_MSG_AUTH_EXPIRED,
+    showCancel: false,
+    success: () => {
+      authExpiredHandling = false
+      redirectToLogin()
+    },
+    fail: () => {
+      authExpiredHandling = false
+      redirectToLogin()
+    },
+  })
+}
+
+/**
+ * 提取 HTTP 非 2xx 时的错误消息（兼容旧后端只回 message 的情况）
+ */
+function pickHttpErrorMsg(data: unknown): string {
+  if (data && typeof data === 'object') {
+    const d = data as Record<string, unknown>
+    const m = d.msg ?? (d as { message?: unknown }).message
+    if (typeof m === 'string' && m) return m
+  }
+  return API_MSG_NETWORK_ERROR
+}
+
+/**
+ * 按业务码处理响应：00000 → resolve；A0100 → 强登；A0200 → 无权限 toast；其他 → 失败 toast
+ */
+function handleResponseBody<T>(
+  body: ApiResponse<T>,
+  resolve: (v: ApiResponse<T>) => void,
+  reject: (v: ApiResponse<T>) => void,
+) {
+  if (body.code === API_SUCCESS_CODE) {
+    resolve(body)
+    return
+  }
+  if (body.code === API_AUTH_EXPIRED) {
+    handleAuthExpired()
+    reject(body)
+    return
+  }
+  if (body.code === API_NO_PERMISSION) {
+    uni.showToast({ icon: 'none', title: API_MSG_NO_PERMISSION, duration: 1500 })
+    reject(body)
+    return
+  }
+  uni.showToast({ icon: 'none', title: body.msg || API_MSG_OPERATION_FAILED, duration: 1500 })
+  reject(body)
 }
 
 /**
@@ -40,48 +162,49 @@ export const http = <T>(options: UniApp.RequestOptions) => {
         ...(token ? { Authorization: token } : {}),
       },
       success(res) {
-        const apiRes = (res.data || {}) as ApiResponse<T>
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          // 业务约定：登录态失效等，统一提示并回登录页
-          if (String(apiRes.code) === 'A0100') {
-            uni.removeStorageSync('token')
-            const msg = getApiMessage(apiRes, '请重新登录')
-            uni.showModal({
-              title: '提示',
-              content: msg,
-              showCancel: false,
-              success: () => {
-                uni.reLaunch({ url: '/pages/login/index' })
-              },
-            })
-            reject(apiRes)
-            return
-          }
-          resolve(apiRes)
-        } else if (res.statusCode === 401) {
-          // 避免 http 层依赖 store，打断循环引用链
-          uni.removeStorageSync('token')
-          uni.reLaunch({ url: '/pages/login/index' })
-          reject(res)
-        } else if (res.statusCode === 403) {
-          uni.showToast({
-            icon: 'none',
-            title: getApiMessage(apiRes, '暂无权限'),
-          })
-          reject(res)
-        } else {
-          uni.showToast({
-            icon: 'none',
-            title: getApiMessage(apiRes, '请求错误'),
-          })
-          reject(res)
+        if (res.statusCode === 401) {
+          handleAuthExpired()
+          reject(res.data as ApiResponse<T>)
+          return
         }
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          const msg = pickHttpErrorMsg(res.data)
+          uni.showToast({ icon: 'none', title: msg, duration: 1500 })
+          reject(res.data as ApiResponse<T>)
+          return
+        }
+        /** DELETE 等接口可能返回 204 无响应体 */
+        if (res.statusCode === 204) {
+          resolve({
+            code: API_SUCCESS_CODE,
+            msg: '',
+            data: null as T,
+          })
+          return
+        }
+        const raw = res.data as Partial<ApiResponse<T>> | null | undefined
+        if (!raw || typeof raw !== 'object' || typeof raw.code !== 'string') {
+          uni.showToast({ icon: 'none', title: API_MSG_BAD_RESPONSE, duration: 1500 })
+          reject(res.data as ApiResponse<T>)
+          return
+        }
+        handleResponseBody<T>(
+          {
+            code: raw.code,
+            msg: raw.msg ?? '',
+            data: raw.data as T,
+          },
+          resolve,
+          reject,
+        )
       },
       fail(err) {
-        const errMsg = String((err as { errMsg?: string })?.errMsg || '').trim()
+        const errMsg = String((err as { errMsg?: string })?.errMsg || '')
+        const msg = errMsg.includes('timeout') ? API_MSG_TIMEOUT : API_MSG_NETWORK_ERROR
         uni.showToast({
           icon: 'none',
-          title: errMsg || '网络错误，换个网络试试',
+          title: msg,
+          duration: 1500,
         })
         reject(err)
       },
@@ -89,13 +212,8 @@ export const http = <T>(options: UniApp.RequestOptions) => {
   })
 }
 
-/** 从 ApiResponse 中提取业务数据（兼容 data/result）。 */
-export function unwrap<T>(res: ApiResponse<T>): T {
-  return (res.data ?? res.result) as T
-}
-
 /** 提取接口提示文案，统一优先使用后端返回。 */
 export function getApiMessage<T>(res: ApiResponse<T> | null | undefined, fallback = ''): string {
-  const msg = String(res?.msg ?? res?.message ?? '').trim()
+  const msg = String(res?.msg ?? '').trim()
   return msg || fallback
 }

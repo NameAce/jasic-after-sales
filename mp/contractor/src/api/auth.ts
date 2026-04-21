@@ -1,4 +1,4 @@
-import { http, unwrap } from '@/utils/http'
+import { API_SUCCESS_CODE, http } from '@/utils/http'
 import type { CompanySimple, LoginResult, SysUserInfo } from '@/utils/permissions'
 
 export type LoginPayload = {
@@ -43,18 +43,14 @@ export type MpBindConfirmPayload = {
  */
 export async function login(payload: LoginPayload) {
   const res = await http<LoginResult>({
-    url: '/api/auth/login',
+    url: '/auth/login',
     method: 'POST',
     data: payload,
   })
-  const code = String(res.code ?? '')
-  if (code !== '00000' && code !== '0' && code !== '200') {
-    throw new Error(String(res.msg ?? res.message ?? '登录失败'))
+  if (String(res.code ?? '') !== API_SUCCESS_CODE) {
+    throw new Error(String(res.msg ?? '登录失败'))
   }
-  return {
-    ...res,
-    data: unwrap(res),
-  }
+  return res
 }
 
 /**
@@ -64,19 +60,15 @@ export async function login(payload: LoginPayload) {
  */
 export async function mpLogin(payload: MpLoginPayload) {
   const res = await http<MpLoginResult>({
-    url: '/api/auth/mp-login',
+    url: '/auth/mp-login',
     method: 'POST',
     data: payload,
     header: { 'Content-Type': 'application/json' },
   })
-  const code = String(res.code ?? '')
-  if (code !== '00000' && code !== '0' && code !== '200') {
-    throw new Error(String(res.msg ?? res.message ?? '登录失败'))
+  if (String(res.code ?? '') !== API_SUCCESS_CODE) {
+    throw new Error(String(res.msg ?? '登录失败'))
   }
-  return {
-    ...res,
-    data: unwrap(res) as MpLoginResult,
-  }
+  return res
 }
 
 /**
@@ -86,19 +78,15 @@ export async function mpLogin(payload: MpLoginPayload) {
  */
 export async function mpBindLogin(payload: MpBindLoginPayload) {
   const res = await http<MpLoginResult>({
-    url: '/api/auth/mp-bind-login',
+    url: '/auth/mp-bind-login',
     method: 'POST',
     data: payload,
     header: { 'Content-Type': 'application/json' },
   })
-  const code = String(res.code ?? '')
-  if (code !== '00000' && code !== '0' && code !== '200') {
-    throw new Error(String(res.msg ?? res.message ?? '绑定失败'))
+  if (String(res.code ?? '') !== API_SUCCESS_CODE) {
+    throw new Error(String(res.msg ?? '绑定失败'))
   }
-  return {
-    ...res,
-    data: unwrap(res) as MpLoginResult,
-  }
+  return res
 }
 
 /**
@@ -108,19 +96,15 @@ export async function mpBindLogin(payload: MpBindLoginPayload) {
  */
 export async function mpBindConfirm(payload: MpBindConfirmPayload) {
   const res = await http<MpLoginResult>({
-    url: '/api/auth/mp-bind-confirm',
+    url: '/auth/mp-bind-confirm',
     method: 'POST',
     data: payload,
     header: { 'Content-Type': 'application/json' },
   })
-  const code = String(res.code ?? '')
-  if (code !== '00000' && code !== '0' && code !== '200') {
-    throw new Error(String(res.msg ?? res.message ?? '绑定确认失败'))
+  if (String(res.code ?? '') !== API_SUCCESS_CODE) {
+    throw new Error(String(res.msg ?? '绑定确认失败'))
   }
-  return {
-    ...res,
-    data: unwrap(res) as MpLoginResult,
-  }
+  return res
 }
 
 /**
@@ -129,8 +113,53 @@ export async function mpBindConfirm(payload: MpBindConfirmPayload) {
  */
 export async function logout() {
   await http<void>({
-    url: '/api/auth/logout',
+    url: '/auth/logout',
     method: 'POST',
   })
 }
 
+/** 选择公司入参（与后端 ChooseCompanyDTO 对齐） */
+export type ChooseCompanyPayload = {
+  companyId: number
+}
+
+/**
+ * 登录后选择公司（当 `login`/`mpLogin` 返回 `needChooseCompany=true` 时调用）
+ *
+ * 真源：[jasic-ui/src/api/auth.js](../../../jasic-ui/src/api/auth.js) `chooseCompany`。
+ * 返回的 `SysUserInfo` 与登录成功分支里 `LoginResult.userInfo` 同形，调用方应把 `data`
+ * 存到 userStore，并以 `data.perms` 覆盖权限数组。
+ *
+ * @param payload 公司 id
+ * @returns ApiResponse<SysUserInfo>
+ */
+export async function chooseCompany(payload: ChooseCompanyPayload) {
+  const res = await http<SysUserInfo>({
+    url: '/auth/choose-company',
+    method: 'POST',
+    data: payload,
+  })
+  if (String(res.code ?? '') !== API_SUCCESS_CODE) {
+    throw new Error(String(res.msg ?? '切换公司失败'))
+  }
+  return res
+}
+
+/**
+ * 拉取当前登录用户信息（含 perms / currentCompanyId / companies）
+ *
+ * 真源：[jasic-ui/src/api/auth.js](../../../jasic-ui/src/api/auth.js) `getUserInfo`。
+ * 典型调用点：`onLaunch` 时若本地有 token，先用该接口刷新最新 perms 与公司上下文。
+ *
+ * @returns ApiResponse<SysUserInfo>
+ */
+export async function getUserInfo() {
+  const res = await http<SysUserInfo>({
+    url: '/auth/user-info',
+    method: 'GET',
+  })
+  if (String(res.code ?? '') !== API_SUCCESS_CODE) {
+    throw new Error(String(res.msg ?? '获取用户信息失败'))
+  }
+  return res
+}

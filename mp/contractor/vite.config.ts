@@ -16,11 +16,11 @@ export default defineConfig({
         'vue-i18n', // 如果你用了
         'pinia', // 如果你用了
         {
-          '@/stores': ['useUserStore'], // 自动引入你的 store
-          '@/hooks': ['useSafeArea'], // 自动引入你的 hooks
+          '@/stores': ['useUserStore'],
         },
       ],
       dts: 'src/auto-imports.d.ts', // 自动生成类型文件
+      dtsMode: 'overwrite', // 避免从配置中移除条目后仍残留在 d.ts 里
       eslintrc: {
         enabled: true,
         filepath: './.eslintrc-auto-import.json',

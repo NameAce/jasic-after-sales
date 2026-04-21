@@ -10,8 +10,8 @@
       text?: string
     }>(),
     {
-      text: '没有更多了',
-    },
+      text: '没有更多了'
+    }
   )
 </script>
 
@@ -25,7 +25,7 @@
 
     .list-no-more-text {
       font-size: 24rpx;
-      color: $text-muted;
+      color: $text-slate-400;
     }
   }
 </style>

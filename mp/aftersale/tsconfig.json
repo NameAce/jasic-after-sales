@@ -1,10 +1,22 @@
 {
   "compilerOptions": {
     "ignoreDeprecations": "5.0",
+    "noEmit": true,
     "allowJs": true,
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "lib": [
+      "ESNext",
+      "DOM"
+    ],
+    "types": [
+      "vite/client",
+      "@dcloudio/types",
+      "miniprogram-api-typings",
+      "@uni-helper/uni-app-types",
+      "@uni-helper/uni-ui-types"
+    ],
     "baseUrl": ".",
     "paths": {
       "@/*": [
@@ -18,12 +30,6 @@
   "exclude": [
     "dist",
     "node_modules"
-  ],
-  "types": [
-    "@dcloudio/types",
-    "miniprogram-api-typings",
-    "@uni-helper/uni-app-types",
-    "@uni-helper/uni-ui-types"
   ],
   "vueCompilerOptions": {
     "plugins": [

@@ -21,7 +21,7 @@
           <view
             :class="[
               'status-badge',
-              order.status,
+              statusBadgeClass(order),
               isPendingTechAcceptBadge(order) ? 'status-badge--pending-tech-accept' : ''
             ]"
           >
@@ -184,6 +184,14 @@
 
   // 工单状态文本
   const statusText = (order: OrderListItem) => props.statusText(order)
+  /** 将接口主状态映射到样式类：pending / processing / completed / closed */
+  const statusBadgeClass = (order: OrderListItem) => {
+    if (order.status === 'PENDING_ASSIGN' || order.status === 'PENDING_TECH_ACCEPT') return 'pending'
+    if (order.status === 'IN_PROGRESS') return 'processing'
+    if (order.status === 'COMPLETED') return 'completed'
+    if (order.status === 'CLOSED') return 'closed'
+    return 'pending'
+  }
   /** 与列表页一致：展示文案为「待接单」时用红色角标（含派单员/工程师等自定义 statusText） */
   const isPendingTechAcceptBadge = (order: OrderListItem) => statusText(order) === '待接单'
 
@@ -205,7 +213,7 @@
 
   /** 维修中 / 已完成 / 已关闭：使用扩展信息区（与列表一级 Tab 未转单/已转单组合） */
   const useExpandedRepairInfo = (order: OrderListItem) =>
-    order.status === 'processing' || order.status === 'completed' || order.status === 'closed'
+    order.status === 'IN_PROGRESS' || order.status === 'COMPLETED' || order.status === 'CLOSED'
 
   const hasText = (raw?: string | null) => !!(raw ?? '').trim()
 

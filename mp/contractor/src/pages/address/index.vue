@@ -104,19 +104,18 @@
   import { onLoad, onShow } from '@dcloudio/uni-app'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import {
+    addCompanyAddress,
     companyAddressVOToSavedAddress,
-    createCustomerAddressAPI,
-    deleteCompanyAddressAPI,
-    getCompanyAddressListAPI,
-    setDefaultCustomerAddressAPI
-  } from '@/api/address'
+    deleteCompanyAddress,
+    listCompanyAddress,
+    setDefaultCompanyAddress
+  } from '@/api/companyAddress'
   import {
     loadAddresses,
     saveAddresses,
     saveSelectedShippingAddress,
     type SavedAddress
   } from '@/utils/addressStorage'
-  import { unwrap } from '@/utils/http'
   import { addressManualIcon, wechatChatIcon } from '@/svgs'
   import ListNoMore from '@/components/ListNoMore/ListNoMore.vue'
   import { useScrollRefresher } from '@/utils/useScrollRefresher'
@@ -166,8 +165,8 @@
    */
   const refresh = async () => {
     try {
-      const res = await getCompanyAddressListAPI()
-      const raw = unwrap(res)
+      const res = await listCompanyAddress()
+      const raw = res.data
       const vos = Array.isArray(raw) ? raw : []
       const sorted = [...vos].sort((a, b) => (b.isDefault ?? 0) - (a.isDefault ?? 0))
       const list = sorted.map(companyAddressVOToSavedAddress)
@@ -215,7 +214,7 @@
     uni.chooseAddress({
       success: (res) => {
         uni.showLoading({ title: '保存中', mask: true })
-        createCustomerAddressAPI({
+        addCompanyAddress({
           address: `${res.provinceName}${res.cityName}${res.countyName || ''}${res.detailInfo}`,
           contactName: res.userName,
           contactPhone: res.telNumber,
@@ -223,7 +222,7 @@
         })
           .then((apiRes) => {
             const next: SavedAddress = {
-              id: String(unwrap(apiRes)),
+              id: String(apiRes.data),
               name: res.userName,
               phone: res.telNumber,
               province: res.provinceName,
@@ -237,7 +236,7 @@
             list.unshift(next)
             saveAddresses(list)
             refresh()
-            uni.showToast({ title: '已保存', icon: 'success', duration: 1500 })
+            uni.showToast({ title: '已保存', icon: 'none', duration: 1500 })
           })
           .catch(() => {
             /* http 已 toast */
@@ -287,10 +286,10 @@
       return
     }
     uni.showLoading({ title: '设置中', mask: true })
-    setDefaultCustomerAddressAPI(idNum)
+    setDefaultCompanyAddress(idNum)
       .then(() => refresh())
       .then(() => {
-        uni.showToast({ title: '已设为默认', icon: 'success', duration: 1500 })
+        uni.showToast({ title: '已设为默认', icon: 'none', duration: 1500 })
       })
       .catch(() => {
         /* http 已 toast */
@@ -318,7 +317,7 @@
           return
         }
         uni.showLoading({ title: '删除中', mask: true })
-        deleteCompanyAddressAPI(idNum)
+        deleteCompanyAddress(idNum)
           .then(() => {
             const list = loadAddresses().filter((a) => a.id !== id)
             saveAddresses(list)
@@ -326,7 +325,7 @@
             return refresh()
           })
           .then(() => {
-            uni.showToast({ title: '已删除', icon: 'success', duration: 1500 })
+            uni.showToast({ title: '已删除', icon: 'none', duration: 1500 })
           })
           .catch(() => {
             /* http 已 toast */

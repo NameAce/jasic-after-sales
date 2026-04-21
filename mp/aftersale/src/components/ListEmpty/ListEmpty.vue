@@ -19,8 +19,8 @@
     }>(),
     {
       desc: '',
-      showIllustration: true,
-    },
+      showIllustration: true
+    }
   )
 </script>
 
@@ -28,7 +28,7 @@
   @use '@/styles/mixins.scss' as *;
   @use '@/styles/variables.scss' as *;
 
-  /* 与 contractor `order-pages.scss` 中 `.list-empty` 规格一致 */
+  /* 与 order-pages.scss 中 `.list-empty` 规格保持一致；此处固化为组件 scoped 样式 */
   .list-empty {
     display: flex;
     flex-direction: column;

@@ -114,8 +114,8 @@
   import { onShow } from '@dcloudio/uni-app'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import { useUserStore } from '@/stores'
-  import { logoutAPI } from '@/api/user'
-  import { getWorkOrderStatusCountAPI, type MyOrderCountsDTO } from '@/api/order'
+  import { logout } from '@/api/auth'
+  import { countCustomerWorkOrderStatus, type MyOrderCountsDTO } from '@/api/workOrder'
   import { isLoggedIn } from '@/utils/auth'
   import { themeColors } from '@/constants/theme'
   import {
@@ -161,12 +161,12 @@
    */
   const loadCounts = async () => {
     try {
-      const res = await getWorkOrderStatusCountAPI()
+      const res = await countCustomerWorkOrderStatus()
       counts.value = {
-        pending: res.result?.waitAcceptCount ?? 0,
-        repairing: res.result?.inProgressCount ?? 0,
-        completed: res.result?.completedCount ?? 0,
-        closed: res.result?.closedCount ?? 0
+        pending: res.data?.waitAcceptCount ?? 0,
+        repairing: res.data?.inProgressCount ?? 0,
+        completed: res.data?.completedCount ?? 0,
+        closed: res.data?.closedCount ?? 0
       }
     } catch {
       counts.value = { pending: 0, repairing: 0, completed: 0, closed: 0 }
@@ -225,7 +225,7 @@
         uni.showLoading({ title: '退出中...', mask: true })
         let logoutMsg = '已退出登录'
         try {
-          const res = await logoutAPI()
+          const res = await logout()
           logoutMsg = res.msg || logoutMsg
         } catch {
           /* http 层已提示；仍清理本地，避免无法退出 */

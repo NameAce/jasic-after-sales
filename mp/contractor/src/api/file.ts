@@ -1,3 +1,5 @@
+import { API_SUCCESS_CODE, resolveHttpUrl } from '@/utils/http'
+
 /** 系统侧上传返回（与 SysFileUploadVO 一致） */
 export interface SysFileUploadVO {
   contentType?: string
@@ -10,10 +12,9 @@ export interface SysFileUploadVO {
 }
 
 type UploadBody = {
-  code?: string | number
+  code?: string
   msg?: string
   data?: SysFileUploadVO
-  result?: SysFileUploadVO
 }
 
 /**
@@ -22,20 +23,7 @@ type UploadBody = {
  * @returns 解析后的上传URL
  */
 function resolveUploadUrl(url: string): string {
-  if (/^https?:\/\//i.test(url)) return url
-  const base = String(import.meta.env.VITE_HTTP || '').trim().replace(/\/$/, '')
-  if (!base) return url
-  return `${base}${url.startsWith('/') ? url : `/${url}`}`
-}
-
-/**
- * 判断上传是否成功
- * @param code - 上传返回码
- * @returns 是否成功
- */
-function isUploadSuccess(code: unknown): boolean {
-  const s = String(code)
-  return s === '00000' || s === '200' || s === '0'
+  return resolveHttpUrl(url)
 }
 
 /**
@@ -58,7 +46,7 @@ function parseUploadResponse(raw: string | UploadBody): UploadBody {
  * 承包商端系统文件上传（工单等 B 端场景）
  * @param filePath - 文件路径
  * @returns 上传后的文件信息
- * POST `/api/system/file/upload`
+ * POST `/system/file/upload`
  */
 export function uploadSystemFile(filePath: string): Promise<SysFileUploadVO> {
   /**
@@ -69,7 +57,7 @@ export function uploadSystemFile(filePath: string): Promise<SysFileUploadVO> {
   return new Promise((resolve, reject) => {
     const token = uni.getStorageSync('token') || ''
     uni.uploadFile({
-      url: resolveUploadUrl('/api/system/file/upload'),
+      url: resolveUploadUrl('/system/file/upload'),
       filePath,
       name: 'file',
       header: {
@@ -81,11 +69,11 @@ export function uploadSystemFile(filePath: string): Promise<SysFileUploadVO> {
           reject(new Error(String(body.msg || '上传失败')))
           return
         }
-        if (!isUploadSuccess(body.code)) {
+        if (body.code !== API_SUCCESS_CODE) {
           reject(new Error(String(body.msg || '上传失败')))
           return
         }
-        const data = body.data ?? body.result
+        const data = body.data
         if (!data) {
           reject(new Error('上传返回为空'))
           return

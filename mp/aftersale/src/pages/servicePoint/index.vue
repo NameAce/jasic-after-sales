@@ -40,7 +40,7 @@
   import { themeColor } from '@/constants/theme'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import {
-    getNearbyServiceCompanyOptionsAPI,
+    listNearbyServiceCompanyOptions,
     mapNearbyToServicePoint,
     type ServicePointDTO
   } from '@/api/servicePoint'
@@ -59,12 +59,12 @@
   const loadServicePoints = async (latitude: number, longitude: number) => {
     loading.value = true
     try {
-      const res = await getNearbyServiceCompanyOptionsAPI({
+      const res = await listNearbyServiceCompanyOptions({
         latitude,
         longitude,
         limit: NEARBY_LIMIT
       })
-      servicePointList.value = res.result.map(mapNearbyToServicePoint)
+      servicePointList.value = res.data.map(mapNearbyToServicePoint)
     } catch {
       servicePointList.value = []
       /* 失败提示由 http 层使用接口 msg */

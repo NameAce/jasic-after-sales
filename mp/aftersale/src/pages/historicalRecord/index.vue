@@ -72,7 +72,7 @@
   import ListEmpty from '@/components/ListEmpty/ListEmpty.vue'
   import ListNoMore from '@/components/ListNoMore/ListNoMore.vue'
   import { onLoad } from '@dcloudio/uni-app'
-  import { fetchOrderRepairFaultRecords } from '@/api/order'
+  import { fetchOrderRepairFaultRecords } from '@/api/workOrder'
   import { WORK_ORDER_REPAIR_FAULTS_HISTORY_STORAGE_KEY } from '@/constants/historicalRecord'
   import type { FaultPointRecord } from '@/models/order'
   import { previewImages, resolvePreviewableUrl } from '@/utils/mediaPreview'

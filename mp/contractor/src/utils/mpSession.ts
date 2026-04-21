@@ -36,7 +36,7 @@ export async function finalizeMpLoginSession(
   }
 
   userStore.login(result.token, info)
-  uni.showToast({ title: getApiMessage(loginRes, '登录成功'), icon: 'success' })
+  uni.showToast({ title: getApiMessage(loginRes, '登录成功'), icon: 'none', duration: 1500 })
   setTimeout(() => {
     uni.reLaunch({ url: '/pages/index/index' })
   }, 500)

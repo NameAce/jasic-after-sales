@@ -1,3 +1,11 @@
+/**
+ * 报修表单相关常量（C 端）。
+ * - `REPAIR_TYPE_OPTIONS` 为双端共享的「维修路径」选项，已在 mp/contractor 同名文件镜像。
+ * - `JASIC_BRAND_CODE` / `REPAIR_TYPE_TO_SERVICE_MODE` / `CUSTOMER_WORK_ORDER_REPORT_BIZ_TYPE`
+ *   属于 C 端专有：仅在客户提交 `/api/customer/work-order` 时使用；contractor 走派单-接单
+ *   流程提交，不需要此类前端映射，因此不镜像到 contractor。
+ */
+
 /** 报修页「维修路径」选项（送店 / 邮寄） */
 export interface RepairTypeOption {
   label: string

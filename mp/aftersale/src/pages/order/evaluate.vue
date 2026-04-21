@@ -126,7 +126,7 @@
 <script setup lang="ts">
   import { computed, reactive, ref } from 'vue'
   import { onLoad } from '@dcloudio/uni-app'
-  import { evaluateCustomerWorkOrderAPI, getOrderDetailAPI } from '@/api/order'
+  import { evaluateCustomerWorkOrder, getCustomerWorkOrder } from '@/api/workOrder'
   import FormItemAnchor from '@/components/FormItemAnchor/FormItemAnchor.vue'
   import MediaUploadField from '@/components/MediaUploadField/MediaUploadField.vue'
   import BaseButton from '@/components/BaseButton/BaseButton.vue'
@@ -156,8 +156,8 @@
     const id = workOrderId.value
     if (!id) return
     try {
-      const res = await getOrderDetailAPI({ id: String(id) })
-      const d = res.result
+      const res = await getCustomerWorkOrder({ id: String(id) })
+      const d = res.data
       if (!d) return
       const no = String(d.base?.orderNo ?? '').trim()
       if (no) orderNoDisplay.value = no
@@ -278,7 +278,7 @@
     uni.showLoading({ title: '提交中...', mask: true })
     try {
       const content = formData.feedback.trim()
-      const res = await evaluateCustomerWorkOrderAPI({
+      const res = await evaluateCustomerWorkOrder({
         qualityScore: formData.qualityRating,
         satisfactionScore: formData.satisfactionRating,
         timelinessScore: formData.efficiencyRating,
@@ -287,7 +287,7 @@
       })
       uni.showToast({
         title: res.msg,
-        icon: 'success',
+        icon: 'none',
         duration: 1500
       })
       openerEventChannel?.emit(WORK_ORDER_EVALUATED_EVENT)

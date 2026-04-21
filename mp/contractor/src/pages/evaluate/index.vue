@@ -183,7 +183,8 @@
     })
     uni.showToast({
       title: '评价提交成功',
-      icon: 'success'
+      icon: 'none',
+      duration: 1500
     })
     setTimeout(() => {
       uni.navigateBack()

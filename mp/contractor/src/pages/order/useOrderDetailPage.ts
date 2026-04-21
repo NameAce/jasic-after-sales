@@ -1,6 +1,7 @@
 import { computed, type Ref } from 'vue'
-import type { OrderDetail, OrderStatus } from '@/models/order'
+import type { OrderDetail, WorkOrderMainStatus } from '@/models/order'
 import { useUserStore } from '@/stores'
+import { isPendingMainStatus } from '@/utils/orderStatus'
 import { canCurrentSiteOperateTransferredOrder } from '@/utils/orderTransfer'
 import { hasVal } from '@/utils/value'
 
@@ -19,7 +20,7 @@ export function shouldOpenRepairTab(action: DetailEntryAction): boolean {
 
 export function useOrderDetailPage(options: {
   order: Ref<OrderDetail>
-  orderStatus: Ref<OrderStatus>
+  orderStatus: Ref<WorkOrderMainStatus>
   detailEntryAction: Ref<DetailEntryAction>
   currentTab: Ref<number>
   faultJudgeSelect: Ref<string>
@@ -30,10 +31,10 @@ export function useOrderDetailPage(options: {
     options
   const userStore = useUserStore()
 
-  const isPending = computed(() => orderStatus.value === 'pending')
-  const isProcessing = computed(() => orderStatus.value === 'processing')
-  const isCompleted = computed(() => orderStatus.value === 'completed')
-  const isClosed = computed(() => orderStatus.value === 'closed')
+  const isPending = computed(() => isPendingMainStatus(orderStatus.value))
+  const isProcessing = computed(() => orderStatus.value === 'IN_PROGRESS')
+  const isCompleted = computed(() => orderStatus.value === 'COMPLETED')
+  const isClosed = computed(() => orderStatus.value === 'CLOSED')
 
   // 转单权限
   const canOperateTransferredOrder = computed(() =>
@@ -106,8 +107,8 @@ export function useOrderDetailPage(options: {
   const repairExtrasLayout = computed<OrderDetailRepairExtrasLayout>(() => {
     const s = orderStatus.value
     const action = detailEntryAction.value
-    if (s === 'pending') return 'pending'
-    if (s === 'processing' || (s === 'completed' && action === 'recheck')) return 'active_repair'
+    if (isPendingMainStatus(s)) return 'pending'
+    if (s === 'IN_PROGRESS' || (s === 'COMPLETED' && action === 'recheck')) return 'active_repair'
     return 'readonly_summary'
   })
 

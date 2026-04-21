@@ -236,12 +236,12 @@
     createProxyWorkOrder,
     createUpstreamFirstWorkOrder,
     createUpstreamHqWorkOrder,
-    fetchProxyBarcodeInfo,
-    fetchUpstreamFirstBarcodeInfo,
+    getProxyCreateBarcodeInfo,
+    getUpstreamHqCreateBarcodeInfo,
     type WorkOrderCreateBarcodeInfoVO,
     type WorkOrderProxyCreateDTO,
     type WorkOrderUpstreamCreateDTO
-  } from '@/api/order'
+  } from '@/api/workOrder'
   import { getApiMessage } from '@/utils/http'
   import { MOBILE_PATTERN } from '@/utils/validation'
   import { validateFaultMediaSelection } from '@/utils/repairMediaLimits'
@@ -655,13 +655,13 @@
     const upstreamTid = Number(formData.value.targetCompanyId)
     const request =
       repairEntryTab.value === 'upstream'
-        ? fetchUpstreamFirstBarcodeInfo(
+        ? getUpstreamHqCreateBarcodeInfo(
             formData.value.warrantyCode,
             userStore.isPrimaryDealer && Number.isFinite(upstreamTid) && upstreamTid > 0
               ? upstreamTid
               : undefined
           )
-        : fetchProxyBarcodeInfo(formData.value.warrantyCode)
+        : getProxyCreateBarcodeInfo(formData.value.warrantyCode)
 
     try {
       const { data: info, msg } = await request
@@ -700,7 +700,7 @@
 
       if (!silentToast) {
         const title = msg.trim() || info?.warrantyStatus || '查询成功'
-        uni.showToast({ title, icon: 'success', duration: 1500 })
+        uni.showToast({ title, icon: 'none', duration: 1500 })
       }
     } catch {
       uni.hideLoading()
@@ -1066,7 +1066,7 @@
       const tab = repairEntryTab.value
       uni.setStorageSync(draftStorageKey(tab), buildTabDraftPayload())
       uni.setStorageSync(DRAFT_LAST_TAB_KEY, tab)
-      uni.showToast({ title: '暂存成功', icon: 'success', duration: 1500 })
+      uni.showToast({ title: '暂存成功', icon: 'none', duration: 1500 })
     } catch (_e) {
       void _e
       uni.showToast({ title: '暂存失败', icon: 'none', duration: 1500 })

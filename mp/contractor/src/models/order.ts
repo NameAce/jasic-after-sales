@@ -1,4 +1,33 @@
-export type OrderStatus = 'pending' | 'processing' | 'completed' | 'closed'
+/**
+ * 工单主状态（mainStatus）枚举：与后端 `WorkOrderMainStatus` 字面完全一致
+ *
+ * 真源：后端 `sys_work_order.main_status`，以及 jasic-ui 列表字段 `mainStatus`。
+ * - PENDING_ASSIGN：待派单
+ * - PENDING_TECH_ACCEPT：已派单待维修员接单
+ * - IN_PROGRESS：维修中
+ * - COMPLETED：已完成
+ * - CLOSED：已关闭
+ *
+ * 禁止使用 `pending / processing / completed / closed` 小写别名（阶段 4.1）。
+ */
+export type WorkOrderMainStatus =
+  | 'PENDING_ASSIGN'
+  | 'PENDING_TECH_ACCEPT'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
+  | 'CLOSED'
+
+/** 工单主状态常量（与 `WorkOrderMainStatus` 一一对应，供 api/utils 引用） */
+export const WORK_ORDER_MAIN_STATUS = {
+  PENDING_ASSIGN: 'PENDING_ASSIGN',
+  PENDING_TECH_ACCEPT: 'PENDING_TECH_ACCEPT',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'COMPLETED',
+  CLOSED: 'CLOSED',
+} as const satisfies Record<WorkOrderMainStatus, WorkOrderMainStatus>
+
+/** @deprecated 请使用 `WorkOrderMainStatus`，保留别名以降低一次性改名成本 */
+export type OrderStatus = WorkOrderMainStatus
 
 /** 机器返回方式-回寄：表单回显（与弹窗字段一致） */
 export type MailReturnFormEcho = {
@@ -507,7 +536,7 @@ export type OrderDetail = {
  */
 export const createEmptyOrderDetail = (): OrderDetail => ({
   id: '',
-  status: 'pending',
+  status: 'PENDING_ASSIGN',
   transferred: false,
   brand: {
     isJiashi: true,

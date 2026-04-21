@@ -124,7 +124,7 @@
   import { useUserStore } from '@/stores/modules/user'
   import { useServicePointSelection } from '@/composables/useServicePointSelection'
   import { useSupplementSection } from '@/composables/useSupplementSection'
-  import { createCustomerWorkOrderAPI, type CreateCustomerWorkOrderDTO } from '@/api/order'
+  import { createCustomerWorkOrder, type CreateCustomerWorkOrderDTO } from '@/api/workOrder'
   import { scrollToFirstInvalidUniFormField } from '@/utils/formFieldScrollFocus'
   import { validateFaultMediaSelection } from '@/utils/repairMediaLimits'
   import {
@@ -394,9 +394,9 @@
 
     uni.showLoading({ title: options.loadingTitle })
     try {
-      const res = await createCustomerWorkOrderAPI(buildOtherRepairWorkOrderPayload())
+      const res = await createCustomerWorkOrder(buildOtherRepairWorkOrderPayload())
       uni.hideLoading()
-      uni.showToast({ title: res.msg, icon: 'success', duration: 1500 })
+      uni.showToast({ title: res.msg, icon: 'none', duration: 1500 })
       if (options.redirect) {
         clearOtherRepairDraft()
         setTimeout(() => {
@@ -429,7 +429,7 @@
         showSupplementSection: showSupplementSection.value
       })
       uni.hideLoading()
-      uni.showToast({ title: '已暂存', icon: 'success', duration: 1500 })
+      uni.showToast({ title: '已暂存', icon: 'none', duration: 1500 })
     } catch (err: unknown) {
       uni.hideLoading()
       const msg = parseUnknownError(err, '暂存失败')

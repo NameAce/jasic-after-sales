@@ -135,6 +135,8 @@ export const useUserStore = defineStore(
   {
     // 持久化存储
     persist: {
+      // 阶段 5.4：新增的 B 端缓存统一走 `jasic_*` 前缀
+      key: 'jasic_user_info',
       storage: {
         setItem(key, value) {
           uni.setStorageSync(key, value)

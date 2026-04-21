@@ -1,9 +1,13 @@
 /**
  * 模板与运行时属性用的色值字符串（与 `src/styles/variables.scss`、`mp/aftersale` 的 `constants/theme.ts` 对齐）。
- * 共有键名与 hex 须与用户端 `themeColors` 一致；师傅端独有键列于末尾。
+ * 双端公共 token 必须与 `mp/aftersale/src/constants/theme.ts` 保持键名与值一致；师傅端独有键列于末尾。
+ *
+ * 镜像口径：等价于 aftersale `src/constants/theme.ts`，不迁移、不镜像路径，
+ * 只镜像公共 token 字面（目录命名与存放位置仅为建议，详见
+ * `mp/MIRROR_FILE_PAIRS.md` 的「目录命名和存放位置仅做建议」条目）。
  */
 export const themeColors = {
-  // --- 与用户端 mp/aftersale/src/constants/theme.ts 一致 ---
+  // --- 双端公共 token ---
   primary: '#f26604',
   primaryContrast: '#ffffff',
   textBg: '#fff',
@@ -33,6 +37,7 @@ export const themeColors = {
   vipBadgeBg: '#facc15',
 
   // --- 师傅端独有 / 扩展 ---
+  // 以下 token 仅在 contractor 使用，不镜像到 aftersale。
   /** 主色偏亮（渐变、装饰） */
   primaryLight: '#ff8533',
   /** 登录/绑定页深色顶栏渐变 */

@@ -134,13 +134,13 @@
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import { useUserStore } from '@/stores'
   import {
-    getLatestOrderAPI,
-    getOrderDetailAPI,
-    getOrderListAPI,
+    getCustomerWorkOrderLatestSummary,
+    getCustomerWorkOrder,
+    listCustomerWorkOrder,
     mapWorkOrderListRecordToItem,
     type LatestOrderDTO,
-    type OrderDetailDTO
-  } from '@/api/order'
+    type OrderDetail
+  } from '@/api/workOrder'
   import { themeColor } from '@/constants/theme'
   import { isLoggedIn, requireLogin } from '@/utils/auth'
   import {
@@ -212,8 +212,8 @@
       return
     }
     try {
-      const res = await getLatestOrderAPI()
-      latestOrder.value = res.result
+      const res = await getCustomerWorkOrderLatestSummary()
+      latestOrder.value = res.data
     } catch {
       latestOrder.value = emptyOrder
     }
@@ -223,7 +223,7 @@
    * 加载工单统计（仅用于通知红点）
    * @returns void
    */
-  const hasEvaluateContent = (evaluate?: OrderDetailDTO['evaluate']) => {
+  const hasEvaluateContent = (evaluate?: OrderDetail['evaluate']) => {
     if (!evaluate) return false
     return Boolean(
       (evaluate.timeliness ?? 0) > 0 ||
@@ -239,8 +239,8 @@
       return
     }
     try {
-      const listRes = await getOrderListAPI()
-      const items = (listRes.result?.records ?? []).map(mapWorkOrderListRecordToItem)
+      const listRes = await listCustomerWorkOrder()
+      const items = (listRes.data?.records ?? []).map(mapWorkOrderListRecordToItem)
       const closedOrders = items.filter((item) => item.status === '已关闭')
       if (closedOrders.length === 0) {
         hasClosedOrders.value = false
@@ -249,10 +249,10 @@
 
       // 只要存在一个“未评价”的已关闭工单，就显示红点
       const detailList = await Promise.all(
-        closedOrders.map((item) => getOrderDetailAPI({ id: item.id }))
+        closedOrders.map((item) => getCustomerWorkOrder({ id: item.id }))
       )
       hasClosedOrders.value = detailList.some(
-        (detailRes) => !hasEvaluateContent(detailRes.result?.evaluate)
+        (detailRes) => !hasEvaluateContent(detailRes.data?.evaluate)
       )
     } catch {
       hasClosedOrders.value = false

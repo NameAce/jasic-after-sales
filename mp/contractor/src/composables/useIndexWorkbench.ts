@@ -1,17 +1,18 @@
 import { computed, ref } from 'vue'
 import { useUserStore } from '@/stores'
-import type { OrderListItem, OrderStatus } from '@/models/order'
+import type { OrderListItem, WorkOrderMainStatus } from '@/models/order'
+import { WORK_ORDER_MAIN_STATUS } from '@/models/order'
 import {
   fetchOrderList,
-  fetchWorkOrderStatusCount,
+  countWorkOrderStatus,
   mapMainStatusToOrderStatus,
   type OrderListQuery,
-} from '@/api/order'
+} from '@/api/workOrder'
 import {
   canCurrentSiteOperateTransferredOrder,
   hasInboundTransferFromSite
 } from '@/utils/orderTransfer'
-import { ORDER_STATUS_TEXT_MAP } from '@/utils/orderStatus'
+import { ORDER_STATUS_TEXT_MAP, isPendingMainStatus } from '@/utils/orderStatus'
 import {
   getPendingDisplayLabel,
   isMainStatusPendingAssign,
@@ -55,13 +56,23 @@ export function useIndexWorkbench() {
     return query
   }
 
+  /** 首页统计卡桶（pending 合并 PENDING_ASSIGN + PENDING_TECH_ACCEPT，保留 UI 四卡分组） */
+  type WorkbenchStats = { pending: number; processing: number; completed: number; closed: number }
+
+  const emptyStats = (): WorkbenchStats => ({
+    pending: 0,
+    processing: 0,
+    completed: 0,
+    closed: 0,
+  })
+
   // 接口对接：网点工作台列表采用后端分页接口（暂取第一页）
   const orderList = ref<OrderListItem[]>([])
-  const siteStatusStats = ref({ pending: 0, processing: 0, completed: 0, closed: 0 })
+  const siteStatusStats = ref<WorkbenchStats>(emptyStats())
   const siteWorkbenchStats = computed(() => siteStatusStats.value)
 
   // 总部统计/网点负荷
-  const hqStatusStats = ref({ pending: 0, processing: 0, completed: 0, closed: 0 })
+  const hqStatusStats = ref<WorkbenchStats>(emptyStats())
   const hqNetworkStats = computed(() => hqStatusStats.value)
   const hqTransferredCount = ref(0)
 
@@ -70,24 +81,30 @@ export function useIndexWorkbench() {
     return Number.isFinite(v) && v > 0 ? v : 0
   }
 
+  function addWorkbenchCount(stats: WorkbenchStats, s: WorkOrderMainStatus, count: number) {
+    if (isPendingMainStatus(s)) stats.pending += count
+    else if (s === WORK_ORDER_MAIN_STATUS.IN_PROGRESS) stats.processing += count
+    else if (s === WORK_ORDER_MAIN_STATUS.COMPLETED) stats.completed += count
+    else if (s === WORK_ORDER_MAIN_STATUS.CLOSED) stats.closed += count
+  }
+
   let siteRefreshInFlight: Promise<void> | null = null
   const doRefreshSiteWorkbench = async () => {
     const [list, rows] = await Promise.all([
       fetchOrderList(buildSiteWorkbenchListQuery()),
-      fetchWorkOrderStatusCount({
+      countWorkOrderStatus({
         viewScope: 'CURRENT',
         companyId: userStore.userInfo?.currentCompanyId
       }),
     ])
     orderList.value = list
 
-    const stats = { pending: 0, processing: 0, completed: 0, closed: 0 }
+    const stats = emptyStats()
     rows.forEach((r) => {
       const mainStatus = (r.mainStatus ?? '').toString()
       const count = toSafeCount(r.countNum)
       if (!mainStatus) return
-      const s = mapMainStatusToOrderStatus(mainStatus)
-      stats[s] += count
+      addWorkbenchCount(stats, mapMainStatusToOrderStatus(mainStatus), count)
     })
     siteStatusStats.value = stats
   }
@@ -114,17 +131,16 @@ export function useIndexWorkbench() {
   const doRefreshHqWorkbench = async () => {
     const companyId = userStore.userInfo?.currentCompanyId
     const [rows, transferredRows] = await Promise.all([
-      fetchWorkOrderStatusCount({ viewScope: 'CURRENT', companyId }),
-      fetchWorkOrderStatusCount({ viewScope: 'CURRENT', hasTransfer: 1, companyId }),
+      countWorkOrderStatus({ viewScope: 'CURRENT', companyId }),
+      countWorkOrderStatus({ viewScope: 'CURRENT', hasTransfer: 1, companyId }),
     ])
 
-    const stats = { pending: 0, processing: 0, completed: 0, closed: 0 }
+    const stats = emptyStats()
     rows.forEach((r) => {
       const mainStatus = (r.mainStatus ?? '').toString()
       const count = toSafeCount(r.countNum)
       if (!mainStatus) return
-      const s = mapMainStatusToOrderStatus(mainStatus)
-      stats[s] += count
+      addWorkbenchCount(stats, mapMainStatusToOrderStatus(mainStatus), count)
     })
     hqStatusStats.value = stats
 
@@ -156,13 +172,17 @@ export function useIndexWorkbench() {
     )
 
   /**
-   * 状态文本映射
-   * @returns Record<OrderStatus, string>
+   * 状态文本映射（按派单权限覆盖 PENDING_ASSIGN / PENDING_TECH_ACCEPT 文案）
+   * @returns Record<WorkOrderMainStatus, string>
    */
-  const statusTextMap = computed<Record<OrderStatus, string>>(() => ({
-    ...ORDER_STATUS_TEXT_MAP,
-    pending: userStore.hasPermission(Perms.WORKORDER_ASSIGN) ? '待派单' : '待接单'
-  }))
+  const statusTextMap = computed<Record<WorkOrderMainStatus, string>>(() => {
+    const pendingLabel = userStore.hasPermission(Perms.WORKORDER_ASSIGN) ? '待派单' : '待接单'
+    return {
+      ...ORDER_STATUS_TEXT_MAP,
+      PENDING_ASSIGN: pendingLabel,
+      PENDING_TECH_ACCEPT: pendingLabel,
+    }
+  })
 
   /**
    * 是否显示派单按钮：mainStatus 为 PENDING_ASSIGN（与工单列表一致）
@@ -171,7 +191,7 @@ export function useIndexWorkbench() {
    */
   const showDispatchOrderButton = (order: OrderListItem) => {
     if (!userStore.hasPermission(Perms.WORKORDER_ASSIGN)) return false
-    if (order.status !== 'pending') return false
+    if (!isPendingMainStatus(order.status)) return false
     if (order.dispatcherPendingSubState === 'await_self_accept') return false
     return isMainStatusPendingAssign(order)
   }
@@ -184,7 +204,7 @@ export function useIndexWorkbench() {
   const showAcceptOrderButton = (order: OrderListItem) => {
     if (!userStore.hasPermission(Perms.WORKORDER_ACCEPT)) return false
     if (!canEngineerAcceptOrder(order)) return false
-    if (order.status !== 'pending') return false
+    if (!isPendingMainStatus(order.status)) return false
     if (userStore.hasPermission(Perms.WORKORDER_ASSIGN)) {
       if (order.dispatcherPendingSubState === 'await_self_accept') return true
       const uid = userStore.userInfo?.id
@@ -204,7 +224,7 @@ export function useIndexWorkbench() {
    * @returns string
    */
   const getOrderListStatusText = (order: OrderListItem) => {
-    if (order.status !== 'pending') return statusTextMap.value[order.status]
+    if (!isPendingMainStatus(order.status)) return statusTextMap.value[order.status]
     return getPendingDisplayLabel(
       order,
       userStore.hasPermission(Perms.WORKORDER_ASSIGN),

@@ -214,22 +214,22 @@
   import OrderDetailServiceCard from './components/OrderDetailServiceCard.vue'
   import OrderDetailStatusBanner from './components/OrderDetailStatusBanner.vue'
   import {
-    fetchOrderDetail,
-    fetchRepairFaultOptions,
-    submitWorkOrderRepair,
-    submitWorkOrderReview,
+    getWorkOrder,
+    listRepairFaultOptions,
+    repairWorkOrder,
+    reviewWorkOrder,
     techAcceptWorkOrder,
     type ReturnMethodConfirmPayload,
     type WorkOrderRepairFaultOptionVO,
     type WorkOrderReviewDTO
-  } from '@/api/order'
+  } from '@/api/workOrder'
   import {
     cloneOrderDetail,
     createEmptyOrderDetail,
     getReturnMethodInitialMail,
     type OrderDetail,
-    type OrderStatus,
-    type SysFileItemVO
+    type SysFileItemVO,
+    type WorkOrderMainStatus,
   } from '@/models/order'
   import { useAppStore, useUserStore } from '@/stores'
   import { isOrderStatus } from '@/utils/orderStatus'
@@ -260,7 +260,7 @@
   /** 维修登记/复检入口：仅在首次拉取详情后根据机器型号校正 Tab，避免重复 loadDetail 抢切用户当前 Tab */
   const repairEntryTabInitialized = ref(false)
   // 工单状态
-  const orderStatus = ref<OrderStatus>('pending')
+  const orderStatus = ref<WorkOrderMainStatus>('PENDING_ASSIGN')
   // 工单 ID
   const orderId = ref('')
   // 接单操作
@@ -460,7 +460,7 @@
   const loadDetail = async () => {
     if (!orderId.value) return
     try {
-      const detail = await fetchOrderDetail(orderId.value)
+      const detail = await getWorkOrder(orderId.value)
       order.value = cloneOrderDetail(detail)
       if (isOrderStatus(detail.status)) {
         orderStatus.value = detail.status
@@ -470,7 +470,10 @@
         !!detail.brand?.isJiashi && !hasVal(detail.product?.model)
 
       // 待接单·接单入口：用详情当前报价（quotes → repair.faultJudge 等）回显表单
-      if (detailEntryAction.value === 'accept' && detail.status === 'pending') {
+      if (
+        detailEntryAction.value === 'accept' &&
+        (detail.status === 'PENDING_ASSIGN' || detail.status === 'PENDING_TECH_ACCEPT')
+      ) {
         const fj = String(detail.repair?.faultJudge ?? '').trim()
         if (fj === '有故障' || fj === '无故障') {
           faultJudgeSelect.value = fj
@@ -483,7 +486,7 @@
       }
 
       // 维修中·维修登记：报价与说明可从详情修改后随 repair 接口再次提交
-      if (detailEntryAction.value === 'repair' && detail.status === 'processing') {
+      if (detailEntryAction.value === 'repair' && detail.status === 'IN_PROGRESS') {
         const rawAmtRepair = String(detail.repair?.quoteAmount ?? '').trim()
         if (rawAmtRepair && rawAmtRepair !== '0.00' && rawAmtRepair !== '0') {
           repairQuoteInput.value = rawAmtRepair
@@ -500,7 +503,7 @@
       // 复检登记·非佳士：维修说明默认选「其它维修说明」（佳士可走条码关联的选项）
       if (
         detailEntryAction.value === 'recheck' &&
-        detail.status === 'completed' &&
+        detail.status === 'COMPLETED' &&
         !detail.brand?.isJiashi &&
         repairDescSelect.value.length === 0
       ) {
@@ -514,20 +517,20 @@
         woId > 0 &&
         (detailEntryAction.value === 'repair' || detailEntryAction.value === 'recheck')
       ) {
-        repairFaultOptions.value = await fetchRepairFaultOptions(woId)
+        repairFaultOptions.value = await listRepairFaultOptions(woId)
       } else {
         repairFaultOptions.value = []
       }
 
       // 复检登记：回显上次维修登记提交的选项、说明、配件与图片
-      if (detailEntryAction.value === 'recheck' && detail.status === 'completed') {
+      if (detailEntryAction.value === 'recheck' && detail.status === 'COMPLETED') {
         applyRecheckRepairRegistrationEcho(detail.repairRegistrationEcho)
       }
 
       // 复检登记·非佳士：无回显项时维修说明默认选「其它维修说明」（佳士可走条码关联的选项）
       if (
         detailEntryAction.value === 'recheck' &&
-        detail.status === 'completed' &&
+        detail.status === 'COMPLETED' &&
         !detail.brand?.isJiashi &&
         repairDescSelect.value.length === 0
       ) {
@@ -542,9 +545,9 @@
         (detailEntryAction.value === 'repair' || detailEntryAction.value === 'recheck')
       ) {
         const repairEntry =
-          detailEntryAction.value === 'repair' && orderStatus.value === 'processing'
+          detailEntryAction.value === 'repair' && orderStatus.value === 'IN_PROGRESS'
         const recheckEntry =
-          detailEntryAction.value === 'recheck' && orderStatus.value === 'completed'
+          detailEntryAction.value === 'recheck' && orderStatus.value === 'COMPLETED'
         if (repairEntry || recheckEntry) {
           repairEntryTabInitialized.value = true
           const isJiashiBrand = !!order.value.brand?.isJiashi
@@ -666,7 +669,7 @@
       closeOrderReturnMethodPayload.value = null
       uni.showToast({
         title: getApiMessage(res, '工单已关闭'),
-        icon: 'success',
+        icon: 'none',
         duration: 1500
       })
       setTimeout(() => {
@@ -751,7 +754,7 @@
         ...(qd ? { quoteDesc: qd } : {})
       })
       appStore.markOrderListScrollRefresherOnNextShow()
-      uni.showToast({ title: getApiMessage(res, '接单成功'), icon: 'success' })
+      uni.showToast({ title: getApiMessage(res, '接单成功'), icon: 'none', duration: 1500 })
       await loadDetail()
     } catch {
       // api 内已 toast
@@ -874,8 +877,8 @@
       }
 
       const res = isRecheck
-        ? await submitWorkOrderReview(reviewDto)
-        : await submitWorkOrderRepair({
+        ? await reviewWorkOrder(reviewDto)
+        : await repairWorkOrder({
             workOrderId: wid,
             faultOldImageFileIds: collectVoucherFileIds(asUnknownArray(faultOldImages.value)),
             faultNewImageFileIds: collectVoucherFileIds(asUnknownArray(faultPointImages.value)),
@@ -897,7 +900,7 @@
       appStore.markOrderListScrollRefresherOnNextShow()
       uni.showToast({
         title: getApiMessage(res, isRecheck ? '复检登记已提交' : '登记成功'),
-        icon: 'success',
+        icon: 'none',
         duration: 1500
       })
       setTimeout(() => {

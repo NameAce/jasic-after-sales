@@ -96,7 +96,7 @@
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import FormItemAnchor from '@/components/FormItemAnchor/FormItemAnchor.vue'
   import { useUserStore } from '@/stores'
-  import { loginAPI } from '@/api/user'
+  import { login } from '@/api/auth'
   import { scrollPageToFormFieldKey } from '@/utils/formFieldScrollFocus'
   import { showToastThen, TAB_HOME } from '@/utils/toastNavigate'
   // 是否同意用户协议
@@ -135,9 +135,9 @@
       const loginRes = await new Promise<{ code: string }>((resolve, reject) => {
         uni.login({ provider: 'weixin', success: resolve, fail: reject })
       })
-      const res = await loginAPI({ code: loginRes.code, phoneCode })
-      userStore.setUserInfo(res.result.userInfo)
-      uni.setStorageSync('token', res.result.token)
+      const res = await login({ code: loginRes.code, phoneCode })
+      userStore.setUserInfo(res.data.userInfo)
+      uni.setStorageSync('token', res.data.token)
       uni.hideLoading()
       showToastThen(TAB_HOME, { title: res.msg || '登录成功', duration: 1500 })
     } catch {
@@ -156,9 +156,9 @@
     }
     uni.showLoading({ title: '登录中...' })
     try {
-      const res = await loginAPI({ code: '', phoneCode: '' })
-      userStore.setUserInfo(res.result.userInfo)
-      uni.setStorageSync('token', res.result.token)
+      const res = await login({ code: '', phoneCode: '' })
+      userStore.setUserInfo(res.data.userInfo)
+      uni.setStorageSync('token', res.data.token)
       uni.hideLoading()
       showToastThen(TAB_HOME, { title: res.msg || '登录成功', duration: 1500 })
     } catch {

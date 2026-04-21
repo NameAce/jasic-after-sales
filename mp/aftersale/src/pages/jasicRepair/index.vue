@@ -209,12 +209,12 @@
     partitionFaultMediaFileIds
   } from '@/utils/workOrderFileIds'
   import {
-    createCustomerWorkOrderAPI,
-    getBarcodeInfoAPI,
+    createCustomerWorkOrder,
+    getCustomerWorkOrderBarcodeInfo,
     mapBarcodeFaultOptions,
     type BarcodeInfoDTO,
     type CreateCustomerWorkOrderDTO
-  } from '@/api/order'
+  } from '@/api/workOrder'
   import { API_SUCCESS_CODE } from '@/utils/http'
   import {
     scrollPageToFormFieldKey,
@@ -551,11 +551,10 @@
     // 尝试查询保修
     try {
       // 查询保修
-      const res = await getBarcodeInfoAPI({ barcode: formData.value.warrantyCode })
+      const res = await getCustomerWorkOrderBarcodeInfo({ barcode: formData.value.warrantyCode })
       // 隐藏加载中
       uni.hideLoading()
-      // 获取保修信息（http 层已将 data 归一为 result）
-      const info = res.result
+      const info = res.data
       const row = info && typeof info === 'object' ? (info as Record<string, unknown>) : null
       const mapped = mapBarcodeFaultOptions(row?.faultOptions)
       faultDescriptionOptionsFromApi.value = mapped
@@ -858,9 +857,9 @@
     uni.showLoading({ title: options.loadingTitle })
 
     try {
-      const res = await createCustomerWorkOrderAPI(buildJasicWorkOrderPayload())
+      const res = await createCustomerWorkOrder(buildJasicWorkOrderPayload())
       uni.hideLoading()
-      uni.showToast({ title: res.msg, icon: 'success', duration: TOAST_DURATION })
+      uni.showToast({ title: res.msg, icon: 'none', duration: TOAST_DURATION })
       // 如果需要重定向，则清除暂存并重定向
       if (options.redirect) {
         clearJasicRepairDraft()
@@ -901,7 +900,7 @@
     try {
       saveJasicRepairDraft(buildJasicRepairDraftSnapshot())
       uni.hideLoading()
-      uni.showToast({ title: '已暂存', icon: 'success', duration: TOAST_DURATION })
+      uni.showToast({ title: '已暂存', icon: 'none', duration: TOAST_DURATION })
     } catch (err: unknown) {
       uni.hideLoading()
       uni.showToast({

@@ -87,8 +87,10 @@ $danger-tint-border: #fecaca;
 
 // --- 图标装饰（下拉箭头、空状态大图标等） ---
 $icon-slate-light: #cbd5e1;
-// 语音条滑块轨道灰（与 `$bg-muted-panel` 搭配）
+// 语音条滑块轨道灰（与 `$bg-muted-panel` 搭配）——双端统一真源
 $voice-panel-track: #d9dfe6;
+// 别名：兼容 aftersale 早期命名，引用时等价于 `$voice-panel-track`
+$surface-track: $voice-panel-track;
 
 // --- 业务点缀 ---
 $vip-badge-bg: #facc15;
@@ -123,7 +125,9 @@ $font-title: 48rpx;
 $safe-area-bottom: env(safe-area-inset-bottom);
 
 // =============================================================================
-// Contractor 扩展（B 端独有；主色/页面底勿重复定义，引用上方真源）
+// contractor 端侧扩展（B 端独有；主色 / 页面底勿重复定义，引用上方真源）
+// - 登录渐变、工单状态语义色等仅在 contractor 使用的 token。
+// - aftersale 如需同步，先在 aftersale variables.scss 扩展段复刻再引用。
 // =============================================================================
 
 // --- 主色辅助（登录渐变等） ---

@@ -146,20 +146,20 @@
           >
             <template v-if="showDispatcherActionBlock(order)">
               <button
-                v-if="order.status === 'pending' && isOrderPendingAssign(order)"
+                v-if="isOrderPendingAssign(order)"
                 class="btn-action primary"
                 @tap.stop="openAssignModal(order.id)"
               >
                 派单
               </button>
               <button
-                v-else-if="order.status === 'pending' && isOrderPendingTechAccept(order)"
+                v-else-if="isOrderPendingTechAccept(order)"
                 class="btn-action primary"
                 @tap.stop="onAcceptOrder(order.id)"
               >
                 接单
               </button>
-              <template v-else-if="order.status === 'processing'">
+              <template v-else-if="order.status === 'IN_PROGRESS'">
                 <button
                   v-if="userStore.hasPermission(Perms.WORKORDER_TRANSFER)"
                   class="btn-action primary"
@@ -168,7 +168,7 @@
                   转单
                 </button>
               </template>
-              <template v-else-if="order.status === 'completed'">
+              <template v-else-if="order.status === 'COMPLETED'">
                 <button
                   v-if="
                     userStore.hasPermission(Perms.WORKORDER_REVIEW) && !operatorShowsRecheck(order)
@@ -259,28 +259,28 @@
     applyWorkOrderListSearchKeyword,
     assignWorkOrder,
     fetchBranchList,
-    fetchAssignUserOptions,
-    fetchOrderDetail,
-    fetchOrderListPage,
+    listAssignUserOptions,
+    getWorkOrder,
+    listWorkOrder,
     closeWorkOrder,
     transferWorkOrder,
-    fetchTransferTargetOptions,
+    listTransferTargetOptions,
     WORK_ORDER_FAULT_CLOSE_REASON,
     type OrderListQuery,
     type ReturnMethodConfirmPayload
-  } from '@/api/order'
+  } from '@/api/workOrder'
   import {
     getReturnMethodInitialMail,
     type BranchItem,
     type OrderDetail,
     type OrderListItem,
-    type OrderStatus
+    type WorkOrderMainStatus,
   } from '@/models/order'
   import {
     canCurrentSiteOperateTransferredOrder,
     hasInboundTransferFromSite
   } from '@/utils/orderTransfer'
-  import { ORDER_STATUS_TEXT_MAP } from '@/utils/orderStatus'
+  import { ORDER_STATUS_TEXT_MAP, isPendingMainStatus } from '@/utils/orderStatus'
   import { Perms } from '@/utils/permissions'
   import { getApiMessage } from '@/utils/http'
   import { takeSelectedShippingAddress } from '@/utils/addressStorage'
@@ -357,18 +357,18 @@
 
   /** 待接单：仅 mainStatus=PENDING_TECH_ACCEPT */
   const isOrderPendingTechAccept = (order: OrderListItem) =>
-    order.status === 'pending' && isWorkOrderPendingTechAcceptMainStatus(order.mainStatus)
+    order.status === 'PENDING_TECH_ACCEPT'
 
-  /** 待派单：pending 且非 PENDING_TECH_ACCEPT（含 PENDING_ASSIGN、空值等） */
+  /** 待派单：PENDING_ASSIGN（且接口原始 mainStatus 非 PENDING_TECH_ACCEPT 兜底） */
   const isOrderPendingAssign = (order: OrderListItem) =>
-    order.status === 'pending' && !isWorkOrderPendingTechAcceptMainStatus(order.mainStatus)
+    order.status === 'PENDING_ASSIGN' && !isWorkOrderPendingTechAcceptMainStatus(order.mainStatus)
 
   /**
    * 列表卡片状态文案：派单员视角按接口 mainStatus 区分「待派单 / 待接单」
    */
   const listStatusText = (order: OrderListItem) => {
     const status = order.status
-    if (userStore.hasPermission(Perms.WORKORDER_ASSIGN) && status === 'pending') {
+    if (userStore.hasPermission(Perms.WORKORDER_ASSIGN) && isPendingMainStatus(status)) {
       return isOrderPendingTechAccept(order) ? '待接单' : '待派单'
     }
     return statusTextMap[status]
@@ -564,7 +564,7 @@
       const ms = secondaryTabToMainStatus(secondary)
       if (ms !== undefined) query.mainStatus = ms
 
-      const page = await fetchOrderListPage(query)
+      const page = await listWorkOrder(query)
       if (currentVersion !== requestVersion.value) return
       baseOrderList.value = page.records
       totalOrders.value = page.total
@@ -603,7 +603,7 @@
       const ms = secondaryTabToMainStatus(secondary)
       if (ms !== undefined) query.mainStatus = ms
 
-      const page = await fetchOrderListPage(query)
+      const page = await listWorkOrder(query)
       if (currentVersion !== requestVersion.value) return
       pageNum.value = nextPage
       totalOrders.value = page.total
@@ -734,7 +734,7 @@
 
     uni.showLoading({ title: '加载网点...' })
     try {
-      const list = await fetchTransferTargetOptions(workOrderId)
+      const list = await listTransferTargetOptions(workOrderId)
       transferTargetOptions.value = list.map((c) => ({
         id: c.id,
         name: c.companyName || c.companyCode || String(c.id),
@@ -796,7 +796,7 @@
       await nextTick()
       await refreshOrders()
 
-      uni.showToast({ title: getApiMessage(res, '转单已提交'), icon: 'success' })
+      uni.showToast({ title: getApiMessage(res, '转单已提交'), icon: 'none', duration: 1500 })
     } catch {
       // http.ts / api 内已 toast；这里兜底避免 loading 不消失
     } finally {
@@ -824,7 +824,7 @@
 
     const workOrderId = Number(openedFor)
     if (!Number.isFinite(workOrderId) || workOrderId <= 0) return
-    fetchAssignUserOptions(workOrderId)
+    listAssignUserOptions(workOrderId)
       .then((list) => {
         if (String(currentOrderId.value).trim() !== openedFor) return
         const selfId = Number(userStore.userInfo?.id)
@@ -887,7 +887,7 @@
       if (isSelf) {
         uni.showToast({ title: '已派单给自己，可在「待接单」中接单', icon: 'none' })
       } else {
-        uni.showToast({ title: getApiMessage(res, '派单成功'), icon: 'success' })
+        uni.showToast({ title: getApiMessage(res, '派单成功'), icon: 'none', duration: 1500 })
       }
       closeAssignModal()
       setTimeout(() => {
@@ -912,14 +912,15 @@
    * 操作按钮映射
    * @returns 操作按钮映射（根据工单状态）
    */
-  const operatorActionMap: Record<OrderStatus, OperatorAction[]> = {
-    pending: [{ key: 'accept', label: '接单', className: 'primary' }],
-    processing: [{ key: 'repair', label: '维修登记', className: 'primary' }],
-    completed: [
+  const operatorActionMap: Record<WorkOrderMainStatus, OperatorAction[]> = {
+    PENDING_ASSIGN: [{ key: 'accept', label: '接单', className: 'primary' }],
+    PENDING_TECH_ACCEPT: [{ key: 'accept', label: '接单', className: 'primary' }],
+    IN_PROGRESS: [{ key: 'repair', label: '维修登记', className: 'primary' }],
+    COMPLETED: [
       { key: 'returnMethod', label: '机器返回方式', className: 'outline' },
       { key: 'recheck', label: '复检登记', className: 'primary' }
     ],
-    closed: []
+    CLOSED: []
   }
 
   /**
@@ -950,7 +951,7 @@
    * @param status 工单状态
    * @returns 操作按钮（操作按钮键、操作按钮标签、操作按钮类名）
    */
-  const getOperatorActions = (status: OrderStatus): OperatorAction[] => {
+  const getOperatorActions = (status: WorkOrderMainStatus): OperatorAction[] => {
     const base = operatorActionMap[status] ?? []
     const hq = isHqProcessView.value
     return base.filter((a) => {
@@ -994,13 +995,13 @@
     const hasTransfer = userStore.hasPermission(Perms.WORKORDER_TRANSFER)
     if (hasAssign) {
       return (
-        order.status === 'pending' ||
-        (order.status === 'processing' && hasTransfer) ||
-        order.status === 'completed'
+        isPendingMainStatus(order.status) ||
+        (order.status === 'IN_PROGRESS' && hasTransfer) ||
+        order.status === 'COMPLETED'
       )
     }
     if (hasTransfer) {
-      return order.status === 'processing' || order.status === 'completed'
+      return order.status === 'IN_PROGRESS' || order.status === 'COMPLETED'
     }
     return false
   }
@@ -1015,7 +1016,8 @@
     if (isDispatcherOrderAssignedToOther(order)) return false
     if (!canOperateOrder.value || !canEngineerOperateTransferredOrder(order)) return false
     // 派单员 pending 仅走上方按钮区：待派单只显示「派单」、待接单只显示「接单」，不与工程师条重复
-    if (userStore.hasPermission(Perms.WORKORDER_ASSIGN) && order.status === 'pending') return false
+    if (userStore.hasPermission(Perms.WORKORDER_ASSIGN) && isPendingMainStatus(order.status))
+      return false
     return getOperatorActions(order.status).length > 0
   }
 
@@ -1025,9 +1027,9 @@
    * @returns 是否显示「复检登记」（用于避免与派单条重复）
    */
   const operatorShowsRecheck = (order: OrderListItem) => {
-    if (order.status !== 'completed') return false
+    if (order.status !== 'COMPLETED') return false
     if (!showOperatorActions(order)) return false
-    return getOperatorActions('completed').some((a) => a.key === 'recheck')
+    return getOperatorActions('COMPLETED').some((a) => a.key === 'recheck')
   }
 
   /**
@@ -1095,7 +1097,7 @@
     currentReturnOrderDetail.value = undefined
     currentReturnMethodType.value = ''
     closeOrderReturnMethodPayload.value = null
-    fetchOrderDetail(orderId)
+    getWorkOrder(orderId)
       .then((d) => {
         currentReturnOrderDetail.value = d
       })
@@ -1140,7 +1142,7 @@
       try {
         const res = await closeWorkOrder(dto)
         closeOrderReturnMethodPayload.value = null
-        uni.showToast({ title: getApiMessage(res, '工单已关闭'), icon: 'success' })
+        uni.showToast({ title: getApiMessage(res, '工单已关闭'), icon: 'none', duration: 1500 })
         setTimeout(() => {
           refreshOrders()
         }, 300)
@@ -1209,7 +1211,7 @@
     try {
       const res = await closeWorkOrder(dto)
       closeOrderReturnMethodPayload.value = null
-      uni.showToast({ title: getApiMessage(res, '工单已关闭'), icon: 'success' })
+      uni.showToast({ title: getApiMessage(res, '工单已关闭'), icon: 'none', duration: 1500 })
       // 关闭成功后刷新列表（避免本地状态与后端不一致）
       setTimeout(() => {
         refreshOrders()
@@ -1228,7 +1230,7 @@
    */
   const onRecheck = (orderId: string) => {
     uni.navigateTo({
-      url: `/pages/order/detail?id=${orderId}&status=completed&action=recheck`
+      url: `/pages/order/detail?id=${orderId}&status=COMPLETED&action=recheck`
     })
   }
 

@@ -33,8 +33,8 @@ export default [
 
         uni: 'readonly',
         wx: 'readonly',
-        console: 'readonly',
-        getCurrentPages: 'readonly'
+        getCurrentPages: 'readonly',
+        console: 'readonly'
       }
     },
 
@@ -69,6 +69,24 @@ export default [
     files: ['vite.config.ts'],
     rules: {
       '@typescript-eslint/no-unused-expressions': 'off'
+    }
+  },
+
+  // 契约层守卫（阶段 6.3）：
+  // 统一响应体形状为 { code, msg, data }（真源 jasic-ui/src/utils/request.js L66-L83）。
+  // 在 API 层与 HTTP 封装层禁止访问 `.result` 成员，避免遗漏未清理的旧归一逻辑或 unwrap() 残留。
+  // 业务页面（如 uni.scanCode 回调）的 `res.result` 不受此规则约束。
+  {
+    files: ['src/api/**/*.{ts,js}', 'src/utils/http.{ts,js}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "MemberExpression[property.name='result']",
+          message:
+            'ApiResponse 已统一为 { code, msg, data }，禁止在 api/http 层访问 .result；请改用 .data（详见 mp/MIRROR_FILE_PAIRS.md 的「响应体 shape」约定）。'
+        }
+      ]
     }
   },
 

@@ -179,7 +179,7 @@
   import { computed, ref } from 'vue'
   import MediaUploadField from '@/components/MediaUploadField/MediaUploadField.vue'
   import { addAPhotoIcon } from '@/svgs'
-  import type { WorkOrderRepairFaultOptionVO } from '@/api/order'
+  import type { WorkOrderRepairFaultOptionVO } from '@/api/workOrder'
 
   const OTHER_REPAIR_DESC = '其它维修说明'
 

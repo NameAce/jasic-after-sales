@@ -1,20 +1,20 @@
 import { computed, ref } from 'vue'
 import { useUserStore } from '@/stores'
-import type { OrderListItem, OrderStatus } from '@/models/order'
+import type { OrderListItem, WorkOrderMainStatus } from '@/models/order'
 import {
   aggregateWorkOrderStatusTabCounts,
-  fetchOrderListPage,
-  fetchWorkOrderStatusCount,
+  listWorkOrder,
+  countWorkOrderStatus,
   pickWorkOrderStatusCountForMainCode,
   type OrderListQuery,
   type WorkOrderStatusCountVO,
   type WorkOrderStatusTabCounts,
-} from '@/api/order'
+} from '@/api/workOrder'
 import {
   canCurrentSiteOperateTransferredOrder,
   hasInboundTransferFromSite
 } from '@/utils/orderTransfer'
-import { ORDER_STATUS_TEXT_MAP } from '@/utils/orderStatus'
+import { ORDER_STATUS_TEXT_MAP, isPendingMainStatus } from '@/utils/orderStatus'
 import { Perms } from '@/utils/permissions'
 import { isWorkOrderPendingTechAcceptMainStatus } from '@/utils/workOrderMainStatus'
 
@@ -84,8 +84,8 @@ export function useIndexWorkbench() {
   const doRefreshSiteWorkbench = async () => {
     try {
       const [page, rows] = await Promise.all([
-        fetchOrderListPage(buildSiteWorkbenchListQuery(1)),
-        fetchWorkOrderStatusCount({
+        listWorkOrder(buildSiteWorkbenchListQuery(1)),
+        countWorkOrderStatus({
           viewScope: 'CURRENT',
         }),
       ])
@@ -112,14 +112,14 @@ export function useIndexWorkbench() {
     siteListLoadingMore.value = true
     try {
       const next = siteListPageNum.value + 1
-      const page = await fetchOrderListPage(buildSiteWorkbenchListQuery(next))
+      const page = await listWorkOrder(buildSiteWorkbenchListQuery(next))
       siteListPageNum.value = next
       siteListTotal.value = page.total
       if (page.records.length) {
         orderList.value = orderList.value.concat(page.records)
       }
     } catch {
-      /* fetchOrderListPage 已 toast */
+      /* listWorkOrder 已 toast */
     } finally {
       siteListLoadingMore.value = false
     }
@@ -155,8 +155,8 @@ export function useIndexWorkbench() {
   const doRefreshHqWorkbench = async () => {
     try {
       const [rows, transferredRows] = await Promise.all([
-        fetchWorkOrderStatusCount({ viewScope: 'CURRENT' }),
-        fetchWorkOrderStatusCount({ viewScope: 'CURRENT', hasTransfer: 1 }),
+        countWorkOrderStatus({ viewScope: 'CURRENT' }),
+        countWorkOrderStatus({ viewScope: 'CURRENT', hasTransfer: 1 }),
       ])
 
       hqStatusStats.value = aggregateWorkOrderStatusTabCounts(rows)
@@ -183,17 +183,20 @@ export function useIndexWorkbench() {
       userStore.currentNetworkName
     )
 
-  const statusTextMap = computed<Record<OrderStatus, string>>(() => ({
-    ...ORDER_STATUS_TEXT_MAP,
-    pending: userStore.hasPermission(Perms.WORKORDER_ASSIGN) ? '待派单' : '待接单'
-  }))
+  const statusTextMap = computed<Record<WorkOrderMainStatus, string>>(() => {
+    const pendingLabel = userStore.hasPermission(Perms.WORKORDER_ASSIGN) ? '待派单' : '待接单'
+    return {
+      ...ORDER_STATUS_TEXT_MAP,
+      PENDING_ASSIGN: pendingLabel,
+      PENDING_TECH_ACCEPT: pendingLabel,
+    }
+  })
 
   const showDispatchOrderButton = (order: OrderListItem) => {
     if (!userStore.hasPermission(Perms.WORKORDER_ASSIGN)) return false
     if (
       userStore.hasPermission(Perms.WORKORDER_ACCEPT) &&
-      order.status === 'pending' &&
-      isWorkOrderPendingTechAcceptMainStatus(order.mainStatus)
+      order.status === 'PENDING_TECH_ACCEPT'
     )
       return false
     return true
@@ -203,19 +206,17 @@ export function useIndexWorkbench() {
     if (!userStore.hasPermission(Perms.WORKORDER_ACCEPT)) return false
     if (!canEngineerAcceptOrder(order)) return false
     if (userStore.hasPermission(Perms.WORKORDER_ASSIGN)) {
-      return (
-        order.status === 'pending' && isWorkOrderPendingTechAcceptMainStatus(order.mainStatus)
-      )
+      return order.status === 'PENDING_TECH_ACCEPT'
     }
     return true
   }
 
   const getOrderListStatusText = (order: OrderListItem) => {
-    if (order.status !== 'pending') return statusTextMap.value[order.status]
+    if (!isPendingMainStatus(order.status)) return statusTextMap.value[order.status]
     if (userStore.canAll([Perms.WORKORDER_ASSIGN, Perms.WORKORDER_ACCEPT])) {
       return isWorkOrderPendingTechAcceptMainStatus(order.mainStatus) ? '待接单' : '待派单'
     }
-    return statusTextMap.value.pending
+    return statusTextMap.value.PENDING_ASSIGN
   }
 
   const workbenchListTitle = computed(() => {

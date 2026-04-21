@@ -8,7 +8,9 @@ import AutoImport from 'unplugin-auto-import/vite'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
+    uni.default(),
     AutoImport({
+      ignore: ['createApp'],
       imports: [
         'vue', // 自动引入 Vue API
         'vue-i18n', // 如果你用了
@@ -25,7 +27,6 @@ export default defineConfig({
         globalsPropValue: true,
       },
     }),
-    uni.default(),
   ],
   build: {
     // 开发阶段启用源码映射：https://uniapp.dcloud.net.cn/tutorial/migration-to-vue3.html#需主动开启-sourcemap
