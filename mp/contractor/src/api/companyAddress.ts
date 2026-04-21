@@ -1,7 +1,9 @@
 import { http } from '@/utils/http'
 import type { SavedAddress } from '@/utils/addressStorage'
 
-/** 公司地址簿新增参数（POST `/api/system/company-address`） */
+// --- CompanyAddress ---
+
+/** 公司地址簿新增参数（POST `/system/company-address`） */
 export interface CompanyAddressCreateDTO {
   /** 详细地址（整行） */
   address: string
@@ -12,18 +14,19 @@ export interface CompanyAddressCreateDTO {
 }
 
 /**
- * 新增公司/客户收货地址
- * @returns 成功时 data/result 为新地址 ID（long）
+ * 新增公司地址
+ * 真源：[jasic-ui/src/api/companyAddress.js](../../../../jasic-ui/src/api/companyAddress.js) `createCompanyAddress`
+ * @returns 成功时 data 为新地址 ID（long）
  */
-export const createCustomerAddressAPI = (data: CompanyAddressCreateDTO) => {
+export const addCompanyAddress = (data: CompanyAddressCreateDTO) => {
   return http<number>({
-    url: '/api/system/company-address',
+    url: '/system/company-address',
     method: 'POST',
     data,
   })
 }
 
-/** 公司地址簿修改参数（PUT `/api/system/company-address`） */
+/** 公司地址簿修改参数（PUT `/system/company-address`） */
 export interface CompanyAddressUpdateDTO {
   /** 详细地址（与表单一致：省市区 + 街道门牌等合并为一条） */
   address: string
@@ -35,17 +38,18 @@ export interface CompanyAddressUpdateDTO {
 }
 
 /**
- * 修改公司收货地址
+ * 修改公司地址
+ * 真源：[jasic-ui/src/api/companyAddress.js](../../../../jasic-ui/src/api/companyAddress.js) `updateCompanyAddress`
  */
-export const updateCompanyAddressAPI = (data: CompanyAddressUpdateDTO) => {
+export const updateCompanyAddress = (data: CompanyAddressUpdateDTO) => {
   return http<null>({
-    url: '/api/system/company-address',
+    url: '/system/company-address',
     method: 'PUT',
     data,
   })
 }
 
-/** 公司地址列表项（与 `GET /api/system/company-address/list` 一致） */
+/** 公司地址列表项（与 `GET /system/company-address/list` 一致） */
 export interface CompanyAddressVO {
   id: number
   companyId: number
@@ -59,20 +63,22 @@ export interface CompanyAddressVO {
 
 /**
  * 查询当前公司地址列表
+ * 真源：[jasic-ui/src/api/companyAddress.js](../../../../jasic-ui/src/api/companyAddress.js) `listCompanyAddress`
  */
-export const getCompanyAddressListAPI = () => {
+export const listCompanyAddress = () => {
   return http<CompanyAddressVO[]>({
-    url: '/api/system/company-address/list',
+    url: '/system/company-address/list',
     method: 'GET',
   })
 }
 
 /**
- * 删除公司地址（DELETE `/api/system/company-address/{addressId}`）
+ * 删除公司地址（DELETE `/system/company-address/{addressId}`）
+ * 真源：[jasic-ui/src/api/companyAddress.js](../../../../jasic-ui/src/api/companyAddress.js) `deleteCompanyAddress`
  */
-export const deleteCompanyAddressAPI = (addressId: number) => {
+export const deleteCompanyAddress = (addressId: number) => {
   return http<null>({
-    url: `/api/system/company-address/${addressId}`,
+    url: `/system/company-address/${addressId}`,
     method: 'DELETE',
     header: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -80,17 +86,15 @@ export const deleteCompanyAddressAPI = (addressId: number) => {
   })
 }
 
-/** 与 `deleteCompanyAddressAPI` 相同（旧页面/文档曾用此命名） */
-export const deleteCustomerAddressAPI = deleteCompanyAddressAPI
-
 /**
  * 设为默认公司地址
- * `PUT /api/system/company-address/{addressId}/default`（path：`addressId` int64）
+ * `PUT /system/company-address/{addressId}/default`（path：`addressId` int64）
  * 响应：`Result<Void>`（code/msg）
+ * 真源：[jasic-ui/src/api/companyAddress.js](../../../../jasic-ui/src/api/companyAddress.js) `setDefaultCompanyAddress`
  */
-export const setDefaultCustomerAddressAPI = (addressId: number) => {
+export const setDefaultCompanyAddress = (addressId: number) => {
   return http<null>({
-    url: `/api/system/company-address/${addressId}/default`,
+    url: `/system/company-address/${addressId}/default`,
     method: 'PUT',
   })
 }

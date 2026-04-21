@@ -4,13 +4,21 @@ import {
   mapCustomerRepairsToAllFaultPointRecords,
   type CustomerRepairForHistory,
 } from '@/api/mapRepairsToFaultPointRecords'
+import { formatAmount, formatIsoDateTime } from '@/utils/format'
 
 export type FaultPointMaintenanceRecord = FaultPointRecord
 
-// 工单详情
-export interface OrderDetailDTO {
+/**
+ * 工单详情（UI 展示模型，Model 层）
+ *
+ * 三层化口径（对齐 `MIRROR_FILE_PAIRS.md` 与 jasic-ui 契约）：
+ * - `VO`：后端原样返回，见 `CustomerWorkOrderDetailVO`（布尔字段保持 number `0/1`）
+ * - `DTO`：请求体（见 `CreateCustomerWorkOrderDTO` 等）
+ * - `Model`：UI 展示模型（本类型；布尔字段保持 boolean）
+ */
+export interface OrderDetail {
   status: string
-  /** 是否可评价（来自 `/api/customer/work-order/{id}` 的 canEvaluate） */
+  /** 是否可评价（来自 `/customer/work-order/{id}` 的 canEvaluate） */
   canEvaluate?: boolean
   /**
    * 是否佳士品牌工单（与列表 `isJasic` 规则一致，用于「工单类型」标签配色）
@@ -115,15 +123,22 @@ export interface CustomerWorkOrderFileDTO {
   sortNum?: number
 }
 
-// 客户侧工单详情
-export interface CustomerWorkOrderDetailDTO {
+/**
+ * 客户侧工单详情 VO（后端 `/customer/work-order/{id}` 返回原样）
+ *
+ * 三层化口径：VO 侧布尔字段（`canEditSendInfo / canEvaluate / isJasicProduct`）一律保持 `number`（0/1），
+ * UI 展示侧 Model（`OrderDetail`）再转为 `boolean`。
+ */
+export interface CustomerWorkOrderDetailVO {
   assignedUserName: string
   barcode: string
   brandCode: string
   /** 品牌名称（接口扩展） */
   brandName?: string
-  canEditSendInfo: boolean
-  canEvaluate: boolean
+  /** 是否允许编辑寄件信息（后端 0/1；阶段 4.5：DTO 布尔统一为 number） */
+  canEditSendInfo: number
+  /** 是否可评价（后端 0/1；阶段 4.5：DTO 布尔统一为 number） */
+  canEvaluate: number
   closeReason: string
   closedTime: string
   completedTime: string
@@ -165,8 +180,8 @@ export interface CustomerWorkOrderDetailDTO {
   brandType?: string
   /** 报修业务类型名称，对应详情页「工单类型」 */
   brandTypeLabel?: string
-  /** 是否佳士产品线（与列表同源字段，缺省时用 brandType 推断） */
-  isJasicProduct?: boolean
+  /** 是否佳士产品线（与列表同源字段，缺省时用 brandType 推断；后端 0/1） */
+  isJasicProduct?: number
   quotes?: Array<{
     companyId: number
     companyName: string
@@ -239,24 +254,6 @@ export interface CustomerWorkOrderDetailDTO {
   warrantyStatus: string
 }
 
-/**
- * 格式化报价金额
- * @param v - 报价金额
- * @returns - 格式化后的报价金额
- */
-function formatQuoteAmount(v: unknown): string {
-  if (v == null) return ''
-  if (typeof v === 'number') {
-    if (!Number.isFinite(v)) return ''
-    return v.toFixed(2)
-  }
-  const s = String(v).trim()
-  if (!s) return ''
-  const n = Number(s)
-  if (Number.isFinite(n)) return n.toFixed(2)
-  return s
-}
-
 /** 将详情接口 warrantyStatus 转为「质保判定」展示文案 */
 function formatWarrantyJudgeLabel(raw: unknown): string {
   const s = String(raw ?? '').trim()
@@ -324,10 +321,10 @@ function mergeUniqueUrls(primary: string[], extra: string[]): string[] {
  * @param r - 工单详情
  * @returns - 工单列表项状态
  */
-function workOrderDetailToUiStatus(r: CustomerWorkOrderDetailDTO): OrderListItemDTO['status'] {
+function workOrderDetailToUiStatus(r: CustomerWorkOrderDetailVO): OrderListItem['status'] {
   const d = r.displayStatus?.trim()
   if (d && (UI_ORDER_STATUSES as readonly string[]).includes(d)) {
-    return d as OrderListItemDTO['status']
+    return d as OrderListItem['status']
   }
   const key = String(r.mainStatus || '')
     .trim()
@@ -337,11 +334,15 @@ function workOrderDetailToUiStatus(r: CustomerWorkOrderDetailDTO): OrderListItem
 }
 
 /**
- * 将客户侧工单详情转为工单详情
- * @param r - 客户侧工单详情
- * @returns - 工单详情
+ * 将客户侧工单详情 VO 转为 UI 展示用的 Model
+ *
+ * - 入参：`CustomerWorkOrderDetailVO`（后端原样，布尔 0/1）
+ * - 返回：`OrderDetail`（UI Model，布尔 boolean）
+ *
+ * @param r - 客户侧工单详情 VO
+ * @returns - 工单详情 Model
  */
-export function mapCustomerWorkOrderDetailToOrderDetailDTO(r: CustomerWorkOrderDetailDTO): OrderDetailDTO {
+export function mapCustomerWorkOrderDetailToOrderDetail(r: CustomerWorkOrderDetailVO): OrderDetail {
   const uiStatus = workOrderDetailToUiStatus(r)
   const quote =
     r.quotes?.find((x) => Number(x.isCurrentValid) === 1) ??
@@ -359,7 +360,7 @@ export function mapCustomerWorkOrderDetailToOrderDetailDTO(r: CustomerWorkOrderD
   const assignedUserRaw = String(r.assignedUserName ?? '').trim()
   const acceptorName = String(r.createCompanyName ?? '').trim() || companyNameRaw
 
-  const technician: OrderDetailDTO['technician'] =
+  const technician: OrderDetail['technician'] =
     assignedUserRaw || companyNameRaw
       ? {
           name: assignedUserRaw || companyNameRaw || acceptorName,
@@ -430,7 +431,7 @@ export function mapCustomerWorkOrderDetailToOrderDetailDTO(r: CustomerWorkOrderD
 
   return {
     status: uiStatus,
-    canEvaluate: r.canEvaluate ?? (uiStatus === '已关闭'),
+    canEvaluate: r.canEvaluate != null ? Boolean(r.canEvaluate) : uiStatus === '已关闭',
     isJasic,
     faultImageFiles: sortWorkOrderFiles(r.faultImageFiles),
     base: {
@@ -470,7 +471,7 @@ export function mapCustomerWorkOrderDetailToOrderDetailDTO(r: CustomerWorkOrderD
     },
     repair: {
       faultJudge: String(quote?.faultJudge ?? '').trim(),
-      quoteAmount: formatQuoteAmount(quote?.quoteAmount),
+      quoteAmount: formatAmount(quote?.quoteAmount),
       quoteDesc: String(quote?.quoteDesc ?? '').trim(),
       repairTime: String(r.completedTime || r.closedTime || '').trim(),
       returnMethod: String(r.returnMethod ?? '').trim(),
@@ -498,21 +499,24 @@ export function mapCustomerWorkOrderDetailToOrderDetailDTO(r: CustomerWorkOrderD
 }
 /**
  * 获取工单详情
+ *
+ * 对应 jasic-ui `getWorkOrder`（C 端专属接口 `/customer/work-order/{id}`）
+ *
  * @param data - 工单ID
  * @returns - 工单详情
  */
-export const getOrderDetailAPI = (data: { id: string }) => {
-  return http<CustomerWorkOrderDetailDTO>({
-    url: `/api/customer/work-order/${encodeURIComponent(String(data.id))}`,
+export const getCustomerWorkOrder = (data: { id: string }) => {
+  return http<CustomerWorkOrderDetailVO>({
+    url: `/customer/work-order/${encodeURIComponent(String(data.id))}`,
     method: 'GET',
   }).then((res) => ({
     ...res,
-    result: mapCustomerWorkOrderDetailToOrderDetailDTO(res.result),
+    data: mapCustomerWorkOrderDetailToOrderDetail(res.data),
   }))
 }
 
 /**
- * 仅拉取详情中的故障点历史列表（与 `mapCustomerWorkOrderDetailToOrderDetailDTO` 的 `faultPoint.records` 同源；历史页先读 storage 再请求覆盖，与 contractor 一致）。
+ * 仅拉取详情中的故障点历史列表（与 `mapCustomerWorkOrderDetailToOrderDetail` 的 `faultPoint.records` 同源；历史页先读 storage 再请求覆盖，与 contractor 一致）。
  */
 export async function fetchOrderRepairFaultRecords(id: string): Promise<FaultPointMaintenanceRecord[]> {
   const wid = String(id || '').trim()
@@ -520,8 +524,8 @@ export async function fetchOrderRepairFaultRecords(id: string): Promise<FaultPoi
     uni.showToast({ title: '工单ID无效', icon: 'none' })
     throw new Error('工单ID无效')
   }
-  const res = await getOrderDetailAPI({ id: wid })
-  return res.result?.faultPoint?.records ?? []
+  const res = await getCustomerWorkOrder({ id: wid })
+  return res.data?.faultPoint?.records ?? []
 }
 
 /**
@@ -544,7 +548,7 @@ export interface OrderEvaluationMetaDTO {
  * @param data - 工单ID
  * @returns - 工单评价元数据
  */
-export const getOrderEvaluationMetaAPI = (data: { id: string }) => {
+export const getOrderEvaluationMeta = (data: { id: string }) => {
   return http<OrderEvaluationMetaDTO>({
     url: '/order/evaluation/meta',
     method: 'POST',
@@ -567,7 +571,7 @@ export interface MyOrderCountsDTO {
  * 获取工单统计
  * @returns - 工单统计
  */
-  export const getMyOrderCountsAPI = () => {
+  export const getMyOrderCounts = () => {
   return http<MyOrderCountsDTO>({
     url: '/order/my/counts',
     method: 'GET',
@@ -588,11 +592,14 @@ export interface WorkOrderStatusCountDTO {
 
 /**
  * 获取工单统计
+ *
+ * 对应 jasic-ui `countWorkOrderStatus`（C 端专属接口 `/customer/work-order/status-count`）
+ *
  * @returns - 工单统计
  */
-export const getWorkOrderStatusCountAPI = () => {
+export const countCustomerWorkOrderStatus = () => {
   return http<WorkOrderStatusCountDTO>({
-    url: '/api/customer/work-order/status-count',
+    url: '/customer/work-order/status-count',
     method: 'GET',
   })
 }
@@ -611,7 +618,7 @@ export interface LatestOrderDTO {
   status: string
 }
 
-/** `/api/customer/work-order/latest-summary` 响应 data */
+/** `/customer/work-order/latest-summary` 响应 data */
 export interface CustomerWorkOrderLatestSummaryVO {
   brandType?: string
   brandTypeLabel?: string
@@ -624,12 +631,6 @@ export interface CustomerWorkOrderLatestSummaryVO {
   productName?: string
   serviceMode?: string
   serviceModeLabel?: string
-}
-
-function formatLatestSummaryTime(raw: string | undefined): string {
-  const s = String(raw ?? '').trim()
-  if (!s) return ''
-  return s.replace('T', ' ').replace(/\.\d{3}Z?$/, '').replace(/Z$/, '').trim()
 }
 
 /**
@@ -656,7 +657,7 @@ export function mapLatestSummaryToLatestOrderDTO(
   const description =
     faultDesc || [productName, productModel].filter(Boolean).join(' · ') || '-'
   const displayStatus = String(vo.displayStatus ?? '').trim()
-  const timeStr = formatLatestSummaryTime(vo.createTime)
+  const timeStr = formatIsoDateTime(vo.createTime)
   const modeLabel = String(vo.serviceModeLabel ?? '').trim()
   const timelineSub =
     [timeStr, modeLabel].filter(Boolean).join(' · ') || '-'
@@ -674,25 +675,33 @@ export function mapLatestSummaryToLatestOrderDTO(
 
 /**
  * 查询最近一条工单摘要（首页「报修进度」）
+ *
+ * 对应 jasic-ui `getWorkOrderLatestSummary`（C 端专属接口 `/customer/work-order/latest-summary`）
  */
-export const getLatestOrderAPI = () => {
+export const getCustomerWorkOrderLatestSummary = () => {
   return http<CustomerWorkOrderLatestSummaryVO | null>({
-    url: '/api/customer/work-order/latest-summary',
+    url: '/customer/work-order/latest-summary',
     method: 'GET',
   }).then((res) => ({
     ...res,
-    result: mapLatestSummaryToLatestOrderDTO(res.result ?? undefined),
+    data: mapLatestSummaryToLatestOrderDTO(res.data ?? undefined),
   }))
 }
 
 // ========== 工单列表 ==========
 
 /**
- * 工单列表项
- * @returns - 工单列表项
+ * 工单列表项（UI 展示模型，Model 层）
+ *
+ * 三层化口径：
+ * - `VO`：后端原样，见 `CustomerWorkOrderListVO`（布尔字段保持 number `0/1`）
+ * - `Model`：UI 展示（本类型；布尔字段保持 boolean）
+ *
+ * 注：`status` 为中文 UI 显示桶；契约层枚举见 `utils/orderStatus.ts` 的 `WORK_ORDER_MAIN_STATUS`。
  */
-export interface OrderListItemDTO {
+export interface OrderListItem {
   id: string
+  /** UI 显示桶；契约层枚举见 `utils/orderStatus.ts` 的 `WORK_ORDER_MAIN_STATUS` */
   status: '待接单' | '维修中' | '已完成' | '已关闭'
   description: string
   time: string
@@ -705,11 +714,11 @@ export interface OrderListItemDTO {
   phone: string
   repairType: string
   price: string
-  /** 是否可评价（来自 `/api/customer/work-order/list` 的 canEvaluate） */
+  /** 是否可评价（来自 `/customer/work-order/list` 的 canEvaluate） */
   canEvaluate?: boolean
-  /** 是否允许上传寄件凭证（来自 `/api/customer/work-order/list` 的 canUploadSendExpress） */
+  /** 是否允许上传寄件凭证（来自 `/customer/work-order/list` 的 canUploadSendExpress） */
   canUploadSendExpress?: boolean
-  /** ========== 接口 `/api/customer/work-order/list` 原始字段（列表完整赋值） ========== */
+  /** ========== 接口 `/customer/work-order/list` 原始字段（列表完整赋值） ========== */
   barcode: string
   createTime: string
   closedTime: string
@@ -727,9 +736,12 @@ export interface OrderListItemDTO {
 }
 
 /**
- * `/api/customer/work-order/list` 单条 `records` 项（与后端字段一致）
+ * `/customer/work-order/list` 单条 `records` 项 VO（后端原样）
+ *
+ * 三层化口径：VO 侧布尔字段（`canEvaluate / canUploadSendExpress / isJasicProduct`）一律保持 `number`（0/1），
+ * UI 展示 Model（`OrderListItem`）再转为 `boolean`。
  */
-export interface WorkOrderListRecordDTO {
+export interface CustomerWorkOrderListVO {
   id: number
   orderNo: string
   barcode: string
@@ -744,8 +756,10 @@ export interface WorkOrderListRecordDTO {
   customerMobile: string
   customerName: string
   assignedUserName: string
-  canEvaluate?: boolean
-  canUploadSendExpress?: boolean
+  /** 是否可评价（后端 0/1；阶段 4.5：DTO 布尔统一为 number） */
+  canEvaluate?: number
+  /** 是否允许上传寄件凭证（后端 0/1；阶段 4.5：DTO 布尔统一为 number） */
+  canUploadSendExpress?: number
   evaluateStatus: string
   evaluateStatusLabel: string
   hasTransfer: number
@@ -759,8 +773,8 @@ export interface WorkOrderListRecordDTO {
   quoteAmount?: number | string
   /** 网点联系电话（若后端扩展返回，优先于 customerMobile 展示为网点电话） */
   sitePhone?: string
-  /** 是否佳士产品（若后端扩展返回） */
-  isJasicProduct?: boolean
+  /** 是否佳士产品（若后端扩展返回；后端 0/1） */
+  isJasicProduct?: number
   /** 工单品牌类型展示文案（如：佳士/非佳士） */
   brandTypeLabel?: string
   /** 品牌类型编码（如 JASIC / NON_JASIC），与后端 `brandType` 一致 */
@@ -775,12 +789,12 @@ export interface WorkOrderListPageDTO {
   pageNum: number
   pageSize: number
   total: number
-  records: WorkOrderListRecordDTO[]
+  records: CustomerWorkOrderListVO[]
 }
 // 工单状态
-const UI_ORDER_STATUSES: OrderListItemDTO['status'][] = ['待接单', '维修中', '已完成', '已关闭']
+const UI_ORDER_STATUSES: OrderListItem['status'][] = ['待接单', '维修中', '已完成', '已关闭']
 // 工单状态映射
-const MAIN_STATUS_TO_UI: Record<string, OrderListItemDTO['status']> = {
+const MAIN_STATUS_TO_UI: Record<string, OrderListItem['status']> = {
   PENDING: '待接单',
   PENDING_ASSIGN: '待接单',
   PENDING_TECH_ACCEPT: '待接单',
@@ -802,10 +816,10 @@ const MAIN_STATUS_TO_UI: Record<string, OrderListItemDTO['status']> = {
  * @param r - 工单列表记录
  * @returns - 工单列表项状态
  */
-function workOrderRecordToUiStatus(r: WorkOrderListRecordDTO): OrderListItemDTO['status'] {
+function workOrderRecordToUiStatus(r: CustomerWorkOrderListVO): OrderListItem['status'] {
   const d = r.displayStatus?.trim()
-  if (d && UI_ORDER_STATUSES.includes(d as OrderListItemDTO['status'])) {
-    return d as OrderListItemDTO['status']
+  if (d && UI_ORDER_STATUSES.includes(d as OrderListItem['status'])) {
+    return d as OrderListItem['status']
   }
   const key = String(r.mainStatus || '')
     .trim()
@@ -817,7 +831,7 @@ function workOrderRecordToUiStatus(r: WorkOrderListRecordDTO): OrderListItemDTO[
 }
 
 /**
- * 将 `/api/customer/work-order/list` 单条记录转为列表页展示结构（与 `list.vue` 字段对应）
+ * 将 `/customer/work-order/list` 单条记录转为列表页展示结构（与 `list.vue` 字段对应）
  *
  * - 状态：`displayStatus` 中文优先，否则按 `mainStatus` 映射为 Tab 用状态
  * - 时间：`createTime`，缺省用 `closedTime`
@@ -834,7 +848,7 @@ function workOrderListQuoteToDisplay(v: unknown): string {
   return String(v).trim()
 }
 
-export function mapWorkOrderListRecordToItem(r: WorkOrderListRecordDTO): OrderListItemDTO {
+export function mapWorkOrderListRecordToItem(r: CustomerWorkOrderListVO): OrderListItem {
   const status = workOrderRecordToUiStatus(r)
   const barcode = String(r.barcode ?? '').trim()
   const serviceModeLabel = r.serviceModeLabel?.trim()
@@ -905,13 +919,16 @@ export interface WorkOrderListQuery {
 
 /**
  * 获取工单列表
+ *
+ * 对应 jasic-ui `listWorkOrder`（C 端专属接口 `/customer/work-order/list`）
+ *
  * @param data - 工单列表查询
  * @returns - 工单列表
  */
-export const getOrderListAPI = (data?: WorkOrderListQuery) => {
+export const listCustomerWorkOrder = (data?: WorkOrderListQuery) => {
   const tabStatus = String(data?.tabStatus ?? '').trim()
   return http<WorkOrderListPageDTO>({
-    url: '/api/customer/work-order/list',
+    url: '/customer/work-order/list',
     method: 'GET',
     data: {
       orderByColumn: data?.orderByColumn ?? 'createTime',
@@ -954,7 +971,7 @@ export interface SubmitRepairResultDTO {
  * @param data - 提交报修
  * @returns - 提交报修结果
  */
-export const submitRepairAPI = (data: SubmitRepairDTO) => {
+export const submitRepair = (data: SubmitRepairDTO) => {
   return http<SubmitRepairResultDTO>({
     url: '/repair/submit',
     method: 'POST',
@@ -1002,12 +1019,15 @@ export interface CreateCustomerWorkOrderDTO {
 
 /**
  * 创建工单
+ *
+ * 对应 jasic-ui `createWorkOrder`（C 端专属接口 `POST /customer/work-order`）
+ *
  * @param data - 创建工单
  * @returns - 创建工单结果
  */
-export const createCustomerWorkOrderAPI = (data: CreateCustomerWorkOrderDTO) => {
+export const createCustomerWorkOrder = (data: CreateCustomerWorkOrderDTO) => {
   return http<SubmitRepairResultDTO>({
-    url: '/api/customer/work-order',
+    url: '/customer/work-order',
     method: 'POST',
     data,
   })
@@ -1033,7 +1053,7 @@ export interface SubmitEvaluationDTO {
  * @param data - 提交评价
  * @returns - 提交评价结果
  */
-export const submitEvaluationAPI = (data: SubmitEvaluationDTO) => {
+export const submitEvaluation = (data: SubmitEvaluationDTO) => {
   return http<{ success: boolean }>({
     url: '/order/evaluation/submit',
     method: 'POST',
@@ -1059,12 +1079,15 @@ export interface CustomerWorkOrderEvaluateDTO {
 
 /**
  * 客户侧工单评价
+ *
+ * 对应 jasic-ui `evaluateWorkOrder`（C 端专属接口 `POST /customer/work-order/evaluate`）
+ *
  * @param data - 客户侧工单评价
  * @returns - 客户侧工单评价结果
  */
-export const evaluateCustomerWorkOrderAPI = (data: CustomerWorkOrderEvaluateDTO) => {
+export const evaluateCustomerWorkOrder = (data: CustomerWorkOrderEvaluateDTO) => {
   return http<unknown>({
-    url: '/api/customer/work-order/evaluate',
+    url: '/customer/work-order/evaluate',
     method: 'POST',
     data,
   })
@@ -1084,12 +1107,15 @@ export interface CustomerWorkOrderSenderVoucherDTO {
 
 /**
  * 上传寄件凭证
+ *
+ * 对应 jasic-ui `updateWorkOrderSenderVoucher`（C 端专属接口 `PUT /customer/work-order/sender-voucher`）
+ *
  * @param data - 上传寄件凭证参数
  * @returns - 上传结果
  */
-export const uploadLogisticsAPI = (data: CustomerWorkOrderSenderVoucherDTO) => {
+export const updateCustomerWorkOrderSenderVoucher = (data: CustomerWorkOrderSenderVoucherDTO) => {
   return http<void>({
-    url: '/api/customer/work-order/sender-voucher',
+    url: '/customer/work-order/sender-voucher',
     method: 'PUT',
     data,
   })
@@ -1160,13 +1186,33 @@ export function barcodeInfoHasFaultDescription(info: BarcodeInfoDTO): boolean {
 
 /**
  * 获取条码查询结果
+ *
+ * 对应 jasic-ui `getWorkOrderBarcodeInfo`（C 端专属接口 `/customer/work-order/barcode-info`）
+ *
  * @param params - 条码查询结果
  * @returns - 条码查询结果
  */
-export const getBarcodeInfoAPI = (params: { barcode: string }) => {
+export const getCustomerWorkOrderBarcodeInfo = (params: { barcode: string }) => {
   return http<BarcodeInfoDTO>({
-    url: '/api/customer/work-order/barcode-info',
+    url: '/customer/work-order/barcode-info',
     method: 'GET',
     data: params,
   })
 }
+
+// ========== 不带 Customer 前缀的 re-export 桥 ==========
+//
+// 便于三端 grep 按 jasic-ui 契约层函数名（`getWorkOrder / listWorkOrder / ...`）
+// 定位 C 端实现。原 `Customer*` 函数名保留不改（C 端 `/api/customer/*` 命名空间白名单），
+// 此处仅追加 alias re-export，不改变原函数签名与运行时语义。
+export {
+  getCustomerWorkOrder as getWorkOrder,
+  listCustomerWorkOrder as listWorkOrder,
+  countCustomerWorkOrderStatus as countWorkOrderStatus,
+  createCustomerWorkOrder as createWorkOrder,
+  evaluateCustomerWorkOrder as evaluateWorkOrder,
+  getCustomerWorkOrderBarcodeInfo as getWorkOrderBarcodeInfo,
+  getCustomerWorkOrderLatestSummary as getWorkOrderLatestSummary,
+  updateCustomerWorkOrderSenderVoucher as updateWorkOrderSenderVoucher,
+}
+

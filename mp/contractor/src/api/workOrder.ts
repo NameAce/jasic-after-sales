@@ -1,4 +1,4 @@
-import { getApiMessage, http, unwrap } from '@/utils/http'
+import { API_SUCCESS_CODE, getApiMessage, http } from '@/utils/http'
 import type {
   BranchItem,
   FaultPointRecord,
@@ -6,33 +6,25 @@ import type {
   OrderDetailProcessFlowItem,
   OrderListItem,
   OrderRepairRegistrationEcho,
-  OrderStatus,
   SysFileItemVO,
   WorkOrderDetailVO,
   WorkOrderFaultVO,
   WorkOrderListPageResult,
   WorkOrderListVO,
+  WorkOrderMainStatus,
   WorkOrderRepairVO,
 } from '@/models/order'
+import { WORK_ORDER_MAIN_STATUS } from '@/models/order'
 import { mapWorkOrderRepairsToAllFaultPointRecords } from './mapRepairsToFaultPointRecords'
 import { isOrderStatus } from '@/utils/orderStatus'
+import { formatAmount } from '@/utils/format'
 
-/**
- * 列表等接口：成功码 00000（文档）或与现有 PUT 接口一致的 200
- *
-*/
-function isOkCode(code: unknown) {
-  const n = Number(code)
-  return Number.isFinite(n) ? n === 200 : String(code) === '200'
-}
-
-/** 列表等接口：成功码 00000（文档）或与现有 PUT 接口一致的 200 */
+/** 业务成功判定：严格对齐 jasic-ui，成功码仅为 '00000' */
 function isBizSuccess(code: unknown) {
-  if (String(code) === '00000') return true
-  return isOkCode(code)
+  return String(code) === API_SUCCESS_CODE
 }
 
-/** 查询可派单人员：`/api/system/work-order/{workOrderId}/assign-user-options` */
+/** 查询可派单人员：`/system/work-order/{workOrderId}/assign-user-options` */
 export type WorkOrderUserOptionVO = {
   /** 用户ID */
   id: number
@@ -51,7 +43,7 @@ export type SysCompanySimpleVO = {
   typeName?: string
 }
 
-/** 维修登记故障与维修说明选项：`/api/system/work-order/{workOrderId}/repair-fault-options` */
+/** 维修登记故障与维修说明选项：`/system/work-order/{workOrderId}/repair-fault-options` */
 export type WorkOrderRepairFaultOptionVO = {
   /** 故障描述 */
   faultDesc: string
@@ -59,7 +51,7 @@ export type WorkOrderRepairFaultOptionVO = {
   repairOptions: string[]
 }
 
-/** GET `/api/system/work-order/list` 查询参数（与后端文档一致；服务端注入字段一般不必传） */
+/** GET `/system/work-order/list` 查询参数（与后端文档一致；服务端注入字段一般不必传） */
 export type OrderListQuery = {
   barcode?: string
   companyId?: number
@@ -151,47 +143,48 @@ export function applyWorkOrderListSearchKeyword(query: OrderListQuery, keyword: 
 }
 
 /**
- * 将后端 mainStatus 规范为前端 OrderStatus（兼容常见枚举写法）
+ * 将后端 mainStatus 规范为前端 WorkOrderMainStatus（与后端枚举字面 1:1 对齐，禁止小写桶别名）
  * @param mainStatus 后端 mainStatus
- * @returns 前端 OrderStatus
+ * @returns 前端 WorkOrderMainStatus
  */
-export function mapMainStatusToOrderStatus(mainStatus: string | undefined): OrderStatus {
+export function mapMainStatusToOrderStatus(mainStatus: string | undefined): WorkOrderMainStatus {
   const raw = (mainStatus ?? '').trim()
-  if (!raw) return 'pending'
+  if (!raw) return WORK_ORDER_MAIN_STATUS.PENDING_ASSIGN
   const s = raw.toUpperCase().replace(/-/g, '_')
-  const map: Record<string, OrderStatus> = {
-    PENDING: 'pending',
-    PENDING_ASSIGN: 'pending', // 待派单
-    PENDING_TECH_ACCEPT: 'pending', // 待接单
-    WAIT: 'pending',
-    WAIT_ACCEPT: 'pending',
-    DISPATCH: 'pending',
-    PROCESSING: 'processing',
-    REPAIRING: 'processing',
-    IN_PROGRESS: 'processing',
-    COMPLETED: 'completed',
-    DONE: 'completed',
-    FINISH: 'completed',
-    CLOSED: 'closed',
-    CLOSE: 'closed',
-    CANCELLED: 'closed',
+  const map: Record<string, WorkOrderMainStatus> = {
+    PENDING: WORK_ORDER_MAIN_STATUS.PENDING_ASSIGN,
+    PENDING_ASSIGN: WORK_ORDER_MAIN_STATUS.PENDING_ASSIGN,
+    PENDING_TECH_ACCEPT: WORK_ORDER_MAIN_STATUS.PENDING_TECH_ACCEPT,
+    WAIT: WORK_ORDER_MAIN_STATUS.PENDING_ASSIGN,
+    WAIT_ACCEPT: WORK_ORDER_MAIN_STATUS.PENDING_TECH_ACCEPT,
+    DISPATCH: WORK_ORDER_MAIN_STATUS.PENDING_ASSIGN,
+    PROCESSING: WORK_ORDER_MAIN_STATUS.IN_PROGRESS,
+    REPAIRING: WORK_ORDER_MAIN_STATUS.IN_PROGRESS,
+    IN_PROGRESS: WORK_ORDER_MAIN_STATUS.IN_PROGRESS,
+    COMPLETED: WORK_ORDER_MAIN_STATUS.COMPLETED,
+    DONE: WORK_ORDER_MAIN_STATUS.COMPLETED,
+    FINISH: WORK_ORDER_MAIN_STATUS.COMPLETED,
+    CLOSED: WORK_ORDER_MAIN_STATUS.CLOSED,
+    CLOSE: WORK_ORDER_MAIN_STATUS.CLOSED,
+    CANCELLED: WORK_ORDER_MAIN_STATUS.CLOSED,
   }
   if (map[s]) return map[s]
-  const lower = raw.toLowerCase()
-  if (isOrderStatus(lower)) return lower
-  return 'pending'
+  if (isOrderStatus(s)) return s
+  return WORK_ORDER_MAIN_STATUS.PENDING_ASSIGN
 }
 
-/** 详情接口 `displayStatus`（WAIT_ACCEPT / IN_PROGRESS / COMPLETED / CLOSED）→ 前端 OrderStatus */
-function mapDisplayStatusToOrderStatus(displayStatus: string | undefined): OrderStatus | undefined {
+/** 详情接口 `displayStatus`（WAIT_ACCEPT / IN_PROGRESS / COMPLETED / CLOSED）→ 前端 WorkOrderMainStatus */
+function mapDisplayStatusToOrderStatus(displayStatus: string | undefined): WorkOrderMainStatus | undefined {
   const raw = (displayStatus ?? '').trim()
   if (!raw) return undefined
   const s = raw.toUpperCase().replace(/-/g, '_')
-  const map: Record<string, OrderStatus> = {
-    WAIT_ACCEPT: 'pending',
-    IN_PROGRESS: 'processing',
-    COMPLETED: 'completed',
-    CLOSED: 'closed',
+  const map: Record<string, WorkOrderMainStatus> = {
+    WAIT_ACCEPT: WORK_ORDER_MAIN_STATUS.PENDING_TECH_ACCEPT,
+    PENDING_ASSIGN: WORK_ORDER_MAIN_STATUS.PENDING_ASSIGN,
+    PENDING_TECH_ACCEPT: WORK_ORDER_MAIN_STATUS.PENDING_TECH_ACCEPT,
+    IN_PROGRESS: WORK_ORDER_MAIN_STATUS.IN_PROGRESS,
+    COMPLETED: WORK_ORDER_MAIN_STATUS.COMPLETED,
+    CLOSED: WORK_ORDER_MAIN_STATUS.CLOSED,
   }
   return map[s]
 }
@@ -281,15 +274,6 @@ function mapListVoRepairMethodLabel(vo: Pick<WorkOrderListVO, 'serviceMode' | 's
   return String(vo.serviceMode ?? '').trim()
 }
 
-function formatListRepairPriceText(raw: unknown): string | undefined {
-  if (raw === undefined || raw === null || raw === '') return undefined
-  if (typeof raw === 'number' && Number.isFinite(raw)) return raw.toFixed(2)
-  const n = Number(raw)
-  if (Number.isFinite(n)) return n.toFixed(2)
-  const s = String(raw).trim()
-  return s || undefined
-}
-
 /**
  * 将后端 WorkOrderListVO 规范为前端 OrderListItem
  * @param vo 后端 WorkOrderListVO
@@ -308,7 +292,7 @@ function mapWorkOrderToListItem(vo: WorkOrderListVO): OrderListItem {
   const brandTypeLabelRaw = String(vo.brandTypeLabel ?? '').trim()
   const repairMethodRaw = mapListVoRepairMethodLabel(vo)
   const repairMethodLabel = repairMethodRaw || undefined
-  const repairPriceText = formatListRepairPriceText(vo.quoteAmount)
+  const repairPriceText = formatAmount(vo.quoteAmount) || undefined
   const acceptPhone = String(vo.currentAcceptCompanyPhone ?? '').trim()
   const assignedUserName = String(vo.assignedUserName ?? '').trim()
   return {
@@ -342,7 +326,7 @@ function mapWorkOrderToListItem(vo: WorkOrderListVO): OrderListItem {
  * @returns 工单列表
  */
 export async function fetchOrderList(params: OrderListQuery = {}) {
-  const page = await fetchOrderListPage(params)
+  const page = await listWorkOrder(params)
   return page.records
 }
 
@@ -351,10 +335,10 @@ export async function fetchOrderList(params: OrderListQuery = {}) {
  * @param params 查询参数
  * @returns 工单分页数据
  */
-export async function fetchOrderListPage(params: OrderListQuery = {}): Promise<OrderListPage> {
+export async function listWorkOrder(params: OrderListQuery = {}): Promise<OrderListPage> {
   const qs = buildWorkOrderQueryString(params)
   const res = await http<WorkOrderListPageResult>({
-    url: `/api/system/work-order/list?${qs}`,
+    url: `/system/work-order/list?${qs}`,
     method: 'GET',
     header: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -365,7 +349,7 @@ export async function fetchOrderListPage(params: OrderListQuery = {}): Promise<O
     uni.showToast({ title: msg, icon: 'none' })
     throw new Error(msg)
   }
-  const page = unwrap(res)
+  const page = res.data
   const records = Array.isArray(page?.records) ? page.records : []
   return {
     pageNum: Number(page?.pageNum) || Number(params.pageNum) || 1,
@@ -375,7 +359,7 @@ export async function fetchOrderListPage(params: OrderListQuery = {}): Promise<O
   }
 }
 
-/** 工单状态统计：`/api/system/work-order/status-count` */
+/** 工单状态统计：`/system/work-order/status-count` */
 export type WorkOrderStatusCountVO = {
   /** 数量（部分序列化场景为字符串） */
   countNum?: number | string
@@ -457,13 +441,17 @@ export function aggregateWorkOrderStatusTabCounts(rows: WorkOrderStatusCountVO[]
       continue
     }
     const bucket = mapMainStatusToOrderStatus(ms || r.mainStatus)
-    if (bucket === 'pending') {
+    if (bucket === WORK_ORDER_MAIN_STATUS.PENDING_ASSIGN) {
       out.pendingAssign += count
       continue
     }
-    if (bucket === 'processing') out.processing += count
-    else if (bucket === 'completed') out.completed += count
-    else if (bucket === 'closed') out.closed += count
+    if (bucket === WORK_ORDER_MAIN_STATUS.PENDING_TECH_ACCEPT) {
+      out.pendingTechAccept += count
+      continue
+    }
+    if (bucket === WORK_ORDER_MAIN_STATUS.IN_PROGRESS) out.processing += count
+    else if (bucket === WORK_ORDER_MAIN_STATUS.COMPLETED) out.completed += count
+    else if (bucket === WORK_ORDER_MAIN_STATUS.CLOSED) out.closed += count
   }
   return out
 }
@@ -497,15 +485,15 @@ export function pickWorkOrderStatusCountForMainCode(
 
 /**
  * 按状态统计工单数量
- * GET `/api/system/work-order/status-count`
+ * GET `/system/work-order/status-count`
  */
-export async function fetchWorkOrderStatusCount(params: OrderListQuery = {}) {
+export async function countWorkOrderStatus(params: OrderListQuery = {}) {
   const qs = buildWorkOrderQueryString({
     ...params,
     // 统计接口不需要分页字段，但后端允许传；这里不强行剔除，保持与文档字段一致
   })
   const res = await http<WorkOrderStatusCountVO[]>({
-    url: `/api/system/work-order/status-count${qs ? `?${qs}` : ''}`,
+    url: `/system/work-order/status-count${qs ? `?${qs}` : ''}`,
     method: 'GET',
     header: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -516,61 +504,61 @@ export async function fetchWorkOrderStatusCount(params: OrderListQuery = {}) {
     uni.showToast({ title: msg, icon: 'none' })
     throw new Error(msg)
   }
-  const list = unwrap(res)
+  const list = res.data
   return Array.isArray(list) ? list : []
 }
 
 /**
  * 查询可派单人员
- * GET `/api/system/work-order/{workOrderId}/assign-user-options`
+ * GET `/system/work-order/{workOrderId}/assign-user-options`
  */
-export async function fetchAssignUserOptions(workOrderId: number) {
+export async function listAssignUserOptions(workOrderId: number) {
   const id = Number(workOrderId)
   if (!Number.isFinite(id) || id <= 0) return []
   const res = await http<WorkOrderUserOptionVO[]>({
-    url: `/api/system/work-order/${encodeURIComponent(String(id))}/assign-user-options`,
+    url: `/system/work-order/${encodeURIComponent(String(id))}/assign-user-options`,
     method: 'GET',
     header: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
   })
-  const list = unwrap(res)
+  const list = res.data
   return Array.isArray(list) ? list : []
 }
 
 /**
  * 查询可转单目标
- * GET `/api/system/work-order/{workOrderId}/transfer-target-options`
+ * GET `/system/work-order/{workOrderId}/transfer-target-options`
  */
-export async function fetchTransferTargetOptions(workOrderId: number) {
+export async function listTransferTargetOptions(workOrderId: number) {
   const id = Number(workOrderId)
   if (!Number.isFinite(id) || id <= 0) return []
   const res = await http<SysCompanySimpleVO[]>({
-    url: `/api/system/work-order/${encodeURIComponent(String(id))}/transfer-target-options`,
+    url: `/system/work-order/${encodeURIComponent(String(id))}/transfer-target-options`,
     method: 'GET',
     header: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
   })
-  const list = unwrap(res)
+  const list = res.data
   return Array.isArray(list) ? list : []
 }
 
 /**
  * 查询维修登记可选故障与维修说明
- * GET `/api/system/work-order/{workOrderId}/repair-fault-options`
+ * GET `/system/work-order/{workOrderId}/repair-fault-options`
  */
-export async function fetchRepairFaultOptions(workOrderId: number) {
+export async function listRepairFaultOptions(workOrderId: number) {
   const id = Number(workOrderId)
   if (!Number.isFinite(id) || id <= 0) return []
   const res = await http<WorkOrderRepairFaultOptionVO[]>({
-    url: `/api/system/work-order/${encodeURIComponent(String(id))}/repair-fault-options`,
+    url: `/system/work-order/${encodeURIComponent(String(id))}/repair-fault-options`,
     method: 'GET',
     header: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
   })
-  const list = unwrap(res)
+  const list = res.data
   return Array.isArray(list) ? list : []
 }
 
@@ -970,7 +958,7 @@ function mapWorkOrderDetailToOrderDetail(vo: WorkOrderDetailVO): OrderDetail {
  * @param id 工单ID
  * @returns 工单详情
  */
-export async function fetchOrderDetail(id: string) {
+export async function getWorkOrder(id: string) {
   const wid = String(id || '').trim()
   if (!wid) {
     const msg = '工单ID无效'
@@ -978,7 +966,7 @@ export async function fetchOrderDetail(id: string) {
     throw new Error(msg)
   }
   const res = await http<WorkOrderDetailVO>({
-    url: `/api/system/work-order/${encodeURIComponent(wid)}`,
+    url: `/system/work-order/${encodeURIComponent(wid)}`,
     method: 'GET',
     header: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -989,7 +977,7 @@ export async function fetchOrderDetail(id: string) {
     uni.showToast({ title: msg, icon: 'none' })
     throw new Error(msg)
   }
-  const vo = unwrap(res)
+  const vo = res.data
   if (vo == null || typeof vo !== 'object') {
     const msg = '工单详情数据为空'
     uni.showToast({ title: msg, icon: 'none' })
@@ -1001,7 +989,7 @@ export async function fetchOrderDetail(id: string) {
 /**
  * GET 工单详情，仅将 `data.repairs` 映射为故障点历史列表（历史维修记录页使用）。
  */
-export async function fetchOrderRepairFaultRecords(id: string): Promise<FaultPointRecord[]> {
+export async function getWorkOrderRepairFaultRecords(id: string): Promise<FaultPointRecord[]> {
   const wid = String(id || '').trim()
   if (!wid) {
     const msg = '工单ID无效'
@@ -1009,7 +997,7 @@ export async function fetchOrderRepairFaultRecords(id: string): Promise<FaultPoi
     throw new Error(msg)
   }
   const res = await http<WorkOrderDetailVO>({
-    url: `/api/system/work-order/${encodeURIComponent(wid)}`,
+    url: `/system/work-order/${encodeURIComponent(wid)}`,
     method: 'GET',
     header: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -1020,7 +1008,7 @@ export async function fetchOrderRepairFaultRecords(id: string): Promise<FaultPoi
     uni.showToast({ title: msg, icon: 'none' })
     throw new Error(msg)
   }
-  const vo = unwrap(res)
+  const vo = res.data
   if (vo == null || typeof vo !== 'object') {
     const msg = '工单详情数据为空'
     uni.showToast({ title: msg, icon: 'none' })
@@ -1038,7 +1026,7 @@ export async function fetchBranchList() {
     url: '/order/branch/list',
     method: 'GET',
   })
-  return unwrap(res)
+  return res.data
 }
 
 /**
@@ -1052,7 +1040,7 @@ export async function fetchOrdersByBranch(branchName: string) {
     method: 'GET',
     data: { branchName },
   })
-  return unwrap(res)
+  return res.data
 }
 
 export type WorkOrderAssignDTO = {
@@ -1129,7 +1117,7 @@ export type WorkOrderFaultPartItemDTO = {
 }
 
 /**
- * POST `/api/system/work-order/repair` 请求体（WorkOrderRepairDTO）
+ * POST `/system/work-order/repair` 请求体（WorkOrderRepairDTO）
  * @see workOrderId 必填；其余字段按后端文档均为可选
  */
 export type WorkOrderRepairDTO = {
@@ -1160,7 +1148,7 @@ export type WorkOrderRepairDTO = {
 }
 
 /**
- * POST `/api/system/work-order/review` 保存复检记录（WorkOrderReviewDTO）
+ * POST `/system/work-order/review` 保存复检记录（WorkOrderReviewDTO）
  * workOrderId 必填；其余字段可选，与接口文档一致
  */
 export type WorkOrderReviewDTO = {
@@ -1188,7 +1176,7 @@ export type WorkOrderReviewDTO = {
 
 /**
  * 代客户填写创建工单请求体（WorkOrderProxyCreateDTO）
- * POST `/api/system/work-order/create/proxy`，Content-Type: application/json
+ * POST `/system/work-order/create/proxy`，Content-Type: application/json
  * 接口约定：customerMobile、serviceMode 必填；其余字段按文档均为可选。
  */
 export type WorkOrderProxyCreateDTO = {
@@ -1265,7 +1253,7 @@ export type BarcodeInfoCompanyOptionVO = {
   typeName?: string
 }
 
-/** 条码查询接口成功返回：业务数据 + 顶层 msg（unwrap 会丢 msg，故单独带出） */
+/** 条码查询接口成功返回：业务数据 + 顶层 msg（单独带出便于上层展示 toast） */
 export type BarcodeInfoFetchResult = {
   data: WorkOrderCreateBarcodeInfoVO
   msg: string
@@ -1290,11 +1278,11 @@ export type WorkOrderCreateBarcodeInfoVO = {
 
 /**
  * 代客户填写创建工单
- * POST `/api/system/work-order/create/proxy`
+ * POST `/system/work-order/create/proxy`
  */
 export async function createProxyWorkOrder(dto: WorkOrderProxyCreateDTO) {
   const res = await http<number>({
-    url: '/api/system/work-order/create/proxy',
+    url: '/system/work-order/create/proxy',
     method: 'POST',
     data: dto,
     header: {
@@ -1313,11 +1301,11 @@ export async function createProxyWorkOrder(dto: WorkOrderProxyCreateDTO) {
 
 /**
  * 二级报修一级创建工单
- * POST `/api/system/work-order/create/upstream-first`
+ * POST `/system/work-order/create/upstream-first`
  */
 export async function createUpstreamFirstWorkOrder(dto: WorkOrderUpstreamCreateDTO) {
   const res = await http<number>({
-    url: '/api/system/work-order/create/upstream-first',
+    url: '/system/work-order/create/upstream-first',
     method: 'POST',
     data: dto,
     header: {
@@ -1336,11 +1324,11 @@ export async function createUpstreamFirstWorkOrder(dto: WorkOrderUpstreamCreateD
 
 /**
  * 一级报修佳士创建工单
- * POST `/api/system/work-order/create/upstream-hq`
+ * POST `/system/work-order/create/upstream-hq`
  */
 export async function createUpstreamHqWorkOrder(dto: WorkOrderUpstreamCreateDTO) {
   const res = await http<number>({
-    url: '/api/system/work-order/create/upstream-hq',
+    url: '/system/work-order/create/upstream-hq',
     method: 'POST',
     data: dto,
     header: {
@@ -1359,13 +1347,13 @@ export async function createUpstreamHqWorkOrder(dto: WorkOrderUpstreamCreateDTO)
 
 /**
  * 查询代客户填写条码信息
- * GET `/api/system/work-order/create/proxy/barcode-info`
+ * GET `/system/work-order/create/proxy/barcode-info`
  */
-export async function fetchProxyBarcodeInfo(barcode: string): Promise<BarcodeInfoFetchResult> {
+export async function getProxyCreateBarcodeInfo(barcode: string): Promise<BarcodeInfoFetchResult> {
   const code = String(barcode || '').trim()
   if (!code) throw new Error('barcode is required')
   const res = await http<WorkOrderCreateBarcodeInfoVO>({
-    url: `/api/system/work-order/create/proxy/barcode-info?barcode=${encodeURIComponent(code)}`,
+    url: `/system/work-order/create/proxy/barcode-info?barcode=${encodeURIComponent(code)}`,
     method: 'GET',
     header: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -1379,16 +1367,16 @@ export async function fetchProxyBarcodeInfo(barcode: string): Promise<BarcodeInf
   }
 
   return {
-    data: unwrap(res),
+    data: res.data,
     msg: getApiMessage(res, '查询成功'),
   }
 }
 
 /**
  * 查询一级报修佳士条码信息
- * GET `/api/system/work-order/create/upstream-hq/barcode-info`
+ * GET `/system/work-order/create/upstream-hq/barcode-info`
  */
-export async function fetchUpstreamFirstBarcodeInfo(
+export async function getUpstreamHqCreateBarcodeInfo(
   barcode: string,
   targetCompanyId?: number,
 ): Promise<BarcodeInfoFetchResult> {
@@ -1400,7 +1388,7 @@ export async function fetchUpstreamFirstBarcodeInfo(
     ? `barcode=${encodeURIComponent(code)}&targetCompanyId=${encodeURIComponent(String(targetId))}`
     : `barcode=${encodeURIComponent(code)}`
   const res = await http<WorkOrderCreateBarcodeInfoVO>({
-    url: `/api/system/work-order/create/upstream-hq/barcode-info?${qs}`,
+    url: `/system/work-order/create/upstream-hq/barcode-info?${qs}`,
     method: 'GET',
     header: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -1414,18 +1402,18 @@ export async function fetchUpstreamFirstBarcodeInfo(
   }
 
   return {
-    data: unwrap(res),
+    data: res.data,
     msg: getApiMessage(res, '查询成功'),
   }
 }
 
 /**
  * 派单
- * PUT `/api/system/work-order/assign`
+ * PUT `/system/work-order/assign`
  */
 export async function assignWorkOrder(dto: WorkOrderAssignDTO) {
   const res = await http<void>({
-    url: '/api/system/work-order/assign',
+    url: '/system/work-order/assign',
     method: 'PUT',
     data: dto,
     header: {
@@ -1445,11 +1433,11 @@ export async function assignWorkOrder(dto: WorkOrderAssignDTO) {
 
 /**
  * 关闭工单
- * PUT `/api/system/work-order/close`
+ * PUT `/system/work-order/close`
  */
 export async function closeWorkOrder(dto: WorkOrderCloseDTO) {
   const res = await http<void>({
-    url: '/api/system/work-order/close',
+    url: '/system/work-order/close',
     method: 'PUT',
     data: dto,
     header: {
@@ -1468,11 +1456,11 @@ export async function closeWorkOrder(dto: WorkOrderCloseDTO) {
 
 /**
  * 转单
- * PUT `/api/system/work-order/transfer`
+ * PUT `/system/work-order/transfer`
  */
 export async function transferWorkOrder(dto: WorkOrderTransferDTO) {
   const res = await http<void>({
-    url: '/api/system/work-order/transfer',
+    url: '/system/work-order/transfer',
     method: 'PUT',
     data: dto,
     header: {
@@ -1491,11 +1479,11 @@ export async function transferWorkOrder(dto: WorkOrderTransferDTO) {
 
 /**
  * 维修员接单
- * PUT `/api/system/work-order/tech-accept`
+ * PUT `/system/work-order/tech-accept`
  */
 export async function techAcceptWorkOrder(dto: WorkOrderTechAcceptDTO) {
   const res = await http<void>({
-    url: '/api/system/work-order/tech-accept',
+    url: '/system/work-order/tech-accept',
     method: 'PUT',
     data: dto,
     header: {
@@ -1514,12 +1502,12 @@ export async function techAcceptWorkOrder(dto: WorkOrderTechAcceptDTO) {
 
 /**
  * 保存维修登记
- * POST `/api/system/work-order/repair`，Content-Type: application/json
+ * POST `/system/work-order/repair`，Content-Type: application/json
  * 请求体字段与 WorkOrderRepairDTO 一致（workOrderId 必填）
  */
-export async function submitWorkOrderRepair(dto: WorkOrderRepairDTO) {
+export async function repairWorkOrder(dto: WorkOrderRepairDTO) {
   const res = await http<void>({
-    url: '/api/system/work-order/repair',
+    url: '/system/work-order/repair',
     method: 'POST',
     data: dto,
     header: {
@@ -1538,11 +1526,11 @@ export async function submitWorkOrderRepair(dto: WorkOrderRepairDTO) {
 
 /**
  * 保存复检记录
- * POST `/api/system/work-order/review`
+ * POST `/system/work-order/review`
  */
-export async function submitWorkOrderReview(dto: WorkOrderReviewDTO) {
+export async function reviewWorkOrder(dto: WorkOrderReviewDTO) {
   const res = await http<void>({
-    url: '/api/system/work-order/review',
+    url: '/system/work-order/review',
     method: 'POST',
     data: dto,
     header: {
