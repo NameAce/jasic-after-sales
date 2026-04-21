@@ -13,12 +13,15 @@ import com.jasic.aftersales.system.notify.domain.enums.NotifyBizTypeEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyEventStatusEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyEventTypeEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyInvalidReasonEnum;
+import com.jasic.aftersales.system.notify.domain.enums.NotifyTemplateCodeEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyTodoStatusEnum;
 import com.jasic.aftersales.system.notify.service.NotifyEventConsumeService;
 import com.jasic.aftersales.system.notify.service.NotifyEventService;
 import com.jasic.aftersales.system.notify.service.NotifyMessageLogService;
 import com.jasic.aftersales.system.notify.service.NotifyMessageService;
+import com.jasic.aftersales.system.notify.service.NotifyTemplateService;
 import com.jasic.aftersales.system.notify.support.NotifyConstants;
+import com.jasic.aftersales.system.notify.support.NotifyTemplateRenderResult;
 import com.jasic.aftersales.system.mapper.SysUserMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -49,6 +52,9 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
 
     @Resource
     private NotifyMessageLogService notifyMessageLogService;
+
+    @Resource
+    private NotifyTemplateService notifyTemplateService;
 
     @Resource
     private SysUserMapper sysUserMapper;
@@ -176,6 +182,16 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
             return;
         }
         SysUser receiver = sysUserMapper.selectById(event.getReceiverId());
+        String receiverName = resolveReceiverName(receiver, event.getReceiverId());
+        NotifyTemplateRenderResult renderResult = notifyTemplateService.render(
+                NotifyTemplateCodeEnum.WORK_ORDER_ASSIGNED.getCode(),
+                buildTemplateVariables(event, payload, receiverName)
+        );
+        if (!renderResult.isNotifyEnabled()) {
+            log.info("Notify template disabled, skip message creation. eventId={}, templateCode={}",
+                    event.getId(), NotifyTemplateCodeEnum.WORK_ORDER_ASSIGNED.getCode());
+            return;
+        }
         SysNotifyMessage message = new SysNotifyMessage();
         message.setEventId(event.getId());
         message.setMessageType(NotifyConstants.MESSAGE_TYPE_TODO);
@@ -189,6 +205,11 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         message.setSummary(String.format("工单 %s 已派发给你，请尽快处理", event.getBizNo()));
         message.setRouteType(NotifyConstants.ROUTE_TYPE_WORK_ORDER_DETAIL);
         message.setRouteValue(String.valueOf(event.getBizId()));
+        message.setReceiverName(receiverName);
+        message.setTitle(renderResult.getTitle());
+        message.setSummary(renderResult.getSummary());
+        message.setRouteType(renderResult.getRouteType());
+        message.setRouteValue(renderResult.getRouteValue());
         message.setTodoStatus(NotifyTodoStatusEnum.PENDING.getCode());
         message.setExtJson(buildMessageExt(payload));
         Long messageId = notifyMessageService.createMessage(message);
@@ -211,6 +232,20 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         }
         String username = StrUtil.trim(receiver.getUsername());
         return StrUtil.isNotBlank(username) ? username : String.valueOf(receiverId);
+    }
+
+    private Map<String, Object> buildTemplateVariables(SysNotifyEvent event, NotifyAssignedEventDTO payload, String receiverName) {
+        Map<String, Object> variables = new LinkedHashMap<>();
+        variables.put("bizId", event.getBizId());
+        variables.put("bizNo", event.getBizNo());
+        variables.put("receiverId", event.getReceiverId());
+        variables.put("receiverName", receiverName);
+        variables.put("operatorId", event.getOperatorId());
+        variables.put("oldAssignedUserId", payload.getOldAssignedUserId());
+        variables.put("newAssignedUserId", payload.getNewAssignedUserId());
+        variables.put("assignType", payload.getAssignType());
+        variables.put("operationId", payload.getOperationId());
+        return variables;
     }
 
     private String buildMessageExt(NotifyAssignedEventDTO payload) {

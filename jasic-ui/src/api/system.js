@@ -156,6 +156,29 @@ export function refreshConfigCache() {
   return request({ url: '/system/config/refresh-cache', method: 'delete' })
 }
 
+// --- Notify Template ---
+export function listNotifyTemplate(params) {
+  return request({ url: '/system/notify/template/list', method: 'get', params })
+}
+export function getNotifyTemplate(id) {
+  return request({ url: `/system/notify/template/${id}`, method: 'get' })
+}
+export function addNotifyTemplateCustom(data) {
+  return request({ url: '/system/notify/template/custom', method: 'post', data })
+}
+export function updateNotifyTemplateCustom(data) {
+  return request({ url: '/system/notify/template/custom', method: 'put', data })
+}
+export function deleteNotifyTemplateCustom(id) {
+  return request({ url: `/system/notify/template/custom/${id}`, method: 'delete' })
+}
+export function previewNotifyTemplate(data) {
+  return request({ url: '/system/notify/template/preview', method: 'post', data })
+}
+export function refreshNotifyTemplateCache() {
+  return request({ url: '/system/notify/template/refresh-cache', method: 'post' })
+}
+
 // --- Machine Barcode ---
 export function listMachineBarcode(params) {
   return request({ url: '/system/machine-barcode/list', method: 'get', params })

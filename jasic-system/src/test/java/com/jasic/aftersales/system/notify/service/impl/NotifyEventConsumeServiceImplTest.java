@@ -2,7 +2,6 @@ package com.jasic.aftersales.system.notify.service.impl;
 
 import cn.hutool.json.JSONUtil;
 import com.jasic.aftersales.system.domain.entity.SysUser;
-import com.jasic.aftersales.system.domain.vo.SysUserVO;
 import com.jasic.aftersales.system.mapper.SysUserMapper;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyAssignedEventDTO;
 import com.jasic.aftersales.system.notify.domain.entity.SysNotifyEvent;
@@ -17,7 +16,9 @@ import com.jasic.aftersales.system.notify.domain.enums.NotifyTodoStatusEnum;
 import com.jasic.aftersales.system.notify.service.NotifyEventService;
 import com.jasic.aftersales.system.notify.service.NotifyMessageLogService;
 import com.jasic.aftersales.system.notify.service.NotifyMessageService;
+import com.jasic.aftersales.system.notify.service.NotifyTemplateService;
 import com.jasic.aftersales.system.notify.support.NotifyConstants;
+import com.jasic.aftersales.system.notify.support.NotifyTemplateRenderResult;
 import org.junit.Assert;
 import org.junit.Test;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -49,7 +50,7 @@ public class NotifyEventConsumeServiceImplTest {
         eventService.events.put(event.getId(), event);
         eventService.pendingEventIds.add(event.getId());
 
-        NotifyEventConsumeServiceImpl service = createService(eventService, messageService, logService, buildUserMapper(200L, "缁翠慨鍛楢"));
+        NotifyEventConsumeServiceImpl service = createService(eventService, messageService, logService, new FakeNotifyTemplateService(), buildUserMapper(200L, "缁翠慨鍛楢"));
 
         int successCount = service.consumePendingEvents();
 
@@ -82,7 +83,7 @@ public class NotifyEventConsumeServiceImplTest {
             add(oldRead);
         }});
 
-        NotifyEventConsumeServiceImpl service = createService(eventService, messageService, logService, buildUserMapper(201L, "缁翠慨鍛楤"));
+        NotifyEventConsumeServiceImpl service = createService(eventService, messageService, logService, new FakeNotifyTemplateService(), buildUserMapper(201L, "缁翠慨鍛楤"));
 
         int successCount = service.consumePendingEvents();
 
@@ -110,7 +111,7 @@ public class NotifyEventConsumeServiceImplTest {
         eventService.pendingEventIds.add(event.getId());
         messageService.messageByEventId.put(event.getId(), buildActiveMessage(21L, 90L, 202L, NotifyTodoStatusEnum.PENDING.getCode()));
 
-        NotifyEventConsumeServiceImpl service = createService(eventService, messageService, logService, buildUserMapper(202L, "缁翠慨鍛楥"));
+        NotifyEventConsumeServiceImpl service = createService(eventService, messageService, logService, new FakeNotifyTemplateService(), buildUserMapper(202L, "缁翠慨鍛楥"));
 
         int successCount = service.consumePendingEvents();
 
@@ -118,6 +119,28 @@ public class NotifyEventConsumeServiceImplTest {
         Assert.assertTrue(messageService.createdMessages.isEmpty());
         Assert.assertTrue(logService.logs.isEmpty());
         Assert.assertEquals(NotifyEventStatusEnum.SUCCESS.getCode(), eventService.events.get(3L).getStatus());
+    }
+
+    @Test
+    public void shouldSkipMessageCreationWhenTemplateDisabled() throws Exception {
+        FakeNotifyEventService eventService = new FakeNotifyEventService();
+        FakeNotifyMessageService messageService = new FakeNotifyMessageService();
+        FakeNotifyMessageLogService logService = new FakeNotifyMessageLogService();
+        FakeNotifyTemplateService templateService = new FakeNotifyTemplateService();
+        templateService.notifyEnabled = false;
+
+        SysNotifyEvent event = buildEvent(5L, 92L, 204L, 104L, NotifyConstants.ASSIGN_TYPE_ASSIGN, null, 204L);
+        eventService.events.put(event.getId(), event);
+        eventService.pendingEventIds.add(event.getId());
+
+        NotifyEventConsumeServiceImpl service = createService(eventService, messageService, logService, templateService, buildUserMapper(204L, "测试用户"));
+
+        int successCount = service.consumePendingEvents();
+
+        Assert.assertEquals(1, successCount);
+        Assert.assertTrue(messageService.createdMessages.isEmpty());
+        Assert.assertTrue(logService.logs.isEmpty());
+        Assert.assertEquals(NotifyEventStatusEnum.SUCCESS.getCode(), eventService.events.get(5L).getStatus());
     }
 
     @Test
@@ -131,7 +154,7 @@ public class NotifyEventConsumeServiceImplTest {
         eventService.events.put(event.getId(), event);
         eventService.pendingEventIds.add(event.getId());
 
-        NotifyEventConsumeServiceImpl service = createService(eventService, messageService, logService, buildUserMapper(null, null));
+        NotifyEventConsumeServiceImpl service = createService(eventService, messageService, logService, new FakeNotifyTemplateService(), buildUserMapper(null, null));
 
         int successCount = service.consumePendingEvents();
 
@@ -146,11 +169,13 @@ public class NotifyEventConsumeServiceImplTest {
     private NotifyEventConsumeServiceImpl createService(FakeNotifyEventService eventService,
                                                         FakeNotifyMessageService messageService,
                                                         FakeNotifyMessageLogService logService,
+                                                        FakeNotifyTemplateService templateService,
                                                         SysUserMapper userMapper) throws Exception {
         NotifyEventConsumeServiceImpl service = new NotifyEventConsumeServiceImpl();
         setField(service, "notifyEventService", eventService);
         setField(service, "notifyMessageService", messageService);
         setField(service, "notifyMessageLogService", logService);
+        setField(service, "notifyTemplateService", templateService);
         setField(service, "sysUserMapper", userMapper);
         setField(service, "transactionTemplate", new TransactionTemplate(new NoopTransactionManager()));
         return service;
@@ -354,6 +379,57 @@ public class NotifyEventConsumeServiceImplTest {
         @Override
         public Long countTodo(Long receiverId) {
             return 0L;
+        }
+    }
+
+    private static class FakeNotifyTemplateService implements NotifyTemplateService {
+        private boolean notifyEnabled = true;
+
+        @Override
+        public com.jasic.aftersales.common.core.domain.PageResult<com.jasic.aftersales.system.notify.domain.vo.NotifyTemplateVO> listPage(
+                com.jasic.aftersales.system.notify.domain.query.NotifyTemplateQuery query) {
+            return null;
+        }
+
+        @Override
+        public com.jasic.aftersales.system.notify.domain.vo.NotifyTemplateVO getById(Long id) {
+            return null;
+        }
+
+        @Override
+        public Long saveCustom(com.jasic.aftersales.system.notify.domain.dto.NotifyTemplateDTO dto) {
+            return null;
+        }
+
+        @Override
+        public void updateCustom(com.jasic.aftersales.system.notify.domain.dto.NotifyTemplateDTO dto) {
+        }
+
+        @Override
+        public void removeCustom(Long id) {
+        }
+
+        @Override
+        public com.jasic.aftersales.system.notify.domain.vo.NotifyTemplatePreviewVO preview(
+                com.jasic.aftersales.system.notify.domain.dto.NotifyTemplatePreviewDTO dto) {
+            return null;
+        }
+
+        @Override
+        public NotifyTemplateRenderResult render(String templateCode, Map<String, Object> variables) {
+            NotifyTemplateRenderResult result = new NotifyTemplateRenderResult();
+            result.setNotifyEnabled(notifyEnabled);
+            result.setTemplateCode(templateCode);
+            result.setTemplateSource("BUILT_IN");
+            result.setTitle("你有新的工单待处理");
+            result.setSummary("工单" + variables.get("bizNo") + "已派发给你，请尽快处理");
+            result.setRouteType(NotifyConstants.ROUTE_TYPE_WORK_ORDER_DETAIL);
+            result.setRouteValue(String.valueOf(variables.get("bizId")));
+            return result;
+        }
+
+        @Override
+        public void refreshCache() {
         }
     }
 

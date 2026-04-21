@@ -24,6 +24,12 @@ public final class NotifyConstants {
 
     public static final String ASSIGN_TYPE_TRANSFER = "TRANSFER";
 
+    public static final String TEMPLATE_CODE_WORK_ORDER_ASSIGNED = "WORK_ORDER_ASSIGNED";
+
+    public static final String TEMPLATE_SOURCE_BUILT_IN = "BUILT_IN";
+
+    public static final String TEMPLATE_SOURCE_CUSTOM = "CUSTOM";
+
     public static final String TODO_TITLE_ASSIGNED = "你有新的工单待处理";
 
     public static final int EVENT_CONSUME_BATCH_SIZE = 20;
