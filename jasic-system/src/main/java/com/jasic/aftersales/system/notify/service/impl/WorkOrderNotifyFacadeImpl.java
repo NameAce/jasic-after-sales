@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyAssignedEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyEvaluationInviteEventDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyReadByBizDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoCompleteDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoInvalidateDTO;
@@ -45,22 +46,35 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
         if (notifyEventService.getByEventKey(eventKey) != null) {
             return;
         }
-        SysNotifyEvent notifyEvent = new SysNotifyEvent();
-        notifyEvent.setEventKey(eventKey);
-        notifyEvent.setEventType(NotifyEventTypeEnum.WORK_ORDER_ASSIGNED.getCode());
-        notifyEvent.setBizType(NotifyBizTypeEnum.WORK_ORDER.getCode());
-        notifyEvent.setBizId(dto.getWorkOrderId());
-        notifyEvent.setBizNo(dto.getOrderNo());
-        notifyEvent.setOperatorId(dto.getOperatorId());
-        notifyEvent.setReceiverId(dto.getNewAssignedUserId());
-        notifyEvent.setPayloadJson(JSONUtil.toJsonStr(dto));
-        notifyEvent.setStatus(NotifyEventStatusEnum.NEW.getCode());
-        notifyEvent.setRetryCount(0);
-        try {
-            notifyEventService.createEvent(notifyEvent);
-        } catch (DuplicateKeyException ignored) {
-            // Ignore duplicate inserts for the same event_key.
+        SysNotifyEvent notifyEvent = buildEvent(
+                eventKey,
+                NotifyEventTypeEnum.WORK_ORDER_ASSIGNED.getCode(),
+                dto.getWorkOrderId(),
+                dto.getOrderNo(),
+                dto.getOperatorId(),
+                dto.getNewAssignedUserId(),
+                JSONUtil.toJsonStr(dto)
+        );
+        createEventSafely(notifyEvent);
+    }
+
+    @Override
+    public void publishEvaluationInviteEvent(NotifyEvaluationInviteEventDTO dto) {
+        validateEvaluationInviteEvent(dto);
+        String eventKey = buildEvaluationInviteEventKey(dto);
+        if (notifyEventService.getByEventKey(eventKey) != null) {
+            return;
         }
+        SysNotifyEvent notifyEvent = buildEvent(
+                eventKey,
+                NotifyEventTypeEnum.WORK_ORDER_EVALUATION_INVITE.getCode(),
+                dto.getWorkOrderId(),
+                dto.getOrderNo(),
+                null,
+                dto.getCustomerId(),
+                JSONUtil.toJsonStr(dto)
+        );
+        createEventSafely(notifyEvent);
     }
 
     @Override
@@ -76,6 +90,30 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
     @Override
     public void invalidateTodoByBiz(NotifyTodoInvalidateDTO dto) {
         notifyMessageService.invalidateTodoByBiz(dto);
+    }
+
+    private SysNotifyEvent buildEvent(String eventKey, String eventType, Long bizId, String bizNo,
+                                      Long operatorId, Long receiverId, String payloadJson) {
+        SysNotifyEvent notifyEvent = new SysNotifyEvent();
+        notifyEvent.setEventKey(eventKey);
+        notifyEvent.setEventType(eventType);
+        notifyEvent.setBizType(NotifyBizTypeEnum.WORK_ORDER.getCode());
+        notifyEvent.setBizId(bizId);
+        notifyEvent.setBizNo(bizNo);
+        notifyEvent.setOperatorId(operatorId);
+        notifyEvent.setReceiverId(receiverId);
+        notifyEvent.setPayloadJson(payloadJson);
+        notifyEvent.setStatus(NotifyEventStatusEnum.NEW.getCode());
+        notifyEvent.setRetryCount(0);
+        return notifyEvent;
+    }
+
+    private void createEventSafely(SysNotifyEvent notifyEvent) {
+        try {
+            notifyEventService.createEvent(notifyEvent);
+        } catch (DuplicateKeyException ignored) {
+            // Ignore duplicate inserts for the same event_key.
+        }
     }
 
     private void validateAssignedEvent(NotifyAssignedEventDTO dto) {
@@ -99,12 +137,34 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
         }
     }
 
+    private void validateEvaluationInviteEvent(NotifyEvaluationInviteEventDTO dto) {
+        if (dto == null) {
+            throw new ServiceException("Evaluation invite event payload cannot be null");
+        }
+        if (dto.getWorkOrderId() == null) {
+            throw new ServiceException("Evaluation invite event missing workOrderId");
+        }
+        if (StrUtil.isBlank(dto.getOrderNo())) {
+            throw new ServiceException("Evaluation invite event missing orderNo");
+        }
+        if (dto.getCustomerId() == null) {
+            throw new ServiceException("Evaluation invite event missing customerId");
+        }
+    }
+
     private String buildAssignedEventKey(NotifyAssignedEventDTO dto) {
         return String.format("%s:%s:%s:%s",
                 NotifyConstants.EVENT_KEY_PREFIX_WORK_ORDER_ASSIGNED,
                 dto.getWorkOrderId(),
                 dto.getNewAssignedUserId(),
                 dto.getOperationId()
+        );
+    }
+
+    private String buildEvaluationInviteEventKey(NotifyEvaluationInviteEventDTO dto) {
+        return String.format("%s:%s",
+                NotifyConstants.EVENT_KEY_PREFIX_WORK_ORDER_EVALUATION_INVITE,
+                dto.getWorkOrderId()
         );
     }
 }

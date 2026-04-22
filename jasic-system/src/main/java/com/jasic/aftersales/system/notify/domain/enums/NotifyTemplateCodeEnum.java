@@ -14,10 +14,18 @@ public enum NotifyTemplateCodeEnum {
 
     WORK_ORDER_ASSIGNED(
             NotifyConstants.TEMPLATE_CODE_WORK_ORDER_ASSIGNED,
-            "工单派单通知",
+            "Work order assigned",
             NotifyEventTypeEnum.WORK_ORDER_ASSIGNED.getCode(),
             NotifyBizTypeEnum.WORK_ORDER.getCode(),
             NotifyConstants.MESSAGE_TYPE_TODO
+    ),
+
+    WORK_ORDER_EVALUATION_INVITE(
+            NotifyConstants.TEMPLATE_CODE_WORK_ORDER_EVALUATION_INVITE,
+            "Work order evaluation invite",
+            NotifyEventTypeEnum.WORK_ORDER_EVALUATION_INVITE.getCode(),
+            NotifyBizTypeEnum.WORK_ORDER.getCode(),
+            NotifyConstants.MESSAGE_TYPE_EXTERNAL_NOTIFY
     );
 
     private final String code;

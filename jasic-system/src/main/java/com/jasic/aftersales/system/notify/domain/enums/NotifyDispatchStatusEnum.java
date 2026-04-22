@@ -2,29 +2,31 @@ package com.jasic.aftersales.system.notify.domain.enums;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
-import com.jasic.aftersales.system.notify.support.NotifyConstants;
 
 /**
- * Supported notification route types.
+ * Notify dispatch status.
  *
  * @author Codex
- * @date 2026/04/20
+ * @date 2026/04/21
  */
-public enum NotifyRouteTypeEnum {
+public enum NotifyDispatchStatusEnum {
 
-    WORK_ORDER_DETAIL(NotifyConstants.ROUTE_TYPE_WORK_ORDER_DETAIL, "Work order detail"),
-    WORK_ORDER_EVALUATE(NotifyConstants.ROUTE_TYPE_WORK_ORDER_EVALUATE, "Work order evaluate");
+    PENDING("PENDING", "Pending"),
+    PROCESSING("PROCESSING", "Processing"),
+    SUCCESS("SUCCESS", "Success"),
+    FAILED("FAILED", "Failed"),
+    SKIPPED("SKIPPED", "Skipped");
 
     private final String code;
 
     private final String desc;
 
-    NotifyRouteTypeEnum(String code, String desc) {
+    NotifyDispatchStatusEnum(String code, String desc) {
         this.code = code;
         this.desc = desc;
     }
 
-    public static NotifyRouteTypeEnum getByCode(String code) {
+    public static NotifyDispatchStatusEnum getByCode(String code) {
         if (code == null) {
             return null;
         }
@@ -32,7 +34,7 @@ public enum NotifyRouteTypeEnum {
         if (normalizedCode.isEmpty()) {
             return null;
         }
-        for (NotifyRouteTypeEnum value : values()) {
+        for (NotifyDispatchStatusEnum value : values()) {
             if (value.code.equals(normalizedCode)) {
                 return value;
             }
@@ -41,10 +43,10 @@ public enum NotifyRouteTypeEnum {
     }
 
     @JsonCreator
-    public static NotifyRouteTypeEnum fromCode(String code) {
-        NotifyRouteTypeEnum value = getByCode(code);
+    public static NotifyDispatchStatusEnum fromCode(String code) {
+        NotifyDispatchStatusEnum value = getByCode(code);
         if (value == null && code != null) {
-            throw new IllegalArgumentException("Unsupported notify route type: " + code);
+            throw new IllegalArgumentException("Unsupported notify dispatch status: " + code);
         }
         return value;
     }

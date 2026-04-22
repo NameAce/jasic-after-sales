@@ -2,29 +2,28 @@ package com.jasic.aftersales.system.notify.domain.enums;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
-import com.jasic.aftersales.system.notify.support.NotifyConstants;
 
 /**
- * Supported notification route types.
+ * Notify receiver type.
  *
  * @author Codex
- * @date 2026/04/20
+ * @date 2026/04/21
  */
-public enum NotifyRouteTypeEnum {
+public enum NotifyReceiverTypeEnum {
 
-    WORK_ORDER_DETAIL(NotifyConstants.ROUTE_TYPE_WORK_ORDER_DETAIL, "Work order detail"),
-    WORK_ORDER_EVALUATE(NotifyConstants.ROUTE_TYPE_WORK_ORDER_EVALUATE, "Work order evaluate");
+    CUSTOMER("CUSTOMER", "瀹㈡埛"),
+    SYS_USER("SYS_USER", "绯荤粺鐢ㄦ埛");
 
     private final String code;
 
     private final String desc;
 
-    NotifyRouteTypeEnum(String code, String desc) {
+    NotifyReceiverTypeEnum(String code, String desc) {
         this.code = code;
         this.desc = desc;
     }
 
-    public static NotifyRouteTypeEnum getByCode(String code) {
+    public static NotifyReceiverTypeEnum getByCode(String code) {
         if (code == null) {
             return null;
         }
@@ -32,7 +31,7 @@ public enum NotifyRouteTypeEnum {
         if (normalizedCode.isEmpty()) {
             return null;
         }
-        for (NotifyRouteTypeEnum value : values()) {
+        for (NotifyReceiverTypeEnum value : values()) {
             if (value.code.equals(normalizedCode)) {
                 return value;
             }
@@ -41,10 +40,10 @@ public enum NotifyRouteTypeEnum {
     }
 
     @JsonCreator
-    public static NotifyRouteTypeEnum fromCode(String code) {
-        NotifyRouteTypeEnum value = getByCode(code);
+    public static NotifyReceiverTypeEnum fromCode(String code) {
+        NotifyReceiverTypeEnum value = getByCode(code);
         if (value == null && code != null) {
-            throw new IllegalArgumentException("Unsupported notify route type: " + code);
+            throw new IllegalArgumentException("Unsupported notify receiver type: " + code);
         }
         return value;
     }

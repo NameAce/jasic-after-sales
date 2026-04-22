@@ -6,9 +6,11 @@ import com.jasic.aftersales.common.core.controller.BaseController;
 import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.common.core.domain.Result;
 import com.jasic.aftersales.common.enums.OperTypeEnum;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyTemplateChannelDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTemplateDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTemplatePreviewDTO;
 import com.jasic.aftersales.system.notify.domain.query.NotifyTemplateQuery;
+import com.jasic.aftersales.system.notify.domain.vo.NotifyTemplateChannelVO;
 import com.jasic.aftersales.system.notify.domain.vo.NotifyTemplatePreviewVO;
 import com.jasic.aftersales.system.notify.domain.vo.NotifyTemplateVO;
 import com.jasic.aftersales.system.notify.service.NotifyTemplateService;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
+import java.util.List;
 
 @Api(tags = "通知模板")
 @RestController
@@ -48,6 +51,13 @@ public class NotifyTemplateController extends BaseController {
         return Result.ok(notifyTemplateService.getById(id));
     }
 
+    @ApiOperation(value = "查询通知模板渠道配置")
+    @SaCheckPermission("system:notifyTemplate:view")
+    @GetMapping("/{templateCode}/channels")
+    public Result<List<NotifyTemplateChannelVO>> listChannels(@PathVariable String templateCode) {
+        return Result.ok(notifyTemplateService.listChannelConfigs(templateCode));
+    }
+
     @ApiOperation(value = "新增自定义通知模板")
     @SaCheckPermission("system:notifyTemplate:add")
     @OperLog(title = "通知模板", operType = OperTypeEnum.INSERT)
@@ -62,6 +72,16 @@ public class NotifyTemplateController extends BaseController {
     @PutMapping("/custom")
     public Result<Void> updateCustom(@Validated @RequestBody NotifyTemplateDTO dto) {
         notifyTemplateService.updateCustom(dto);
+        return Result.ok();
+    }
+
+    @ApiOperation(value = "保存通知模板渠道配置")
+    @SaCheckPermission("system:notifyTemplate:update")
+    @OperLog(title = "通知模板渠道配置", operType = OperTypeEnum.UPDATE)
+    @PutMapping("/{templateCode}/channels")
+    public Result<Void> saveChannels(@PathVariable String templateCode,
+                                     @RequestBody List<NotifyTemplateChannelDTO> channelConfigs) {
+        notifyTemplateService.saveChannelConfigs(templateCode, channelConfigs);
         return Result.ok();
     }
 

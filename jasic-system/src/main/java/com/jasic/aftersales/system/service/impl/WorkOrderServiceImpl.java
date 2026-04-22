@@ -64,6 +64,7 @@ import com.jasic.aftersales.system.domain.vo.WorkOrderUserOptionVO;
 import com.jasic.aftersales.system.domain.vo.SysFileItemVO;
 import com.jasic.aftersales.system.domain.vo.SysCompanySimpleVO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyAssignedEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyEvaluationInviteEventDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyReadByBizDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoCompleteDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoInvalidateDTO;
@@ -793,6 +794,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
                 workOrder.getCurrentAcceptCompanyId(), workOrder.getCloseReason());
         invalidateWorkOrderTodo(workOrder.getId(), NotifyInvalidReasonEnum.WORK_ORDER_CLOSED.getCode());
+        publishEvaluationInviteNotifyEvent(workOrder);
     }
 
     /**
@@ -1284,6 +1286,34 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         eventDTO.setAssignType(assignType);
         eventDTO.setOperationId(operationId);
         workOrderNotifyFacade.publishAssignedEvent(eventDTO);
+    }
+
+    private void publishEvaluationInviteNotifyEvent(WorkOrder workOrder) {
+        if (workOrder == null) {
+            return;
+        }
+        if (!WorkOrderStatusConstants.EvaluateStatus.PENDING_EVALUATE.equals(workOrder.getEvaluateStatus())) {
+            return;
+        }
+        if (workOrder.getCustomerId() == null) {
+            return;
+        }
+        WorkOrderCustomer customer = workOrderCustomerMapper.selectById(workOrder.getCustomerId());
+        SysCompany company = workOrder.getCurrentAcceptCompanyId() == null
+                ? null : sysCompanyMapper.selectById(workOrder.getCurrentAcceptCompanyId());
+        NotifyEvaluationInviteEventDTO eventDTO = new NotifyEvaluationInviteEventDTO();
+        eventDTO.setWorkOrderId(workOrder.getId());
+        eventDTO.setOrderNo(workOrder.getOrderNo());
+        eventDTO.setCustomerId(workOrder.getCustomerId());
+        eventDTO.setCustomerMobile(StrUtil.blankToDefault(
+                StrUtil.trim(workOrder.getCustomerMobile()),
+                customer == null ? null : StrUtil.trim(customer.getPhone())
+        ));
+        eventDTO.setCustomerOpenid(customer == null ? null : StrUtil.trim(customer.getOpenid()));
+        eventDTO.setCompanyId(workOrder.getCurrentAcceptCompanyId());
+        eventDTO.setCompanyName(company == null ? null : StrUtil.trim(company.getCompanyName()));
+        eventDTO.setClosedTime(workOrder.getClosedTime());
+        workOrderNotifyFacade.publishEvaluationInviteEvent(eventDTO);
     }
 
     private String resolveAssignType(Long oldAssignedUserId, Long newAssignedUserId) {

@@ -4,15 +4,15 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
- * 通知事件类型枚举。
+ * Notify event type enum.
  *
  * @author Codex
  * @date 2026/04/18
  */
 public enum NotifyEventTypeEnum {
 
-    /** 工单派单事件。 */
-    WORK_ORDER_ASSIGNED("WORK_ORDER_ASSIGNED", "工单已派单");
+    WORK_ORDER_ASSIGNED("WORK_ORDER_ASSIGNED", "Work order assigned"),
+    WORK_ORDER_EVALUATION_INVITE("WORK_ORDER_EVALUATION_INVITE", "Work order evaluation invite");
 
     private final String code;
 
@@ -43,7 +43,7 @@ public enum NotifyEventTypeEnum {
     public static NotifyEventTypeEnum fromCode(String code) {
         NotifyEventTypeEnum value = getByCode(code);
         if (value == null && code != null) {
-            throw new IllegalArgumentException("不支持的通知事件类型编码：" + code);
+            throw new IllegalArgumentException("Unsupported notify event type: " + code);
         }
         return value;
     }

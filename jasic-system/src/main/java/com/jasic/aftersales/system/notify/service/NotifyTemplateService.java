@@ -1,13 +1,16 @@
 package com.jasic.aftersales.system.notify.service;
 
 import com.jasic.aftersales.common.core.domain.PageResult;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyTemplateChannelDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTemplateDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTemplatePreviewDTO;
 import com.jasic.aftersales.system.notify.domain.query.NotifyTemplateQuery;
+import com.jasic.aftersales.system.notify.domain.vo.NotifyTemplateChannelVO;
 import com.jasic.aftersales.system.notify.domain.vo.NotifyTemplatePreviewVO;
 import com.jasic.aftersales.system.notify.domain.vo.NotifyTemplateVO;
 import com.jasic.aftersales.system.notify.support.NotifyTemplateRenderResult;
 
+import java.util.List;
 import java.util.Map;
 
 public interface NotifyTemplateService {
@@ -25,6 +28,12 @@ public interface NotifyTemplateService {
     NotifyTemplatePreviewVO preview(NotifyTemplatePreviewDTO dto);
 
     NotifyTemplateRenderResult render(String templateCode, Map<String, Object> variables);
+
+    boolean isNotifyEnabled(String templateCode);
+
+    List<NotifyTemplateChannelVO> listChannelConfigs(String templateCode);
+
+    void saveChannelConfigs(String templateCode, List<NotifyTemplateChannelDTO> channelConfigs);
 
     void refreshCache();
 }

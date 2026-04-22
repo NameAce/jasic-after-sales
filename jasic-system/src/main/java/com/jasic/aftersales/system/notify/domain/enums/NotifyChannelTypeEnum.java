@@ -2,29 +2,29 @@ package com.jasic.aftersales.system.notify.domain.enums;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
-import com.jasic.aftersales.system.notify.support.NotifyConstants;
 
 /**
- * Supported notification route types.
+ * Supported notify channel types.
  *
  * @author Codex
- * @date 2026/04/20
+ * @date 2026/04/21
  */
-public enum NotifyRouteTypeEnum {
+public enum NotifyChannelTypeEnum {
 
-    WORK_ORDER_DETAIL(NotifyConstants.ROUTE_TYPE_WORK_ORDER_DETAIL, "Work order detail"),
-    WORK_ORDER_EVALUATE(NotifyConstants.ROUTE_TYPE_WORK_ORDER_EVALUATE, "Work order evaluate");
+    MP_SUBSCRIBE("MP_SUBSCRIBE", "Mini program subscribe"),
+    SMS("SMS", "SMS"),
+    EMAIL("EMAIL", "Email");
 
     private final String code;
 
     private final String desc;
 
-    NotifyRouteTypeEnum(String code, String desc) {
+    NotifyChannelTypeEnum(String code, String desc) {
         this.code = code;
         this.desc = desc;
     }
 
-    public static NotifyRouteTypeEnum getByCode(String code) {
+    public static NotifyChannelTypeEnum getByCode(String code) {
         if (code == null) {
             return null;
         }
@@ -32,7 +32,7 @@ public enum NotifyRouteTypeEnum {
         if (normalizedCode.isEmpty()) {
             return null;
         }
-        for (NotifyRouteTypeEnum value : values()) {
+        for (NotifyChannelTypeEnum value : values()) {
             if (value.code.equals(normalizedCode)) {
                 return value;
             }
@@ -41,10 +41,10 @@ public enum NotifyRouteTypeEnum {
     }
 
     @JsonCreator
-    public static NotifyRouteTypeEnum fromCode(String code) {
-        NotifyRouteTypeEnum value = getByCode(code);
+    public static NotifyChannelTypeEnum fromCode(String code) {
+        NotifyChannelTypeEnum value = getByCode(code);
         if (value == null && code != null) {
-            throw new IllegalArgumentException("Unsupported notify route type: " + code);
+            throw new IllegalArgumentException("Unsupported notify channel type: " + code);
         }
         return value;
     }

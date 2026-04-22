@@ -163,6 +163,12 @@ export function listNotifyTemplate(params) {
 export function getNotifyTemplate(id) {
   return request({ url: `/system/notify/template/${id}`, method: 'get' })
 }
+export function listNotifyTemplateChannels(templateCode) {
+  return request({ url: `/system/notify/template/${templateCode}/channels`, method: 'get' })
+}
+export function saveNotifyTemplateChannels(templateCode, data) {
+  return request({ url: `/system/notify/template/${templateCode}/channels`, method: 'put', data })
+}
 export function addNotifyTemplateCustom(data) {
   return request({ url: '/system/notify/template/custom', method: 'post', data })
 }

@@ -56,6 +56,7 @@ import com.jasic.aftersales.system.mapper.WorkOrderMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderQuoteMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderRepairMapper;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyAssignedEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyEvaluationInviteEventDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyReadByBizDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoCompleteDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoInvalidateDTO;
@@ -1224,11 +1225,18 @@ public class WorkOrderServiceImplTest {
         currentQuote.setWorkOrderId(workOrder.getId());
         currentQuote.setFaultJudge("有故障");
         currentQuote.setIsCurrentValid(1);
+        WorkOrderCustomer customer = new WorkOrderCustomer();
+        customer.setId(9001L);
+        customer.setOpenid("openid-9001");
+        customer.setPhone("13800138000");
+        SysCompany company = buildCompany(3L, "深圳南山服务网点", "SERVICE");
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         RecordingWorkOrderNotifyFacade notifyFacade = new RecordingWorkOrderNotifyFacade();
         setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, new int[1]));
         setField(service, "workOrderQuoteMapper", createQuoteMapperProxy(Collections.singletonList(currentQuote)));
         setField(service, "workOrderFlowMapper", createNoopProxy(WorkOrderFlowMapper.class, "insert"));
+        setField(service, "workOrderCustomerMapper", createWorkOrderCustomerMapperProxy(customer));
+        setField(service, "sysCompanyMapper", createSysCompanyMapperProxy(Collections.singletonList(company)));
         setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
             @Override
             public boolean canClose(WorkOrder target) {
@@ -1319,17 +1327,27 @@ public class WorkOrderServiceImplTest {
     public void shouldCloseFaultWorkOrderAsPendingEvaluateAndRecordInvite() throws Exception {
         WorkOrder workOrder = new WorkOrder();
         workOrder.setId(12L);
+        workOrder.setOrderNo("WO-12");
+        workOrder.setCustomerId(9001L);
+        workOrder.setCustomerMobile("13800138000");
         workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.COMPLETED);
         workOrder.setCurrentAcceptCompanyId(3L);
         WorkOrderQuote currentQuote = new WorkOrderQuote();
         currentQuote.setWorkOrderId(workOrder.getId());
         currentQuote.setFaultJudge("有故障");
         currentQuote.setIsCurrentValid(1);
+        WorkOrderCustomer customer = new WorkOrderCustomer();
+        customer.setId(9001L);
+        customer.setOpenid("openid-9001");
+        customer.setPhone("13800138000");
+        SysCompany company = buildCompany(3L, "深圳南山服务网点", "SERVICE");
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         RecordingWorkOrderNotifyFacade notifyFacade = new RecordingWorkOrderNotifyFacade();
         setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, new int[1]));
         setField(service, "workOrderQuoteMapper", createQuoteMapperProxy(Collections.singletonList(currentQuote)));
         setField(service, "workOrderFlowMapper", createNoopProxy(WorkOrderFlowMapper.class, "insert"));
+        setField(service, "workOrderCustomerMapper", createWorkOrderCustomerMapperProxy(customer));
+        setField(service, "sysCompanyMapper", createSysCompanyMapperProxy(Collections.singletonList(company)));
         setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
             @Override
             public boolean canClose(WorkOrder target) {
@@ -1356,6 +1374,12 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(1, notifyFacade.invalidatedTodos.size());
         Assert.assertEquals(NotifyInvalidReasonEnum.WORK_ORDER_CLOSED.getCode(),
                 notifyFacade.invalidatedTodos.get(0).getInvalidReason());
+        Assert.assertEquals(1, notifyFacade.evaluationInviteEvents.size());
+        Assert.assertEquals(workOrder.getId(), notifyFacade.evaluationInviteEvents.get(0).getWorkOrderId());
+        Assert.assertEquals("WO-12", notifyFacade.evaluationInviteEvents.get(0).getOrderNo());
+        Assert.assertEquals(Long.valueOf(9001L), notifyFacade.evaluationInviteEvents.get(0).getCustomerId());
+        Assert.assertEquals("openid-9001", notifyFacade.evaluationInviteEvents.get(0).getCustomerOpenid());
+        Assert.assertEquals("深圳南山服务网点", notifyFacade.evaluationInviteEvents.get(0).getCompanyName());
     }
 
     @Test
@@ -1794,6 +1818,55 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    private WorkOrderCustomerMapper createWorkOrderCustomerMapperProxy(WorkOrderCustomer customer) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectById".equals(method.getName())) {
+                    return customer;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (WorkOrderCustomerMapper) Proxy.newProxyInstance(
+                WorkOrderCustomerMapper.class.getClassLoader(),
+                new Class<?>[]{WorkOrderCustomerMapper.class},
+                handler
+        );
+    }
+
+    private SysCompanyMapper createSysCompanyMapperProxy(List<SysCompany> companies) {
+        Map<Long, SysCompany> companyMap = new LinkedHashMap<>();
+        for (SysCompany company : companies) {
+            companyMap.put(company.getId(), company);
+        }
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectById".equals(method.getName())) {
+                    return companyMap.get(args[0]);
+                }
+                if ("selectBatchIds".equals(method.getName())) {
+                    Iterable<?> ids = (Iterable<?>) args[0];
+                    List<SysCompany> result = new ArrayList<>();
+                    for (Object id : ids) {
+                        SysCompany company = companyMap.get(id);
+                        if (company != null) {
+                            result.add(company);
+                        }
+                    }
+                    return result;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (SysCompanyMapper) Proxy.newProxyInstance(
+                SysCompanyMapper.class.getClassLoader(),
+                new Class<?>[]{SysCompanyMapper.class},
+                handler
+        );
+    }
+
     private SysUserCompanyMapper createUserCompanyMapperProxy(Long companyId, List<Long> userIds) {
         List<SysUserCompany> userCompanies = new ArrayList<>();
         for (Long userId : userIds) {
@@ -1987,6 +2060,7 @@ public class WorkOrderServiceImplTest {
     private static class RecordingWorkOrderNotifyFacade implements WorkOrderNotifyFacade {
 
         private final List<NotifyAssignedEventDTO> publishedEvents = new ArrayList<>();
+        private final List<NotifyEvaluationInviteEventDTO> evaluationInviteEvents = new ArrayList<>();
         private final List<NotifyReadByBizDTO> readByBizRequests = new ArrayList<>();
         private final List<NotifyTodoCompleteDTO> completedTodos = new ArrayList<>();
         private final List<NotifyTodoInvalidateDTO> invalidatedTodos = new ArrayList<>();
@@ -1994,6 +2068,11 @@ public class WorkOrderServiceImplTest {
         @Override
         public void publishAssignedEvent(NotifyAssignedEventDTO dto) {
             publishedEvents.add(dto);
+        }
+
+        @Override
+        public void publishEvaluationInviteEvent(NotifyEvaluationInviteEventDTO dto) {
+            evaluationInviteEvents.add(dto);
         }
 
         @Override
