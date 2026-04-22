@@ -17,10 +17,13 @@ import com.jasic.aftersales.system.domain.dto.WorkOrderReviewDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTransferDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderUpdateProductModelDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderUpstreamCreateDTO;
+import com.jasic.aftersales.system.domain.query.WorkOrderHqSiteOrderQuery;
+import com.jasic.aftersales.system.domain.query.WorkOrderHqSiteSummaryQuery;
 import com.jasic.aftersales.system.domain.query.WorkOrderQuery;
 import com.jasic.aftersales.system.domain.vo.WorkOrderCreateBarcodeInfoVO;
 import com.jasic.aftersales.system.domain.vo.SysCompanySimpleVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderDetailVO;
+import com.jasic.aftersales.system.domain.vo.WorkOrderHqSiteSummaryVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderListVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairFaultOptionVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderStatusCountVO;
@@ -85,6 +88,32 @@ public class WorkOrderController extends BaseController {
             query.setCompanyId(SecurityContext.getCurrentCompanyId());
         }
         return Result.ok(workOrderService.countByStatus(query));
+    }
+
+    /**
+     * 查询总部网点工单汇总。
+     *
+     * @param query 查询参数
+     * @return 网点汇总
+     */
+    @ApiOperation(value = "查询总部网点工单汇总")
+    @SaCheckPermission("workorder:list")
+    @GetMapping("/hq-site-summary")
+    public Result<List<WorkOrderHqSiteSummaryVO>> hqSiteSummary(WorkOrderHqSiteSummaryQuery query) {
+        return Result.ok(workOrderService.listHqSiteSummary(query));
+    }
+
+    /**
+     * 查询总部网点工单只读列表。
+     *
+     * @param query 查询参数
+     * @return 分页结果
+     */
+    @ApiOperation(value = "查询总部网点工单只读列表")
+    @SaCheckPermission("workorder:list")
+    @GetMapping("/hq-site-orders")
+    public Result<PageResult<WorkOrderListVO>> hqSiteOrders(WorkOrderHqSiteOrderQuery query) {
+        return Result.ok(workOrderService.listHqSiteOrders(query));
     }
 
     /**

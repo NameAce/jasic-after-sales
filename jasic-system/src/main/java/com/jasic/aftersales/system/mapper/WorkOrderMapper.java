@@ -5,8 +5,10 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jasic.aftersales.system.domain.entity.WorkOrder;
+import com.jasic.aftersales.system.domain.query.WorkOrderHqSiteInternalQuery;
 import com.jasic.aftersales.system.domain.query.WorkOrderQuery;
 import com.jasic.aftersales.system.domain.vo.WorkOrderDetailVO;
+import com.jasic.aftersales.system.domain.vo.WorkOrderHqSiteSummaryVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderListVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderParticipantVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderStatusCountVO;
@@ -41,6 +43,23 @@ public interface WorkOrderMapper extends BaseMapper<WorkOrder> {
      * @return 状态统计结果
      */
     List<WorkOrderStatusCountVO> selectStatusCount(@Param("query") WorkOrderQuery query);
+
+    /**
+     * 查询总部网点工单汇总。
+     *
+     * @param query 查询条件
+     * @return 网点汇总
+     */
+    List<WorkOrderHqSiteSummaryVO> selectHqSiteSummary(@Param("query") WorkOrderHqSiteInternalQuery query);
+
+    /**
+     * 分页查询总部网点工单明细。
+     *
+     * @param page  分页参数
+     * @param query 查询条件
+     * @return 分页结果
+     */
+    IPage<WorkOrderListVO> selectHqSiteOrderPage(Page<WorkOrderListVO> page, @Param("query") WorkOrderHqSiteInternalQuery query);
 
     /**
      * 查询工单详情

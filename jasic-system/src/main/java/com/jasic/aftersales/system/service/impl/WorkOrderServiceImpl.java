@@ -48,6 +48,9 @@ import com.jasic.aftersales.system.domain.entity.WorkOrderFaultPart;
 import com.jasic.aftersales.system.domain.entity.WorkOrderFlow;
 import com.jasic.aftersales.system.domain.entity.WorkOrderQuote;
 import com.jasic.aftersales.system.domain.entity.WorkOrderRepair;
+import com.jasic.aftersales.system.domain.query.WorkOrderHqSiteInternalQuery;
+import com.jasic.aftersales.system.domain.query.WorkOrderHqSiteOrderQuery;
+import com.jasic.aftersales.system.domain.query.WorkOrderHqSiteSummaryQuery;
 import com.jasic.aftersales.system.domain.query.WorkOrderQuery;
 import com.jasic.aftersales.system.domain.vo.WorkOrderCreateBarcodeInfoVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderDetailVO;
@@ -55,6 +58,7 @@ import com.jasic.aftersales.system.domain.vo.WorkOrderEvaluationVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderFaultPartVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderFaultVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderFlowVO;
+import com.jasic.aftersales.system.domain.vo.WorkOrderHqSiteSummaryVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderListVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderQuoteVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairFaultOptionVO;
@@ -297,6 +301,60 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                 countMap.getOrDefault(WorkOrderStatusConstants.MainStatus.CLOSED, 0L)
         ));
         return result;
+    }
+
+    /**
+     * 查询总部网点工单汇总。总部工程师的 SELF 数据范围默认不开放该汇总入口。
+     *
+     * @param query 查询参数
+     * @return 网点汇总
+     */
+    @Override
+    public List<WorkOrderHqSiteSummaryVO> listHqSiteSummary(WorkOrderHqSiteSummaryQuery query) {
+        WorkOrderHqSiteInternalQuery internalQuery = buildHqSiteSummaryQuery(query);
+        normalizeHqSiteQuery(internalQuery);
+        if ("SELF".equals(internalQuery.getDataScope())) {
+            return Collections.emptyList();
+        }
+        List<WorkOrderHqSiteSummaryVO> list = workOrderMapper.selectHqSiteSummary(internalQuery);
+        if (list == null) {
+            return Collections.emptyList();
+        }
+        for (WorkOrderHqSiteSummaryVO item : list) {
+            if (item == null) {
+                continue;
+            }
+            item.setTotalCount(defaultLong(item.getTotalCount()));
+            item.setWaitAcceptCount(defaultLong(item.getWaitAcceptCount()));
+            item.setInProgressCount(defaultLong(item.getInProgressCount()));
+            item.setCompletedCount(defaultLong(item.getCompletedCount()));
+        }
+        return list;
+    }
+
+    /**
+     * 分页查询总部网点工单只读列表。列表数据仍复用工单列表快照补齐逻辑。
+     *
+     * @param query 查询参数
+     * @return 分页结果
+     */
+    @Override
+    public PageResult<WorkOrderListVO> listHqSiteOrders(WorkOrderHqSiteOrderQuery query) {
+        WorkOrderHqSiteInternalQuery internalQuery = buildHqSiteOrderQuery(query);
+        normalizeHqSiteQuery(internalQuery);
+        if ("SELF".equals(internalQuery.getDataScope()) || internalQuery.getSiteCompanyId() == null) {
+            return PageResult.of(Collections.emptyList(), 0L, internalQuery.getPageNum(), internalQuery.getPageSize());
+        }
+        Page<WorkOrderListVO> page = new Page<>(internalQuery.getPageNum(), internalQuery.getPageSize());
+        IPage<WorkOrderListVO> result = workOrderMapper.selectHqSiteOrderPage(page, internalQuery);
+        List<WorkOrderListVO> records = result.getRecords();
+        Map<Long, BigDecimal> currentQuoteAmountMap = buildCurrentValidQuoteAmountMap(
+                records.stream().map(WorkOrderListVO::getId).collect(Collectors.toList())
+        );
+        for (WorkOrderListVO record : records) {
+            fillListSnapshot(record, currentQuoteAmountMap);
+        }
+        return PageResult.of(records, result.getTotal(), internalQuery.getPageNum(), internalQuery.getPageSize());
     }
 
     /**
@@ -951,6 +1009,64 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
     /**
+     * 补齐总部网点工单查询权限口径，并限制为总部主体访问。
+     *
+     * @param query 查询参数
+     */
+    private void normalizeHqSiteQuery(WorkOrderHqSiteInternalQuery query) {
+        workOrderPermissionService.fillQueryScope(query);
+        if (query.getCompanyId() == null) {
+            throw new ServiceException("当前公司不能为空");
+        }
+        if (!"HQ".equals(query.getSubjectType())) {
+            throw new ServiceException("当前账号不是总部账号");
+        }
+        if (query.getPageNum() == null || query.getPageNum() < 1) {
+            query.setPageNum(1);
+        }
+        if (query.getPageSize() == null || query.getPageSize() < 1) {
+            query.setPageSize(10);
+        }
+    }
+
+    /**
+     * 将前端汇总查询参数转换为内部查询对象。权限上下文字段只从服务端登录态补齐。
+     *
+     * @param request 前端查询参数
+     * @return 内部查询对象
+     */
+    private WorkOrderHqSiteInternalQuery buildHqSiteSummaryQuery(WorkOrderHqSiteSummaryQuery source) {
+        WorkOrderHqSiteInternalQuery query = new WorkOrderHqSiteInternalQuery();
+        query.setCompanyId(SecurityContext.getCurrentCompanyId());
+        if (source != null) {
+            query.setSiteName(source.getSiteName());
+        }
+        return query;
+    }
+
+    /**
+     * 将前端明细列表查询参数转换为内部查询对象。权限上下文字段只从服务端登录态补齐。
+     *
+     * @param source 前端查询参数
+     * @return 内部查询对象
+     */
+    private WorkOrderHqSiteInternalQuery buildHqSiteOrderQuery(WorkOrderHqSiteOrderQuery source) {
+        WorkOrderHqSiteInternalQuery query = new WorkOrderHqSiteInternalQuery();
+        query.setCompanyId(SecurityContext.getCurrentCompanyId());
+        if (source != null) {
+            query.setSiteCompanyId(source.getSiteCompanyId());
+            query.setDisplayStatus(source.getDisplayStatus());
+            query.setOrderNo(source.getOrderNo());
+            query.setCustomerName(source.getCustomerName());
+            query.setCustomerMobile(source.getCustomerMobile());
+            query.setBarcode(source.getBarcode());
+            query.setPageNum(source.getPageNum());
+            query.setPageSize(source.getPageSize());
+        }
+        return query;
+    }
+
+    /**
      * 构造用于状态统计的查询副本，避免分页参数和列表展示字段干扰统计结果。
      *
      * @param query 原始查询参数
@@ -968,6 +1084,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         target.setCustomerName(query.getCustomerName());
         target.setCustomerMobile(query.getCustomerMobile());
         target.setBarcode(query.getBarcode());
+        target.setDisplayStatus(query.getDisplayStatus());
         target.setHasTransfer(query.getHasTransfer());
         return target;
     }
@@ -978,6 +1095,10 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         vo.setDisplayStatus(displayStatus);
         vo.setCountNum(countNum == null ? 0L : countNum);
         return vo;
+    }
+
+    private Long defaultLong(Long value) {
+        return value == null ? 0L : value;
     }
 
     private String resolveDisplayStatus(String mainStatus) {

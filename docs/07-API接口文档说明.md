@@ -11,6 +11,13 @@
 - 已为 DTO、VO、Query 以及通用分页/返回对象补充字段级中文说明。
 - 已接入到 Knife4j 页面，可直接查看接口用途、请求字段、响应字段和分页结构。
 
+### 2.1 总部网点工单接口
+
+- 新增 `GET /system/work-order/hq-site-summary`：总部网点工单汇总，按当前受理的一级/二级承修方公司独立成卡片；`totalCount` 包含 `CLOSED`，`waitAcceptCount = PENDING_ASSIGN + PENDING_TECH_ACCEPT`，`completedCount` 仅包含 `COMPLETED`。
+- `hq-site-summary` 前端可传参数仅为 `siteName`，用于网点/承修方公司名称模糊搜索。
+- 新增 `GET /system/work-order/hq-site-orders`：总部查看某个承修方公司的只读工单列表；前端可传 `siteCompanyId`、`displayStatus`、`orderNo`、`customerName`、`customerMobile`、`barcode`、`pageNum`、`pageSize`。
+- 两个接口均由服务端按当前总部登录上下文注入 `companyId / subjectType / dataScope / relatedCompanyIds`，这些字段不作为前端请求参数暴露；`HQ REGION` 只返回负责大区范围内可见数据，`HQ SELF` 默认不开放网点汇总数据。
+
 ## 3. 文档阅读约定
 
 - 接口统一返回结构为 `Result<T>`

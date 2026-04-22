@@ -37,6 +37,19 @@ public class WorkOrderMapperXmlContractTest {
                 "AND <include refid=\"CurrentUserHistoryParticipationCondition\" />"));
     }
 
+    @Test
+    public void shouldDefineHqSiteSummaryReadonlyScope() throws IOException {
+        String xml = new String(Files.readAllBytes(resolveMapperPath()), StandardCharsets.UTF_8);
+        String normalized = xml.replace("\r\n", "\n");
+
+        Assert.assertTrue(normalized.contains("<select id=\"selectHqSiteSummary\""));
+        Assert.assertTrue(normalized.contains("<select id=\"selectHqSiteOrderPage\""));
+        Assert.assertTrue(normalized.contains("AND w.current_accept_subject_type = 'SERVICE'"));
+        Assert.assertTrue(normalized.contains("AND w.current_accept_company_id &lt;&gt; #{query.companyId}"));
+        Assert.assertTrue(normalized.contains("w.main_status IN ('PENDING_ASSIGN', 'PENDING_TECH_ACCEPT')"));
+        Assert.assertTrue(normalized.contains("SUM(CASE WHEN w.main_status = 'COMPLETED' THEN 1 ELSE 0 END) AS completedCount"));
+    }
+
     private Path resolveMapperPath() {
         Path direct = Paths.get("jasic-admin", "src", "main", "resources", "mapper", "system", "WorkOrderMapper.xml");
         if (Files.exists(direct)) {

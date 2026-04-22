@@ -65,6 +65,10 @@ public class WorkOrderQuery extends PageQuery {
     @ApiModelProperty(value = "主状态", allowableValues = "PENDING_ASSIGN,PENDING_TECH_ACCEPT,IN_PROGRESS,COMPLETED,CLOSED")
     private String mainStatus;
 
+    /** 展示状态（ALL/WAIT_ACCEPT/IN_PROGRESS/COMPLETED/CLOSED） */
+    @ApiModelProperty(value = "展示状态", allowableValues = "ALL,WAIT_ACCEPT,IN_PROGRESS,COMPLETED,CLOSED")
+    private String displayStatus;
+
     /** 是否转单 */
     @ApiModelProperty(value = "是否转单")
     private Integer hasTransfer;

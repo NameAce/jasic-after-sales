@@ -41,6 +41,48 @@
         )
     </sql>
 
+    <sql id="HqSiteBaseCondition">
+        w.hq_company_id = #{query.companyId}
+        AND w.current_accept_subject_type = 'SERVICE'
+        AND w.current_accept_company_id &lt;&gt; #{query.companyId}
+        <choose>
+            <when test="query.dataScope == 'REGION'">
+                <choose>
+                    <when test="query.relatedCompanyIds != null and query.relatedCompanyIds.size() > 0">
+                        AND <include refid="RelatedCompanyScopeCondition" />
+                    </when>
+                    <otherwise>
+                        AND 1 = 0
+                    </otherwise>
+                </choose>
+            </when>
+            <when test="query.dataScope == 'SELF'">
+                AND 1 = 0
+            </when>
+            <otherwise>
+            </otherwise>
+        </choose>
+    </sql>
+
+    <sql id="HqSiteDisplayStatusCondition">
+        <choose>
+            <when test="query.displayStatus == 'WAIT_ACCEPT'">
+                AND w.main_status IN ('PENDING_ASSIGN', 'PENDING_TECH_ACCEPT')
+            </when>
+            <when test="query.displayStatus == 'IN_PROGRESS'">
+                AND w.main_status = 'IN_PROGRESS'
+            </when>
+            <when test="query.displayStatus == 'COMPLETED'">
+                AND w.main_status = 'COMPLETED'
+            </when>
+            <when test="query.displayStatus == 'CLOSED'">
+                AND w.main_status = 'CLOSED'
+            </when>
+            <otherwise>
+            </otherwise>
+        </choose>
+    </sql>
+
     <!-- 工单分页列表 -->
     <select id="selectWorkOrderPage" resultType="com.jasic.aftersales.system.domain.vo.WorkOrderListVO">
         SELECT
@@ -196,6 +238,9 @@
             </if>
             <if test="query.mainStatus != null and query.mainStatus != ''">
                 AND w.main_status = #{query.mainStatus}
+            </if>
+            <if test="query.displayStatus != null and query.displayStatus != '' and query.displayStatus != 'ALL'">
+                <include refid="HqSiteDisplayStatusCondition" />
             </if>
             <if test="query.hasTransfer != null">
                 AND w.has_transfer = #{query.hasTransfer}
@@ -419,6 +464,9 @@
             <if test="query.barcode != null and query.barcode != ''">
                 AND w.barcode LIKE CONCAT('%', #{query.barcode}, '%')
             </if>
+            <if test="query.displayStatus != null and query.displayStatus != '' and query.displayStatus != 'ALL'">
+                <include refid="HqSiteDisplayStatusCondition" />
+            </if>
             <if test="query.hasTransfer != null">
                 AND w.has_transfer = #{query.hasTransfer}
             </if>
@@ -434,5 +482,75 @@
             </if>
         </where>
         GROUP BY w.main_status
+    </select>
+
+    <!-- 总部网点工单汇总 -->
+    <select id="selectHqSiteSummary" resultType="com.jasic.aftersales.system.domain.vo.WorkOrderHqSiteSummaryVO">
+        SELECT
+            sc.id AS siteCompanyId,
+            sc.company_name AS siteCompanyName,
+            COUNT(1) AS totalCount,
+            SUM(CASE WHEN w.main_status IN ('PENDING_ASSIGN', 'PENDING_TECH_ACCEPT') THEN 1 ELSE 0 END) AS waitAcceptCount,
+            SUM(CASE WHEN w.main_status = 'IN_PROGRESS' THEN 1 ELSE 0 END) AS inProgressCount,
+            SUM(CASE WHEN w.main_status = 'COMPLETED' THEN 1 ELSE 0 END) AS completedCount
+        FROM work_order w
+        JOIN sys_company sc ON sc.id = w.current_accept_company_id
+        <where>
+            <include refid="HqSiteBaseCondition" />
+            <if test="query.siteName != null and query.siteName != ''">
+                AND sc.company_name LIKE CONCAT('%', #{query.siteName}, '%')
+            </if>
+        </where>
+        GROUP BY sc.id, sc.company_name
+        ORDER BY totalCount DESC, sc.id DESC
+    </select>
+
+    <!-- 总部网点工单只读列表 -->
+    <select id="selectHqSiteOrderPage" resultType="com.jasic.aftersales.system.domain.vo.WorkOrderListVO">
+        SELECT
+            w.id,
+            w.order_no AS orderNo,
+            w.customer_name AS customerName,
+            w.customer_mobile AS customerMobile,
+            w.barcode,
+            w.brand_type AS brandType,
+            w.product_model AS productModel,
+            w.fault_desc AS faultDesc,
+            w.main_status AS mainStatus,
+            w.current_accept_company_id AS currentAcceptCompanyId,
+            cac.company_name AS currentAcceptCompanyName,
+            w.assigned_user_id AS assignedUserId,
+            su.real_name AS assignedUserName,
+            w.has_transfer AS hasTransfer,
+            w.transfer_count AS transferCount,
+            w.create_time AS createTime
+        FROM work_order w
+        LEFT JOIN sys_company cac ON w.current_accept_company_id = cac.id
+        LEFT JOIN sys_user su ON w.assigned_user_id = su.id
+        <where>
+            <include refid="HqSiteBaseCondition" />
+            <choose>
+                <when test="query.siteCompanyId != null">
+                    AND w.current_accept_company_id = #{query.siteCompanyId}
+                </when>
+                <otherwise>
+                    AND 1 = 0
+                </otherwise>
+            </choose>
+            <include refid="HqSiteDisplayStatusCondition" />
+            <if test="query.orderNo != null and query.orderNo != ''">
+                AND w.order_no LIKE CONCAT('%', #{query.orderNo}, '%')
+            </if>
+            <if test="query.customerName != null and query.customerName != ''">
+                AND w.customer_name LIKE CONCAT('%', #{query.customerName}, '%')
+            </if>
+            <if test="query.customerMobile != null and query.customerMobile != ''">
+                AND w.customer_mobile = #{query.customerMobile}
+            </if>
+            <if test="query.barcode != null and query.barcode != ''">
+                AND w.barcode LIKE CONCAT('%', #{query.barcode}, '%')
+            </if>
+        </where>
+        ORDER BY w.id DESC
     </select>
 </mapper>

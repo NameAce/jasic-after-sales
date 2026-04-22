@@ -1,14 +1,11 @@
 package com.jasic.aftersales.system.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.jasic.aftersales.system.domain.entity.CrmBizCompanySnapshot;
-import com.jasic.aftersales.system.domain.query.CrmBizCompanySnapshotQuery;
+import com.jasic.aftersales.system.domain.vo.CrmBizCompanyImportPreviewVO;
 import com.jasic.aftersales.system.mapper.CrmBizCompanySnapshotMapper;
+import com.jasic.aftersales.system.mapper.SysCompanyMapper;
 import org.junit.Assert;
 import org.junit.Test;
-import org.apache.ibatis.builder.MapperBuilderAssistant;
-import org.apache.ibatis.session.Configuration;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
@@ -21,41 +18,45 @@ import java.lang.reflect.Proxy;
 public class CrmBizCompanySnapshotServiceImplTest {
 
     @Test
-    public void shouldOrderExternalCompanyListBySapCompanyCodeAsc() throws Exception {
+    public void shouldBuildImportPreviewWithCompanyCodeAdminAndUserContact() throws Exception {
         CrmBizCompanySnapshotServiceImpl service = new CrmBizCompanySnapshotServiceImpl();
-        SnapshotMapperState state = new SnapshotMapperState();
-        setField(service, "crmBizCompanySnapshotMapper", createSnapshotMapperProxy(state));
-        initTableInfo();
+        CrmBizCompanySnapshot snapshot = new CrmBizCompanySnapshot();
+        snapshot.setCustId(1001L);
+        snapshot.setCustName("demo-company");
+        snapshot.setCompanyShortName("demo");
+        snapshot.setSapCompanyCode("SZ001");
+        snapshot.setCustRage(0);
+        snapshot.setJuristicCustId("demo-contact");
+        snapshot.setGroupContactPhone("13800138000");
+        snapshot.setCellphone("13800138000");
+        snapshot.setCompanyAddress("demo-address");
+        snapshot.setProvinceName("GD");
+        snapshot.setCityName("SZ");
+        snapshot.setDistrictName("NS");
+        snapshot.setCustState(1);
 
-        CrmBizCompanySnapshotQuery query = new CrmBizCompanySnapshotQuery();
-        query.setPageNum(1);
-        query.setPageSize(10);
+        setField(service, "crmBizCompanySnapshotMapper", createSnapshotMapper(snapshot));
+        setField(service, "sysCompanyMapper", createCompanyMapper());
 
-        service.listPage(query);
+        CrmBizCompanyImportPreviewVO preview = service.getImportPreview(1001L);
 
-        Assert.assertNotNull(state.wrapper);
-        String sqlSegment = state.wrapper.getSqlSegment();
-        Assert.assertTrue(sqlSegment.contains("ORDER BY sap_company_code ASC,cust_id ASC"));
+        Assert.assertNotNull(preview);
+        Assert.assertEquals(Long.valueOf(1001L), preview.getCustId());
+        Assert.assertEquals("SZ001", preview.getCompanyCode());
+        Assert.assertEquals("SZ001", preview.getAdminUsername());
+        Assert.assertEquals("demo-contact", preview.getContactName());
+        Assert.assertEquals("13800138000", preview.getContactPhone());
+        Assert.assertEquals("SITE_FIRST", preview.getTypeCode());
+        Assert.assertEquals(Integer.valueOf(1), preview.getStatus());
+        Assert.assertEquals(Boolean.TRUE, preview.getCanImport());
     }
 
-    private void initTableInfo() {
-        if (TableInfoHelper.getTableInfo(CrmBizCompanySnapshot.class) != null) {
-            return;
-        }
-        Configuration configuration = new Configuration();
-        configuration.setMapUnderscoreToCamelCase(true);
-        MapperBuilderAssistant assistant = new MapperBuilderAssistant(configuration, "test");
-        assistant.setCurrentNamespace(CrmBizCompanySnapshotMapper.class.getName());
-        TableInfoHelper.initTableInfo(assistant, CrmBizCompanySnapshot.class);
-    }
-
-    private CrmBizCompanySnapshotMapper createSnapshotMapperProxy(SnapshotMapperState state) {
+    private CrmBizCompanySnapshotMapper createSnapshotMapper(CrmBizCompanySnapshot snapshot) {
         InvocationHandler handler = new InvocationHandler() {
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
-                if ("selectPage".equals(method.getName())) {
-                    state.wrapper = (LambdaQueryWrapper<CrmBizCompanySnapshot>) args[1];
-                    return args[0];
+                if ("selectOne".equals(method.getName())) {
+                    return snapshot;
                 }
                 return defaultValue(method.getReturnType());
             }
@@ -67,44 +68,49 @@ public class CrmBizCompanySnapshotServiceImplTest {
         );
     }
 
-    private Object defaultValue(Class<?> type) {
-        if (type == null || !type.isPrimitive()) {
-            return null;
-        }
-        if (boolean.class.equals(type)) {
-            return false;
-        }
-        if (byte.class.equals(type)) {
-            return (byte) 0;
-        }
-        if (short.class.equals(type)) {
-            return (short) 0;
-        }
-        if (int.class.equals(type)) {
-            return 0;
-        }
-        if (long.class.equals(type)) {
-            return 0L;
-        }
-        if (float.class.equals(type)) {
-            return 0F;
-        }
-        if (double.class.equals(type)) {
-            return 0D;
-        }
-        if (char.class.equals(type)) {
-            return '\0';
-        }
-        return null;
+    private SysCompanyMapper createCompanyMapper() {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectOne".equals(method.getName())) {
+                    return null;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (SysCompanyMapper) Proxy.newProxyInstance(
+                SysCompanyMapper.class.getClassLoader(),
+                new Class<?>[]{SysCompanyMapper.class},
+                handler
+        );
     }
 
     private void setField(Object target, String fieldName, Object value) throws Exception {
-        Field field = target.getClass().getDeclaredField(fieldName);
+        Field field = CrmBizCompanySnapshotServiceImpl.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(target, value);
     }
 
-    private static class SnapshotMapperState {
-        private LambdaQueryWrapper<CrmBizCompanySnapshot> wrapper;
+    private Object defaultValue(Class<?> returnType) {
+        if (!returnType.isPrimitive()) {
+            return null;
+        }
+        if (boolean.class.equals(returnType)) {
+            return false;
+        }
+        if (char.class.equals(returnType)) {
+            return '\0';
+        }
+        if (byte.class.equals(returnType) || short.class.equals(returnType)
+                || int.class.equals(returnType) || long.class.equals(returnType)) {
+            return 0;
+        }
+        if (float.class.equals(returnType)) {
+            return 0F;
+        }
+        if (double.class.equals(returnType)) {
+            return 0D;
+        }
+        return null;
     }
 }

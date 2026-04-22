@@ -11,10 +11,13 @@ import com.jasic.aftersales.system.domain.dto.WorkOrderReviewDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTransferDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderUpdateProductModelDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderUpstreamCreateDTO;
+import com.jasic.aftersales.system.domain.query.WorkOrderHqSiteOrderQuery;
+import com.jasic.aftersales.system.domain.query.WorkOrderHqSiteSummaryQuery;
 import com.jasic.aftersales.system.domain.query.WorkOrderQuery;
 import com.jasic.aftersales.system.domain.vo.WorkOrderCreateBarcodeInfoVO;
 import com.jasic.aftersales.system.domain.vo.SysCompanySimpleVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderDetailVO;
+import com.jasic.aftersales.system.domain.vo.WorkOrderHqSiteSummaryVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderListVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairFaultOptionVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderStatusCountVO;
@@ -45,6 +48,22 @@ public interface IWorkOrderService {
      * @return 状态统计结果
      */
     List<WorkOrderStatusCountVO> countByStatus(WorkOrderQuery query);
+
+    /**
+     * 查询总部网点工单汇总。
+     *
+     * @param query 查询参数
+     * @return 网点汇总
+     */
+    List<WorkOrderHqSiteSummaryVO> listHqSiteSummary(WorkOrderHqSiteSummaryQuery query);
+
+    /**
+     * 分页查询总部网点工单只读列表。
+     *
+     * @param query 查询参数
+     * @return 分页结果
+     */
+    PageResult<WorkOrderListVO> listHqSiteOrders(WorkOrderHqSiteOrderQuery query);
 
     /**
      * 查询工单详情
