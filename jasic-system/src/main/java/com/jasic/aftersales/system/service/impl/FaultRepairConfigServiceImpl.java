@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.common.enums.SubjectTypeEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
+import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.dto.FaultRepairConfigDTO;
 import com.jasic.aftersales.system.domain.dto.FaultRepairConfigFaultDTO;
 import com.jasic.aftersales.system.domain.entity.FaultRepairConfig;
@@ -75,6 +76,10 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
      */
     @Override
     public PageResult<FaultRepairConfigVO> listPage(FaultRepairConfigQuery query) {
+        ensureManagePermission();
+        if (isCurrentHqUser()) {
+            query.setCompanyId(requireCurrentHqCompany().getId());
+        }
         Page<FaultRepairConfig> page = new Page<>(query.getPageNum(), query.getPageSize());
         LambdaQueryWrapper<FaultRepairConfig> wrapper = new LambdaQueryWrapper<>();
         if (query.getCompanyId() != null) {
@@ -111,10 +116,12 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
      */
     @Override
     public FaultRepairConfigVO getById(Long id) {
+        ensureManagePermission();
         FaultRepairConfig entity = faultRepairConfigMapper.selectById(id);
         if (entity == null) {
             throw new ServiceException("故障与维修配置不存在");
         }
+        assertConfigAccessible(entity);
         List<FaultRepairConfigVO> records = buildConfigVos(Collections.singletonList(entity), true);
         return records.isEmpty() ? null : records.get(0);
     }
@@ -128,6 +135,10 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
     @Transactional(rollbackFor = Exception.class)
     @Override
     public Long save(FaultRepairConfigDTO dto) {
+        ensureManagePermission();
+        SysCompany targetCompany = resolveOperateCompany(dto.getCompanyId());
+        dto.setCompanyId(targetCompany.getId());
+        dto.setTargetCompanyName(targetCompany.getCompanyName());
         FaultRepairConfig entity = new FaultRepairConfig();
         BeanUtil.copyProperties(dto, entity);
         normalizeConfig(entity);
@@ -147,6 +158,7 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void update(FaultRepairConfigDTO dto) {
+        ensureManagePermission();
         if (dto.getId() == null) {
             throw new ServiceException("配置ID不能为空");
         }
@@ -154,6 +166,7 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         if (current == null) {
             throw new ServiceException("故障与维修配置不存在");
         }
+        assertConfigAccessible(current);
         if (!Objects.equals(current.getStatus(), STATUS_ENABLED)) {
             throw new ServiceException("停用历史配置不允许编辑");
         }
@@ -161,6 +174,11 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         if (targetStatus == null) {
             throw new ServiceException("配置状态不合法");
         }
+        SysCompany targetCompany = Objects.equals(targetStatus, 0)
+                ? requireCompany(current.getCompanyId())
+                : resolveOperateCompany(dto.getCompanyId());
+        dto.setCompanyId(targetCompany.getId());
+        dto.setTargetCompanyName(targetCompany.getCompanyName());
         if (Objects.equals(targetStatus, 0)) {
             current.setStatus(0);
             faultRepairConfigMapper.updateById(current);
@@ -187,6 +205,10 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
      */
     @Override
     public List<SysCompanySimpleVO> listCompanyOptions() {
+        ensureManagePermission();
+        if (isCurrentHqUser()) {
+            return Collections.singletonList(buildCompanySimpleVo(requireCurrentHqCompany()));
+        }
         List<SysCompanyType> companyTypes = companyTypeService.listAll();
         List<String> hqTypeCodes = companyTypes.stream()
                 .filter(item -> SubjectTypeEnum.HQ.getCode().equals(item.getSubjectType()))
@@ -467,6 +489,76 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
             faultRepairConfigOptionMapper.delete(optionWrapper);
         }
         faultRepairConfigFaultMapper.delete(faultWrapper);
+    }
+
+    private void ensureManagePermission() {
+        if (SecurityContext.isPlatformUser()) {
+            return;
+        }
+        if (isCurrentHqUser()) {
+            requireCurrentHqCompany();
+            return;
+        }
+        throw new ServiceException("当前公司不支持维护故障与维修配置");
+    }
+
+    private boolean isCurrentHqUser() {
+        return SubjectTypeEnum.HQ.getCode().equals(SecurityContext.getCurrentSubjectType());
+    }
+
+    private void assertConfigAccessible(FaultRepairConfig entity) {
+        if (!isCurrentHqUser()) {
+            return;
+        }
+        if (!Objects.equals(requireCurrentHqCompany().getId(), entity.getCompanyId())) {
+            throw new ServiceException("无权查看当前总部之外的配置");
+        }
+    }
+
+    private SysCompany resolveOperateCompany(Long requestedCompanyId) {
+        if (SecurityContext.isPlatformUser()) {
+            if (requestedCompanyId == null) {
+                throw new ServiceException("归属总部不能为空");
+            }
+            return requireCompany(requestedCompanyId);
+        }
+        if (isCurrentHqUser()) {
+            return requireCurrentHqCompany();
+        }
+        throw new ServiceException("当前公司不支持维护故障与维修配置");
+    }
+
+    private SysCompany requireCurrentHqCompany() {
+        Long currentCompanyId = SecurityContext.getCurrentCompanyId();
+        if (currentCompanyId == null) {
+            throw new ServiceException("当前总部不能为空");
+        }
+        return requireCompany(currentCompanyId);
+    }
+
+    private SysCompany requireCompany(Long companyId) {
+        SysCompany company = sysCompanyMapper.selectById(companyId);
+        if (company == null) {
+            throw new ServiceException("归属总部不存在");
+        }
+        Map<String, String> subjectTypeMap = companyTypeService.listAll().stream()
+                .collect(Collectors.toMap(SysCompanyType::getTypeCode, SysCompanyType::getSubjectType, (a, b) -> a));
+        if (!SubjectTypeEnum.HQ.getCode().equals(subjectTypeMap.get(company.getTypeCode()))) {
+            throw new ServiceException("归属总部必须是总部公司");
+        }
+        return company;
+    }
+
+    private SysCompanySimpleVO buildCompanySimpleVo(SysCompany company) {
+        SysCompanySimpleVO vo = new SysCompanySimpleVO();
+        vo.setId(company.getId());
+        vo.setCompanyName(company.getCompanyName());
+        vo.setCompanyCode(company.getCompanyCode());
+        vo.setTypeCode(company.getTypeCode());
+        Map<String, String> typeNameMap = companyTypeService.listAll().stream()
+                .collect(Collectors.toMap(SysCompanyType::getTypeCode, SysCompanyType::getTypeName, (a, b) -> a));
+        vo.setTypeName(typeNameMap.get(company.getTypeCode()));
+        return vo;
     }
 
     private void validateConfig(FaultRepairConfig entity, Long currentId) {

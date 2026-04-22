@@ -1,7 +1,15 @@
 package com.jasic.aftersales.system.service.impl;
 
+import cn.dev33.satoken.SaManager;
+import cn.dev33.satoken.context.SaTokenContextForThreadLocal;
+import cn.dev33.satoken.context.SaTokenContextForThreadLocalStorage;
+import cn.dev33.satoken.context.model.SaRequest;
+import cn.dev33.satoken.context.model.SaResponse;
+import cn.dev33.satoken.context.model.SaStorage;
+import cn.dev33.satoken.stp.StpUtil;
 import com.jasic.aftersales.common.enums.SubjectTypeEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
+import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.dto.FaultRepairConfigDTO;
 import com.jasic.aftersales.system.domain.dto.FaultRepairConfigFaultDTO;
 import com.jasic.aftersales.system.domain.entity.FaultRepairConfig;
@@ -9,13 +17,16 @@ import com.jasic.aftersales.system.domain.entity.FaultRepairConfigFault;
 import com.jasic.aftersales.system.domain.entity.FaultRepairConfigOption;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
 import com.jasic.aftersales.system.domain.entity.SysCompanyType;
+import com.jasic.aftersales.system.domain.vo.SysCompanySimpleVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairFaultOptionVO;
 import com.jasic.aftersales.system.mapper.FaultRepairConfigFaultMapper;
 import com.jasic.aftersales.system.mapper.FaultRepairConfigMapper;
 import com.jasic.aftersales.system.mapper.FaultRepairConfigOptionMapper;
 import com.jasic.aftersales.system.mapper.SysCompanyMapper;
 import com.jasic.aftersales.system.service.ISysCompanyTypeService;
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
@@ -25,7 +36,9 @@ import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 故障与维修配置服务测试。
@@ -34,6 +47,25 @@ import java.util.List;
  * @date 2026/04/01
  */
 public class FaultRepairConfigServiceImplTest {
+
+    @Before
+    public void setUp() {
+        SaManager.setSaTokenContext(new SaTokenContextForThreadLocal());
+        SaTokenContextForThreadLocalStorage.setBox(new MockSaRequest(), new MockSaResponse(), new MockSaStorage());
+        StpUtil.login(101L);
+        SecurityContext.setCurrentCompanyId(1L);
+        SecurityContext.setCurrentSubjectType(SubjectTypeEnum.PLATFORM.getCode());
+        SecurityContext.setCurrentTypeCode("PLATFORM");
+    }
+
+    @After
+    public void tearDown() {
+        try {
+            StpUtil.logout();
+        } finally {
+            SaTokenContextForThreadLocalStorage.clearBox();
+        }
+    }
 
     @Test
     public void shouldReturnRepairFaultOptionsForExactProductMatch() throws Exception {
@@ -199,6 +231,101 @@ public class FaultRepairConfigServiceImplTest {
             Assert.fail("预期应拒绝编辑停用历史配置");
         } catch (ServiceException ex) {
             Assert.assertEquals("停用历史配置不允许编辑", ex.getMessage());
+        }
+    }
+
+    @Test
+    public void shouldForceHqSaveToCurrentCompanyAndFillLogCompanyName() throws Exception {
+        switchCompanyContext(9L, SubjectTypeEnum.HQ.getCode(), "HQ_A");
+        FaultRepairConfigServiceImpl service = new FaultRepairConfigServiceImpl();
+        List<FaultRepairConfig> storedConfigs = new ArrayList<>();
+        List<FaultRepairConfig> insertedConfigs = new ArrayList<>();
+        setField(service, "faultRepairConfigMapper", createMutableConfigMapperProxy(storedConfigs, insertedConfigs));
+        setField(service, "faultRepairConfigFaultMapper", createMutableFaultMapperProxy(new ArrayList<>()));
+        setField(service, "faultRepairConfigOptionMapper", createMutableOptionMapperProxy(new ArrayList<>()));
+        setField(service, "sysCompanyMapper", createCompanyMapperProxy(Arrays.asList(
+                buildCompany(9L, "总部A", "HQ"),
+                buildCompany(10L, "总部B", "HQ")
+        )));
+        setField(service, "companyTypeService", createCompanyTypeServiceStub());
+
+        FaultRepairConfigDTO dto = new FaultRepairConfigDTO();
+        dto.setCompanyId(10L);
+        dto.setProductCode("P-100");
+        dto.setProductModel("M-200");
+        dto.setStatus(1);
+        FaultRepairConfigFaultDTO fault = new FaultRepairConfigFaultDTO();
+        fault.setFaultDesc("电源故障");
+        fault.setRepairOptions(Collections.singletonList("更换电容"));
+        dto.setFaults(Collections.singletonList(fault));
+
+        service.save(dto);
+
+        Assert.assertEquals(Long.valueOf(9L), dto.getCompanyId());
+        Assert.assertEquals("总部A", dto.getTargetCompanyName());
+        Assert.assertEquals(1, insertedConfigs.size());
+        Assert.assertEquals(Long.valueOf(9L), insertedConfigs.get(0).getCompanyId());
+    }
+
+    @Test
+    public void shouldOnlyReturnCurrentHqCompanyOption() throws Exception {
+        switchCompanyContext(9L, SubjectTypeEnum.HQ.getCode(), "HQ_A");
+        FaultRepairConfigServiceImpl service = new FaultRepairConfigServiceImpl();
+        setField(service, "sysCompanyMapper", createCompanyMapperProxy(Arrays.asList(
+                buildCompany(9L, "总部A", "HQ"),
+                buildCompany(10L, "总部B", "HQ")
+        )));
+        setField(service, "companyTypeService", createCompanyTypeServiceStub());
+
+        List<SysCompanySimpleVO> result = service.listCompanyOptions();
+
+        Assert.assertEquals(1, result.size());
+        Assert.assertEquals(Long.valueOf(9L), result.get(0).getId());
+        Assert.assertEquals("总部A", result.get(0).getCompanyName());
+    }
+
+    @Test
+    public void shouldRejectReadingConfigOutsideCurrentHq() throws Exception {
+        switchCompanyContext(9L, SubjectTypeEnum.HQ.getCode(), "HQ_A");
+        FaultRepairConfigServiceImpl service = new FaultRepairConfigServiceImpl();
+        setField(service, "faultRepairConfigMapper",
+                createConfigMapperProxy(Collections.singletonList(buildConfig(2L, 10L, "P-100", "M-200"))));
+        setField(service, "sysCompanyMapper", createCompanyMapperProxy(Arrays.asList(
+                buildCompany(9L, "总部A", "HQ"),
+                buildCompany(10L, "总部B", "HQ")
+        )));
+        setField(service, "companyTypeService", createCompanyTypeServiceStub());
+
+        try {
+            service.getById(2L);
+            Assert.fail("预期应拒绝查看其他总部配置");
+        } catch (ServiceException ex) {
+            Assert.assertEquals("无权查看当前总部之外的配置", ex.getMessage());
+        }
+    }
+
+    @Test
+    public void shouldRejectUpdatingConfigOutsideCurrentHq() throws Exception {
+        switchCompanyContext(9L, SubjectTypeEnum.HQ.getCode(), "HQ_A");
+        FaultRepairConfigServiceImpl service = new FaultRepairConfigServiceImpl();
+        setField(service, "faultRepairConfigMapper",
+                createConfigMapperProxy(Collections.singletonList(buildConfig(3L, 10L, "P-100", "M-200"))));
+        setField(service, "sysCompanyMapper", createCompanyMapperProxy(Arrays.asList(
+                buildCompany(9L, "总部A", "HQ"),
+                buildCompany(10L, "总部B", "HQ")
+        )));
+        setField(service, "companyTypeService", createCompanyTypeServiceStub());
+
+        FaultRepairConfigDTO dto = new FaultRepairConfigDTO();
+        dto.setId(3L);
+        dto.setCompanyId(10L);
+        dto.setStatus(0);
+
+        try {
+            service.update(dto);
+            Assert.fail("预期应拒绝修改其他总部配置");
+        } catch (ServiceException ex) {
+            Assert.assertEquals("无权查看当前总部之外的配置", ex.getMessage());
         }
     }
 
@@ -463,6 +590,12 @@ public class FaultRepairConfigServiceImplTest {
         };
     }
 
+    private void switchCompanyContext(Long companyId, String subjectType, String typeCode) {
+        SecurityContext.setCurrentCompanyId(companyId);
+        SecurityContext.setCurrentSubjectType(subjectType);
+        SecurityContext.setCurrentTypeCode(typeCode);
+    }
+
     private void setField(Object target, String fieldName, Object value) throws Exception {
         Field field = FaultRepairConfigServiceImpl.class.getDeclaredField(fieldName);
         field.setAccessible(true);
@@ -490,5 +623,113 @@ public class FaultRepairConfigServiceImplTest {
             return 0D;
         }
         return null;
+    }
+
+    private static class MockSaRequest implements SaRequest {
+
+        @Override
+        public Object getSource() {
+            return this;
+        }
+
+        @Override
+        public String getParam(String name) {
+            return null;
+        }
+
+        @Override
+        public List<String> getParamNames() {
+            return new ArrayList<>();
+        }
+
+        @Override
+        public Map<String, String> getParamMap() {
+            return new LinkedHashMap<>();
+        }
+
+        @Override
+        public String getHeader(String name) {
+            return null;
+        }
+
+        @Override
+        public String getCookieValue(String name) {
+            return null;
+        }
+
+        @Override
+        public String getRequestPath() {
+            return "/";
+        }
+
+        @Override
+        public String getUrl() {
+            return "http://localhost/";
+        }
+
+        @Override
+        public String getMethod() {
+            return "GET";
+        }
+
+        @Override
+        public String forward(String path) {
+            return path;
+        }
+    }
+
+    private static class MockSaResponse implements SaResponse {
+
+        @Override
+        public Object getSource() {
+            return this;
+        }
+
+        @Override
+        public SaResponse setStatus(int sc) {
+            return this;
+        }
+
+        @Override
+        public SaResponse setHeader(String name, String value) {
+            return this;
+        }
+
+        @Override
+        public SaResponse addHeader(String name, String value) {
+            return this;
+        }
+
+        @Override
+        public Object redirect(String url) {
+            return url;
+        }
+    }
+
+    private static class MockSaStorage implements SaStorage {
+
+        private final Map<String, Object> data = new LinkedHashMap<>();
+
+        @Override
+        public Object getSource() {
+            return this;
+        }
+
+        @Override
+        public Object get(String key) {
+            return data.get(key);
+        }
+
+        @Override
+        public SaStorage set(String key, Object value) {
+            data.put(key, value);
+            return this;
+        }
+
+        @Override
+        public SaStorage delete(String key) {
+            data.remove(key);
+            return this;
+        }
     }
 }

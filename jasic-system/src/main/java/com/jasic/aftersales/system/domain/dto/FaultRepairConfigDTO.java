@@ -30,6 +30,9 @@ public class FaultRepairConfigDTO implements Serializable {
     @NotNull(message = "归属总部不能为空")
     private Long companyId;
 
+    @ApiModelProperty(value = "目标总部名称", hidden = true)
+    private String targetCompanyName;
+
     /** 物料编码 */
     @ApiModelProperty(value = "物料编码")
     private String productCode;

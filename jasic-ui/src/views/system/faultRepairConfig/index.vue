@@ -2,7 +2,7 @@
   <div class="app-container">
     <el-card shadow="never" class="search-card">
       <el-form ref="queryForm" :model="queryParams" :inline="true" size="small">
-        <el-form-item label="归属总部" prop="companyId">
+        <el-form-item v-if="!isCurrentHq" label="归属总部" prop="companyId">
           <el-select v-model="queryParams.companyId" placeholder="全部" clearable filterable>
             <el-option
               v-for="item in companyOptions"
@@ -13,13 +13,13 @@
           </el-select>
         </el-form-item>
         <el-form-item label="物料编码" prop="productCode">
-          <el-input v-model="queryParams.productCode" placeholder="请输入" clearable />
+          <el-input v-model="queryParams.productCode" placeholder="请输入物料编码" clearable />
         </el-form-item>
         <el-form-item label="产品型号" prop="productModel">
-          <el-input v-model="queryParams.productModel" placeholder="请输入" clearable />
+          <el-input v-model="queryParams.productModel" placeholder="请输入产品型号" clearable />
         </el-form-item>
         <el-form-item label="故障描述" prop="faultDesc">
-          <el-input v-model="queryParams.faultDesc" placeholder="请输入" clearable />
+          <el-input v-model="queryParams.faultDesc" placeholder="请输入故障描述" clearable />
         </el-form-item>
         <el-form-item label="状态" prop="status">
           <el-select v-model="queryParams.status" placeholder="全部" clearable>
@@ -98,7 +98,7 @@
     <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="860px" append-to-body>
       <el-form ref="form" :model="form" :rules="rules" label-width="96px">
         <el-row :gutter="16">
-          <el-col :span="12">
+          <el-col v-if="!isCurrentHq" :span="12">
             <el-form-item label="归属总部" prop="companyId">
               <el-select v-model="form.companyId" placeholder="请选择归属总部" filterable style="width: 100%;">
                 <el-option
@@ -230,11 +230,11 @@ function createFaultItem() {
   }
 }
 
-function buildDefaultQuery() {
+function buildDefaultQuery(companyId) {
   return {
     pageNum: 1,
     pageSize: 10,
-    companyId: undefined,
+    companyId,
     productCode: '',
     productModel: '',
     faultDesc: '',
@@ -242,10 +242,10 @@ function buildDefaultQuery() {
   }
 }
 
-function buildDefaultForm() {
+function buildDefaultForm(companyId) {
   return {
     id: undefined,
-    companyId: undefined,
+    companyId,
     productCode: '',
     productModel: '',
     status: 1,
@@ -263,10 +263,10 @@ export default {
       tableData: [],
       total: 0,
       companyOptions: [],
-      queryParams: buildDefaultQuery(),
+      queryParams: buildDefaultQuery(undefined),
       dialogVisible: false,
       dialogTitle: '新增故障与维修配置',
-      form: buildDefaultForm(),
+      form: buildDefaultForm(undefined),
       rules: {
         companyId: [{ required: true, message: '请选择归属总部', trigger: 'change' }],
         status: [{ required: true, message: '请选择状态', trigger: 'change' }]
@@ -275,11 +275,42 @@ export default {
       detail: null
     }
   },
+  computed: {
+    currentCompanyId() {
+      return this.$store.getters.currentCompanyId
+    },
+    currentSubjectType() {
+      const userInfo = this.$store.getters.userInfo || {}
+      return userInfo.currentSubjectType
+    },
+    isCurrentHq() {
+      return this.currentSubjectType === 'HQ'
+    },
+    defaultCompanyId() {
+      return this.isCurrentHq ? this.currentCompanyId : undefined
+    },
+    pageContextKey() {
+      return `${this.currentSubjectType || ''}:${this.currentCompanyId || ''}`
+    }
+  },
+  watch: {
+    pageContextKey() {
+      this.syncPageState()
+    }
+  },
   created() {
-    this.loadCompanyOptions()
-    this.getList()
+    this.syncPageState()
   },
   methods: {
+    syncPageState() {
+      this.queryParams = buildDefaultQuery(this.defaultCompanyId)
+      this.form = buildDefaultForm(this.defaultCompanyId)
+      this.dialogVisible = false
+      this.detailVisible = false
+      this.detail = null
+      this.loadCompanyOptions()
+      this.getList()
+    },
     getList() {
       this.loading = true
       listFaultRepairConfig(this.queryParams).then(res => {
@@ -297,15 +328,18 @@ export default {
     },
     handleQuery() {
       this.queryParams.pageNum = 1
+      if (this.isCurrentHq) {
+        this.queryParams.companyId = this.defaultCompanyId
+      }
       this.getList()
     },
     resetQuery() {
-      this.queryParams = buildDefaultQuery()
+      this.queryParams = buildDefaultQuery(this.defaultCompanyId)
       this.getList()
     },
     handleAdd() {
       this.dialogTitle = '新增故障与维修配置'
-      this.form = buildDefaultForm()
+      this.form = buildDefaultForm(this.defaultCompanyId)
       this.dialogVisible = true
     },
     handleEdit(row) {
@@ -322,17 +356,18 @@ export default {
       })
     },
     normalizeForm(data) {
-      const form = buildDefaultForm()
+      const form = buildDefaultForm(this.defaultCompanyId)
       if (!data) {
         return form
       }
       return {
         id: data.id,
-        companyId: data.companyId,
+        companyId: data.companyId || this.defaultCompanyId,
         productCode: data.productCode || '',
         productModel: data.productModel || '',
         status: typeof data.status === 'number' ? data.status : 1,
         remark: data.remark || '',
+        companyName: data.companyName,
         faults: (data.faults && data.faults.length
           ? data.faults
           : [createFaultItem()]
@@ -391,7 +426,7 @@ export default {
     buildSubmitPayload() {
       return {
         id: this.form.id,
-        companyId: this.form.companyId,
+        companyId: this.isCurrentHq ? this.defaultCompanyId : this.form.companyId,
         productCode: this.form.productCode ? this.form.productCode.trim() : '',
         productModel: this.form.productModel ? this.form.productModel.trim() : '',
         status: this.form.status,
