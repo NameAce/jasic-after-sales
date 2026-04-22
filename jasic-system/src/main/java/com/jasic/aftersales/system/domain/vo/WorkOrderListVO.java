@@ -50,6 +50,14 @@ public class WorkOrderListVO implements Serializable {
     @ApiModelProperty(value = "品牌类型名称")
     private String brandTypeLabel;
 
+    /** 服务方式编码 */
+    @ApiModelProperty(value = "服务方式编码", allowableValues = "MAIL,STORE")
+    private String serviceMode;
+
+    /** 服务方式名称 */
+    @ApiModelProperty(value = "服务方式名称")
+    private String serviceModeLabel;
+
     /** 机器型号 */
     @ApiModelProperty(value = "机器型号")
     private String productModel;

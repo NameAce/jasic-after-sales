@@ -1141,6 +1141,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         target.setMainStatusLabel(resolveMainStatusLabel(target.getMainStatus()));
         target.setDisplayStatus(resolveDisplayStatus(target.getMainStatus()));
         target.setBrandTypeLabel(target.getBrandType() == null ? null : target.getBrandType().getLabel());
+        target.setServiceModeLabel(ServiceModeEnum.resolveLabel(target.getServiceMode()));
         target.setQuoteAmount(currentQuoteAmountMap == null ? null : currentQuoteAmountMap.get(target.getId()));
         if (workOrder == null) {
             return;
