@@ -371,7 +371,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         if (records.isEmpty()) {
             return PageResult.of(Collections.emptyList(), result.getTotal(), query.getPageNum(), query.getPageSize());
         }
-        Map<Long, String> companyNameMap = buildCompanyNameMap(
+        Map<Long, SysCompany> companyMap = buildCompanyMap(
                 records.stream().map(WorkOrder::getCurrentAcceptCompanyId).collect(Collectors.toSet())
         );
         Map<Long, String> userNameMap = buildUserNameMap(
@@ -384,7 +384,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
                 records.stream().map(WorkOrder::getId).collect(Collectors.toList())
         );
         List<CustomerWorkOrderListVO> list = records.stream()
-                .map(workOrder -> buildListVo(workOrder, companyNameMap, userNameMap,
+                .map(workOrder -> buildListVo(workOrder, companyMap, userNameMap,
                         senderVoucherWorkOrderIds, currentQuoteAmountMap))
                 .collect(Collectors.toList());
         return PageResult.of(list, result.getTotal(), query.getPageNum(), query.getPageSize());
@@ -1085,7 +1085,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return workOrderMapper.selectCount(wrapper);
     }
 
-    private CustomerWorkOrderListVO buildListVo(WorkOrder workOrder, Map<Long, String> companyNameMap,
+    private CustomerWorkOrderListVO buildListVo(WorkOrder workOrder, Map<Long, SysCompany> companyMap,
                                                 Map<Long, String> userNameMap,
                                                 Set<Long> senderVoucherWorkOrderIds,
                                                 Map<Long, BigDecimal> currentQuoteAmountMap) {
@@ -1104,7 +1104,9 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         vo.setDisplayStatus(resolveCustomerDisplayStatus(workOrder.getMainStatus()));
         vo.setEvaluateStatus(workOrder.getEvaluateStatus());
         vo.setEvaluateStatusLabel(WorkOrderStatusConstants.resolveEvaluateStatusLabel(workOrder.getEvaluateStatus()));
-        vo.setCurrentAcceptCompanyName(companyNameMap.get(workOrder.getCurrentAcceptCompanyId()));
+        SysCompany currentAcceptCompany = companyMap == null ? null : companyMap.get(workOrder.getCurrentAcceptCompanyId());
+        vo.setCurrentAcceptCompanyName(currentAcceptCompany == null ? null : currentAcceptCompany.getCompanyName());
+        vo.setCurrentAcceptCompanyPhone(currentAcceptCompany == null ? null : currentAcceptCompany.getContactPhone());
         vo.setAssignedUserName(userNameMap.get(workOrder.getAssignedUserId()));
         vo.setHasTransfer(workOrder.getHasTransfer());
         vo.setCanEvaluate(canEvaluate(workOrder));

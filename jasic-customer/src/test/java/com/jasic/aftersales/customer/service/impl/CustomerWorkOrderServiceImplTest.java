@@ -367,6 +367,7 @@ public class CustomerWorkOrderServiceImplTest {
         workOrder.setBrandType(BrandTypeEnum.JASIC);
         workOrder.setServiceMode("MAIL");
         workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN);
+        workOrder.setCurrentAcceptCompanyId(31L);
 
         Method method = CustomerWorkOrderServiceImpl.class.getDeclaredMethod(
                 "buildListVo",
@@ -381,7 +382,7 @@ public class CustomerWorkOrderServiceImplTest {
         CustomerWorkOrderListVO vo = (CustomerWorkOrderListVO) method.invoke(
                 service,
                 workOrder,
-                Collections.emptyMap(),
+                Collections.singletonMap(31L, buildNearbyCompany(31L, "Service A", "FIRST", "113.0000", "23.0000")),
                 Collections.emptyMap(),
                 Collections.emptySet(),
                 Collections.singletonMap(51L, new BigDecimal("256.80"))
@@ -390,6 +391,8 @@ public class CustomerWorkOrderServiceImplTest {
         Assert.assertEquals(BrandTypeEnum.JASIC, vo.getBrandType());
         Assert.assertEquals("佳士品牌", vo.getBrandTypeLabel());
         Assert.assertEquals("MAIL", vo.getServiceMode());
+        Assert.assertEquals("Service A", vo.getCurrentAcceptCompanyName());
+        Assert.assertEquals("0755-00000031", vo.getCurrentAcceptCompanyPhone());
         Assert.assertEquals("寄修", vo.getServiceModeLabel());
         Assert.assertTrue(vo.getCanUploadSendExpress());
         Assert.assertEquals(0, new BigDecimal("256.80").compareTo(vo.getQuoteAmount()));
