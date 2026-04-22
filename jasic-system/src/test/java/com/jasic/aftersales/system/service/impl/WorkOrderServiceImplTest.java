@@ -11,6 +11,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
 import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.common.enums.BrandTypeEnum;
+import com.jasic.aftersales.common.enums.ServiceModeEnum;
 import com.jasic.aftersales.common.enums.WorkOrderUserParticipationActionEnum;
 import com.jasic.aftersales.common.enums.WorkOrderRelationTypeEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
@@ -103,6 +104,7 @@ public class WorkOrderServiceImplTest {
         record.setCurrentAcceptCompanyId(2002L);
         record.setFaultDesc("开机无反应");
         record.setBrandType(BrandTypeEnum.JASIC);
+        record.setServiceMode("MAIL");
         WorkOrderQuote olderValidQuote = new WorkOrderQuote();
         olderValidQuote.setWorkOrderId(99L);
         olderValidQuote.setIsCurrentValid(1);
@@ -151,6 +153,8 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(1, holder[0].getRecords().size());
         Assert.assertEquals("开机无反应", holder[0].getRecords().get(0).getFaultDesc());
         Assert.assertEquals(BrandTypeEnum.JASIC, holder[0].getRecords().get(0).getBrandType());
+        Assert.assertEquals("MAIL", holder[0].getRecords().get(0).getServiceMode());
+        Assert.assertEquals(ServiceModeEnum.resolveLabel("MAIL"), holder[0].getRecords().get(0).getServiceModeLabel());
         Assert.assertEquals("佳士品牌", holder[0].getRecords().get(0).getBrandTypeLabel());
         Assert.assertEquals(0, new BigDecimal("188.50").compareTo(holder[0].getRecords().get(0).getQuoteAmount()));
     }
