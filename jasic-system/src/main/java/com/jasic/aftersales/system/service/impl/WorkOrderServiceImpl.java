@@ -98,13 +98,13 @@ import com.jasic.aftersales.system.service.WorkOrderPermissionService;
 import com.jasic.aftersales.system.service.WorkOrderUserParticipantService;
 import com.jasic.aftersales.system.service.SysFileService;
 import com.jasic.aftersales.system.service.support.MachineBarcodeWarrantyResolver;
+import com.jasic.aftersales.system.service.support.WorkOrderNoGenerator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -126,7 +126,6 @@ import java.util.stream.Collectors;
 @Service
 public class WorkOrderServiceImpl implements IWorkOrderService {
 
-    private static final DateTimeFormatter ORDER_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final String RETURN_METHOD_MAIL = "回寄";
     private static final String RETURN_METHOD_PICKUP = "自提";
     private static final String FAULT_JUDGE_HAS_FAULT = "有故障";
@@ -226,6 +225,9 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
 
     @Resource
     private WorkOrderNotifyFacade workOrderNotifyFacade;
+
+    @Resource
+    private WorkOrderNoGenerator workOrderNoGenerator;
 
     /**
      * 分页查询工单列表，并补齐列表页所需的状态快照字段。
@@ -1446,7 +1448,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         );
 
         WorkOrder entity = new WorkOrder();
-        entity.setOrderNo(generateOrderNo());
+        entity.setOrderNo(workOrderNoGenerator.nextOrderNo());
         entity.setCustomerId(resolveCreateCustomerId(normalizedCustomerName, normalizedCustomerMobile));
         entity.setCustomerName(normalizedCustomerName);
         entity.setCustomerMobile(normalizedCustomerMobile);
@@ -3014,10 +3016,4 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         return vo;
     }
 
-    private String generateOrderNo() {
-        String datePart = LocalDateTime.now().format(ORDER_DATE_FORMATTER);
-        String suffix = IdUtil.getSnowflakeNextIdStr();
-        suffix = suffix.substring(Math.max(0, suffix.length() - 5));
-        return "WO" + datePart + "-" + suffix;
-    }
 }

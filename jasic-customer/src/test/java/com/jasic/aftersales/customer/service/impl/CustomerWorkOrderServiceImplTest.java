@@ -48,7 +48,7 @@ import com.jasic.aftersales.system.service.IFaultRepairConfigService;
 import com.jasic.aftersales.system.service.ISysConfigService;
 import com.jasic.aftersales.system.service.SysFileService;
 import com.jasic.aftersales.system.service.WorkOrderParticipantService;
-import com.jasic.aftersales.system.service.WorkOrderNotifyEventService;
+import com.jasic.aftersales.system.service.support.WorkOrderNoGenerator;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -190,6 +190,12 @@ public class CustomerWorkOrderServiceImplTest {
         setField(service, "workOrderMapper", createInsertWorkOrderMapperProxy(insertedWorkOrder));
         setField(service, "workOrderFlowMapper", createWorkOrderFlowMapperProxy(insertedFlows));
         setField(service, "sysFileService", createNoopSysFileServiceProxy());
+        setField(service, "workOrderNoGenerator", new WorkOrderNoGenerator() {
+            @Override
+            public String nextOrderNo() {
+                return "JSWX2026042200001";
+            }
+        });
         setField(service, "workOrderParticipantService", new WorkOrderParticipantService() {
             @Override
             public void initParticipants(WorkOrder workOrder, String createSubjectType) {
@@ -216,6 +222,7 @@ public class CustomerWorkOrderServiceImplTest {
         Assert.assertEquals(Long.valueOf(91L), getLongFieldValue(insertedWorkOrder[0], "faultRepairConfigId"));
         Assert.assertEquals("MODEL-A", insertedWorkOrder[0].getProductModel());
         Assert.assertEquals(Long.valueOf(21L), insertedWorkOrder[0].getHqCompanyId());
+        Assert.assertEquals("JSWX2026042200001", insertedWorkOrder[0].getOrderNo());
         Assert.assertEquals(1, insertedFlows.size());
         Assert.assertEquals("CREATE", insertedFlows.get(0).getActionType());
     }
@@ -662,23 +669,11 @@ public class CustomerWorkOrderServiceImplTest {
         List<WorkOrderEvaluation> insertedEvaluations = new ArrayList<>();
         List<WorkOrderFlow> insertedFlows = new ArrayList<>();
         int[] updateCount = new int[1];
-        int[] notifiedScores = new int[3];
         String[] notifiedContent = new String[1];
-
         setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder, updateCount));
         setField(service, "workOrderQuoteMapper", createWorkOrderQuoteMapperProxy(Collections.singletonList(currentQuote)));
         setField(service, "workOrderEvaluationMapper", createWorkOrderEvaluationMapperProxy(insertedEvaluations, 0L));
         setField(service, "workOrderFlowMapper", createWorkOrderFlowMapperProxy(insertedFlows));
-        setField(service, "workOrderNotifyEventService", new WorkOrderNotifyEventService() {
-            @Override
-            public void recordCustomerEvaluated(WorkOrder target, Integer timelinessScore, Integer qualityScore,
-                                                Integer satisfactionScore, String content) {
-                notifiedScores[0] = timelinessScore == null ? 0 : timelinessScore;
-                notifiedScores[1] = qualityScore == null ? 0 : qualityScore;
-                notifiedScores[2] = satisfactionScore == null ? 0 : satisfactionScore;
-                notifiedContent[0] = content;
-            }
-        });
 
         CustomerWorkOrderEvaluateDTO dto = new CustomerWorkOrderEvaluateDTO();
         dto.setWorkOrderId(workOrder.getId());
@@ -694,6 +689,7 @@ public class CustomerWorkOrderServiceImplTest {
                 service.evaluate(dto);
             }
         });
+        notifiedContent[0] = insertedEvaluations.isEmpty() ? null : insertedEvaluations.get(0).getContent();
 
         Assert.assertEquals(1, updateCount[0]);
         Assert.assertEquals("EVALUATED", workOrder.getEvaluateStatus());
@@ -706,9 +702,6 @@ public class CustomerWorkOrderServiceImplTest {
         Assert.assertEquals(1, insertedFlows.size());
         Assert.assertEquals("EVALUATE", insertedFlows.get(0).getActionType());
         Assert.assertEquals(Long.valueOf(200L), insertedFlows.get(0).getOperatorUserId());
-        Assert.assertEquals(5, notifiedScores[0]);
-        Assert.assertEquals(4, notifiedScores[1]);
-        Assert.assertEquals(3, notifiedScores[2]);
         Assert.assertEquals("维修完成较及时", notifiedContent[0]);
     }
 

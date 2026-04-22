@@ -1,6 +1,5 @@
 package com.jasic.aftersales.customer.service.impl;
 
-import cn.hutool.core.util.IdUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jasic.aftersales.common.constant.WorkOrderConfigConstants;
@@ -71,14 +70,13 @@ import com.jasic.aftersales.system.service.IFaultRepairConfigService;
 import com.jasic.aftersales.system.service.WorkOrderParticipantService;
 import com.jasic.aftersales.system.service.SysFileService;
 import com.jasic.aftersales.system.service.support.MachineBarcodeWarrantyResolver;
+import com.jasic.aftersales.system.service.support.WorkOrderNoGenerator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -100,7 +98,6 @@ import java.util.stream.Collectors;
 @Service
 public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
 
-    private static final DateTimeFormatter ORDER_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final int DEFAULT_NEARBY_LIMIT = 20;
     private static final int MAX_NEARBY_LIMIT = 50;
     private static final String GEOCODE_STATUS_SUCCESS = "SUCCESS";
@@ -185,6 +182,9 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     @Resource
     private SysFileService sysFileService;
 
+    @Resource
+    private WorkOrderNoGenerator workOrderNoGenerator;
+
     /**
      * 创建我的工单
      *
@@ -213,7 +213,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         CustomerFaultSelection faultSelection = resolveCustomerFaultSelection(dto, brandType, hasBarcode, hqCompanyId, productCode, productModel);
 
         WorkOrder workOrder = new WorkOrder();
-        workOrder.setOrderNo(generateOrderNo());
+        workOrder.setOrderNo(workOrderNoGenerator.nextOrderNo());
         workOrder.setCustomerId(customerId);
         workOrder.setCustomerName(resolveCustomerName(customer));
         workOrder.setCustomerMobile(normalizeRequiredText(customer.getPhone(), "当前客户手机号不能为空"));
@@ -1744,13 +1744,6 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
             return false;
         }
         return !FAULT_JUDGE_NO_FAULT.equals(normalizeText(quotes.get(0).getFaultJudge()));
-    }
-
-    private String generateOrderNo() {
-        String datePart = LocalDateTime.now().format(ORDER_DATE_FORMATTER);
-        String suffix = IdUtil.getSnowflakeNextIdStr();
-        suffix = suffix.substring(Math.max(0, suffix.length() - 5));
-        return "WO" + datePart + "-" + suffix;
     }
 
     private static final class CustomerFaultSelection {
