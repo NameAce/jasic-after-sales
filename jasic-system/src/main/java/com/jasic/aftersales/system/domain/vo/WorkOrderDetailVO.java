@@ -27,6 +27,10 @@ public class WorkOrderDetailVO extends WorkOrderListVO {
     @ApiModelProperty(value = "客户ID")
     private Long customerId;
 
+    /** 申请来源名称 */
+    @ApiModelProperty(value = "申请来源名称")
+    private String applicationSourceName;
+
     /** 物料编码 */
     @ApiModelProperty(value = "物料编码")
     private String productCode;

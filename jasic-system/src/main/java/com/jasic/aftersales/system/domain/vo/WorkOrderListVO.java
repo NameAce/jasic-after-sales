@@ -86,6 +86,10 @@ public class WorkOrderListVO implements Serializable {
     @ApiModelProperty(value = "当前受理公司名称")
     private String currentAcceptCompanyName;
 
+    /** 当前受理网点电话 */
+    @ApiModelProperty(value = "当前受理网点电话")
+    private String currentAcceptCompanyPhone;
+
     /** 当前维修员ID */
     @ApiModelProperty(value = "当前维修员ID")
     private Long assignedUserId;

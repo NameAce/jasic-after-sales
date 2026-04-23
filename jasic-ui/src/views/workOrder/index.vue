@@ -57,6 +57,7 @@
           </template>
         </el-table-column>
         <el-table-column label="当前受理公司" prop="currentAcceptCompanyName" min-width="160" show-overflow-tooltip />
+        <el-table-column label="网点电话" prop="currentAcceptCompanyPhone" min-width="130" />
         <el-table-column label="当前维修员" prop="assignedUserName" min-width="110" />
         <el-table-column label="转单" min-width="80" align="center">
           <template slot-scope="{ row }">
@@ -405,6 +406,7 @@
             <el-descriptions-item label="主状态">{{ textValue(detail.mainStatusLabel || statusLabel(detail.mainStatus)) }}</el-descriptions-item>
             <el-descriptions-item label="客户姓名">{{ textValue(detail.customerName) }}</el-descriptions-item>
             <el-descriptions-item label="客户手机号">{{ textValue(detail.customerMobile) }}</el-descriptions-item>
+            <el-descriptions-item label="申请来源">{{ textValue(detail.applicationSourceName) }}</el-descriptions-item>
             <el-descriptions-item label="品牌类型">{{ textValue(detail.brandTypeLabel || brandTypeLabel(detail.brandType)) }}</el-descriptions-item>
             <el-descriptions-item label="条码">{{ textValue(detail.barcode) }}</el-descriptions-item>
             <el-descriptions-item label="物料编码">{{ textValue(detail.productCode) }}</el-descriptions-item>
@@ -414,6 +416,7 @@
             <el-descriptions-item label="服务方式">{{ textValue(detail.serviceModeLabel || serviceModeLabel(detail.serviceMode)) }}</el-descriptions-item>
             <el-descriptions-item label="质保状态">{{ textValue(detail.warrantyStatus) }}</el-descriptions-item>
             <el-descriptions-item label="当前受理公司">{{ textValue(detail.currentAcceptCompanyName) }}</el-descriptions-item>
+            <el-descriptions-item label="网点电话">{{ textValue(detail.currentAcceptCompanyPhone) }}</el-descriptions-item>
             <el-descriptions-item label="当前维修员">{{ textValue(detail.assignedUserName) }}</el-descriptions-item>
             <el-descriptions-item label="建单公司">{{ textValue(detail.createCompanyName) }}</el-descriptions-item>
             <el-descriptions-item label="建单入口">{{ textValue(createEntryTypeLabel(detail.createEntryType)) }}</el-descriptions-item>
