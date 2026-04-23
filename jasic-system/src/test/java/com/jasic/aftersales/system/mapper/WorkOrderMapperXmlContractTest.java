@@ -50,6 +50,15 @@ public class WorkOrderMapperXmlContractTest {
         Assert.assertTrue(normalized.contains("SUM(CASE WHEN w.main_status = 'COMPLETED' THEN 1 ELSE 0 END) AS completedCount"));
     }
 
+    @Test
+    public void shouldReturnWarrantyFieldsInWorkOrderListQueries() throws IOException {
+        String xml = new String(Files.readAllBytes(resolveMapperPath()), StandardCharsets.UTF_8);
+        String normalized = xml.replace("\r\n", "\n");
+
+        Assert.assertEquals(3, countOccurrences(normalized, "w.last_out_date AS lastOutDate"));
+        Assert.assertEquals(3, countOccurrences(normalized, "w.warranty_status AS warrantyStatus"));
+    }
+
     private Path resolveMapperPath() {
         Path direct = Paths.get("jasic-admin", "src", "main", "resources", "mapper", "system", "WorkOrderMapper.xml");
         if (Files.exists(direct)) {

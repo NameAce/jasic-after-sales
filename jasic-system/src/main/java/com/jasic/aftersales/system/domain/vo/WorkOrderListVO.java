@@ -53,6 +53,9 @@ public class WorkOrderListVO implements Serializable {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime lastOutDate;
 
+    @ApiModelProperty(value = "Warranty status", allowableValues = "IN_WARRANTY,OUT_OF_WARRANTY")
+    private String warrantyStatus;
+
     @ApiModelProperty(value = "机器型号")
     private String productModel;
 
