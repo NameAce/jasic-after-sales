@@ -44,6 +44,7 @@ import com.jasic.aftersales.system.domain.entity.WorkOrderFaultPart;
 import com.jasic.aftersales.system.domain.entity.WorkOrderFlow;
 import com.jasic.aftersales.system.domain.entity.WorkOrderQuote;
 import com.jasic.aftersales.system.domain.entity.WorkOrderRepair;
+import com.jasic.aftersales.system.domain.vo.WorkOrderCompanyRepairHistoryStatVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderEvaluationVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderFaultPartVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderFaultVO;
@@ -77,6 +78,7 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -86,6 +88,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -308,15 +311,17 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     public List<CustomerNearbyServiceCompanyVO> listNearbyServiceCompanyOptions(BigDecimal longitude, BigDecimal latitude,
                                                                                 Integer limit) {
         validateCoordinate(longitude, latitude);
+        Long customerId = requireCustomerId();
         int normalizedLimit = normalizeNearbyLimit(limit);
         List<SysCompany> companies = listNearbyEnabledServiceCompanies();
         if (companies.isEmpty()) {
             return Collections.emptyList();
         }
+        Map<Long, RepairHistorySummary> repairHistoryMap = buildRepairHistoryMap(customerId, companies);
         List<CustomerNearbyServiceCompanyVO> options = companies.stream()
                 .map(company -> buildNearbyServiceCompanyOption(company, longitude, latitude))
-                .sorted((left, right) -> compareDistance(left.getDistanceKm(), right.getDistanceKm(),
-                        left.getCompanyName(), right.getCompanyName(), left.getId(), right.getId()))
+                .peek(option -> option.setHasRepairHistory(repairHistoryMap.containsKey(option.getId())))
+                .sorted((left, right) -> compareNearbyServiceCompany(left, right, repairHistoryMap))
                 .limit(normalizedLimit)
                 .collect(Collectors.toList());
         return options;
@@ -1319,6 +1324,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         vo.setLongitude(company.getLongitude());
         vo.setLatitude(company.getLatitude());
         vo.setDistanceKm(calculateDistanceKm(longitude, latitude, company.getLongitude(), company.getLatitude()));
+        vo.setHasRepairHistory(Boolean.FALSE);
         return vo;
     }
 
@@ -1552,6 +1558,93 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
             return compareResult;
         }
         return compareCompanyIdentity(leftName, rightName, leftId, rightId);
+    }
+
+    private Map<Long, RepairHistorySummary> buildRepairHistoryMap(Long customerId, List<SysCompany> companies) {
+        if (customerId == null || companies == null || companies.isEmpty() || workOrderFlowMapper == null) {
+            return Collections.emptyMap();
+        }
+        Set<Long> companyIds = companies.stream()
+                .map(SysCompany::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (companyIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<WorkOrderCompanyRepairHistoryStatVO> stats =
+                workOrderFlowMapper.selectCustomerCreateCompanyRepairHistory(customerId, companyIds);
+        if (stats == null || stats.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<Long, RepairHistorySummary> result = new HashMap<>(stats.size());
+        for (WorkOrderCompanyRepairHistoryStatVO stat : stats) {
+            if (stat == null || stat.getCompanyId() == null) {
+                continue;
+            }
+            result.put(stat.getCompanyId(), new RepairHistorySummary(
+                    stat.getRepairCount(),
+                    stat.getLastRepairTime()
+            ));
+        }
+        return result;
+    }
+
+    private int compareNearbyServiceCompany(CustomerNearbyServiceCompanyVO left,
+                                            CustomerNearbyServiceCompanyVO right,
+                                            Map<Long, RepairHistorySummary> repairHistoryMap) {
+        RepairHistorySummary leftHistory = repairHistoryMap.get(left.getId());
+        RepairHistorySummary rightHistory = repairHistoryMap.get(right.getId());
+        boolean leftHasHistory = leftHistory != null;
+        boolean rightHasHistory = rightHistory != null;
+        if (leftHasHistory != rightHasHistory) {
+            return leftHasHistory ? -1 : 1;
+        }
+        if (leftHasHistory) {
+            int compareCount = Long.compare(rightHistory.getRepairCount(), leftHistory.getRepairCount());
+            if (compareCount != 0) {
+                return compareCount;
+            }
+            int compareTime = compareLastRepairTimeDesc(leftHistory.getLastRepairTime(),
+                    rightHistory.getLastRepairTime());
+            if (compareTime != 0) {
+                return compareTime;
+            }
+        }
+        return compareDistance(left.getDistanceKm(), right.getDistanceKm(),
+                left.getCompanyName(), right.getCompanyName(), left.getId(), right.getId());
+    }
+
+    private int compareLastRepairTimeDesc(LocalDateTime leftTime, LocalDateTime rightTime) {
+        if (leftTime == null && rightTime == null) {
+            return 0;
+        }
+        if (leftTime == null) {
+            return 1;
+        }
+        if (rightTime == null) {
+            return -1;
+        }
+        return rightTime.compareTo(leftTime);
+    }
+
+    private static class RepairHistorySummary {
+
+        private final Long repairCount;
+
+        private final LocalDateTime lastRepairTime;
+
+        RepairHistorySummary(Long repairCount, LocalDateTime lastRepairTime) {
+            this.repairCount = repairCount == null ? 0L : repairCount;
+            this.lastRepairTime = lastRepairTime;
+        }
+
+        Long getRepairCount() {
+            return repairCount;
+        }
+
+        LocalDateTime getLastRepairTime() {
+            return lastRepairTime;
+        }
     }
 
     private int compareCompanyIdentity(String leftName, String rightName, Long leftId, Long rightId) {

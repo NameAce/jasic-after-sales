@@ -511,6 +511,7 @@ CREATE TABLE `work_order` (
   KEY `idx_fault_repair_config` (`fault_repair_config_id`),
   KEY `idx_main_status` (`main_status`),
   KEY `idx_report_company` (`report_company_id`),
+  KEY `idx_customer_id` (`customer_id`, `id`),
   KEY `idx_customer_mobile` (`customer_mobile`),
   KEY `idx_barcode` (`barcode`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='工单主表';
@@ -579,6 +580,7 @@ CREATE TABLE `work_order_flow` (
   `update_time`         datetime         NOT NULL                COMMENT '更新时间',
   PRIMARY KEY (`id`),
   KEY `idx_work_order_action_time` (`work_order_id`, `create_time`),
+  KEY `idx_action_to_company_order_time` (`action_type`, `to_company_id`, `work_order_id`, `create_time`),
   KEY `idx_to_company` (`to_company_id`),
   KEY `idx_operator_company` (`operator_company_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='宸ュ崟娴佽浆鍘嗗彶琛?;

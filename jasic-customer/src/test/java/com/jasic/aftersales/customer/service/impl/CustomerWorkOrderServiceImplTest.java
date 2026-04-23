@@ -33,6 +33,7 @@ import com.jasic.aftersales.system.domain.entity.WorkOrderEvaluation;
 import com.jasic.aftersales.system.domain.entity.WorkOrderFlow;
 import com.jasic.aftersales.system.domain.entity.WorkOrderQuote;
 import com.jasic.aftersales.system.domain.entity.WorkOrderRepair;
+import com.jasic.aftersales.system.domain.vo.WorkOrderCompanyRepairHistoryStatVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairFaultOptionVO;
 import com.jasic.aftersales.system.domain.vo.SysFileItemVO;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
@@ -311,7 +312,7 @@ public class CustomerWorkOrderServiceImplTest {
     }
 
     @Test
-    public void shouldSortNearbyServiceCompaniesByDistance() {
+    public void shouldSortNearbyServiceCompaniesByDistance() throws Exception {
         CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
         setFieldQuietly(service, "sysCompanyMapper", createCompanyMapperProxy(
                 buildNearbyCompany(31L, "Service A", "FIRST", "113.0000", "23.0000"),
@@ -319,9 +320,16 @@ public class CustomerWorkOrderServiceImplTest {
                 buildNearbyCompany(33L, "Service C", "FIRST", null, null)
         ));
 
-        List<CustomerNearbyServiceCompanyVO> options = service.listNearbyServiceCompanyOptions(
-                new BigDecimal("113.0010"), new BigDecimal("23.0010"), 10);
+        final List<CustomerNearbyServiceCompanyVO>[] result = new List[1];
+        runWithCustomerLoginContext(200L, new ThrowingRunnable() {
+            @Override
+            public void run() {
+                result[0] = service.listNearbyServiceCompanyOptions(
+                        new BigDecimal("113.0010"), new BigDecimal("23.0010"), 10);
+            }
+        });
 
+        List<CustomerNearbyServiceCompanyVO> options = result[0];
         Assert.assertEquals(3, options.size());
         Assert.assertEquals(Long.valueOf(31L), options.get(0).getId());
         Assert.assertEquals(Long.valueOf(32L), options.get(1).getId());
@@ -329,6 +337,37 @@ public class CustomerWorkOrderServiceImplTest {
         Assert.assertNotNull(options.get(0).getDistanceKm());
         Assert.assertNotNull(options.get(1).getDistanceKm());
         Assert.assertNull(options.get(2).getDistanceKm());
+        Assert.assertEquals(Boolean.FALSE, options.get(0).getHasRepairHistory());
+    }
+
+    @Test
+    public void shouldSortNearbyServiceCompaniesByRepairHistoryBeforeLimit() throws Exception {
+        CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
+        setFieldQuietly(service, "sysCompanyMapper", createCompanyMapperProxy(
+                buildNearbyCompany(31L, "Nearest Service", "FIRST", "113.0000", "23.0000"),
+                buildNearbyCompany(32L, "History One", "FIRST", "114.0000", "24.0000"),
+                buildNearbyCompany(33L, "History Two", "SECOND", "115.0000", "25.0000")
+        ));
+        setFieldQuietly(service, "workOrderFlowMapper", createWorkOrderFlowHistoryMapperProxy(Arrays.asList(
+                buildRepairHistoryStat(32L, 1L, LocalDateTime.of(2026, 4, 21, 10, 0)),
+                buildRepairHistoryStat(33L, 2L, LocalDateTime.of(2026, 4, 20, 10, 0))
+        )));
+
+        final List<CustomerNearbyServiceCompanyVO>[] result = new List[1];
+        runWithCustomerLoginContext(200L, new ThrowingRunnable() {
+            @Override
+            public void run() {
+                result[0] = service.listNearbyServiceCompanyOptions(
+                        new BigDecimal("113.0010"), new BigDecimal("23.0010"), 2);
+            }
+        });
+
+        List<CustomerNearbyServiceCompanyVO> options = result[0];
+        Assert.assertEquals(2, options.size());
+        Assert.assertEquals(Long.valueOf(33L), options.get(0).getId());
+        Assert.assertEquals(Boolean.TRUE, options.get(0).getHasRepairHistory());
+        Assert.assertEquals(Long.valueOf(32L), options.get(1).getId());
+        Assert.assertEquals(Boolean.TRUE, options.get(1).getHasRepairHistory());
     }
 
     @Test
@@ -808,6 +847,32 @@ public class CustomerWorkOrderServiceImplTest {
                 new Class<?>[]{SysCompanyMapper.class},
                 handler
         );
+    }
+
+    private WorkOrderFlowMapper createWorkOrderFlowHistoryMapperProxy(final List<WorkOrderCompanyRepairHistoryStatVO> stats) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectCustomerCreateCompanyRepairHistory".equals(method.getName())) {
+                    return stats;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (WorkOrderFlowMapper) Proxy.newProxyInstance(
+                WorkOrderFlowMapper.class.getClassLoader(),
+                new Class<?>[]{WorkOrderFlowMapper.class},
+                handler
+        );
+    }
+
+    private WorkOrderCompanyRepairHistoryStatVO buildRepairHistoryStat(Long companyId, Long repairCount,
+                                                                       LocalDateTime lastRepairTime) {
+        WorkOrderCompanyRepairHistoryStatVO stat = new WorkOrderCompanyRepairHistoryStatVO();
+        stat.setCompanyId(companyId);
+        stat.setRepairCount(repairCount);
+        stat.setLastRepairTime(lastRepairTime);
+        return stat;
     }
 
     private HqFirstContractMapper createHqFirstContractMapperProxy(List<HqFirstContract> contracts) {

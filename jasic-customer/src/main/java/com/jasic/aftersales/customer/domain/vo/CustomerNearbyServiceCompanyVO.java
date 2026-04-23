@@ -32,4 +32,8 @@ public class CustomerNearbyServiceCompanyVO extends CustomerServiceCompanyOption
     /** 距离（公里，保留两位小数） */
     @ApiModelProperty(value = "距离（公里，保留两位小数）")
     private BigDecimal distanceKm;
+
+    /** 当前客户是否曾在该网点报修 */
+    @ApiModelProperty(value = "当前客户是否曾在该网点报修")
+    private Boolean hasRepairHistory;
 }
