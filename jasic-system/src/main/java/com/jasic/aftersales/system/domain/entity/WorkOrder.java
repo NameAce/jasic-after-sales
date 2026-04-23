@@ -72,6 +72,8 @@ public class WorkOrder extends BaseEntity {
     /** 服务方式编码（MAIL/STORE） */
     private String serviceMode;
 
+    private LocalDateTime lastOutDate;
+
     /** 质保状态 */
     private String warrantyStatus;
 

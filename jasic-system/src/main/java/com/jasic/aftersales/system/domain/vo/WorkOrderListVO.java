@@ -2,13 +2,13 @@ package com.jasic.aftersales.system.domain.vo;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.jasic.aftersales.common.enums.BrandTypeEnum;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
 
 /**
  * 工单列表视图
@@ -22,95 +22,76 @@ public class WorkOrderListVO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** 工单ID */
     @ApiModelProperty(value = "工单ID")
     private Long id;
 
-    /** 工单号 */
     @ApiModelProperty(value = "工单号")
     private String orderNo;
 
-    /** 客户姓名 */
     @ApiModelProperty(value = "客户姓名")
     private String customerName;
 
-    /** 客户手机号 */
     @ApiModelProperty(value = "客户手机号")
     private String customerMobile;
 
-    /** 条码 */
     @ApiModelProperty(value = "条码")
     private String barcode;
 
-    /** 品牌类型 */
     @ApiModelProperty(value = "品牌类型", allowableValues = "JASIC,NON_JASIC")
     private BrandTypeEnum brandType;
 
-    /** 品牌类型名称 */
     @ApiModelProperty(value = "品牌类型名称")
     private String brandTypeLabel;
 
-    /** 服务方式编码 */
     @ApiModelProperty(value = "服务方式编码", allowableValues = "MAIL,STORE")
     private String serviceMode;
 
-    /** 服务方式名称 */
     @ApiModelProperty(value = "服务方式名称")
     private String serviceModeLabel;
 
-    /** 机器型号 */
+    @ApiModelProperty(value = "最后出库日期")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime lastOutDate;
+
     @ApiModelProperty(value = "机器型号")
     private String productModel;
 
-    /** 故障描述 */
     @ApiModelProperty(value = "故障描述")
     private String faultDesc;
 
-    /** 主状态 */
     @ApiModelProperty(value = "主状态", allowableValues = "PENDING_ASSIGN,PENDING_TECH_ACCEPT,IN_PROGRESS,COMPLETED,CLOSED")
     private String mainStatus;
 
-    /** 主状态名称 */
     @ApiModelProperty(value = "主状态名称")
     private String mainStatusLabel;
 
-    /** 展示状态 */
     @ApiModelProperty(value = "展示状态", allowableValues = "WAIT_ACCEPT,IN_PROGRESS,COMPLETED,CLOSED")
     private String displayStatus;
 
-    /** 当前受理公司ID */
     @ApiModelProperty(value = "当前受理公司ID")
     private Long currentAcceptCompanyId;
 
-    /** 当前受理公司名称 */
     @ApiModelProperty(value = "当前受理公司名称")
     private String currentAcceptCompanyName;
 
-    /** 当前受理网点电话 */
     @ApiModelProperty(value = "当前受理网点电话")
     private String currentAcceptCompanyPhone;
 
-    /** 当前维修员ID */
     @ApiModelProperty(value = "当前维修员ID")
     private Long assignedUserId;
 
-    /** 当前维修员姓名 */
     @ApiModelProperty(value = "当前维修员姓名")
     private String assignedUserName;
 
-    /** 是否发生过转单 */
     @ApiModelProperty(value = "是否发生过转单")
     private Integer hasTransfer;
 
-    /** 转单次数 */
     @ApiModelProperty(value = "转单次数")
     private Integer transferCount;
 
-    /** 当前有效报价金额 */
     @ApiModelProperty(value = "当前有效报价金额")
     private BigDecimal quoteAmount;
 
-    /** 创建时间 */
     @ApiModelProperty(value = "创建时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createTime;

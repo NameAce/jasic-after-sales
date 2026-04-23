@@ -232,6 +232,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         workOrder.setBrandName(resolveCreateBrandName(brandType, dto));
         String serviceMode = normalizeServiceMode(dto.getServiceMode());
         workOrder.setServiceMode(serviceMode);
+        workOrder.setLastOutDate(jasicBarcodeCreate ? resolveBarcodeLastOutDate(barcodeArchive) : null);
         workOrder.setWarrantyStatus(jasicBarcodeCreate
                 ? resolveBarcodeWarrantyStatus(barcodeArchive, dto.getWarrantyStatus())
                 : normalizeText(dto.getWarrantyStatus()));
@@ -345,6 +346,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         vo.setProductModel(normalizeText(barcodeArchive.getProductModel()));
         vo.setMachineNo(normalizeText(barcodeArchive.getMachineNo()));
         vo.setBrandCode(resolveBrandCode(barcodeArchive.getBrandCode()));
+        vo.setLastOutDate(resolveBarcodeLastOutDate(barcodeArchive));
         vo.setWarrantyStatus(resolveBarcodeWarrantyStatus(barcodeArchive, null));
         vo.setHqCompanyId(hqCompany.getId());
         vo.setHqCompanyName(hqCompany.getCompanyName());
@@ -457,6 +459,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         detail.setBrandName(workOrder.getBrandName());
         detail.setServiceMode(workOrder.getServiceMode());
         detail.setServiceModeLabel(ServiceModeEnum.resolveLabel(workOrder.getServiceMode()));
+        detail.setLastOutDate(workOrder.getLastOutDate());
         detail.setWarrantyStatus(workOrder.getWarrantyStatus());
         detail.setFaultDesc(workOrder.getFaultDesc());
         detail.setFaultRemark(workOrder.getFaultRemark());
@@ -939,10 +942,14 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     private String resolveBarcodeWarrantyStatus(MachineBarcode barcodeArchive, String fallbackStatus) {
         return MachineBarcodeWarrantyResolver.resolveWarrantyStatus(
                 barcodeArchive == null ? null : barcodeArchive.getBarcode(),
-                barcodeArchive == null ? null : barcodeArchive.getDealerOutDate(),
+                barcodeArchive == null ? null : barcodeArchive.getLastOutDate(),
                 barcodeArchive == null ? null : barcodeArchive.getScanDate(),
-                resolveArchiveText(barcodeArchive == null ? null : barcodeArchive.getWarrantyStatus(), fallbackStatus)
+                normalizeText(fallbackStatus)
         );
+    }
+
+    private LocalDateTime resolveBarcodeLastOutDate(MachineBarcode barcodeArchive) {
+        return barcodeArchive == null ? null : barcodeArchive.getLastOutDate();
     }
 
     private List<Long> resolveFirstCompanyIds(SysCompany serviceCompany) {

@@ -135,6 +135,7 @@ public class CustomerWorkOrderServiceImplTest {
         Assert.assertEquals("MODEL-A", barcodeInfo.getProductModel());
         Assert.assertEquals("M-001", barcodeInfo.getMachineNo());
         Assert.assertEquals("JASIC", barcodeInfo.getBrandCode());
+        Assert.assertNotNull(barcodeInfo.getLastOutDate());
         Assert.assertEquals("IN_WARRANTY", barcodeInfo.getWarrantyStatus());
         Assert.assertEquals(Long.valueOf(21L), barcodeInfo.getHqCompanyId());
         Assert.assertEquals(buildHqCompany().getCompanyName(), barcodeInfo.getHqCompanyName());
@@ -804,7 +805,7 @@ public class CustomerWorkOrderServiceImplTest {
         barcode.setProductModel("MODEL-A");
         barcode.setMachineNo("M-001");
         barcode.setBrandCode("JASIC");
-        barcode.setWarrantyStatus("IN_WARRANTY");
+        barcode.setLastOutDate(java.time.LocalDateTime.now().minusDays(1));
         barcode.setStatus(1);
         return barcode;
     }

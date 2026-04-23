@@ -1,5 +1,5 @@
 -- =============================================
--- 佳士售后系统 - 机器条码档案增量升级脚本
+-- 佳士售后系统 - 条码档案增量升级脚本
 -- 适用场景：已有业务数据的库，禁止重跑 schema.sql / init-data.sql
 -- 可重复执行：是
 -- =============================================
@@ -18,11 +18,10 @@ CREATE TABLE IF NOT EXISTS `machine_barcode` (
   `product_model`   varchar(100)     DEFAULT NULL            COMMENT '产品型号',
   `machine_no`      varchar(100)     DEFAULT NULL            COMMENT '机器小号',
   `brand_code`      varchar(32)      DEFAULT NULL            COMMENT '品牌编码',
-  `scan_date`       datetime         DEFAULT NULL            COMMENT '条码扫描时间',
-  `dealer_out_date` datetime         DEFAULT NULL            COMMENT '经销商最新出库日期',
+  `scan_date`       datetime         DEFAULT NULL            COMMENT '条码扫码时间',
+  `last_out_date`   datetime         DEFAULT NULL            COMMENT '最后出库日期',
   `crm_add_time`    datetime         DEFAULT NULL            COMMENT 'CRM创建时间',
   `last_sync_time`  datetime         DEFAULT NULL            COMMENT '最近同步时间',
-  `warranty_status` varchar(16)      DEFAULT NULL            COMMENT '质保状态',
   `status`          tinyint unsigned DEFAULT 1               COMMENT '状态（1=启用，0=停用）',
   `remark`          varchar(256)     DEFAULT NULL            COMMENT '备注',
   `create_time`     datetime         NOT NULL                COMMENT '创建时间',
@@ -38,7 +37,7 @@ ALTER TABLE `machine_barcode`
   MODIFY COLUMN `hq_company_id` bigint unsigned DEFAULT NULL COMMENT '归属总部ID',
   MODIFY COLUMN `product_model` varchar(100) DEFAULT NULL COMMENT '产品型号',
   MODIFY COLUMN `machine_no` varchar(100) DEFAULT NULL COMMENT '机器小号',
-  MODIFY COLUMN `scan_date` datetime DEFAULT NULL COMMENT '条码扫描时间';
+  MODIFY COLUMN `scan_date` datetime DEFAULT NULL COMMENT '条码扫码时间';
 
 ALTER TABLE `machine_barcode`
   ADD COLUMN IF NOT EXISTS `deliver_number` varchar(50) DEFAULT NULL COMMENT '发货单号' AFTER `barcode`,
@@ -46,7 +45,7 @@ ALTER TABLE `machine_barcode`
   ADD COLUMN IF NOT EXISTS `sales_org` varchar(64) DEFAULT NULL COMMENT '销售组织' AFTER `cust_id`,
   ADD COLUMN IF NOT EXISTS `product_name` varchar(128) DEFAULT NULL COMMENT '商品名称' AFTER `product_code`,
   ADD COLUMN IF NOT EXISTS `machine_no` varchar(100) DEFAULT NULL COMMENT '机器小号' AFTER `product_model`,
-  ADD COLUMN IF NOT EXISTS `scan_date` datetime DEFAULT NULL COMMENT '条码扫描时间' AFTER `brand_code`,
-  ADD COLUMN IF NOT EXISTS `dealer_out_date` datetime DEFAULT NULL COMMENT '经销商最新出库日期' AFTER `scan_date`,
-  ADD COLUMN IF NOT EXISTS `crm_add_time` datetime DEFAULT NULL COMMENT 'CRM创建时间' AFTER `dealer_out_date`,
+  ADD COLUMN IF NOT EXISTS `scan_date` datetime DEFAULT NULL COMMENT '条码扫码时间' AFTER `brand_code`,
+  ADD COLUMN IF NOT EXISTS `last_out_date` datetime DEFAULT NULL COMMENT '最后出库日期' AFTER `scan_date`,
+  ADD COLUMN IF NOT EXISTS `crm_add_time` datetime DEFAULT NULL COMMENT 'CRM创建时间' AFTER `last_out_date`,
   ADD COLUMN IF NOT EXISTS `last_sync_time` datetime DEFAULT NULL COMMENT '最近同步时间' AFTER `crm_add_time`;

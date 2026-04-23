@@ -19,12 +19,12 @@ public final class MachineBarcodeWarrantyResolver {
     private MachineBarcodeWarrantyResolver() {
     }
 
-    public static String resolveWarrantyStatus(String barcode, LocalDateTime dealerOutDate, LocalDateTime scanDate,
+    public static String resolveWarrantyStatus(String barcode, LocalDateTime lastOutDate, LocalDateTime scanDate,
                                                String fallbackStatus) {
         if (StrUtil.isBlank(StrUtil.trim(barcode))) {
             return OUT_OF_WARRANTY;
         }
-        LocalDateTime expireTime = resolveExpireTime(dealerOutDate, scanDate);
+        LocalDateTime expireTime = resolveExpireTime(lastOutDate, scanDate);
         if (expireTime != null) {
             return !LocalDateTime.now().isAfter(expireTime) ? IN_WARRANTY : OUT_OF_WARRANTY;
         }
@@ -38,15 +38,15 @@ public final class MachineBarcodeWarrantyResolver {
         }
         return resolveWarrantyStatus(
                 barcodeArchive.getBarcode(),
-                barcodeArchive.getDealerOutDate(),
+                barcodeArchive.getLastOutDate(),
                 barcodeArchive.getScanDate(),
-                barcodeArchive.getWarrantyStatus()
+                null
         );
     }
 
-    private static LocalDateTime resolveExpireTime(LocalDateTime dealerOutDate, LocalDateTime scanDate) {
-        if (dealerOutDate != null) {
-            return dealerOutDate.plusYears(3);
+    private static LocalDateTime resolveExpireTime(LocalDateTime lastOutDate, LocalDateTime scanDate) {
+        if (lastOutDate != null) {
+            return lastOutDate.plusYears(3);
         }
         if (scanDate != null) {
             return scanDate.plusMonths(6);

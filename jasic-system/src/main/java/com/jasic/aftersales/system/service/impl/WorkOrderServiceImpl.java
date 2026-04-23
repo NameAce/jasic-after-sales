@@ -1584,6 +1584,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         entity.setBrandType(BrandTypeEnum.JASIC);
         entity.setBrandCode(normalizeNullableText(barcodeArchive == null ? null : barcodeArchive.getBrandCode()));
         entity.setServiceMode(normalizedServiceMode);
+        entity.setLastOutDate(resolveBarcodeLastOutDate(barcodeArchive));
         entity.setWarrantyStatus(resolveBarcodeWarrantyStatus(barcodeArchive, null));
         entity.setFaultDesc(faultSelection.getFaultDesc());
         entity.setFaultRemark(faultSelection.getFaultRemark());
@@ -2103,6 +2104,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         vo.setProductModel(normalizeNullableText(barcodeArchive == null ? null : barcodeArchive.getProductModel()));
         vo.setMachineNo(normalizeNullableText(barcodeArchive == null ? null : barcodeArchive.getMachineNo()));
         vo.setBrandCode(normalizeNullableText(barcodeArchive == null ? null : barcodeArchive.getBrandCode()));
+        vo.setLastOutDate(resolveBarcodeLastOutDate(barcodeArchive));
         vo.setWarrantyStatus(resolveBarcodeWarrantyStatus(barcodeArchive, null));
         if (hqCompanyId != null) {
             SysCompany hqCompany = requireActiveHqCompany(hqCompanyId);
@@ -2148,13 +2150,16 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
     private String resolveBarcodeWarrantyStatus(MachineBarcode barcodeArchive, String fallbackStatus) {
-        String archiveWarrantyStatus = normalizeNullableText(barcodeArchive == null ? null : barcodeArchive.getWarrantyStatus());
         return MachineBarcodeWarrantyResolver.resolveWarrantyStatus(
                 barcodeArchive == null ? null : barcodeArchive.getBarcode(),
-                barcodeArchive == null ? null : barcodeArchive.getDealerOutDate(),
+                barcodeArchive == null ? null : barcodeArchive.getLastOutDate(),
                 barcodeArchive == null ? null : barcodeArchive.getScanDate(),
-                archiveWarrantyStatus != null ? archiveWarrantyStatus : normalizeNullableText(fallbackStatus)
+                normalizeNullableText(fallbackStatus)
         );
+    }
+
+    private LocalDateTime resolveBarcodeLastOutDate(MachineBarcode barcodeArchive) {
+        return barcodeArchive == null ? null : barcodeArchive.getLastOutDate();
     }
 
     private SysCompany requireActiveHqCompany(Long hqCompanyId) {

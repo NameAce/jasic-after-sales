@@ -30,12 +30,12 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * CRM 销售出库扫码同步服务实现。
+ * CRM 閿€鍞嚭搴撴壂鐮佸悓姝ユ湇鍔″疄鐜般€?
  *
- * <p>实现拆为两个阶段：</p>
+ * <p>瀹炵幇鎷嗕负涓や釜闃舵锛?/p>
  * <ul>
- *     <li>先按源表主键增量落地销售出库扫码明细快照；</li>
- *     <li>再基于本地快照按条码聚合最早扫码时间，覆盖回写本地销售最后出库日期。</li>
+ *     <li>鍏堟寜婧愯〃涓婚敭澧為噺钀藉湴閿€鍞嚭搴撴壂鐮佹槑缁嗗揩鐓э紱</li>
+ *     <li>鍐嶅熀浜庢湰鍦板揩鐓ф寜鏉＄爜鑱氬悎鏈€鏃╂壂鐮佹椂闂达紝瑕嗙洊鍥炲啓鏈湴閿€鍞渶鍚庡嚭搴撴棩鏈熴€?/li>
  * </ul>
  *
  * @author Codex
@@ -60,7 +60,7 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
     public CrmWarehouseScanOutstorageSyncSummaryVO syncIncremental() {
         JdbcTemplate crm = requireCrmJdbcTemplate();
         Long lastSourceId = getLocalMaxSourceId();
-        // 当前源表按 scan_outstorage_id 递增追加，故使用主键游标拉取增量明细。
+        // 褰撳墠婧愯〃鎸?scan_outstorage_id 閫掑杩藉姞锛屾晠浣跨敤涓婚敭娓告爣鎷夊彇澧為噺鏄庣粏銆?
         String sql = "SELECT scan_outstorage_id, ware_id, warehouse_id, scan_code, scan_date, cust_id, product_numeric "
                 + "FROM " + CRM_OUTSTORAGE_TABLE + " "
                 + "WHERE scan_outstorage_id > ? "
@@ -95,8 +95,8 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
         }
 
         if (CollUtil.isNotEmpty(counter.changedBarcodes)) {
-            // 仅重算本轮涉及的条码，避免每次全表聚合。
-            projectDealerOutDate(counter.changedBarcodes, counter);
+            // 浠呴噸绠楁湰杞秹鍙婄殑鏉＄爜锛岄伩鍏嶆瘡娆″叏琛ㄨ仛鍚堛€?
+            projectLastOutDate(counter.changedBarcodes, counter);
         }
 
         CrmWarehouseScanOutstorageSyncSummaryVO summary = new CrmWarehouseScanOutstorageSyncSummaryVO();
@@ -109,7 +109,7 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
     }
 
     private void flushBatch(List<CrmWarehouseScanOutstorageSnapshot> rows, LocalDateTime syncTime, SyncCounter counter) {
-        // 明细快照保留 CRM 原始记录，采用 source_id 幂等更新，兼容重复执行。
+        // 鏄庣粏蹇収淇濈暀 CRM 鍘熷璁板綍锛岄噰鐢?source_id 骞傜瓑鏇存柊锛屽吋瀹归噸澶嶆墽琛屻€?
         String sql = "INSERT INTO crm_warehouse_scan_outstorage_snapshot ("
                 + "source_id, ware_id, warehouse_id, scan_code, scan_date, cust_id, product_numeric, last_sync_time, create_time, update_time"
                 + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW()) "
@@ -146,12 +146,12 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
             if (StrUtil.isNotBlank(row.getScanCode())) {
                 counter.changedBarcodes.add(row.getScanCode());
             }
-            // 批次按 source_id 升序处理，最后一个值即当前同步游标上界。
+            // 鎵规鎸?source_id 鍗囧簭澶勭悊锛屾渶鍚庝竴涓€煎嵆褰撳墠鍚屾娓告爣涓婄晫銆?
             counter.latestSourceId = row.getSourceId();
         }
     }
 
-    private void projectDealerOutDate(Set<String> barcodeSet, SyncCounter counter) {
+    private void projectLastOutDate(Set<String> barcodeSet, SyncCounter counter) {
         List<String> barcodes = new ArrayList<>(barcodeSet);
         int batchSize = 500;
         for (int index = 0; index < barcodes.size(); index += batchSize) {
@@ -160,7 +160,7 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
             if (minScanDateMap.isEmpty()) {
                 continue;
             }
-            // 只更新本地已存在的条码档案；未匹配条码仅做计数，不自动建档。
+            // 鍙洿鏂版湰鍦板凡瀛樺湪鐨勬潯鐮佹。妗堬紱鏈尮閰嶆潯鐮佷粎鍋氳鏁帮紝涓嶈嚜鍔ㄥ缓妗ｃ€?
             LambdaQueryWrapper<MachineBarcode> wrapper = new LambdaQueryWrapper<>();
             wrapper.in(MachineBarcode::getBarcode, minScanDateMap.keySet());
             List<MachineBarcode> existingBarcodes = machineBarcodeMapper.selectList(wrapper);
@@ -176,8 +176,8 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
             List<Map.Entry<String, LocalDateTime>> updates = minScanDateMap.entrySet().stream()
                     .filter(item -> existingBarcodeSet.contains(item.getKey()))
                     .collect(Collectors.toList());
-            // dealer_out_date 允许覆盖已有值，因此这里直接按最新聚合结果回写。
-            String updateSql = "UPDATE machine_barcode SET dealer_out_date = ?, last_sync_time = NOW(), update_time = NOW() "
+            // dealer_out_date 鍏佽瑕嗙洊宸叉湁鍊硷紝鍥犳杩欓噷鐩存帴鎸夋渶鏂拌仛鍚堢粨鏋滃洖鍐欍€?
+            String updateSql = "UPDATE machine_barcode SET last_out_date = ?, last_sync_time = NOW(), update_time = NOW() "
                     + "WHERE barcode = ?";
             jdbcTemplate.batchUpdate(updateSql, new BatchPreparedStatementSetter() {
                 @Override
@@ -201,8 +201,8 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
             return Collections.emptyMap();
         }
         String placeholders = barcodes.stream().map(item -> "?").collect(Collectors.joining(","));
-        // 业务口径明确取同条码最早扫码时间，作为销售最后出库日期写回本地条码档案。
-        String sql = "SELECT scan_code, MIN(scan_date) AS dealer_out_date "
+        // 涓氬姟鍙ｅ緞鏄庣‘鍙栧悓鏉＄爜鏈€鏃╂壂鐮佹椂闂达紝浣滀负閿€鍞渶鍚庡嚭搴撴棩鏈熷啓鍥炴湰鍦版潯鐮佹。妗堛€?
+        String sql = "SELECT scan_code, MIN(scan_date) AS last_out_date "
                 + "FROM crm_warehouse_scan_outstorage_snapshot "
                 + "WHERE scan_code IN (" + placeholders + ") AND scan_date IS NOT NULL "
                 + "GROUP BY scan_code";
@@ -212,7 +212,7 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
             }
         }, (rs, rowNum) -> new java.util.AbstractMap.SimpleEntry<>(
                 StrUtil.trim(rs.getString("scan_code")),
-                toLocalDateTime(rs, "dealer_out_date")
+                toLocalDateTime(rs, "last_out_date")
         ));
         Map<String, LocalDateTime> result = new LinkedHashMap<>();
         for (Map.Entry<String, LocalDateTime> row : rows) {
@@ -224,7 +224,7 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
     }
 
     private Long getLocalMaxSourceId() {
-        // 快照表保存过的最大 source_id 即当前增量同步游标。
+        // 蹇収琛ㄤ繚瀛樿繃鐨勬渶澶?source_id 鍗冲綋鍓嶅閲忓悓姝ユ父鏍囥€?
         String sql = "SELECT MAX(source_id) FROM crm_warehouse_scan_outstorage_snapshot";
         Long value = jdbcTemplate.queryForObject(sql, Long.class);
         return value == null ? 0L : value;
@@ -232,7 +232,7 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
 
     private JdbcTemplate requireCrmJdbcTemplate() {
         if (crmJdbcTemplate == null) {
-            throw new ServiceException("当前未配置客户关系管理（CRM）数据源，请先完善 jasic.crm.datasource");
+            throw new ServiceException("褰撳墠鏈厤缃鎴峰叧绯荤鐞嗭紙CRM锛夋暟鎹簮锛岃鍏堝畬鍠?jasic.crm.datasource");
         }
         return crmJdbcTemplate;
     }

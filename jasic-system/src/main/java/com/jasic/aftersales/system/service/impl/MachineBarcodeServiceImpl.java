@@ -84,9 +84,6 @@ public class MachineBarcodeServiceImpl implements IMachineBarcodeService {
         if (StrUtil.isNotBlank(query.getProductModel())) {
             wrapper.like(MachineBarcode::getProductModel, query.getProductModel().trim());
         }
-        if (StrUtil.isNotBlank(query.getWarrantyStatus())) {
-            wrapper.eq(MachineBarcode::getWarrantyStatus, query.getWarrantyStatus().trim());
-        }
         if (query.getStatus() != null) {
             wrapper.eq(MachineBarcode::getStatus, query.getStatus());
         }
@@ -327,7 +324,6 @@ public class MachineBarcodeServiceImpl implements IMachineBarcodeService {
         entity.setProductModel(normalizeOptionalText(entity.getProductModel()));
         entity.setMachineNo(normalizeOptionalText(entity.getMachineNo()));
         entity.setBrandCode(normalizeOptionalText(entity.getBrandCode()));
-        entity.setWarrantyStatus(normalizeOptionalText(entity.getWarrantyStatus()));
         entity.setRemark(normalizeOptionalText(entity.getRemark()));
     }
 

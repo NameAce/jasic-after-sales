@@ -55,7 +55,7 @@
         <el-table-column label="商品名称" prop="productName" min-width="160" show-overflow-tooltip />
         <el-table-column label="产品型号" prop="productModel" min-width="160" show-overflow-tooltip />
         <el-table-column label="机器小号" prop="machineNo" min-width="140" show-overflow-tooltip />
-        <el-table-column label="条码扫描时间" prop="scanDate" width="170" />
+        <el-table-column label="条码扫码时间" prop="scanDate" width="170" />
         <el-table-column label="状态" prop="status" width="90" align="center">
           <template slot-scope="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'info'" size="mini">
@@ -93,8 +93,8 @@
         <el-descriptions-item label="商品名称">{{ detail.productName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="产品型号">{{ detail.productModel || '-' }}</el-descriptions-item>
         <el-descriptions-item label="机器小号">{{ detail.machineNo || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="条码扫描时间">{{ detail.scanDate || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="经销商出库日期">{{ detail.dealerOutDate || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="条码扫码时间">{{ detail.scanDate || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="最后出库日期">{{ detail.lastOutDate || '-' }}</el-descriptions-item>
         <el-descriptions-item label="CRM创建时间">{{ detail.crmAddTime || '-' }}</el-descriptions-item>
         <el-descriptions-item label="最近同步时间">{{ detail.lastSyncTime || '-' }}</el-descriptions-item>
         <el-descriptions-item label="质保状态">{{ detail.warrantyStatus || '-' }}</el-descriptions-item>
@@ -175,11 +175,11 @@ export default {
       })
     },
     handleFullSync() {
-      this.$confirm('确认提交条码档案同步任务吗？系统会按同步任务配置在后台执行，并把结果写入任务日志。', '提示', { type: 'warning' }).then(() => {
+      this.$confirm('确认提交条码档案同步任务吗？系统会在后台执行，并把结果写入任务日志。', '提示', { type: 'warning' }).then(() => {
         this.syncLoading = true
         fullSyncMachineBarcode().then(res => {
           if (!res) return
-          this.$message.success(`任务已提交，执行日志ID：${res.data}，请到“同步任务”查看进度和结果`)
+          this.$message.success(`任务已提交，执行日志ID：${res.data}`)
         }).finally(() => { this.syncLoading = false })
       }).catch(() => {})
     }
