@@ -5,7 +5,12 @@
       <!-- 搜索栏 -->
       <view class="search-wrap">
         <view class="search-box">
-          <uni-icons type="search" size="18" :color="themeColors.textMuted" class="search-icon"></uni-icons>
+          <uni-icons
+            type="search"
+            size="18"
+            :color="themeColors.textMuted"
+            class="search-icon"
+          ></uni-icons>
           <input
             v-model="searchQuery"
             class="search-input"
@@ -68,7 +73,7 @@
               </view>
               <text class="branch-name">{{ branch.name }}</text>
             </view>
-            <uni-icons type="right" size="24" :color="themeColors.iconSlateLight"></uni-icons>
+            <uni-icons type="right" size="18" :color="themeColors.iconSlateLight"></uni-icons>
           </view>
           <!-- 网点工单统计 -->
           <view class="branch-stats">
@@ -122,7 +127,7 @@
         :show-no-more="orderList.length > 0 && hasLoadedAll"
         @order-click="onOrderClick"
       >
-        <!-- 额外信息 -->
+        <!-- 额外信息（维修方式由 OrderCardList 正文区统一展示） -->
         <template #extra-info="{ order }">
           <view v-if="getAssignedUserName(order)" class="info-item">
             <text class="label">当前维修人员</text>
@@ -139,65 +144,15 @@
         </template>
         <!-- 操作 -->
         <template #actions="{ order }">
-          <!-- 单容器内横向排列：总部管理员等同时有派单条与工程师条时，避免两个 action-wrap 上下堆叠 -->
-          <view
-            v-if="showDispatcherActionBlock(order) || showOperatorActions(order)"
-            class="action-wrap"
-          >
-            <template v-if="showDispatcherActionBlock(order)">
-              <button
-                v-if="isOrderPendingAssign(order)"
-                class="btn-action primary"
-                @tap.stop="openAssignModal(order.id)"
-              >
-                派单
-              </button>
-              <button
-                v-else-if="isOrderPendingTechAccept(order)"
-                class="btn-action primary"
-                @tap.stop="onAcceptOrder(order.id)"
-              >
-                接单
-              </button>
-              <template v-else-if="order.status === 'IN_PROGRESS'">
-                <button
-                  v-if="userStore.hasPermission(Perms.WORKORDER_TRANSFER)"
-                  class="btn-action primary"
-                  @tap.stop="openTransferModal(order.id)"
-                >
-                  转单
-                </button>
-              </template>
-              <template v-else-if="order.status === 'COMPLETED'">
-                <button
-                  v-if="
-                    userStore.hasPermission(Perms.WORKORDER_REVIEW) && !operatorShowsRecheck(order)
-                  "
-                  class="btn-action outline"
-                  @tap.stop="onRecheck(order.id)"
-                >
-                  复检登记
-                </button>
-                <button
-                  v-if="userStore.hasPermission(Perms.WORKORDER_TRANSFER)"
-                  class="btn-action primary"
-                  @tap.stop="openTransferModal(order.id)"
-                >
-                  转单
-                </button>
-              </template>
-            </template>
-            <!-- 操作 -->
-            <template v-if="showOperatorActions(order)">
-              <button
-                v-for="action in getOperatorActions(order.status)"
-                :key="`${order.id}-${action.key}`"
-                :class="`btn-action ${action.className}`"
-                @tap.stop="handleOperatorAction(action.key, order.id)"
-              >
-                {{ action.label }}
-              </button>
-            </template>
+          <view v-if="getVisibleActions(order).length > 0" class="action-wrap">
+            <button
+              v-for="action in getVisibleActions(order)"
+              :key="`${order.id}-${action.key}`"
+              :class="`btn-action ${action.className}`"
+              @tap.stop="dispatchWorkOrderAction(action.key, order.id)"
+            >
+              {{ action.label }}
+            </button>
           </view>
         </template>
       </OrderCardList>
@@ -234,6 +189,13 @@
       no-fault-required
       @confirm="onCloseOrderConfirm"
     />
+
+    <!-- 上传寄件单号弹窗（承包商端 UPLOAD_SEND_EXPRESS 动作） -->
+    <UploadSendExpressModal
+      v-model:visible="showUploadSendExpressModal"
+      :work-order-id="currentSendExpressWorkOrderId"
+      @confirm="onSubmitSendExpress"
+    />
   </view>
 </template>
 
@@ -242,7 +204,7 @@
    * 工单库：路由仅要求登录；列表 Tab 与操作按钮用 Perms + userStore.hasPermission / canAny / canAll。
    */
   import { ref, computed, nextTick, watch } from 'vue'
-  import { onShow } from '@dcloudio/uni-app'
+  import { onLoad, onShow } from '@dcloudio/uni-app'
   import { themeColors } from '@/theme/colors'
   import { useAppStore, useUserStore } from '@/stores'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
@@ -255,16 +217,18 @@
   } from '@/components/AssignTechnicianModal/AssignTechnicianModal.vue'
   import ReturnMethodModal from '@/components/ReturnMethodModal/ReturnMethodModal.vue'
   import CloseOrderModal from '@/components/CloseOrderModal/CloseOrderModal.vue'
+  import UploadSendExpressModal from '@/components/UploadSendExpressModal/UploadSendExpressModal.vue'
   import {
     applyWorkOrderListSearchKeyword,
     assignWorkOrder,
-    fetchBranchList,
+    listHqSiteSummary,
     listAssignUserOptions,
     getWorkOrder,
     listWorkOrder,
     closeWorkOrder,
     transferWorkOrder,
     listTransferTargetOptions,
+    updateWorkOrderSendExpress,
     WORK_ORDER_FAULT_CLOSE_REASON,
     type OrderListQuery,
     type ReturnMethodConfirmPayload
@@ -274,7 +238,7 @@
     type BranchItem,
     type OrderDetail,
     type OrderListItem,
-    type WorkOrderMainStatus,
+    type WorkOrderMainStatus
   } from '@/models/order'
   import {
     canCurrentSiteOperateTransferredOrder,
@@ -287,6 +251,11 @@
   import { storeIcon } from '@/svgs'
   import { useScrollRefresher } from '@/utils/useScrollRefresher'
   import { isWorkOrderPendingTechAcceptMainStatus } from '@/utils/workOrderMainStatus'
+  import { normalizeAvailableActions, type WorkOrderActionKey } from '@/constants/orderActions'
+  import {
+    ENABLE_LEGACY_STATUS_ACTION_FALLBACK,
+    auditLegacyStatusFallbackHit
+  } from '@/constants/orderActionFallback'
 
   type PrimaryTab = 'untransferred' | 'transferred'
   type SecondaryTab = 'all' | 'pending' | 'pending_accept' | 'processing' | 'completed' | 'closed'
@@ -356,8 +325,7 @@
   const statusTextMap = ORDER_STATUS_TEXT_MAP
 
   /** 待接单：仅 mainStatus=PENDING_TECH_ACCEPT */
-  const isOrderPendingTechAccept = (order: OrderListItem) =>
-    order.status === 'PENDING_TECH_ACCEPT'
+  const isOrderPendingTechAccept = (order: OrderListItem) => order.status === 'PENDING_TECH_ACCEPT'
 
   /** 待派单：PENDING_ASSIGN（且接口原始 mainStatus 非 PENDING_TECH_ACCEPT 兜底） */
   const isOrderPendingAssign = (order: OrderListItem) =>
@@ -384,6 +352,8 @@
   const primaryTab = ref<PrimaryTab>('untransferred')
   // 二级Tab
   const secondaryTab = ref<SecondaryTab>('all')
+  // 首次 onLoad 参数解析完成后，onShow 再触发统一刷新主路径
+  const hasParsedEntryOptions = ref(false)
 
   // 二级 Tab 列表（根据派单权限动态增删 pending_accept）
   const secondaryTabs = computed(() => {
@@ -464,32 +434,12 @@
   } | null>(null)
 
   /**
-   * 从其他页面（如"我的"页面）跳转过来时，应用目标 tab；
-   * 表单提交等场景若已标记，则走 scroll-view 下拉刷新（refresher）以与手动下拉一致。
-   * @returns void
+   * 列表页统一刷新主路径：
+   * - 首次参数解析放在 onLoad；
+   * - onShow / 下拉刷新 / 普通刷新都汇聚到该路径；
+   * - 并发保护由 refreshOrders + loadMoreOrders 内部 requestVersion/loadingMore 处理。
    */
-  onShow(async () => {
-    const picked = takeSelectedShippingAddress()
-    if (picked) {
-      mailReturnAddressOverride.value = {
-        receiverName: picked.name,
-        receiverPhone: picked.phone,
-        receiverAddress: picked.fullAddress
-      }
-    }
-
-    const target = appStore.consumeOrderListNavTarget()
-    if (target) {
-      primaryTab.value = target.primaryTab
-      let sec = target.secondaryTab
-      if (sec === 'pending_accept' && !userStore.hasPermission(Perms.WORKORDER_ASSIGN))
-        sec = 'pending'
-      secondaryTab.value = sec
-      scrollSecondaryTabIntoView(sec)
-    }
-
-    const useScrollRefresherUi = appStore.consumeOrderListScrollRefresherOnNextShow()
-
+  const refreshListEntry = async (useScrollRefresherUi: boolean) => {
     if (showBranchView.value) {
       baseOrderList.value = []
       if (useScrollRefresherUi) await onBranchViewRefresherRefresh()
@@ -499,6 +449,68 @@
     if (useScrollRefresherUi) await onOrderListRefresherRefresh()
     else await refreshOrders()
     if (isHqUser.value) await refreshBranches()
+  }
+
+  /**
+   * 页面加载：首次解析外部路由参数（Tab）并走统一刷新主路径
+   */
+  onLoad(async (options?: Record<string, string>) => {
+    const picked = takeSelectedShippingAddress()
+    if (picked) {
+      mailReturnAddressOverride.value = {
+        receiverName: picked.name,
+        receiverPhone: picked.phone,
+        receiverAddress: picked.fullAddress
+      }
+    }
+    const rawPrimary = String(options?.primaryTab ?? '').trim()
+    const rawSecondary = String(options?.secondaryTab ?? '').trim()
+    if (rawPrimary === 'untransferred' || rawPrimary === 'transferred') {
+      primaryTab.value = rawPrimary
+    }
+    if (
+      rawSecondary === 'all' ||
+      rawSecondary === 'pending' ||
+      rawSecondary === 'pending_accept' ||
+      rawSecondary === 'processing' ||
+      rawSecondary === 'completed' ||
+      rawSecondary === 'closed'
+    ) {
+      let sec = rawSecondary as SecondaryTab
+      if (sec === 'pending_accept' && !userStore.hasPermission(Perms.WORKORDER_ASSIGN))
+        sec = 'pending'
+      secondaryTab.value = sec
+      scrollSecondaryTabIntoView(sec)
+    }
+    hasParsedEntryOptions.value = true
+    await refreshListEntry(false)
+  })
+
+  /**
+   * 页面显示：消费跨页回跳参数并复用统一刷新主路径
+   * @returns void
+   */
+  onShow(async () => {
+    if (!hasParsedEntryOptions.value) return
+    const picked = takeSelectedShippingAddress()
+    if (picked) {
+      mailReturnAddressOverride.value = {
+        receiverName: picked.name,
+        receiverPhone: picked.phone,
+        receiverAddress: picked.fullAddress
+      }
+    }
+    const target = appStore.consumeOrderListNavTarget()
+    if (target) {
+      primaryTab.value = target.primaryTab
+      let sec = target.secondaryTab
+      if (sec === 'pending_accept' && !userStore.hasPermission(Perms.WORKORDER_ASSIGN))
+        sec = 'pending'
+      secondaryTab.value = sec
+      scrollSecondaryTabIntoView(sec)
+    }
+    const useScrollRefresherUi = appStore.consumeOrderListScrollRefresherOnNextShow()
+    await refreshListEntry(useScrollRefresherUi)
   })
 
   // ==================== 工单列表 ====================
@@ -531,6 +543,37 @@
   }
 
   /**
+   * 构造列表请求参数。
+   *
+   * 关键约束：`refreshOrders` 与 `loadMoreOrders` 必须基于相同的筛选上下文
+   * 构造 query，仅 `pageNum` 不同；否则翻页会出现数据漂移/错位。
+   *
+   * @param targetPageNum - 目标页码
+   */
+  const buildListQuery = (targetPageNum: number): OrderListQuery => {
+    const q = searchQuery.value?.trim()
+    const primary = primaryTab.value
+    const secondary = secondaryTab.value
+
+    const query: OrderListQuery = {
+      pageNum: targetPageNum,
+      pageSize,
+      companyId: userStore.userInfo?.currentCompanyId,
+      // 总部「总部处理」：仅当前网点可见范围，与首页工作台 count 口径一致
+      viewScope: isHqProcessView.value ? 'CURRENT' : 'ALL',
+      hasTransfer: primary === 'transferred' ? 1 : 0
+    }
+
+    // 与接口约定一致：含中文→客户姓名模糊；长数字→条码；否则工单号模糊（避免多条件 AND 同时传）
+    applyWorkOrderListSearchKeyword(query, q)
+
+    const ms = secondaryTabToMainStatus(secondary)
+    if (ms !== undefined) query.mainStatus = ms
+
+    return query
+  }
+
+  /**
    * 刷新工单列表
    * @returns void
    */
@@ -546,23 +589,7 @@
       }
 
       pageNum.value = 1
-      const q = searchQuery.value?.trim()
-      const primary = primaryTab.value
-      const secondary = secondaryTab.value
-
-      const query: OrderListQuery = {
-        pageNum: pageNum.value,
-        pageSize,
-        companyId: userStore.userInfo?.currentCompanyId,
-        viewScope: 'ALL',
-        hasTransfer: primary === 'transferred' ? 1 : 0
-      }
-
-      // 与接口约定一致：含中文→客户姓名模糊；长数字→条码；否则工单号模糊（避免多条件 AND 同时传）
-      applyWorkOrderListSearchKeyword(query, q)
-
-      const ms = secondaryTabToMainStatus(secondary)
-      if (ms !== undefined) query.mainStatus = ms
+      const query = buildListQuery(pageNum.value)
 
       const page = await listWorkOrder(query)
       if (currentVersion !== requestVersion.value) return
@@ -589,19 +616,8 @@
     loadingMore.value = true
     const currentVersion = requestVersion.value
     try {
-      const q = searchQuery.value?.trim()
-      const primary = primaryTab.value
-      const secondary = secondaryTab.value
       const nextPage = pageNum.value + 1
-      const query: OrderListQuery = {
-        pageNum: nextPage,
-        pageSize,
-        companyId: userStore.userInfo?.currentCompanyId,
-        viewScope: primary === 'transferred' ? 'HISTORY' : 'CURRENT'
-      }
-      applyWorkOrderListSearchKeyword(query, q)
-      const ms = secondaryTabToMainStatus(secondary)
-      if (ms !== undefined) query.mainStatus = ms
+      const query = buildListQuery(nextPage)
 
       const page = await listWorkOrder(query)
       if (currentVersion !== requestVersion.value) return
@@ -626,6 +642,10 @@
     () => {
       if (searchDebounceTimer.value) clearTimeout(searchDebounceTimer.value)
       searchDebounceTimer.value = setTimeout(() => {
+        if (showBranchView.value) {
+          refreshBranches()
+          return
+        }
         refreshOrders()
       }, 300)
     }
@@ -655,7 +675,7 @@
 
   const refreshBranches = async () => {
     try {
-      baseBranchList.value = await fetchBranchList()
+      baseBranchList.value = await listHqSiteSummary({ siteName: searchQuery.value })
       branchVisibleLimit.value = BRANCH_PAGE_STEP
     } catch {
       baseBranchList.value = []
@@ -900,10 +920,9 @@
 
   // ==================== 维修工程师 & 总部操作 ====================
 
-  type OperatorActionKey = 'accept' | 'repair' | 'returnMethod' | 'recheck'
   // 操作按钮（操作按钮键、操作按钮标签、操作按钮类名）
   type OperatorAction = {
-    key: OperatorActionKey
+    key: WorkOrderActionKey
     label: string
     className: 'primary' | 'outline'
   }
@@ -913,12 +932,12 @@
    * @returns 操作按钮映射（根据工单状态）
    */
   const operatorActionMap: Record<WorkOrderMainStatus, OperatorAction[]> = {
-    PENDING_ASSIGN: [{ key: 'accept', label: '接单', className: 'primary' }],
-    PENDING_TECH_ACCEPT: [{ key: 'accept', label: '接单', className: 'primary' }],
-    IN_PROGRESS: [{ key: 'repair', label: '维修登记', className: 'primary' }],
+    PENDING_ASSIGN: [{ key: 'TECH_ACCEPT', label: '接单', className: 'primary' }],
+    PENDING_TECH_ACCEPT: [{ key: 'TECH_ACCEPT', label: '接单', className: 'primary' }],
+    IN_PROGRESS: [{ key: 'REPAIR_FINISH', label: '维修登记', className: 'primary' }],
     COMPLETED: [
-      { key: 'returnMethod', label: '机器返回方式', className: 'outline' },
-      { key: 'recheck', label: '复检登记', className: 'primary' }
+      { key: 'CLOSE', label: '机器返回方式', className: 'outline' },
+      { key: 'REVIEW', label: '复检登记', className: 'primary' }
     ],
     CLOSED: []
   }
@@ -942,7 +961,7 @@
    */
   const goToBranchDetail = (branch: BranchItem, tab: SecondaryTab = 'all') => {
     uni.navigateTo({
-      url: `/pages/order/branch-detail?id=${branch.id}&name=${encodeURIComponent(branch.name)}&tab=${encodeURIComponent(tab)}`
+      url: `/pages/order/branch-detail?id=${branch.id}&name=${encodeURIComponent(branch.name)}&tab=${encodeURIComponent(tab)}&total=${branch.total}&pending=${branch.pending}&processing=${branch.processing}&completed=${branch.completed}`
     })
   }
 
@@ -955,14 +974,14 @@
     const base = operatorActionMap[status] ?? []
     const hq = isHqProcessView.value
     return base.filter((a) => {
-      if (a.key === 'accept') return userStore.hasPermission(Perms.WORKORDER_ACCEPT)
-      if (a.key === 'repair') return userStore.hasPermission(Perms.WORKORDER_REPAIR) || hq
-      if (a.key === 'returnMethod')
+      if (a.key === 'TECH_ACCEPT') return userStore.hasPermission(Perms.WORKORDER_ACCEPT)
+      if (a.key === 'REPAIR_FINISH') return userStore.hasPermission(Perms.WORKORDER_REPAIR) || hq
+      if (a.key === 'CLOSE')
         return (
           userStore.hasPermission(Perms.WORKORDER_CLOSE) &&
           (userStore.hasPermission(Perms.WORKORDER_ACCEPT) || hq)
         )
-      if (a.key === 'recheck') return userStore.hasPermission(Perms.WORKORDER_REVIEW) || hq
+      if (a.key === 'REVIEW') return userStore.hasPermission(Perms.WORKORDER_REVIEW) || hq
       return true
     })
   }
@@ -1029,7 +1048,149 @@
   const operatorShowsRecheck = (order: OrderListItem) => {
     if (order.status !== 'COMPLETED') return false
     if (!showOperatorActions(order)) return false
-    return getOperatorActions('COMPLETED').some((a) => a.key === 'recheck')
+    return getOperatorActions('COMPLETED').some((a) => a.key === 'REVIEW')
+  }
+
+  const getOrderAvailableActions = (order: OrderListItem): WorkOrderActionKey[] =>
+    normalizeAvailableActions(
+      (order as OrderListItem & { availableActions?: unknown }).availableActions
+    )
+
+  const getOrderRoleForRegression = (
+    order: OrderListItem
+  ): 'hq' | 'dispatcher' | 'engineer' | 'unknown' => {
+    if (isHqProcessView.value) return 'hq'
+    if (userStore.hasPermission(Perms.WORKORDER_ASSIGN)) return 'dispatcher'
+    if (
+      userStore.hasPermission(Perms.WORKORDER_ACCEPT) ||
+      userStore.hasPermission(Perms.WORKORDER_REPAIR) ||
+      userStore.hasPermission(Perms.WORKORDER_REVIEW)
+    ) {
+      return 'engineer'
+    }
+    if (order.transferred) return 'engineer'
+    return 'unknown'
+  }
+
+  const getActionLabel = (actionKey: WorkOrderActionKey) => {
+    if (actionKey === 'ASSIGN') return '派单'
+    if (actionKey === 'TECH_ACCEPT') return '接单'
+    if (actionKey === 'TRANSFER') return '转单'
+    if (actionKey === 'REPAIR_FINISH') return '维修登记'
+    if (actionKey === 'REVIEW') return '复检登记'
+    if (actionKey === 'UPLOAD_SEND_EXPRESS') return '上传寄件单号'
+    if (actionKey === 'CLOSE') return '机器返回方式'
+    return ''
+  }
+
+  const getActionClassName = (actionKey: WorkOrderActionKey): OperatorAction['className'] =>
+    actionKey === 'CLOSE' ? 'outline' : 'primary'
+
+  /**
+   * 基于权限与业务兜底过滤动作：
+   * - 权限二次过滤（防后端误下发）
+   * - 派给他人只可查看
+   * - 转出网点不可操作
+   */
+  const isActionAllowed = (order: OrderListItem, actionKey: WorkOrderActionKey) => {
+    if (primaryTab.value === 'transferred') return false
+    if (isDispatcherOrderAssignedToOther(order)) return false
+
+    if (actionKey === 'ASSIGN') return userStore.hasPermission(Perms.WORKORDER_ASSIGN)
+    if (actionKey === 'TECH_ACCEPT')
+      return (
+        userStore.hasPermission(Perms.WORKORDER_ACCEPT) &&
+        canCurrentSiteOperateTransferredOrder(
+          !!order.transferred,
+          order.transferFromSite,
+          userStore.currentNetworkName
+        )
+      )
+    if (actionKey === 'TRANSFER') return userStore.hasPermission(Perms.WORKORDER_TRANSFER)
+    if (actionKey === 'REPAIR_FINISH')
+      return (
+        (userStore.hasPermission(Perms.WORKORDER_REPAIR) || isHqProcessView.value) &&
+        canCurrentSiteOperateTransferredOrder(
+          !!order.transferred,
+          order.transferFromSite,
+          userStore.currentNetworkName
+        )
+      )
+    if (actionKey === 'REVIEW')
+      return userStore.hasPermission(Perms.WORKORDER_REVIEW) || isHqProcessView.value
+    if (actionKey === 'UPLOAD_SEND_EXPRESS')
+      // 后端 @SaCheckPermission("workorder:assign")：上传寄件单号走派单权限点
+      return userStore.hasPermission(Perms.WORKORDER_ASSIGN)
+    if (actionKey === 'CLOSE')
+      return (
+        userStore.hasPermission(Perms.WORKORDER_CLOSE) &&
+        (userStore.hasPermission(Perms.WORKORDER_ACCEPT) || isHqProcessView.value)
+      )
+    return false
+  }
+
+  const getActionButtons = (actionKeys: WorkOrderActionKey[]): OperatorAction[] =>
+    actionKeys.map((key) => ({
+      key,
+      label: getActionLabel(key),
+      className: getActionClassName(key)
+    }))
+
+  /**
+   * 状态回退逻辑：当接口未返回 availableActions 时，沿用原先状态驱动按钮。
+   * 仅用于过渡期兜底，后续接口稳定后回收（保留审计埋点）。
+   */
+  const getFallbackStatusActions = (order: OrderListItem): WorkOrderActionKey[] => {
+    const actionKeys: WorkOrderActionKey[] = []
+    const pushUnique = (actionKey: WorkOrderActionKey) => {
+      if (!actionKeys.includes(actionKey)) actionKeys.push(actionKey)
+    }
+
+    if (showDispatcherActionBlock(order)) {
+      if (isOrderPendingAssign(order)) pushUnique('ASSIGN')
+      else if (isOrderPendingTechAccept(order)) pushUnique('TECH_ACCEPT')
+      else if (
+        order.status === 'IN_PROGRESS' &&
+        userStore.hasPermission(Perms.WORKORDER_TRANSFER)
+      ) {
+        pushUnique('TRANSFER')
+      } else if (order.status === 'COMPLETED') {
+        if (userStore.hasPermission(Perms.WORKORDER_REVIEW) && !operatorShowsRecheck(order))
+          pushUnique('REVIEW')
+        if (userStore.hasPermission(Perms.WORKORDER_TRANSFER)) pushUnique('TRANSFER')
+      }
+    }
+
+    if (showOperatorActions(order)) {
+      getOperatorActions(order.status).forEach((action) => {
+        pushUnique(action.key)
+      })
+    }
+
+    return actionKeys
+  }
+
+  /**
+   * 列表按钮渲染优先级：
+   * 1. 有 availableActions 时按后端动作渲染；
+   * 2. 前端再做权限二次过滤；
+   * 3. 无 availableActions 时才回退旧状态逻辑（过渡期）。
+   */
+  const getVisibleActions = (order: OrderListItem): OperatorAction[] => {
+    const availableActionKeys = getOrderAvailableActions(order)
+    let candidateActionKeys = availableActionKeys
+    if (!availableActionKeys.length && ENABLE_LEGACY_STATUS_ACTION_FALLBACK) {
+      candidateActionKeys = getFallbackStatusActions(order)
+      auditLegacyStatusFallbackHit({
+        orderId: order.id,
+        role: getOrderRoleForRegression(order),
+        status: order.status,
+        primaryTab: primaryTab.value,
+        secondaryTab: secondaryTab.value,
+        fallbackActions: candidateActionKeys
+      })
+    }
+    return getActionButtons(candidateActionKeys.filter((key) => isActionAllowed(order, key)))
   }
 
   /**
@@ -1234,26 +1395,81 @@
     })
   }
 
+  // ==================== 上传寄件单号（UPLOAD_SEND_EXPRESS）====================
+
+  /** 上传寄件单号弹窗：锁定的工单ID */
+  const currentSendExpressWorkOrderId = ref('')
+  const showUploadSendExpressModal = ref(false)
+
+  const openUploadSendExpressModal = (orderId: string) => {
+    currentSendExpressWorkOrderId.value = String(orderId ?? '').trim()
+    showUploadSendExpressModal.value = true
+  }
+
   /**
-   * 处理操作按钮点击
-   * @param actionKey 操作按钮键
+   * 提交寄件单号：PUT `/system/work-order/send-express`；成功后关闭弹窗并刷新列表。
+   */
+  const onSubmitSendExpress = async (payload: {
+    workOrderId: number
+    sendExpressNo: string
+    senderVoucherFileIds?: number[]
+  }) => {
+    uni.showLoading({ title: '提交中...' })
+    try {
+      await updateWorkOrderSendExpress(payload)
+      uni.showToast({ title: '寄件单号已上传', icon: 'none', duration: 1500 })
+      showUploadSendExpressModal.value = false
+      currentSendExpressWorkOrderId.value = ''
+      appStore.markOrderListScrollRefresherOnNextShow()
+      await refreshListEntry(false)
+    } catch {
+      // 失败提示已在 http 层处理
+    } finally {
+      uni.hideLoading()
+    }
+  }
+
+  /**
+   * 动作统一分发：将工单动作语义映射到当前页面既有行为实现。
+   */
+  const workOrderActionHandlers: Record<
+    | 'ASSIGN'
+    | 'TECH_ACCEPT'
+    | 'TRANSFER'
+    | 'REPAIR_FINISH'
+    | 'REVIEW'
+    | 'UPLOAD_SEND_EXPRESS'
+    | 'CLOSE',
+    (orderId: string) => void
+  > = {
+    ASSIGN: (orderId) => openAssignModal(orderId),
+    TECH_ACCEPT: (orderId) => onAcceptOrder(orderId),
+    TRANSFER: (orderId) => {
+      void openTransferModal(orderId)
+    },
+    REPAIR_FINISH: (orderId) => onRepairRegister(orderId),
+    REVIEW: (orderId) => onRecheck(orderId),
+    UPLOAD_SEND_EXPRESS: (orderId) => openUploadSendExpressModal(orderId),
+    CLOSE: (orderId) => onReturnMethod(orderId)
+  }
+
+  /**
+   * 处理工单动作点击。
+   * @param actionKey 工单动作 key
    * @param orderId 工单ID
    * @returns void
    */
-  const handleOperatorAction = (actionKey: OperatorActionKey, orderId: string) => {
-    if (actionKey === 'accept') {
-      onAcceptOrder(orderId)
+  const dispatchWorkOrderAction = (actionKey: WorkOrderActionKey, orderId: string | number) => {
+    const id = String(orderId ?? '').trim()
+    if (!id) {
+      uni.showToast({ title: '工单ID无效', icon: 'none' })
       return
     }
-    if (actionKey === 'repair') {
-      onRepairRegister(orderId)
+    if (!(actionKey in workOrderActionHandlers)) {
+      uni.showToast({ title: '暂不支持该操作', icon: 'none' })
       return
     }
-    if (actionKey === 'returnMethod') {
-      onReturnMethod(orderId)
-      return
-    }
-    onRecheck(orderId)
+    workOrderActionHandlers[actionKey as keyof typeof workOrderActionHandlers](id)
   }
 </script>
 
@@ -1292,7 +1508,7 @@
 
     .branch-summary-header {
       @include flex-between;
-      padding: $space-sm $space-lg;
+      padding: $space-sm $space-lg 0;
       background-color: $bg-light;
 
       .branch-summary-title {

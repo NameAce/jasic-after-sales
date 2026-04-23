@@ -327,8 +327,8 @@
       selectedShippingAddress.value,
       formData.value.shippingInfo,
       {
-        fallbackName: String(userStore.userInfo?.name ?? ''),
-        fallbackMobile: String(userStore.userInfo?.mobile ?? '')
+        fallbackName: String(userStore.userInfo?.nickname ?? ''),
+        fallbackMobile: String(userStore.userInfo?.phone ?? '')
       }
     )
 
@@ -337,7 +337,7 @@
       brandCode: brandNameTrim || 'OTHER',
       brandName: brandNameTrim || undefined,
       brandType: CUSTOMER_WORK_ORDER_REPORT_BIZ_TYPE.NON_JASIC,
-      customerName: String(userStore.userInfo?.name ?? ''),
+      customerName: String(userStore.userInfo?.nickname ?? ''),
       faultDesc: '',
       faultItems: [],
       faultRemark: String(formData.value.faultRemark ?? '').trim(),

@@ -41,10 +41,10 @@ export const useUserStore = defineStore(
     const subjectType = computed<SubjectType>(() =>
       getSubjectType(userInfo.value?.currentTypeCode),
     )
-    // 经销商层级
+    // 经销商层级（后端 SysAuthServiceImpl 写入 currentTypeCode 值为 SITE_FIRST / SITE_SECOND）
     const dealerLevel = computed<DealerLevel>(() => {
       const code = userInfo.value?.currentTypeCode
-      if (code === 'SECOND') return 'secondary'
+      if (code === 'SITE_SECOND') return 'secondary'
       return 'primary'
     })
     // 是否为主经销商

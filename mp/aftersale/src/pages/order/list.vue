@@ -98,9 +98,17 @@
               </view>
             </view>
 
-            <!-- 待接单：维修方式、条码（有条码才显示）；其余状态：网点、电话、方式、价格、条码（有条码才显示） -->
+            <!-- 待接单：网点、电话（有则显示）、维修方式、条码；其余状态：网点、电话、方式、价格、条码 -->
             <view class="details-grid">
               <template v-if="order.status === '待接单'">
+                <view v-if="hasDisplayText(order.centerName)" class="detail-item">
+                  <text class="d-label">维修网点</text>
+                  <text class="d-value">{{ order.centerName }}</text>
+                </view>
+                <view v-if="hasDisplayText(order.phone)" class="detail-item">
+                  <text class="d-label">网点电话</text>
+                  <text class="d-value text-primary">{{ order.phone }}</text>
+                </view>
                 <view v-if="hasDisplayText(order.repairType)" class="detail-item">
                   <text class="d-label">维修方式</text>
                   <text class="d-value">{{ order.repairType }}</text>
@@ -148,6 +156,7 @@
                 <text class="time-text">{{ order.time }}</text>
               </view>
               <view class="action-wrap">
+                <!-- 显隐由接口布尔字段控制，页面仅做渲染，不追加本地业务判断 -->
                 <button
                   v-if="order.canUploadSendExpress"
                   class="btn-action primary"
@@ -214,6 +223,7 @@
   import {
     listCustomerWorkOrder,
     mapWorkOrderListRecordToItem,
+    fetchCustomerWorkOrderOutletPhone,
     updateCustomerWorkOrderSenderVoucher,
     type OrderListItem
   } from '@/api/workOrder'
@@ -223,7 +233,8 @@
   import { emptyOrderListIcon, photoCameraIcon, scheduleIcon } from '@/svgs'
   import { useScrollRefresher } from '@/utils/useScrollRefresher'
 
-  // 工单状态标签
+  // 工单状态标签（UI 文案仅用于展示，接口筛选统一走后端 `tabStatus` 展示态枚举：
+  // WAIT_ACCEPT / IN_PROGRESS / COMPLETED / CLOSED，见 `CustomerWorkOrderQuery`）
   const tabs = ['全部', '待接单', '维修中', '已完成', '已关闭'] as const
   const tabStatusMap: Record<number, string | undefined> = {
     0: undefined,
@@ -245,6 +256,41 @@
   const loadingMore = ref(false)
   /** 模糊筛选关键词（仅过滤当前已加载到本地的列表，不额外请求接口） */
   const searchKeyword = ref('')
+  /**
+   * 列表「网点电话」补齐代数：仅在整页重置（下拉刷新 / Tab / onShow 首拉）时递增，用于取消过期的详情串行请求；
+   * 上拉追加同一代数，避免误杀上一页仍在进行的补齐。
+   */
+  let outletPhoneHydrateGen = 0
+
+  /**
+   * 列表无网点电话字段时，对已加载且已有网点名的工单分批请求详情写入 `phone`（每批并发 3）。
+   * @param mapped - 本页映射后的列表项
+   * @param gen - 发起时的补齐代数
+   */
+  function scheduleOutletPhoneHydration(mapped: OrderListItem[], gen: number) {
+    const targets = mapped.filter(
+      (o) => String(o.id).trim() && !String(o.phone ?? '').trim() && String(o.centerName ?? '').trim()
+    )
+    if (!targets.length) return
+    const CONCURRENCY = 3
+    void (async () => {
+      for (let i = 0; i < targets.length; i += CONCURRENCY) {
+        if (gen !== outletPhoneHydrateGen) return
+        const batch = targets.slice(i, i + CONCURRENCY)
+        const rows = await Promise.all(
+          batch.map(async (o) => ({ id: o.id, phone: await fetchCustomerWorkOrderOutletPhone(o.id) }))
+        )
+        if (gen !== outletPhoneHydrateGen) return
+        for (const { id, phone } of rows) {
+          if (!phone) continue
+          const idx = orderList.value.findIndex((x) => x.id === id)
+          if (idx >= 0 && !String(orderList.value[idx].phone ?? '').trim()) {
+            orderList.value[idx] = { ...orderList.value[idx], phone }
+          }
+        }
+      }
+    })()
+  }
 
   /**
    * 是否包含条码
@@ -266,7 +312,7 @@
     return Boolean(order.modelName?.trim())
   }
 
-  /** 列表状态角标：优先接口 `displayStatus`，与映射后的 `status` 对齐样式 */
+  /** 列表状态角标：C 端中文状态优先用 `displayStatus` 展示，筛选仍走主枚举 `mainStatus` */
   function orderStatusText(order: OrderListItem) {
     const fromApi = String(order.displayStatus ?? '').trim()
     return fromApi || order.status
@@ -312,11 +358,13 @@
     if (!reset && !hasMore.value) return
     const targetPage = reset ? 1 : pageNum.value
     if (reset) {
+      outletPhoneHydrateGen += 1
       loading.value = true
       hasMore.value = true
     } else {
       loadingMore.value = true
     }
+    const hydrateGen = outletPhoneHydrateGen
     try {
       const res = await listCustomerWorkOrder({
         pageNum: targetPage,
@@ -331,6 +379,7 @@
       const loadedCount = orderList.value.length
       hasMore.value = loadedCount < total.value && mapped.length > 0
       pageNum.value = targetPage + 1
+      scheduleOutletPhoneHydration(mapped, hydrateGen)
     } catch {
       if (reset) {
         orderList.value = []
@@ -361,7 +410,7 @@
     await reloadOrderList()
   })
 
-  /** 切换 Tab：更新状态并请求接口（全部不传 tabStatus，其余传 WAIT_ACCEPT 等） */
+  /** 切换 Tab：仅切换展示 Tab，接口筛选参数统一映射为 mainStatus */
   function selectTab(index: number) {
     if (currentTab.value === index) return
     currentTab.value = index
@@ -747,6 +796,16 @@
 
           .text {
             color: $warranty-out;
+            font-weight: 600;
+          }
+        }
+
+        &.tag-repair-type {
+          background-color: rgba($primary, 0.08);
+          border-color: rgba($primary, 0.3);
+
+          .text {
+            color: $primary;
             font-weight: 600;
           }
         }

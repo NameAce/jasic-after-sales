@@ -21,7 +21,6 @@
         <view class="user-details">
           <view class="name-row">
             <text class="name">{{ profileData.name }}</text>
-            <text class="title-tag">{{ profileData.titleTag }}</text>
           </view>
           <view class="id-row">
             <text class="id-value">{{ profileData.phone }}</text>
@@ -216,17 +215,6 @@
             font-weight: bold;
             line-height: 1.2;
             letter-spacing: -1rpx;
-          }
-
-          .title-tag {
-            background-color: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(24rpx);
-            padding: 4rpx 16rpx;
-            border-radius: 8rpx;
-            font-size: 20rpx;
-            color: $primary-contrast;
-            font-weight: bold;
-            border: 2rpx solid rgba(255, 255, 255, 0.2);
           }
         }
 

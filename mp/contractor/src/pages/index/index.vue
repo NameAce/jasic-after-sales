@@ -45,10 +45,7 @@
         :hq-updated-at="hqUpdatedAt"
         :hq-network-stats="hqNetworkStats"
         :hq-transferred-count="hqTransferredCount"
-        :branch-list="branchList"
         @stat-tap="goToOrderListTab"
-        @view-all-branches="onHqViewAllBranches"
-        @branch-tap="goToBranchDetail"
       />
 
       <!-- 派单模态框 -->
@@ -79,7 +76,7 @@
   import { formatTimeHHMM } from '@/utils/format'
   import { Perms } from '@/utils/permissions'
   import { hqMenuIcon, personPinCircleIcon } from '@/svgs'
-  import { useIndexWorkbench, type HqBranchRow } from './useIndexWorkbench'
+  import { useIndexWorkbench } from './useIndexWorkbench'
   import { assignWorkOrder, listAssignUserOptions } from '@/api/workOrder'
   import { getApiMessage } from '@/utils/http'
 
@@ -109,7 +106,6 @@
     sitePrimaryPendingStat,
     showInboundTransferTag,
     showTransferredTag,
-    branchList,
     loadMoreSiteWorkbench,
     showSiteWorkbenchNoMore
   } = useIndexWorkbench()
@@ -151,30 +147,6 @@
     if (userStore.hasPermission(Perms.WORKORDER_ASSIGN)) return '派单工作台'
     return '接单工作台'
   })
-
-  /**
-   * 查看所有网点
-   * @returns void
-   */
-  const onHqViewAllBranches = () => {
-    appStore.setOrderListNavTarget({
-      primaryTab: 'transferred',
-      secondaryTab: 'all'
-    })
-    uni.switchTab({ url: '/pages/order/list' })
-  }
-
-  /**
-   * 跳转到网点详情
-   * @param branch 网点
-   * @returns void
-   */
-  const goToBranchDetail = (branch: HqBranchRow) => {
-    const tab = 'all'
-    uni.navigateTo({
-      url: `/pages/order/branch-detail?id=${branch.id}&name=${encodeURIComponent(branch.name)}&tab=${encodeURIComponent(tab)}`
-    })
-  }
 
   /** 可派单人员列表 */
   const technicianList = ref<Technician[]>([])

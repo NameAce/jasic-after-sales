@@ -14,32 +14,29 @@
  * 配合 `userStore.hasPermission(Perms.XXX)`、`canAny([...])`、`canAll([...])` 在页面/组件内控制按钮与区块展示。
  * 路由仅校验登录（见 `routeGuard.ts`），不按权限码拦截页面进入。
  *
- * 阶段 4.4（`三端契约统一计划_5eaf1a62.plan.md`）：
- *   需要与后端 `sys_menu.perms` 实际文本 **完全对齐**。当前值按「工单模块」命名空间，
- *   仍沿用 `workorder:xxx` 前缀，待后端给出 `sys_menu.perms` 完整清单后再一次性替换。
- *   替换时只改 `Perms.*` 右值字符串，所有 `userStore.hasPermission(Perms.XXX)` 调用点自动生效。
- *
- * @todo 与后端对齐 `sys_menu.perms` 真实文本后，将下列 `workorder:xxx` 替换为后端字面值。
- *       如命名空间规范改为 `system:work-order:xxx`，也在此处同步更新。
+ * 右值真源：数据库 `sys_menu.perms` 字面值（见 `sql/upgrade-20260326-work-order-menu.sql` 与
+ * `sql/upgrade-20260415-remove-work-order-quote-menu.sql`），与本文件下列 `workorder:xxx`
+ * 常量一一对应；如后端调整命名空间，只改本文件 `Perms.*` 的右值字符串，所有
+ * `userStore.hasPermission(Perms.XXX)` 调用点自动生效。
  */
 export const Perms = {
-  /** 工单查询 · @todo 对齐后端 `sys_menu.perms`（建议 `system:work-order:list`） */
+  /** 工单查询（sys_menu.perms = `workorder:list`） */
   WORKORDER_LIST: 'workorder:list',
-  /** 工单新增 · @todo 对齐后端 `sys_menu.perms`（建议 `system:work-order:add`） */
+  /** 工单新增（sys_menu.perms = `workorder:add`） */
   WORKORDER_ADD: 'workorder:add',
-  /** 工单派单 · @todo 对齐后端 `sys_menu.perms`（建议 `system:work-order:assign`） */
+  /** 工单派单（sys_menu.perms = `workorder:assign`） */
   WORKORDER_ASSIGN: 'workorder:assign',
-  /** 工单接单 · @todo 对齐后端 `sys_menu.perms`（建议 `system:work-order:accept`） */
+  /** 工单接单（sys_menu.perms = `workorder:accept`） */
   WORKORDER_ACCEPT: 'workorder:accept',
-  /** 工单转单 · @todo 对齐后端 `sys_menu.perms`（建议 `system:work-order:transfer`） */
+  /** 工单转单（sys_menu.perms = `workorder:transfer`） */
   WORKORDER_TRANSFER: 'workorder:transfer',
-  /** 工单报价 · @todo 对齐后端 `sys_menu.perms`（建议 `system:work-order:quote`） */
+  /** 工单报价（sys_menu.perms = `workorder:quote`） */
   WORKORDER_QUOTE: 'workorder:quote',
-  /** 维修登记 · @todo 对齐后端 `sys_menu.perms`（建议 `system:work-order:repair`） */
+  /** 维修登记（sys_menu.perms = `workorder:repair`） */
   WORKORDER_REPAIR: 'workorder:repair',
-  /** 复检登记 · @todo 对齐后端 `sys_menu.perms`（建议 `system:work-order:review`） */
+  /** 复检登记（sys_menu.perms = `workorder:review`） */
   WORKORDER_REVIEW: 'workorder:review',
-  /** 工单关闭 · @todo 对齐后端 `sys_menu.perms`（建议 `system:work-order:close`） */
+  /** 工单关闭（sys_menu.perms = `workorder:close`） */
   WORKORDER_CLOSE: 'workorder:close',
 } as const
 

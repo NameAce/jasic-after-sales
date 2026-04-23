@@ -20,16 +20,8 @@ import {
 } from '@/utils/workOrderMainStatus'
 import { Perms } from '@/utils/permissions'
 
-export type HqBranchRow = {
-  id: number
-  name: string
-  load: number
-  statusClass: 'high' | 'medium' | 'normal'
-  statusText: string
-}
-
 /**
- * 首页工作台：未转单列表、总部统计、网点负荷等（与 mock 同源，单一路径避免重复计算）
+ * 首页工作台：未转单列表、总部统计等
  */
 export function useIndexWorkbench() {
   const userStore = useUserStore()
@@ -285,12 +277,6 @@ export function useIndexWorkbench() {
    */
   const showTransferredTag = (order: OrderListItem) => !!order.transferred
 
-  /**
-   * 分支列表
-   * @returns HqBranchRow[]
-   */
-  const branchList = computed<HqBranchRow[]>(() => [])
-
   return {
     siteWorkbenchStats,
     orderList,
@@ -306,7 +292,6 @@ export function useIndexWorkbench() {
     workbenchEmptyDesc,
     pendingStatLabel,
     showInboundTransferTag,
-    showTransferredTag,
-    branchList
+    showTransferredTag
   }
 }

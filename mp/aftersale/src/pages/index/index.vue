@@ -161,16 +161,10 @@
 
   // 用户商店
   const userStore = useUserStore()
-  // 用户名
-  const userName = computed(() => String(userStore.userInfo?.name || '佳士用户'))
-  // 欢迎语
-  const welcomeSubtitle = computed(() => {
-    const role = userStore.userInfo?.role
-    if (role === 'engineer') return '专业维修，安心保障'
-    if (role === 'dispatcher') return '派单高效，服务无忧'
-    if (role === 'headquarters') return '全局可视，协同高效'
-    return '专业维修，安心保障'
-  })
+  // 用户名（后端 `CustomerUserInfoVO.nickname`）
+  const userName = computed(() => String(userStore.userInfo?.nickname || '佳士用户'))
+  // 欢迎语（C 端无角色分支，统一展示客户文案）
+  const welcomeSubtitle = computed(() => '专业维修，安心保障')
 
   // 最新工单
   const latestOrder = ref<LatestOrderDTO>({

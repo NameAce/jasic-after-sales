@@ -18,16 +18,8 @@ import { ORDER_STATUS_TEXT_MAP, isPendingMainStatus } from '@/utils/orderStatus'
 import { Perms } from '@/utils/permissions'
 import { isWorkOrderPendingTechAcceptMainStatus } from '@/utils/workOrderMainStatus'
 
-export type HqBranchRow = {
-  id: number
-  name: string
-  load: number
-  statusClass: 'high' | 'medium' | 'normal'
-  statusText: string
-}
-
 /**
- * 首页工作台：未转单列表、总部统计、网点负荷等（与 mock 同源，单一路径避免重复计算）
+ * 首页工作台：未转单列表、总部统计等
  */
 export function useIndexWorkbench() {
   const userStore = useUserStore()
@@ -70,7 +62,7 @@ export function useIndexWorkbench() {
   /** 最近一次网点工作台 status-count 原始行（首卡文案与数量与接口 displayStatus / countNum 对齐） */
   const siteStatusCountRows = ref<WorkOrderStatusCountVO[]>([])
 
-  // 总部统计/网点负荷
+  // 总部统计
   const hqStatusStats = ref(emptyTabCounts())
   const hqNetworkStats = computed(() => hqStatusStats.value)
   const hqTransferredCount = ref(0)
@@ -255,8 +247,6 @@ export function useIndexWorkbench() {
 
   const showTransferredTag = (order: OrderListItem) => !!order.transferred
 
-  const branchList = computed<HqBranchRow[]>(() => [])
-
   return {
     siteWorkbenchStats,
     orderList,
@@ -274,7 +264,6 @@ export function useIndexWorkbench() {
     workbenchEmptyDesc,
     sitePrimaryPendingStat,
     showInboundTransferTag,
-    showTransferredTag,
-    branchList
+    showTransferredTag
   }
 }

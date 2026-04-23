@@ -20,6 +20,10 @@
  * 分支顺序契约（三端镜像，禁止调整）：
  *   success 回调内：statusCode 401 → 非 2xx → 204 → shape 校验 → handleResponseBody code 分发
  *   fail 回调内：timeout → 其他网络错误
+ *
+ * 与 `mp/aftersale/src/utils/http.ts` 保持逐行结构对齐（MIRROR_FILE_PAIRS.md 基准）：
+ *   命名（`resolveRequestUrl` / `requestWithUni`）、分支顺序、错误提示文案均一致，
+ *   如需调整请同步修改双端文件。
  */
 
 import {
@@ -53,19 +57,19 @@ let authExpiredHandling = false
  * VITE_HTTP 不存在时回退为 `/api`，避免小程序端空字符串导致的相对路径拼接异常。
  */
 function resolveApiBase(): string {
-  const raw = String(import.meta.env.VITE_HTTP || '').trim().replace(/\/+$/, '')
+  const raw = String(import.meta.env.VITE_HTTP || '').replace(/\/$/, '')
   return `${raw}/api`
 }
 
 /**
- * 拼接 baseURL：业务相对路径自动拼接 `VITE_HTTP + '/api'`
- * @param url 相对 URL（业务层约定为不含 `/api` 前缀，如 `/system/work-order/list`）
+ * 解析请求 URL：相对路径自动拼接 `VITE_HTTP + '/api'`
+ * @param url 请求 URL（业务层约定为不含 `/api` 前缀的相对路径，如 `/system/work-order/list`）
  */
-function withBaseUrl(url: string) {
-  if (!url) return url
+function resolveRequestUrl(url: string | undefined): string {
+  if (!url) return ''
   if (/^https?:\/\//i.test(url)) return url
   const base = resolveApiBase()
-  return `${base}/${url.replace(/^\/+/, '')}`
+  return `${base}${url.startsWith('/') ? url : `/${url}`}`
 }
 
 /**
@@ -73,7 +77,7 @@ function withBaseUrl(url: string) {
  * @param url 相对 URL（不含 `/api` 前缀）
  */
 export function resolveHttpUrl(url: string): string {
-  return withBaseUrl(url)
+  return resolveRequestUrl(url)
 }
 
 function redirectToLogin() {
@@ -145,18 +149,13 @@ function handleResponseBody<T>(
   reject(body)
 }
 
-/**
- * 请求函数
- * @param options 请求选项
- * @returns 请求结果
- */
-export const http = <T>(options: UniApp.RequestOptions) => {
+function requestWithUni<T>(options: UniApp.RequestOptions): Promise<ApiResponse<T>> {
   return new Promise<ApiResponse<T>>((resolve, reject) => {
     const token = uni.getStorageSync('token') || ''
 
     uni.request({
       ...options,
-      url: withBaseUrl(String(options.url || '')),
+      url: resolveRequestUrl(options.url),
       header: {
         ...options.header,
         ...(token ? { Authorization: token } : {}),
@@ -199,8 +198,7 @@ export const http = <T>(options: UniApp.RequestOptions) => {
         )
       },
       fail(err) {
-        const errMsg = String((err as { errMsg?: string })?.errMsg || '')
-        const msg = errMsg.includes('timeout') ? API_MSG_TIMEOUT : API_MSG_NETWORK_ERROR
+        const msg = err.errMsg?.includes('timeout') ? API_MSG_TIMEOUT : API_MSG_NETWORK_ERROR
         uni.showToast({
           icon: 'none',
           title: msg,
@@ -211,6 +209,9 @@ export const http = <T>(options: UniApp.RequestOptions) => {
     })
   })
 }
+
+/** 请求接口：相对路径会拼上 `.env` 的 `VITE_HTTP`（测试域） */
+export const http = requestWithUni
 
 /** 提取接口提示文案，统一优先使用后端返回。 */
 export function getApiMessage<T>(res: ApiResponse<T> | null | undefined, fallback = ''): string {

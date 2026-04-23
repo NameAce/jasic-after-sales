@@ -65,6 +65,8 @@
             <!-- ---- 维修中 / 已完成复检: 故障点登记（与维修登记同款；复检仅底部按钮文案不同） ---- -->
             <OrderDetailFaultRegisterForm
               v-if="canEditFaultPoint"
+              v-model:fault-items="faultItemsSelect"
+              v-model:fault-remark="faultRemarkInput"
               v-model:repair-desc="repairDescSelect"
               v-model:other-repair-desc="otherRepairDesc"
               v-model:replace-parts="replaceParts"
@@ -75,6 +77,8 @@
               v-model:other-images="otherImages"
               :is-recheck="detailEntryAction === 'recheck'"
               :fault-options="repairFaultOptions"
+              :first-repair-fault-desc="firstRepairFaultDescText"
+              :first-repair-fault-remark="firstRepairFaultRemarkText"
             />
 
             <!-- 故障点信息（复检编辑时不展示，避免与上方登记表单重复） -->
@@ -91,7 +95,7 @@
             />
           </view>
 
-          <!-- 客户评价 -->
+          <!-- 客户评价（只读展示；contractor 端不提供评价入口） -->
           <OrderDetailEvaluateSection
             v-if="showEvaluateTab && currentTab === 2"
             :evaluate="order.evaluate"
@@ -101,9 +105,9 @@
         <!-- 申请内容 Extra Cards -->
         <template v-if="currentTab === 0">
           <OrderDetailProductCard
-            v-model:model-input="machineModelInput"
             :product="order.product"
-            :show-model-input="canEditFaultPoint && !!order.brand?.isJiashi"
+            :need-supplement="needSupplementMachineModel"
+            @supplement="openMachineModelSupplement"
           />
           <OrderDetailServiceCard :service="order.service" />
         </template>
@@ -168,6 +172,12 @@
               </view>
             </base-button>
           </template>
+          <!-- UPLOAD_SEND_EXPRESS：待受理+邮寄时后端会在 availableActions 下发本动作 -->
+          <base-button v-if="canUploadSendExpress">
+            <view class="btn btn-primary action-wrap" @click="openUploadSendExpressModal">
+              上传寄件单号
+            </view>
+          </base-button>
           <!-- 已维修完成 -->
           <template v-else-if="repairExtrasLayout === 'readonly_summary'">
             <OrderDetailRepairMetaCard :order="order" />
@@ -191,6 +201,21 @@
       no-fault-required
       @confirm="onCloseOrderConfirm"
     />
+
+    <!-- 机型补录弹窗：进入维修登记/复检时，佳士品牌且机型缺失自动弹出 -->
+    <MachineModelSupplementModal
+      v-model:visible="showMachineModelSupplement"
+      :work-order-id="machineModelSupplementWorkOrderId"
+      @confirm="onMachineModelSupplementConfirm"
+      @cancel="onMachineModelSupplementCancel"
+    />
+
+    <!-- 上传寄件单号弹窗 -->
+    <UploadSendExpressModal
+      v-model:visible="showUploadSendExpressModal"
+      :work-order-id="resolveWorkOrderId()"
+      @confirm="onSubmitSendExpress"
+    />
   </view>
 </template>
 
@@ -213,12 +238,16 @@
   import OrderDetailRepairMetaCard from './components/OrderDetailRepairMetaCard.vue'
   import OrderDetailServiceCard from './components/OrderDetailServiceCard.vue'
   import OrderDetailStatusBanner from './components/OrderDetailStatusBanner.vue'
+  import MachineModelSupplementModal from './components/MachineModelSupplementModal.vue'
+  import UploadSendExpressModal from '@/components/UploadSendExpressModal/UploadSendExpressModal.vue'
   import {
     getWorkOrder,
     listRepairFaultOptions,
     repairWorkOrder,
     reviewWorkOrder,
     techAcceptWorkOrder,
+    updateRepairProductModel,
+    updateWorkOrderSendExpress,
     type ReturnMethodConfirmPayload,
     type WorkOrderRepairFaultOptionVO,
     type WorkOrderReviewDTO
@@ -293,9 +322,38 @@
   })
 
   // 维修中 - 故障点登记
-  const machineModelInput = ref('')
-  /** 仅佳士且详情无型号时，维修登记/复检提交需强制补填机器型号 */
+  /** 仅佳士且详情无型号时，维修登记/复检提交需强制补填机器型号（通过 MachineModelSupplementModal 弹窗补录） */
   const requireMachineModelForJiashi = ref(false)
+  /** 机型补录弹窗显隐 */
+  const showMachineModelSupplement = ref(false)
+  /** 机型补录弹窗锁定的工单ID（打开弹窗瞬间快照） */
+  const machineModelSupplementWorkOrderId = ref(0)
+  /** 进入维修登记/复检时，只需在首次触发时自动弹出一次，避免用户手动关闭后反复弹 */
+  const machineModelAutoOpened = ref(false)
+
+  const needSupplementMachineModel = computed(() => {
+    if (!requireMachineModelForJiashi.value) return false
+    return !hasVal(order.value.product?.model)
+  })
+
+  /** 上传寄件单号弹窗显隐 */
+  const showUploadSendExpressModal = ref(false)
+
+  /**
+   * 是否展示「上传寄件单号」按钮：
+   * - 当前登录用户具备派单权限（后端 SaCheckPermission("workorder:assign")）
+   * - 详情 `availableActions` 含 UPLOAD_SEND_EXPRESS（后端已结合"待受理+邮寄"给出）
+   */
+  const canUploadSendExpress = computed(() => {
+    if (!userStore.hasPermission(Perms.WORKORDER_ASSIGN)) return false
+    return (order.value.availableActions || []).includes('UPLOAD_SEND_EXPRESS')
+  })
+  /** 维修确认故障多选（对应后端 WorkOrderRepairDTO.faultItems） */
+  const faultItemsSelect = ref<string[]>([])
+  /** 其它故障说明（faultItems 含「其它」时必填） */
+  const faultRemarkInput = ref('')
+  /** 与后端一致的「其它故障」标签 */
+  const OTHER_FAULT_LABEL = '其它'
   const repairDescSelect = ref<string[]>([])
   // 其它维修说明
   const otherRepairDesc = ref('')
@@ -348,6 +406,24 @@
 
   /** 历史记录页等跳转用工单标识 */
   const orderNavId = computed(() => String(order.value.id || orderId.value || '').trim())
+
+  /**
+   * 复检登记时只读回显的"首次维修确认故障"：
+   * 取 faultPoint.allRepairsFaultRecords 第 0 条的 faultDesc；
+   * 仅当 faultDesc 含「其它」且 otherDesc 非空时，将 otherDesc 作为 faultRemark 展示。
+   */
+  const firstRepairFaultDescText = computed(() => {
+    const first = order.value.faultPoint?.allRepairsFaultRecords?.[0]
+    return String(first?.faultDesc || '').trim()
+  })
+  const firstRepairFaultRemarkText = computed(() => {
+    const first = order.value.faultPoint?.allRepairsFaultRecords?.[0]
+    const faultDesc = String(first?.faultDesc || '')
+    const otherDesc = String(first?.otherDesc || '').trim()
+    if (!otherDesc) return ''
+    if (faultDesc.includes('其它') || faultDesc.includes('其他')) return otherDesc
+    return ''
+  })
 
   const {
     isPending,
@@ -465,7 +541,6 @@
       if (isOrderStatus(detail.status)) {
         orderStatus.value = detail.status
       }
-      machineModelInput.value = String(detail.product?.model ?? '').trim()
       requireMachineModelForJiashi.value =
         !!detail.brand?.isJiashi && !hasVal(detail.product?.model)
 
@@ -537,9 +612,9 @@
         repairDescSelect.value = [OTHER_REPAIR_LABEL]
       }
 
-      // 维修登记 / 复检：默认进「维修过程」；
-      // 佳士品牌仅在「机器型号为空」时，首次进「申请内容」便于补全型号；
-      // 非佳士默认进「维修过程」
+      // 维修登记 / 复检：默认进「维修过程」。
+      // 佳士品牌且机型为空时，不再把 Tab 切到「申请内容」让用户手填，
+      // 改为弹出 MachineModelSupplementModal 机型补录弹窗（对齐 jasic-ui 做法）。
       if (
         !repairEntryTabInitialized.value &&
         (detailEntryAction.value === 'repair' || detailEntryAction.value === 'recheck')
@@ -550,9 +625,11 @@
           detailEntryAction.value === 'recheck' && orderStatus.value === 'COMPLETED'
         if (repairEntry || recheckEntry) {
           repairEntryTabInitialized.value = true
-          const isJiashiBrand = !!order.value.brand?.isJiashi
-          const hasModel = hasVal(order.value.product?.model)
-          currentTab.value = isJiashiBrand && !hasModel ? 0 : 1
+          currentTab.value = 1
+          if (needSupplementMachineModel.value && !machineModelAutoOpened.value) {
+            machineModelAutoOpened.value = true
+            openMachineModelSupplement()
+          }
         }
       }
     } catch (e) {
@@ -563,16 +640,77 @@
 
   // ==================== 操作方法 ====================
 
-  watch(machineModelInput, (v) => {
-    const next = String(v ?? '').trim()
-    if (!order.value.product) return
-    if (order.value.product.model === next) return
-    order.value.product.model = next
-  })
-
   const resolveWorkOrderId = () => {
     const id = Number(order.value.id || orderId.value)
     return Number.isFinite(id) && id > 0 ? id : 0
+  }
+
+  /** 打开机型补录弹窗（由「点击补录机器型号」或维修登记提交时缺机型触发） */
+  const openMachineModelSupplement = () => {
+    const wid = resolveWorkOrderId()
+    if (!wid) {
+      uni.showToast({ title: '工单ID无效', icon: 'none' })
+      return
+    }
+    machineModelSupplementWorkOrderId.value = wid
+    showMachineModelSupplement.value = true
+  }
+
+  /** 弹窗确认：调 PUT /repair-product-model 写入后刷新详情，让「维修过程」后续能拿到 repair-fault-options */
+  const onMachineModelSupplementConfirm = async (productModel: string) => {
+    const wid = machineModelSupplementWorkOrderId.value
+    if (!wid) {
+      showMachineModelSupplement.value = false
+      return
+    }
+    uni.showLoading({ title: '提交中...' })
+    try {
+      await updateRepairProductModel({ workOrderId: wid, productModel })
+      showMachineModelSupplement.value = false
+      if (order.value.product) {
+        order.value.product.model = productModel
+      }
+      await loadDetail()
+      uni.showToast({ title: '机器型号已更新', icon: 'none' })
+    } catch {
+      // updateRepairProductModel 内已 toast
+    } finally {
+      uni.hideLoading()
+    }
+  }
+
+  const onMachineModelSupplementCancel = () => {
+    // 取消：保留已要求补录的标记，提交维修登记前若仍缺机型会再次弹出
+  }
+
+  /** 打开「上传寄件单号」弹窗（待受理+邮寄阶段） */
+  const openUploadSendExpressModal = () => {
+    const wid = resolveWorkOrderId()
+    if (!wid) {
+      uni.showToast({ title: '工单ID无效', icon: 'none' })
+      return
+    }
+    showUploadSendExpressModal.value = true
+  }
+
+  /** 弹窗确认：PUT `/system/work-order/send-express`，成功后刷新详情 */
+  const onSubmitSendExpress = async (payload: {
+    workOrderId: number
+    sendExpressNo: string
+    senderVoucherFileIds?: number[]
+  }) => {
+    uni.showLoading({ title: '提交中...' })
+    try {
+      await updateWorkOrderSendExpress(payload)
+      showUploadSendExpressModal.value = false
+      uni.showToast({ title: '寄件单号已上传', icon: 'none', duration: 1500 })
+      appStore.markOrderListScrollRefresherOnNextShow()
+      await loadDetail()
+    } catch {
+      // 失败提示已在 http 层处理
+    } finally {
+      uni.hideLoading()
+    }
   }
 
   /** 维修报价选填：空为未填；有内容则须为有效非负数 */
@@ -773,17 +911,30 @@
       return
     }
 
-    // 仅“佳士品牌且详情原始型号为空”时，提交维修登记/复检需强制补填机器型号
-    if (requireMachineModelForJiashi.value) {
-      const machineModel = String(machineModelInput.value || '').trim()
-      if (!machineModel) {
-        currentTab.value = 0
-        uni.showToast({ title: '请填写机器型号', icon: 'none' })
+    // 仅"佳士品牌且详情原始型号为空"时，提交维修登记/复检需先补录机器型号
+    // 对齐 jasic-ui：此时弹 MachineModelSupplementModal，由用户从后端候选里选/手填后重新提交
+    if (requireMachineModelForJiashi.value && !hasVal(order.value.product?.model)) {
+      uni.showToast({ title: '请先补录机器型号', icon: 'none' })
+      openMachineModelSupplement()
+      return
+    }
+
+    const isRecheck = detailEntryAction.value === 'recheck'
+
+    // 维修登记：有"故障与维修配置"时需校验 faultItems（对齐后端 WorkOrderServiceImpl.resolveRepairFaultSelectionForSaveRepair）
+    const faultItemsTrimmed = (faultItemsSelect.value || [])
+      .map((x) => String(x || '').trim())
+      .filter(Boolean)
+    const faultRemarkTrimmed = String(faultRemarkInput.value || '').trim()
+    const hasRepairFaultConfig = (repairFaultOptions.value || []).length > 0
+    if (!isRecheck && hasRepairFaultConfig) {
+      if (faultItemsTrimmed.length === 0) {
+        uni.showToast({ title: '请选择维修确认故障', icon: 'none' })
         return
       }
-      machineModelInput.value = machineModel
-      if (order.value.product) {
-        order.value.product.model = machineModel
+      if (faultItemsTrimmed.includes(OTHER_FAULT_LABEL) && !faultRemarkTrimmed) {
+        uni.showToast({ title: '请填写其它故障说明', icon: 'none' })
+        return
       }
     }
 
@@ -832,8 +983,6 @@
       return
     }
 
-    const isRecheck = detailEntryAction.value === 'recheck'
-
     // 组装 repairDesc：选项中文本 +（若勾选）其它说明；接口上 repairDesc / repairItems / partList / quote 均为可选
     const selectedRepairDescText = repairItems.filter((x) => x !== OTHER_REPAIR_LABEL).join('、')
     const repairDescFault = hasOtherRepairDesc
@@ -880,6 +1029,12 @@
         ? await reviewWorkOrder(reviewDto)
         : await repairWorkOrder({
             workOrderId: wid,
+            // 有配置时传筛选出的故障项；无配置时按后端 fallback 依然传空数组（后端走 buildFallbackRepairFaultSelection 忽略）
+            faultItems: hasRepairFaultConfig ? faultItemsTrimmed : [],
+            faultRemark:
+              hasRepairFaultConfig && faultItemsTrimmed.includes(OTHER_FAULT_LABEL)
+                ? faultRemarkTrimmed
+                : '',
             faultOldImageFileIds: collectVoucherFileIds(asUnknownArray(faultOldImages.value)),
             faultNewImageFileIds: collectVoucherFileIds(asUnknownArray(faultPointImages.value)),
             machineImageFileIds: collectVoucherFileIds(asUnknownArray(machineFrontImages.value)),

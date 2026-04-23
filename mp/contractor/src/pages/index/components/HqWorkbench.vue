@@ -62,57 +62,11 @@
           </view>
         </view>
       </view>
-
-      <!-- 网点负荷监控 -->
-      <view class="hq-section hq-section--tail">
-        <view class="hq-section-head">
-          <text class="hq-section-title">网点负荷监控</text>
-          <text class="hq-link" @tap="emit('view-all-branches')">查看全部</text>
-        </view>
-        <!-- 网点列表 -->
-        <view class="hq-branch-list">
-          <view
-            v-for="branch in branchList"
-            :key="branch.id"
-            class="hq-branch-card"
-            @tap="emit('branch-tap', branch)"
-          >
-            <!-- 网点左侧 -->
-            <view class="hq-branch-left">
-              <view class="hq-branch-icon">
-                <image class="hq-branch-icon-img" :src="locationOnIcon" mode="aspectFit" />
-              </view>
-              <view class="hq-branch-text">
-                <text class="hq-branch-name">{{ branch.name }}</text>
-                <text class="hq-branch-sub">当前负荷: {{ branch.load }}%</text>
-              </view>
-            </view>
-            <!-- 网点右侧 -->
-            <view class="hq-branch-right">
-              <!-- 负荷条 -->
-              <view class="hq-mini-bar">
-                <view
-                  class="hq-mini-bar-inner"
-                  :class="'tone-' + branch.statusClass"
-                  :style="{ width: branch.load + '%' }"
-                ></view>
-              </view>
-              <!-- 负荷状态 -->
-              <text class="hq-branch-status" :class="'tone-' + branch.statusClass">{{
-                branch.statusText
-              }}</text>
-            </view>
-          </view>
-        </view>
-      </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-  import { locationOnIcon } from '@/svgs'
-  import type { HqBranchRow } from '../useIndexWorkbench'
-
   const mockHqRealtimeStatBadges = {
     pending: { text: '-', variant: 'neutral' as const },
     processing: { text: '-', variant: 'neutral' as const },
@@ -131,13 +85,10 @@
       closed: number
     }
     hqTransferredCount: number
-    branchList: HqBranchRow[]
   }>()
 
   const emit = defineEmits<{
     (e: 'stat-tap', tab: 'pending_accept' | 'processing' | 'completed'): void
-    (e: 'view-all-branches'): void
-    (e: 'branch-tap', branch: HqBranchRow): void
   }>()
 </script>
 
@@ -159,10 +110,6 @@
 
   .hq-section {
     @include sheet-white($space-lg);
-
-    &--tail {
-      margin-bottom: 0;
-    }
   }
 
   .hq-section-head {
@@ -179,12 +126,6 @@
   .hq-section-meta {
     font-size: $font-sm;
     color: $text-slate-500;
-  }
-
-  .hq-link {
-    font-size: $font-md;
-    font-weight: 500;
-    color: $primary;
   }
 
   .hq-stats-grid {
@@ -252,108 +193,6 @@
     &--neutral {
       color: $text-slate-500;
       background-color: $bg-hover;
-    }
-  }
-
-  .hq-branch-list {
-    @include flex-col;
-    gap: $space-md;
-  }
-
-  .hq-branch-card {
-    @include flex-between;
-    padding: $space-lg;
-    background-color: $bg-card;
-    border: 2rpx solid $bg-hover;
-    border-radius: $radius-lg;
-    box-sizing: border-box;
-  }
-
-  .hq-branch-left {
-    @include flex-row;
-    gap: $space-md;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .hq-branch-icon {
-    width: 80rpx;
-    height: 80rpx;
-    border-radius: $radius-md;
-    background-color: $primary-alpha-10;
-    @include flex-center;
-    flex-shrink: 0;
-  }
-
-  .hq-branch-icon-img {
-    width: 48rpx;
-    height: 48rpx;
-  }
-
-  .hq-branch-text {
-    @include flex-col;
-    gap: $space-xs;
-    min-width: 0;
-  }
-
-  .hq-branch-name {
-    font-size: 30rpx;
-    font-weight: 700;
-    color: $text-slate-900;
-  }
-
-  .hq-branch-sub {
-    font-size: $font-sm;
-    color: $text-slate-500;
-  }
-
-  .hq-branch-right {
-    @include flex-col;
-    align-items: flex-end;
-    flex-shrink: 0;
-    margin-left: $space-sm;
-  }
-
-  .hq-mini-bar {
-    width: 192rpx;
-    height: $space-xs;
-    border-radius: $radius-pill;
-    background-color: $bg-hover;
-    overflow: hidden;
-    margin-bottom: $space-xs;
-  }
-
-  .hq-mini-bar-inner {
-    height: 100%;
-    border-radius: $radius-pill;
-
-    &.tone-high {
-      background-color: $primary;
-    }
-
-    &.tone-normal {
-      background-color: $emerald-500;
-    }
-
-    &.tone-medium {
-      background-color: $amber-500;
-    }
-  }
-
-  .hq-branch-status {
-    font-size: 20rpx;
-    font-weight: 700;
-
-    &.tone-high {
-      color: $primary;
-    }
-
-    &.tone-normal {
-      color: $emerald-500;
-    }
-
-    &.tone-medium {
-      color: $amber-500;
     }
   }
 </style>

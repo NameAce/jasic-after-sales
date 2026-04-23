@@ -1,41 +1,21 @@
 <template>
-  <!-- 维修工程师/派单员视图 -->
-  <CustomNavBar :title="`${branchName}工单详情`" surface="sticky" :shadow="false" />
-  <view class="page-container branch-order-page">
-    <view class="header">
-      <!-- 搜索栏 -->
-      <view class="search-wrap">
-        <view class="search-box">
-          <uni-icons type="search" size="24" color="#cbd5e1"></uni-icons>
-          <input
-            v-model="searchQuery"
-            class="search-input"
-            placeholder="搜索工单号或故障描述"
-            placeholder-class="placeholder-text"
-          />
-        </view>
-      </view>
-    </view>
-
-    <!-- 主内容区域 -->
-    <scroll-view
-      class="main-content"
-      scroll-y
-      lower-threshold="120"
-      refresher-enabled
-      :refresher-triggered="refresherTriggered"
-      @refresherrefresh="onRefresherRefresh"
-      @scrolltolower="loadMoreBranchOrders"
-    >
-      <view class="order-list-scroll">
-        <!-- 统计数据 -->
-        <view class="stats-dashboard">
-          <view v-for="stat in stats" :key="stat.label" class="stat-card">
-            <text class="stat-label">{{ stat.label }}</text>
-            <text class="stat-value">{{ stat.value }}</text>
+  <!-- 与工单列表页一致：固定视口高度 + scroll-view 内滚动，保证触底加载与下拉刷新 -->
+  <view class="page-index order-list-page">
+    <CustomNavBar :title="`${branchName}`" surface="sticky" :shadow="false" />
+    <view class="page-container branch-order-page">
+      <view class="header">
+        <!-- 搜索栏 -->
+        <view class="search-wrap">
+          <view class="search-box">
+            <uni-icons type="search" size="18" color="#cbd5e1"></uni-icons>
+            <input
+              v-model="searchQuery"
+              class="search-input"
+              placeholder="搜索工单号或故障描述"
+              placeholder-class="placeholder-text"
+            />
           </view>
         </view>
-
         <!-- 二级Tab栏 -->
         <TabBar
           variant="underline"
@@ -48,25 +28,32 @@
           :scrollable="true"
           @change="setTab"
         />
+      </view>
 
-        <!-- 工单列表 -->
+      <!-- 主内容区域 -->
+      <scroll-view
+        class="main-content order-list-scroll"
+        scroll-y
+        lower-threshold="120"
+        refresher-enabled
+        :refresher-triggered="refresherTriggered"
+        @refresherrefresh="onRefresherRefresh"
+        @scrolltolower="loadMoreBranchOrders"
+      >
+        <!-- 与 list.vue 一致：scroll-view 内直接挂 OrderCardList，卡片间距由 order-pages 中 .list-container 承担 -->
         <OrderCardList
-          :orders="filteredOrders"
+          :orders="orderList"
           :status-text="listStatusText"
           :empty-title="listEmptyTitle"
           :empty-desc="listEmptyDesc"
-          brand-label="佳士品牌"
-          other-brand-label="非佳士品牌"
-          :show-inbound-transfer-tag="(order) => hasInboundTransferFromSite(order.transferFromSite)"
-          :show-transferred-tag="() => false"
+          :show-inbound-transfer-tag="showInboundTransferTag"
+          :show-transferred-tag="showTransferredTag"
           show-repair-site-rows
-          card-class="order-card--branch-badges"
-          :show-no-more="hasLoadedAllFiltered && filteredOrders.length > 0"
+          :show-no-more="orderList.length > 0 && hasLoadedAll"
           @order-click="onOrderClick"
-        >
-        </OrderCardList>
-      </view>
-    </scroll-view>
+        />
+      </scroll-view>
+    </view>
   </view>
 </template>
 
@@ -76,21 +63,46 @@
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import OrderCardList from '@/components/OrderCardList/OrderCardList.vue'
   import TabBar from '@/components/TabBar/TabBar.vue'
-  import { fetchBranchList, fetchOrdersByBranch } from '@/api/workOrder'
+  import {
+    applyWorkOrderListSearchKeyword,
+    listHqSiteOrders,
+    type HqSiteOrdersDisplayStatus
+  } from '@/api/workOrder'
   import type { OrderListItem } from '@/models/order'
   import { ORDER_STATUS_TEXT_MAP } from '@/utils/orderStatus'
   import { hasInboundTransferFromSite } from '@/utils/orderTransfer'
   import { useScrollRefresher } from '@/utils/useScrollRefresher'
+  import { useUserStore } from '@/stores'
+
+  const userStore = useUserStore()
+  /** 与 list.vue 一致：总部用户不在卡片上展示「已转单」角标 */
+  const isHqUser = computed(() => {
+    const code = userStore.userInfo?.currentTypeCode
+    return !!code?.startsWith('HQ')
+  })
+
+  /**
+   * 由其他网点转入本网点时展示「转单」标记（与 list.vue 未转单 Tab 逻辑同源，网点明细无一级 Tab 故始终按转入判断）
+   */
+  const showInboundTransferTag = (order: OrderListItem) =>
+    hasInboundTransferFromSite(order.transferFromSite)
+
+  const showTransferredTag = (order: OrderListItem) => !!order.transferred && !isHqUser.value
   // 网点名称
   const branchName = ref('')
   // 搜索关键词
   const searchQuery = ref('')
   // 当前二级Tab
-  const activeTab = ref('all')
+  const activeTab = ref<BranchDetailTab>('all')
   // 工单列表
   const orderList = ref<OrderListItem[]>([])
-  const LIST_PAGE_STEP = 15
-  const listDisplayLimit = ref(LIST_PAGE_STEP)
+  const pageNum = ref(1)
+  const pageSize = 10
+  const totalOrders = ref(0)
+  const loadingMore = ref(false)
+  const requestVersion = ref(0)
+  const siteCompanyId = ref<number>(0)
+  const searchDebounceTimer = ref<ReturnType<typeof setTimeout> | null>(null)
   // 二级Tab栏
   const branchDetailTabs = ['all', 'pending', 'processing', 'completed', 'closed'] as const
   // 二级Tab栏类型
@@ -102,12 +114,47 @@
     return branchDetailTabs.includes(t as BranchDetailTab) ? (t as BranchDetailTab) : 'all'
   }
 
-  const loadOrdersForBranchName = async (name: string) => {
-    listDisplayLimit.value = LIST_PAGE_STEP
-    try {
-      orderList.value = await fetchOrdersByBranch(name)
-    } catch {
+  const hasLoadedAll = computed(
+    () => orderList.value.length >= totalOrders.value && totalOrders.value > 0
+  )
+
+  const tabToDisplayStatus: Record<BranchDetailTab, HqSiteOrdersDisplayStatus> = {
+    all: 'ALL',
+    pending: 'WAIT_ACCEPT',
+    processing: 'IN_PROGRESS',
+    completed: 'COMPLETED',
+    closed: 'CLOSED'
+  }
+
+  const buildBranchQuery = (targetPage: number) => {
+    const q = searchQuery.value?.trim()
+    const query: Parameters<typeof listHqSiteOrders>[0] = {
+      siteCompanyId: siteCompanyId.value,
+      displayStatus: tabToDisplayStatus[activeTab.value],
+      pageNum: targetPage,
+      pageSize
+    }
+    applyWorkOrderListSearchKeyword(query, q)
+    return query
+  }
+
+  const refreshBranchOrders = async () => {
+    const currentVersion = ++requestVersion.value
+    if (!siteCompanyId.value) {
       orderList.value = []
+      totalOrders.value = 0
+      return
+    }
+    pageNum.value = 1
+    try {
+      const page = await listHqSiteOrders(buildBranchQuery(1))
+      if (currentVersion !== requestVersion.value) return
+      orderList.value = page.records
+      totalOrders.value = page.total
+    } catch {
+      if (currentVersion !== requestVersion.value) return
+      orderList.value = []
+      totalOrders.value = 0
     }
   }
 
@@ -117,40 +164,33 @@
    */
   onLoad((options) => {
     activeTab.value = parseInitialTab(options?.tab)
-
+    const id = Number(options?.id)
+    siteCompanyId.value = Number.isFinite(id) && id > 0 ? id : 0
     const rawName = options?.name != null ? decodeURIComponent(String(options.name)) : ''
-    if (rawName) {
-      branchName.value = rawName
-      loadOrdersForBranchName(rawName)
-      return
-    }
-    const id = options?.id
-    if (id != null) {
-      fetchBranchList()
-        .then((branches) => {
-          const b = branches.find((x) => String(x.id) === String(id))
-          if (b) {
-            branchName.value = b.name
-            return loadOrdersForBranchName(b.name)
-          }
-          branchName.value = ''
-          orderList.value = []
-        })
-        .catch(() => {
-          orderList.value = []
-        })
-    }
+    branchName.value = rawName
+    refreshBranchOrders()
   })
 
   const { refresherTriggered, onRefresherRefresh } = useScrollRefresher(async () => {
-    const name = branchName.value?.trim()
-    if (!name) return
-    await loadOrdersForBranchName(name)
+    await refreshBranchOrders()
   })
 
-  watch([activeTab, searchQuery], () => {
-    listDisplayLimit.value = LIST_PAGE_STEP
-  })
+  watch(
+    () => activeTab.value,
+    () => {
+      refreshBranchOrders()
+    }
+  )
+
+  watch(
+    () => searchQuery.value,
+    () => {
+      if (searchDebounceTimer.value) clearTimeout(searchDebounceTimer.value)
+      searchDebounceTimer.value = setTimeout(() => {
+        refreshBranchOrders()
+      }, 300)
+    }
+  )
 
   /**
    * 跳转到工单详情
@@ -161,25 +201,6 @@
       url: `/pages/order/detail?id=${order.id}&status=${order.status}`
     })
   }
-
-  /**
-   * 统计数据
-   * @returns 统计数据
-   */
-  const stats = computed(() => {
-    const all = orderList.value
-    const pending = all.filter(
-      (o) => o.status === 'PENDING_TECH_ACCEPT'
-    ).length
-    const processing = all.filter((o) => o.status === 'IN_PROGRESS').length
-    const completed = all.filter((o) => o.status === 'COMPLETED' || o.status === 'CLOSED').length
-    return [
-      { label: '总工单', value: all.length },
-      { label: '待接单', value: pending },
-      { label: '维修中', value: processing },
-      { label: '已完成', value: completed }
-    ]
-  })
 
   // 二级Tab栏
   const tabs = [
@@ -196,7 +217,7 @@
    * @returns void
    */
   const setTab = (val: string) => {
-    activeTab.value = val
+    activeTab.value = parseInitialTab(val)
   }
 
   // 状态文本映射
@@ -214,47 +235,27 @@
   }
 
   /**
-   * 按 Tab / 搜索过滤后的全集（再经 listDisplayLimit 分页展示）
-   */
-  const filteredOrdersAll = computed(() => {
-    const q = searchQuery.value?.trim()
-    const tab = activeTab.value
-
-    const tabToStatus: Record<Exclude<BranchDetailTab, 'all' | 'pending'>, OrderListItem['status']> = {
-      processing: 'IN_PROGRESS',
-      completed: 'COMPLETED',
-      closed: 'CLOSED',
-    }
-
-    return orderList.value.filter((o) => {
-      if (tab === 'pending') {
-        if (o.status !== 'PENDING_TECH_ACCEPT') return false
-      } else if (tab !== 'all' && o.status !== tabToStatus[tab]) return false
-      if (!q) return true
-      return (
-        o.id.includes(q) ||
-        (o.orderNo ?? '').includes(q) ||
-        (o.barcode ?? '').includes(q) ||
-        (o.faultDesc ?? '').includes(q) ||
-        (o.desc ?? '').includes(q)
-      )
-    })
-  })
-  // 分页展示
-  const filteredOrders = computed(() => filteredOrdersAll.value.slice(0, listDisplayLimit.value))
-  // 是否已加载所有过滤后的工单
-  const hasLoadedAllFiltered = computed(
-    () =>
-      filteredOrdersAll.value.length > 0 &&
-      filteredOrders.value.length >= filteredOrdersAll.value.length
-  )
-
-  /**
    * 加载更多工单
    */
-  const loadMoreBranchOrders = () => {
-    if (filteredOrders.value.length >= filteredOrdersAll.value.length) return
-    listDisplayLimit.value += LIST_PAGE_STEP
+  const loadMoreBranchOrders = async () => {
+    if (!siteCompanyId.value) return
+    if (loadingMore.value || hasLoadedAll.value) return
+    // 与 list.vue 一致：首屏尚未拉到数据时不触发翻页，避免并发/空列表误请求
+    if (!orderList.value.length && pageNum.value === 1) return
+    loadingMore.value = true
+    const currentVersion = requestVersion.value
+    try {
+      const nextPage = pageNum.value + 1
+      const page = await listHqSiteOrders(buildBranchQuery(nextPage))
+      if (currentVersion !== requestVersion.value) return
+      pageNum.value = nextPage
+      totalOrders.value = page.total
+      if (page.records.length) {
+        orderList.value = orderList.value.concat(page.records)
+      }
+    } finally {
+      loadingMore.value = false
+    }
   }
 
   /**
@@ -267,79 +268,18 @@
    * 空列表描述
    * @returns 空列表描述
    */
-  const listEmptyDesc = computed(() => {
-    if (searchQuery.value?.trim()) return '试试更换关键词或清空搜索'
-    if (orderList.value.length === 0) return '该网点暂无工单'
-    return '当前筛选条件下没有工单'
-  })
+  /** 与 list.vue 工单列表空状态描述一致 */
+  const listEmptyDesc = computed(() =>
+    searchQuery.value?.trim() ? '试试更换关键词或清空搜索' : '当前筛选条件下没有工单'
+  )
 </script>
 
 <style lang="scss" scoped>
   .branch-order-page {
-    @include page-column-app;
-    gap: $space-lg;
-
+    /* 与 list.vue 工单列表 .order-list-scroll 一致 */
     .order-list-scroll {
+      padding-top: $space-md;
       box-sizing: border-box;
-      @include flex-column-gap;
-    }
-
-    .stats-dashboard {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: $space-md;
-      padding: 0 $space-lg;
-    }
-
-    .stat-card {
-      @include sheet-white($space-lg);
-      @include flex-column-center;
-
-      .stat-label {
-        font-size: $font-sm;
-        color: $text-slate-500;
-        margin-bottom: $space-xs;
-      }
-
-      .stat-value {
-        font-size: $font-xl;
-        font-weight: bold;
-        color: $primary;
-        line-height: 1.2;
-      }
-    }
-
-    .tabs-wrap {
-      background-color: $bg-card;
-      border-top: 2rpx solid $bg-hover;
-      border-bottom: 2rpx solid $bg-hover;
-
-      &.sticky-tabs {
-        position: sticky;
-        top: 0;
-        z-index: 10;
-      }
-    }
-
-    .tabs-scroll {
-      width: 100%;
-    }
-
-    .tabs-inner {
-      @include tabs-track;
-    }
-
-    .tab-item {
-      @include tab-underline-item(
-        $text-color: $text-slate-500,
-        $bar-height: 6rpx,
-        $bar-radius: 6rpx
-      );
-      padding: $space-md 0;
-    }
-
-    .title-bar--branch {
-      padding: $space-sm $space-lg $space-sm;
     }
   }
 </style>

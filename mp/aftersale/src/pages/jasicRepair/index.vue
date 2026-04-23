@@ -729,42 +729,30 @@
   }
   /**
    * 从条码查询结果解析保修状态枚举（与后端一致）
+   *
+   * 真源：`CustomerBarcodeInfoVO.warrantyStatus`，字符串枚举 `IN_WARRANTY / OUT_OF_WARRANTY`。
    */
   const resolveWarrantyStatusFromBarcodeInfo = (info: BarcodeInfoDTO | null): string => {
     if (!info) return ''
     const ws = info.warrantyStatus
     if (typeof ws === 'string' && ws.trim()) return ws.trim().toUpperCase()
-    if (info.inWarranty === true) return 'IN_WARRANTY'
-    if (info.inWarranty === false) return 'OUT_OF_WARRANTY'
     return ''
   }
 
   /**
-   * 无故障下拉时，故障描述/项可从接口 faultDesc、faultDescription、faultItems 兜底
+   * 故障描述提交文本：有下拉选项时取用户选择，否则以用户填写的 faultRemark 为准
    */
   const resolveFaultDescForSubmit = (): string => {
     if (barcodeQueryHasFaultDescription.value) return getJasicFaultDescriptionText()
-    const info = lastBarcodeInfo.value
-    const fromApi = info?.faultDescription ?? info?.faultDesc
-    if (typeof fromApi === 'string' && fromApi.trim()) return fromApi.trim()
     return String(formData.value.faultRemark ?? '').trim()
   }
 
   const resolveFaultItemsForSubmit = (): string[] => {
-    if (barcodeQueryHasFaultDescription.value) {
-      const selectedValues = Array.isArray(formData.value.faultDescription)
-        ? formData.value.faultDescription
-        : [formData.value.faultDescription]
-      const normalized = selectedValues.map((x) => String(x ?? '').trim()).filter(Boolean)
-      if (normalized.length > 0) {
-        return normalized
-      }
-    }
-    const raw = lastBarcodeInfo.value?.faultItems
-    if (Array.isArray(raw) && raw.length > 0) {
-      return raw.map((x) => String(x)).filter((s) => s.length > 0)
-    }
-    return []
+    if (!barcodeQueryHasFaultDescription.value) return []
+    const selectedValues = Array.isArray(formData.value.faultDescription)
+      ? formData.value.faultDescription
+      : [formData.value.faultDescription]
+    return selectedValues.map((x) => String(x ?? '').trim()).filter(Boolean)
   }
 
   /**
@@ -795,8 +783,7 @@
     const base: CreateCustomerWorkOrderDTO = {
       barcode: barcodeFromApi || barcodeTrim,
       brandCode: JASIC_BRAND_CODE,
-      brandName: typeof api?.brandName === 'string' ? api.brandName : undefined,
-      customerName: String(userStore.userInfo?.name ?? ''),
+      customerName: String(userStore.userInfo?.nickname ?? ''),
       faultDesc: resolveFaultDescForSubmit(),
       faultItems: resolveFaultItemsForSubmit(),
       faultRemark: formData.value.faultRemark,

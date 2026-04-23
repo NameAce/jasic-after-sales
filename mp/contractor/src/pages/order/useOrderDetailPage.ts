@@ -4,6 +4,7 @@ import { useUserStore } from '@/stores'
 import { isPendingMainStatus } from '@/utils/orderStatus'
 import { canCurrentSiteOperateTransferredOrder } from '@/utils/orderTransfer'
 import { hasVal } from '@/utils/value'
+import type { WorkOrderActionKey } from '@/constants/orderActions'
 
 export type DetailEntryAction = 'accept' | 'repair' | 'recheck' | ''
 
@@ -53,16 +54,32 @@ export function useOrderDetailPage(options: {
     return me === from
   })
 
+  const availableActions = computed<WorkOrderActionKey[]>(() =>
+    Array.isArray(order.value.availableActions) ? order.value.availableActions : []
+  )
+  const hasAvailableActions = computed(() => availableActions.value.length > 0)
+  const hasAction = (action: WorkOrderActionKey) => availableActions.value.includes(action)
+  const canEnterAcceptByAction = computed(() => !hasAvailableActions.value || hasAction('TECH_ACCEPT'))
+  const canEnterRepairByAction = computed(() => !hasAvailableActions.value || hasAction('REPAIR_FINISH'))
+  const canEnterRecheckByAction = computed(() => !hasAvailableActions.value || hasAction('REVIEW'))
+
   const canEditFaultJudge = computed(
     () =>
-      isPending.value && detailEntryAction.value === 'accept' && canOperateTransferredOrder.value
+      isPending.value &&
+      detailEntryAction.value === 'accept' &&
+      canOperateTransferredOrder.value &&
+      canEnterAcceptByAction.value
   )
 
   const canEditFaultPoint = computed(
     () =>
       canOperateTransferredOrder.value &&
-      ((isProcessing.value && detailEntryAction.value === 'repair') ||
-        (isCompleted.value && detailEntryAction.value === 'recheck'))
+      ((isProcessing.value &&
+        detailEntryAction.value === 'repair' &&
+        canEnterRepairByAction.value) ||
+        (isCompleted.value &&
+          detailEntryAction.value === 'recheck' &&
+          canEnterRecheckByAction.value))
   )
 
   const hasBottomActionBar = computed(() => {

@@ -51,7 +51,13 @@
     </view>
 
     <view class="card-footer">
-      <slot name="actions" :order="order"></slot>
+      <view v-if="orderSubmitTimeText(order)" class="time-wrap">
+        <uni-icons type="calendar-filled" size="16" color="#94a3b8"></uni-icons>
+        <text class="time-text">{{ orderSubmitTimeText(order) }}</text>
+      </view>
+      <view class="card-footer-actions">
+        <slot name="actions" :order="order"></slot>
+      </view>
     </view>
   </view>
 </template>
@@ -89,11 +95,14 @@
     (e: 'order-click', order: OrderListItem): void
   }>()
 
+  const orderSubmitTimeText = (o: OrderListItem) => (o.createTime ?? '').trim()
+
   // 定义状态文本
   const statusText = (order: OrderListItem) => props.statusText(order)
   /** 将接口主状态映射到样式类：pending / processing / completed / closed */
   const statusBadgeClass = (order: OrderListItem) => {
-    if (order.status === 'PENDING_ASSIGN' || order.status === 'PENDING_TECH_ACCEPT') return 'pending'
+    if (order.status === 'PENDING_ASSIGN' || order.status === 'PENDING_TECH_ACCEPT')
+      return 'pending'
     if (order.status === 'IN_PROGRESS') return 'processing'
     if (order.status === 'COMPLETED') return 'completed'
     if (order.status === 'CLOSED') return 'closed'

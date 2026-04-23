@@ -5,20 +5,17 @@
       <text class="section-title">商品信息</text>
     </view>
     <view class="od-apply-info-list">
-      <view v-if="showModelInput" class="info-item info-item--input">
-        <text class="info-label">机器型号</text>
-        <input
-          v-model.trim="modelInputValue"
-          class="model-input-v2"
-          type="text"
-          placeholder="请输入机器型号"
-          placeholder-class="model-input-placeholder-v2"
-          :maxlength="60"
-        />
-      </view>
-      <view v-else-if="hasVal(product.model)" class="info-item">
+      <!-- 机型：仅展示（佳士品牌缺机型时由 detail.vue 触发补录弹窗，不再提供自由文本输入） -->
+      <view v-if="hasVal(product.model)" class="info-item">
         <text class="info-label">机器型号</text>
         <text class="info-value">{{ product.model }}</text>
+      </view>
+      <view v-else-if="needSupplement" class="info-item info-item--cta">
+        <text class="info-label">机器型号</text>
+        <view class="supplement-cta" @click="emit('supplement')">
+          <text class="supplement-cta-text">点击补录机器型号</text>
+          <uni-icons type="right" size="14" color="#f26604" />
+        </view>
       </view>
       <view v-if="hasVal(product.brandName)" class="info-item">
         <text class="info-label">品牌</text>
@@ -50,17 +47,25 @@
   import { getWarrantyTagClass } from '@/utils/orderTags'
   import { hasVal } from '@/utils/value'
 
+  /**
+   * 商品信息卡片：
+   * - 机型只读展示；不再在卡片内自由输入（避免用户绕过后端校验写入空/非法机型）。
+   * - 佳士品牌 + 缺机型时渲染"点击补录机器型号"入口，由父组件 detail.vue 负责唤起 MachineModelSupplementModal。
+   */
   const props = defineProps<{
     product: OrderDetail['product']
-    showModelInput?: boolean
+    /** 是否为需要"补录机型"的场景（佳士品牌 + 当前 product.model 为空） */
+    needSupplement?: boolean
   }>()
 
-  const modelInputValue = defineModel<string>('modelInput', { default: '' })
+  const emit = defineEmits<{
+    (e: 'supplement'): void
+  }>()
 
   const show = computed(() => {
     const p = props.product
     return (
-      !!props.showModelInput ||
+      !!props.needSupplement ||
       hasVal(p.model) ||
       hasVal(p.brandName) ||
       hasVal(p.barcode) ||
@@ -76,28 +81,19 @@
 <style lang="scss" scoped>
   @use './orderDetailApplyCards.scss';
 
-  .info-item--input {
-    flex-direction: column;
-    align-items: stretch;
-    gap: $space-sm;
+  .info-item--cta {
+    align-items: center;
+  }
 
-    .info-label {
-      line-height: 1.4;
+  .supplement-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 4rpx;
+    padding: 8rpx 0;
+
+    .supplement-cta-text {
+      font-size: 26rpx;
+      color: $primary;
     }
-  }
-
-  .model-input-v2 {
-    @include form-field-soft;
-    box-sizing: border-box;
-    width: 100%;
-    height: 80rpx;
-    padding: 0 $space-lg;
-    font-size: 26rpx;
-    color: $text-slate-900;
-  }
-
-  :deep(.model-input-placeholder-v2) {
-    color: #94a3b8;
-    font-size: 26rpx;
   }
 </style>

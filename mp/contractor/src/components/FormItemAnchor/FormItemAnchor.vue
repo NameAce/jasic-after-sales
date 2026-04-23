@@ -1,19 +1,21 @@
 <template>
-  <view :id="name" class="form-item-anchor" aria-hidden="true" />
+  <view :id="anchorId" class="form-field-anchor" />
 </template>
 
 <script setup lang="ts">
-  defineProps<{
-    /** 与 scroll-view 的 scroll-into-view、triggerScrollIntoView 的 fieldKey 一致 */
-    name: string
-  }>()
+  import { computed } from 'vue'
+  import { formFieldAnchorId } from '@/utils/formFieldScrollFocus'
+
+  const props = defineProps<{ name: string }>()
+  const anchorId = computed(() => formFieldAnchorId(props.name))
 </script>
 
-<style scoped lang="scss">
-  .form-item-anchor {
+<style lang="scss" scoped>
+  /* 不占布局流：父级需 position: relative（表单项已统一处理） */
+  .form-field-anchor {
     position: absolute;
-    left: 0;
     top: 0;
+    left: 0;
     width: 1px;
     height: 1px;
     overflow: hidden;

@@ -1,4 +1,4 @@
-import { API_SUCCESS_CODE, http } from '@/utils/http'
+import { http } from '@/utils/http'
 import type { CompanySimple, LoginResult, SysUserInfo } from '@/utils/permissions'
 
 export type LoginPayload = {
@@ -42,15 +42,11 @@ export type MpBindConfirmPayload = {
  * @returns ApiResponse<LoginResult>
  */
 export async function login(payload: LoginPayload) {
-  const res = await http<LoginResult>({
+  return http<LoginResult>({
     url: '/auth/login',
     method: 'POST',
     data: payload,
   })
-  if (String(res.code ?? '') !== API_SUCCESS_CODE) {
-    throw new Error(String(res.msg ?? '登录失败'))
-  }
-  return res
 }
 
 /**
@@ -59,16 +55,12 @@ export async function login(payload: LoginPayload) {
  * @returns ApiResponse<MpLoginResult>
  */
 export async function mpLogin(payload: MpLoginPayload) {
-  const res = await http<MpLoginResult>({
+  return http<MpLoginResult>({
     url: '/auth/mp-login',
     method: 'POST',
     data: payload,
     header: { 'Content-Type': 'application/json' },
   })
-  if (String(res.code ?? '') !== API_SUCCESS_CODE) {
-    throw new Error(String(res.msg ?? '登录失败'))
-  }
-  return res
 }
 
 /**
@@ -77,16 +69,12 @@ export async function mpLogin(payload: MpLoginPayload) {
  * @returns ApiResponse<MpLoginResult>
  */
 export async function mpBindLogin(payload: MpBindLoginPayload) {
-  const res = await http<MpLoginResult>({
+  return http<MpLoginResult>({
     url: '/auth/mp-bind-login',
     method: 'POST',
     data: payload,
     header: { 'Content-Type': 'application/json' },
   })
-  if (String(res.code ?? '') !== API_SUCCESS_CODE) {
-    throw new Error(String(res.msg ?? '绑定失败'))
-  }
-  return res
 }
 
 /**
@@ -95,16 +83,12 @@ export async function mpBindLogin(payload: MpBindLoginPayload) {
  * @returns ApiResponse<MpLoginResult>
  */
 export async function mpBindConfirm(payload: MpBindConfirmPayload) {
-  const res = await http<MpLoginResult>({
+  return http<MpLoginResult>({
     url: '/auth/mp-bind-confirm',
     method: 'POST',
     data: payload,
     header: { 'Content-Type': 'application/json' },
   })
-  if (String(res.code ?? '') !== API_SUCCESS_CODE) {
-    throw new Error(String(res.msg ?? '绑定确认失败'))
-  }
-  return res
 }
 
 /**
@@ -134,15 +118,11 @@ export type ChooseCompanyPayload = {
  * @returns ApiResponse<SysUserInfo>
  */
 export async function chooseCompany(payload: ChooseCompanyPayload) {
-  const res = await http<SysUserInfo>({
+  return http<SysUserInfo>({
     url: '/auth/choose-company',
     method: 'POST',
     data: payload,
   })
-  if (String(res.code ?? '') !== API_SUCCESS_CODE) {
-    throw new Error(String(res.msg ?? '切换公司失败'))
-  }
-  return res
 }
 
 /**
@@ -154,12 +134,8 @@ export async function chooseCompany(payload: ChooseCompanyPayload) {
  * @returns ApiResponse<SysUserInfo>
  */
 export async function getUserInfo() {
-  const res = await http<SysUserInfo>({
+  return http<SysUserInfo>({
     url: '/auth/user-info',
     method: 'GET',
   })
-  if (String(res.code ?? '') !== API_SUCCESS_CODE) {
-    throw new Error(String(res.msg ?? '获取用户信息失败'))
-  }
-  return res
 }

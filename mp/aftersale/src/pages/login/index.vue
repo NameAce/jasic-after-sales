@@ -147,24 +147,20 @@
   }
 
   /**
-   * 非微信小程序端无 getPhoneNumber，占位走登录接口
+   * 非微信小程序端兜底：C 端登录强依赖微信 `wx.login` 返回的 js_code，
+   * 后端 `CustomerWechatLoginDTO.code` 标注 `@NotBlank`，传空值必然 400。
+   * 故非微信环境直接提示用户切换至微信小程序，不再调用接口空转。
    */
-  const handlePhoneLogin = async () => {
+  const handlePhoneLogin = () => {
     if (!agreed.value) {
       promptAgreementFirst()
       return
     }
-    uni.showLoading({ title: '登录中...' })
-    try {
-      const res = await login({ code: '', phoneCode: '' })
-      userStore.setUserInfo(res.data.userInfo)
-      uni.setStorageSync('token', res.data.token)
-      uni.hideLoading()
-      showToastThen(TAB_HOME, { title: res.msg || '登录成功', duration: 1500 })
-    } catch {
-      uni.hideLoading()
-      /* 失败提示由 http 层使用接口 msg */
-    }
+    uni.showToast({
+      title: '请在微信小程序内完成登录',
+      icon: 'none',
+      duration: 1800,
+    })
   }
 
   /**

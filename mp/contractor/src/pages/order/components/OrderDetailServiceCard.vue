@@ -9,10 +9,6 @@
         <text class="info-label">网点电话</text>
         <text class="info-value">{{ service.sitePhone }}</text>
       </view>
-      <view v-if="hasVal(service.repairMethod)" class="info-item">
-        <text class="info-label">维修方式</text>
-        <view :class="['tag-method', repairMethodTagClass]">{{ service.repairMethod }}</view>
-      </view>
       <view v-if="hasVal(service.source)" class="info-item">
         <text class="info-label">申请来源</text>
         <text class="info-value">{{ service.source }}</text>
@@ -52,16 +48,11 @@
   import { computed } from 'vue'
   import type { OrderDetail } from '@/models/order'
   import { previewImages } from '@/utils/mediaPreview'
-  import { getRepairMethodTagClass } from '@/utils/orderTags'
   import { hasVal } from '@/utils/value'
 
   const props = defineProps<{
     service: OrderDetail['service']
   }>()
-  // 与详情映射一致：中文「邮寄」或枚举 MAIL；避免仅有 serviceMode 时整块寄件信息不展示
-  const repairMethodTagClass = computed(() =>
-    getRepairMethodTagClass(props.service.repairMethod, props.service.serviceMode)
-  )
 
   /** 是否有寄件人/地址可展示（兼容仅有 senderInfo 拼接串） */
   const hasSenderDetail = computed(() => {
@@ -115,33 +106,25 @@
     previewImages(urls, index)
   }
 
-  /** 寄件信息/凭证：以接口 serviceMode 为准；未返回枚举时再看展示文案 */
+  /**
+   * 寄件信息/凭证：后端移除 serviceMode 后，改为「有寄件相关数据就展示」，
+   * 到店维修（无寄件人/无凭证）天然不会命中；与 jasic-ui 当前表现一致。
+   */
   const showServiceSenderInfo = computed(() => {
-    const mode = (props.service.serviceMode || '').toUpperCase()
-    if (mode === 'STORE') return false
-    if (mode === 'MAIL') return true
-    const method = (props.service.repairMethod || '').trim()
-    return /寄修|邮寄|郵寄|mail/i.test(method.replace(/\s+/g, ''))
+    return hasSenderDetail.value || senderVoucherFilesForView.value.length > 0
   })
 
   /** 与原 hasServiceInfoCard 一致 */
   const show = computed(() => {
     const s = props.service
-    if (hasVal(s.sitePhone) || hasVal(s.repairMethod) || hasVal(s.source)) return true
-    if (!showServiceSenderInfo.value) return false
-    return hasSenderDetail.value || senderVoucherFilesForView.value.length > 0
+    if (hasVal(s.sitePhone) || hasVal(s.source)) return true
+    return showServiceSenderInfo.value
   })
 </script>
 
 <style lang="scss" scoped>
   @use './orderDetailApplyCards.scss';
   @use '@/styles/variables.scss' as *;
-
-  /* 与 orderDetailApplyCards 中样式一致；顶层声明避免部分端上 scoped + @use 嵌套过深时标签色不生效 */
-  .tag-method-mail-orange {
-    background-color: rgba(242, 102, 4, 0.1);
-    color: #f26604;
-  }
 
   /* 寄件信息：右侧信息块靠右，块内两行左对齐（与设计稿一致） */
   .sender-info-row {

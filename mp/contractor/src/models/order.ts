@@ -10,6 +10,8 @@
  *
  * 禁止使用 `pending / processing / completed / closed` 小写别名（阶段 4.1）。
  */
+import type { WorkOrderActionKey } from '@/constants/orderActions'
+
 export type WorkOrderMainStatus =
   | 'PENDING_ASSIGN'
   | 'PENDING_TECH_ACCEPT'
@@ -62,13 +64,12 @@ export type WorkOrderListVO = {
   mainStatusLabel?: string
   orderNo?: string
   productModel?: string
-  /** 维修方式枚举（与详情 serviceMode 一致，列表接口若返回则用于卡片） */
+  /** 维修方式编码：MAIL / STORE 等 */
   serviceMode?: string
+  /** 维修方式展示文案 */
   serviceModeLabel?: string
   /** 维修报价（列表接口字段名以服务端为准，常见 quoteAmount） */
   quoteAmount?: number | string
-  /** 受理网点联系电话（已转单/跨网点列表展示） */
-  currentAcceptCompanyPhone?: string
   /** 质保状态（与详情接口一致，如 IN_WARRANTY / OUT_OF_WARRANTY） */
   warrantyStatus?: string
   relationType?: string
@@ -76,6 +77,8 @@ export type WorkOrderListVO = {
   /** 品牌类型：JASIC | NON_JASIC 等（与详情接口一致） */
   brandType?: string
   brandTypeLabel?: string
+  /** 后端可执行动作（原始返回，映射层会再做合法 key 过滤） */
+  availableActions?: unknown[]
 }
 
 /** 后端工单列表分页 */
@@ -99,7 +102,8 @@ export type WorkOrderDetailVO = {
   transferCount?: number
   isReadonly?: number
   relationType?: string
-  availableActions?: string[]
+  /** 后端可执行动作（原始返回，映射层会再做合法 key 过滤） */
+  availableActions?: unknown[]
 
   assignedUserId?: number
   assignedUserName?: string
@@ -136,9 +140,8 @@ export type WorkOrderDetailVO = {
   faultVideoFiles?: SysFileItemVO[]
   faultVoiceFiles?: SysFileItemVO[]
 
-  serviceMode?: string
-  serviceModeLabel?: string
   warrantyStatus?: string
+  // 报修业务类型
   reportBizType?: string
   reportBizTypeLabel?: string
 
@@ -367,14 +370,18 @@ export type OrderListItem = {
   transferNetwork?: string
   /** 转出网点，与详情 base.transferFromSite 一致 */
   transferFromSite?: string
+  /** 后端可执行动作（优先用于列表按钮渲染） */
+  availableActions?: WorkOrderActionKey[]
   /** 所属网点/服务站名称 */
   siteName?: string
-  /** 维修方式展示文案（由列表 serviceModeLabel / serviceMode 映射） */
-  repairMethodLabel?: string
   /** 维修价格展示（如 128.00） */
   repairPriceText?: string
-  /** 维修/受理网点电话 */
-  acceptCompanyPhone?: string
+  /** 维修方式展示文案（优先 serviceModeLabel，兼容 serviceMode） */
+  repairMethodLabel?: string
+  /**
+   * 列表接口 `createTime`；界面「提交时间」与详情 `base.submitTime` 同源
+   */
+  createTime?: string
 }
 
 /** 网点列表项 */
@@ -425,6 +432,8 @@ export type OrderRepairRegistrationEcho = {
 /** 工单详情 */
 export type OrderDetail = {
   id: string
+  /** 详情接口可执行动作（已做合法 key 过滤与去重） */
+  availableActions: WorkOrderActionKey[]
   status: OrderStatus
   transferred: boolean
   brand: {
@@ -456,9 +465,6 @@ export type OrderDetail = {
   }
   service: {
     sitePhone: string
-    /** 与后端 `serviceMode` 一致：MAIL 邮寄 / STORE 到店 */
-    serviceMode: 'MAIL' | 'STORE' | ''
-    repairMethod: string
     source: string
     senderInfo: string
     /** 详情 `senderName`，回寄预填 */
@@ -536,6 +542,7 @@ export type OrderDetail = {
  */
 export const createEmptyOrderDetail = (): OrderDetail => ({
   id: '',
+  availableActions: [],
   status: 'PENDING_ASSIGN',
   transferred: false,
   brand: {
@@ -563,8 +570,6 @@ export const createEmptyOrderDetail = (): OrderDetail => ({
   },
   service: {
     sitePhone: '',
-    serviceMode: '',
-    repairMethod: '',
     source: '',
     senderInfo: '',
     senderName: '',

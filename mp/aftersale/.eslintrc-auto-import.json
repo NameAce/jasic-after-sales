@@ -20,7 +20,6 @@
     "WritableComputedRef": true,
     "acceptHMRUpdate": true,
     "computed": true,
-    "createApp": true,
     "createPinia": true,
     "customRef": true,
     "defineAsyncComponent": true,

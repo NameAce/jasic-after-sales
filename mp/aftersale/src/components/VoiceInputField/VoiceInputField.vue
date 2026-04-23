@@ -1,15 +1,13 @@
 <template>
-  <!-- 语音输入 -->
+  <!-- 语音输入（按住录音 + 录音列表） -->
   <uni-forms-item name="voice">
-    <!-- 标签 -->
     <template #label>
       <view class="voice-label">
         <text class="label-text">{{ label }}</text>
       </view>
     </template>
-    <!-- 语音列表 -->
     <view class="voice-input-wrapper">
-      <!-- 遮罩锚定在「按住说话」条上方 -->
+      <!-- 「按住说话」条 + 锚定在条上沿的半圆遮罩 -->
       <view class="record-anchor">
         <view
           v-if="recordOverlayVisible"
@@ -45,40 +43,14 @@
           <text class="record-bar__text">{{ recordBarIdleText }}</text>
         </view>
       </view>
-      <!-- 语音列表（可与 VoicePlaybackList 拆分时关闭） -->
-      <view v-if="innerList.length && showRecordedList" class="voice-list">
-        <!-- 语音项 -->
-        <view
-          v-for="(item, index) in innerList"
-          :key="item.tempFilePath || index"
-          class="voice-item"
-          :class="{ 'voice-item--playing': playingIndex === index }"
-        >
-          <!-- 播放按钮 -->
-          <view class="play-btn" @click="playVoice(item, index)">
-            <uni-icons
-              :type="playingIndex === index ? 'circle-filled' : 'circle'"
-              size="20"
-              color="#f26604"
-            ></uni-icons>
-          </view>
-          <!-- 进度条 -->
-          <view class="progress-bar">
-            <view
-              class="progress-inner"
-              :style="{ width: (playingIndex === index ? playProgress : 0) + '%' }"
-            ></view>
-          </view>
-          <!-- 时长 -->
-          <text class="duration">{{ formatDisplayDuration(item, index) }}″</text>
-          <!-- 删除按钮 -->
-          <view class="delete-btn" @click="removeVoice(index)">
-            <uni-icons type="closeempty" size="14" color="#999"></uni-icons>
-          </view>
-        </view>
-      </view>
-      <!-- 语音占位符 -->
-      <view v-else-if="showRecordedList" class="voice-placeholder">
+      <!-- 录音列表：委托给 VoicePlaybackList 渲染播放与删除按钮 -->
+      <VoicePlaybackList
+        v-if="innerList.length"
+        :items="playbackItems"
+        deletable
+        @remove="onRemoveVoice"
+      />
+      <view v-else class="voice-placeholder">
         <text>暂无录音</text>
       </view>
     </view>
@@ -86,12 +58,11 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, computed, onUnmounted, nextTick } from 'vue'
+  import { ref, computed, onUnmounted } from 'vue'
   import { uploadCustomerFile } from '@/api/file'
+  import type { VoicePlaybackItem } from '@/components/VoicePlaybackList/VoicePlaybackList.vue'
 
-  /**
-   * 语音项
-   */
+  /** 语音条目：tempFilePath 为录制后本地临时文件，url 为上传回服务端的可访问地址 */
   export interface VoiceItem {
     tempFilePath: string
     duration: number
@@ -106,33 +77,36 @@
   /** 上滑取消：相对按下位置向上位移超过该值（px）视为取消区 */
   const SLIDE_CANCEL_PX = 72
 
-  // 定义 props
   const props = withDefaults(
     defineProps<{
-      // 语音列表
       modelValue?: VoiceItem[]
-      // 标签
       label?: string
-      /** 是否展示内置列表与「暂无录音」占位（与 VoicePlaybackList 拆分时可置为 false） */
-      showRecordedList?: boolean
     }>(),
     {
       modelValue: () => [],
-      label: '语音说明',
-      showRecordedList: true
+      label: '语音说明'
     }
   )
 
-  // 定义事件
   const emit = defineEmits<{
     (e: 'update:modelValue', value: VoiceItem[]): void
   }>()
 
-  // 语音列表
   const innerList = computed({
     get: () => props.modelValue || [],
     set: (val) => emit('update:modelValue', val)
   })
+
+  /**
+   * 传给 VoicePlaybackList 的条目：优先用本次录制的本地 tempFilePath（可直接播放），
+   * 回退到上传后的 url（走组件内部下载逻辑）。
+   */
+  const playbackItems = computed<VoicePlaybackItem[]>(() =>
+    innerList.value.map((v) => ({
+      url: v.tempFilePath || v.url || '',
+      duration: v.duration
+    }))
+  )
 
   /**
    * ---------- 按住录音状态（与 RecorderManager 回调配合）----------
@@ -157,34 +131,7 @@
   /** H5：鼠标模拟按住，需在 window 上跟手位移判断上滑取消 */
   let mouseRecordDown = false
 
-  // 播放索引
-  const playingIndex = ref(-1)
-  // 播放进度
-  const playProgress = ref(0)
-  // 即将发起新一段播放前会 stop()，各端 onStop 可能晚于 play()，误清 UI；忽略这一次 onStop
-  const ignoreNextAudioStop = ref(false)
-  // 忽略停止计时器
-  let ignoreNextAudioStopTimer: ReturnType<typeof setTimeout> | null = null
-  /**
-   * 清除忽略停止
-   * @returns void
-   */
-  const clearIgnoreAudioStop = () => {
-    if (ignoreNextAudioStopTimer) {
-      clearTimeout(ignoreNextAudioStopTimer)
-      ignoreNextAudioStopTimer = null
-    }
-    ignoreNextAudioStop.value = false
-  }
-  // 上一次成功发  起播放的地址，用于同一段重播时 seek(0)，避免清空 src 触发各端 onError
-  const lastVoicePlayPath = ref('')
-  // 录音管理器
   const recorderManager = uni.getRecorderManager ? uni.getRecorderManager() : null
-  // 音频上下文
-  const innerAudioContext =
-    uni.createInnerAudioContext && typeof uni.createInnerAudioContext === 'function'
-      ? uni.createInnerAudioContext()
-      : null
 
   /** 录音条未录音时文案（对齐微信输入框） */
   const recordBarIdleText = computed(() => {
@@ -199,19 +146,13 @@
     () => pressActive.value && (recordSessionPending.value || isRecording.value)
   )
 
-  /** 遮罩主提示 */
   const overlayMainHint = computed(() =>
     slideCancelActive.value ? '松开手指，取消发送' : '松开 发送'
   )
 
-  /** 遮罩副提示 */
   const overlaySubHint = computed(() => (slideCancelActive.value ? '' : '手指上滑，取消发送'))
 
-  /**
-   * 从触摸事件取纵向坐标（各端 clientY / pageY 不一致）
-   * @param e - 触摸事件
-   * @returns Y 或 null
-   */
+  /** 从触摸事件取纵向坐标（各端 clientY / pageY 不一致） */
   const getTouchClientY = (e: {
     touches?: { clientY?: number; pageY?: number }[]
     changedTouches?: { clientY?: number; pageY?: number }[]
@@ -222,10 +163,6 @@
     return typeof y === 'number' && !Number.isNaN(y) ? y : null
   }
 
-  /**
-   * 根据当前触点 Y 更新是否处于上滑取消区
-   * @param clientY - 视口 Y
-   */
   const updateSlideCancelByClientY = (clientY: number) => {
     if (recordTouchStartY === null) return
     slideCancelActive.value = recordTouchStartY - clientY > SLIDE_CANCEL_PX
@@ -236,10 +173,6 @@
     recordTouchStartY = null
   }
 
-  /**
-   * 清除录音计时器
-   * @returns void
-   */
   const clearRecordingTimer = () => {
     if (recordingTimer) {
       clearInterval(recordingTimer)
@@ -248,10 +181,6 @@
     recordingElapsedSec.value = 0
   }
 
-  /**
-   * 开始录音计时器
-   * @returns void
-   */
   const startRecordingTimer = () => {
     clearRecordingTimer()
     recordingElapsedSec.value = 0
@@ -260,10 +189,7 @@
     }, 1000)
   }
 
-  /**
-   * 录音真正开始时短震（App / 小程序等）；H5 无能力时静默跳过
-   * @returns void
-   */
+  /** 录音真正开始时短震（App / 小程序等）；H5 无能力时静默跳过 */
   const vibrateRecordStart = () => {
     const v = (uni as unknown as { vibrateShort?: (opts?: { type?: string }) => void }).vibrateShort
     if (typeof v !== 'function') return
@@ -278,46 +204,9 @@
     }
   }
 
-  /**
-   * 展示用：duration 为各端返回的毫秒数
-   * @param ms - 毫秒数
-   * @returns 时长
-   */
-  const formatDurationSec = (ms: number) => {
-    // 如果毫秒数不存在或小于等于0，则返回0
-    if (!ms || ms <= 0) return '0'
-    // 返回时长
-    return String(Math.max(0, Math.round(ms / 1000)))
-  }
-
-  /**
-   * 列表时长：未播放用录音元数据；正在播放的条目优先用解码时长（与 currentTime / 进度条同源），避免条与数字不一致
-   * @param item - 语音项
-   * @param index - 索引
-   * @returns 时长
-   */
-  const formatDisplayDuration = (item: VoiceItem, index: number) => {
-    // 如果音频上下文存在且正在播放，则返回解码时长
-    if (innerAudioContext && playingIndex.value === index) {
-      const d = innerAudioContext.duration
-      // 如果解码时长存在且大于0且不为NaN，则返回解码时长
-      if (typeof d === 'number' && d > 0 && !Number.isNaN(d)) {
-        // 返回解码时长
-        return String(Math.max(0, Math.round(d)))
-      }
-    }
-    // 返回时长
-    return formatDurationSec(item.duration) // 返回时长
-  }
-
-  /**
-   * 申请录音权限（小程序等）；不支持时直接通过
-   * @returns 是否授权
-   */
+  /** 申请录音权限（小程序等）；不支持时直接通过 */
   const ensureRecordPermission = (): Promise<boolean> => {
-    // 返回是否授权
     return new Promise((resolve) => {
-      // 授权
       const auth = (
         uni as unknown as {
           authorize?: (o: {
@@ -327,107 +216,27 @@
           }) => void
         }
       ).authorize
-      // 如果授权函数不存在，则返回true
       if (typeof auth !== 'function') {
         resolve(true)
         return
       }
-      // 授权
       auth({
         scope: 'scope.record',
         success: () => resolve(true),
         fail: () => {
-          // 显示模态框
           uni.showModal({
             title: '需要录音权限',
             content: '请允许使用麦克风后再试，可在设置中开启',
             confirmText: '去设置',
             success: (r) => {
-              // 如果确认且打开设置函数存在，则打开设置
               if (r.confirm && typeof uni.openSetting === 'function') {
                 uni.openSetting({})
               }
             }
           })
-          // 返回false
           resolve(false)
         }
       })
-    })
-  }
-
-  /**
-   * 音频上下文事件
-   * @returns void
-   */
-  if (innerAudioContext) {
-    /**
-     * 播放总时长（秒）：必须与 innerAudioContext.currentTime 同一套时间轴。
-     * 优先用解码得到的 duration；元数据 item.duration 仅作 metadata 未就绪时的回退。
-     */
-    const getPlayTotalSec = (index: number): number => {
-      // 获取音频上下文时长
-      const ctx = innerAudioContext.duration
-      // 如果音频上下文时长存在且大于0且不为NaN，则返回音频上下文时长
-      if (typeof ctx === 'number' && ctx > 0 && !Number.isNaN(ctx)) {
-        return ctx
-      }
-      // 获取语音项
-      const item = innerList.value[index]
-      // 获取录音时长
-      const recorded = item?.duration && item.duration > 0 ? item.duration / 1000 : 0
-      // 如果录音时长大于0，则返回录音时长，否则返回0
-      return recorded > 0 ? recorded : 0
-    }
-
-    /**
-     * 音频时间更新事件
-     * @returns void
-     */
-    innerAudioContext.onTimeUpdate(() => {
-      // 获取播放索引
-      const idx = playingIndex.value
-      // 如果播放索引小于0，则返回
-      if (idx < 0) return
-      // 获取播放总时长
-      const total = getPlayTotalSec(idx)
-      // 如果播放总时长小于等于0，则返回
-      if (total <= 0) return
-      const cur = innerAudioContext.currentTime || 0
-      // 计算播放进度
-      playProgress.value = Math.min(100, Math.max(0, (cur / total) * 100))
-    })
-    /**
-     * 音频结束事件
-     * @returns void
-     */
-    innerAudioContext.onEnded(() => {
-      // 停止播放
-      playingIndex.value = -1
-      playProgress.value = 0
-    })
-    /**
-     * 音频停止事件
-     * @returns void
-     */
-    innerAudioContext.onStop(() => {
-      // 如果忽略停止，则清除忽略停止
-      if (ignoreNextAudioStop.value) {
-        clearIgnoreAudioStop()
-        return
-      }
-      // 停止播放
-      playingIndex.value = -1
-      playProgress.value = 0
-    })
-    /**
-     * 音频错误事件
-     * @returns void
-     */
-    innerAudioContext.onError(() => {
-      // 停止播放
-      playingIndex.value = -1
-      playProgress.value = 0
     })
   }
 
@@ -439,8 +248,6 @@
     }
     if (recordSessionPending.value) return
 
-    clearIgnoreAudioStop()
-    innerAudioContext?.stop()
     cancelPendingStart.value = false
 
     const ok = await ensureRecordPermission()
@@ -615,90 +422,11 @@
   }
 
   /**
-   * 计划清除忽略停止
-   * @returns void
+   * VoicePlaybackList 抛上来的删除请求：录制阶段由本组件承担确认弹窗与 v-model 提交，
+   * 统一入口以便与「暂无录音」占位、录制流程状态一同管理。
    */
-  const scheduleClearIgnoreStop = () => {
-    // 如果忽略停止计时器存在，则清除忽略停止计时器
-    if (ignoreNextAudioStopTimer) {
-      clearTimeout(ignoreNextAudioStopTimer)
-      ignoreNextAudioStopTimer = null
-    }
-    // 设置忽略停止计时器
-    ignoreNextAudioStopTimer = setTimeout(() => {
-      ignoreNextAudioStopTimer = null
-      if (ignoreNextAudioStop.value) ignoreNextAudioStop.value = false
-    }, 320)
-  }
-
-  /**
-   * 播放语音
-   * @param item - 语音项
-   * @param index - 索引
-   * @returns void
-   */
-  const playVoice = async (item: VoiceItem, index: number) => {
-    // 如果语音项不存在，则返回
-    if (!item.tempFilePath) return
-    // 如果音频上下文不存在，则显示提示
-    if (!innerAudioContext) {
-      uni.showToast({ title: '当前环境不支持播放', icon: 'none', duration: 1500 })
-      return
-    }
-    // 如果正在播放，则清除忽略停止
-    if (playingIndex.value === index) {
-      clearIgnoreAudioStop()
-      innerAudioContext.stop()
-      return
-    }
-    // 设置忽略停止
-    ignoreNextAudioStop.value = true
-    scheduleClearIgnoreStop()
-    // 停止音频上下文
-    try {
-      innerAudioContext.stop()
-    } catch {
-      /* noop */
-    }
-    // 等待下一帧
-    await nextTick()
-    // 设置播放索引
-    playingIndex.value = index
-    playProgress.value = 0
-    const path = item.tempFilePath
-    // 获取音频上下文
-    const ac = innerAudioContext as {
-      src: string
-      play: () => void
-      seek?: (position: number) => void
-    }
-    // 如果上次播放路径与当前路径相同且路径存在，则重播
-    const replaySame = lastVoicePlayPath.value === path && !!path
-    // 如果重播相同且seek函数存在，则seek到0
-    if (replaySame && typeof ac.seek === 'function') {
-      try {
-        ac.seek(0)
-      } catch {
-        ac.src = path
-      }
-      lastVoicePlayPath.value = path
-      ac.play()
-    } else {
-      lastVoicePlayPath.value = path
-      ac.src = path
-      ac.play()
-    }
-  }
-
-  /**
-   * 删除语音
-   * @param index - 索引
-   * @returns void
-   */
-  const removeVoice = (index: number) => {
-    // 如果索引小于0或大于等于语音列表长度，则返回
+  const onRemoveVoice = (index: number) => {
     if (index < 0 || index >= innerList.value.length) return
-    // 显示模态框
     uni.showModal({
       title: '删除语音',
       content: '确定删除这条语音吗？',
@@ -706,39 +434,17 @@
       cancelText: '取消',
       success: (res) => {
         if (!res.confirm) return
-        // 获取语音列表
+        if (index < 0 || index >= innerList.value.length) return
         const list = [...innerList.value]
-        // 如果索引小于0或大于等于语音列表长度，则返回
-        if (index < 0 || index >= list.length) return
-        // 如果正在播放，则清除忽略停止
-        if (playingIndex.value === index) {
-          clearIgnoreAudioStop()
-          innerAudioContext?.stop()
-        } else if (playingIndex.value > index) {
-          // 播放索引减1
-          playingIndex.value--
-        }
-        // 删除语音
         list.splice(index, 1)
-        // 更新语音列表
         emit('update:modelValue', list)
       }
     })
   }
 
-  /**
-   * 卸载组件
-   * @returns void
-   */
   onUnmounted(() => {
     detachMouseRecordListeners()
-    // 清空上次播放路径
-    lastVoicePlayPath.value = ''
-    // 清除忽略停止
-    clearIgnoreAudioStop()
-    // 清除录音计时器
     clearRecordingTimer()
-    // 如果录音管理器存在且正在录音或录音会话等待，则停止录音
     if (recorderManager && (isRecording.value || recordSessionPending.value)) {
       try {
         recorderManager.stop()
@@ -746,8 +452,6 @@
         /* noop */
       }
     }
-    // 销毁音频上下文
-    innerAudioContext?.destroy()
   })
 </script>
 
@@ -904,58 +608,6 @@
       font-size: $font-sm;
       background-color: #f9f9f9;
       border-radius: $radius-md;
-    }
-
-    .voice-list {
-      @include flex-column;
-      gap: $space-sm;
-
-      .voice-item {
-        @include flex-row;
-        align-items: center;
-        padding: $space-sm $space-md;
-        background-color: $bg-input;
-        border-radius: $radius-xl;
-        gap: $space-md;
-
-        .play-btn {
-          width: 48rpx;
-          height: 48rpx;
-          @include flex-center;
-        }
-
-        .progress-bar {
-          flex: 1;
-          height: 8rpx;
-          background-color: #d9dfe6;
-          border-radius: 4rpx;
-          overflow: hidden;
-
-          .progress-inner {
-            height: 100%;
-            background-color: $primary;
-            width: 0;
-            transition: width 0.1s linear;
-          }
-        }
-
-        .duration {
-          font-size: $font-sm;
-          color: $text-secondary;
-          min-width: 40rpx;
-          text-align: right;
-        }
-
-        .delete-btn {
-          padding: $space-xs;
-          @include flex-center;
-        }
-
-        &.voice-item--playing {
-          background-color: rgba($primary, 0.08);
-          box-shadow: inset 0 0 0 2rpx rgba($primary, 0.35);
-        }
-      }
     }
   }
 </style>

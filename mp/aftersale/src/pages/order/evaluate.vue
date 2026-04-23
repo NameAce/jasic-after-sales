@@ -67,29 +67,6 @@
           </view>
         </view>
 
-        <!-- 快速标签区域 -->
-        <view class="section tags-section">
-          <text class="section-title">您对服务满意吗？</text>
-          <scroll-view
-            v-if="showQuickTagScroll"
-            scroll-x
-            class="tags-scroll"
-            :show-scrollbar="false"
-          >
-            <view class="tags-container">
-              <view
-                v-for="tag in availableTags"
-                :key="tag"
-                class="tag-item"
-                :class="{ active: formData.tags.includes(tag) }"
-                @click="toggleTag(tag)"
-              >
-                {{ tag }}
-              </view>
-            </view>
-          </scroll-view>
-        </view>
-
         <!-- 反馈输入区域 -->
         <view class="section feedback-section">
           <view class="textarea-wrap">
@@ -200,48 +177,12 @@
     efficiencyRating: 5,
     qualityRating: 5,
     satisfactionRating: 5,
-    tags: [] as string[],
     feedback: '',
     photos: []
   })
 
-  /** 为 false 时隐藏横向快捷标签区域 */
-  const showQuickTagScroll = false
-
   /** 为 false 时隐藏维修成果上传 */
   const showEvaluatePhotoUpload = false
-
-  // 可用标签
-  const availableTags = ['专业性强', '准时到达', '维修速度快', '价格公道', '服务态度好']
-
-  /**
-   * 将标签追加到反馈内容末尾，保证用户手动输入内容不被覆盖
-   * @param tag 标签
-   */
-  const appendTagToFeedback = (tag: string) => {
-    const current = formData.feedback.trimEnd()
-    if (!current) {
-      formData.feedback = tag
-      return
-    }
-
-    const needsSeparator = !/[、，,\s]$/.test(current)
-    formData.feedback = `${current}${needsSeparator ? '、' : ''}${tag}`
-  }
-
-  /**
-   * 切换标签
-   * @param tag 标签
-   */
-  const toggleTag = (tag: string) => {
-    const index = formData.tags.indexOf(tag)
-    if (index > -1) {
-      formData.tags.splice(index, 1)
-    } else {
-      formData.tags.push(tag)
-      appendTagToFeedback(tag)
-    }
-  }
 
   /**
    * 表单校验（与提交评价接口一致：仅三项评分 + 工单 ID 为必填）

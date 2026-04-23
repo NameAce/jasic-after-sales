@@ -14,6 +14,7 @@
 | component | `mp/aftersale/src/components/RepairTypeSelector/RepairTypeSelector.vue` | `mp/contractor/src/components/RepairTypeSelector/RepairTypeSelector.vue` | aftersale |
 | component | `mp/aftersale/src/components/MediaUploadField/MediaUploadField.vue` | `mp/contractor/src/components/MediaUploadField/MediaUploadField.vue` | aftersale |
 | component | `mp/aftersale/src/components/VoiceInputField/VoiceInputField.vue` | `mp/contractor/src/components/VoiceInputField/VoiceInputField.vue` | aftersale |
+| component | `mp/aftersale/src/components/VoicePlaybackList/VoicePlaybackList.vue` | `mp/contractor/src/components/VoicePlaybackList/VoicePlaybackList.vue` | aftersale（仅 `themeColor` 引入路径随目录约定不同） |
 | component | `mp/aftersale/src/components/BaseButton/BaseButton.vue` | `mp/contractor/src/components/BaseButton/BaseButton.vue` | aftersale |
 | component | `mp/aftersale/src/components/ListEmpty/ListEmpty.vue` | `mp/contractor/src/components/ListEmpty/ListEmpty.vue` | aftersale |
 | component | `mp/aftersale/src/components/ListNoMore/ListNoMore.vue` | `mp/contractor/src/components/ListNoMore/ListNoMore.vue` | contractor |
@@ -35,10 +36,30 @@
 
 ## 待继续推进镜像对
 
-| 分类 | aftersale | contractor | 建议基准 | 当前阻塞 |
-| --- | --- | --- | --- | --- |
-| component | `mp/aftersale/src/components/FormItemAnchor/FormItemAnchor.vue` | `mp/contractor/src/components/FormItemAnchor/FormItemAnchor.vue` | aftersale | aftersale 的 `FormItemAnchor` 使用 `formFieldAnchorId('ff-anchor-*')` 生成 id，contractor 直接用 `name`；需要同步拉齐 `utils/formFieldScrollFocus.ts` 与各 scroll-view 页面的 `scroll-into-view` 写法，整改面较大，留至 http 契约拉齐之后一并处理。 |
-| component | `mp/aftersale/src/components/VoicePlaybackList/VoicePlaybackList.vue` | `mp/contractor/src/components/VoicePlaybackList/VoicePlaybackList.vue` | aftersale | aftersale 的版本包含远程 url 下载到本地临时文件再播放的逻辑（order/detail 评价语音使用），contractor 的版本包含 `deletable` 删除按钮与相应事件。两者功能互斥但都有真实使用场景，合并前需要先评估是否将 VoicePlaybackList 完全拆分为「播放」组件并让 VoiceInputField 承担删除职责。 |
+_（空）本轮 ⑥R 完成后，原「VoicePlaybackList 功能互斥」阻塞已消除；暂无未对齐项。_
+
+## 已对齐镜像对（阶段 6.x：VoicePlaybackList 全量化 / VoiceInputField 职责拆分）
+
+- `VoicePlaybackList/VoicePlaybackList.vue`（aftersale / contractor 双端 1:1，仅 `themeColor` 引入路径因目录约定不同）：
+  - 合并为「播放全量版」：同时具备远程 `http(s)` url 的 `downloadFile` 预下载 + 本地 `tempFilePath` 直通（原 aftersale 能力）与 `deletable` 删除按钮（原 contractor 能力）。
+  - 新 props：`items: VoicePlaybackItem[]`、`deletable?: boolean = false`、`downloadable?: boolean = true`。
+  - 新事件：`remove(index)`。组件内部不再弹删除确认弹窗，只负责停播兜底；确认与 `v-model` 变更交给父级（VoiceInputField）。
+  - 播放态兜底：对 `props.items.length` 做 watcher，长度缩短时统一 `stopAndResetPlayback`，避免删除后样式错位或残留驱动。
+  - 只读场景兼容：`aftersale/pages/order/detail.vue` 两处 `<VoicePlaybackList :items="faultVoicePlaybackItems" />` 保持不变（`deletable` 默认 false、`downloadable` 默认 true，语义与旧实现完全一致）。
+- `VoiceInputField/VoiceInputField.vue`（aftersale / contractor 双端 1:1，仅上传 API 不同：`uploadCustomerFile` vs `uploadSystemFile`）：
+  - 降级为「录制 + 列表编排」组件：删除内置 `<view class="voice-list">` 模板块、`innerAudioContext`、`playVoice / playingIndex / playProgress / ignoreNextAudioStop / lastVoicePlayPath / scheduleClearIgnoreStop / clearIgnoreAudioStop / formatDurationSec / formatDisplayDuration / getPlayTotalSec`、以及对应 `.voice-list / .voice-item / .play-btn / .progress-bar / .duration / .delete-btn` scoped 样式。
+  - 保留：`RecorderManager` 全量录制流程（权限申请、按住开始、上滑取消、pending/start/stop/error 状态机、录音计时、上传后入库）、`.voice-placeholder`「暂无录音」占位（决策点 #1：录制场景专属，留在 `VoiceInputField` 自管）。
+  - 新增：`playbackItems` 计算属性（`{ url: v.tempFilePath || v.url || '', duration: v.duration }`），在「本地 tempFilePath 可直接播」与「草稿恢复后仅剩 url 也能走下载播放」两种形态间自动选路。
+  - 新增：`onRemoveVoice(index)`（决策点 #2：确认弹窗与 `update:modelValue` 统一由父级 `VoiceInputField` 承担）。
+  - 移除：旧 `showRecordedList` prop（原本用于「拆分期临时关闭内置列表」，拆分完成后不再需要）。jasicRepair / otherRepair 两页调用点 `<VoiceInputField v-model="formData.voiceList" />` 未使用该 prop，移除无破坏性影响。
+- 远程 url 下载策略（决策点 #3）：`VoicePlaybackList` 内部 `/^https?:\/\//i` 判别，非 http(s) 直通，本地 `tempFilePath` 零成本、远端语音下载后再播；支持手动关闭 `downloadable`。
+- 同页多实例互斥（决策点 #4）：当前仓库未出现同页多 `VoicePlaybackList` 场景（`aftersale/pages/order/detail.vue` 两处 `<VoicePlaybackList>` 位于 `v-if` 互斥分支），本轮不引入跨实例全局停播总线，保留给将来真实需要时实现。
+
+## 已对齐镜像对（阶段 5.x：FormItemAnchor / formFieldScrollFocus）
+
+- `FormItemAnchor/FormItemAnchor.vue`（以 aftersale 为准）：contractor 的 `:id` 改为 `formFieldAnchorId(name)`（加 `ff-anchor-` 前缀），`class` 统一为 `form-field-anchor`，样式改为不占布局流的 `position: absolute; 1px × 1px`（父级 `.form-item` 已 `position: relative`）。
+- `utils/formFieldScrollFocus.ts`（以 aftersale 为准）：contractor 从单工具 `triggerScrollIntoView` 扩展为与 aftersale 完全一致的六工具（`formFieldAnchorId / getFirstInvalidFieldKey / SCROLL_TOP_OFFSET_PX / scrollPageToFormFieldKey / scrollToFirstInvalidUniFormField / triggerScrollIntoView`）。
+- 业务调用点：`pages/address/edit.vue` 保持不变（`triggerScrollIntoView` 签名未变，由工具内部自动把 `fieldKey` 映射为 `ff-anchor-{fieldKey}`，`scroll-view` 的 `scroll-into-view` 与 `FormItemAnchor.id` 同步加前缀，语义对称）。`TabBar.vue` / `pages/order/list.vue` 的 `scroll-into-view` 用于 Tab 键名而非表单字段锚点，不纳入本镜像。
 
 ## 本轮收尾验收记录（2026-04-17）
 
@@ -53,6 +74,56 @@
 - SCSS：`styles/variables.scss` 公共段保持字面一致；扩展段分节注释统一为「[端名] 端侧扩展」模板；`$surface-track` / `$voice-panel-track` 统一为「`$voice-panel-track` 真源 + `$surface-track` 别名」，双端同名并列。
 - 组件镜像（新增已对齐）：`BaseButton/BaseButton.vue`（以 aftersale 为准，补 shadow + `constant/env(safe-area-inset-bottom)` 兜底）、`ListEmpty/ListEmpty.vue`（以 aftersale 为准，将空状态样式固化为 scoped 样式）、`ListNoMore/ListNoMore.vue`（以 contractor 为准，使用 `$text-slate-400` 与不带 trailing comma 的 props 默认值）。
 - 组件镜像（待推进）：`FormItemAnchor/FormItemAnchor.vue`（依赖 `utils/formFieldScrollFocus.ts` 统一）与 `VoicePlaybackList/VoicePlaybackList.vue`（远程 url 下载 vs deletable 删除功能差异）已纳入「待继续推进镜像对」。
+
+## 本轮收尾验收记录（2026-04-21，阶段 2.5：接口契约收口）
+
+- 基线确认（白名单边界）：
+  - 仅长期保留差异：`/customer/*`、`/auth/mp-*`、`my/login` 角色语境分叉。
+  - 非白名单差异已收口到统一契约：`code/msg/data`、成功码 `00000`、`A0100/A0200`、分页字段、`mainStatus` 主枚举、权限字段 shape。
+- aftersale `api/workOrder.ts`：
+  - 列表查询入参从 `tabStatus` 回收为 `mainStatus`。
+  - `isAsc` 语义改为 `'asc' | 'desc'`，不再使用 `boolean`。
+  - `pageSize` 默认值由 `500` 回收为 `10`，与 `PageQuery` 基线一致。
+- contractor `api/workOrder.ts`：
+  - `mainStatus` 映射仅保留主枚举：`PENDING_ASSIGN | PENDING_TECH_ACCEPT | IN_PROGRESS | COMPLETED | CLOSED`。
+  - 聚合展示态 `WAIT_ACCEPT`（= `PENDING_ASSIGN + PENDING_TECH_ACCEPT`）长期保留，降维为 `PENDING_TECH_ACCEPT`；
+    依据真源 `jasic-common/.../WorkOrderStatusConstants.java` `DisplayStatus` + `WorkOrderListVO.displayStatus`
+    `allowableValues = "WAIT_ACCEPT,IN_PROGRESS,COMPLETED,CLOSED"`，属后端正式字段，不回收。
+  - 前端自造历史别名 `PROCESSING / DONE / REPAIRING / IN_REPAIR / PENDING / WAITING / FINISHED / CLOSED_EVAL`
+    已在契约统一阶段回收（aftersale `MAIN_STATUS_TO_UI` + contractor `mapMainStatusToOrderStatus` /
+    `mapDisplayStatusToOrderStatus` / `if (u === 'WAIT_ACCEPT')` 分支注释），三端禁止再引入。
+- API 重复成功码判断收口：
+  - contractor `api/auth.ts` 删除重复 `res.code` 判定，统一回归 `utils/http.ts` 失败分支处理。
+  - contractor `api/workOrder.ts` 删除列表、统计、详情、派单、接单、转单、关单、维修登记、复检登记等重复 `res.code` + toast 样板判断。
+- 回归执行结果（本机）：
+  - `corepack pnpm -C mp/aftersale lint`：通过（0 error，1 warning，历史文件 `VoicePlaybackList.vue`）。
+  - `corepack pnpm -C mp/contractor lint`：通过（0 error，2 warnings，历史文件 `VoicePlaybackList.vue` / `SiteWorkbench.vue`）。
+  - `corepack pnpm -C mp/aftersale type-check`：失败，`vue-tsc` 在 Node.js `v24.13.0` 环境报工具兼容错误（`Search string not found: /supportedTSExtensions`）。
+  - `corepack pnpm -C mp/contractor type-check`：失败，存在仓库既有类型环境冲突（`@dcloudio/types` 与 `@uni-helper` 等定义重复）及既有组件类型告警，非本轮改动引入。
+
+## 本轮收尾验收记录（2026-04-21，阶段 2.6：双端列表触发与动作收口）
+
+- aftersale 列表参数收口：
+  - `pages/order/list.vue` Tab 筛选已从 `tabStatus` 全量切换到 `mainStatus`（`待接单 -> PENDING_TECH_ACCEPT`、`维修中 -> IN_PROGRESS`、`已完成 -> COMPLETED`、`已关闭 -> CLOSED`）。
+  - 注释明确区分“UI 文案展示（含 `displayStatus`）”与“接口筛选主枚举（`mainStatus`）”。
+- contractor 评价页边界：
+  - `pages.json` 与 `pages/order/list.vue` 无 `pages/evaluate/index` 路由与跳转残留。
+  - `pages/order/detail.vue` 保持“客户评价”只读展示，不新增评价入口按钮。
+- 按钮显隐策略：
+  - contractor 列表固化为“`availableActions` 优先 + 前端权限二次过滤 + 状态兜底仅过渡期”。
+  - aftersale 列表固化为“接口布尔字段（`canEvaluate / canUploadSendExpress`）控制显隐，页面仅渲染”。
+- 长期差异边界补充：
+  - contractor 不再维护独立评价页面，评价能力长期保留为详情只读展示（与 C 端评价提交链路形成职责边界）。
+
+## 本轮收尾验收记录（阶段 6.x：语音播放 / 录制组件对齐）
+
+- 双端 `VoicePlaybackList/VoicePlaybackList.vue` 重写为「播放全量版」（`items / deletable / downloadable` + `remove` 事件），两端除 `themeColor` 引入路径外字面 1:1。
+- 双端 `VoiceInputField/VoiceInputField.vue` 降级为「录制 + 列表编排」组件（删除内嵌播放 UI、`innerAudioContext` 及对应样式），两端除 `uploadCustomerFile` / `uploadSystemFile` 外字面 1:1；原 `showRecordedList` prop 随拆分完成一并移除。
+- 只读场景：`aftersale/pages/order/detail.vue` 的两处 `<VoicePlaybackList :items="faultVoicePlaybackItems" />` 保持原调用，`deletable` 默认 false、`downloadable` 默认 true，语义与旧实现一致。
+- 决策点落地：#1 占位留在 VoiceInputField 自管；#2 删除确认弹窗交父级；#3 `downloadable` 默认 true，内部用 `/^https?:\/\//i` 判别走下载或直通；#4 同页多实例互斥暂不实现（当前仓库无真实场景）。
+- 回归执行结果（本机）：
+  - ReadLints 扫描四个核心文件 + `aftersale/pages/order/detail.vue`：0 error / 0 warning。
+  - `lint` 中此前反复出现的“历史文件 `VoicePlaybackList.vue`”告警按阶段 2.5 记录应随重写一并消除，实际是否归零需在命令行 `corepack pnpm -C mp/{aftersale,contractor} lint` 下复核（本轮暂未再次运行 lint 脚本）。
 
 ## 长期允许差异页面
 

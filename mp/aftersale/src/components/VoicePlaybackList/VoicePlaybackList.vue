@@ -3,7 +3,7 @@
     <view class="voice-list">
       <view
         v-for="(item, index) in items"
-        :key="item.url + '-' + index"
+        :key="(item.url || '') + '-' + index"
         class="voice-item"
         :class="{ 'voice-item--playing': playingIndex === index }"
       >
@@ -21,16 +21,19 @@
           />
         </view>
         <text class="duration">{{ formatDisplayDuration(item, index) }}″</text>
+        <view v-if="deletable" class="delete-btn" @click.stop="onRemoveClick(index)">
+          <uni-icons type="closeempty" size="14" color="#999" />
+        </view>
       </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-  import { ref, onUnmounted, nextTick } from 'vue'
+  import { ref, watch, onUnmounted, nextTick } from 'vue'
   import { themeColor } from '@/constants/theme'
 
-  /** 与报修页录音条目一致：duration 为毫秒（可选，用于解码前展示） */
+  /** 播放条目：duration 为毫秒（可选，元数据未就绪时的显示回退） */
   export interface VoicePlaybackItem {
     url: string
     duration?: number
@@ -39,26 +42,37 @@
   const props = withDefaults(
     defineProps<{
       items: VoicePlaybackItem[]
+      /** 是否展示删除按钮，点击后通过 `remove` 事件将 index 交给父级确认/提交 */
+      deletable?: boolean
+      /**
+       * 远程 http(s) 语音是否先 downloadFile 到本地再播，本地/平台路径自动直通
+       * （部分端 InnerAudioContext 直播远程 URL 的兼容性差，默认开启以对齐 VoiceInputField 的本地 tempFilePath 行为）
+       */
+      downloadable?: boolean
     }>(),
     {
-      items: () => []
+      items: () => [],
+      deletable: false,
+      downloadable: true
     }
   )
-  // 播放索引
+
+  const emit = defineEmits<{
+    (e: 'remove', index: number): void
+  }>()
+
   const playingIndex = ref(-1)
-  // 播放进度
   const playProgress = ref(0)
-  // 忽略下次音频停止
+  /**
+   * 切段播放前会 stop()，各端 onStop 可能晚于新 play()，导致误清 UI；
+   * 对下一次 onStop 打标忽略。
+   */
   const ignoreNextAudioStop = ref(false)
-  // 忽略下次音频停止计时器
   let ignoreNextAudioStopTimer: ReturnType<typeof setTimeout> | null = null
-  // 上一次成功发起播放的地址，用于同一段重播时 seek(0)，避免清空 src 触发各端 onError
+  /** 上一次成功发起播放的地址，用于同段重播时 seek(0)，避免清空 src 触发各端 onError */
   const lastVoicePlayPath = ref('')
 
-  /**
-   * 远程语音先下载到本地临时文件后再播（对齐 VoiceInputField：播放源是本地 tempFilePath）
-   * key: 原始 url；value: 可播放的本地路径（或原样返回）
-   */
+  /** 原始 url → 可播放的本地 tempFilePath（或原样 url） */
   const resolvedPlaySrcMap = ref<Record<string, string>>({})
 
   const isRemoteHttpUrl = (url: string) => /^https?:\/\//i.test(url.trim())
@@ -69,8 +83,7 @@
     const cached = resolvedPlaySrcMap.value[url]
     if (cached) return cached
 
-    // 非 http(s) 认为已是本地/平台路径，直接播
-    if (!isRemoteHttpUrl(url)) {
+    if (!props.downloadable || !isRemoteHttpUrl(url)) {
       resolvedPlaySrcMap.value = { ...resolvedPlaySrcMap.value, [url]: url }
       return url
     }
@@ -86,7 +99,6 @@
     ).downloadFile
 
     if (typeof download !== 'function') {
-      // 某些端不支持 downloadFile，退回直接使用远程 URL
       resolvedPlaySrcMap.value = { ...resolvedPlaySrcMap.value, [url]: url }
       return url
     }
@@ -111,159 +123,100 @@
     }
   }
 
-  // 音频上下文
   const innerAudioContext =
     uni.createInnerAudioContext && typeof uni.createInnerAudioContext === 'function'
       ? uni.createInnerAudioContext()
       : null
 
-  /**
-   * 清除忽略下次音频停止
-   * @returns void
-   */
   const clearIgnoreAudioStop = () => {
-    // 如果忽略下次音频停止计时器存在，则清除忽略下次音频停止计时器
     if (ignoreNextAudioStopTimer) {
       clearTimeout(ignoreNextAudioStopTimer)
       ignoreNextAudioStopTimer = null
     }
-    // 设置忽略下次音频停止为false
     ignoreNextAudioStop.value = false
   }
 
-  /**
-   * 格式化时长（秒）
-   * @param ms - 毫秒
-   * @returns 时长（秒）
-   */
   const formatDurationSec = (ms: number) => {
-    // 如果毫秒不存在或小于等于0，则返回0
     if (!ms || ms <= 0) return '0'
     return String(Math.max(0, Math.round(ms / 1000)))
   }
 
   /**
-   * 格式化显示时长
-   * @param item - 语音项
-   * @param index - 索引
-   * @returns 显示时长
+   * 列表时长：正在播放时优先用解码时长（与 currentTime/进度条同源），否则用元数据
    */
   const formatDisplayDuration = (item: VoicePlaybackItem, index: number) => {
-    // 如果音频上下文存在且正在播放，则返回解码时长
     if (innerAudioContext && playingIndex.value === index) {
       const d = innerAudioContext.duration
-      // 如果解码时长存在且大于0且不为NaN，则返回解码时长
       if (typeof d === 'number' && d > 0 && !Number.isNaN(d)) {
-        // 返回解码时长
         return String(Math.max(0, Math.round(d)))
       }
     }
-    // 返回时长
     return formatDurationSec(item.duration ?? 0)
   }
 
-  /**
-   * 获取播放总时长（秒）
-   * @param index - 索引
-   * @returns 播放总时长（秒）
-   */
+  /** 与 innerAudioContext.currentTime 同一套时间轴；元数据仅作回退 */
   const getPlayTotalSec = (index: number): number => {
-    // 获取音频上下文时长
     const ctx = innerAudioContext?.duration
-    // 如果音频上下文时长存在且大于0且不为NaN，则返回音频上下文时长
     if (typeof ctx === 'number' && ctx > 0 && !Number.isNaN(ctx)) {
       return ctx
     }
-    // 获取语音项
     const item = props.items[index]
-    // 获取录音时长
     const recorded = item?.duration && item.duration > 0 ? item.duration / 1000 : 0
-    // 如果录音时长大于0，则返回录音时长，否则返回0
     return recorded > 0 ? recorded : 0
   }
 
-  /**
-   * 音频上下文事件
-   * @returns void
-   */
+  const stopAndResetPlayback = () => {
+    clearIgnoreAudioStop()
+    try {
+      innerAudioContext?.stop()
+    } catch {
+      /* noop */
+    }
+    playingIndex.value = -1
+    playProgress.value = 0
+    lastVoicePlayPath.value = ''
+  }
+
   if (innerAudioContext) {
-    /**
-     * 音频时间更新事件
-     * @returns void
-     */
     innerAudioContext.onTimeUpdate(() => {
-      // 获取播放索引
       const idx = playingIndex.value
-      // 如果播放索引小于0，则返回
       if (idx < 0) return
-      // 获取播放总时长
       const total = getPlayTotalSec(idx)
-      // 如果播放总时长小于等于0，则返回
       if (total <= 0) return
-      // 获取当前播放时间
       const cur = innerAudioContext.currentTime || 0
-      // 如果当前播放时间不存在或小于等于0，则返回
       if (!cur || cur <= 0) return
-      // 计算播放进度
       playProgress.value = Math.min(100, Math.max(0, (cur / total) * 100))
     })
-    /**
-     * 音频结束事件
-     * @returns void
-     */
     innerAudioContext.onEnded(() => {
-      // 停止播放
       playingIndex.value = -1
       playProgress.value = 0
     })
-    /**
-     * 音频停止事件
-     * @returns void
-     */
     innerAudioContext.onStop(() => {
-      // 如果忽略下次音频停止，则清除忽略下次音频停止
       if (ignoreNextAudioStop.value) {
         clearIgnoreAudioStop()
         return
       }
-      // 停止播放
       playingIndex.value = -1
       playProgress.value = 0
     })
     innerAudioContext.onError(() => {
-      // 停止播放
       playingIndex.value = -1
       playProgress.value = 0
     })
   }
 
-  /**
-   * 计划清除忽略下次音频停止
-   * @returns void
-   */
   const scheduleClearIgnoreStop = () => {
-    // 如果忽略下次音频停止计时器存在，则清除忽略下次音频停止计时器
     if (ignoreNextAudioStopTimer) {
-      // 清除忽略下次音频停止计时器
       clearTimeout(ignoreNextAudioStopTimer)
       ignoreNextAudioStopTimer = null
     }
-    // 设置忽略下次音频停止计时器
     ignoreNextAudioStopTimer = setTimeout(() => {
-      // 清除忽略下次音频停止计时器
       ignoreNextAudioStopTimer = null
       if (ignoreNextAudioStop.value) ignoreNextAudioStop.value = false
     }, 320)
   }
 
-  /**
-   * 播放语音
-   * @param item - 语音项
-   * @param index - 索引
-   * @returns void
-   */
   const playVoice = async (item: VoicePlaybackItem, index: number) => {
-    // 如果语音项不存在，则返回
     if (!item.url) return
     if (!innerAudioContext) {
       uni.showToast({ title: '当前环境不支持播放', icon: 'none', duration: 1500 })
@@ -312,6 +265,29 @@
     }
   }
 
+  /**
+   * 只抛事件，具体的确认弹窗与列表变更交给父级（VoiceInputField 等）。
+   * 本地仅做播放态兜底：父级提交删除后，items 长度变化会触发 watcher 统一停止播放。
+   */
+  const onRemoveClick = (index: number) => {
+    if (!props.deletable) return
+    if (index < 0 || index >= props.items.length) return
+    emit('remove', index)
+  }
+
+  /**
+   * items 长度缩短即视为有条目被移除，统一停止播放；避免因 index 偏移导致
+   * 正在播放样式错位或继续驱动已不存在的条目。
+   */
+  let prevItemsLen = props.items.length
+  watch(
+    () => props.items.length,
+    (len) => {
+      if (len < prevItemsLen) stopAndResetPlayback()
+      prevItemsLen = len
+    }
+  )
+
   onUnmounted(() => {
     lastVoicePlayPath.value = ''
     clearIgnoreAudioStop()
@@ -323,7 +299,7 @@
   @use '@/styles/mixins.scss' as *;
   @use '@/styles/variables.scss' as *;
 
-  /* 与 VoiceInputField 语音列表同一套布局与样式 */
+  /* 与 VoiceInputField 录音条下方的列表同一套视觉 */
   .voice-input-wrapper {
     width: 100%;
 
@@ -365,6 +341,11 @@
           color: $text-secondary;
           min-width: 40rpx;
           text-align: right;
+        }
+
+        .delete-btn {
+          padding: $space-xs;
+          @include flex-center;
         }
 
         &.voice-item--playing {

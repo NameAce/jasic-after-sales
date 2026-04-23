@@ -123,6 +123,25 @@
             />
           </uni-forms-item>
 
+          <!-- 目标（一级/总部）：upstream tab 下一级展示「目标总部」、二级展示「目标一级」 -->
+          <uni-forms-item
+            v-if="showUpstreamTargetField"
+            :label="upstreamTargetCompanyLabel"
+            name="targetCompanyId"
+            required
+          >
+            <uni-data-select
+              v-model="formData.targetCompanyId"
+              :localdata="upstreamTargetCompanyOptions"
+              :clear="false"
+              :disabled="isUpstreamTargetSingleOption"
+              :placeholder="`请选择${upstreamTargetCompanyLabel}`"
+            />
+            <view v-if="isUpstreamTargetSingleOption && upstreamTargetDisplay" class="target-auto-tip">
+              <text>已自动回填：{{ upstreamTargetDisplay }}</text>
+            </view>
+          </uni-forms-item>
+
           <!-- 选择维修路径 -->
           <uni-forms-item label="选择维修路径" name="repairType" required>
             <RepairTypeSelector v-model="formData.repairType" :options="repairTypes" />
@@ -237,7 +256,10 @@
     createUpstreamFirstWorkOrder,
     createUpstreamHqWorkOrder,
     getProxyCreateBarcodeInfo,
+    getUpstreamFirstCreateBarcodeInfo,
     getUpstreamHqCreateBarcodeInfo,
+    listUpstreamFirstCreateTargetOptions,
+    type SysCompanySimpleVO,
     type WorkOrderCreateBarcodeInfoVO,
     type WorkOrderProxyCreateDTO,
     type WorkOrderUpstreamCreateDTO
@@ -361,38 +383,108 @@
       .filter((x): x is { text: string; value: string } => x != null)
   }
 
+  /** 报修入口上"目标总部/目标一级"可选项（一级报修佳士走 targetCompanyOptions；二级报修一级兼容接口兜底） */
+  const upstreamTargetCompanyOptions = ref<{ text: string; value: string }[]>([])
+
+  /** 目标字段 label：一级 → 目标总部；二级 → 目标一级 */
+  const upstreamTargetCompanyLabel = computed(() =>
+    userStore.isPrimaryDealer ? '目标总部' : '目标一级'
+  )
+
+  /** 是否展示"目标（一级/总部）"选择项 */
+  const showUpstreamTargetField = computed(() => {
+    if (repairEntryTab.value !== 'upstream') return false
+    return upstreamTargetCompanyOptions.value.length > 0
+  })
+
+  /** 目标字段是否单项自动回显（>=1 时仅 1 个时禁用 picker） */
+  const isUpstreamTargetSingleOption = computed(
+    () => upstreamTargetCompanyOptions.value.length === 1
+  )
+
+  /** 目标字段当前展示文案 */
+  const upstreamTargetDisplay = computed(() => {
+    const cur = String(formData.value.targetCompanyId || '')
+    const hit = upstreamTargetCompanyOptions.value.find((o) => o.value === cur)
+    return hit?.text || ''
+  })
+
   /**
-   * 一级报修佳士：根据条码查询结果同步目标受理公司（多选时保留用户已选且仍合法）。
+   * 同步目标受理公司：
+   * - 一级经销商：按 `getUpstreamHqCreateBarcodeInfo` 返回的 targetCompanyOptions
+   *   多项→尝试默认值；1 项→回显；0 项→默认总部兜底（保持原行为）
+   * - 二级经销商：按 `getUpstreamFirstCreateBarcodeInfo` 返回的 targetCompanyOptions
+   *   多项→让用户挑（提交时必填）；1 项→默认回显；0 项→提交时必填（不兜底 hqCompanyId）
    */
   const syncUpstreamTargetCompanyFromBarcodeInfo = (
     info: WorkOrderCreateBarcodeInfoVO | null | undefined
   ) => {
     if (repairEntryTab.value !== 'upstream') {
-      formData.value.targetCompanyId = ''
-      return
-    }
-    if (!userStore.isPrimaryDealer) {
+      upstreamTargetCompanyOptions.value = []
       formData.value.targetCompanyId = ''
       return
     }
     const opts = mapTargetCompanyOptionsToSelect(info?.targetCompanyOptions)
+    upstreamTargetCompanyOptions.value = opts
     const defId = Number(info?.defaultTargetCompanyId)
     const hqId = Number(info?.hqCompanyId)
     const cur = Number(formData.value.targetCompanyId)
     const curInOpts = opts.some((o) => Number(o.value) === cur)
 
+    if (userStore.isPrimaryDealer) {
+      if (opts.length > 1) {
+        if (!Number.isFinite(cur) || cur <= 0 || !curInOpts) {
+          const defOk =
+            Number.isFinite(defId) && defId > 0 && opts.some((o) => Number(o.value) === defId)
+          formData.value.targetCompanyId = defOk ? String(defId) : ''
+        }
+      } else if (opts.length === 1) {
+        formData.value.targetCompanyId = opts[0].value
+      } else {
+        const fallback = Number.isFinite(defId) && defId > 0 ? defId : hqId
+        formData.value.targetCompanyId =
+          Number.isFinite(fallback) && fallback > 0 ? String(fallback) : ''
+      }
+      return
+    }
+
+    // 二级经销商：仅 1 个选项时默认回显；多项让用户挑；0 项清空
+    if (opts.length === 1) {
+      formData.value.targetCompanyId = opts[0].value
+      return
+    }
     if (opts.length > 1) {
       if (!Number.isFinite(cur) || cur <= 0 || !curInOpts) {
         const defOk =
           Number.isFinite(defId) && defId > 0 && opts.some((o) => Number(o.value) === defId)
         formData.value.targetCompanyId = defOk ? String(defId) : ''
       }
-    } else if (opts.length === 1) {
-      formData.value.targetCompanyId = opts[0].value
-    } else {
-      const fallback = Number.isFinite(defId) && defId > 0 ? defId : hqId
-      formData.value.targetCompanyId =
-        Number.isFinite(fallback) && fallback > 0 ? String(fallback) : ''
+      return
+    }
+    formData.value.targetCompanyId = ''
+  }
+
+  /**
+   * 二级经销商无码兜底：拉取可上报的一级网点列表填充到"目标一级"选择项。
+   * 场景：切换到 upstream tab、未输入条码或条码查询失败时使用。
+   */
+  const loadUpstreamFirstTargetOptionsForSecondary = async () => {
+    if (userStore.isPrimaryDealer) return
+    if (repairEntryTab.value !== 'upstream') return
+    try {
+      const list: SysCompanySimpleVO[] = await listUpstreamFirstCreateTargetOptions()
+      const opts = mapTargetCompanyOptionsToSelect(list)
+      upstreamTargetCompanyOptions.value = opts
+      if (opts.length === 1) {
+        formData.value.targetCompanyId = opts[0].value
+      } else {
+        const cur = Number(formData.value.targetCompanyId)
+        const curInOpts = opts.some((o) => Number(o.value) === cur)
+        if (!curInOpts) formData.value.targetCompanyId = ''
+      }
+    } catch {
+      upstreamTargetCompanyOptions.value = []
+      formData.value.targetCompanyId = ''
     }
   }
 
@@ -510,6 +602,13 @@
     if (formType === 'jasic' && formData.value.repairType === 'MAIL') {
       base.shippingInfo = {
         rules: [{ required: true, errorMessage: '请填写寄件信息' }]
+      }
+    }
+    // upstream tab 下：一级"目标总部"/二级"目标一级" 均必填（0 项时由后端返回提示，前端仍拦截）
+    if (repairEntryTab.value === 'upstream') {
+      const label = userStore.isPrimaryDealer ? '目标总部' : '目标一级'
+      base.targetCompanyId = {
+        rules: [{ required: true, errorMessage: `请选择${label}` }]
       }
     }
     return base
@@ -653,15 +752,21 @@
     }
     uni.showLoading({ title: '查询中...' })
     const upstreamTid = Number(formData.value.targetCompanyId)
-    const request =
-      repairEntryTab.value === 'upstream'
-        ? getUpstreamHqCreateBarcodeInfo(
-            formData.value.warrantyCode,
-            userStore.isPrimaryDealer && Number.isFinite(upstreamTid) && upstreamTid > 0
-              ? upstreamTid
-              : undefined
-          )
-        : getProxyCreateBarcodeInfo(formData.value.warrantyCode)
+    let request: ReturnType<typeof getProxyCreateBarcodeInfo>
+    if (repairEntryTab.value === 'upstream') {
+      if (userStore.isPrimaryDealer) {
+        // 一级报修佳士
+        request = getUpstreamHqCreateBarcodeInfo(
+          formData.value.warrantyCode,
+          Number.isFinite(upstreamTid) && upstreamTid > 0 ? upstreamTid : undefined
+        )
+      } else {
+        // 二级报修一级
+        request = getUpstreamFirstCreateBarcodeInfo(formData.value.warrantyCode)
+      }
+    } else {
+      request = getProxyCreateBarcodeInfo(formData.value.warrantyCode)
+    }
 
     try {
       const { data: info, msg } = await request
@@ -709,8 +814,14 @@
       lastBarcodeInfo.value = null
       queryFailedWithBarcode.value = !!String(formData.value.warrantyCode ?? '').trim()
       warrantyQueried.value = true
-      if (userStore.isPrimaryDealer && repairEntryTab.value === 'upstream') {
-        formData.value.targetCompanyId = ''
+      if (repairEntryTab.value === 'upstream') {
+        if (userStore.isPrimaryDealer) {
+          upstreamTargetCompanyOptions.value = []
+          formData.value.targetCompanyId = ''
+        } else {
+          // 二级报修一级：条码查询失败时拉兜底的"目标一级"列表
+          void loadUpstreamFirstTargetOptionsForSecondary()
+        }
       }
       nextTick(() => syncShowFaultRemarkFromState())
     }
@@ -793,8 +904,20 @@
           'targetCompanyId'
         ])
         syncShowFaultRemarkFromState()
+        // 若恢复态中已有条码信息，优先从 lastBarcodeInfo 重建"目标"候选
+        if (lastBarcodeInfo.value && repairEntryTab.value === 'upstream') {
+          syncUpstreamTargetCompanyFromBarcodeInfo(lastBarcodeInfo.value)
+        } else {
+          upstreamTargetCompanyOptions.value = []
+        }
         if (String(formData.value.warrantyCode ?? '').trim()) {
           tryAutoQueryBarcodeOnEnter()
+        } else if (
+          repairEntryTab.value === 'upstream' &&
+          !userStore.isPrimaryDealer
+        ) {
+          // 二级经销商 upstream tab 且无条码 → 直接拉"目标一级"兜底
+          void loadUpstreamFirstTargetOptionsForSecondary()
         }
       })
     }
@@ -813,6 +936,10 @@
     }
     repairEntryTab.value = tab
     applyRepairEntryTabSnapshot(tabFormSnapshots.value[tab] ?? null)
+    // 二级经销商切到 upstream tab 时，若当前无条码查询结果，自动拉"目标一级"列表
+    if (tab === 'upstream' && !userStore.isPrimaryDealer && !lastBarcodeInfo.value) {
+      void loadUpstreamFirstTargetOptionsForSecondary()
+    }
   }
 
   const showFaultDescDropdown = ref(false)
@@ -1001,9 +1128,10 @@
       senderVoucherFileIds: m.senderVoucherFileIds,
       serviceMode: m.serviceMode
     }
-    const hqTid = Number(formData.value.targetCompanyId)
-    if (userStore.isPrimaryDealer && Number.isFinite(hqTid) && hqTid > 0) {
-      dto.targetCompanyId = hqTid
+    // 一级"报修佳士"与二级"报修一级"均使用同一 DTO 字段 targetCompanyId
+    const tid = Number(formData.value.targetCompanyId)
+    if (Number.isFinite(tid) && tid > 0) {
+      dto.targetCompanyId = tid
     }
     return dto
   }
@@ -1313,6 +1441,12 @@
     .repair-entry-tabs {
       @include pill-tabs;
     }
+  }
+
+  .target-auto-tip {
+    margin-top: $space-xs;
+    font-size: $font-sm;
+    color: $text-placeholder;
   }
 
   // 区块标题

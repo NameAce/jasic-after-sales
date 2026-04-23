@@ -1,4 +1,4 @@
-import { API_SUCCESS_CODE, getApiMessage, http } from '@/utils/http'
+import { getApiMessage, http } from '@/utils/http'
 import type {
   BranchItem,
   FaultPointRecord,
@@ -15,14 +15,10 @@ import type {
   WorkOrderRepairVO,
 } from '@/models/order'
 import { WORK_ORDER_MAIN_STATUS } from '@/models/order'
+import { normalizeAvailableActions } from '@/constants/orderActions'
 import { mapWorkOrderRepairsToAllFaultPointRecords } from './mapRepairsToFaultPointRecords'
 import { isOrderStatus } from '@/utils/orderStatus'
 import { formatAmount } from '@/utils/format'
-
-/** 业务成功判定：严格对齐 jasic-ui，成功码仅为 '00000' */
-function isBizSuccess(code: unknown) {
-  return String(code) === API_SUCCESS_CODE
-}
 
 /** 查询可派单人员：`/system/work-order/{workOrderId}/assign-user-options` */
 export type WorkOrderUserOptionVO = {
@@ -51,7 +47,14 @@ export type WorkOrderRepairFaultOptionVO = {
   repairOptions: string[]
 }
 
-/** GET `/system/work-order/list` 查询参数（与后端文档一致；服务端注入字段一般不必传） */
+/**
+ * GET `/system/work-order/list` 查询参数（DTO）
+ *
+ * 三层口径：
+ * - DTO：本类型（请求参数）
+ * - VO：`@/models/order` 中 `WorkOrderListVO / WorkOrderDetailVO`（后端原样响应）
+ * - Model：`@/models/order` 中 `OrderListItem / OrderDetail`（UI 展示模型）
+ */
 export type OrderListQuery = {
   barcode?: string
   companyId?: number
@@ -61,8 +64,9 @@ export type OrderListQuery = {
   customerName?: string
   dataScope?: string
   hasTransfer?: number
-  isAsc?: string
-  /** 主状态：如 PENDING_ASSIGN（待派单）、PENDING_TECH_ACCEPT（待接单）、IN_PROGRESS、COMPLETED、CLOSED */
+  /** 分页排序方向：与后端 PageQuery 对齐 */
+  isAsc?: 'asc' | 'desc'
+  /** 主状态枚举：PENDING_ASSIGN | PENDING_TECH_ACCEPT | IN_PROGRESS | COMPLETED | CLOSED */
   mainStatus?: string
   orderByColumn?: string
   orderNo?: string
@@ -78,6 +82,31 @@ export type OrderListPage = {
   pageSize: number
   total: number
   records: OrderListItem[]
+}
+
+export type HqSiteOrdersDisplayStatus = 'ALL' | 'WAIT_ACCEPT' | 'IN_PROGRESS' | 'COMPLETED' | 'CLOSED'
+
+/** 总部网点工单分页查询参数（与 jasic-ui 侧 GET `params` 扁平字段一致，由 `buildHqSiteOrdersQueryString` 序列化） */
+export type WorkOrderHqSiteOrdersQuery = {
+  barcode?: string
+  customerMobile?: string
+  customerName?: string
+  displayStatus?: HqSiteOrdersDisplayStatus
+  isAsc?: 'asc' | 'desc'
+  orderByColumn?: string
+  orderNo?: string
+  pageNum?: number
+  pageSize?: number
+  siteCompanyId: number
+}
+
+type WorkOrderHqSiteSummaryVO = {
+  completedCount?: number | string
+  inProgressCount?: number | string
+  siteCompanyId?: number | string
+  siteCompanyName?: string
+  totalCount?: number | string
+  waitAcceptCount?: number | string
 }
 
 /**
@@ -126,9 +155,40 @@ function buildWorkOrderQueryString(params: OrderListQuery): string {
 }
 
 /**
+ * 构建总部网点汇总查询串（对齐 jasic-ui `listWorkOrder`：GET + 扁平 query，由 `appendQueryParam` 序列化）。
+ */
+function buildHqSiteSummaryQueryString(params: { siteName?: string }): string {
+  const parts: string[] = []
+  const name = String(params.siteName ?? '').trim()
+  appendQueryParam(parts, 'siteName', name || undefined)
+  return parts.join('&')
+}
+
+/**
+ * 构建总部网点工单分页查询串（字段顺序与 jasic-ui 工单列表常用 GET 参数一致：主体筛选 → 分页 → 检索项 → 排序）。
+ */
+function buildHqSiteOrdersQueryString(params: WorkOrderHqSiteOrdersQuery): string {
+  const parts: string[] = []
+  appendQueryParam(parts, 'siteCompanyId', params.siteCompanyId)
+  appendQueryParam(parts, 'displayStatus', params.displayStatus ?? 'ALL')
+  appendQueryParam(parts, 'pageNum', params.pageNum ?? 1)
+  appendQueryParam(parts, 'pageSize', params.pageSize ?? 10)
+  appendQueryParam(parts, 'orderNo', params.orderNo)
+  appendQueryParam(parts, 'customerName', params.customerName)
+  appendQueryParam(parts, 'customerMobile', params.customerMobile)
+  appendQueryParam(parts, 'barcode', params.barcode)
+  appendQueryParam(parts, 'orderByColumn', params.orderByColumn)
+  appendQueryParam(parts, 'isAsc', params.isAsc)
+  return parts.join('&')
+}
+
+/**
  * 将搜索框关键词映射为列表接口的单一模糊条件（MyBatis 中 orderNo / customerName / barcode 为 AND，不可同时传）
  */
-export function applyWorkOrderListSearchKeyword(query: OrderListQuery, keyword: string) {
+/** 仅承载列表关键词三字段，供工单列表与总部网点工单列表复用 */
+export type WorkOrderListKeywordQuery = Pick<OrderListQuery, 'orderNo' | 'customerName' | 'barcode'>
+
+export function applyWorkOrderListSearchKeyword(query: WorkOrderListKeywordQuery, keyword: string) {
   const q = String(keyword ?? '').trim()
   if (!q) return
   if (/[\u4e00-\u9fff]/.test(q)) {
@@ -151,40 +211,46 @@ export function mapMainStatusToOrderStatus(mainStatus: string | undefined): Work
   const raw = (mainStatus ?? '').trim()
   if (!raw) return WORK_ORDER_MAIN_STATUS.PENDING_ASSIGN
   const s = raw.toUpperCase().replace(/-/g, '_')
+  /**
+   * 主状态真源：`jasic-common/.../WorkOrderStatusConstants.java`
+   *   - `MainStatus`   : PENDING_ASSIGN / PENDING_TECH_ACCEPT / IN_PROGRESS / COMPLETED / CLOSED
+   *   - `DisplayStatus`: 额外保留聚合态 `WAIT_ACCEPT`（= PENDING_ASSIGN + PENDING_TECH_ACCEPT）
+   *     `/system/work-order/list` 的 `mainStatus` 字段理论上只会是主状态，
+   *     但部分存量接口与详情页可能下发展示态，故对 `WAIT_ACCEPT` 一并做一次降维兜底为 `PENDING_TECH_ACCEPT`。
+   * 前端自造别名（PROCESSING / DONE / REPAIRING 等）已于契约统一阶段回收。
+   */
   const map: Record<string, WorkOrderMainStatus> = {
-    PENDING: WORK_ORDER_MAIN_STATUS.PENDING_ASSIGN,
     PENDING_ASSIGN: WORK_ORDER_MAIN_STATUS.PENDING_ASSIGN,
     PENDING_TECH_ACCEPT: WORK_ORDER_MAIN_STATUS.PENDING_TECH_ACCEPT,
-    WAIT: WORK_ORDER_MAIN_STATUS.PENDING_ASSIGN,
-    WAIT_ACCEPT: WORK_ORDER_MAIN_STATUS.PENDING_TECH_ACCEPT,
-    DISPATCH: WORK_ORDER_MAIN_STATUS.PENDING_ASSIGN,
-    PROCESSING: WORK_ORDER_MAIN_STATUS.IN_PROGRESS,
-    REPAIRING: WORK_ORDER_MAIN_STATUS.IN_PROGRESS,
     IN_PROGRESS: WORK_ORDER_MAIN_STATUS.IN_PROGRESS,
     COMPLETED: WORK_ORDER_MAIN_STATUS.COMPLETED,
-    DONE: WORK_ORDER_MAIN_STATUS.COMPLETED,
-    FINISH: WORK_ORDER_MAIN_STATUS.COMPLETED,
     CLOSED: WORK_ORDER_MAIN_STATUS.CLOSED,
-    CLOSE: WORK_ORDER_MAIN_STATUS.CLOSED,
-    CANCELLED: WORK_ORDER_MAIN_STATUS.CLOSED,
+    WAIT_ACCEPT: WORK_ORDER_MAIN_STATUS.PENDING_TECH_ACCEPT,
   }
   if (map[s]) return map[s]
   if (isOrderStatus(s)) return s
   return WORK_ORDER_MAIN_STATUS.PENDING_ASSIGN
 }
 
-/** 详情接口 `displayStatus`（WAIT_ACCEPT / IN_PROGRESS / COMPLETED / CLOSED）→ 前端 WorkOrderMainStatus */
+/**
+ * 详情接口 `displayStatus` → 前端 `WorkOrderMainStatus`
+ *
+ * 真源：`WorkOrderStatusConstants.DisplayStatus`，取值：
+ *   `WAIT_ACCEPT / IN_PROGRESS / COMPLETED / CLOSED`；
+ *   其中 `WAIT_ACCEPT` 为 `PENDING_ASSIGN + PENDING_TECH_ACCEPT` 的聚合展示态，
+ *   小程序侧统一降维为 `PENDING_TECH_ACCEPT` 参与主状态流转。
+ */
 function mapDisplayStatusToOrderStatus(displayStatus: string | undefined): WorkOrderMainStatus | undefined {
   const raw = (displayStatus ?? '').trim()
   if (!raw) return undefined
   const s = raw.toUpperCase().replace(/-/g, '_')
   const map: Record<string, WorkOrderMainStatus> = {
-    WAIT_ACCEPT: WORK_ORDER_MAIN_STATUS.PENDING_TECH_ACCEPT,
     PENDING_ASSIGN: WORK_ORDER_MAIN_STATUS.PENDING_ASSIGN,
     PENDING_TECH_ACCEPT: WORK_ORDER_MAIN_STATUS.PENDING_TECH_ACCEPT,
     IN_PROGRESS: WORK_ORDER_MAIN_STATUS.IN_PROGRESS,
     COMPLETED: WORK_ORDER_MAIN_STATUS.COMPLETED,
     CLOSED: WORK_ORDER_MAIN_STATUS.CLOSED,
+    WAIT_ACCEPT: WORK_ORDER_MAIN_STATUS.PENDING_TECH_ACCEPT,
   }
   return map[s]
 }
@@ -264,20 +330,12 @@ function mapOrderTypeNameFromDetail(vo: WorkOrderDetailVO): string {
   return String(vo.createEntryType || '')
 }
 
-/** 列表 VO：维修方式展示（与详情 mapServiceModeToRepairMethodLabel 逻辑一致） */
-function mapListVoRepairMethodLabel(vo: Pick<WorkOrderListVO, 'serviceMode' | 'serviceModeLabel'>): string {
-  const label = String(vo.serviceModeLabel ?? '').trim()
-  if (label) return label
-  const mode = String(vo.serviceMode ?? '').trim().toUpperCase()
-  if (mode === 'MAIL') return '邮寄维修'
-  if (mode === 'STORE') return '送店维修'
-  return String(vo.serviceMode ?? '').trim()
-}
-
 /**
  * 将后端 WorkOrderListVO 规范为前端 OrderListItem
  * @param vo 后端 WorkOrderListVO
  * @returns 工单列表项
+ *
+ * 注：列表项维修方式优先取 `serviceModeLabel`，并兼容 `serviceMode/repairMethod` 等旧字段别名。
  */
 function mapWorkOrderToListItem(vo: WorkOrderListVO): OrderListItem {
   const status = mapMainStatusToOrderStatus(vo.mainStatus)
@@ -290,11 +348,14 @@ function mapWorkOrderToListItem(vo: WorkOrderListVO): OrderListItem {
   if (!warrantyClass && warrantyLabel) warrantyClass = inferWarrantyTagClassFromLabel(warrantyLabel)
   const brandNorm = normalizeWorkOrderBrandTypeCode(vo.brandType)
   const brandTypeLabelRaw = String(vo.brandTypeLabel ?? '').trim()
-  const repairMethodRaw = mapListVoRepairMethodLabel(vo)
-  const repairMethodLabel = repairMethodRaw || undefined
   const repairPriceText = formatAmount(vo.quoteAmount) || undefined
-  const acceptPhone = String(vo.currentAcceptCompanyPhone ?? '').trim()
+  const listRaw = vo as Record<string, unknown>
+  const repairMethodLabel = String(
+    vo.serviceModeLabel ?? vo.serviceMode ?? listRaw.repairMethod ?? ''
+  ).trim()
   const assignedUserName = String(vo.assignedUserName ?? '').trim()
+  const availableActions = normalizeAvailableActions(vo.availableActions)
+  const createTime = String(vo.createTime ?? '').trim()
   return {
     id: String(vo.id),
     orderNo: vo.orderNo,
@@ -313,10 +374,11 @@ function mapWorkOrderToListItem(vo: WorkOrderListVO): OrderListItem {
     warrantyClass,
     faultDesc: faultDesc || undefined,
     transferred: vo.hasTransfer === 1,
+    availableActions,
     siteName: vo.currentAcceptCompanyName,
-    repairMethodLabel,
     repairPriceText,
-    acceptCompanyPhone: acceptPhone || undefined
+    repairMethodLabel: repairMethodLabel || undefined,
+    createTime: createTime || undefined
   }
 }
 
@@ -344,11 +406,6 @@ export async function listWorkOrder(params: OrderListQuery = {}): Promise<OrderL
       'Content-Type': 'application/x-www-form-urlencoded',
     },
   })
-  if (!isBizSuccess(res.code)) {
-    const msg = getApiMessage(res, '加载工单列表失败')
-    uni.showToast({ title: msg, icon: 'none' })
-    throw new Error(msg)
-  }
   const page = res.data
   const records = Array.isArray(page?.records) ? page.records : []
   return {
@@ -386,7 +443,14 @@ function parseWorkOrderStatusCountNum(v: unknown): number {
   return Number.isFinite(n) ? n : 0
 }
 
-/** mainStatus 缺省时用接口返回的展示文案推断枚举（与文档示例 displayStatus「待派单」等一致） */
+function parseCount(v: unknown): number {
+  if (typeof v === 'number' && Number.isFinite(v)) return v
+  if (typeof v === 'bigint') return Number(v)
+  const n = Number(v)
+  return Number.isFinite(n) ? n : 0
+}
+
+/** mainStatus 缺省时用接口返回的展示文案推断枚举（仅保留标准主枚举） */
 function inferMainStatusCodeFromStatusCountDisplay(displayStatus: string | undefined): string {
   const d = String(displayStatus ?? '').trim()
   if (!d) return ''
@@ -406,11 +470,16 @@ function inferMainStatusCodeFromStatusCountDisplay(displayStatus: string | undef
     u === 'PENDING_TECH_ACCEPT' ||
     u === 'IN_PROGRESS' ||
     u === 'COMPLETED' ||
-    u === 'CLOSED' ||
-    u === 'WAIT_ACCEPT'
+    u === 'CLOSED'
   ) {
-    return u === 'WAIT_ACCEPT' ? 'PENDING_TECH_ACCEPT' : u
+    return u
   }
+  /**
+   * 聚合展示态 `WAIT_ACCEPT`（= PENDING_ASSIGN + PENDING_TECH_ACCEPT）是后端正式 `DisplayStatus`
+   * 取值（见 `WorkOrderStatusConstants.DisplayStatus`），小程序侧统一降维为 `PENDING_TECH_ACCEPT`
+   * 参与主状态流转；**非历史别名，不可回收**。
+   */
+  if (u === 'WAIT_ACCEPT') return 'PENDING_TECH_ACCEPT'
   return ''
 }
 
@@ -499,11 +568,6 @@ export async function countWorkOrderStatus(params: OrderListQuery = {}) {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
   })
-  if (!isBizSuccess(res.code)) {
-    const msg = getApiMessage(res, '加载工单统计失败')
-    uni.showToast({ title: msg, icon: 'none' })
-    throw new Error(msg)
-  }
   const list = res.data
   return Array.isArray(list) ? list : []
 }
@@ -545,6 +609,47 @@ export async function listTransferTargetOptions(workOrderId: number) {
 }
 
 /**
+ * 查询维修登记/复检前的机型补录候选（仅佳士品牌且 productModel 为空时使用）
+ * GET `/system/work-order/{workOrderId}/repair-product-model-options`
+ */
+export async function listRepairProductModelOptions(
+  workOrderId: number,
+  params?: { keyword?: string },
+) {
+  const id = Number(workOrderId)
+  if (!Number.isFinite(id) || id <= 0) return [] as string[]
+  const kw = String(params?.keyword ?? '').trim()
+  const qs = kw ? `?keyword=${encodeURIComponent(kw)}` : ''
+  const res = await http<string[]>({
+    url: `/system/work-order/${encodeURIComponent(String(id))}/repair-product-model-options${qs}`,
+    method: 'GET',
+    header: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+  })
+  const list = res.data
+  return Array.isArray(list) ? list : []
+}
+
+/**
+ * 维修前机型补录
+ * PUT `/system/work-order/repair-product-model`
+ */
+export async function updateRepairProductModel(dto: {
+  workOrderId: number
+  productModel: string
+}) {
+  return http<void>({
+    url: '/system/work-order/repair-product-model',
+    method: 'PUT',
+    data: dto,
+    header: {
+      'Content-Type': 'application/json',
+    },
+  })
+}
+
+/**
  * 查询维修登记可选故障与维修说明
  * GET `/system/work-order/{workOrderId}/repair-fault-options`
  */
@@ -563,21 +668,10 @@ export async function listRepairFaultOptions(workOrderId: number) {
 }
 
 /** 详情页统一解析维修路径枚举（寄件相关展示以该字段为准） */
-function normalizeDetailServiceMode(vo: Pick<WorkOrderDetailVO, 'serviceMode'>): 'MAIL' | 'STORE' | '' {
-  const m = String(vo.serviceMode || '').trim().toUpperCase()
-  if (m === 'MAIL' || m === 'STORE') return m
-  return ''
-}
-
-/** 无中文标签时，用 serviceMode 枚举兜底展示文案 */
-function mapServiceModeToRepairMethodLabel(vo: Pick<WorkOrderDetailVO, 'serviceModeLabel' | 'serviceMode'>): string {
-  const label = String(vo.serviceModeLabel || '').trim()
-  if (label) return label
-  const mode = String(vo.serviceMode || '').trim().toUpperCase()
-  if (mode === 'MAIL') return '邮寄维修'
-  if (mode === 'STORE') return '送店维修'
-  return String(vo.serviceMode || '').trim()
-}
+/**
+ * 详情 VO 中原 `serviceMode / serviceModeLabel` 已从前端类型中移除，
+ * 相关 `repairMethod / service.serviceMode` 改由后端后续其他字段补齐后再按需接入。
+ */
 
 /** 机器返回方式：兼容枚举/英文值，统一成「回寄/自提」等展示文案 */
 function normalizeReturnMethodLabel(raw: unknown): string {
@@ -843,6 +937,7 @@ function mapWorkOrderDetailToOrderDetail(vo: WorkOrderDetailVO): OrderDetail {
 
   return {
     id: String(vo.id ?? ''),
+    availableActions: normalizeAvailableActions(vo.availableActions),
     status,
     transferred,
     brand: {
@@ -870,8 +965,6 @@ function mapWorkOrderDetailToOrderDetail(vo: WorkOrderDetailVO): OrderDetail {
     },
     service: {
       sitePhone: '',
-      serviceMode: normalizeDetailServiceMode(vo),
-      repairMethod: mapServiceModeToRepairMethodLabel(vo),
       source: String(vo.createCompanyName || ''),
       senderInfo: [
         quote?.senderName || vo.senderName,
@@ -972,11 +1065,6 @@ export async function getWorkOrder(id: string) {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
   })
-  if (!isBizSuccess(res.code)) {
-    const msg = getApiMessage(res, '加载工单详情失败')
-    uni.showToast({ title: msg, icon: 'none' })
-    throw new Error(msg)
-  }
   const vo = res.data
   if (vo == null || typeof vo !== 'object') {
     const msg = '工单详情数据为空'
@@ -1003,11 +1091,6 @@ export async function getWorkOrderRepairFaultRecords(id: string): Promise<FaultP
       'Content-Type': 'application/x-www-form-urlencoded',
     },
   })
-  if (!isBizSuccess(res.code)) {
-    const msg = getApiMessage(res, '加载维修记录失败')
-    uni.showToast({ title: msg, icon: 'none' })
-    throw new Error(msg)
-  }
   const vo = res.data
   if (vo == null || typeof vo !== 'object') {
     const msg = '工单详情数据为空'
@@ -1018,29 +1101,51 @@ export async function getWorkOrderRepairFaultRecords(id: string): Promise<FaultP
 }
 
 /**
- * 查询网点列表
- * @returns 网点列表
+ * 总部网点汇总（与 jasic-ui `src/api/workOrder.js` 中工单请求一致：`GET` + query 串、`http` 拼 `/api`）。
+ * 路径：`/system/work-order/hq-site-summary`
  */
-export async function fetchBranchList() {
-  const res = await http<BranchItem[]>({
-    url: '/order/branch/list',
+export async function listHqSiteSummary(params: { siteName?: string } = {}): Promise<BranchItem[]> {
+  const qs = buildHqSiteSummaryQueryString(params)
+  const url = qs ? `/system/work-order/hq-site-summary?${qs}` : '/system/work-order/hq-site-summary'
+  const res = await http<WorkOrderHqSiteSummaryVO[]>({
+    url,
     method: 'GET',
+    header: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
   })
-  return res.data
+  const list = Array.isArray(res.data) ? res.data : []
+  return list.map((item) => ({
+    id: parseCount(item.siteCompanyId),
+    name: String(item.siteCompanyName ?? '').trim(),
+    total: parseCount(item.totalCount),
+    pending: parseCount(item.waitAcceptCount),
+    processing: parseCount(item.inProgressCount),
+    completed: parseCount(item.completedCount),
+  }))
 }
 
 /**
- * 查询网点工单列表
- * @param branchName 网点名称
- * @returns 网点工单列表
+ * 总部按受理网点分页查工单（与 `listWorkOrder` 相同封装模式）。
+ * 路径：`/system/work-order/hq-site-orders`
  */
-export async function fetchOrdersByBranch(branchName: string) {
-  const res = await http<OrderListItem[]>({
-    url: '/order/branch/orders',
+export async function listHqSiteOrders(params: WorkOrderHqSiteOrdersQuery): Promise<OrderListPage> {
+  const qs = buildHqSiteOrdersQueryString(params)
+  const res = await http<WorkOrderListPageResult>({
+    url: `/system/work-order/hq-site-orders?${qs}`,
     method: 'GET',
-    data: { branchName },
+    header: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
   })
-  return res.data
+  const page = res.data
+  const records = Array.isArray(page?.records) ? page.records : []
+  return {
+    pageNum: Number(page?.pageNum) || Number(params.pageNum) || 1,
+    pageSize: Number(page?.pageSize) || Number(params.pageSize) || 10,
+    total: Number(page?.total) || 0,
+    records: records.map(mapWorkOrderToListItem),
+  }
 }
 
 export type WorkOrderAssignDTO = {
@@ -1121,6 +1226,15 @@ export type WorkOrderFaultPartItemDTO = {
  * @see workOrderId 必填；其余字段按后端文档均为可选
  */
 export type WorkOrderRepairDTO = {
+  /**
+   * 维修确认故障多选（对齐后端 WorkOrderRepairDTO.faultItems）。
+   *
+   * 契约说明：后端未加 `@NotEmpty`，参考 jasic-ui 仅在"存在故障字典配置 + 动作为 REPAIR_FINISH"时
+   * 才要求至少选一项；无字典配置场景由 `repairDesc` 兜底，因此此处保持可选。
+   */
+  faultItems?: string[]
+  /** 其它故障说明（含「其它」时必填，对齐后端 WorkOrderRepairDTO.faultRemark） */
+  faultRemark?: string
   /** 故障处新图片文件 ID */
   faultNewImageFileIds?: number[]
   /** 故障处旧图片文件 ID */
@@ -1139,7 +1253,7 @@ export type WorkOrderRepairDTO = {
   quoteAmount?: number
   /** 调整后的报价说明 */
   quoteDesc?: string
-  /** 手工填写的维修说明 */
+  /** 手工填写的维修说明（无「故障与维修配置」时兜底） */
   repairDesc?: string
   /** 维修说明选项 */
   repairItems?: string[]
@@ -1210,14 +1324,20 @@ export type WorkOrderProxyCreateDTO = {
   serviceMode: 'MAIL' | 'STORE'
 }
 
-/** 二级报修一级创建工单 DTO */
+/**
+ * 二级报修一级创建工单 DTO。
+ *
+ * 契约说明：参考后端 `WorkOrderUpstreamCreateDTO.java` 与 `jasic-ui` 建单校验规则，
+ * 上游建单（upstream-first / upstream-hq）场景下 `barcode / customerMobile / customerName`
+ * 均为可选，由页面按业务条件做必要性校验；仅 `serviceMode` 为必填。
+ */
 export type WorkOrderUpstreamCreateDTO = {
-  /** 机器条码 */
-  barcode: string
-  /** 客户手机号 */
-  customerMobile: string
-  /** 客户姓名 */
-  customerName: string
+  /** 机器条码（可选，无码场景允许缺省） */
+  barcode?: string
+  /** 客户手机号（可选） */
+  customerMobile?: string
+  /** 客户姓名（可选） */
+  customerName?: string
   /** 故障图片文件ID */
   faultImageFileIds?: number[]
   /** 故障描述选项 */
@@ -1281,7 +1401,7 @@ export type WorkOrderCreateBarcodeInfoVO = {
  * POST `/system/work-order/create/proxy`
  */
 export async function createProxyWorkOrder(dto: WorkOrderProxyCreateDTO) {
-  const res = await http<number>({
+  return http<number>({
     url: '/system/work-order/create/proxy',
     method: 'POST',
     data: dto,
@@ -1289,14 +1409,6 @@ export async function createProxyWorkOrder(dto: WorkOrderProxyCreateDTO) {
       'Content-Type': 'application/json',
     },
   })
-
-  if (!isBizSuccess(res.code)) {
-    const msg = getApiMessage(res, '创建工单失败')
-    uni.showToast({ title: msg, icon: 'none' })
-    throw new Error(msg)
-  }
-
-  return res
 }
 
 /**
@@ -1304,7 +1416,7 @@ export async function createProxyWorkOrder(dto: WorkOrderProxyCreateDTO) {
  * POST `/system/work-order/create/upstream-first`
  */
 export async function createUpstreamFirstWorkOrder(dto: WorkOrderUpstreamCreateDTO) {
-  const res = await http<number>({
+  return http<number>({
     url: '/system/work-order/create/upstream-first',
     method: 'POST',
     data: dto,
@@ -1312,14 +1424,6 @@ export async function createUpstreamFirstWorkOrder(dto: WorkOrderUpstreamCreateD
       'Content-Type': 'application/json',
     },
   })
-
-  if (!isBizSuccess(res.code)) {
-    const msg = getApiMessage(res, '创建工单失败')
-    uni.showToast({ title: msg, icon: 'none' })
-    throw new Error(msg)
-  }
-
-  return res
 }
 
 /**
@@ -1327,7 +1431,7 @@ export async function createUpstreamFirstWorkOrder(dto: WorkOrderUpstreamCreateD
  * POST `/system/work-order/create/upstream-hq`
  */
 export async function createUpstreamHqWorkOrder(dto: WorkOrderUpstreamCreateDTO) {
-  const res = await http<number>({
+  return http<number>({
     url: '/system/work-order/create/upstream-hq',
     method: 'POST',
     data: dto,
@@ -1335,14 +1439,6 @@ export async function createUpstreamHqWorkOrder(dto: WorkOrderUpstreamCreateDTO)
       'Content-Type': 'application/json',
     },
   })
-
-  if (!isBizSuccess(res.code)) {
-    const msg = getApiMessage(res, '创建工单失败')
-    uni.showToast({ title: msg, icon: 'none' })
-    throw new Error(msg)
-  }
-
-  return res
 }
 
 /**
@@ -1360,16 +1456,53 @@ export async function getProxyCreateBarcodeInfo(barcode: string): Promise<Barcod
     },
   })
 
-  if (!isBizSuccess(res.code)) {
-    const msg = getApiMessage(res, '条码查询失败')
-    uni.showToast({ title: msg, icon: 'none' })
-    throw new Error(msg)
+  return {
+    data: res.data,
+    msg: getApiMessage(res, '查询成功'),
   }
+}
+
+/**
+ * 查询二级报修一级条码信息
+ * GET `/system/work-order/create/upstream-first/barcode-info`
+ *
+ * 二级经销商专用：后端 `validateCurrentCompanyType("SITE_SECOND")`。
+ */
+export async function getUpstreamFirstCreateBarcodeInfo(
+  barcode: string,
+): Promise<BarcodeInfoFetchResult> {
+  const code = String(barcode || '').trim()
+  if (!code) throw new Error('barcode is required')
+  const res = await http<WorkOrderCreateBarcodeInfoVO>({
+    url: `/system/work-order/create/upstream-first/barcode-info?barcode=${encodeURIComponent(code)}`,
+    method: 'GET',
+    header: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+  })
 
   return {
     data: res.data,
     msg: getApiMessage(res, '查询成功'),
   }
+}
+
+/**
+ * 查询二级无码报修一级可选目标公司列表
+ * GET `/system/work-order/create/upstream-first/target-options`
+ *
+ * 二级经销商无条码或条码未命中档案时，使用该接口拉取可上报的一级网点列表。
+ */
+export async function listUpstreamFirstCreateTargetOptions() {
+  const res = await http<SysCompanySimpleVO[]>({
+    url: '/system/work-order/create/upstream-first/target-options',
+    method: 'GET',
+    header: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+  })
+  const list = res.data
+  return Array.isArray(list) ? list : []
 }
 
 /**
@@ -1395,12 +1528,6 @@ export async function getUpstreamHqCreateBarcodeInfo(
     },
   })
 
-  if (!isBizSuccess(res.code)) {
-    const msg = getApiMessage(res, '条码查询失败')
-    uni.showToast({ title: msg, icon: 'none' })
-    throw new Error(msg)
-  }
-
   return {
     data: res.data,
     msg: getApiMessage(res, '查询成功'),
@@ -1412,7 +1539,7 @@ export async function getUpstreamHqCreateBarcodeInfo(
  * PUT `/system/work-order/assign`
  */
 export async function assignWorkOrder(dto: WorkOrderAssignDTO) {
-  const res = await http<void>({
+  return http<void>({
     url: '/system/work-order/assign',
     method: 'PUT',
     data: dto,
@@ -1420,15 +1547,6 @@ export async function assignWorkOrder(dto: WorkOrderAssignDTO) {
       'Content-Type': 'application/json',
     },
   })
-
-  if (!isBizSuccess(res.code)) {
-    // http.ts 已对非 2xx 做了 reject；这里兜底处理业务 code 非成功的情况（文档 00000 / 部分接口 200）
-    const msg = getApiMessage(res, '派单失败')
-    uni.showToast({ title: msg, icon: 'none' })
-    throw new Error(msg)
-  }
-
-  return res
 }
 
 /**
@@ -1436,7 +1554,7 @@ export async function assignWorkOrder(dto: WorkOrderAssignDTO) {
  * PUT `/system/work-order/close`
  */
 export async function closeWorkOrder(dto: WorkOrderCloseDTO) {
-  const res = await http<void>({
+  return http<void>({
     url: '/system/work-order/close',
     method: 'PUT',
     data: dto,
@@ -1444,14 +1562,6 @@ export async function closeWorkOrder(dto: WorkOrderCloseDTO) {
       'Content-Type': 'application/json',
     },
   })
-
-  if (!isBizSuccess(res.code)) {
-    const msg = getApiMessage(res, '关闭工单失败')
-    uni.showToast({ title: msg, icon: 'none' })
-    throw new Error(msg)
-  }
-
-  return res
 }
 
 /**
@@ -1459,7 +1569,7 @@ export async function closeWorkOrder(dto: WorkOrderCloseDTO) {
  * PUT `/system/work-order/transfer`
  */
 export async function transferWorkOrder(dto: WorkOrderTransferDTO) {
-  const res = await http<void>({
+  return http<void>({
     url: '/system/work-order/transfer',
     method: 'PUT',
     data: dto,
@@ -1467,14 +1577,6 @@ export async function transferWorkOrder(dto: WorkOrderTransferDTO) {
       'Content-Type': 'application/json',
     },
   })
-
-  if (!isBizSuccess(res.code)) {
-    const msg = getApiMessage(res, '转单失败')
-    uni.showToast({ title: msg, icon: 'none' })
-    throw new Error(msg)
-  }
-
-  return res
 }
 
 /**
@@ -1482,7 +1584,7 @@ export async function transferWorkOrder(dto: WorkOrderTransferDTO) {
  * PUT `/system/work-order/tech-accept`
  */
 export async function techAcceptWorkOrder(dto: WorkOrderTechAcceptDTO) {
-  const res = await http<void>({
+  return http<void>({
     url: '/system/work-order/tech-accept',
     method: 'PUT',
     data: dto,
@@ -1490,14 +1592,6 @@ export async function techAcceptWorkOrder(dto: WorkOrderTechAcceptDTO) {
       'Content-Type': 'application/json',
     },
   })
-
-  if (!isBizSuccess(res.code)) {
-    const msg = getApiMessage(res, '接单失败')
-    uni.showToast({ title: msg, icon: 'none' })
-    throw new Error(msg)
-  }
-
-  return res
 }
 
 /**
@@ -1506,7 +1600,7 @@ export async function techAcceptWorkOrder(dto: WorkOrderTechAcceptDTO) {
  * 请求体字段与 WorkOrderRepairDTO 一致（workOrderId 必填）
  */
 export async function repairWorkOrder(dto: WorkOrderRepairDTO) {
-  const res = await http<void>({
+  return http<void>({
     url: '/system/work-order/repair',
     method: 'POST',
     data: dto,
@@ -1514,14 +1608,6 @@ export async function repairWorkOrder(dto: WorkOrderRepairDTO) {
       'Content-Type': 'application/json',
     },
   })
-
-  if (!isBizSuccess(res.code)) {
-    const msg = getApiMessage(res, '维修登记失败')
-    uni.showToast({ title: msg, icon: 'none' })
-    throw new Error(msg)
-  }
-
-  return res
 }
 
 /**
@@ -1529,7 +1615,7 @@ export async function repairWorkOrder(dto: WorkOrderRepairDTO) {
  * POST `/system/work-order/review`
  */
 export async function reviewWorkOrder(dto: WorkOrderReviewDTO) {
-  const res = await http<void>({
+  return http<void>({
     url: '/system/work-order/review',
     method: 'POST',
     data: dto,
@@ -1537,13 +1623,30 @@ export async function reviewWorkOrder(dto: WorkOrderReviewDTO) {
       'Content-Type': 'application/json',
     },
   })
+}
 
-  if (!isBizSuccess(res.code)) {
-    const msg = getApiMessage(res, '复检登记失败')
-    uni.showToast({ title: msg, icon: 'none' })
-    throw new Error(msg)
-  }
+/** 上传寄件快递单号参数（对齐后端 WorkOrderSendExpressDTO，sendExpressNo 必填） */
+export type WorkOrderSendExpressDTO = {
+  /** 工单ID */
+  workOrderId: number
+  /** 寄件快递单号（后端 @NotBlank） */
+  sendExpressNo: string
+  /** 寄件凭证文件ID */
+  senderVoucherFileIds?: number[]
+}
 
-  return res
+/**
+ * 上传寄件快递单号（承包商端）
+ * PUT `/system/work-order/send-express`
+ */
+export async function updateWorkOrderSendExpress(dto: WorkOrderSendExpressDTO) {
+  return http<void>({
+    url: '/system/work-order/send-express',
+    method: 'PUT',
+    data: dto,
+    header: {
+      'Content-Type': 'application/json',
+    },
+  })
 }
 

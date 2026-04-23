@@ -131,11 +131,7 @@
   const isMailReturnContext = computed(() => {
     if (isSelfPickupReturn.value) return false
     const rm = returnMethodText.value
-    if (/回寄|邮寄|快递|物流|^MAIL$/i.test(rm)) return true
-    const mode = String(props.order?.service?.serviceMode ?? '').toUpperCase()
-    if (mode === 'MAIL') return true
-    const method = String(props.order?.service?.repairMethod ?? '').trim()
-    return /邮寄/.test(method) || /^MAIL$/i.test(method)
+    return /回寄|邮寄|快递|物流|^MAIL$/i.test(rm)
   })
 
   const showMailReturnInfo = computed(() => {

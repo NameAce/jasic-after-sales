@@ -70,7 +70,6 @@ declare global {
   const useI18n: typeof import('vue-i18n').useI18n
   const useId: typeof import('vue').useId
   const useModel: typeof import('vue').useModel
-  const useSafeArea: typeof import('@/hooks').useSafeArea
   const useSlots: typeof import('vue').useSlots
   const useTemplateRef: typeof import('vue').useTemplateRef
   const useUserStore: typeof import('@/stores').useUserStore

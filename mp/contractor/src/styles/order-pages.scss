@@ -20,6 +20,15 @@
   }
 }
 
+/* 网点工单详情：导航栏下区域占满剩余高度，内层 scroll-view 才能稳定触发 scrolltolower / refresher */
+.order-list-page > .page-container.branch-order-page {
+  flex: 1;
+  min-height: 0;
+  @include flex-col;
+  overflow: hidden;
+  gap: $space-lg;
+}
+
 .order-list-page .header,
 .page-container .header {
   background-color: $bg-card;
@@ -340,13 +349,28 @@
   }
 
   .card-footer {
-    @include flex-end;
+    /* 提交时间独占上一行、靠左；操作按钮在下一行、靠右，不与时间并排 */
+    @include flex-col;
+    align-items: flex-start;
     gap: $space-md;
 
     .time-wrap {
       @include flex-row;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-start;
       gap: $space-xs;
       color: $text-slate-400;
+      flex-shrink: 0;
+      width: 100%;
+      box-sizing: border-box;
+
+      .time-label {
+        font-size: 22rpx;
+        color: $text-slate-500;
+        font-weight: 500;
+        flex-shrink: 0;
+      }
 
       .time-icon {
         font-size: $font-sm;
@@ -354,7 +378,17 @@
 
       .time-text {
         font-size: 22rpx;
+        color: $text-slate-500;
       }
+    }
+
+    .card-footer-actions {
+      width: 100%;
+      min-width: 0;
+      @include flex-row;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: $space-md;
     }
 
     .action-wrap {
@@ -404,10 +438,6 @@
 
 .page-container .order-card {
   margin-bottom: 0;
-
-  .card-desc {
-    margin-bottom: 0;
-  }
 }
 
 .order-card--branch-badges {

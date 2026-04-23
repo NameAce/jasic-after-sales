@@ -63,34 +63,35 @@
 
         <!-- 地址卡片：左滑露出删除 -->
         <uni-swipe-action v-if="!isSelectMode && addresses.length > 0">
-          <uni-swipe-action-item
-            v-for="item in visibleAddresses"
-            :key="item.id"
-            class="addr-swipe-item"
-            :right-options="swipeDeleteOptions"
-            @click="onSwipeItemClick($event, item.id)"
-          >
-            <view class="addr-card" @click="goEdit(item.id)">
-              <view class="addr-top">
-                <view class="addr-top-left">
-                  <text class="addr-name">{{ item.name }}</text>
-                  <text class="addr-phone">{{ item.phone }}</text>
+          <view class="addr-swipe-item">
+            <uni-swipe-action-item
+              v-for="item in visibleAddresses"
+              :key="item.id"
+              :right-options="swipeDeleteOptions"
+              @click="onSwipeItemClick($event, item.id)"
+            >
+              <view class="addr-card" @click="goEdit(item.id)">
+                <view class="addr-top">
+                  <view class="addr-top-left">
+                    <text class="addr-name">{{ item.name }}</text>
+                    <text class="addr-phone">{{ item.phone }}</text>
+                  </view>
+                  <view class="addr-top-right">
+                    <text v-if="item.isDefault === 1" class="default-badge">默认</text>
+                  </view>
                 </view>
-                <view class="addr-top-right">
-                  <text v-if="item.isDefault === 1" class="default-badge">默认</text>
+                <view class="addr-top">
+                  <text class="addr-line addr-top-left">{{ fullAddress(item) }}</text>
+                  <view class="addr-edit-btn addr-top-right" @click.stop="goEdit(item.id)">
+                    <uni-icons type="compose" size="20" :color="themeColor.textLabel" />
+                  </view>
+                </view>
+                <view v-if="item.isDefault !== 1" class="addr-actions" @click.stop>
+                  <text class="link-primary" @click="setAsDefault(item.id)">设为默认</text>
                 </view>
               </view>
-              <view class="addr-top">
-                <text class="addr-line addr-top-left">{{ fullAddress(item) }}</text>
-                <view class="addr-edit-btn addr-top-right" @click.stop="goEdit(item.id)">
-                  <uni-icons type="compose" size="20" :color="themeColor.textLabel" />
-                </view>
-              </view>
-              <view v-if="item.isDefault !== 1" class="addr-actions" @click.stop>
-                <text class="link-primary" @click="setAsDefault(item.id)">设为默认</text>
-              </view>
-            </view>
-          </uni-swipe-action-item>
+            </uni-swipe-action-item>
+          </view>
         </uni-swipe-action>
         <ListNoMore v-if="visibleAddresses.length > 0 && hasLoadedAllAddresses" />
       </view>

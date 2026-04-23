@@ -139,13 +139,11 @@
   // (userStore.userInfo as any)?.avatar || defaultAvatar)
   const avatarUrl = computed(() => String(defaultAvatar))
 
-  // 用户名
-  const userName = computed(() => String(userStore.userInfo?.name || '佳士用户'))
+  // 用户名（后端 `CustomerUserInfoVO.nickname`，缺省用兜底文案）
+  const userName = computed(() => String(userStore.userInfo?.nickname || '佳士用户'))
 
-  // 用户ID
-  const phoneText = computed(() =>
-    String((userStore.userInfo as any)?.id || (userStore.userInfo as any)?.phone || '-')
-  )
+  // 手机号（后端 `CustomerUserInfoVO.phone`）
+  const phoneText = computed(() => String(userStore.userInfo?.phone || '-'))
 
   // 工单统计
   const counts = ref<MyOrderCountsDTO>({

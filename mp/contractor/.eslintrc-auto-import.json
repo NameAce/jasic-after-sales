@@ -81,7 +81,6 @@
     "useI18n": true,
     "useId": true,
     "useModel": true,
-    "useSafeArea": true,
     "useSlots": true,
     "useTemplateRef": true,
     "useUserStore": true,

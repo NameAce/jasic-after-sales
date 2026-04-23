@@ -124,64 +124,75 @@ export interface CustomerWorkOrderFileDTO {
 }
 
 /**
- * 客户侧工单详情 VO（后端 `/customer/work-order/{id}` 返回原样）
+ * 客户侧工单详情 VO
  *
- * 三层化口径：VO 侧布尔字段（`canEditSendInfo / canEvaluate / isJasicProduct`）一律保持 `number`（0/1），
- * UI 展示侧 Model（`OrderDetail`）再转为 `boolean`。
+ * 真源：后端 `jasic-customer/.../CustomerWorkOrderDetailVO.java`，本接口字段一一对齐。
+ *
+ * 口径：
+ * - 后端 `canEvaluate / canEditSendInfo` 为 `Boolean`，此处直接以 `boolean` 接收
+ *   （JSON 原生 `true/false`），在映射到 UI Model 时不再需要 `Boolean(0/1)` 转换。
+ * - 所有 `FileDTO` 字段指向后端 `SysFileItemVO`，保持与列表 `faultImageFiles` 等形同。
  */
 export interface CustomerWorkOrderDetailVO {
-  assignedUserName: string
-  barcode: string
-  brandCode: string
-  /** 品牌名称（接口扩展） */
-  brandName?: string
-  /** 是否允许编辑寄件信息（后端 0/1；阶段 4.5：DTO 布尔统一为 number） */
-  canEditSendInfo: number
-  /** 是否可评价（后端 0/1；阶段 4.5：DTO 布尔统一为 number） */
-  canEvaluate: number
-  closeReason: string
-  closedTime: string
-  completedTime: string
-  createTime: string
-  /** 建单公司（用于详情页「受理方」显示） */
-  createCompanyName?: string
-  currentAcceptCompanyName: string
+  id: number
+  orderNo: string
   customerId: number
-  customerMobile: string
   customerName: string
-  displayStatus: string
-  evaluateStatus: string
-  evaluateStatusLabel: string
-  evaluation?: {
-    companyId: number
-    content: string
-    createTime: string
-    customerId: number
-    id: number
-    qualityScore: number
-    satisfactionScore: number
-    tags: string
-    timelinessScore: number
-  }
+  customerMobile: string
+  barcode: string
+  productCode: string
+  productName: string
+  productModel: string
+  machineNo: string
+  brandCode: string
+  brandName?: string
+  /** 报修业务类型编码：JASIC / NON_JASIC */
+  brandType?: string
+  /** 报修业务类型名称，对应详情页「工单类型」 */
+  brandTypeLabel?: string
+  /** 服务方式编码：MAIL / STORE */
+  serviceMode: string
+  /** 服务方式名称 */
+  serviceModeLabel?: string
+  /** 质保状态：IN_WARRANTY / OUT_OF_WARRANTY */
+  warrantyStatus: string
   faultDesc: string
   faultRemark: string
   faultImageFiles?: CustomerWorkOrderFileDTO[]
   faultVideoFiles?: CustomerWorkOrderFileDTO[]
   faultVoiceFiles?: CustomerWorkOrderFileDTO[]
-  hqCompanyId: number
-  id: number
-  machineNo: string
+  senderName: string
+  senderMobile: string
+  senderAddress: string
+  sendExpressNo: string
+  senderVoucherFiles?: CustomerWorkOrderFileDTO[]
+  /** 主状态编码：PENDING_ASSIGN / PENDING_TECH_ACCEPT / IN_PROGRESS / COMPLETED / CLOSED */
   mainStatus: string
-  orderNo: string
-  productCode: string
-  productModel: string
-  productName: string
-  /** 报修业务类型编码，如 JASIC_BARCODE / NON_JASIC / NO_BARCODE */
-  brandType?: string
-  /** 报修业务类型名称，对应详情页「工单类型」 */
-  brandTypeLabel?: string
-  /** 是否佳士产品线（与列表同源字段，缺省时用 brandType 推断；后端 0/1） */
-  isJasicProduct?: number
+  /** 展示状态名称（后端已本地化） */
+  displayStatus: string
+  /** 评价状态编码：NOT_OPEN / PENDING_EVALUATE / EVALUATED */
+  evaluateStatus: string
+  evaluateStatusLabel: string
+  /** 当前受理网点名称 */
+  currentAcceptCompanyName: string
+  /** 当前受理网点电话 */
+  currentAcceptCompanyPhone?: string
+  /** 当前维修员姓名 */
+  assignedUserName: string
+  hqCompanyId: number
+  /** 回寄方式（如 `回寄 / 自提`） */
+  returnMethod: string
+  /** 回寄快递单号 */
+  returnExpressNo: string
+  returnVoucherFiles?: CustomerWorkOrderFileDTO[]
+  closeReason: string
+  /** 是否允许评价 */
+  canEvaluate?: boolean
+  /** 是否允许修改寄件信息 */
+  canEditSendInfo?: boolean
+  completedTime: string
+  closedTime: string
+  createTime: string
   quotes?: Array<{
     companyId: number
     companyName: string
@@ -194,64 +205,63 @@ export interface CustomerWorkOrderDetailVO {
     quotedBy: number
     quotedByName: string
   }>
+  /**
+   * 维修登记列表
+   *
+   * 真源：`jasic-system/.../WorkOrderRepairVO.java`。
+   * 注意：后端 `repair` 级只有 `registerStage / registerStageLabel / isFinished / finishedTime`，
+   * 维修说明都在 `faults[*].repairDesc`，前端映射时以 `faults` 聚合为维修摘要。
+   */
   repairs?: Array<{
+    id: number
     companyId: number
     companyName: string
-    createTime: string
-    faults?: Array<{
-      companyId: number
-      createTime: string
-      createdBy: number
-      createdByName: string
-      faultDesc: string
-      id: number
-      imageUrls: string
-      otherDesc: string
-      partDesc: string
-      repairDesc: string
-      sortNum: number
-      /** 与 contractor 详情一致：结构化配件（若有则优先于 partDesc） */
-      partList?: Array<{ id?: number; partName?: string; partQty?: number; sortNum?: number }>
-    }>
-    finishedTime: string
-    id: number
-    isFinished: number
-    otherDesc: string
-    repairDesc: string
-    repairSummary: string
     repairUserId: number
     repairUserName: string
-    /** 与 contractor 维修登记附件一致（客户详情若返回则并入历史图） */
+    /** 登记阶段：REPAIR / RECHECK */
+    registerStage?: string
+    /** 登记阶段名称 */
+    registerStageLabel?: string
+    /** 是否维修完成（后端 Integer 0/1） */
+    isFinished: number
+    finishedTime: string
+    createTime: string
+    faults?: Array<{
+      id: number
+      companyId: number
+      /** 故障描述 */
+      faultDesc: string
+      /** 其它故障说明 */
+      faultRemark?: string
+      /** 维修说明 */
+      repairDesc: string
+      /** 其他维修说明 */
+      otherDesc: string
+      /** 结构化配件明细 */
+      partList?: Array<{ id?: number; partName?: string; partQty?: number; sortNum?: number }>
+      sortNum: number
+      createdBy?: number
+      createdByName?: string
+      createTime?: string
+    }>
+    /** 维修登记附件（与 contractor 同源） */
     faultOldImageFiles?: CustomerWorkOrderFileDTO[]
     faultNewImageFiles?: CustomerWorkOrderFileDTO[]
     machineImageFiles?: CustomerWorkOrderFileDTO[]
     machineBarcodeImageFiles?: CustomerWorkOrderFileDTO[]
     otherImageFiles?: CustomerWorkOrderFileDTO[]
   }>
-  returnExpressNo: string
-  returnMethod: string
-  returnVoucherFiles?: CustomerWorkOrderFileDTO[]
-  reviews?: Array<{
+  evaluation?: {
     companyId: number
-    companyName: string
+    content: string
     createTime: string
+    customerId: number
     id: number
-    isContinueRepair: number
-    reviewDesc: string
-    reviewResult: string
-    reviewUserId: number
-    reviewUserName: string
-  }>
-  sendExpressNo: string
-  senderAddress: string
-  senderMobile: string
-  senderName: string
-  senderVoucherFiles?: CustomerWorkOrderFileDTO[]
-  /** 受理网点联系电话（与列表 sitePhone 一致，优先于客户手机号展示为网点电话） */
-  sitePhone?: string
-  serviceMode: string
-  serviceModeLabel?: string
-  warrantyStatus: string
+    qualityScore: number
+    satisfactionScore: number
+    tags: string
+    timelinessScore: number
+  }
 }
 
 /** 将详情接口 warrantyStatus 转为「质保判定」展示文案 */
@@ -264,20 +274,6 @@ function formatWarrantyJudgeLabel(raw: unknown): string {
   if (u.includes('OUT_OF_WARRANTY') || u === 'OUT') return '保外'
   if (u.includes('IN_WARRANTY') || u === 'IN') return '保内'
   return s
-}
-
-/**
- * 分割逗号URL
- * @param raw - 原始URL
- * @returns - 分割后的URL
- */
-function splitCommaUrls(raw: unknown): string[] {
-  const s = String(raw ?? '').trim()
-  if (!s) return []
-  return s
-    .split(',')
-    .map((x) => x.trim())
-    .filter(Boolean)
 }
 
 function sortWorkOrderFiles(files: CustomerWorkOrderFileDTO[] | undefined): CustomerWorkOrderFileDTO[] {
@@ -302,18 +298,6 @@ function firstFilePreviewUrl(files: CustomerWorkOrderFileDTO[] | undefined): str
 
 function previewUrlsFromFiles(files: CustomerWorkOrderFileDTO[] | undefined): string[] {
   return sortWorkOrderFiles(files).map(filePreviewUrl).filter(Boolean)
-}
-
-function mergeUniqueUrls(primary: string[], extra: string[]): string[] {
-  const seen = new Set<string>()
-  const out: string[] = []
-  for (const u of [...primary, ...extra]) {
-    const x = String(u ?? '').trim()
-    if (!x || seen.has(x)) continue
-    seen.add(x)
-    out.push(x)
-  }
-  return out
 }
 
 /**
@@ -358,7 +342,7 @@ export function mapCustomerWorkOrderDetailToOrderDetail(r: CustomerWorkOrderDeta
 
   const companyNameRaw = String(r.currentAcceptCompanyName ?? '').trim()
   const assignedUserRaw = String(r.assignedUserName ?? '').trim()
-  const acceptorName = String(r.createCompanyName ?? '').trim() || companyNameRaw
+  const acceptorName = companyNameRaw
 
   const technician: OrderDetail['technician'] =
     assignedUserRaw || companyNameRaw
@@ -369,11 +353,9 @@ export function mapCustomerWorkOrderDetailToOrderDetail(r: CustomerWorkOrderDeta
         }
       : undefined
 
-  const faultImagesFromFiles = previewUrlsFromFiles(r.faultImageFiles)
-  const faultImagesFromRepairs = (r.repairs ?? [])
-    .flatMap((rep) => (rep.faults ?? []).flatMap((f) => splitCommaUrls(f.imageUrls)))
-    .filter(Boolean)
-  const faultImages = mergeUniqueUrls(faultImagesFromFiles, faultImagesFromRepairs)
+  // 故障图片以客户提交的 `faultImageFiles` 为准；维修登记的 `faultOldImageFiles /
+  // faultNewImageFiles / ...` 在 `faultPoint.records` 里按故障点维修历史展示，不合并到此处。
+  const faultImages = previewUrlsFromFiles(r.faultImageFiles)
 
   const videoUrls = previewUrlsFromFiles(r.faultVideoFiles)
   const videoThumb = videoUrls[0] ?? ''
@@ -383,7 +365,7 @@ export function mapCustomerWorkOrderDetailToOrderDetail(r: CustomerWorkOrderDeta
     .map((f) => ({ url: filePreviewUrl(f) }))
     .filter((x) => x.url)
 
-  const outletPhone = String(r.sitePhone ?? '').trim()
+  const outletPhone = String(r.currentAcceptCompanyPhone ?? '').trim()
   const returnReceiverTitle = [r.senderName, r.senderMobile].filter(Boolean).join(' ').trim()
 
   const faultPointRecords: FaultPointMaintenanceRecord[] = mapCustomerRepairsToAllFaultPointRecords(
@@ -401,37 +383,37 @@ export function mapCustomerWorkOrderDetailToOrderDetail(r: CustomerWorkOrderDeta
   let faultPointCurrentDesc = ''
   if (latestRepair) {
     faultPointCurrentDate = String(latestRepair.finishedTime || latestRepair.createTime || '').trim()
+    // 后端 `WorkOrderRepairVO` 无 `repairSummary / repairDesc` 字段，维修说明聚合取自
+    // `faults[*].repairDesc`（与后端 `WorkOrderFaultVO` 一致）。
     const faultLines = (latestRepair.faults ?? [])
       .slice()
       .sort((a, b) => (Number(a.sortNum) || 0) - (Number(b.sortNum) || 0))
       .map((f) => String(f.repairDesc || f.faultDesc || '').trim())
       .filter(Boolean)
-    faultPointCurrentDesc =
-      String(latestRepair.repairSummary || latestRepair.repairDesc || '').trim() ||
-      faultLines.join('；')
+    faultPointCurrentDesc = faultLines.join('；')
   }
 
   const orderTypeName = String(
     r.brandTypeLabel || r.brandType || r.productName || r.serviceMode || ''
   ).trim()
 
+  // 判定口径与列表一致：后端 `brandType` 为权威枚举（JASIC / NON_JASIC），
+  // `brandTypeLabel` 为名称兜底（用于后端新增非标枚举时的保守展示）。
   const brandTypeLabelForJasic = String(r.brandTypeLabel ?? '').trim()
   const isJasicByBrandLabel = brandTypeLabelForJasic
     ? !brandTypeLabelForJasic.includes('非佳士') && brandTypeLabelForJasic.includes('佳士')
     : null
   const brandTypeCode = String(r.brandType ?? '').trim().toUpperCase().replace(/-/g, '_')
   const isJasic =
-    isJasicByBrandLabel !== null
-      ? isJasicByBrandLabel
+    brandTypeCode === 'JASIC'
+      ? true
       : brandTypeCode === 'NON_JASIC'
         ? false
-        : brandTypeCode === 'JASIC' || brandTypeCode.includes('JASIC')
-          ? true
-          : Boolean(r.isJasicProduct)
+        : isJasicByBrandLabel ?? false
 
   return {
     status: uiStatus,
-    canEvaluate: r.canEvaluate != null ? Boolean(r.canEvaluate) : uiStatus === '已关闭',
+    canEvaluate: Boolean(r.canEvaluate),
     isJasic,
     faultImageFiles: sortWorkOrderFiles(r.faultImageFiles),
     base: {
@@ -516,6 +498,24 @@ export const getCustomerWorkOrder = (data: { id: string }) => {
 }
 
 /**
+ * 拉取网点电话（列表接口无该字段时用于补齐；与详情 `currentAcceptCompanyPhone` 同源，经 `mapCustomerWorkOrderDetailToOrderDetail` 落在 `contact.phone` / `service.sitePhone`）。
+ *
+ * @param workOrderId - 工单 id
+ * @returns 号码文案，失败或为空时返回 `''`（不抛错，避免列表批量补齐时刷屏）
+ */
+export async function fetchCustomerWorkOrderOutletPhone(workOrderId: string): Promise<string> {
+  const wid = String(workOrderId ?? '').trim()
+  if (!wid) return ''
+  try {
+    const res = await getCustomerWorkOrder({ id: wid })
+    const d = res.data
+    return String(d?.contact?.phone ?? d?.service?.sitePhone ?? '').trim()
+  } catch {
+    return ''
+  }
+}
+
+/**
  * 仅拉取详情中的故障点历史列表（与 `mapCustomerWorkOrderDetailToOrderDetail` 的 `faultPoint.records` 同源；历史页先读 storage 再请求覆盖，与 contractor 一致）。
  */
 export async function fetchOrderRepairFaultRecords(id: string): Promise<FaultPointMaintenanceRecord[]> {
@@ -529,36 +529,11 @@ export async function fetchOrderRepairFaultRecords(id: string): Promise<FaultPoi
 }
 
 /**
- * 获取工单评价元数据
- * @param data - 工单ID
- * @returns - 工单评价元数据
- */
-export interface OrderEvaluationMetaDTO {
-  technician: {
-    name: string
-    level?: string
-    avatar?: string
-  }
-  orderId: string
-  tags: string[]
-}
-
-/**
- * 获取工单评价元数据
- * @param data - 工单ID
- * @returns - 工单评价元数据
- */
-export const getOrderEvaluationMeta = (data: { id: string }) => {
-  return http<OrderEvaluationMetaDTO>({
-    url: '/order/evaluation/meta',
-    method: 'POST',
-    data,
-  })
-}
-
-/**
- * 获取工单统计
- * @returns - 工单统计
+ * 「我的」页四区块工单统计 UI 模型（对 `countCustomerWorkOrderStatus` 返回值做语义映射）
+ *
+ * 与后端 `WorkOrderStatusCountDTO` 区别：
+ *   - 本 DTO 为 UI 侧四区块（待处理/维修中/已完成/已关闭）的聚合展示字段
+ *   - 具体映射规则见 `pages/my/index.vue` `loadCounts()`
  */
 export interface MyOrderCountsDTO {
   pending: number
@@ -568,19 +543,8 @@ export interface MyOrderCountsDTO {
 }
 
 /**
- * 获取工单统计
- * @returns - 工单统计
- */
-  export const getMyOrderCounts = () => {
-  return http<MyOrderCountsDTO>({
-    url: '/order/my/counts',
-    method: 'GET',
-  })
-}
-
-/**
- * 获取工单统计
- * @returns - 工单统计
+ * 工单状态计数（后端返回）
+ * @returns - 工单状态计数
  */
 export interface WorkOrderStatusCountDTO {
   allCount: number
@@ -736,49 +700,50 @@ export interface OrderListItem {
 }
 
 /**
- * `/customer/work-order/list` 单条 `records` 项 VO（后端原样）
+ * `/customer/work-order/list` 单条 `records` 项 VO
  *
- * 三层化口径：VO 侧布尔字段（`canEvaluate / canUploadSendExpress / isJasicProduct`）一律保持 `number`（0/1），
- * UI 展示 Model（`OrderListItem`）再转为 `boolean`。
+ * 真源：后端 `jasic-customer/.../CustomerWorkOrderListVO.java`，本接口字段严格一一对齐。
+ *
+ * 口径：
+ * - `canEvaluate / canUploadSendExpress` 后端为 `Boolean`，此处以 `boolean` 接收。
+ * - 列表 VO 不含网点电话（与 `CustomerWorkOrderListVO.java` 一致）；列表页展示号码由小程序按需请求详情补齐。
  */
 export interface CustomerWorkOrderListVO {
   id: number
   orderNo: string
+  customerName: string
+  customerMobile: string
   barcode: string
   productModel: string
-  displayStatus: string
+  /** 品牌类型编码：JASIC / NON_JASIC */
+  brandType?: string
+  /** 品牌类型名称（如：佳士品牌 / 非佳士品牌） */
+  brandTypeLabel?: string
+  /** 服务方式编码：MAIL / STORE */
+  serviceMode?: string
+  /** 服务方式名称 */
+  serviceModeLabel?: string
+  /** 主状态编码：PENDING_ASSIGN / PENDING_TECH_ACCEPT / IN_PROGRESS / COMPLETED / CLOSED */
   mainStatus: string
-  createTime: string
-  closedTime: string
-  currentAcceptCompanyName: string
-  /** 当前受理网点联系电话（列表「网点电话」优先使用） */
-  currentAcceptCompanyMobile?: string
-  customerMobile: string
-  customerName: string
-  assignedUserName: string
-  /** 是否可评价（后端 0/1；阶段 4.5：DTO 布尔统一为 number） */
-  canEvaluate?: number
-  /** 是否允许上传寄件凭证（后端 0/1；阶段 4.5：DTO 布尔统一为 number） */
-  canUploadSendExpress?: number
+  /** 展示状态名称（后端已本地化） */
+  displayStatus: string
+  /** 评价状态编码：NOT_OPEN / PENDING_EVALUATE / EVALUATED */
   evaluateStatus: string
   evaluateStatusLabel: string
+  /** 当前受理网点名称 */
+  currentAcceptCompanyName: string
+  /** 当前维修员姓名 */
+  assignedUserName: string
+  /** 是否发生过转单（后端为 Integer 0/1） */
   hasTransfer: number
-  /** 故障描述（若后端扩展返回） */
-  faultDesc?: string
-  /** 服务/维修方式编码值（若后端扩展返回） */
-  serviceMode?: string
-  /** 服务/维修方式展示文案（若后端扩展返回） */
-  serviceModeLabel?: string
-  /** 当前有效报价金额（接口为 number，亦兼容字符串） */
+  /** 是否允许评价 */
+  canEvaluate?: boolean
+  /** 是否允许上传寄件凭证 */
+  canUploadSendExpress?: boolean
+  /** 当前有效报价金额（BigDecimal，前端兼容 number / string） */
   quoteAmount?: number | string
-  /** 网点联系电话（若后端扩展返回，优先于 customerMobile 展示为网点电话） */
-  sitePhone?: string
-  /** 是否佳士产品（若后端扩展返回；后端 0/1） */
-  isJasicProduct?: number
-  /** 工单品牌类型展示文案（如：佳士/非佳士） */
-  brandTypeLabel?: string
-  /** 品牌类型编码（如 JASIC / NON_JASIC），与后端 `brandType` 一致 */
-  brandType?: string
+  createTime: string
+  closedTime: string
 }
 
 /**
@@ -793,22 +758,25 @@ export interface WorkOrderListPageDTO {
 }
 // 工单状态
 const UI_ORDER_STATUSES: OrderListItem['status'][] = ['待接单', '维修中', '已完成', '已关闭']
-// 工单状态映射
+/**
+ * 主状态 → Tab 用中文状态映射
+ *
+ * 真源：`jasic-common/.../WorkOrderStatusConstants.java`
+ *   - `MainStatus`   : `PENDING_ASSIGN / PENDING_TECH_ACCEPT / IN_PROGRESS / COMPLETED / CLOSED`
+ *   - `DisplayStatus`: `WAIT_ACCEPT / IN_PROGRESS / COMPLETED / CLOSED`
+ *     （`WAIT_ACCEPT` 为 `PENDING_ASSIGN + PENDING_TECH_ACCEPT` 的聚合展示态，后端正式字段）
+ *
+ * 本 map 键覆盖：主状态枚举 + `WAIT_ACCEPT` 展示态，不再兜底前端自造别名
+ * （`PENDING / WAITING / REPAIRING / IN_REPAIR / PROCESSING / DONE / FINISHED / CLOSED_EVAL`
+ * 已于契约统一阶段回收）。
+ */
 const MAIN_STATUS_TO_UI: Record<string, OrderListItem['status']> = {
-  PENDING: '待接单',
   PENDING_ASSIGN: '待接单',
   PENDING_TECH_ACCEPT: '待接单',
   WAIT_ACCEPT: '待接单',
-  WAITING: '待接单',
-  REPAIRING: '维修中',
-  IN_REPAIR: '维修中',
   IN_PROGRESS: '维修中',
-  PROCESSING: '维修中',
   COMPLETED: '已完成',
-  DONE: '已完成',
-  FINISHED: '已完成',
   CLOSED: '已关闭',
-  CLOSED_EVAL: '已关闭',
 }
 
 /**
@@ -836,10 +804,10 @@ function workOrderRecordToUiStatus(r: CustomerWorkOrderListVO): OrderListItem['s
  * - 状态：`displayStatus` 中文优先，否则按 `mainStatus` 映射为 Tab 用状态
  * - 时间：`createTime`，缺省用 `closedTime`
  * - 条码 / 型号：`barcode`、`productModel`
- * - 网点：`currentAcceptCompanyName`；电话：`currentAcceptCompanyMobile`，缺省再 `sitePhone`、`customerMobile`
+ * - 网点：`currentAcceptCompanyName` → `centerName`；`phone` 由列表页请求详情后写入
  * - 维修方式 / 价格：`serviceModeLabel`、`quoteAmount`（number 会格式化为展示字符串）
- * - 故障描述：扩展字段 `faultDesc`，无则空串
- * - 佳士：优先使用 `brandTypeLabel` 判断，缺失时回退 `isJasicProduct`
+ * - 故障描述：列表 VO 不返回，`description` 置空，依赖详情页补齐
+ * - 佳士：以 `brandType` 为准，缺失时退化用 `brandTypeLabel` 兜底
  */
 function workOrderListQuoteToDisplay(v: unknown): string {
   if (v == null || v === '') return ''
@@ -861,8 +829,12 @@ export function mapWorkOrderListRecordToItem(r: CustomerWorkOrderListVO): OrderL
   const isJasicByBrandLabel = brandTypeLabel
     ? !brandTypeLabel.includes('非佳士') && brandTypeLabel.includes('佳士')
     : null
-  const isJasicByBrandTypeCode =
-    brandTypeCode === 'JASIC' ? true : brandTypeCode === 'NON_JASIC' ? false : null
+  const isJasic =
+    brandTypeCode === 'JASIC'
+      ? true
+      : brandTypeCode === 'NON_JASIC'
+        ? false
+        : isJasicByBrandLabel ?? false
   const canEvaluate =
     r.canEvaluate !== undefined && r.canEvaluate !== null
       ? Boolean(r.canEvaluate)
@@ -872,19 +844,17 @@ export function mapWorkOrderListRecordToItem(r: CustomerWorkOrderListVO): OrderL
   return {
     id: String(r.id ?? ''),
     status,
-    description: (r.faultDesc ?? '').trim(),
+    description: '',
     time: String(r.createTime || r.closedTime || '').trim(),
     orderNo: String(r.orderNo ?? '').trim(),
     qrCode: barcode,
     barcode,
-    isJasic: isJasicByBrandLabel ?? isJasicByBrandTypeCode ?? Boolean(r.isJasicProduct),
+    isJasic,
     brandTypeLabel,
     modelName: String(r.productModel ?? '').trim(),
     productModel: String(r.productModel ?? '').trim(),
     centerName: String(r.currentAcceptCompanyName ?? '').trim(),
-    phone: String(
-      (r.currentAcceptCompanyMobile ?? r.sitePhone ?? r.customerMobile ?? '').trim()
-    ),
+    phone: '',
     repairType: serviceModeLabel || serviceMode || '',
     price: quoteAmount,
     canEvaluate,
@@ -904,17 +874,19 @@ export function mapWorkOrderListRecordToItem(r: CustomerWorkOrderListVO): OrderL
 
 /**
  * 工单列表查询
- * @returns - 工单列表查询
+ *
+ * 与后端 `CustomerWorkOrderQuery` 对齐：筛选只走 `tabStatus`
+ * （`WAIT_ACCEPT / IN_PROGRESS / COMPLETED / CLOSED`），分页沿用 `PageQuery`
+ * （`pageNum / pageSize`）。
+ *
+ * 注：后端 `CustomerWorkOrderServiceImpl#listPage` 已写死 `orderByDesc(createTime)`，
+ * 前端不再上送 `orderByColumn / isAsc`，避免误以为可排序。
  */
 export interface WorkOrderListQuery {
-  /** 排序字段 */
-  orderByColumn?: string
   pageNum?: number
   pageSize?: number
-  /** 列表 Tab 状态（如：待接单/维修中/已完成/已关闭）；为空表示全部 */
+  /** 页签状态：WAIT_ACCEPT | IN_PROGRESS | COMPLETED | CLOSED */
   tabStatus?: string
-  /** 是否升序：后端若非必填，可不传 */
-  isAsc?: boolean
 }
 
 /**
@@ -931,53 +903,14 @@ export const listCustomerWorkOrder = (data?: WorkOrderListQuery) => {
     url: '/customer/work-order/list',
     method: 'GET',
     data: {
-      orderByColumn: data?.orderByColumn ?? 'createTime',
       pageNum: data?.pageNum ?? 1,
-      pageSize: data?.pageSize ?? 500,
+      pageSize: data?.pageSize ?? 10,
       ...(tabStatus ? { tabStatus } : {}),
-      ...(data?.isAsc == null ? null : { isAsc: data.isAsc }),
     },
   })
 }
 
-// ========== 提交报修 ==========
-
-/**
- * 提交报修
- * @returns - 提交报修
- */
-export interface SubmitRepairDTO {
-  isJasic: boolean
-  warrantyCode?: string
-  centerId?: string
-  faultDescription: string
-  repairType: string
-  shippingInfo?: string
-  brandName?: string
-  modelName?: string
-}
-
-/**
- * 提交报修结果
- * @returns - 提交报修结果
- */
-export interface SubmitRepairResultDTO {
-  orderId: string
-  orderNo: string
-}
-
-/**
- * 提交报修
- * @param data - 提交报修
- * @returns - 提交报修结果
- */
-export const submitRepair = (data: SubmitRepairDTO) => {
-  return http<SubmitRepairResultDTO>({
-    url: '/repair/submit',
-    method: 'POST',
-    data,
-  })
-}
+// ========== 创建工单（提交报修） ==========
 
 /**
  * 创建工单
@@ -1020,13 +953,15 @@ export interface CreateCustomerWorkOrderDTO {
 /**
  * 创建工单
  *
- * 对应 jasic-ui `createWorkOrder`（C 端专属接口 `POST /customer/work-order`）
+ * 对应 jasic-ui `createWorkOrder`（C 端专属接口 `POST /customer/work-order`）。
+ * 真源：后端 `CustomerWorkOrderController#create` 返回 `Result<Long>`，
+ * 即 `res.data` 为新创建工单 ID（number），如需订单号请再走详情接口。
  *
  * @param data - 创建工单
- * @returns - 创建工单结果
+ * @returns - 创建工单结果（`data` 为工单 ID）
  */
 export const createCustomerWorkOrder = (data: CreateCustomerWorkOrderDTO) => {
-  return http<SubmitRepairResultDTO>({
+  return http<number>({
     url: '/customer/work-order',
     method: 'POST',
     data,
@@ -1034,32 +969,6 @@ export const createCustomerWorkOrder = (data: CreateCustomerWorkOrderDTO) => {
 }
 
 // ========== 提交评价 ==========
-
-/**
- * 提交评价
- * @returns - 提交评价
- */
-export interface SubmitEvaluationDTO {
-  orderId: string
-  timeliness: number
-  quality: number
-  satisfaction: number
-  comment?: string
-  tags?: string[]
-}
-
-/**
- * 提交评价
- * @param data - 提交评价
- * @returns - 提交评价结果
- */
-export const submitEvaluation = (data: SubmitEvaluationDTO) => {
-  return http<{ success: boolean }>({
-    url: '/order/evaluation/submit',
-    method: 'POST',
-    data,
-  })
-}
 
 /**
  * 客户侧工单评价
@@ -1071,8 +980,6 @@ export interface CustomerWorkOrderEvaluateDTO {
   content?: string
   qualityScore: number
   satisfactionScore: number
-  /** 标签，逗号分隔，非必填 */
-  tags?: string
   timelinessScore: number
   workOrderId: number
 }
@@ -1128,27 +1035,29 @@ export type BarcodeFaultOptionItem = { text: string; value: string }
 
 /**
  * 条码查询结果
- * @returns - 条码查询结果
+ *
+ * 真源：后端 `jasic-customer/.../CustomerBarcodeInfoVO.java`，本接口字段一一对齐。
+ * （已下线历史遗留的 `inWarranty / expiryDate / faultDescription / faultDesc /
+ * faultItems / brandName` 兼容字段，统一以 `warrantyStatus` 字符串枚举 + `faultOptions`
+ * 下拉为准。）
  */
 export interface BarcodeInfoDTO {
-  /** 兼容旧字段：布尔在保 */
-  inWarranty?: boolean
-  expiryDate?: string
-  productModel?: string
-  productCode?: string
   barcode?: string
+  productCode?: string
+  productName?: string
+  productModel?: string
+  /** 机器小号 */
+  machineNo?: string
   brandCode?: string
-  brandName?: string
-  /** 保修状态字符串，如 IN_WARRANTY / OUT_OF_WARRANTY */
+  /** 保修状态字符串：IN_WARRANTY / OUT_OF_WARRANTY */
   warrantyStatus?: string
-  /** 条码关联的故障描述（有非空值则前端展示故障描述下拉） */
-  faultDescription?: string
-  /** 与 faultDescription 二选一，兼容后端字段名 */
-  faultDesc?: string
-  /** 可选故障项编码列表，非空则展示故障描述下拉 */
-  faultItems?: string[]
-  /** 故障描述下拉选项（接口主要以此为准） */
+  /** 归属总部 ID */
+  hqCompanyId?: number
+  /** 归属总部名称 */
+  hqCompanyName?: string
+  /** 故障描述下拉选项（有值时页面展示故障描述下拉） */
   faultOptions?: unknown[]
+  /** 其它故障文案 */
   otherFaultLabel?: string
 }
 
@@ -1173,15 +1082,6 @@ export function mapBarcodeFaultOptions(raw: unknown): BarcodeFaultOptionItem[] {
     }
   }
   return out
-}
-
-/**
- * 条码查询结果是否包含故障描述（有 faultOptions 则展示故障描述下拉）
- * @param info - 条码查询结果
- * @returns - 条码查询结果是否包含故障描述
- */
-export function barcodeInfoHasFaultDescription(info: BarcodeInfoDTO): boolean {
-  return mapBarcodeFaultOptions(info.faultOptions).length > 0
 }
 
 /**

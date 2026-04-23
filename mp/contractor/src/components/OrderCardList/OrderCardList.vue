@@ -50,10 +50,6 @@
               <text class="label">维修网点</text>
               <text class="value">{{ order.siteName }}</text>
             </view>
-            <view v-if="showRepairSiteRows && hasText(order.acceptCompanyPhone)" class="info-item">
-              <text class="label">网点电话</text>
-              <text class="value primary">{{ order.acceptCompanyPhone }}</text>
-            </view>
             <view v-if="hasText(order.repairMethodLabel)" class="info-item">
               <text class="label">维修方式</text>
               <text class="value">{{ order.repairMethodLabel }}</text>
@@ -88,6 +84,10 @@
               <text class="label">机器型号</text>
               <text class="value">{{ order.model }}</text>
             </view>
+            <view v-if="hasText(order.repairMethodLabel)" class="info-item">
+              <text class="label">维修方式</text>
+              <text class="value">{{ order.repairMethodLabel }}</text>
+            </view>
           </template>
           <view v-if="order.outDate" class="info-item">
             <text class="label">最后出库日期</text>
@@ -111,9 +111,15 @@
           </text>
         </view>
 
-        <!-- 工单卡片底部 -->
+        <!-- 工单卡片底部：提交时间（标签 + 时间，在按钮上一行靠左）+ 操作区 -->
         <view class="card-footer">
-          <slot name="actions" :order="order"></slot>
+          <view v-if="orderSubmitTimeText(order)" class="time-wrap">
+            <uni-icons type="calendar-filled" size="16" color="#94a3b8"></uni-icons>
+            <text class="time-text">{{ orderSubmitTimeText(order) }}</text>
+          </view>
+          <view class="card-footer-actions">
+            <slot name="actions" :order="order"></slot>
+          </view>
         </view>
       </view>
 
@@ -186,7 +192,8 @@
   const statusText = (order: OrderListItem) => props.statusText(order)
   /** 将接口主状态映射到样式类：pending / processing / completed / closed */
   const statusBadgeClass = (order: OrderListItem) => {
-    if (order.status === 'PENDING_ASSIGN' || order.status === 'PENDING_TECH_ACCEPT') return 'pending'
+    if (order.status === 'PENDING_ASSIGN' || order.status === 'PENDING_TECH_ACCEPT')
+      return 'pending'
     if (order.status === 'IN_PROGRESS') return 'processing'
     if (order.status === 'COMPLETED') return 'completed'
     if (order.status === 'CLOSED') return 'closed'
@@ -223,6 +230,9 @@
     const p = (order.repairPriceText ?? '').trim()
     return p ? `¥ ${p}` : ''
   }
+
+  /** 列表底部「提交时间」展示为列表项 `createTime` */
+  const orderSubmitTimeText = (order: OrderListItem) => (order.createTime ?? '').trim()
 </script>
 
 <style lang="scss" scoped>
