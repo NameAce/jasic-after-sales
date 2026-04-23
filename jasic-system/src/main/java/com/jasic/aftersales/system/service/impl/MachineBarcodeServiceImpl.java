@@ -232,6 +232,7 @@ public class MachineBarcodeServiceImpl implements IMachineBarcodeService {
         List<MachineBarcodeVO> result = new ArrayList<>();
         for (MachineBarcode record : records) {
             MachineBarcodeVO vo = BeanUtil.copyProperties(record, MachineBarcodeVO.class);
+            vo.setLastOutDate(MachineBarcodeWarrantyResolver.resolveLastOutDate(record));
             vo.setWarrantyStatus(MachineBarcodeWarrantyResolver.resolveWarrantyStatus(record));
             SysCompany company = companyMap.get(record.getHqCompanyId());
             if (company != null) {

@@ -44,6 +44,17 @@ public final class MachineBarcodeWarrantyResolver {
         );
     }
 
+    public static LocalDateTime resolveLastOutDate(MachineBarcode barcodeArchive) {
+        if (barcodeArchive == null) {
+            return null;
+        }
+        return resolveLastOutDate(barcodeArchive.getLastOutDate(), barcodeArchive.getScanDate());
+    }
+
+    public static LocalDateTime resolveLastOutDate(LocalDateTime lastOutDate, LocalDateTime scanDate) {
+        return lastOutDate != null ? lastOutDate : scanDate;
+    }
+
     private static LocalDateTime resolveExpireTime(LocalDateTime lastOutDate, LocalDateTime scanDate) {
         if (lastOutDate != null) {
             return lastOutDate.plusYears(3);

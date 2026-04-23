@@ -2159,7 +2159,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
     private LocalDateTime resolveBarcodeLastOutDate(MachineBarcode barcodeArchive) {
-        return barcodeArchive == null ? null : barcodeArchive.getLastOutDate();
+        return MachineBarcodeWarrantyResolver.resolveLastOutDate(barcodeArchive);
     }
 
     private SysCompany requireActiveHqCompany(Long hqCompanyId) {

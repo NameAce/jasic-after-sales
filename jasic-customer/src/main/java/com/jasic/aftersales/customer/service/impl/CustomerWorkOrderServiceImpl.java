@@ -949,7 +949,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     }
 
     private LocalDateTime resolveBarcodeLastOutDate(MachineBarcode barcodeArchive) {
-        return barcodeArchive == null ? null : barcodeArchive.getLastOutDate();
+        return MachineBarcodeWarrantyResolver.resolveLastOutDate(barcodeArchive);
     }
 
     private List<Long> resolveFirstCompanyIds(SysCompany serviceCompany) {

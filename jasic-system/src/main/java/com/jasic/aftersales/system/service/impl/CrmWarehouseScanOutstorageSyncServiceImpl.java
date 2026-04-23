@@ -157,25 +157,29 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
         for (int index = 0; index < barcodes.size(); index += batchSize) {
             List<String> slice = barcodes.subList(index, Math.min(index + batchSize, barcodes.size()));
             Map<String, LocalDateTime> minScanDateMap = queryMinScanDateMap(slice);
-            if (minScanDateMap.isEmpty()) {
-                continue;
-            }
             // 鍙洿鏂版湰鍦板凡瀛樺湪鐨勬潯鐮佹。妗堬紱鏈尮閰嶆潯鐮佷粎鍋氳鏁帮紝涓嶈嚜鍔ㄥ缓妗ｃ€?
             LambdaQueryWrapper<MachineBarcode> wrapper = new LambdaQueryWrapper<>();
-            wrapper.in(MachineBarcode::getBarcode, minScanDateMap.keySet());
+            wrapper.in(MachineBarcode::getBarcode, slice);
             List<MachineBarcode> existingBarcodes = machineBarcodeMapper.selectList(wrapper);
             Set<String> existingBarcodeSet = existingBarcodes.stream()
                     .map(MachineBarcode::getBarcode)
                     .filter(StrUtil::isNotBlank)
                     .collect(Collectors.toCollection(LinkedHashSet::new));
-            counter.unmatchedBarcodeCount += minScanDateMap.size() - existingBarcodeSet.size();
+            counter.unmatchedBarcodeCount += slice.size() - existingBarcodeSet.size();
             if (existingBarcodeSet.isEmpty()) {
                 continue;
             }
 
-            List<Map.Entry<String, LocalDateTime>> updates = minScanDateMap.entrySet().stream()
-                    .filter(item -> existingBarcodeSet.contains(item.getKey()))
+            List<Map.Entry<String, LocalDateTime>> updates = existingBarcodes.stream()
+                    .map(item -> new java.util.AbstractMap.SimpleEntry<>(
+                            item.getBarcode(),
+                            minScanDateMap.getOrDefault(item.getBarcode(), item.getScanDate())
+                    ))
+                    .filter(item -> StrUtil.isNotBlank(item.getKey()) && item.getValue() != null)
                     .collect(Collectors.toList());
+            if (updates.isEmpty()) {
+                continue;
+            }
             // dealer_out_date 鍏佽瑕嗙洊宸叉湁鍊硷紝鍥犳杩欓噷鐩存帴鎸夋渶鏂拌仛鍚堢粨鏋滃洖鍐欍€?
             String updateSql = "UPDATE machine_barcode SET last_out_date = ?, last_sync_time = NOW(), update_time = NOW() "
                     + "WHERE barcode = ?";
