@@ -78,15 +78,18 @@
       @select="handleSelect"
       @delete="handleDelete"
     >
-      <view class="file-picker-add-box">
-        <view class="add-box-icon-wrap">
-          <uni-icons type="camera" size="26" :color="themeColor.info"></uni-icons>
-          <view class="add-box-plus">
-            <uni-icons type="plusempty" size="10" :color="themeColor.info"></uni-icons>
+      <!-- 默认插槽：自定义「添加」区域；无插槽时用内置占位（文案见 addText） -->
+      <slot>
+        <view class="file-picker-add-box">
+          <view class="add-box-icon-wrap">
+            <uni-icons type="camera" size="26" :color="themeColor.info"></uni-icons>
+            <view class="add-box-plus">
+              <uni-icons type="plusempty" size="10" :color="themeColor.info"></uni-icons>
+            </view>
           </view>
+          <text class="add-box-text">{{ addText }}</text>
         </view>
-        <text class="add-box-text">{{ addText }}</text>
-      </view>
+      </slot>
     </uni-file-picker>
   </view>
 </template>
@@ -412,7 +415,7 @@
       case 'all':
         return '图片/视频'
       default:
-        return '图片'
+        return '上传'
     }
   })
 

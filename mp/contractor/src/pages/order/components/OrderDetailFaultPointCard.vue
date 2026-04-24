@@ -8,20 +8,24 @@
     <view class="od-fault-point-info">
       <view class="history-header">
         <text class="history-title">{{ historyTitle }}</text>
-        <view class="history-btn" @click="openRepairHistory">查看历史记录</view>
+        <view v-if="showRepairHistoryLink" class="history-btn" @click="openRepairHistory">
+          查看历史记录
+        </view>
       </view>
       <view
-        v-for="(f, idx) in displayRepairFaultRows"
-        :key="faultRowKey(f, idx)"
+        v-for="(faultRow, idx) in displayRepairFaultRows"
+        :key="faultRowKey(faultRow, idx)"
         class="history-record"
       >
         <view class="record-top">
           <text class="record-label">{{ recordLabel }}</text>
-          <text v-if="hasVal(faultRowTime(f))" class="record-date">{{ faultRowTime(f) }}</text>
+          <text v-if="hasVal(faultRowTime(faultRow))" class="record-date">{{
+            faultRowTime(faultRow)
+          }}</text>
         </view>
         <view class="record-body">
-          <text v-if="hasVal(faultRowRepairDesc(f))" class="record-desc">{{
-            faultRowRepairDesc(f)
+          <text v-if="hasVal(faultRowRepairDesc(faultRow))" class="record-desc">{{
+            faultRowRepairDesc(faultRow)
           }}</text>
         </view>
       </view>
@@ -55,9 +59,12 @@
       repairTimeFallback?: string
       /** false：维修过程 Tab 内嵌（无外层白底 card） */
       asCard?: boolean
+      /** 列表「已转单」仅查看详情时隐藏「查看历史记录」 */
+      showRepairHistoryLink?: boolean
     }>(),
     {
       asCard: true,
+      showRepairHistoryLink: true,
       flowItems: () => [],
       repairFaults: () => [],
       historyRecords: () => [],
@@ -68,7 +75,7 @@
   /** 仅展示含 repairs.faults.repairDesc / otherDesc 的行，并用于整块卡片显隐 */
   const displayRepairFaultRows = computed(() =>
     (props.repairFaults || []).filter(
-      (f) => hasVal(faultRowRepairDesc(f)) || hasVal(faultRowOtherDesc(f))
+      (row) => hasVal(faultRowRepairDesc(row)) || hasVal(faultRowOtherDesc(row))
     )
   )
 

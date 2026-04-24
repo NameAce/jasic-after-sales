@@ -155,7 +155,6 @@
 
   .tabs-wrap--sheet {
     background-color: $bg-card;
-    border-top: 2rpx solid $bg-hover;
     border-bottom: 2rpx solid $bg-hover;
   }
 

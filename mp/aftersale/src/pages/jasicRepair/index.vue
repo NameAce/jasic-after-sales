@@ -300,6 +300,7 @@
       const opt = faultDescriptionOptionsFromApi.value.find((o) => o.value === v)
       const text = (opt?.text ?? '').trim()
       if (label && (v === label || text === label)) return true
+      if (text === '其它' || text === '其他') return true
       if (/(其它|其他)/.test(text) && /故障/.test(text)) return true
       if (/(其它|其他)/.test(v) && /故障/.test(v)) return true
       return false

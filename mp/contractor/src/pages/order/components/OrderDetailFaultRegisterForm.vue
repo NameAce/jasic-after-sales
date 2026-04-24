@@ -42,7 +42,7 @@
         </view>
       </view>
 
-      <!-- 其它故障说明（仅维修登记 + faultItems 含「其它」时） -->
+      <!-- 其它故障说明（仅维修登记 + faultItems 含「其它故障」时） -->
       <view v-if="showFaultRemarkInput" class="form-item-v2">
         <text class="form-label-v2">其它故障说明 <text class="text-red">*</text></text>
         <textarea
@@ -155,12 +155,10 @@
               :limit="1"
               :del-icon="true"
             >
-              <template #add>
-                <view class="upload-grid-box">
-                  <image class="upload-icon" :src="addAPhotoIcon" mode="aspectFit" />
-                  <text class="upload-text">故障处旧图片</text>
-                </view>
-              </template>
+              <view class="upload-grid-box">
+                <image class="upload-icon" :src="addAPhotoIcon" mode="aspectFit" />
+                <text class="upload-text">故障处旧图片</text>
+              </view>
             </MediaUploadField>
           </view>
           <view class="upload-grid-item">
@@ -171,12 +169,10 @@
               :limit="1"
               :del-icon="true"
             >
-              <template #add>
-                <view class="upload-grid-box">
-                  <image class="upload-icon" :src="addAPhotoIcon" mode="aspectFit" />
-                  <text class="upload-text">故障处新图片</text>
-                </view>
-              </template>
+              <view class="upload-grid-box">
+                <image class="upload-icon" :src="addAPhotoIcon" mode="aspectFit" />
+                <text class="upload-text">故障处新图片</text>
+              </view>
             </MediaUploadField>
           </view>
           <view class="upload-grid-item">
@@ -187,12 +183,10 @@
               :limit="1"
               :del-icon="true"
             >
-              <template #add>
-                <view class="upload-grid-box">
-                  <image class="upload-icon" :src="addAPhotoIcon" mode="aspectFit" />
-                  <text class="upload-text">机器正面照片</text>
-                </view>
-              </template>
+              <view class="upload-grid-box">
+                <image class="upload-icon" :src="addAPhotoIcon" mode="aspectFit" />
+                <text class="upload-text">机器正面图片</text>
+              </view>
             </MediaUploadField>
           </view>
           <view class="upload-grid-item">
@@ -203,12 +197,10 @@
               :limit="1"
               :del-icon="true"
             >
-              <template #add>
-                <view class="upload-grid-box">
-                  <image class="upload-icon" :src="addAPhotoIcon" mode="aspectFit" />
-                  <text class="upload-text">机器条码照片</text>
-                </view>
-              </template>
+              <view class="upload-grid-box">
+                <image class="upload-icon" :src="addAPhotoIcon" mode="aspectFit" />
+                <text class="upload-text">机器条码图片</text>
+              </view>
             </MediaUploadField>
           </view>
           <view class="upload-grid-item upload-grid-item--other-files">
@@ -219,12 +211,10 @@
               :limit="1"
               :del-icon="true"
             >
-              <template #add>
-                <view class="upload-grid-box">
-                  <image class="upload-icon" :src="addAPhotoIcon" mode="aspectFit" />
-                  <text class="upload-text">其它图片</text>
-                </view>
-              </template>
+              <view class="upload-grid-box">
+                <image class="upload-icon" :src="addAPhotoIcon" mode="aspectFit" />
+                <text class="upload-text">其它图片</text>
+              </view>
             </MediaUploadField>
           </view>
         </view>
@@ -234,14 +224,14 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, ref } from 'vue'
+  import { computed, ref, watch } from 'vue'
   import MediaUploadField from '@/components/MediaUploadField/MediaUploadField.vue'
   import { addAPhotoIcon } from '@/svgs'
   import type { WorkOrderRepairFaultOptionVO } from '@/api/workOrder'
 
   const OTHER_REPAIR_DESC = '其它维修说明'
   /** 与后端 WorkOrderServiceImpl.OTHER_FAULT_LABEL 对齐 */
-  const OTHER_FAULT_LABEL = '其它'
+  const OTHER_FAULT_LABEL = '其它故障'
 
   type ReplacePartRowModel = { id: number; part: string; quantity: string }
 
@@ -262,12 +252,15 @@
       firstRepairFaultDesc?: string
       /** 复检登记时用于只读回显首次故障备注 */
       firstRepairFaultRemark?: string
+      /** 复检：确认故障项，用于按故障过滤「维修说明」候选（与维修登记 faultItems 语义对齐） */
+      recheckConfirmFaultItems?: string[]
     }>(),
     {
       isRecheck: false,
       faultOptions: () => [],
       firstRepairFaultDesc: '',
-      firstRepairFaultRemark: ''
+      firstRepairFaultRemark: '',
+      recheckConfirmFaultItems: () => []
     }
   )
 
@@ -292,7 +285,7 @@
     () => !props.isRecheck && hasRepairFaultConfig.value
   )
 
-  /** 维修确认故障候选（含末尾追加的「其它」） */
+  /** 维修确认故障候选（含末尾追加的「其它故障」） */
   const faultItemOptions = computed(() => {
     const seen = new Set<string>()
     const out: string[] = []
@@ -324,6 +317,25 @@
     return out
   })
 
+  /** 复检：按只读「维修确认故障」过滤维修说明候选 */
+  const recheckFaultFilteredRepairOptions = computed(() => {
+    const items = (props.recheckConfirmFaultItems || []).map((x) => String(x || '').trim()).filter(Boolean)
+    const selected = new Set(items)
+    const seen = new Set<string>()
+    const out: string[] = []
+    for (const f of normalizedFaultOptions.value) {
+      if (!selected.has(f.faultDesc)) continue
+      for (const r of f.repairOptions) {
+        if (!seen.has(r)) {
+          seen.add(r)
+          out.push(r)
+        }
+      }
+    }
+    if (!seen.has(OTHER_REPAIR_DESC)) out.push(OTHER_REPAIR_DESC)
+    return out
+  })
+
   /** 兜底：复检 / 无配置场景继续使用"所有 repairOptions 并集 + 其它维修说明" */
   const allRepairOptions = computed(() => {
     const seen = new Set<string>()
@@ -340,15 +352,22 @@
     return out
   })
 
-  /** 当前维修说明下拉选项：维修登记 & 有配置 → 按 faultItems 过滤；否则 → 全量 */
+  /** 当前维修说明下拉：维修登记按 faultItems；复检按确认故障项；否则全量 */
   const repairDescOptions = computed(() => {
     if (showFaultItemsSelect.value) return faultFilteredRepairOptions.value
+    if (
+      props.isRecheck &&
+      hasRepairFaultConfig.value &&
+      (props.recheckConfirmFaultItems || []).some((x) => String(x || '').trim())
+    ) {
+      return recheckFaultFilteredRepairOptions.value
+    }
     return allRepairOptions.value
   })
 
   /** 维修确认故障（多选） */
   const faultItems = defineModel<string[]>('faultItems', { default: () => [] })
-  /** 其它故障说明（faultItems 含「其它」时必填） */
+  /** 其它故障说明（faultItems 含「其它故障」时必填） */
   const faultRemark = defineModel<string>('faultRemark', { default: '' })
   /** 维修说明（多选） */
   const repairDesc = defineModel<string[]>('repairDesc', { default: () => [] })
@@ -360,7 +379,7 @@
     default: () => [{ id: 1, part: '', quantity: '' }]
   })
 
-  /** faultItems 含「其它」时展示 faultRemark 输入框 */
+  /** faultItems 含「其它故障」时展示 faultRemark 输入框 */
   const showFaultRemarkInput = computed(
     () => showFaultItemsSelect.value && (faultItems.value || []).includes(OTHER_FAULT_LABEL)
   )
@@ -443,10 +462,32 @@
 
   const showRepairDescDropdown = ref(false)
   const draftRepairDesc = ref<string[]>([])
-  const selectedRepairDescText = computed(() => repairDesc.value.join('、'))
+  const selectedRepairDescText = computed(() => (repairDesc.value || []).join('、'))
+
+  watch(
+    () => [
+      props.isRecheck,
+      hasRepairFaultConfig.value,
+      repairDescOptions.value.join('\u0001'),
+      (repairDesc.value || []).join('\u0001'),
+    ],
+    () => {
+      if (!props.isRecheck) return
+      if (!hasRepairFaultConfig.value) return
+      const allowed = new Set(repairDescOptions.value)
+      const cur = repairDesc.value || []
+      const next = cur.filter((r) => allowed.has(r))
+      if (next.length !== cur.length) {
+        repairDesc.value = next
+        if (!next.includes(OTHER_REPAIR_DESC)) {
+          otherRepairDesc.value = ''
+        }
+      }
+    },
+  )
 
   const openRepairDescDropdown = () => {
-    draftRepairDesc.value = [...repairDesc.value]
+    draftRepairDesc.value = [...(repairDesc.value || [])]
     showRepairDescDropdown.value = true
   }
 
@@ -650,10 +691,10 @@
 
       /**
        * 其它图片多选：已选缩略图需横向排列；原 1/3 列宽过窄会被迫竖排。
-       * 仅拉宽格子，不改动 #add 插槽里的上传入口样式。
+       * 与「机器条码图片」同一行且排在条码右侧（占第 2～3 列），避免独占一行看起来像跑到条码「上方」。
        */
       .upload-grid-item--other-files {
-        grid-column: 1 / -1;
+        grid-column: 2 / -1;
 
         :deep(.uni-file-picker) {
           display: block;

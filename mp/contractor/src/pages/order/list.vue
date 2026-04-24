@@ -123,7 +123,7 @@
         :empty-desc="listEmptyDesc"
         :show-inbound-transfer-tag="showInboundTransferTag"
         :show-transferred-tag="(order) => !!order.transferred && !isHqUser"
-        :show-repair-site-rows="primaryTab === 'transferred'"
+        :show-repair-site-rows="false"
         :show-no-more="orderList.length > 0 && hasLoadedAll"
         @order-click="onOrderClick"
       >
@@ -189,13 +189,6 @@
       no-fault-required
       @confirm="onCloseOrderConfirm"
     />
-
-    <!-- 上传寄件单号弹窗（承包商端 UPLOAD_SEND_EXPRESS 动作） -->
-    <UploadSendExpressModal
-      v-model:visible="showUploadSendExpressModal"
-      :work-order-id="currentSendExpressWorkOrderId"
-      @confirm="onSubmitSendExpress"
-    />
   </view>
 </template>
 
@@ -217,7 +210,6 @@
   } from '@/components/AssignTechnicianModal/AssignTechnicianModal.vue'
   import ReturnMethodModal from '@/components/ReturnMethodModal/ReturnMethodModal.vue'
   import CloseOrderModal from '@/components/CloseOrderModal/CloseOrderModal.vue'
-  import UploadSendExpressModal from '@/components/UploadSendExpressModal/UploadSendExpressModal.vue'
   import {
     applyWorkOrderListSearchKeyword,
     assignWorkOrder,
@@ -228,7 +220,6 @@
     closeWorkOrder,
     transferWorkOrder,
     listTransferTargetOptions,
-    updateWorkOrderSendExpress,
     WORK_ORDER_FAULT_CLOSE_REASON,
     type OrderListQuery,
     type ReturnMethodConfirmPayload
@@ -308,6 +299,18 @@
       order.transferFromSite,
       userStore.currentNetworkName
     )
+  }
+
+  /**
+   * 列表 `currentAcceptCompanyName`（映射为 `siteName`）与当前登录主体公司名一致时，
+   * 才允许除查看外的操作。任一方无有效名称时不收紧（兼容旧数据）。总部「总部处理」不参与此限制。
+   */
+  const isOrderAcceptedByCurrentCompany = (order: OrderListItem) => {
+    if (isHqProcessView.value) return true
+    const acceptName = String(order.siteName ?? '').trim()
+    const myName = String(userStore.currentNetworkName ?? '').trim()
+    if (!acceptName || !myName) return true
+    return acceptName === myName
   }
 
   /**
@@ -948,8 +951,12 @@
    * @returns void
    */
   const onOrderClick = (order: OrderListItem) => {
+    const viewOnly =
+      primaryTab.value === 'transferred' || !isOrderAcceptedByCurrentCompany(order)
+        ? '&viewOnly=1'
+        : ''
     uni.navigateTo({
-      url: `/pages/order/detail?id=${order.id}&status=${order.status}`
+      url: `/pages/order/detail?id=${order.id}&status=${order.status}${viewOnly}`
     })
   }
 
@@ -1051,10 +1058,11 @@
     return getOperatorActions('COMPLETED').some((a) => a.key === 'REVIEW')
   }
 
+  /** 承修方端暂不展示「上传寄件单号」（与详情页一致；后端仍可能下发 UPLOAD_SEND_EXPRESS） */
   const getOrderAvailableActions = (order: OrderListItem): WorkOrderActionKey[] =>
     normalizeAvailableActions(
       (order as OrderListItem & { availableActions?: unknown }).availableActions
-    )
+    ).filter((key) => key !== 'UPLOAD_SEND_EXPRESS')
 
   const getOrderRoleForRegression = (
     order: OrderListItem
@@ -1078,7 +1086,6 @@
     if (actionKey === 'TRANSFER') return '转单'
     if (actionKey === 'REPAIR_FINISH') return '维修登记'
     if (actionKey === 'REVIEW') return '复检登记'
-    if (actionKey === 'UPLOAD_SEND_EXPRESS') return '上传寄件单号'
     if (actionKey === 'CLOSE') return '机器返回方式'
     return ''
   }
@@ -1094,6 +1101,7 @@
    */
   const isActionAllowed = (order: OrderListItem, actionKey: WorkOrderActionKey) => {
     if (primaryTab.value === 'transferred') return false
+    if (!isOrderAcceptedByCurrentCompany(order)) return false
     if (isDispatcherOrderAssignedToOther(order)) return false
 
     if (actionKey === 'ASSIGN') return userStore.hasPermission(Perms.WORKORDER_ASSIGN)
@@ -1118,9 +1126,6 @@
       )
     if (actionKey === 'REVIEW')
       return userStore.hasPermission(Perms.WORKORDER_REVIEW) || isHqProcessView.value
-    if (actionKey === 'UPLOAD_SEND_EXPRESS')
-      // 后端 @SaCheckPermission("workorder:assign")：上传寄件单号走派单权限点
-      return userStore.hasPermission(Perms.WORKORDER_ASSIGN)
     if (actionKey === 'CLOSE')
       return (
         userStore.hasPermission(Perms.WORKORDER_CLOSE) &&
@@ -1395,51 +1400,11 @@
     })
   }
 
-  // ==================== 上传寄件单号（UPLOAD_SEND_EXPRESS）====================
-
-  /** 上传寄件单号弹窗：锁定的工单ID */
-  const currentSendExpressWorkOrderId = ref('')
-  const showUploadSendExpressModal = ref(false)
-
-  const openUploadSendExpressModal = (orderId: string) => {
-    currentSendExpressWorkOrderId.value = String(orderId ?? '').trim()
-    showUploadSendExpressModal.value = true
-  }
-
-  /**
-   * 提交寄件单号：PUT `/system/work-order/send-express`；成功后关闭弹窗并刷新列表。
-   */
-  const onSubmitSendExpress = async (payload: {
-    workOrderId: number
-    sendExpressNo: string
-    senderVoucherFileIds?: number[]
-  }) => {
-    uni.showLoading({ title: '提交中...' })
-    try {
-      await updateWorkOrderSendExpress(payload)
-      uni.showToast({ title: '寄件单号已上传', icon: 'none', duration: 1500 })
-      showUploadSendExpressModal.value = false
-      currentSendExpressWorkOrderId.value = ''
-      appStore.markOrderListScrollRefresherOnNextShow()
-      await refreshListEntry(false)
-    } catch {
-      // 失败提示已在 http 层处理
-    } finally {
-      uni.hideLoading()
-    }
-  }
-
   /**
    * 动作统一分发：将工单动作语义映射到当前页面既有行为实现。
    */
   const workOrderActionHandlers: Record<
-    | 'ASSIGN'
-    | 'TECH_ACCEPT'
-    | 'TRANSFER'
-    | 'REPAIR_FINISH'
-    | 'REVIEW'
-    | 'UPLOAD_SEND_EXPRESS'
-    | 'CLOSE',
+    'ASSIGN' | 'TECH_ACCEPT' | 'TRANSFER' | 'REPAIR_FINISH' | 'REVIEW' | 'CLOSE',
     (orderId: string) => void
   > = {
     ASSIGN: (orderId) => openAssignModal(orderId),
@@ -1449,7 +1414,6 @@
     },
     REPAIR_FINISH: (orderId) => onRepairRegister(orderId),
     REVIEW: (orderId) => onRecheck(orderId),
-    UPLOAD_SEND_EXPRESS: (orderId) => openUploadSendExpressModal(orderId),
     CLOSE: (orderId) => onReturnMethod(orderId)
   }
 
@@ -1463,6 +1427,11 @@
     const id = String(orderId ?? '').trim()
     if (!id) {
       uni.showToast({ title: '工单ID无效', icon: 'none' })
+      return
+    }
+    const orderRow = orderList.value.find((o) => o.id === id)
+    if (orderRow && !isOrderAcceptedByCurrentCompany(orderRow)) {
+      uni.showToast({ title: '受理方非您所在主体，仅可查看', icon: 'none' })
       return
     }
     if (!(actionKey in workOrderActionHandlers)) {

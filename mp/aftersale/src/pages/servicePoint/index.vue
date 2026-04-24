@@ -11,7 +11,7 @@
     >
       <view class="item-left">
         <uni-icons type="location-filled" size="20" :color="themeColor.info"></uni-icons>
-        <view v-if="item.serviced">服务过</view>
+        <view v-if="item.hasRepairHistory">服务过</view>
       </view>
       <view class="item-content">
         <view>{{ item.companyName }}</view>

@@ -71,13 +71,14 @@ export function saveAddresses(list: SavedAddress[]): void {
  */
 export function saveSelectedShippingAddress(address: SavedAddress): void {
   const line =
-    (address.fullAddress && address.fullAddress.trim()) ||
+    (address.fullAddress && String(address.fullAddress).trim()) ||
     `${address.province}${address.city}${address.county}${address.detail}`
+  /** 与 `takeSelectedShippingAddress` 一致：统一序列化为 string，避免 JSON 出现未加引号的数字导致读取端 typeof 校验失败 */
   const payload: SelectedShippingAddress = {
-    id: address.id,
-    name: address.name,
-    phone: address.phone,
-    fullAddress: line
+    id: String(address.id ?? '').trim(),
+    name: String(address.name ?? '').trim(),
+    phone: String(address.phone ?? '').trim(),
+    fullAddress: String(line ?? '').trim()
   }
   uni.setStorageSync(SHIPPING_PICK_STORAGE_KEY, JSON.stringify(payload))
 }
@@ -90,24 +91,22 @@ export function takeSelectedShippingAddress(): SelectedShippingAddress | null {
   try {
     const raw = uni.getStorageSync(SHIPPING_PICK_STORAGE_KEY) as string
     if (!raw || typeof raw !== 'string') return null
-    uni.removeStorageSync(SHIPPING_PICK_STORAGE_KEY)
     const parsed = JSON.parse(raw) as unknown
-    if (!parsed || typeof parsed !== 'object') return null
-    const item = parsed as Partial<SelectedShippingAddress>
-    if (
-      typeof item.id !== 'string' ||
-      typeof item.name !== 'string' ||
-      typeof item.phone !== 'string' ||
-      typeof item.fullAddress !== 'string'
-    ) {
+    if (!parsed || typeof parsed !== 'object') {
+      uni.removeStorageSync(SHIPPING_PICK_STORAGE_KEY)
       return null
     }
-    return {
-      id: item.id,
-      name: item.name,
-      phone: item.phone,
-      fullAddress: item.fullAddress
+    const item = parsed as Record<string, unknown>
+    const id = String(item.id ?? '').trim()
+    const name = String(item.name ?? '').trim()
+    const phone = String(item.phone ?? '').trim()
+    const fullAddress = String(item.fullAddress ?? '').trim()
+    if (!id || !name || !phone || !fullAddress) {
+      uni.removeStorageSync(SHIPPING_PICK_STORAGE_KEY)
+      return null
     }
+    uni.removeStorageSync(SHIPPING_PICK_STORAGE_KEY)
+    return { id, name, phone, fullAddress }
   } catch {
     return null
   }

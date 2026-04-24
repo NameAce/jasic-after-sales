@@ -5,7 +5,7 @@
       <text class="section-title">商品信息</text>
     </view>
     <view class="od-apply-info-list">
-      <!-- 机型：仅展示（佳士品牌缺机型时由 detail.vue 触发补录弹窗，不再提供自由文本输入） -->
+      <!-- 机型：仅展示（仅维修登记入口缺机型时由 detail.vue 触发补录弹窗） -->
       <view v-if="hasVal(product.model)" class="info-item">
         <text class="info-label">机器型号</text>
         <text class="info-value">{{ product.model }}</text>
@@ -17,10 +17,7 @@
           <uni-icons type="right" size="14" color="#f26604" />
         </view>
       </view>
-      <view v-if="hasVal(product.brandName)" class="info-item">
-        <text class="info-label">品牌</text>
-        <text class="info-value">{{ product.brandName }}</text>
-      </view>
+      <!-- C 端申请内容：商品信息不展示品牌 -->
       <view v-if="hasVal(product.barcode)" class="info-item">
         <text class="info-label">条形码</text>
         <text class="info-value">{{ product.barcode }}</text>
@@ -29,9 +26,9 @@
         <text class="info-label">机器小号</text>
         <text class="info-value">{{ product.serialNo }}</text>
       </view>
-      <view v-if="hasVal(product.outDate)" class="info-item">
+      <view v-if="hasVal(product.lastOutDate)" class="info-item">
         <text class="info-label">最后出库日期</text>
-        <text class="info-value">{{ product.outDate }}</text>
+        <text class="info-value">{{ product.lastOutDate }}</text>
       </view>
       <view v-if="hasVal(product.warrantyClass)" class="info-item">
         <text class="info-label">质保判定</text>
@@ -50,11 +47,11 @@
   /**
    * 商品信息卡片：
    * - 机型只读展示；不再在卡片内自由输入（避免用户绕过后端校验写入空/非法机型）。
-   * - 佳士品牌 + 缺机型时渲染"点击补录机器型号"入口，由父组件 detail.vue 负责唤起 MachineModelSupplementModal。
+   * - 「须补录机型」时（维修登记缺机型，或复检且佳士缺机型）渲染「点击补录机器型号」，由父组件 detail.vue 唤起 MachineModelSupplementModal。
    */
   const props = defineProps<{
     product: OrderDetail['product']
-    /** 是否为需要"补录机型"的场景（佳士品牌 + 当前 product.model 为空） */
+    /** 是否需要补录机型入口（父级 detail：维修登记无机型，或复检佳士无机型） */
     needSupplement?: boolean
   }>()
 
@@ -67,10 +64,9 @@
     return (
       !!props.needSupplement ||
       hasVal(p.model) ||
-      hasVal(p.brandName) ||
       hasVal(p.barcode) ||
       hasVal(p.serialNo) ||
-      hasVal(p.outDate) ||
+      hasVal(p.lastOutDate) ||
       hasVal(p.warrantyClass)
     )
   })

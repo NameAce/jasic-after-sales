@@ -75,16 +75,17 @@ export function getStatusIcon(status: WorkOrderMainStatus): string {
 
 /**
  * 工单进度步骤索引（0-based）
+ * 五步进度：待派单 → 待接单 → 维修中 → 已完成 → 已关闭
  * @param status 工单状态
  * @returns 工单进度步骤索引
  */
 export function getStepIndex(status: WorkOrderMainStatus): number {
   const map: Record<WorkOrderMainStatus, number> = {
     PENDING_ASSIGN: 0,
-    PENDING_TECH_ACCEPT: 0,
-    IN_PROGRESS: 1,
-    COMPLETED: 2,
-    CLOSED: 3,
+    PENDING_TECH_ACCEPT: 1,
+    IN_PROGRESS: 2,
+    COMPLETED: 3,
+    CLOSED: 4,
   }
   return map[status] ?? 0
 }

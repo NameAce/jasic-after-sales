@@ -1,9 +1,10 @@
 <template>
-  <view v-if="visible" class="mms-mask" @click.self="onCancel">
-    <view class="mms-card">
+  <!-- 小程序里 @click.self 常无效，子元素点击会冒泡到蒙层导致误关；用卡片区 @click.stop 拦截 -->
+  <view v-if="visible" class="mms-mask" @click="onCancel">
+    <view class="mms-card" @click.stop>
       <view class="mms-title">补录机器型号</view>
       <view class="mms-tip">
-        当前工单为佳士品牌但缺少机器型号，请先选择（或输入）机器型号后再继续维修登记。
+        维修登记时若无机器型号须先补录；佳士品牌工单复检登记前若无机器型号亦须补录。补录后不可再次修改。请从下方已启用机型列表中选择。
       </view>
       <view class="mms-field">
         <input
@@ -16,7 +17,7 @@
         />
         <view v-if="loading" class="mms-status">加载中...</view>
         <view v-else-if="options.length === 0" class="mms-status">
-          无匹配结果，可直接使用当前输入
+          无匹配结果，请调整关键词，或从列表选择已启用的机器型号
         </view>
         <scroll-view v-else class="mms-options" scroll-y>
           <view
@@ -44,15 +45,12 @@
 
 <script setup lang="ts">
   /**
-   * 机器型号补录弹窗
-   *
-   * 交互对齐 jasic-ui：
-   * - 打开时先用空 keyword 调 `listRepairProductModelOptions` 拉默认候选
-   * - 用户输入时防抖再查一次（300ms）
-   * - 允许用户从列表选中，也允许直接使用手动输入的 keyword 兜底
-   * - 点"确认并继续"回抛 `confirm(productModel)` 给父组件，由父组件调 `updateRepairProductModel` 后刷新详情
+   * 机器型号补录弹窗（与管理端 jasic-ui 行为一致：须从归属总部已启用机型中选择）
+   * - 打开时用空 keyword 拉候选，并保存全量列表用于确认校验
+   * - 用户输入时防抖再查（300ms）
+   * - 确定：所选/输入的型号须在全量已启用列表中
    */
-  import { ref, watch } from 'vue'
+  import { ref, watch, computed } from 'vue'
   import { listRepairProductModelOptions } from '@/api/workOrder'
 
   const props = defineProps<{
@@ -68,16 +66,22 @@
 
   const keyword = ref('')
   const options = ref<string[]>([])
+  /** 打开弹窗时「全量」已启用机型，用于与后端一致：仅允许选库内型号 */
+  const enabledAllModels = ref<string[]>([])
   const loading = ref(false)
   let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
-  const canSubmit = () => keyword.value.trim().length > 0
+  const canSubmit = computed(() => keyword.value.trim().length > 0)
 
   const loadOptions = async (kw: string) => {
     if (!props.workOrderId) return
     loading.value = true
     try {
-      options.value = await listRepairProductModelOptions(props.workOrderId, { keyword: kw })
+      const list = await listRepairProductModelOptions(props.workOrderId, { keyword: kw })
+      options.value = list
+      if (!String(kw || '').trim()) {
+        enabledAllModels.value = list
+      }
     } catch {
       options.value = []
     } finally {
@@ -107,6 +111,14 @@
       uni.showToast({ title: '请填写或选择机器型号', icon: 'none' })
       return
     }
+    if (!enabledAllModels.value.length) {
+      uni.showToast({ title: '未加载到可选机型，请关闭后重试', icon: 'none' })
+      return
+    }
+    if (!enabledAllModels.value.includes(val)) {
+      uni.showToast({ title: '请选择已启用的机器型号', icon: 'none' })
+      return
+    }
     emit('confirm', val)
   }
 
@@ -116,6 +128,7 @@
       if (vis) {
         keyword.value = ''
         options.value = []
+        enabledAllModels.value = []
         void loadOptions('')
       }
     },

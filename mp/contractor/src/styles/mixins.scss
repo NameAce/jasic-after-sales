@@ -311,6 +311,8 @@
   display: flex;
   gap: $space-md;
   padding: $space-lg;
+  padding-bottom: calc(#{$space-lg} + constant(safe-area-inset-bottom));
+  padding-bottom: calc(#{$space-lg} + env(safe-area-inset-bottom));
   border-top: 2rpx solid $bg-hover;
 
   .btns { @include modal-action-btn; }

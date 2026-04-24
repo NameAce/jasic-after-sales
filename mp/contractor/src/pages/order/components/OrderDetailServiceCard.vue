@@ -9,37 +9,31 @@
         <text class="info-label">网点电话</text>
         <text class="info-value">{{ service.sitePhone }}</text>
       </view>
-      <view v-if="hasVal(service.source)" class="info-item">
-        <text class="info-label">申请来源</text>
-        <text class="info-value">{{ service.source }}</text>
+      <view v-if="hasVal(acceptorSiteName)" class="info-item">
+        <text class="info-label">网点名称</text>
+        <text class="info-value">{{ acceptorSiteName }}</text>
       </view>
-      <view v-if="showServiceSenderInfo && hasSenderDetail" class="info-item align-top sender-info-row">
-        <text class="info-label shrink">寄件信息</text>
-        <view class="sender-info-value">
-          <view class="sender-info-inner">
-            <text v-if="senderInfoDisplay.line1" class="sender-info-line">{{ senderInfoDisplay.line1 }}</text>
-            <text v-if="senderInfoDisplay.line2" class="sender-info-line sender-info-line--addr">{{
-              senderInfoDisplay.line2
-            }}</text>
-          </view>
+      <view v-if="hasVal(serviceModeLabel)" class="info-item">
+        <text class="info-label">维修方式</text>
+        <view class="tag-primary">{{ serviceModeLabel }}</view>
+      </view>
+      <!-- 与 mp/aftersale 申请内容一致：到店/送店不展示寄件信息、寄件凭证 -->
+      <template v-if="!isInStoreRepair">
+        <view v-if="hasVal(senderInfoPlain)" class="info-item align-top">
+          <text class="info-label shrink">寄件信息</text>
+          <text class="info-value text-right sender-info-plain">{{ senderInfoPlain }}</text>
         </view>
-      </view>
-      <view
-        v-if="showServiceSenderInfo && senderVoucherFilesForView.length"
-        class="info-item align-top voucher-row"
-      >
-        <text class="info-label shrink">寄件快递单号</text>
-        <view class="shipping-voucher-grid">
+        <!-- 与 mp/aftersale：单张凭证 + 横排 label/图（align-center） -->
+        <view v-if="hasVal(senderVoucherDisplayUrl)" class="info-item align-center">
+          <text class="info-label">寄件快递单号</text>
           <image
-            v-for="(file, idx) in senderVoucherFilesForView"
-            :key="'sender-voucher-' + idx"
             class="shipping-img"
             mode="aspectFill"
-            :src="file.previewUrl"
-            @click="previewVoucher(idx)"
+            :src="senderVoucherDisplayUrl"
+            @click="onPreviewSenderVoucher"
           />
         </view>
-      </view>
+      </template>
     </view>
   </view>
 </template>
@@ -47,109 +41,67 @@
 <script setup lang="ts">
   import { computed } from 'vue'
   import type { OrderDetail } from '@/models/order'
-  import { previewImages } from '@/utils/mediaPreview'
+  import { resolvePreviewableUrl } from '@/utils/mediaPreview'
   import { hasVal } from '@/utils/value'
 
-  const props = defineProps<{
-    service: OrderDetail['service']
-  }>()
+  const props = withDefaults(
+    defineProps<{
+      service: OrderDetail['service']
+      /** 与 C 端 `acceptor.acceptorName` 一致：当前受理网点名称 */
+      acceptorSiteName?: string
+    }>(),
+    { acceptorSiteName: '' }
+  )
 
-  /** 是否有寄件人/地址可展示（兼容仅有 senderInfo 拼接串） */
-  const hasSenderDetail = computed(() => {
-    const s = props.service
-    if (hasVal(s.senderInfo)) return true
-    return hasVal(s.senderName) || hasVal(s.senderMobile) || hasVal(s.senderAddress)
+  const acceptorSiteName = computed(() => String(props.acceptorSiteName ?? '').trim())
+
+  /** 与 aftersale：`serviceModeLabel ?? repairMethod` */
+  const serviceModeLabel = computed(() => {
+    const s = props.service as { serviceModeLabel?: string; repairMethod?: string }
+    return String(s.serviceModeLabel ?? s.repairMethod ?? '').trim()
   })
 
-  /**
-   * 第一行：姓名 + 手机；第二行：地址（与 UI 稿一致，优先用结构化字段）
-   */
-  const senderInfoDisplay = computed(() => {
-    const s = props.service
-    const name = String(s.senderName || '').trim()
-    const mobile = String(s.senderMobile || '').trim()
-    const addr = String(s.senderAddress || '').trim()
-    if (name || mobile || addr) {
-      return {
-        line1: [name, mobile].filter(Boolean).join(' '),
-        line2: addr
-      }
-    }
-    const raw = String(s.senderInfo || '').trim()
-    if (!raw) return { line1: '', line2: '' }
-    const parts = raw.split(/\s*\/\s*/).map((p) => p.trim()).filter(Boolean)
-    if (parts.length >= 3) {
-      return {
-        line1: `${parts[0]} ${parts[1]}`.trim(),
-        line2: parts.slice(2).join(' ')
-      }
-    }
-    if (parts.length === 2) {
-      return { line1: `${parts[0]} ${parts[1]}`.trim(), line2: '' }
-    }
-    return { line1: parts[0] || raw, line2: '' }
+  /** 到店/送店类维修：与 aftersale `isInStoreRepair` 一致 */
+  const isInStoreRepair = computed(() => {
+    const t = serviceModeLabel.value
+    if (!t) return false
+    const u = t.toUpperCase().replace(/-/g, '_')
+    if (u === 'STORE' || u === 'SHOP') return true
+    return /到店|送店/.test(t)
   })
 
-  /** 接口 senderVoucherFiles：仅展示有效预览地址 */
-  const senderVoucherFilesForView = computed(() => {
+  /** 与 C 端映射一致：整段 `senderInfo`（含换行） */
+  const senderInfoPlain = computed(() => String(props.service.senderInfo ?? '').trim())
+
+  /** 与 C 端：优先 `senderVoucherImg`，否则文件列表首图 */
+  const senderVoucherDisplayUrl = computed(() => {
+    const img = String(props.service.senderVoucherImg ?? '').trim()
+    if (img) return resolvePreviewableUrl(img)
     const files = props.service.senderVoucherFiles
-    if (!Array.isArray(files) || !files.length) return []
-    return files
-      .map((f) => ({ previewUrl: String(f.previewUrl || '').trim() }))
-      .filter((f) => f.previewUrl)
+    if (!Array.isArray(files) || !files.length) return ''
+    const raw = String(files[0]?.previewUrl ?? '').trim()
+    return raw ? resolvePreviewableUrl(raw) : ''
   })
 
-  function previewVoucher(index: number) {
-    const list = senderVoucherFilesForView.value
-    if (!list.length) return
-    const urls = list.map((f) => f.previewUrl)
-    previewImages(urls, index)
+  function onPreviewSenderVoucher() {
+    const u = String(senderVoucherDisplayUrl.value ?? '').trim()
+    if (!u) return
+    uni.previewImage({ urls: [u], current: u })
   }
 
-  /**
-   * 寄件信息/凭证：后端移除 serviceMode 后，改为「有寄件相关数据就展示」，
-   * 到店维修（无寄件人/无凭证）天然不会命中；与 jasic-ui 当前表现一致。
-   */
-  const showServiceSenderInfo = computed(() => {
-    return hasSenderDetail.value || senderVoucherFilesForView.value.length > 0
-  })
-
-  /** 与原 hasServiceInfoCard 一致 */
   const show = computed(() => {
     const s = props.service
-    if (hasVal(s.sitePhone) || hasVal(s.source)) return true
-    return showServiceSenderInfo.value
+    if (hasVal(s.sitePhone)) return true
+    if (hasVal(acceptorSiteName.value)) return true
+    if (hasVal(serviceModeLabel.value)) return true
+    if (!isInStoreRepair.value) {
+      if (hasVal(senderInfoPlain.value)) return true
+      if (hasVal(senderVoucherDisplayUrl.value)) return true
+    }
+    return false
   })
 </script>
 
 <style lang="scss" scoped>
   @use './orderDetailApplyCards.scss';
-  @use '@/styles/variables.scss' as *;
-
-  /* 寄件信息：右侧信息块靠右，块内两行左对齐（与设计稿一致） */
-  .sender-info-row {
-    .sender-info-value {
-      flex: 1;
-      min-width: 0;
-      display: flex;
-      justify-content: flex-end;
-    }
-
-    .sender-info-inner {
-      max-width: 420rpx;
-      text-align: left;
-    }
-
-    .sender-info-line {
-      display: block;
-      font-size: $font-sm;
-      font-weight: 500;
-      color: $text-strong;
-      line-height: 1.4;
-    }
-
-    .sender-info-line--addr {
-      margin-top: 4rpx;
-    }
-  }
 </style>

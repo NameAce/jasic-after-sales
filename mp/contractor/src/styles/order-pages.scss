@@ -327,6 +327,12 @@
         &.primary {
           color: $primary;
         }
+
+        /* 维修价格：需与 `.info-item .value` 同层，否则被本段四元选择器覆盖 */
+        &.value-repair-price {
+          color: $danger;
+          font-weight: 700;
+        }
       }
     }
   }

@@ -35,7 +35,8 @@
     status: WorkOrderMainStatus
   }>()
 
-  const steps = ['待接单', '维修中', '已完成', '已关闭'] as const
+  /** 与主状态枚举一致：待派单 / 待接单 拆成两步（对齐列表侧 PENDING_ASSIGN / PENDING_TECH_ACCEPT） */
+  const steps = ['待派单', '待接单', '维修中', '已完成', '已关闭'] as const
 
   const orderStatusText = computed(() => ORDER_STATUS_TEXT_MAP[props.status])
 
@@ -62,6 +63,8 @@
 
 <style lang="scss" scoped>
   .od-top-section {
+    position: relative;
+    z-index: 0;
     background-color: $primary;
     color: $text-bg;
     padding-bottom: 64rpx;

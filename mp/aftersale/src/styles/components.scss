@@ -336,13 +336,13 @@
 
 .tag-jasic {
   background-color: $tag-brand-bg;
-  color: $tag-brand-text;
+  color: $tag-brand-text !important;
   border-color: $tag-brand-border;
 }
 
 .tag-non-jasic {
   background-color: $tag-neutral-bg;
-  color: $text-slate-500;
+  color: $text-slate-500 !important;
   border-color: $tag-neutral-border;
 }
 

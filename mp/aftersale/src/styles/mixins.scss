@@ -261,3 +261,48 @@
   color: $text-body;
   font-size: $font-sm;
 }
+
+// ========== 弹窗底部（派单弹窗等）==========
+
+@mixin modal-action-btn {
+  flex: 1;
+  padding: 20rpx 0;
+  border-radius: 16rpx;
+  @include flex-center;
+
+  .text {
+    font-size: $font-md;
+    font-weight: bold;
+  }
+
+  &.btn-cancel {
+    background-color: $bg-hover;
+    .text {
+      color: $text-slate-900;
+    }
+    &:active {
+      background-color: $border-slate;
+    }
+  }
+
+  &.btn-confirm {
+    background-color: $primary;
+    .text {
+      color: $text-bg;
+    }
+    &:active {
+      opacity: 0.9;
+    }
+  }
+}
+
+@mixin modal-footer-bar {
+  display: flex;
+  gap: $space-md;
+  padding: $space-lg;
+  border-top: 2rpx solid $bg-hover;
+
+  .btns {
+    @include modal-action-btn;
+  }
+}

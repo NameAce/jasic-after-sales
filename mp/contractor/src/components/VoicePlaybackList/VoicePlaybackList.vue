@@ -63,6 +63,8 @@
 
   const playingIndex = ref(-1)
   const playProgress = ref(0)
+  /** 当前播放已播秒数（onTimeUpdate 写入，供模板响应式刷新） */
+  const playHeadSec = ref(0)
   /**
    * 切段播放前会 stop()，各端 onStop 可能晚于新 play()，导致误清 UI；
    * 对下一次 onStop 打标忽略。
@@ -74,6 +76,12 @@
 
   /** 原始 url → 可播放的本地 tempFilePath（或原样 url） */
   const resolvedPlaySrcMap = ref<Record<string, string>>({})
+
+  /**
+   * 解码得到的时长（秒），按「业务 url」索引。
+   * 详情接口语音附件常无 duration 元数据，未播放时须展示该段总时长。
+   */
+  const resolvedDurationSecByUrl = ref<Record<string, number>>({})
 
   const isRemoteHttpUrl = (url: string) => /^https?:\/\//i.test(url.trim())
 
@@ -136,22 +144,29 @@
     ignoreNextAudioStop.value = false
   }
 
-  const formatDurationSec = (ms: number) => {
-    if (!ms || ms <= 0) return '0'
-    return String(Math.max(0, Math.round(ms / 1000)))
+  const metaDurationSec = (item: VoicePlaybackItem) =>
+    item.duration && item.duration > 0 ? Math.max(0, Math.round(item.duration / 1000)) : 0
+
+  const rememberDecodedSec = (logicalUrl: string, durationSec: number) => {
+    const u = String(logicalUrl ?? '').trim()
+    if (!u || !durationSec || durationSec <= 0 || Number.isNaN(durationSec)) return
+    const sec = Math.max(0, Math.round(durationSec))
+    if (resolvedDurationSecByUrl.value[u] === sec) return
+    resolvedDurationSecByUrl.value = { ...resolvedDurationSecByUrl.value, [u]: sec }
   }
 
   /**
-   * 列表时长：正在播放时优先用解码时长（与 currentTime/进度条同源），否则用元数据
+   * 列表时长：未播放为总时长；播放中为已播秒数（随 currentTime 递增）
    */
   const formatDisplayDuration = (item: VoicePlaybackItem, index: number) => {
-    if (innerAudioContext && playingIndex.value === index) {
-      const d = innerAudioContext.duration
-      if (typeof d === 'number' && d > 0 && !Number.isNaN(d)) {
-        return String(Math.max(0, Math.round(d)))
-      }
+    if (playingIndex.value === index) {
+      return String(playHeadSec.value)
     }
-    return formatDurationSec(item.duration ?? 0)
+    const meta = metaDurationSec(item)
+    if (meta > 0) return String(meta)
+    const cached = resolvedDurationSecByUrl.value[String(item.url ?? '').trim()]
+    if (cached && cached > 0) return String(cached)
+    return '0'
   }
 
   /** 与 innerAudioContext.currentTime 同一套时间轴；元数据仅作回退 */
@@ -161,8 +176,10 @@
       return ctx
     }
     const item = props.items[index]
-    const recorded = item?.duration && item.duration > 0 ? item.duration / 1000 : 0
-    return recorded > 0 ? recorded : 0
+    const recorded = metaDurationSec(item)
+    if (recorded > 0) return recorded
+    const cached = item?.url ? resolvedDurationSecByUrl.value[String(item.url).trim()] : 0
+    return cached && cached > 0 ? cached : 0
   }
 
   const stopAndResetPlayback = () => {
@@ -174,6 +191,7 @@
     }
     playingIndex.value = -1
     playProgress.value = 0
+    playHeadSec.value = 0
     lastVoicePlayPath.value = ''
   }
 
@@ -181,15 +199,17 @@
     innerAudioContext.onTimeUpdate(() => {
       const idx = playingIndex.value
       if (idx < 0) return
+      const cur = innerAudioContext.currentTime || 0
+      playHeadSec.value = Math.max(0, Math.round(cur))
       const total = getPlayTotalSec(idx)
       if (total <= 0) return
-      const cur = innerAudioContext.currentTime || 0
       if (!cur || cur <= 0) return
       playProgress.value = Math.min(100, Math.max(0, (cur / total) * 100))
     })
     innerAudioContext.onEnded(() => {
       playingIndex.value = -1
       playProgress.value = 0
+      playHeadSec.value = 0
     })
     innerAudioContext.onStop(() => {
       if (ignoreNextAudioStop.value) {
@@ -198,10 +218,118 @@
       }
       playingIndex.value = -1
       playProgress.value = 0
+      playHeadSec.value = 0
     })
     innerAudioContext.onError(() => {
       playingIndex.value = -1
       playProgress.value = 0
+      playHeadSec.value = 0
+    })
+    innerAudioContext.onCanplay(() => {
+      const idx = playingIndex.value
+      if (idx < 0) return
+      const logical = String(props.items[idx]?.url ?? '').trim()
+      if (!logical) return
+      const d = innerAudioContext.duration
+      if (typeof d === 'number' && d > 0 && !Number.isNaN(d)) {
+        rememberDecodedSec(logical, d)
+      }
+    })
+  }
+
+  /** 无 duration 元数据时静默解码，使未播放态也显示该段总秒数 */
+  let voiceDurationProbeSeq = 0
+  async function probeDecodedDurationSec(playableSrc: string, logicalUrl: string): Promise<void> {
+    const create = uni.createInnerAudioContext
+    if (typeof create !== 'function' || !playableSrc) return
+    const ctx = create() as ReturnType<typeof uni.createInnerAudioContext> & {
+      obeyMuteSwitch?: boolean
+    }
+    try {
+      ctx.volume = 0
+      if (typeof ctx.obeyMuteSwitch === 'boolean') {
+        ctx.obeyMuteSwitch = false
+      }
+    } catch {
+      /* noop */
+    }
+    await new Promise<void>((resolve) => {
+      let finished = false
+      const done = () => {
+        if (finished) return
+        finished = true
+        try {
+          ctx.stop()
+        } catch {
+          /* noop */
+        }
+        try {
+          ctx.destroy()
+        } catch {
+          /* noop */
+        }
+        resolve()
+      }
+      const tryCapture = (): boolean => {
+        if (finished) return true
+        try {
+          const d = ctx.duration
+          if (typeof d === 'number' && d > 0 && !Number.isNaN(d)) {
+            rememberDecodedSec(logicalUrl, d)
+            return true
+          }
+        } catch {
+          /* noop */
+        }
+        return false
+      }
+      const finishOk = () => {
+        if (finished) return
+        tryCapture()
+        clearTimeout(timer)
+        done()
+      }
+      const timer = setTimeout(finishOk, 12000)
+
+      let playKicks = 0
+      const kickPlay = () => {
+        if (finished || playKicks >= 3) return
+        playKicks += 1
+        try {
+          ctx.play()
+        } catch {
+          /* noop */
+        }
+      }
+
+      const onProgress = () => {
+        if (tryCapture()) {
+          clearTimeout(timer)
+          done()
+        }
+      }
+
+      ctx.onCanplay(() => {
+        onProgress()
+        kickPlay()
+      })
+      ctx.onPlay(onProgress)
+      ctx.onTimeUpdate(onProgress)
+      ctx.onError(() => finishOk())
+
+      try {
+        ctx.src = playableSrc
+      } catch {
+        finishOk()
+        return
+      }
+
+      void nextTick(() => {
+        if (!finished && !tryCapture()) kickPlay()
+      })
+      setTimeout(() => {
+        if (!finished && !tryCapture()) kickPlay()
+      }, 400)
     })
   }
 
@@ -237,10 +365,12 @@
     await nextTick()
     playingIndex.value = index
     playProgress.value = 0
+    playHeadSec.value = 0
     const resolved = await resolvePlayableSrc(item.url)
     if (!resolved) {
       playingIndex.value = -1
       playProgress.value = 0
+      playHeadSec.value = 0
       return
     }
     const path = resolved
@@ -288,7 +418,28 @@
     }
   )
 
+  watch(
+    () => props.items.map((i) => `${String(i.url ?? '').trim()}:${i.duration ?? 0}`).join('|'),
+    () => {
+      const seq = ++voiceDurationProbeSeq
+      void (async () => {
+        for (const item of props.items) {
+          if (seq !== voiceDurationProbeSeq) return
+          const logical = String(item.url ?? '').trim()
+          if (!logical) continue
+          if (metaDurationSec(item) > 0) continue
+          if (resolvedDurationSecByUrl.value[logical]) continue
+          const playable = await resolvePlayableSrc(logical)
+          if (seq !== voiceDurationProbeSeq || !playable) return
+          await probeDecodedDurationSec(playable, logical)
+        }
+      })()
+    },
+    { flush: 'post', immediate: true }
+  )
+
   onUnmounted(() => {
+    voiceDurationProbeSeq += 1
     lastVoicePlayPath.value = ''
     clearIgnoreAudioStop()
     innerAudioContext?.destroy()

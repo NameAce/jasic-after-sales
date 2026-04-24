@@ -63,6 +63,8 @@ export type OrderListQuery = {
   customerMobile?: string
   customerName?: string
   dataScope?: string
+  /** 展示状态：ALL | WAIT_ACCEPT | IN_PROGRESS | COMPLETED | CLOSED（与后端 WorkOrderQuery 一致） */
+  displayStatus?: 'ALL' | 'WAIT_ACCEPT' | 'IN_PROGRESS' | 'COMPLETED' | 'CLOSED'
   hasTransfer?: number
   /** 分页排序方向：与后端 PageQuery 对齐 */
   isAsc?: 'asc' | 'desc'
@@ -141,6 +143,7 @@ function buildWorkOrderQueryString(params: OrderListQuery): string {
   appendQueryParam(parts, 'customerMobile', params.customerMobile)
   appendQueryParam(parts, 'customerName', params.customerName)
   appendQueryParam(parts, 'dataScope', params.dataScope)
+  appendQueryParam(parts, 'displayStatus', params.displayStatus)
   appendQueryParam(parts, 'hasTransfer', params.hasTransfer)
   appendQueryParam(parts, 'isAsc', params.isAsc)
   appendQueryParam(parts, 'mainStatus', params.mainStatus)
@@ -296,8 +299,8 @@ function mapBrandTypeToIsJiashi(brandType?: string): boolean {
   return norm ? norm === 'JASIC' : true
 }
 
-function pickWorkOrderListOutDate(vo: WorkOrderListVO): string {
-  const extra = vo as Record<string, unknown>
+/** 列表/详情 VO 上可能出现的「最后出库日期」字段（兼容多别名） */
+function pickWorkOrderOutDateFromRecord(rec: Record<string, unknown>): string {
   const keys = [
     'lastOutDate',
     'outDate',
@@ -310,11 +313,15 @@ function pickWorkOrderListOutDate(vo: WorkOrderListVO): string {
     'last_stock_out_date',
   ]
   for (const k of keys) {
-    const v = extra[k]
+    const v = rec[k]
     const t = v != null ? String(v).trim() : ''
     if (t) return t
   }
   return ''
+}
+
+function pickWorkOrderListOutDate(vo: WorkOrderListVO): string {
+  return pickWorkOrderOutDateFromRecord(vo as Record<string, unknown>)
 }
 
 function mapOrderTypeNameFromDetail(vo: WorkOrderDetailVO): string {
@@ -356,6 +363,16 @@ function mapWorkOrderToListItem(vo: WorkOrderListVO): OrderListItem {
   const assignedUserName = String(vo.assignedUserName ?? '').trim()
   const availableActions = normalizeAvailableActions(vo.availableActions)
   const createTime = String(vo.createTime ?? '').trim()
+  const transferCountRaw = vo.transferCount
+  const parsedTransferCount =
+    transferCountRaw != null && String(transferCountRaw).trim() !== ''
+      ? Number(transferCountRaw)
+      : NaN
+  const transferCount = Number.isFinite(parsedTransferCount) ? parsedTransferCount : undefined
+  const displayStatusVo = String(vo.displayStatus ?? '').trim()
+  const mainStatusLabelVo = String(vo.mainStatusLabel ?? '').trim()
+  const hasTransferNum = Number(vo.hasTransfer)
+  const customerMobile = String(vo.customerMobile ?? '').trim()
   return {
     id: String(vo.id),
     orderNo: vo.orderNo,
@@ -366,19 +383,24 @@ function mapWorkOrderToListItem(vo: WorkOrderListVO): OrderListItem {
     brandType: brandNorm || undefined,
     brandTypeLabel: brandTypeLabelRaw || undefined,
     isJiashi: mapBrandTypeToIsJiashi(vo.brandType),
-    phone: vo.customerMobile ?? '',
+    customerMobile: customerMobile || undefined,
+    phone: customerMobile,
     barcode: vo.barcode,
     model: vo.productModel,
     outDate,
     warrantyText,
     warrantyClass,
     faultDesc: faultDesc || undefined,
-    transferred: vo.hasTransfer === 1,
+    transferred: Number.isFinite(hasTransferNum) && hasTransferNum !== 0,
     availableActions,
     siteName: vo.currentAcceptCompanyName,
+    sitePhone: String(vo.currentAcceptCompanyPhone ?? '').trim() || undefined,
     repairPriceText,
     repairMethodLabel: repairMethodLabel || undefined,
-    createTime: createTime || undefined
+    createTime: createTime || undefined,
+    transferCount,
+    displayStatus: displayStatusVo || undefined,
+    mainStatusLabel: mainStatusLabelVo || undefined
   }
 }
 
@@ -667,12 +689,6 @@ export async function listRepairFaultOptions(workOrderId: number) {
   return Array.isArray(list) ? list : []
 }
 
-/** 详情页统一解析维修路径枚举（寄件相关展示以该字段为准） */
-/**
- * 详情 VO 中原 `serviceMode / serviceModeLabel` 已从前端类型中移除，
- * 相关 `repairMethod / service.serviceMode` 改由后端后续其他字段补齐后再按需接入。
- */
-
 /** 机器返回方式：兼容枚举/英文值，统一成「回寄/自提」等展示文案 */
 function normalizeReturnMethodLabel(raw: unknown): string {
   const s = String(raw ?? '').trim()
@@ -698,9 +714,35 @@ function resolveSysFileItemPreviewUrl(item: unknown): string {
   return ''
 }
 
-function pickFirstPreviewUrl(files: SysFileItemVO[] | undefined): string {
-  if (!Array.isArray(files) || !files.length) return ''
-  return resolveSysFileItemPreviewUrl(files[0])
+/**
+ * 客户报修故障附件（`faultImageFiles` / `faultVideoFiles` / `faultVoiceFiles`）：
+ * 按 `sortNum` 升序取可预览地址，与 `WorkOrderDetailVO` 文档一致。
+ */
+function sortedFaultFilePreviewUrls(files: SysFileItemVO[] | undefined | null): string[] {
+  if (!Array.isArray(files) || !files.length) return []
+  return [...files]
+    .sort((a, b) => (Number(a.sortNum) || 0) - (Number(b.sortNum) || 0))
+    .map((f) => resolveSysFileItemPreviewUrl(f))
+    .filter(Boolean)
+}
+
+function pickFirstSortedFaultPreviewUrl(files: SysFileItemVO[] | undefined | null): string {
+  const urls = sortedFaultFilePreviewUrls(files)
+  return urls[0] || ''
+}
+
+/** `faultVoiceFiles` → 详情页语音条（`VoicePlaybackList`，缺 duration 时由组件探测） */
+function mapFaultVoiceFilesToVoiceList(
+  files: SysFileItemVO[] | undefined | null,
+): { url: string; duration?: number }[] {
+  if (!Array.isArray(files) || !files.length) return []
+  return [...files]
+    .sort((a, b) => (Number(a.sortNum) || 0) - (Number(b.sortNum) || 0))
+    .map((f) => {
+      const url = resolveSysFileItemPreviewUrl(f)
+      return url ? { url } : null
+    })
+    .filter((x): x is { url: string; duration?: number } => x != null)
 }
 
 function mapSenderVoucherFiles(files: SysFileItemVO[] | undefined): { previewUrl: string }[] {
@@ -764,7 +806,7 @@ function inferRepairItemsFromFaults(faults: WorkOrderFaultVO[]): string[] {
   for (const f of sorted) {
     const rd = String(f.repairDesc || '').trim()
     if (!rd) continue
-    for (const seg of rd.split(/[、,，]/)) {
+    for (const seg of rd.split(/[、,，;；]+/)) {
       const s = seg.trim()
       if (!s || seen.has(s)) continue
       seen.add(s)
@@ -783,7 +825,7 @@ function inferRepairItemsFromRepairVo(r: WorkOrderRepairVO, faults: WorkOrderFau
   if (fromFaults.length) return fromFaults
   const levelRd = String(r.repairDesc || '').trim()
   if (!levelRd) return []
-  return levelRd.split(/[、,，]/).map((s) => s.trim()).filter(Boolean)
+  return levelRd.split(/[、,，;；]+/).map((s) => s.trim()).filter(Boolean)
 }
 
 function inferOtherDescForRecheckEcho(r: WorkOrderRepairVO, faults: WorkOrderFaultVO[]): string {
@@ -797,6 +839,43 @@ function inferOtherDescForRecheckEcho(r: WorkOrderRepairVO, faults: WorkOrderFau
     }
   }
   return ''
+}
+
+/** 从维修登记 faults 汇总「维修确认故障」多值（单条 faultDesc 可能含「、」） */
+function collectConfirmFaultItemsFromFaults(faults: WorkOrderFaultVO[] | undefined | null): string[] {
+  const sorted = [...(faults || [])].sort((a, b) => Number(a.sortNum ?? 0) - Number(b.sortNum ?? 0))
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const f of sorted) {
+    const raw = String(f.faultDesc || '').trim()
+    if (!raw) continue
+    for (const seg of raw.split(/[、,，;；]+/)) {
+      const s = seg.trim()
+      if (!s || seen.has(s)) continue
+      seen.add(s)
+      out.push(s)
+    }
+  }
+  return out
+}
+
+function collectConfirmFaultOtherRemarkFromFaults(faults: WorkOrderFaultVO[] | undefined | null): string {
+  const sorted = [...(faults || [])].sort((a, b) => Number(a.sortNum ?? 0) - Number(b.sortNum ?? 0))
+  const chunks: string[] = []
+  for (const f of sorted) {
+    const fd = String(f.faultDesc || '')
+    const od = String(f.otherDesc || '').trim()
+    if (!od) continue
+    if (
+      fd.includes('其它') ||
+      fd.includes('其他') ||
+      fd.includes('其它故障') ||
+      fd.includes('其他故障')
+    ) {
+      chunks.push(od)
+    }
+  }
+  return chunks.join('；')
 }
 
 function collectPartsFromFaultsForEcho(faults: WorkOrderFaultVO[]): { partName: string; partQty: number }[] {
@@ -827,6 +906,8 @@ function buildRepairRegistrationEcho(
   if (!r) return undefined
   const faults = Array.isArray(r.faults) ? r.faults : []
   return {
+    confirmFaultItems: collectConfirmFaultItemsFromFaults(faults),
+    confirmFaultOtherRemark: collectConfirmFaultOtherRemarkFromFaults(faults),
     repairItems: inferRepairItemsFromRepairVo(r, faults),
     otherDesc: inferOtherDescForRecheckEcho(r, faults),
     parts: collectPartsFromFaultsForEcho(faults),
@@ -871,8 +952,16 @@ function faultPartsFromWorkOrderFault(f: WorkOrderFaultVO) {
 }
 
 function mapWorkOrderDetailToOrderDetail(vo: WorkOrderDetailVO): OrderDetail {
-  const status =
-    mapDisplayStatusToOrderStatus(vo.displayStatus) ?? mapMainStatusToOrderStatus(vo.mainStatus)
+  // 有 mainStatus 时以主状态桶为准，避免 displayStatus 的 WAIT_ACCEPT 等聚合态
+  // 将「待派单 PENDING_ASSIGN」误映射为 PENDING_TECH_ACCEPT，导致详情与列表/派单区不一致
+  const fromDisplay = mapDisplayStatusToOrderStatus(vo.displayStatus)
+  const fromMain = mapMainStatusToOrderStatus(vo.mainStatus)
+  const status: WorkOrderMainStatus = (() => {
+    const rawMain = (vo.mainStatus ?? '').trim()
+    if (rawMain) return fromMain
+    if (fromDisplay != null) return fromDisplay
+    return fromMain
+  })()
   const transferred = vo.hasTransfer === 1 || (vo.transferCount ?? 0) > 0
   const isJiashi = mapBrandTypeToIsJiashi(vo.brandType)
 
@@ -935,10 +1024,19 @@ function mapWorkOrderDetailToOrderDetail(vo: WorkOrderDetailVO): OrderDetail {
         }
       : undefined
 
+  const senderVoucherFilesMapped = mapSenderVoucherFiles(vo.senderVoucherFiles)
+
   return {
     id: String(vo.id ?? ''),
     availableActions: normalizeAvailableActions(vo.availableActions),
     status,
+    mainStatus: vo.mainStatus,
+    assignedUserId: (() => {
+      const a = vo.assignedUserId
+      if (a === undefined || a === null) return undefined
+      const n = Number(a)
+      return Number.isFinite(n) && n > 0 ? n : undefined
+    })(),
     transferred,
     brand: {
       isJiashi,
@@ -959,26 +1057,52 @@ function mapWorkOrderDetailToOrderDetail(vo: WorkOrderDetailVO): OrderDetail {
       brandName: String(vo.brandName || '').trim(),
       model: String(vo.productModel || ''),
       serialNo: String(vo.machineNo || ''),
-      outDate: '',
+      lastOutDate: pickWorkOrderOutDateFromRecord(vo as Record<string, unknown>),
       warrantyClass: mapWarrantyStatusToLabel(vo.warrantyStatus),
       repairStatus: String(vo.mainStatusLabel || vo.displayStatus || ''),
     },
     service: {
-      sitePhone: '',
+      sitePhone: String(vo.currentAcceptCompanyPhone ?? '').trim(),
+      serviceModeLabel: (() => {
+        const L = String(vo.serviceModeLabel ?? '').trim()
+        if (L) return L
+        const c = String(vo.serviceMode ?? '').trim().toUpperCase()
+        if (c === 'MAIL') return '寄修'
+        if (c === 'STORE') return '到店维修'
+        return ''
+      })(),
+      customerMobile: String(vo.customerMobile ?? '').trim(),
+      applySourceLabel: (() => {
+        const fromApi = String(vo.applicationSourceName ?? '').trim()
+        if (fromApi) return fromApi
+        const t = String(mapOrderTypeNameFromDetail(vo) ?? '').trim()
+        if (t) return t
+        return String(vo.createCompanyName || '').trim()
+      })(),
+      acceptingParty: String(vo.currentAcceptCompanyName || '').trim(),
       source: String(vo.createCompanyName || ''),
-      senderInfo: [
-        quote?.senderName || vo.senderName,
-        quote?.senderMobile || vo.senderMobile,
-        quote?.senderAddress || vo.senderAddress
-      ]
-        .filter(Boolean)
-        .join(' / '),
+      /* 与 C 端 `mapCustomerWorkOrderDetailToOrderDetail` 的寄件信息展示一致 */
+      senderInfo: (() => {
+        const name = String(quote?.senderName || vo.senderName || '').trim()
+        const mobile = String(quote?.senderMobile || vo.senderMobile || '').trim()
+        const address = String(quote?.senderAddress || vo.senderAddress || '').trim()
+        const expressNo = String(quote?.sendExpressNo || vo.sendExpressNo || '').trim()
+        const parts = [
+          [name, mobile].filter(Boolean).join(' '),
+          address,
+          expressNo ? `快递单号：${expressNo}` : '',
+        ]
+          .map((x) => String(x ?? '').trim())
+          .filter(Boolean)
+        return parts.join('\n')
+      })(),
       senderName: String(quote?.senderName || vo.senderName || ''),
       senderMobile: String(quote?.senderMobile || vo.senderMobile || ''),
       senderAddress: String(quote?.senderAddress || vo.senderAddress || ''),
       sendExpressNo: String(quote?.sendExpressNo || vo.sendExpressNo || ''),
-      senderVoucherImg: pickFirstPreviewUrl(vo.senderVoucherFiles),
-      senderVoucherFiles: mapSenderVoucherFiles(vo.senderVoucherFiles),
+      /** 与 C 端 `senderVoucherImg` 一致：寄件凭证首图 */
+      senderVoucherImg: String(senderVoucherFilesMapped[0]?.previewUrl ?? '').trim(),
+      senderVoucherFiles: senderVoucherFilesMapped,
       returnMethod: returnMethodLabel || String(vo.returnMethod ?? '').trim(),
       returnExpressNo: String(vo.returnExpressNo ?? '').trim(),
       mailReturnForm: (() => {
@@ -1006,22 +1130,30 @@ function mapWorkOrderDetailToOrderDetail(vo: WorkOrderDetailVO): OrderDetail {
         }
       })(),
     },
-    acceptor: {
-      currentAcceptCompanyName: String(vo.currentAcceptCompanyName || '').trim(),
-      sitePhone: '',
-    },
-    fault: {
-      desc: String(vo.faultDesc || ''),
-      faultExplain: String(vo.faultRemark || ''),
-      voiceDuration: '',
-      images: (Array.isArray(vo.faultImageFiles) ? vo.faultImageFiles : [])
-        .map((f) => String(f.previewUrl || '').trim())
-        .filter(Boolean),
-      videos: (Array.isArray(vo.faultVideoFiles) ? vo.faultVideoFiles : [])
-        .map((f) => String(f.previewUrl || '').trim())
-        .filter(Boolean),
-      videoThumb: pickFirstPreviewUrl(vo.faultVideoFiles),
-    },
+    acceptor: (() => {
+      const outletPhone = String(vo.currentAcceptCompanyPhone ?? '').trim()
+      return {
+        currentAcceptCompanyName: String(vo.currentAcceptCompanyName || '').trim(),
+        sitePhone: outletPhone,
+        currentAcceptCompanyPhone: outletPhone,
+      }
+    })(),
+    fault: (() => {
+      const faultVoiceList = mapFaultVoiceFilesToVoiceList(vo.faultVoiceFiles)
+      return {
+        /** 客户报修描述 `faultDesc` */
+        desc: String(vo.faultDesc ?? '').trim(),
+        /** 客户故障备注 `faultRemark` */
+        faultExplain: String(vo.faultRemark ?? '').trim(),
+        voiceDuration: '',
+        voiceList: faultVoiceList.length ? faultVoiceList : undefined,
+        /** `faultImageFiles` → 预览地址，按 `sortNum` */
+        images: sortedFaultFilePreviewUrls(vo.faultImageFiles),
+        /** `faultVideoFiles` → 预览地址，按 `sortNum` */
+        videos: sortedFaultFilePreviewUrls(vo.faultVideoFiles),
+        videoThumb: pickFirstSortedFaultPreviewUrl(vo.faultVideoFiles),
+      }
+    })(),
     repair: {
       faultJudge: String(quote?.faultJudge || ''),
       quoteAmount:

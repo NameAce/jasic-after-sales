@@ -36,4 +36,33 @@
 
 <style lang="scss" scoped>
   @use './orderDetailApplyCards.scss';
+  @use '@/styles/variables.scss' as *;
+  @use '@/styles/mixins.scss' as *;
+
+  /**
+   * 工单信息「工单类型」取值：与 `orderDetailApplyCards.scss` 中 `.info-item` 下规则一致。
+   * 须在本组件顶层再写一遍，否则 `scoped` + `@use` 过深时微信小程序可能不命中（同 OrderDetailRepairMetaCard 故障角标处理）
+   */
+  .tag-value {
+    padding: 4rpx $space-sm;
+    font-size: $font-sm;
+    font-weight: 500;
+    border-radius: $radius-sm;
+    line-height: 1.4;
+  }
+
+  .tag-value-neutral {
+    @include surface-muted;
+    color: $text-slate-500;
+  }
+
+  .tag-order-type-orange {
+    background-color: $primary-alpha-14;
+    color: $tag-brand-text;
+  }
+
+  .tag-order-type-gray {
+    background-color: rgba($text-slate-500, 0.14);
+    color: $text-slate-500;
+  }
 </style>

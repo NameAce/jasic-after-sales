@@ -7,6 +7,8 @@ export interface NearbyServiceCompanyDTO {
   companyName: string
   contactPhone: string
   distanceKm: number
+  /** 当前客户是否曾在该网点报修 */
+  hasRepairHistory?: boolean
   id: number
   latitude: number
   longitude: number
@@ -27,7 +29,8 @@ export interface ServicePointDTO {
   address: string
   distance: string
   phone: string
-  serviced: boolean
+  /** 当前客户是否曾在该网点报修，用于展示「服务过」 */
+  hasRepairHistory: boolean
   latitude: number
   longitude: number
   companyCode?: string
@@ -48,7 +51,7 @@ export function mapNearbyToServicePoint(item: NearbyServiceCompanyDTO): ServiceP
     address: item.address,
     distance: formatDistanceKm(item.distanceKm),
     phone: item.contactPhone,
-    serviced: false,
+    hasRepairHistory: Boolean(item.hasRepairHistory),
     latitude: item.latitude,
     longitude: item.longitude,
     companyCode: item.companyCode,

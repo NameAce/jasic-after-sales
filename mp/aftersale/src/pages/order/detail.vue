@@ -13,7 +13,7 @@
       <view class="status-banner">
         <view class="status-top">
           <view class="status-text-wrap">
-            <text class="status-title">{{ orderStatus }}</text>
+            <text class="status-title">{{ orderStatusBannerText }}</text>
             <text class="status-desc">{{ statusDesc }}</text>
           </view>
           <image v-if="statusIconSrc" class="status-icon" :src="statusIconSrc" mode="aspectFit" />
@@ -30,7 +30,10 @@
       </view>
     </view>
 
-    <view class="main-content page-padding" :class="{ 'has-fixed-bottom-btn': currentTab === 0 }">
+    <view
+      class="main-content page-padding"
+      :class="{ 'has-fixed-bottom-btn': showAssignDispatchBar || currentTab === 0 }"
+    >
       <view class="content-wrap">
         <!-- 标签容器 -->
         <view class="tab-container">
@@ -38,11 +41,9 @@
           <view class="tab-bar">
             <view class="tab-item" :class="{ active: currentTab === 0 }" @click="currentTab = 0">
               <text class="tab-text">申请内容</text>
-              <view v-if="currentTab === 0" class="tab-line"></view>
             </view>
             <view class="tab-item" :class="{ active: currentTab === 1 }" @click="currentTab = 1">
               <text class="tab-text">维修过程</text>
-              <view v-if="currentTab === 1" class="tab-line"></view>
             </view>
             <view
               v-if="showEvaluateTab"
@@ -51,7 +52,6 @@
               @click="currentTab = 2"
             >
               <text class="tab-text">客户评价</text>
-              <view v-if="currentTab === 2" class="tab-line"></view>
             </view>
           </view>
 
@@ -74,7 +74,11 @@
               </view>
               <view v-if="hasStr(order.base.submitTime)" class="info-item">
                 <text class="info-label">提交时间</text>
-                <text class="info-value">{{ order.base.submitTime }}</text>
+                <text class="info-value">{{ formatIsoDateTime(order.base.submitTime) }}</text>
+              </view>
+              <view v-if="hasStr(order.customerName)" class="info-item">
+                <text class="info-label">客户姓名</text>
+                <text class="info-value">{{ order.customerName }}</text>
               </view>
             </view>
           </view>
@@ -89,13 +93,17 @@
               <text class="section-title">故障信息</text>
             </view>
             <view class="fault-details">
-              <view v-if="!isFaultOther && hasStr(order.fault.desc)" class="detail-group">
+              <view v-if="showFaultDescGroup" class="detail-group">
                 <text class="group-title">故障描述</text>
-                <text class="group-content">{{ order.fault.desc }}</text>
+                <text class="group-content">{{ faultDescTrimmed }}</text>
               </view>
-              <view v-else-if="isFaultOther && hasStr(order.fault.remark)" class="detail-group">
-                <text class="group-title">故障备注说明</text>
-                <text class="group-content">{{ order.fault.remark }}</text>
+              <view v-if="showFaultRemarkGroup" class="info-item-col">
+                <text class="info-label" style="margin-bottom: 16rpx; display: block"
+                  >故障备注说明</text
+                >
+                <view class="desc-box">
+                  <text class="desc-text">{{ order.fault.remark }}</text>
+                </view>
               </view>
               <view v-if="showFaultVoiceSection" class="detail-group">
                 <text class="group-title">语音说明</text>
@@ -112,12 +120,12 @@
                     v-for="(img, idx) in faultImagePreviewUrls"
                     :key="'fi-' + idx"
                     class="grid-img"
-                    mode="widthFix"
+                    mode="aspectFill"
                     :src="img"
                     @click="previewFaultImages(img)"
                   ></image>
                   <view v-if="hasFaultVideo" class="video-thumbnail" @click="previewFaultVideo">
-                    <image class="grid-img" mode="widthFix" :src="videoCoverSrc"></image>
+                    <image class="grid-img" mode="aspectFill" :src="videoCoverSrc"></image>
                     <view class="play-overlay">
                       <image class="play-icon" :src="playCircleIcon" mode="aspectFit" />
                     </view>
@@ -162,7 +170,7 @@
               <template v-if="orderStatus === '已完成' || orderStatus === '已关闭'">
                 <view v-if="hasStr(order.repair.repairTime)" class="info-item mt-16">
                   <text class="info-label">维修时间</text>
-                  <text class="info-value">{{ order.repair.repairTime }}</text>
+                  <text class="info-value">{{ formatIsoDateTime(order.repair.repairTime) }}</text>
                 </view>
                 <view v-if="hasStr(order.repair.returnMethod)" class="info-item">
                   <text class="info-label">机器返回方式</text>
@@ -270,7 +278,7 @@
 
         <!-- 外部卡片 -->
         <template v-if="currentTab === 0">
-          <!-- 商品信息（任一有值则显示整块；主信息顺序与 UI 稿一致：型号 / 品牌 / 质保判定） -->
+          <!-- 商品信息（任一有值则显示整块；C 端申请内容不展示品牌与质保判定） -->
           <view v-if="hasProductInfoCard" class="card-box">
             <view class="section-header">
               <view class="section-mark"></view>
@@ -281,16 +289,6 @@
                 <text class="info-label">机器型号</text>
                 <text class="info-value">{{ order.product.model }}</text>
               </view>
-              <view v-if="hasStr(productBrandLine)" class="info-item">
-                <text class="info-label">品牌</text>
-                <text class="info-value">{{ productBrandLine }}</text>
-              </view>
-              <view v-if="hasStr(order.product.warrantyClass)" class="info-item align-center">
-                <text class="info-label">质保判定</text>
-                <view :class="['warranty-judge-tag', warrantyJudgeTagClass]">
-                  <text class="warranty-judge-tag-text">{{ order.product.warrantyClass }}</text>
-                </view>
-              </view>
               <view v-if="hasStr(order.product.barcode)" class="info-item">
                 <text class="info-label">条形码</text>
                 <text class="info-value">{{ order.product.barcode }}</text>
@@ -298,6 +296,10 @@
               <view v-if="hasStr(order.product.serialNo)" class="info-item">
                 <text class="info-label">机器小号</text>
                 <text class="info-value">{{ order.product.serialNo }}</text>
+              </view>
+              <view v-if="hasStr(order.product.lastOutDate)" class="info-item">
+                <text class="info-label">最后出库日期</text>
+                <text class="info-value">{{ order.product.lastOutDate }}</text>
               </view>
             </view>
           </view>
@@ -309,9 +311,25 @@
               <text class="section-title">服务信息</text>
             </view>
             <view class="info-list">
+              <view v-if="hasStr(order.customerMobile)" class="info-item">
+                <text class="info-label">客户联系方式</text>
+                <text class="info-value">{{ order.customerMobile }}</text>
+              </view>
+              <view v-if="hasStr(order.service.applySourceLabel)" class="info-item">
+                <text class="info-label">申请来源</text>
+                <text class="info-value">{{ order.service.applySourceLabel }}</text>
+              </view>
+              <view v-if="hasStr(order.service.acceptingParty)" class="info-item">
+                <text class="info-label">受理方</text>
+                <text class="info-value">{{ order.service.acceptingParty }}</text>
+              </view>
               <view v-if="hasStr(order.service.sitePhone)" class="info-item">
                 <text class="info-label">网点电话</text>
                 <text class="info-value">{{ order.service.sitePhone }}</text>
+              </view>
+              <view v-if="hasStr(order.acceptor.acceptorName)" class="info-item">
+                <text class="info-label">网点名称</text>
+                <text class="info-value">{{ order.acceptor.acceptorName }}</text>
               </view>
               <view v-if="hasStr(serviceModeLabel)" class="info-item">
                 <text class="info-label">维修方式</text>
@@ -336,16 +354,20 @@
             </view>
           </view>
 
-          <!-- 联系受理网点 -->
-          <base-button>
+          <!-- 联系受理网点（待派单时底部为「派单」，电话见 service/受理信息） -->
+          <base-button v-if="currentTab === 0 && !showAssignDispatchBar">
             <view class="btn btn-primary action-wrap" @click="goToContact">
               <image class="btn-icon" :src="contactPhoneIcon" mode="aspectFit" />联系受理网点
             </view>
           </base-button>
         </template>
 
-        <!-- ===== Tab 1 外部卡片 ===== -->
-        <template v-if="currentTab === 1">
+        <!-- ===== Tab 1 外部卡片（单容器：避免多根节点各自吃 content-wrap 的 gap；Tab 内无 section 时与 Tab 白底衔接） ===== -->
+        <view
+          v-if="currentTab === 1"
+          class="tab-repair-extras"
+          :class="{ 'tab-repair-extras--flush': !hasRepairProcessTabInner }"
+        >
           <!-- 受理方信息（非待接单） -->
           <view v-if="orderStatus !== '待接单' && hasAcceptorInfo" class="card-box">
             <view class="section-header">
@@ -353,9 +375,9 @@
               <text class="section-title">受理方信息</text>
             </view>
             <view class="info-list">
-              <view v-if="hasStr(order.acceptor.sitePhone)" class="info-item">
+              <view v-if="hasStr(acceptorOutletPhoneDisplay)" class="info-item">
                 <text class="info-label">网点电话</text>
-                <text class="info-value">{{ order.acceptor.sitePhone }}</text>
+                <text class="info-value">{{ acceptorOutletPhoneDisplay }}</text>
               </view>
               <view v-if="hasStr(order.acceptor.acceptorName)" class="info-item align-top">
                 <text class="info-label shrink">受理方</text>
@@ -371,13 +393,17 @@
               <text class="section-title">故障信息</text>
             </view>
             <view class="fault-details">
-              <view v-if="!isFaultOther && hasStr(order.fault.desc)" class="detail-group">
+              <view v-if="showFaultDescGroup" class="detail-group">
                 <text class="group-title">故障描述</text>
-                <text class="group-content">{{ order.fault.desc }}</text>
+                <text class="group-content">{{ faultDescTrimmed }}</text>
               </view>
-              <view v-else-if="isFaultOther && hasStr(order.fault.remark)" class="detail-group">
-                <text class="group-title">故障备注说明</text>
-                <text class="group-content">{{ order.fault.remark }}</text>
+              <view v-if="showFaultRemarkGroup" class="info-item-col">
+                <text class="info-label" style="margin-bottom: 16rpx; display: block"
+                  >故障备注说明</text
+                >
+                <view class="desc-box">
+                  <text class="desc-text">{{ order.fault.remark }}</text>
+                </view>
               </view>
               <view v-if="showFaultVoiceSection" class="detail-group">
                 <text class="group-title">语音说明</text>
@@ -394,12 +420,12 @@
                     v-for="(img, idx) in faultImagePreviewUrls"
                     :key="'fi2-' + idx"
                     class="grid-img"
-                    mode="widthFix"
+                    mode="aspectFill"
                     :src="img"
                     @click="previewFaultImages(img)"
                   ></image>
                   <view v-if="hasFaultVideo" class="video-thumbnail" @click="previewFaultVideo">
-                    <image class="grid-img" mode="widthFix" :src="videoCoverSrc"></image>
+                    <image class="grid-img" mode="aspectFill" :src="videoCoverSrc"></image>
                     <view class="play-overlay">
                       <image class="play-icon" :src="playCircleIcon" mode="aspectFit" />
                     </view>
@@ -424,7 +450,7 @@
                 <view class="record-top">
                   <text class="record-label">{{ faultPointRecordLabel }}</text>
                   <text v-if="hasStr(order.faultPoint.current.date)" class="record-date">{{
-                    order.faultPoint.current.date
+                    formatIsoDateTime(order.faultPoint.current.date)
                   }}</text>
                 </view>
                 <text v-if="hasStr(order.faultPoint.current.desc)" class="record-desc">{{
@@ -433,18 +459,44 @@
               </view>
             </view>
           </view>
-        </template>
+        </view>
       </view>
     </view>
+
+    <base-button v-if="showAssignDispatchBar">
+      <view class="btn btn-primary action-wrap" @click="openAssignModal">派单</view>
+    </base-button>
+
+    <AssignTechnicianModal
+      v-model="showAssignModal"
+      v-model:selected-tech-id="selectedTechId"
+      :technician-list="assignTechnicianList"
+      :assign-work-order-id="orderId"
+      title="指派维修员"
+      @close="closeAssignModal"
+      @confirm="onAssignConfirm"
+    />
   </view>
 </template>
 
 <script setup lang="ts">
-  import { ref, computed, watch } from 'vue'
+  import { ref, computed, watch, nextTick } from 'vue'
   import { onLoad, onShow } from '@dcloudio/uni-app'
   import BaseButton from '@/components/BaseButton/BaseButton.vue'
+  import AssignTechnicianModal, {
+    type Technician
+  } from '@/components/AssignTechnicianModal/AssignTechnicianModal.vue'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
-  import { getCustomerWorkOrder, type OrderDetail } from '@/api/workOrder'
+  import {
+    assignWorkOrder,
+    getCustomerWorkOrder,
+    listAssignUserOptions,
+    type OrderDetail
+  } from '@/api/workOrder'
+  import { WORK_ORDER_MAIN_STATUS } from '@/models/order'
+  import { useUserStore } from '@/stores'
+  import { getApiMessage } from '@/utils/http'
+  import { getStatusDesc } from '@/utils/orderStatus'
   import { WORK_ORDER_REPAIR_FAULTS_HISTORY_STORAGE_KEY } from '@/constants/historicalRecord'
   import VoicePlaybackList, {
     type VoicePlaybackItem
@@ -459,6 +511,7 @@
     tvGenIcon
   } from '@/svgs'
   import { themeColors } from '@/constants/theme'
+  import { formatIsoDateTime } from '@/utils/format'
 
   /**
    * 安全解码路由参数中的中文状态，避免仍带 % 编码时首屏乱码闪现
@@ -472,6 +525,8 @@
       return s
     }
   }
+
+  const userStore = useUserStore()
 
   /** 按状态同步默认 Tab：待接单看申请内容，其余看维修过程 */
   const syncTabByStatus = () => {
@@ -492,7 +547,10 @@
   // 工单信息
   const order = ref<OrderDetail>({
     status: '已关闭',
+    mainStatus: '',
     isJasic: true,
+    customerName: '',
+    customerMobile: '',
     base: { orderNo: '', orderTypeName: '', submitTime: '' },
     product: {
       barcode: '',
@@ -502,8 +560,16 @@
       productName: undefined,
       warrantyClass: undefined
     },
-    service: { sitePhone: '', repairMethod: '', senderInfo: '', senderVoucherImg: '' },
-    acceptor: { sitePhone: '', acceptorName: '' },
+    service: {
+      sitePhone: '',
+      repairMethod: '',
+      senderInfo: '',
+      senderVoucherImg: '',
+      applySourceLabel: '',
+      acceptingParty: ''
+    },
+    acceptor: { sitePhone: '', acceptorName: '', currentAcceptCompanyPhone: '' },
+    faultDesc: '',
     fault: {
       desc: '',
       remark: '',
@@ -524,9 +590,31 @@
       returnExpressNo: '',
       returnExpressVoucherImg: ''
     },
-    faultPoint: { current: { date: '', desc: '' }, records: [] },
-    contact: { phone: '' }
+    faultPoint: { current: { date: '', desc: '' }, records: [] }
   })
+
+  /** `mainStatus === PENDING_ASSIGN` 时展示底部派单（需具备网点侧 token 才能调 system 接口） */
+  const showAssignDispatchBar = computed(
+    () =>
+      String(order.value.mainStatus ?? '')
+        .trim()
+        .toUpperCase()
+        .replace(/-/g, '_') === WORK_ORDER_MAIN_STATUS.PENDING_ASSIGN
+  )
+
+  /** 待派单时标题显示「待派单」，否则用接口映射后的中文桶 */
+  const orderStatusBannerText = computed(() => {
+    const ms = String(order.value.mainStatus ?? '')
+      .trim()
+      .toUpperCase()
+      .replace(/-/g, '_')
+    if (ms === WORK_ORDER_MAIN_STATUS.PENDING_ASSIGN) return '待派单'
+    return orderStatus.value
+  })
+
+  const showAssignModal = ref(false)
+  const assignTechnicianList = ref<Technician[]>([])
+  const selectedTechId = ref<number | string | null>(null)
 
   /**
    * 页面加载
@@ -557,9 +645,13 @@
     if (!orderId.value) return
     try {
       const res = await getCustomerWorkOrder({ id: orderId.value })
+      const prevStatus = orderStatus.value
       order.value = res.data
       orderStatus.value = res.data.status || orderStatus.value
-      syncTabByStatus()
+      // 仅状态变化时同步默认 Tab；预览图片/视频关闭会触发 onShow，避免冲掉用户当前选中的 Tab
+      if (prevStatus !== orderStatus.value) {
+        syncTabByStatus()
+      }
     } catch {
       /* 失败提示由 http 层使用接口 msg */
     }
@@ -567,14 +659,6 @@
 
   /** 非空字符串（trim 后） */
   const hasStr = (v: unknown) => v != null && String(v).trim().length > 0
-
-  /** 「品牌」展示：优先 brandName，否则用接口 productName 兜底 */
-  const productBrandLine = computed(() => {
-    const p = order.value.product
-    const b = String(p.brandName ?? '').trim()
-    if (b) return b
-    return String(p.productName ?? '').trim()
-  })
 
   /** 故障判定：有故障红标、无故障绿标（其余中性灰） */
   const faultJudgeTagClass = computed(() => {
@@ -585,27 +669,14 @@
     return 'is-neutral'
   })
 
-  /** 质保判定角标样式类（与 `formatWarrantyJudgeLabel` 语义对齐，保外用 #dc2626 系） */
-  const warrantyJudgeTagClass = computed(() => {
-    const t = String(order.value.product.warrantyClass ?? '').trim()
-    if (!t) return 'is-neutral'
-    if (t.includes('保外')) return 'is-out'
-    if (t.includes('保内')) return 'is-in'
-    const u = t.toUpperCase().replace(/-/g, '_')
-    if (u.includes('OUT_OF_WARRANTY') || u === 'OUT') return 'is-out'
-    if (u.includes('IN_WARRANTY') || u === 'IN') return 'is-in'
-    return 'is-neutral'
-  })
-
-  /** 商品信息卡片是否有任一可展示字段 */
+  /** 商品信息卡片是否有任一可展示字段（不含品牌） */
   const hasProductInfoCard = computed(() => {
     const p = order.value.product
     return (
       hasStr(p.model) ||
-      hasStr(productBrandLine.value) ||
-      hasStr(p.warrantyClass) ||
       hasStr(p.barcode) ||
-      hasStr(p.serialNo)
+      hasStr(p.serialNo) ||
+      hasStr(p.lastOutDate)
     )
   })
 
@@ -656,16 +727,38 @@
     () => faultVoicePlaybackItems.value.length > 0 || hasStr(order.value.fault.voiceDuration)
   )
 
-  /**
-   * 是否是其它故障
-   * @returns boolean
-   */
-  const isFaultOther = computed(() => order.value.fault.desc === '其它故障')
+  /** 故障描述：与详情接口 `faultDesc` 一致，不做分隔符转换 */
+  const faultDescTrimmed = computed(() => String(order.value.faultDesc ?? '').trim())
+
+  /** 故障描述是否全等于「其它故障 / 其他故障」（不展示主描述，仅展示备注） */
+  const isFaultOtherExact = computed(() => {
+    const d = faultDescTrimmed.value
+    return d === '其它故障' || d === '其他故障'
+  })
+
+  /** 故障描述中是否包含「其它故障 / 其他故障」（含全等时需展示备注说明） */
+  const faultDescContainsOtherFault = computed(() => {
+    const d = faultDescTrimmed.value
+    return d.includes('其它故障') || d.includes('其他故障')
+  })
+
+  const showFaultDescGroup = computed(
+    () => !isFaultOtherExact.value && hasStr(order.value.faultDesc)
+  )
+
+  const showFaultRemarkGroup = computed(
+    () => faultDescContainsOtherFault.value && hasStr(order.value.fault.remark)
+  )
 
   /** 工单基础信息是否有任一字段 */
   const hasBaseInfo = computed(() => {
     const b = order.value.base
-    return hasStr(b.orderNo) || hasStr(b.orderTypeName) || hasStr(b.submitTime)
+    return (
+      hasStr(b.orderNo) ||
+      hasStr(b.orderTypeName) ||
+      hasStr(b.submitTime) ||
+      hasStr(order.value.customerName)
+    )
   })
 
   /** 故障图片预览地址：优先接口 `faultImageFiles`，否则兼容旧字段 `fault.images` */
@@ -703,7 +796,9 @@
   /** 故障面板（描述/语音/媒体）是否有可展示内容 */
   const hasFaultPanelContent = computed(() => {
     const f = order.value.fault
-    const textOk = isFaultOther.value ? hasStr(f.remark) : hasStr(f.desc)
+    const textOk =
+      (!isFaultOtherExact.value && hasStr(order.value.faultDesc)) ||
+      (faultDescContainsOtherFault.value && hasStr(f.remark))
     const voiceOk =
       hasStr(f.voiceDuration) ||
       hasStr(f.voiceUrl) ||
@@ -727,10 +822,24 @@
     return false
   })
 
+  /**
+   * 维修过程 Tab 白底内是否有任一块 section（待接单·故障信息 / 非待接单·维修信息）
+   * 与模板上两个 `section-box` 的 v-if 条件一致，用于与下方「外部卡片」衔接时抵消 content-wrap 的 gap
+   */
+  const hasRepairProcessTabInner = computed(() => {
+    const s = orderStatus.value
+    if (s === '待接单') return hasFaultPanelContent.value
+    return hasRepairTabInfo.value
+  })
+
   /** 服务信息卡片是否有可展示字段 */
   const hasServiceInfo = computed(() => {
     const s = order.value.service
+    if (hasStr(order.value.customerMobile)) return true
+    if (hasStr(s.applySourceLabel)) return true
+    if (hasStr(s.acceptingParty)) return true
     if (hasStr(s.sitePhone)) return true
+    if (hasStr(order.value.acceptor.acceptorName)) return true
     if (hasStr(serviceModeLabel.value)) return true
     if (!isInStoreRepair.value) {
       if (hasStr(s.senderInfo)) return true
@@ -754,10 +863,19 @@
     return /到店|送店/.test(t)
   })
 
+  /**
+   * 维修过程「受理方信息」卡片：网点电话展示
+   * 优先详情 `currentAcceptCompanyPhone`，兼容历史 `acceptor.sitePhone`。
+   */
+  const acceptorOutletPhoneDisplay = computed(() => {
+    const a = order.value.acceptor
+    return String(a.currentAcceptCompanyPhone ?? a.sitePhone ?? '').trim()
+  })
+
   /** 受理方信息是否有可展示字段 */
   const hasAcceptorInfo = computed(() => {
     const a = order.value.acceptor
-    return hasStr(a.sitePhone) || hasStr(a.acceptorName)
+    return hasStr(acceptorOutletPhoneDisplay.value) || hasStr(a.acceptorName)
   })
 
   /** 客户评价是否有可展示内容 */
@@ -771,14 +889,14 @@
   })
 
   /**
-   * 联系电话
+   * 受理网点电话（用于「联系受理网点」拨号）：与接口 `currentAcceptCompanyPhone` 同源，勿用客户 `customerMobile`。
    */
   const contactPhone = computed(() => {
-    const s = orderStatus.value
-    if (s === '维修中' || s === '已完成') {
-      return order.value.acceptor.sitePhone || ''
-    }
-    return order.value.service.sitePhone || ''
+    const fromOutlet = String(order.value.acceptor.currentAcceptCompanyPhone ?? '').trim()
+    if (fromOutlet) return fromOutlet
+    return String(
+      order.value.service.sitePhone ?? order.value.acceptor.sitePhone ?? ''
+    ).trim()
   })
 
   /**
@@ -786,6 +904,13 @@
    * @returns string
    */
   const statusDesc = computed(() => {
+    const ms = String(order.value.mainStatus ?? '')
+      .trim()
+      .toUpperCase()
+      .replace(/-/g, '_')
+    if (ms === WORK_ORDER_MAIN_STATUS.PENDING_ASSIGN) {
+      return getStatusDesc(WORK_ORDER_MAIN_STATUS.PENDING_ASSIGN)
+    }
     switch (orderStatus.value) {
       case '待接单':
         return '工单已提交，等待网点接单'
@@ -916,10 +1041,82 @@
   const goToContact = () => {
     const phone = contactPhone.value
     if (!phone) {
-      uni.showToast({ title: '暂无联系电话', icon: 'none', duration: 1500 })
+      uni.showToast({ title: '暂无网点电话', icon: 'none', duration: 1500 })
       return
     }
     uni.makePhoneCall({ phoneNumber: phone })
+  }
+
+  const closeAssignModal = () => {
+    showAssignModal.value = false
+    assignTechnicianList.value = []
+    selectedTechId.value = null
+  }
+
+  const openAssignModal = async () => {
+    const openedFor = String(orderId.value ?? '').trim()
+    if (!openedFor) {
+      uni.showToast({ title: '缺少工单编号', icon: 'none', duration: 1500 })
+      return
+    }
+    showAssignModal.value = true
+    selectedTechId.value = null
+    assignTechnicianList.value = []
+
+    const workOrderId = Number(openedFor)
+    if (!Number.isFinite(workOrderId) || workOrderId <= 0) return
+    try {
+      uni.showLoading({ title: '加载可派单人员...' })
+      const list = await listAssignUserOptions(workOrderId)
+      const selfId = Number(userStore.userInfo?.userId)
+      assignTechnicianList.value = list.map((u) => ({
+        id: u.id,
+        name:
+          Number(u.id) === selfId
+            ? `${u.realName || u.phone || `用户${u.id}`}（本人）`
+            : u.realName || u.phone || `用户${u.id}`,
+        phone: u.phone || '',
+        avatar: '',
+        desc: u.phone || '',
+        isRecommend: false,
+        distance: '',
+        time: '',
+        isBusy: false
+      }))
+    } finally {
+      uni.hideLoading()
+    }
+  }
+
+  const onAssignConfirm = async (payload: {
+    workOrderId: string | number
+    selectedTechId: number | string
+  }) => {
+    const workOrderId = Number(payload.workOrderId ?? orderId.value)
+    if (!Number.isFinite(workOrderId) || workOrderId <= 0) {
+      uni.showToast({ title: '工单ID无效', icon: 'none' })
+      return
+    }
+    const assignedUserId = Number(payload?.selectedTechId)
+    if (!Number.isFinite(assignedUserId) || assignedUserId <= 0) {
+      uni.showToast({ title: '维修员ID无效', icon: 'none' })
+      return
+    }
+    const selfId = Number(userStore.userInfo?.userId)
+    const isSelf = Number.isFinite(selfId) && selfId > 0 && assignedUserId === selfId
+    try {
+      const res = await assignWorkOrder({ workOrderId, assignedUserId })
+      if (isSelf) {
+        uni.showToast({ title: '已派单给自己，可在「待接单」中接单', icon: 'none', duration: 1500 })
+      } else {
+        uni.showToast({ title: getApiMessage(res, '派单成功'), icon: 'none', duration: 1500 })
+      }
+      closeAssignModal()
+      await nextTick()
+      await loadDetail()
+    } catch {
+      /* http 层已 toast */
+    }
   }
 
   /**
@@ -978,6 +1175,8 @@
   }
 
   .top-section {
+    position: relative;
+    z-index: 0;
     background-color: $primary;
     color: $primary-contrast;
     padding-bottom: 64rpx;
@@ -1063,7 +1262,9 @@
   .main-content.page-padding {
     margin-top: -64rpx;
     position: relative;
-    z-index: 10;
+    /* 低于 .top-section，上叠时透明区可透出状态/步骤，白底从 tab-container 起，避免 Tab 被挡 */
+    z-index: 1;
+    background: transparent;
     box-sizing: border-box;
   }
 
@@ -1077,44 +1278,69 @@
   .content-wrap {
     @include flex-column;
     gap: $space-lg;
+    /* 与 contractor 详情一致：为负边距上叠留透明带 */
+    padding-top: 80rpx;
   }
 
+  .tab-repair-extras {
+    @include flex-column;
+    gap: $space-lg;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .tab-repair-extras--flush {
+    margin-top: -$space-lg;
+  }
+
+  /* 参考稿：白底顶缘大圆角、主色下划线、未选深灰 / 选主色 */
   .tab-container {
     background-color: $bg-card;
-    border-radius: $radius-lg;
+    border-radius: $radius-lg $radius-lg 0 0;
+    overflow: hidden;
+    box-shadow: 0 2rpx 12rpx rgba(15, 23, 42, 0.04);
   }
 
   .tab-bar {
     display: flex;
     justify-content: space-around;
-    padding: 0 $space-lg;
-    border-bottom: 2rpx solid $border-lighter;
+    align-items: stretch;
+    padding: 0;
+    border-bottom: 1rpx solid $bg-light;
 
     .tab-item {
-      padding: $space-lg 0;
       position: relative;
       flex: 1;
+      padding: 32rpx $space-sm 20rpx;
       text-align: center;
+      @include flex-column;
+      align-items: center;
+      transition: color 0.2s;
 
       .tab-text {
         font-size: $font-md;
         font-weight: 500;
-        color: $text-label;
+        line-height: 1.2;
+        color: $text-slate-800;
       }
 
-      &.active .tab-text {
-        font-weight: bold;
-        color: $primary;
-      }
+      &.active {
+        .tab-text {
+          color: $primary;
+          font-weight: 600;
+        }
 
-      &.active .tab-line {
-        position: absolute;
-        bottom: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        width: $space-xl;
-        height: 4rpx;
-        background-color: $primary;
+        &::after {
+          content: '';
+          position: absolute;
+          left: 50%;
+          bottom: 0;
+          width: 72rpx;
+          height: 6rpx;
+          margin-left: -36rpx;
+          background-color: $primary;
+          border-radius: 3rpx 3rpx 0 0;
+        }
       }
     }
   }
@@ -1233,6 +1459,30 @@
   .fault-details {
     @include flex-column;
     gap: $space-lg;
+    padding: 0 24rpx;
+
+    /* 与全局 `.info-list .info-item-col` 中「报价说明」块一致（本区不在 `.info-list` 内需本地补全） */
+    > .info-item-col {
+      display: flex;
+      flex-direction: column;
+      font-size: $font-sm;
+
+      .info-label {
+        @include info-label;
+        margin-bottom: $space-sm;
+        display: block;
+      }
+
+      .desc-box {
+        @include desc-box;
+
+        .desc-text {
+          font-size: $font-sm;
+          color: $text-desc;
+          line-height: 1.6;
+        }
+      }
+    }
 
     .detail-group {
       @include flex-column;
@@ -1248,25 +1498,34 @@
         color: $text-dark;
       }
 
+      // 与 .info-list .info-item .shipping-img（寄件快递单号）视觉一致
       .image-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        display: flex;
+        flex-wrap: wrap;
         gap: $space-sm;
 
         .grid-img {
-          width: 100%;
-          height: auto;
-          aspect-ratio: 1 / 1;
-          border-radius: $radius-md;
-          background-color: $bg-hover;
+          width: 128rpx;
+          height: 128rpx;
+          border-radius: 12rpx;
+          border: 2rpx solid $border-light;
         }
 
         .video-thumbnail {
           position: relative;
-          width: 100%;
-          aspect-ratio: 1 / 1;
-          border-radius: $radius-md;
+          width: 128rpx;
+          height: 128rpx;
+          border-radius: 12rpx;
+          border: 2rpx solid $border-light;
           overflow: hidden;
+          box-sizing: border-box;
+
+          .grid-img {
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 0;
+          }
 
           .play-overlay {
             position: absolute;

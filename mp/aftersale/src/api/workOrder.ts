@@ -18,12 +18,18 @@ export type FaultPointMaintenanceRecord = FaultPointRecord
  */
 export interface OrderDetail {
   status: string
+  /** 主状态编码（PENDING_ASSIGN / …），与后端 `mainStatus` 对齐 */
+  mainStatus?: string
   /** 是否可评价（来自 `/customer/work-order/{id}` 的 canEvaluate） */
   canEvaluate?: boolean
   /**
    * 是否佳士品牌工单（与列表 `isJasic` 规则一致，用于「工单类型」标签配色）
    */
   isJasic: boolean
+  /** 客户姓名（与详情接口 `customerName` 一致） */
+  customerName?: string
+  /** 客户手机号（与详情接口 `customerMobile` 一致） */
+  customerMobile?: string
   base: {
     orderNo: string
     orderTypeName: string
@@ -33,6 +39,8 @@ export interface OrderDetail {
     barcode: string
     model: string
     serialNo: string
+    /** 最后出库日期（同源 `CustomerWorkOrderDetailVO.lastOutDate` 等，映射层兼容别名） */
+    lastOutDate?: string
     /** 非佳士报修时填写的品牌名称 */
     brandName?: string
     /** 商品/产品线名称（详情接口 productName，无品牌名时可用于「品牌」展示兜底） */
@@ -45,12 +53,18 @@ export interface OrderDetail {
     repairMethod: string
     /** 维修方式展示文案 */
     serviceModeLabel?: string
+    /** 申请来源展示（与接口 `applicationSourceName` 等同源） */
+    applySourceLabel?: string
+    /** 受理方：当前受理网点名称 */
+    acceptingParty?: string
     senderInfo: string
     senderVoucherImg?: string
   }
   acceptor: {
     sitePhone: string
     acceptorName: string
+    /** 与详情接口 `currentAcceptCompanyPhone` 一致：当前受理网点电话 */
+    currentAcceptCompanyPhone?: string
   }
   /** 指派/维修人员（与详情受理信息同源，供评价页等使用） */
   technician?: {
@@ -59,6 +73,8 @@ export interface OrderDetail {
     orgLabel?: string
     avatar?: string
   }
+  /** 与后端 `faultDesc` 同源，故障描述原文 */
+  faultDesc: string
   fault: {
     desc: string
     remark?: string
@@ -91,9 +107,6 @@ export interface OrderDetail {
     }
     /** 故障点维修历史（与历史记录页列表项一致） */
     records?: FaultPointMaintenanceRecord[]
-  }
-  contact: {
-    phone?: string
   }
   evaluate?: {
     timeliness: number
@@ -144,6 +157,8 @@ export interface CustomerWorkOrderDetailVO {
   productName: string
   productModel: string
   machineNo: string
+  /** 最后出库日期（条码档案等来源，ISO 时间） */
+  lastOutDate?: string
   brandCode: string
   brandName?: string
   /** 报修业务类型编码：JASIC / NON_JASIC */
@@ -193,6 +208,14 @@ export interface CustomerWorkOrderDetailVO {
   completedTime: string
   closedTime: string
   createTime: string
+  /** 申请来源（后端展示名，优先于字典推断） */
+  applicationSourceName?: string
+  /** 报修业务类型名称，用于申请来源兜底 */
+  reportBizTypeLabel?: string
+  /** 建单入口：PROXY_SELF / UPSTREAM_FIRST / UPSTREAM_HQ 等 */
+  createEntryType?: string
+  /** 建单来源公司名，申请来源末级兜底 */
+  createCompanyName?: string
   quotes?: Array<{
     companyId: number
     companyName: string
@@ -300,6 +323,13 @@ function previewUrlsFromFiles(files: CustomerWorkOrderFileDTO[] | undefined): st
   return sortWorkOrderFiles(files).map(filePreviewUrl).filter(Boolean)
 }
 
+function normalizeMainStatusKey(raw: unknown): string {
+  return String(raw ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/-/g, '_')
+}
+
 /**
  * 将工单详情转为工单列表项状态
  * @param r - 工单详情
@@ -315,6 +345,50 @@ function workOrderDetailToUiStatus(r: CustomerWorkOrderDetailVO): OrderListItem[
     .toUpperCase()
   if (key && MAIN_STATUS_TO_UI[key]) return MAIN_STATUS_TO_UI[key]
   return '待接单'
+}
+
+/** 申请来源：与施工端 `mapOrderTypeNameFromDetail` 一致，优先 `applicationSourceName` */
+function mapApplySourceLabelFromDetail(r: CustomerWorkOrderDetailVO): string {
+  const fromApi = String(r.applicationSourceName ?? '').trim()
+  if (fromApi) return fromApi
+  const label = String(r.reportBizTypeLabel ?? '').trim()
+  if (label) return label
+  const code = String(r.createEntryType ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/-/g, '_')
+  const map: Record<string, string> = {
+    PROXY_SELF: '代客填写',
+    UPSTREAM_FIRST: '二级报修',
+    UPSTREAM_HQ: '一级报修',
+  }
+  if (code && map[code]) return map[code]
+  if (code) return code
+  return String(r.createCompanyName ?? '').trim()
+}
+
+/** 详情 VO 上可能出现的「最后出库日期」字段（与施工端 `pickWorkOrderOutDateFromRecord` 口径一致） */
+function pickCustomerWorkOrderOutDateFromRecord(rec: Record<string, unknown>): string {
+  const keys = [
+    'lastOutDate',
+    'outDate',
+    'lastStockOutDate',
+    'stockOutDate',
+    'productOutDate',
+    'lastDeliveryDate',
+    'last_out_date',
+    'out_date',
+    'last_stock_out_date',
+  ]
+  for (const k of keys) {
+    const v = rec[k]
+    const t = v != null ? String(v).trim() : ''
+    if (t) {
+      const formatted = formatIsoDateTime(t)
+      return formatted || t
+    }
+  }
+  return ''
 }
 
 /**
@@ -411,10 +485,14 @@ export function mapCustomerWorkOrderDetailToOrderDetail(r: CustomerWorkOrderDeta
         ? false
         : isJasicByBrandLabel ?? false
 
+  const faultDescRaw = String(r.faultDesc ?? '').trim()
+
   return {
     status: uiStatus,
+    mainStatus: normalizeMainStatusKey(r.mainStatus),
     canEvaluate: Boolean(r.canEvaluate),
     isJasic,
+    faultDesc: faultDescRaw,
     faultImageFiles: sortWorkOrderFiles(r.faultImageFiles),
     base: {
       orderNo: String(r.orderNo ?? '').trim(),
@@ -425,6 +503,10 @@ export function mapCustomerWorkOrderDetailToOrderDetail(r: CustomerWorkOrderDeta
       barcode: String(r.barcode ?? '').trim(),
       model: String(r.productModel ?? '').trim(),
       serialNo: String(r.machineNo ?? '').trim(),
+      lastOutDate: (() => {
+        const s = pickCustomerWorkOrderOutDateFromRecord(r as unknown as Record<string, unknown>).trim()
+        return s || undefined
+      })(),
       brandName: String(r.brandName ?? '').trim() || undefined,
       productName: String(r.productName ?? '').trim() || undefined,
       warrantyClass: formatWarrantyJudgeLabel(r.warrantyStatus) || undefined,
@@ -433,16 +515,19 @@ export function mapCustomerWorkOrderDetailToOrderDetail(r: CustomerWorkOrderDeta
       sitePhone: outletPhone,
       repairMethod: String(r.serviceModeLabel || r.serviceMode || '').trim(),
       serviceModeLabel: String(r.serviceModeLabel ?? '').trim() || undefined,
+      applySourceLabel: mapApplySourceLabelFromDetail(r) || undefined,
+      acceptingParty: companyNameRaw || undefined,
       senderInfo: senderInfoParts.join('\n'),
       senderVoucherImg: firstFilePreviewUrl(r.senderVoucherFiles) || undefined,
     },
     acceptor: {
       sitePhone: outletPhone,
       acceptorName,
+      currentAcceptCompanyPhone: outletPhone || undefined,
     },
     technician,
     fault: {
-      desc: String(r.faultDesc ?? '').trim(),
+      desc: faultDescRaw,
       remark: String(r.faultRemark ?? '').trim(),
       voiceDuration: '',
       voiceUrl: '',
@@ -466,9 +551,8 @@ export function mapCustomerWorkOrderDetailToOrderDetail(r: CustomerWorkOrderDeta
       current: { date: faultPointCurrentDate, desc: faultPointCurrentDesc },
       records: faultPointRecords,
     },
-    contact: {
-      phone: outletPhone,
-    },
+    customerName: String(r.customerName ?? '').trim() || undefined,
+    customerMobile: String(r.customerMobile ?? '').trim() || undefined,
     evaluate: r.evaluation
       ? {
           timeliness: Number(r.evaluation.timelinessScore ?? 0) || 0,
@@ -498,7 +582,7 @@ export const getCustomerWorkOrder = (data: { id: string }) => {
 }
 
 /**
- * 拉取网点电话（列表接口无该字段时用于补齐；与详情 `currentAcceptCompanyPhone` 同源，经 `mapCustomerWorkOrderDetailToOrderDetail` 落在 `contact.phone` / `service.sitePhone`）。
+ * 拉取网点电话（列表接口无该字段时用于补齐；与详情 `acceptor.currentAcceptCompanyPhone` / `service.sitePhone` 同源）。
  *
  * @param workOrderId - 工单 id
  * @returns 号码文案，失败或为空时返回 `''`（不抛错，避免列表批量补齐时刷屏）
@@ -509,7 +593,9 @@ export async function fetchCustomerWorkOrderOutletPhone(workOrderId: string): Pr
   try {
     const res = await getCustomerWorkOrder({ id: wid })
     const d = res.data
-    return String(d?.contact?.phone ?? d?.service?.sitePhone ?? '').trim()
+    return String(
+      d?.acceptor?.currentAcceptCompanyPhone ?? d?.service?.sitePhone ?? d?.acceptor?.sitePhone ?? ''
+    ).trim()
   } catch {
     return ''
   }
@@ -804,7 +890,8 @@ function workOrderRecordToUiStatus(r: CustomerWorkOrderListVO): OrderListItem['s
  * - 状态：`displayStatus` 中文优先，否则按 `mainStatus` 映射为 Tab 用状态
  * - 时间：`createTime`，缺省用 `closedTime`
  * - 条码 / 型号：`barcode`、`productModel`
- * - 网点：`currentAcceptCompanyName` → `centerName`；`phone` 由列表页请求详情后写入
+ * - 网点：`currentAcceptCompanyName` → `centerName`；`phone` 预留网点电话（列表 VO 无网点电话时多为空，可由详情补齐）
+ * - 客户：`customerMobile` / `customerName` 与接口一致
  * - 维修方式 / 价格：`serviceModeLabel`、`quoteAmount`（number 会格式化为展示字符串）
  * - 故障描述：列表 VO 不返回，`description` 置空，依赖详情页补齐
  * - 佳士：以 `brandType` 为准，缺失时退化用 `brandTypeLabel` 兜底
@@ -1061,6 +1148,14 @@ export interface BarcodeInfoDTO {
   otherFaultLabel?: string
 }
 
+/** 故障描述：接口仅返回「其它」「其他」时，展示与 faultDesc 拼接统一为「其它故障」「其他故障」 */
+function normalizeFaultDescDisplayText(raw: string): string {
+  const t = String(raw ?? '').trim()
+  if (t === '其它') return '其它故障'
+  if (t === '其他') return '其他故障'
+  return t
+}
+
 /**
  * 将接口 faultOptions 转为 uni-data-select 的 localdata
  */
@@ -1070,7 +1165,7 @@ export function mapBarcodeFaultOptions(raw: unknown): BarcodeFaultOptionItem[] {
   for (const item of raw) {
     if (typeof item === 'string') {
       const s = item.trim()
-      if (s) out.push({ text: s, value: s })
+      if (s) out.push({ text: normalizeFaultDescDisplayText(s), value: s })
       continue
     }
     if (item && typeof item === 'object') {
@@ -1078,7 +1173,9 @@ export function mapBarcodeFaultOptions(raw: unknown): BarcodeFaultOptionItem[] {
       const value = String(o.value ?? o.code ?? o.id ?? '').trim()
       const text = String(o.text ?? o.label ?? o.name ?? value).trim()
       if (!value && !text) continue
-      out.push({ text: text || value, value: value || text })
+      const v = value || text
+      const display = normalizeFaultDescDisplayText(text || value)
+      out.push({ text: display || v, value: v })
     }
   }
   return out
@@ -1097,6 +1194,44 @@ export const getCustomerWorkOrderBarcodeInfo = (params: { barcode: string }) => 
     url: '/customer/work-order/barcode-info',
     method: 'GET',
     data: params,
+  })
+}
+
+// ========== 网点侧工单操作（需 system 权限；与 contractor 路径一致）==========
+
+export type WorkOrderUserOptionVO = {
+  id: number
+  phone?: string
+  realName?: string
+}
+
+export type WorkOrderAssignDTO = {
+  assignedUserId: number
+  workOrderId: number
+}
+
+export async function listAssignUserOptions(workOrderId: number) {
+  const id = Number(workOrderId)
+  if (!Number.isFinite(id) || id <= 0) return []
+  const res = await http<WorkOrderUserOptionVO[]>({
+    url: `/system/work-order/${encodeURIComponent(String(id))}/assign-user-options`,
+    method: 'GET',
+    header: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+  })
+  const list = res.data
+  return Array.isArray(list) ? list : []
+}
+
+export async function assignWorkOrder(dto: WorkOrderAssignDTO) {
+  return http<void>({
+    url: '/system/work-order/assign',
+    method: 'PUT',
+    data: dto,
+    header: {
+      'Content-Type': 'application/json',
+    },
   })
 }
 

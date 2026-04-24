@@ -278,7 +278,6 @@
   .branch-order-page {
     /* 与 list.vue 工单列表 .order-list-scroll 一致 */
     .order-list-scroll {
-      padding-top: $space-md;
       box-sizing: border-box;
     }
   }

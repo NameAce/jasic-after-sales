@@ -1,7 +1,7 @@
 <template>
   <!-- 根节点包裹：小程序下插槽内容在子组件内渲染，scoped 易无法命中，样式统一挂在 .return-method-modal 下 -->
   <view class="return-method-modal">
-    <CommonModal v-model="visible" title="机器返回方式" animation="slide-up">
+    <CommonModal v-model="visible" title="机器返回方式" animation="slide-up" safe-area>
       <view class="return-method-content">
         <!-- 选择返回方式 -->
         <view class="radio-group">

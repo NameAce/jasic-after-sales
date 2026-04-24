@@ -45,6 +45,13 @@
         text-align: right;
         line-height: 1.4;
       }
+
+      &.sender-info-plain {
+        flex: 1;
+        min-width: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
     }
 
     .tag-method {
@@ -94,6 +101,16 @@
       color: $text-slate-500;
     }
 
+    /* 与 mp/aftersale 工单详情「服务信息 · 维修方式」一致 */
+    .tag-primary {
+      padding: 4rpx 16rpx;
+      background-color: rgba($primary, 0.1);
+      color: $primary;
+      font-size: $font-sm;
+      border-radius: $radius-sm;
+      line-height: 1.4;
+    }
+
     .tag-warranty-green {
       background-color: rgba($status-completed-text, 0.14);
       color: $status-completed-text;
@@ -120,7 +137,7 @@
       width: 128rpx;
       height: 128rpx;
       border-radius: 12rpx;
-      border: 2rpx solid $bg-hover;
+      border: 2rpx solid $border-light;
     }
   }
 }

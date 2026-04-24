@@ -367,6 +367,14 @@
 
   const OTHER_FAULT_VALUE = 'other'
 
+  /** 故障描述：接口若仅返回「其它」「其他」，展示与提交统一为「其它故障」「其他故障」 */
+  const normalizeFaultDescriptionDisplayText = (label: string) => {
+    const t = String(label ?? '').trim()
+    if (t === '其它') return '其它故障'
+    if (t === '其他') return '其他故障'
+    return t
+  }
+
   /**
    * 将条码查询返回的 targetCompanyOptions 映射为 uni-data-select 结构。
    */
@@ -514,7 +522,7 @@
           label.includes('其它') ||
           label.includes('其他')
         return {
-          text: label,
+          text: normalizeFaultDescriptionDisplayText(label),
           value: isOther ? OTHER_FAULT_VALUE : label
         }
       })
@@ -546,6 +554,7 @@
         ? lastBarcodeInfo.value.otherFaultLabel.trim()
         : ''
     if (label && (v === label || text === label)) return true
+    if (text === '其它' || text === '其他') return true
     if (/(其它|其他)/.test(text) && /故障/.test(text)) return true
     if (/(其它|其他)/.test(v) && /故障/.test(v)) return true
     return false

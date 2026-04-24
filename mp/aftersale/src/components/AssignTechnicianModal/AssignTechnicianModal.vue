@@ -1,6 +1,5 @@
 <template>
-  <CommonModal v-model="visible" :title="title" safe-area animation="slide-up" @close="onClose">
-    <!-- 搜索 -->
+  <CommonModal v-model="visible" :title="title" @close="onClose">
     <view class="atm-search">
       <view class="search-box">
         <uni-icons type="search" size="24" color="#cbd5e1" class="icon"></uni-icons>
@@ -12,7 +11,6 @@
         />
       </view>
     </view>
-    <!-- 维修员列表 -->
     <scroll-view scroll-y class="atm-list">
       <view
         v-for="tech in filteredTechnicianList"
@@ -42,7 +40,6 @@
       </view>
     </scroll-view>
 
-    <!-- 底部按钮 -->
     <template #footer>
       <view class="atm-actions">
         <view class="btns btn-cancel" @tap="onClose">
@@ -60,7 +57,6 @@
   import { computed, ref, watch } from 'vue'
   import CommonModal from '@/components/CommonModal/CommonModal.vue'
 
-  /** 派单弹窗：未设置头像时使用默认维修员形象 */
   const DEFAULT_ASSIGN_AVATAR = '/static/images/worker.png'
 
   const avatarDisplayUrl = (avatar?: string) => {
@@ -68,7 +64,6 @@
     return s || DEFAULT_ASSIGN_AVATAR
   }
 
-  /** 维修员类型 */
   export type Technician = {
     id: number | string
     name: string
@@ -81,20 +76,10 @@
     isBusy?: boolean
   }
 
-  /**
-   * 组件属性
-   * @param modelValue 是否显示弹窗
-   * @param technicianList 维修员列表
-   * @param title 标题
-   * @param searchPlaceholder 搜索占位符
-   * @param selectedTechId 选择的维修员ID
-   * @param resetOnOpen 是否重置搜索
-   */
   const props = withDefaults(
     defineProps<{
       modelValue: boolean
       technicianList: Technician[]
-      /** 当前要派单的工单 ID（与列表/工作台 `order.id` 一致），确认时原样带回，避免异步加载人员期间切换工单导致入参错乱 */
       assignWorkOrderId?: string | number | null
       title?: string
       searchPlaceholder?: string
@@ -106,15 +91,10 @@
       title: '指派维修员',
       searchPlaceholder: '搜索姓名/手机号',
       selectedTechId: null,
-      resetOnOpen: true
-    }
+      resetOnOpen: true,
+    },
   )
 
-  /**
-   * 组件事件
-   * @param e 事件
-   * @param v 值
-   */
   const emit = defineEmits<{
     (e: 'update:modelValue', v: boolean): void
     (e: 'update:selectedTechId', v: number | string | null): void
@@ -122,45 +102,25 @@
     (e: 'confirm', payload: { workOrderId: string | number; selectedTechId: number | string; technician: Technician }): void
   }>()
 
-  /**
-   * 是否显示弹窗
-   * @returns 是否显示弹窗
-   */
   const visible = computed({
     get: () => props.modelValue,
-    set: (v: boolean) => emit('update:modelValue', v)
+    set: (v: boolean) => emit('update:modelValue', v),
   })
 
-  /**
-   * 搜索关键词
-   * @returns 搜索关键词
-   */
   const searchQuery = ref('')
-  /**
-   * 选择的维修员ID
-   * @returns 选择的维修员ID
-   */
   const selectedId = computed({
     get: () => props.selectedTechId,
-    set: (v: number | string | null) => emit('update:selectedTechId', v)
+    set: (v: number | string | null) => emit('update:selectedTechId', v),
   })
 
-  /**
-   * 监听弹窗是否显示
-   * @param v 是否显示弹窗
-   */
   watch(
     () => props.modelValue,
     (v) => {
       if (!v) return
       if (props.resetOnOpen) searchQuery.value = ''
-    }
+    },
   )
 
-  /**
-   * 过滤维修员列表
-   * @returns 过滤后的维修员列表
-   */
   const filteredTechnicianList = computed(() => {
     const q = searchQuery.value?.trim()
     if (!q) return props.technicianList
@@ -171,25 +131,15 @@
     })
   })
 
-  /**
-   * 选择维修员
-   * @param id 维修员ID
-   */
   const selectTechnician = (id: number | string) => {
     selectedId.value = id
   }
 
-  /**
-   * 关闭弹窗
-   */
   const onClose = () => {
     visible.value = false
     emit('close')
   }
 
-  /**
-   * 确认指派
-   */
   const onConfirm = () => {
     if (selectedId.value === null || selectedId.value === undefined || selectedId.value === '') {
       uni.showToast({ title: '请选择维修员', icon: 'none' })

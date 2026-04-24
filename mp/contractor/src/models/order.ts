@@ -49,6 +49,8 @@ export type WorkOrderListVO = {
   createTime?: string
   currentAcceptCompanyId?: number
   currentAcceptCompanyName?: string
+  /** 当前受理网点电话 */
+  currentAcceptCompanyPhone?: string
   customerMobile?: string
   customerName?: string
   displayStatus?: string
@@ -126,6 +128,8 @@ export type WorkOrderDetailVO = {
 
   currentAcceptCompanyId?: number
   currentAcceptCompanyName?: string
+  /** 当前受理网点电话 */
+  currentAcceptCompanyPhone?: string
   currentAcceptSubjectType?: string
   hqCompanyId?: number
   hqCompanyName?: string
@@ -170,6 +174,8 @@ export type WorkOrderDetailVO = {
   completedTime?: string
   closedTime?: string
   closeReason?: string
+  /** 最后出库日期（详情接口） */
+  lastOutDate?: string
 }
 
 /** 后端 `/api/system/sys-file/list` 单条记录 */
@@ -374,6 +380,8 @@ export type OrderListItem = {
   availableActions?: WorkOrderActionKey[]
   /** 所属网点/服务站名称 */
   siteName?: string
+  /** 所属网点/服务站联系电话（受理公司 contact_phone） */
+  sitePhone?: string
   /** 维修价格展示（如 128.00） */
   repairPriceText?: string
   /** 维修方式展示文案（优先 serviceModeLabel，兼容 serviceMode） */
@@ -419,6 +427,10 @@ export type FaultPointRecord = {
 
 /** 复检登记入口：从最近一次「维修登记」repairs 解析出的表单预填（排除复检阶段记录） */
 export type OrderRepairRegistrationEcho = {
+  /** 同源维修 faults 解析出的确认故障项，复检只读展示与维修说明下拉过滤用 */
+  confirmFaultItems?: string[]
+  /** 故障描述含其它/其他类时从 fault.otherDesc 汇总 */
+  confirmFaultOtherRemark?: string
   repairItems: string[]
   otherDesc: string
   parts: { partName: string; partQty: number }[]
@@ -435,6 +447,10 @@ export type OrderDetail = {
   /** 详情接口可执行动作（已做合法 key 过滤与去重） */
   availableActions: WorkOrderActionKey[]
   status: OrderStatus
+  /** 接口原始主状态（与列表 `mainStatus` 一致，用于区分待派单/待接单） */
+  mainStatus?: string
+  /** 已指派维修员 ID（派单员视角：派给他人则仅可查看） */
+  assignedUserId?: number
   transferred: boolean
   brand: {
     isJiashi: boolean
@@ -459,12 +475,15 @@ export type OrderDetail = {
     brandName: string
     model: string
     serialNo: string
-    outDate: string
+    /** 最后出库日期（同源 `WorkOrderDetailVO.lastOutDate` 等，映射层兼容别名） */
+    lastOutDate: string
     warrantyClass: string
     repairStatus: string
   }
   service: {
     sitePhone: string
+    /** 维修方式展示文案（与 C 端一致：优先 `serviceModeLabel`，映射层已兜底编码） */
+    serviceModeLabel: string
     source: string
     senderInfo: string
     /** 详情 `senderName`，回寄预填 */
@@ -475,7 +494,7 @@ export type OrderDetail = {
     senderAddress: string
     /** 详情 `sendExpressNo`，回寄只读展示 */
     sendExpressNo: string
-    /** 寄件凭证预览图（首图，与 senderVoucherFiles 同步） */
+    /** 寄件凭证首图（与 C 端 `order.service.senderVoucherImg` 一致） */
     senderVoucherImg: string
     /** 寄件快递单/凭证附件 */
     senderVoucherFiles: { previewUrl: string }[]
@@ -489,14 +508,25 @@ export type OrderDetail = {
   acceptor: {
     /** 详情 `currentAcceptCompanyName`，当前受理网点/单位 */
     currentAcceptCompanyName: string
+    /**
+     * 与 C 端 aftersale 一致：同源 `currentAcceptCompanyPhone`
+     * @see mp/aftersale `order.acceptor.sitePhone`
+     */
     sitePhone: string
+    /** 详情 `currentAcceptCompanyPhone`（与 `sitePhone` 同值） */
+    currentAcceptCompanyPhone: string
   }
   fault: {
+    /** 客户报修描述，同源 `WorkOrderDetailVO.faultDesc` */
     desc: string
+    /** 客户故障备注，同源 `WorkOrderDetailVO.faultRemark` */
     faultExplain: string
     voiceDuration: string
+    /** `faultVoiceFiles` 映射，供详情 `VoicePlaybackList` */
+    voiceList?: { url: string; duration?: number }[]
+    /** `faultImageFiles` 预览地址 */
     images: string[]
-    /** 故障视频预览地址列表 */
+    /** `faultVideoFiles` 预览地址 */
     videos: string[]
     videoThumb: string
   }
@@ -564,12 +594,13 @@ export const createEmptyOrderDetail = (): OrderDetail => ({
     brandName: '',
     model: '',
     serialNo: '',
-    outDate: '',
+    lastOutDate: '',
     warrantyClass: '',
     repairStatus: '',
   },
   service: {
     sitePhone: '',
+    serviceModeLabel: '',
     source: '',
     senderInfo: '',
     senderName: '',
@@ -584,11 +615,13 @@ export const createEmptyOrderDetail = (): OrderDetail => ({
   acceptor: {
     currentAcceptCompanyName: '',
     sitePhone: '',
+    currentAcceptCompanyPhone: '',
   },
   fault: {
     desc: '',
     faultExplain: '',
     voiceDuration: '',
+    voiceList: undefined,
     images: [],
     videos: [],
     videoThumb: '',

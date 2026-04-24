@@ -5,29 +5,24 @@
       :style="{ maxHeight, maxWidth, borderTopLeftRadius: radius, borderTopRightRadius: radius }"
       @tap.stop
     >
-      <!-- 顶部手柄 -->
       <view v-if="showHandle" class="cm-handle-wrap">
         <view class="cm-handle"></view>
       </view>
 
-      <!-- 标题 -->
       <view v-if="$slots.header || title" class="cm-header">
         <slot name="header">
           <text class="cm-title">{{ title }}</text>
         </slot>
       </view>
 
-      <!-- 内容 -->
       <view class="cm-body">
         <slot></slot>
       </view>
 
-      <!-- 底部 -->
       <view v-if="$slots.footer" class="cm-footer">
         <slot name="footer"></slot>
       </view>
 
-      <!-- 安全区域 -->
       <view v-if="safeArea" class="cm-safe-area"></view>
     </view>
   </view>
@@ -37,7 +32,7 @@
   import { computed } from 'vue'
 
   type Animation = 'none' | 'slide-up'
-  // 组件属性
+
   const props = withDefaults(
     defineProps<{
       modelValue: boolean
@@ -58,28 +53,20 @@
       animation: 'none',
       maxHeight: '90vh',
       maxWidth: '896rpx',
-      radius: '48rpx'
-    }
+      radius: '48rpx',
+    },
   )
 
-  // 组件事件
   const emit = defineEmits<{
     (e: 'update:modelValue', v: boolean): void
     (e: 'close'): void
   }>()
 
-  /**
-   * 动画类
-   * @returns 动画类
-   */
   const animationClass = computed(() => {
     if (props.animation === 'slide-up') return 'cm-animate-slide-up'
     return ''
   })
 
-  /**
-   * 蒙层点击
-   */
   const onMaskTap = () => {
     if (!props.closeOnMask) return
     emit('update:modelValue', false)
@@ -158,13 +145,8 @@
     box-sizing: border-box;
   }
 
-  /* 底部留白：跟随设备安全区（异形屏 Home 指示条等），避免固定 rpx 与真实 inset 不一致 */
   .cm-safe-area {
-    width: 100%;
-    flex-shrink: 0;
-    box-sizing: border-box;
-    padding-bottom: constant(safe-area-inset-bottom);
-    padding-bottom: env(safe-area-inset-bottom);
+    height: 48rpx;
     background-color: $bg-card;
   }
 

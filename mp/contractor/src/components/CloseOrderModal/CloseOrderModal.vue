@@ -3,9 +3,9 @@
     v-model="visible"
     :title="noFaultRequired ? '工单关闭原因（无故障）' : '工单关闭原因'"
     animation="slide-up"
+    safe-area
   >
     <view class="modal-content">
-      <text v-if="noFaultRequired" class="no-fault-tip">无故障关单时关闭原因必填，请如实填写。</text>
       <!-- 输入关闭原因 -->
       <view class="textarea-wrap">
         <view v-if="noFaultRequired" class="field-label-row">
@@ -26,22 +26,6 @@
           :cursor-spacing="20"
         ></textarea>
         <view class="char-count">{{ reason.length }}/200</view>
-      </view>
-
-      <!-- 快捷标签 -->
-      <view class="quick-tags-wrap">
-        <text class="quick-tags-title">快捷标签</text>
-        <view class="tags-list">
-          <view
-            v-for="(tag, index) in quickTags"
-            :key="index"
-            class="tag-item"
-            :class="{ active: selectedTag === tag }"
-            @tap="selectTag(tag)"
-          >
-            {{ tag }}
-          </view>
-        </view>
       </view>
     </view>
 
@@ -97,26 +81,6 @@
 
   // 关闭原因
   const reason = ref('')
-  // 选择的标签
-  const selectedTag = ref('')
-
-  // 快捷标签
-  const quickTags = ['已指导用户解决', '用户申请取消', '重复下单', '其他原因']
-
-  /**
-   * 选择标签
-   * @param tag 标签
-   */
-  const selectTag = (tag: string) => {
-    selectedTag.value = tag
-    // 简易处理：将标签内容直接作为前缀或覆盖原因
-    // 如果当前是其他标签的内容，直接覆盖；如果是手写内容，可以选择追加
-    if (quickTags.includes(reason.value) || reason.value === '') {
-      reason.value = tag
-    } else {
-      reason.value = `${reason.value} ${tag}`
-    }
-  }
 
   /**
    * 取消
@@ -141,21 +105,12 @@
     visible.value = false
     // 重置状态
     reason.value = ''
-    selectedTag.value = ''
   }
 </script>
 
 <style lang="scss" scoped>
   .modal-content {
     padding: 32rpx;
-  }
-
-  .no-fault-tip {
-    display: block;
-    font-size: 26rpx;
-    color: $text-slate-500;
-    line-height: 1.5;
-    margin-bottom: 24rpx;
   }
 
   .field-label-row {
@@ -208,38 +163,6 @@
     font-size: 24rpx;
     color: $text-slate-400;
     margin-top: 8rpx;
-  }
-
-  .quick-tags-wrap {
-    .quick-tags-title {
-      font-size: 28rpx;
-      font-weight: 500;
-      color: $text-slate-500;
-      margin-bottom: 24rpx;
-      display: block;
-    }
-
-    .tags-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 16rpx;
-    }
-
-    .tag-item {
-      padding: 12rpx 32rpx;
-      border-radius: 999rpx;
-      border: 2rpx solid $border-slate;
-      background-color: $bg-light;
-      font-size: 26rpx;
-      color: $text-slate-600;
-      transition: all 0.3s;
-
-      &.active {
-        background-color: rgba($primary, 0.1);
-        border-color: $primary;
-        color: $primary;
-      }
-    }
   }
 
   .modal-footer {
