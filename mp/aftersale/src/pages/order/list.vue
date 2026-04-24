@@ -90,8 +90,11 @@
 
             <!-- 工单类型、型号标签（结构与 contractor OrderCardList.tags-wrap 一致） -->
             <view class="tags-wrap">
-              <view :class="['tag', order.isJasic ? 'tag-brand' : 'tag-other-brand']">
-                <text class="text">{{ orderBrandTypeText(order) }}</text>
+              <view
+                v-if="hasDisplayText(order.brandTypeLabel)"
+                :class="['tag', orderBrandTypeTagClass(order)]"
+              >
+                <text class="text">{{ order.brandTypeLabel }}</text>
               </view>
               <view v-if="showModelTag(order)" class="tag tag-model">
                 <text class="text">{{ order.modelName }}</text>
@@ -296,10 +299,11 @@
     return fromApi || order.status
   }
 
-  /** 品牌类型：优先接口 `brandTypeLabel`（如佳士品牌），否则用佳士/非佳士简写 */
-  function orderBrandTypeText(order: OrderListItem) {
-    const fromApi = String(order.brandTypeLabel ?? '').trim()
-    return fromApi || (order.isJasic ? '佳士' : '非佳士')
+  /** 与详情「工单类型」一致：列表仅展示接口 `brandTypeLabel`，样式按文案是否含「非佳士」区分 */
+  function orderBrandTypeTagClass(order: OrderListItem) {
+    const t = String(order.brandTypeLabel ?? '').trim()
+    if (!t) return 'tag-brand'
+    return /非佳士/.test(t) ? 'tag-other-brand' : 'tag-brand'
   }
 
   /** 在已加载的 orderList 上做前端模糊匹配（与 Tab、分页接口数据一致，不单独打 keyword 接口） */

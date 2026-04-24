@@ -49,6 +49,10 @@ export const DEFAULT_MY_MENU: MyMenuItem[] = [
     label: '地址管理',
     link: '/pages/address/index',
   },
-  { icon: 'info', label: '关于我们' },
+  {
+    icon: 'info',
+    label: '关于我们',
+    link: '/pages/about/index',
+  },
 ]
 

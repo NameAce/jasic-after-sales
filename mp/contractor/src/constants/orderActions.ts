@@ -25,10 +25,18 @@ export const isWorkOrderActionKey = (value: unknown): value is WorkOrderActionKe
   typeof value === 'string' && value in ACTION_META
 
 /**
+ * 后端与 `WorkOrderActionEnum` / `WorkOrderPermissionService.DETAIL_ACTION_ORDER` 对齐的别名。
+ * 小程序列表「机器返回方式」与 `CLOSE` 使用同一套处理，统一映射为 `CLOSE`。
+ */
+const ACTION_CODE_ALIASES: Record<string, WorkOrderActionKey> = {
+  RETURN_METHOD: 'CLOSE',
+}
+
+/**
  * 将接口 `availableActions` 归一化为可用动作数组：
+ * - 将 `RETURN_METHOD` 等别名映射为 `ACTION_META` 中的 key；
  * - 仅保留 ACTION_META 中存在的动作；
- * - 去重；
- * - 保持原始顺序。
+ * - 去重（映射后去重，避免 RETURN_METHOD 与 CLOSE 同时存在时重复展示）。
  */
 export const normalizeAvailableActions = (actions: unknown): WorkOrderActionKey[] => {
   if (!Array.isArray(actions)) return []
@@ -37,10 +45,36 @@ export const normalizeAvailableActions = (actions: unknown): WorkOrderActionKey[
   const seen = new Set<WorkOrderActionKey>()
 
   for (const action of actions) {
-    if (!isWorkOrderActionKey(action) || seen.has(action)) continue
-    normalized.push(action)
-    seen.add(action)
+    if (typeof action !== 'string') continue
+    const raw = action.trim()
+    if (!raw) continue
+    const resolved = ACTION_CODE_ALIASES[raw] ?? (isWorkOrderActionKey(raw) ? raw : null)
+    if (resolved == null || seen.has(resolved)) continue
+    normalized.push(resolved)
+    seen.add(resolved)
   }
 
   return normalized
+}
+
+/**
+ * 与后端详情页动作返回顺序一致（见 `WorkOrderPermissionService.DETAIL_ACTION_ORDER`），
+ * 仅对列表会展示的动作排序，保证按钮位置稳定、与 jasic-ui 一致。
+ */
+const DISPLAY_ORDER: WorkOrderActionKey[] = [
+  'ASSIGN',
+  'UPLOAD_SEND_EXPRESS',
+  'TECH_ACCEPT',
+  'TRANSFER',
+  'REPAIR_FINISH',
+  'REVIEW',
+  'CLOSE',
+]
+
+export const sortWorkOrderActionsForDisplay = (keys: WorkOrderActionKey[]): WorkOrderActionKey[] => {
+  const rank = (k: WorkOrderActionKey) => {
+    const i = DISPLAY_ORDER.indexOf(k)
+    return i === -1 ? 999 : i
+  }
+  return [...keys].sort((a, b) => rank(a) - rank(b))
 }

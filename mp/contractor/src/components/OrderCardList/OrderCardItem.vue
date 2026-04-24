@@ -18,8 +18,11 @@
 
     <!-- 工单卡片标签 -->
     <view class="tags-wrap">
-      <view :class="['tag', order.isJiashi ? 'tag-brand' : 'tag-other-brand']">
-        <text class="text">{{ orderTypeTagText(order) }}</text>
+      <view
+        v-if="orderTypeTagLabel(order)"
+        :class="['tag', orderTypeTagStyleClass(order)]"
+      >
+        <text class="text">{{ orderTypeTagLabel(order) }}</text>
       </view>
       <view v-if="showInboundTransferTag(order)" class="tag tag-transfer-in">
         <text class="text">转单</text>
@@ -122,8 +125,6 @@
     defineProps<{
       order: OrderListItem
       statusText: (order: OrderListItem) => string
-      brandLabel?: string
-      otherBrandLabel?: string
       showInboundTransferTag?: OrderPredicate
       showTransferredTag?: OrderPredicate
       cardClass?: string
@@ -131,8 +132,6 @@
       showRepairSiteRows?: boolean
     }>(),
     {
-      brandLabel: '佳士',
-      otherBrandLabel: '非佳士',
       showInboundTransferTag: () => false,
       showTransferredTag: (order: OrderListItem) => !!order.transferred,
       cardClass: '',
@@ -150,10 +149,13 @@
     return (order.desc ?? '').trim()
   }
 
-  const orderTypeTagText = (order: OrderListItem) => {
-    const label = (order.brandTypeLabel ?? '').trim()
-    if (label) return label
-    return order.isJiashi ? props.brandLabel : props.otherBrandLabel
+  /** 与详情「工单类型」一致：仅展示接口 `brandTypeLabel`，无则不占位 */
+  const orderTypeTagLabel = (order: OrderListItem) => (order.brandTypeLabel ?? '').trim()
+
+  const orderTypeTagStyleClass = (order: OrderListItem) => {
+    const label = orderTypeTagLabel(order)
+    if (!label) return 'tag-brand'
+    return /非佳士/.test(label) ? 'tag-other-brand' : 'tag-brand'
   }
 
   const statusText = (order: OrderListItem) => props.statusText(order)

@@ -242,7 +242,11 @@
   import { storeIcon } from '@/svgs'
   import { useScrollRefresher } from '@/utils/useScrollRefresher'
   import { isWorkOrderPendingTechAcceptMainStatus } from '@/utils/workOrderMainStatus'
-  import { normalizeAvailableActions, type WorkOrderActionKey } from '@/constants/orderActions'
+  import {
+    normalizeAvailableActions,
+    sortWorkOrderActionsForDisplay,
+    type WorkOrderActionKey
+  } from '@/constants/orderActions'
   import {
     ENABLE_LEGACY_STATUS_ACTION_FALLBACK,
     auditLegacyStatusFallbackHit
@@ -355,7 +359,7 @@
   const primaryTab = ref<PrimaryTab>('untransferred')
   // 二级Tab
   const secondaryTab = ref<SecondaryTab>('all')
-  // 首次 onLoad 参数解析完成后，onShow 再触发统一刷新主路径
+  // onLoad 内同步完成路由入参/Tab 后再为 true，避免 onShow 早于 onLoad
   const hasParsedEntryOptions = ref(false)
 
   // 二级 Tab 列表（根据派单权限动态增删 pending_accept）
@@ -438,8 +442,8 @@
 
   /**
    * 列表页统一刷新主路径：
-   * - 首次参数解析放在 onLoad；
-   * - onShow / 下拉刷新 / 普通刷新都汇聚到该路径；
+   * - 首次/返回列表均由 onShow 走该路径，避免 onLoad+onShow 各拉一次重复请求；
+   * - 下拉刷新 / 普通 Tab 操作仍汇聚到该路径；
    * - 并发保护由 refreshOrders + loadMoreOrders 内部 requestVersion/loadingMore 处理。
    */
   const refreshListEntry = async (useScrollRefresherUi: boolean) => {
@@ -455,9 +459,9 @@
   }
 
   /**
-   * 页面加载：首次解析外部路由参数（Tab）并走统一刷新主路径
+   * 页面加载：只同步解析外部路由与 Tab 状态，列表请求在 onShow 统一拉取（与首次 onShow 合并为一次请求）
    */
-  onLoad(async (options?: Record<string, string>) => {
+  onLoad((options?: Record<string, string>) => {
     const picked = takeSelectedShippingAddress()
     if (picked) {
       mailReturnAddressOverride.value = {
@@ -486,7 +490,6 @@
       scrollSecondaryTabIntoView(sec)
     }
     hasParsedEntryOptions.value = true
-    await refreshListEntry(false)
   })
 
   /**
@@ -1058,11 +1061,29 @@
     return getOperatorActions('COMPLETED').some((a) => a.key === 'REVIEW')
   }
 
+  /**
+   * 与详情页 `availableActions` 含 ASSIGN 时优先派单一致：待派单/待接单子态下互斥展示。
+   * @param keys 已归一化的动作 key
+   * @param order 工单
+   */
+  const applyAssignTechExclusion = (
+    keys: WorkOrderActionKey[],
+    order: OrderListItem
+  ): WorkOrderActionKey[] => {
+    if (keys.length < 2) return keys
+    if (!keys.includes('ASSIGN') || !keys.includes('TECH_ACCEPT')) return keys
+    if (isOrderPendingAssign(order)) return keys.filter((k) => k !== 'TECH_ACCEPT')
+    if (isOrderPendingTechAccept(order)) return keys.filter((k) => k !== 'ASSIGN')
+    return keys
+  }
+
   /** 承修方端暂不展示「上传寄件单号」（与详情页一致；后端仍可能下发 UPLOAD_SEND_EXPRESS） */
-  const getOrderAvailableActions = (order: OrderListItem): WorkOrderActionKey[] =>
-    normalizeAvailableActions(
+  const getOrderAvailableActions = (order: OrderListItem): WorkOrderActionKey[] => {
+    const base = normalizeAvailableActions(
       (order as OrderListItem & { availableActions?: unknown }).availableActions
     ).filter((key) => key !== 'UPLOAD_SEND_EXPRESS')
+    return applyAssignTechExclusion(base, order)
+  }
 
   const getOrderRoleForRegression = (
     order: OrderListItem
@@ -1195,7 +1216,8 @@
         fallbackActions: candidateActionKeys
       })
     }
-    return getActionButtons(candidateActionKeys.filter((key) => isActionAllowed(order, key)))
+    const allowedKeys = candidateActionKeys.filter((key) => isActionAllowed(order, key))
+    return getActionButtons(sortWorkOrderActionsForDisplay(allowedKeys))
   }
 
   /**

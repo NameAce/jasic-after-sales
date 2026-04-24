@@ -25,8 +25,6 @@
     <OrderCardList
       :orders="orderList"
       :status-text="getOrderListStatusText"
-      brand-label="佳士品牌"
-      other-brand-label="非佳士品牌"
       :empty-title="workbenchEmptyTitle"
       :empty-desc="workbenchEmptyDesc"
       :show-inbound-transfer-tag="showInboundTransferTag"

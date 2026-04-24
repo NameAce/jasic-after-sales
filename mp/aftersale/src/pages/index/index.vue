@@ -16,7 +16,6 @@
         <view class="header-right">
           <view class="icon-btn" @click="goToClosedOrderList">
             <image class="header-svg-icon" :src="notificationsIcon" mode="aspectFit" />
-            <view v-if="hasClosedOrders" class="notify-dot"></view>
           </view>
         </view>
       </view>
@@ -133,14 +132,7 @@
   import { onShow } from '@dcloudio/uni-app'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import { useUserStore } from '@/stores'
-  import {
-    getCustomerWorkOrderLatestSummary,
-    getCustomerWorkOrder,
-    listCustomerWorkOrder,
-    mapWorkOrderListRecordToItem,
-    type LatestOrderDTO,
-    type OrderDetail
-  } from '@/api/workOrder'
+  import { getCustomerWorkOrderLatestSummary, type LatestOrderDTO } from '@/api/workOrder'
   import { themeColor } from '@/constants/theme'
   import { isLoggedIn, requireLogin } from '@/utils/auth'
   import {
@@ -179,8 +171,6 @@
 
   // 是否有最新工单
   const hasLatestOrder = computed(() => !!latestOrder.value.id)
-  // 是否有“已关闭且未评价”的工单（用于通知红点）
-  const hasClosedOrders = ref(false)
 
   /**
    * 空工单
@@ -214,52 +204,11 @@
   }
 
   /**
-   * 加载工单统计（仅用于通知红点）
-   * @returns void
-   */
-  const hasEvaluateContent = (evaluate?: OrderDetail['evaluate']) => {
-    if (!evaluate) return false
-    return Boolean(
-      (evaluate.timeliness ?? 0) > 0 ||
-      (evaluate.quality ?? 0) > 0 ||
-      (evaluate.satisfaction ?? 0) > 0 ||
-      String(evaluate.comment || '').trim()
-    )
-  }
-
-  const loadCounts = async () => {
-    if (!isLoggedIn()) {
-      hasClosedOrders.value = false
-      return
-    }
-    try {
-      const listRes = await listCustomerWorkOrder()
-      const items = (listRes.data?.records ?? []).map(mapWorkOrderListRecordToItem)
-      const closedOrders = items.filter((item) => item.status === '已关闭')
-      if (closedOrders.length === 0) {
-        hasClosedOrders.value = false
-        return
-      }
-
-      // 只要存在一个“未评价”的已关闭工单，就显示红点
-      const detailList = await Promise.all(
-        closedOrders.map((item) => getCustomerWorkOrder({ id: item.id }))
-      )
-      hasClosedOrders.value = detailList.some(
-        (detailRes) => !hasEvaluateContent(detailRes.data?.evaluate)
-      )
-    } catch {
-      hasClosedOrders.value = false
-    }
-  }
-
-  /**
    * 页面显示
    * @returns void
    */
   onShow(() => {
     loadLatest()
-    loadCounts()
   })
 
   /**
@@ -349,7 +298,6 @@
         @include flex-center;
         color: $text-secondary;
         transition: color 0.3s;
-        position: relative;
 
         &:active {
           color: $primary;
@@ -358,16 +306,6 @@
         .header-svg-icon {
           width: $font-title;
           height: $font-title;
-        }
-
-        .notify-dot {
-          position: absolute;
-          top: -4rpx;
-          right: -6rpx;
-          width: 14rpx;
-          height: 14rpx;
-          border-radius: 50%;
-          background-color: $danger-emphasis;
         }
       }
     }

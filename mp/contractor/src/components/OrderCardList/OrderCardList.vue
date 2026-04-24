@@ -12,8 +12,6 @@
         :key="order.id"
         :order="order"
         :status-text="statusText"
-        :brand-label="brandLabel"
-        :other-brand-label="otherBrandLabel"
         :show-inbound-transfer-tag="showInboundTransferTag"
         :show-transferred-tag="showTransferredTag"
         :show-repair-site-rows="showRepairSiteRows"
@@ -47,8 +45,6 @@
       statusText: (order: OrderListItem) => string
       emptyTitle?: string
       emptyDesc?: string
-      brandLabel?: string
-      otherBrandLabel?: string
       showInboundTransferTag?: OrderPredicate
       showTransferredTag?: OrderPredicate
       cardClass?: string
@@ -59,8 +55,6 @@
     {
       emptyTitle: '暂无工单',
       emptyDesc: '当前筛选条件下没有工单',
-      brandLabel: '佳士',
-      otherBrandLabel: '非佳士',
       showInboundTransferTag: () => false,
       showTransferredTag: (order: OrderListItem) => !!order.transferred,
       cardClass: '',

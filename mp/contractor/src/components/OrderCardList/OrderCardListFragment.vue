@@ -2,8 +2,6 @@
   <OrderCardItem
     :order="order"
     :status-text="statusText"
-    :brand-label="brandLabel"
-    :other-brand-label="otherBrandLabel"
     :show-inbound-transfer-tag="showInboundTransferTag"
     :show-transferred-tag="showTransferredTag"
     :card-class="cardClass"
@@ -40,8 +38,6 @@
     order: OrderListItem
     slotBridge: OrderListParentSlotBridge
     statusText: (order: OrderListItem) => string
-    brandLabel?: string
-    otherBrandLabel?: string
     showInboundTransferTag?: OrderPredicate
     showTransferredTag?: OrderPredicate
     cardClass?: string
