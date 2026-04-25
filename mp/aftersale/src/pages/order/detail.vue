@@ -672,12 +672,7 @@
   /** 商品信息卡片是否有任一可展示字段（不含品牌） */
   const hasProductInfoCard = computed(() => {
     const p = order.value.product
-    return (
-      hasStr(p.model) ||
-      hasStr(p.barcode) ||
-      hasStr(p.serialNo) ||
-      hasStr(p.lastOutDate)
-    )
+    return hasStr(p.model) || hasStr(p.barcode) || hasStr(p.serialNo) || hasStr(p.lastOutDate)
   })
 
   /**
@@ -894,9 +889,7 @@
   const contactPhone = computed(() => {
     const fromOutlet = String(order.value.acceptor.currentAcceptCompanyPhone ?? '').trim()
     if (fromOutlet) return fromOutlet
-    return String(
-      order.value.service.sitePhone ?? order.value.acceptor.sitePhone ?? ''
-    ).trim()
+    return String(order.value.service.sitePhone ?? order.value.acceptor.sitePhone ?? '').trim()
   })
 
   /**

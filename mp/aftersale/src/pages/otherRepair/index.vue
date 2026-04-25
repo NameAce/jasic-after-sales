@@ -125,6 +125,7 @@
   import { useServicePointSelection } from '@/composables/useServicePointSelection'
   import { useSupplementSection } from '@/composables/useSupplementSection'
   import { createCustomerWorkOrder, type CreateCustomerWorkOrderDTO } from '@/api/workOrder'
+  import { requestEvaluationInviteSubscribe } from '@/utils/requestEvaluationInviteSubscribe'
   import { scrollToFirstInvalidUniFormField } from '@/utils/formFieldScrollFocus'
   import { validateFaultMediaSelection } from '@/utils/repairMediaLimits'
   import {
@@ -396,6 +397,8 @@
     try {
       const res = await createCustomerWorkOrder(buildOtherRepairWorkOrderPayload())
       uni.hideLoading()
+      /** 关单后服务端会推「客户满意度评价通知」，需在创建工单时完成订阅授权 */
+      await requestEvaluationInviteSubscribe()
       uni.showToast({ title: res.msg, icon: 'none', duration: 1500 })
       if (options.redirect) {
         clearOtherRepairDraft()

@@ -74,10 +74,16 @@
                   <text class="fault-desc-option-text">{{ option.text }}</text>
                 </view>
                 <view class="fault-desc-dropdown-actions">
-                  <view class="dropdown-btn dropdown-btn--cancel" @click.stop="cancelFaultDescSelect">
+                  <view
+                    class="dropdown-btn dropdown-btn--cancel"
+                    @click.stop="cancelFaultDescSelect"
+                  >
                     取消
                   </view>
-                  <view class="dropdown-btn dropdown-btn--confirm" @click.stop="confirmFaultDescSelect">
+                  <view
+                    class="dropdown-btn dropdown-btn--confirm"
+                    @click.stop="confirmFaultDescSelect"
+                  >
                     确定
                   </view>
                 </view>
@@ -215,6 +221,7 @@
     type BarcodeInfoDTO,
     type CreateCustomerWorkOrderDTO
   } from '@/api/workOrder'
+  import { requestEvaluationInviteSubscribe } from '@/utils/requestEvaluationInviteSubscribe'
   import { API_SUCCESS_CODE } from '@/utils/http'
   import {
     scrollPageToFormFieldKey,
@@ -847,6 +854,8 @@
     try {
       const res = await createCustomerWorkOrder(buildJasicWorkOrderPayload())
       uni.hideLoading()
+      /** 关单后服务端会推「客户满意度评价通知」，需在创建工单时完成订阅授权 */
+      await requestEvaluationInviteSubscribe()
       uni.showToast({ title: res.msg, icon: 'none', duration: TOAST_DURATION })
       // 如果需要重定向，则清除暂存并重定向
       if (options.redirect) {
