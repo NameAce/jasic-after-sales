@@ -248,8 +248,9 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         Map<Long, BigDecimal> currentQuoteAmountMap = buildCurrentValidQuoteAmountMap(
                 records.stream().map(WorkOrderListVO::getId).collect(Collectors.toList())
         );
+        boolean fillActionInfo = "CURRENT".equals(query.getViewScope());
         for (WorkOrderListVO record : records) {
-            fillListSnapshot(record, currentQuoteAmountMap);
+            fillListSnapshot(record, currentQuoteAmountMap, fillActionInfo);
         }
         return PageResult.of(records, result.getTotal(), query.getPageNum(), query.getPageSize());
     }
@@ -352,7 +353,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                 records.stream().map(WorkOrderListVO::getId).collect(Collectors.toList())
         );
         for (WorkOrderListVO record : records) {
-            fillListSnapshot(record, currentQuoteAmountMap);
+            fillListSnapshot(record, currentQuoteAmountMap, false);
         }
         return PageResult.of(records, result.getTotal(), internalQuery.getPageNum(), internalQuery.getPageSize());
     }
@@ -383,7 +384,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         detail.setFlows(listFlowVos(workOrderId));
         detail.setEvaluation(getEvaluationVo(workOrderId));
         detail.setAvailableActions(workOrderPermissionService.listAvailableActions(entity));
-        fillListSnapshot(detail, entity, buildCurrentValidQuoteAmountMap(Collections.singletonList(workOrderId)));
+        fillListSnapshot(detail, entity, buildCurrentValidQuoteAmountMap(Collections.singletonList(workOrderId)), false);
         detail.setEvaluateStatusLabel(resolveEvaluateStatusLabel(detail.getEvaluateStatus()));
         detail.setBrandTypeLabel(detail.getBrandType() == null ? null : detail.getBrandType().getLabel());
         detail.setServiceModeLabel(ServiceModeEnum.resolveLabel(detail.getServiceMode()));
@@ -1126,15 +1127,26 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
                 buildWorkOrderSnapshot(target),
                 buildCurrentValidQuoteAmountMap(target == null || target.getId() == null
                         ? Collections.emptyList()
-                        : Collections.singletonList(target.getId()))
+                        : Collections.singletonList(target.getId())),
+                true
         );
     }
 
     private void fillListSnapshot(WorkOrderListVO target, Map<Long, BigDecimal> currentQuoteAmountMap) {
-        fillListSnapshot(target, buildWorkOrderSnapshot(target), currentQuoteAmountMap);
+        fillListSnapshot(target, currentQuoteAmountMap, true);
+    }
+
+    private void fillListSnapshot(WorkOrderListVO target, Map<Long, BigDecimal> currentQuoteAmountMap,
+                                  boolean fillActionInfo) {
+        fillListSnapshot(target, buildWorkOrderSnapshot(target), currentQuoteAmountMap, fillActionInfo);
     }
 
     private void fillListSnapshot(WorkOrderListVO target, WorkOrder workOrder, Map<Long, BigDecimal> currentQuoteAmountMap) {
+        fillListSnapshot(target, workOrder, currentQuoteAmountMap, true);
+    }
+
+    private void fillListSnapshot(WorkOrderListVO target, WorkOrder workOrder,
+                                  Map<Long, BigDecimal> currentQuoteAmountMap, boolean fillActionInfo) {
         if (target == null) {
             return;
         }
@@ -1145,6 +1157,11 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         target.setQuoteAmount(currentQuoteAmountMap == null ? null : currentQuoteAmountMap.get(target.getId()));
         if (workOrder == null) {
             return;
+        }
+        if (fillActionInfo) {
+            List<String> availableActions = workOrderPermissionService.listAvailableActions(workOrder);
+            target.setAvailableActions(availableActions);
+            target.setReadonlyReason(workOrderPermissionService.getReadonlyReason(workOrder, availableActions));
         }
     }
 
@@ -2631,6 +2648,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         snapshot.setMainStatus(target.getMainStatus());
         snapshot.setCurrentAcceptCompanyId(target.getCurrentAcceptCompanyId());
         snapshot.setAssignedUserId(target.getAssignedUserId());
+        snapshot.setServiceMode(target.getServiceMode());
         return snapshot;
     }
 

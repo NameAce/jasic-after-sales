@@ -369,6 +369,44 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertFalse(service.listAvailableActions(workOrder).contains(WorkOrderActionEnum.CLOSE.getCode()));
     }
 
+    @Test
+    public void shouldReturnHistoryReadonlyReasonForTransferredWorkOrder() throws Exception {
+        setCurrentServiceContext(1001L);
+        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(
+                buildParticipant(31L, 1001L, "HISTORY"), 0L
+        ));
+        setField(service, "hqFirstContractMapper", createContractMapperProxy(Collections.emptyList()));
+        setField(service, "firstSecondRelationMapper", createRelationMapperProxy(Collections.emptyList()));
+
+        WorkOrder workOrder = buildWorkOrder(31L, 900L, 2001L, 1001L, null);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.IN_PROGRESS);
+
+        Assert.assertEquals("已转出，当前仅可查看", service.getReadonlyReason(workOrder));
+    }
+
+    @Test
+    public void shouldReturnAssigneeReadonlyReasonWhenOtherTechnicianIsHandlingWorkOrder() throws Exception {
+        setCurrentServiceContext(1001L);
+        setEmptyMapperDependencies();
+
+        WorkOrder workOrder = buildWorkOrder(32L, 900L, 1001L, 2001L, 202L);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.IN_PROGRESS);
+
+        Assert.assertEquals("当前由其他维修人员处理", service.getReadonlyReason(workOrder));
+    }
+
+    @Test
+    public void shouldReturnNullReadonlyReasonWhenActionsAreAvailable() throws Exception {
+        setCurrentServiceContext(1001L);
+        setEmptyMapperDependencies();
+        grantPermissions("workorder:review");
+
+        WorkOrder workOrder = buildWorkOrder(33L, 900L, 1001L, 2001L, null);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.COMPLETED);
+
+        Assert.assertNull(service.getReadonlyReason(workOrder));
+    }
+
     private void setCurrentHqRegionContext() {
         SecurityContext.setCurrentCompanyId(900L);
         SecurityContext.setCurrentSubjectType("HQ");

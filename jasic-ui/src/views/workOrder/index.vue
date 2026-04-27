@@ -67,9 +67,46 @@
           </template>
         </el-table-column>
         <el-table-column label="创建时间" prop="createTime" min-width="160" />
-        <el-table-column label="操作" fixed="right" width="90">
+        <el-table-column label="操作" fixed="right" :width="operationColumnWidth">
           <template slot-scope="{ row }">
-            <el-button type="text" size="mini" @click="handleView(row)">详情</el-button>
+            <div class="table-actions-cell">
+              <div v-if="isCurrentView" class="table-actions-cell__buttons">
+                <el-button
+                  v-for="item in getRowPrimaryActions(row)"
+                  :key="`${row.id}-${item.action}`"
+                  type="text"
+                  size="mini"
+                  :class="['table-action-link', `is-${item.type || 'primary'}`]"
+                  @click="handleListAction(row, item.action)"
+                >
+                  {{ item.label }}
+                </el-button>
+                <el-dropdown
+                  v-if="getRowMoreActions(row).length"
+                  trigger="click"
+                  @command="handleListMoreAction(row, $event)"
+                >
+                  <span class="el-dropdown-link table-action-link is-default">
+                    更多<i class="el-icon-arrow-down el-icon--right"></i>
+                  </span>
+                  <el-dropdown-menu slot="dropdown">
+                    <el-dropdown-item
+                      v-for="item in getRowMoreActions(row)"
+                      :key="`${row.id}-${item.action}-more`"
+                      :command="item.action"
+                    >
+                      {{ item.label }}
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </el-dropdown>
+              </div>
+              <div class="table-actions-cell__buttons">
+                <el-button type="text" size="mini" class="table-action-link is-default" @click="handleView(row)">详情</el-button>
+              </div>
+              <div v-if="shouldShowReadonlyReason(row)" class="table-actions-cell__reason">
+                {{ row.readonlyReason }}
+              </div>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -1019,6 +1056,15 @@ const ACTION_META = {
   CLOSE: { label: '关闭工单', title: '关闭工单', type: 'danger' }
 }
 
+const LIST_MAX_PRIMARY_ACTIONS = 2
+
+const LIST_PRIMARY_ACTION_ORDER = {
+  PENDING_ASSIGN: ['ASSIGN', 'UPLOAD_SEND_EXPRESS'],
+  PENDING_TECH_ACCEPT: ['TECH_ACCEPT', 'UPLOAD_SEND_EXPRESS'],
+  IN_PROGRESS: ['REPAIR_FINISH', 'TRANSFER'],
+  COMPLETED: ['REVIEW', 'CLOSE']
+}
+
 function buildDefaultQuery() {
   return {
     pageNum: 1,
@@ -1415,6 +1461,12 @@ export default {
         { value: 'COMPLETED', label: '已完成', count: this.statusCountMap.COMPLETED || 0 },
         { value: 'CLOSED', label: '已关闭', count: this.statusCountMap.CLOSED || 0 }
       ]
+    },
+    isCurrentView() {
+      return this.queryParams.viewScope === 'CURRENT'
+    },
+    operationColumnWidth() {
+      return this.isCurrentView ? 300 : 90
     },
     detailActionButtons() {
       const actions = new Set((this.detail && this.detail.availableActions) || [])
@@ -1977,16 +2029,81 @@ export default {
     handleView(row) {
       this.openDetail(row.id)
     },
-    openDetail(workOrderId) {
-      this.detailVisible = true
+    fetchWorkOrderDetail(workOrderId) {
       this.detailLoading = true
       return getWorkOrder(workOrderId).then(res => {
         if (!res) {
-          return
+          return null
         }
         this.detail = res.data || null
+        return this.detail
       }).finally(() => {
         this.detailLoading = false
+      })
+    },
+    openDetail(workOrderId) {
+      this.detailVisible = true
+      return this.fetchWorkOrderDetail(workOrderId)
+    },
+    normalizeRowActionCodes(row) {
+      const actions = Array.isArray(row && row.availableActions) ? row.availableActions : []
+      return actions.filter(action => action && action !== 'RETURN_METHOD' && ACTION_META[action])
+    },
+    splitRowActions(row) {
+      const actionCodes = this.normalizeRowActionCodes(row)
+      const primaryCodes = []
+      const consumed = new Set()
+      const preferredOrder = LIST_PRIMARY_ACTION_ORDER[row && row.mainStatus] || []
+      preferredOrder.forEach(action => {
+        if (primaryCodes.length >= LIST_MAX_PRIMARY_ACTIONS) {
+          return
+        }
+        if (actionCodes.includes(action) && !consumed.has(action)) {
+          primaryCodes.push(action)
+          consumed.add(action)
+        }
+      })
+      actionCodes.forEach(action => {
+        if (primaryCodes.length >= LIST_MAX_PRIMARY_ACTIONS || consumed.has(action)) {
+          return
+        }
+        primaryCodes.push(action)
+        consumed.add(action)
+      })
+      const moreCodes = actionCodes.filter(action => !consumed.has(action))
+      const toButton = (action) => ({
+        action,
+        label: ACTION_META[action].label,
+        title: ACTION_META[action].title,
+        type: ACTION_META[action].type
+      })
+      return {
+        primary: primaryCodes.map(toButton),
+        more: moreCodes.map(toButton)
+      }
+    },
+    getRowPrimaryActions(row) {
+      return this.splitRowActions(row).primary
+    },
+    getRowMoreActions(row) {
+      return this.splitRowActions(row).more
+    },
+    shouldShowReadonlyReason(row) {
+      return this.isCurrentView && !this.normalizeRowActionCodes(row).length && !!(row && row.readonlyReason)
+    },
+    handleListMoreAction(row, action) {
+      this.handleListAction(row, action)
+    },
+    handleListAction(row, action) {
+      const workOrderId = row && row.id
+      if (!workOrderId || !action) {
+        return
+      }
+      this.fetchWorkOrderDetail(workOrderId).then(detail => {
+        if (!detail) {
+          return
+        }
+        this.handleAction(action)
       })
     },
     handleAction(action) {
@@ -2658,6 +2775,47 @@ export default {
 
 .table-card {
   margin-top: 12px;
+}
+
+.table-actions-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.table-actions-cell__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  line-height: 1;
+}
+
+.table-actions-cell__reason {
+  color: #909399;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.table-action-link {
+  padding: 0;
+}
+
+.table-action-link.is-primary {
+  color: #409EFF;
+}
+
+.table-action-link.is-warning {
+  color: #E6A23C;
+}
+
+.table-action-link.is-danger {
+  color: #F56C6C;
+}
+
+.table-action-link.is-default {
+  color: #606266;
 }
 
 .table-toolbar {

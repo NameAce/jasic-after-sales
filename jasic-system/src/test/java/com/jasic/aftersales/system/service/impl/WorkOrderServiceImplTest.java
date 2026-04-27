@@ -133,6 +133,16 @@ public class WorkOrderServiceImplTest {
                 query.setDataScope("ALL");
                 query.setRelatedCompanyIds(Collections.emptyList());
             }
+
+            @Override
+            public List<String> listAvailableActions(WorkOrder workOrder) {
+                return Collections.singletonList("ASSIGN");
+            }
+
+            @Override
+            public String getReadonlyReason(WorkOrder workOrder, List<String> availableActions) {
+                return availableActions == null || availableActions.isEmpty() ? "当前待派单，请由负责人员处理" : null;
+            }
         });
 
         WorkOrderQuery query = new WorkOrderQuery();
@@ -157,6 +167,8 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(ServiceModeEnum.resolveLabel("MAIL"), holder[0].getRecords().get(0).getServiceModeLabel());
         Assert.assertEquals("佳士品牌", holder[0].getRecords().get(0).getBrandTypeLabel());
         Assert.assertEquals(0, new BigDecimal("188.50").compareTo(holder[0].getRecords().get(0).getQuoteAmount()));
+        Assert.assertEquals(Collections.singletonList("ASSIGN"), holder[0].getRecords().get(0).getAvailableActions());
+        Assert.assertNull(holder[0].getRecords().get(0).getReadonlyReason());
     }
 
     @Test

@@ -276,6 +276,66 @@ public class WorkOrderPermissionService {
     }
 
     /**
+     * 返回列表只读原因文案。
+     *
+     * @param workOrder 工单实体
+     * @return 只读原因；存在可执行动作时返回 null
+     */
+    public String getReadonlyReason(WorkOrder workOrder) {
+        return getReadonlyReason(workOrder, listAvailableActions(workOrder));
+    }
+
+    /**
+     * 返回列表只读原因文案。
+     *
+     * @param workOrder 工单实体
+     * @param availableActions 已计算出的可执行动作
+     * @return 只读原因；存在可执行动作时返回 null
+     */
+    public String getReadonlyReason(WorkOrder workOrder, List<String> availableActions) {
+        if (workOrder == null) {
+            return null;
+        }
+        if (availableActions != null && !availableActions.isEmpty()) {
+            return null;
+        }
+        EnumSet<WorkOrderRelationTagEnum> relationTags = resolveRelationTags(workOrder);
+        if (relationTags.contains(WorkOrderRelationTagEnum.HISTORY_PARTICIPANT)) {
+            return "已转出，当前仅可查看";
+        }
+        if (relationTags.contains(WorkOrderRelationTagEnum.HQ_OBSERVER)) {
+            return "当前由网点处理，仅可查看";
+        }
+        String mainStatus = workOrder.getMainStatus();
+        if (WorkOrderStatusConstants.MainStatus.CLOSED.equals(mainStatus)) {
+            return "当前工单已关闭，仅可查看";
+        }
+        if (relationTags.contains(WorkOrderRelationTagEnum.CURRENT_ACCEPT_COMPANY)) {
+            Long currentUserId = SecurityContext.getCurrentUserId();
+            boolean assignedToOther = workOrder.getAssignedUserId() != null
+                    && (currentUserId == null || !workOrder.getAssignedUserId().equals(currentUserId));
+            if (assignedToOther
+                    && (WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT.equals(mainStatus)
+                    || WorkOrderStatusConstants.MainStatus.IN_PROGRESS.equals(mainStatus))) {
+                return "当前由其他维修人员处理";
+            }
+            if (WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN.equals(mainStatus)) {
+                return "当前待派单，请由负责人员处理";
+            }
+            if (WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT.equals(mainStatus)) {
+                return "当前待接单，请由负责维修人员处理";
+            }
+            if (WorkOrderStatusConstants.MainStatus.IN_PROGRESS.equals(mainStatus)) {
+                return "当前维修中，请由负责人员处理";
+            }
+            if (WorkOrderStatusConstants.MainStatus.COMPLETED.equals(mainStatus)) {
+                return "当前工单已完成，待复检或关闭";
+            }
+        }
+        return "当前仅可查看";
+    }
+
+    /**
      * 判断当前登录人是否允许在指定工单上执行某个动作。
      *
      * <p>这是工单动作授权的统一入口，专门用来替代过去依赖单一 `relationType`

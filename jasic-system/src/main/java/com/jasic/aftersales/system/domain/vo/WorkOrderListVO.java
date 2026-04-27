@@ -9,6 +9,7 @@ import lombok.Data;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 工单列表视图
@@ -94,6 +95,12 @@ public class WorkOrderListVO implements Serializable {
 
     @ApiModelProperty(value = "当前有效报价金额")
     private BigDecimal quoteAmount;
+
+    @ApiModelProperty(value = "当前列表项可执行动作编码列表，如 ASSIGN、REPAIR_FINISH、CLOSE")
+    private List<String> availableActions;
+
+    @ApiModelProperty(value = "当前列表项只读原因")
+    private String readonlyReason;
 
     @ApiModelProperty(value = "创建时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
