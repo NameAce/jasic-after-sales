@@ -1,0 +1,57 @@
+/**
+ * 列表页搜索区：筛选项在左、重置/查询在右，中间留白分离。
+ * 用法：<div class="page-search-toolbar"><div class="page-search-toolbar__filters">…ARow…</div><div class="page-search-toolbar__actions">…</div></div>
+ */
+.page-search-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px 32px;
+  width: 100%;
+}
+
+.page-search-toolbar__filters {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.page-search-toolbar__filters > .ant-row {
+  width: 100%;
+}
+
+.page-search-toolbar__actions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+@media (max-width: 767px) {
+  .page-search-toolbar__actions {
+    width: 100%;
+  }
+}
+
+/** layout="inline" 的弹窗内筛选：最后一项（通常为按钮组）靠右 */
+.page-search-toolbar--inline.ant-form,
+form.page-search-toolbar--inline.ant-form-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 16px;
+  width: 100%;
+}
+
+.page-search-toolbar--inline.ant-form > .ant-form-item:last-child,
+form.page-search-toolbar--inline.ant-form-inline > .ant-form-item:last-child {
+  margin-left: auto;
+  margin-bottom: 0;
+}
+
+.page-search-toolbar--inline.ant-form > .ant-form-item,
+form.page-search-toolbar--inline.ant-form-inline > .ant-form-item {
+  margin-bottom: 0;
+}

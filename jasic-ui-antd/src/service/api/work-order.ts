@@ -1,0 +1,262 @@
+import { request } from '../request';
+
+type IdLike = string | number;
+type Query = Record<string, unknown>;
+
+export interface WorkOrderQuery extends Query {
+  /**
+   * 与 jasic-ui `views/workOrder/index.vue` 的 `queryParams` 一致：列表为 PageHelper 风格 `pageNum`/`pageSize`（非 MyBatis-Plus 的 current/size）。
+   */
+  pageNum?: number;
+  pageSize?: number;
+  viewScope?: 'CURRENT' | 'HISTORY' | 'ALL';
+  companyId?: number;
+  orderNo?: string;
+  customerName?: string;
+  customerMobile?: string;
+  barcode?: string;
+  mainStatus?: 'PENDING_ASSIGN' | 'PENDING_TECH_ACCEPT' | 'IN_PROGRESS' | 'COMPLETED' | 'CLOSED';
+  displayStatus?: 'ALL' | 'WAIT_ACCEPT' | 'IN_PROGRESS' | 'COMPLETED' | 'CLOSED';
+  hasTransfer?: 0 | 1;
+}
+
+/** `GET /system/work-order/status-count`：与 jasic `buildStatusCountParams` 一致，不含分页与 mainStatus */
+export type WorkOrderStatusCountQuery = Pick<
+  WorkOrderQuery,
+  'viewScope' | 'orderNo' | 'customerName' | 'customerMobile' | 'barcode' | 'hasTransfer' | 'companyId'
+>;
+
+export interface WorkOrderListVO {
+  id: number;
+  orderNo: string;
+  customerName?: string;
+  customerMobile?: string;
+  barcode?: string;
+  brandType?: 'JASIC' | 'NON_JASIC';
+  brandTypeLabel?: string;
+  serviceMode?: 'MAIL' | 'STORE';
+  serviceModeLabel?: string;
+  lastOutDate?: string;
+  warrantyStatus?: 'IN_WARRANTY' | 'OUT_OF_WARRANTY';
+  productModel?: string;
+  faultDesc?: string;
+  mainStatus?: string;
+  mainStatusLabel?: string;
+  displayStatus?: string;
+  currentAcceptCompanyId?: number;
+  currentAcceptCompanyName?: string;
+  currentAcceptCompanyPhone?: string;
+  assignedUserId?: number;
+  assignedUserName?: string;
+  hasTransfer?: number;
+  transferCount?: number;
+  quoteAmount?: number;
+  createTime?: string;
+}
+
+export interface WorkOrderPageResult {
+  total: number;
+  records: WorkOrderListVO[];
+}
+
+export interface WorkOrderStatusCountVO {
+  mainStatus: string;
+  displayStatus: string;
+  countNum: number;
+}
+
+export interface WorkOrderProxyCreateDTO {
+  customerName?: string;
+  customerMobile: string;
+  barcode?: string;
+  serviceMode: 'MAIL' | 'STORE';
+  faultItems?: string[];
+  faultRemark?: string;
+  faultImageFileIds?: number[];
+  faultVideoFileIds?: number[];
+  faultVoiceFileIds?: number[];
+  senderName?: string;
+  senderMobile?: string;
+  senderAddress?: string;
+  sendExpressNo?: string;
+  senderVoucherFileIds?: number[];
+}
+
+export interface WorkOrderAssignDTO {
+  workOrderId: number;
+  assignedUserId: number;
+}
+
+export interface WorkOrderTransferDTO {
+  workOrderId: number;
+  targetCompanyId: number;
+  remark?: string;
+}
+
+export interface WorkOrderRepairPartItemDTO {
+  partName?: string;
+  partQty?: number;
+}
+
+export interface WorkOrderRepairDTO {
+  workOrderId: number;
+  quoteAmount?: number;
+  quoteDesc?: string;
+  faultItems?: string[];
+  faultRemark?: string;
+  repairDesc?: string;
+  repairItems?: string[];
+  otherDesc?: string;
+  partList?: WorkOrderRepairPartItemDTO[];
+  faultOldImageFileIds?: number[];
+  faultNewImageFileIds?: number[];
+  machineImageFileIds?: number[];
+  machineBarcodeImageFileIds?: number[];
+  otherImageFileIds?: number[];
+}
+
+export interface WorkOrderReviewDTO {
+  workOrderId: number;
+  repairDesc?: string;
+  repairItems?: string[];
+  otherDesc?: string;
+  partList?: WorkOrderRepairPartItemDTO[];
+  faultOldImageFileIds?: number[];
+  faultNewImageFileIds?: number[];
+  machineImageFileIds?: number[];
+  machineBarcodeImageFileIds?: number[];
+  otherImageFileIds?: number[];
+}
+
+export interface WorkOrderCloseDTO {
+  workOrderId: number;
+  returnMethod: string;
+  returnExpressNo?: string;
+  returnVoucherFileIds?: number[];
+  closeReason: string;
+}
+
+export interface WorkOrderCreateOptionsVO {
+  brandTypeOptions?: Array<{ label: string; value: string }>;
+  serviceModeOptions?: Array<{ label: string; value: string }>;
+  faultItems?: Array<{ label: string; value: string }>;
+}
+
+export interface WorkOrderMailInfoDTO {
+  workOrderId: number;
+  senderName?: string;
+  senderMobile?: string;
+  senderAddress?: string;
+  sendExpressNo?: string;
+  senderVoucherFileIds?: number[];
+}
+
+export function listWorkOrder(params?: WorkOrderQuery) {
+  return request<WorkOrderPageResult>({ url: '/system/work-order/list', method: 'get', params });
+}
+
+export function countWorkOrderStatus(params?: WorkOrderStatusCountQuery) {
+  return request<WorkOrderStatusCountVO[]>({ url: '/system/work-order/status-count', method: 'get', params });
+}
+
+export function getWorkOrder(workOrderId: IdLike) {
+  return request({ url: `/system/work-order/${workOrderId}`, method: 'get' });
+}
+
+export function listCreateHqOptions() {
+  return request<WorkOrderCreateOptionsVO>({ url: '/system/work-order/create-hq-options', method: 'get' });
+}
+
+/** @deprecated 使用 listCreateHqOptions（与 jasic-ui 路径一致） */
+export const getWorkOrderCreateOptions = listCreateHqOptions;
+
+export function getProxyCreateBarcodeInfo(params?: Query) {
+  return request({ url: '/system/work-order/create/proxy/barcode-info', method: 'get', params });
+}
+
+export function getUpstreamFirstCreateBarcodeInfo(params?: Query) {
+  return request({ url: '/system/work-order/create/upstream-first/barcode-info', method: 'get', params });
+}
+
+export function listUpstreamFirstCreateTargetOptions() {
+  return request({ url: '/system/work-order/create/upstream-first/target-options', method: 'get' });
+}
+
+export function getUpstreamHqCreateBarcodeInfo(params?: Query) {
+  return request({ url: '/system/work-order/create/upstream-hq/barcode-info', method: 'get', params });
+}
+
+export function listAssignUserOptions(workOrderId: IdLike) {
+  return request({ url: `/system/work-order/${workOrderId}/assign-user-options`, method: 'get' });
+}
+
+/** @deprecated 使用 listAssignUserOptions(workOrderId) */
+export function listAssignCandidates(workOrderId: IdLike) {
+  return listAssignUserOptions(workOrderId);
+}
+
+export function listTransferTargetOptions(workOrderId: IdLike) {
+  return request({ url: `/system/work-order/${workOrderId}/transfer-target-options`, method: 'get' });
+}
+
+/** @deprecated 使用 listTransferTargetOptions(workOrderId) */
+export function listTransferCandidates(workOrderId: IdLike) {
+  return listTransferTargetOptions(workOrderId);
+}
+
+export function listRepairFaultOptions(workOrderId: IdLike) {
+  return request({ url: `/system/work-order/${workOrderId}/repair-fault-options`, method: 'get' });
+}
+
+export function listRepairProductModelOptions(workOrderId: IdLike, params?: Query) {
+  return request({ url: `/system/work-order/${workOrderId}/repair-product-model-options`, method: 'get', params });
+}
+
+export function createProxyWorkOrder(data: WorkOrderProxyCreateDTO) {
+  return request({ url: '/system/work-order/create/proxy', method: 'post', data });
+}
+
+export function createUpstreamFirstWorkOrder(data: Query) {
+  return request({ url: '/system/work-order/create/upstream-first', method: 'post', data });
+}
+
+export function createUpstreamHqWorkOrder(data: Query) {
+  return request({ url: '/system/work-order/create/upstream-hq', method: 'post', data });
+}
+
+export function assignWorkOrder(data: WorkOrderAssignDTO) {
+  return request({ url: '/system/work-order/assign', method: 'put', data });
+}
+
+export function techAcceptWorkOrder(data: Query) {
+  return request({ url: '/system/work-order/tech-accept', method: 'put', data });
+}
+
+export function transferWorkOrder(data: WorkOrderTransferDTO) {
+  return request({ url: '/system/work-order/transfer', method: 'put', data });
+}
+
+export function repairWorkOrder(data: WorkOrderRepairDTO) {
+  return request({ url: '/system/work-order/repair', method: 'post', data });
+}
+
+export function reviewWorkOrder(data: WorkOrderReviewDTO) {
+  return request({ url: '/system/work-order/review', method: 'post', data });
+}
+
+export function updateRepairProductModel(data: Query) {
+  return request({ url: '/system/work-order/repair-product-model', method: 'put', data });
+}
+
+export function updateWorkOrderSendExpress(data: Query) {
+  return request({ url: '/system/work-order/send-express', method: 'put', data });
+}
+
+/** @deprecated 使用 updateWorkOrderSendExpress（字段以后端 DTO 为准） */
+export function saveWorkOrderMailInfo(data: WorkOrderMailInfoDTO) {
+  return updateWorkOrderSendExpress(data as unknown as Query);
+}
+
+export function closeWorkOrder(data: WorkOrderCloseDTO) {
+  return request({ url: '/system/work-order/close', method: 'put', data });
+}

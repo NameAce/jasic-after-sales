@@ -1,0 +1,98 @@
+/**
+ * 列表表格（.ant-table）内操作列 — 链接按钮配色约定
+ *
+ * Ant Design 的 --ant-color-* 可能未挂在 :root 上，故统一增加 Soybean 主题回退：
+ * rgb(var(--primary-color)) 等与主题配置（themeStore → theme-vars 注入 :root）一致，随「主题配置」里设置的主色变化。
+ *
+ * | 语义           | class（任选其一）                    | 颜色说明 |
+ * |----------------|--------------------------------------|----------|
+ * | 编辑 / 主操作  | table-action-link--primary 或 --edit | 主题主色 |
+ * | 删除           | AButton 设置 danger                   | 红色 |
+ * | 查看 / 日志（操作列） | table-action-link--info         | 信息/链接色 |
+ * | 分配 / 绑定 / 渠道 / 发布 / 选择等协作类 | table-action-link--processing | 成功绿（与主色区分） |
+ * | 重置密码 / 强制下线 / 执行同步等 | table-action-link--warning | 警告橙 |
+ * | 标记已读 / 设为默认 | table-action-link--success      | 成功绿 |
+ *
+ * 列表「进详情」入口文字：.table-list-entry-link（主色 + 下划线），见文件末尾。
+ */
+
+/* 提高优先级 + !important，覆盖 Ant Design 默认 .ant-btn-link 颜色 */
+.ant-table .ant-btn.ant-btn-link:not(.ant-btn-dangerous):not([class*='table-action-link--']) {
+  color: var(--ant-color-primary, rgb(var(--primary-color))) !important;
+}
+
+.ant-table .ant-btn.ant-btn-link:not(.ant-btn-dangerous):not([class*='table-action-link--']):hover {
+  color: var(--ant-color-primary-hover, rgb(var(--primary-600-color))) !important;
+}
+
+.ant-table .ant-btn.ant-btn-link.table-action-link--primary:not(.ant-btn-dangerous),
+.ant-table .ant-btn.ant-btn-link.table-action-link--edit:not(.ant-btn-dangerous) {
+  color: var(--ant-color-primary, rgb(var(--primary-color))) !important;
+}
+
+.ant-table .ant-btn.ant-btn-link.table-action-link--primary:not(.ant-btn-dangerous):hover,
+.ant-table .ant-btn.ant-btn-link.table-action-link--edit:not(.ant-btn-dangerous):hover {
+  color: var(--ant-color-primary-hover, rgb(var(--primary-600-color))) !important;
+}
+
+.ant-table .ant-btn.ant-btn-link.table-action-link--info:not(.ant-btn-dangerous) {
+  color: var(--ant-color-link, var(--ant-color-info, rgb(var(--info-color)))) !important;
+}
+
+.ant-table .ant-btn.ant-btn-link.table-action-link--info:not(.ant-btn-dangerous):hover {
+  color: var(--ant-color-link-hover, var(--ant-color-info-hover, rgb(var(--info-600-color)))) !important;
+}
+
+.ant-table .ant-btn.ant-btn-link.table-action-link--processing:not(.ant-btn-dangerous) {
+  color: var(--ant-color-success, rgb(var(--success-color))) !important;
+}
+
+.ant-table .ant-btn.ant-btn-link.table-action-link--processing:not(.ant-btn-dangerous):hover {
+  color: var(--ant-color-success-hover, rgb(var(--success-600-color))) !important;
+}
+
+.ant-table .ant-btn.ant-btn-link.table-action-link--warning:not(.ant-btn-dangerous) {
+  color: var(--ant-color-warning, rgb(var(--warning-color))) !important;
+}
+
+.ant-table .ant-btn.ant-btn-link.table-action-link--warning:not(.ant-btn-dangerous):hover {
+  color: var(--ant-color-warning-hover, rgb(var(--warning-600-color))) !important;
+}
+
+.ant-table .ant-btn.ant-btn-link.table-action-link--success:not(.ant-btn-dangerous) {
+  color: var(--ant-color-success, rgb(var(--success-color))) !important;
+}
+
+.ant-table .ant-btn.ant-btn-link.table-action-link--success:not(.ant-btn-dangerous):hover {
+  color: var(--ant-color-success-hover, rgb(var(--success-600-color))) !important;
+}
+
+.ant-table .ant-btn.ant-btn-link.ant-btn-dangerous:not(:disabled) {
+  color: var(--ant-color-error, rgb(var(--error-color))) !important;
+}
+
+.ant-table .ant-btn.ant-btn-link.ant-btn-dangerous:not(:disabled):hover {
+  color: var(--ant-color-error-hover, rgb(var(--error-600-color))) !important;
+}
+
+/**
+ * 列表业务入口：点击进详情/抽屉（工单号、客户名等）
+ * 颜色与主题配置中的主色一致：rgb(var(--primary-color))
+ */
+.ant-table .table-list-entry-link {
+  color: var(--ant-color-primary, rgb(var(--primary-color)));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  border-radius: 2px;
+  outline: none;
+}
+
+.ant-table .table-list-entry-link:hover {
+  color: var(--ant-color-primary-hover, rgb(var(--primary-600-color)));
+}
+
+.ant-table .table-list-entry-link:focus-visible {
+  outline: 2px solid rgb(var(--primary-color));
+  outline-offset: 2px;
+}
