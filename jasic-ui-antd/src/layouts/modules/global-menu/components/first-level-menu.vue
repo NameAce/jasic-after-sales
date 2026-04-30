@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 混合布局共用的一级菜单列：图标 + 文案（可折叠为仅图标），底部折叠按钮。
+ */
 import { computed } from 'vue';
 import { createReusableTemplate } from '@vueuse/core';
 import { SimpleScrollbar } from '@sa/materials';
@@ -38,6 +41,7 @@ interface MixMenuItemProps {
 }
 const [DefineMixMenuItem, MixMenuItem] = createReusableTemplate<MixMenuItemProps>();
 
+// 一级菜单项选中背景：主色加透明度，亮暗底不同
 const selectedBgColor = computed(() => {
   const { darkMode, themeColor } = props;
 
@@ -47,10 +51,12 @@ const selectedBgColor = computed(() => {
   return darkMode ? dark : light;
 });
 
+/** 点击某一一级菜单项 */
 function handleClickMixMenu(menu: App.Global.Menu) {
   emit('select', menu);
 }
 
+/** 底部箭头：切换侧栏折叠（由父级处理 appStore） */
 function toggleSiderCollapse() {
   emit('toggleSiderCollapse');
 }

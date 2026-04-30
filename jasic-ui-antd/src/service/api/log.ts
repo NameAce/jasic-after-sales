@@ -1,3 +1,6 @@
+/**
+ * 操作日志：分页查询与详情导出等审计相关接口。
+ */
 import { request } from '../request';
 
 type IdLike = string | number;
@@ -43,15 +46,18 @@ export interface OperLogPageResult {
   records: OperLogVO[];
 }
 
+/** 作用：分页查询操作日志。 */
 export function listOperLog(params?: OperLogQuery) {
   return request<OperLogPageResult>({ url: '/log/oper-log/list', method: 'get', params });
 }
 
+/** 作用：按主键删除操作日志（支持批量逗号拼接）。 */
 export function deleteOperLog(ids: IdLike | IdLike[]) {
   const idText = Array.isArray(ids) ? ids.join(',') : ids;
   return request({ url: `/log/oper-log/${idText}`, method: 'delete' });
 }
 
+/** 作用：清空操作日志。 */
 export function cleanOperLog() {
   return request({ url: '/log/oper-log/clean', method: 'delete' });
 }

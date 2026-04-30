@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 主业务框架布局：组合顶栏、页签、侧栏、内容区与主题抽屉，并向 AdminLayout 注入宽度、折叠等派生参数。
+ */
 import { computed, defineAsyncComponent } from 'vue';
 import { AdminLayout, LAYOUT_SCROLL_EL_ID } from '@sa/materials';
 import type { LayoutMode } from '@sa/materials';
@@ -22,12 +25,14 @@ const { childLevelMenus, isActiveFirstLevelMenuHasChildren } = setupMixMenuConte
 
 const GlobalMenu = defineAsyncComponent(() => import('../modules/global-menu/index.vue'));
 
+// 将四种 layout mode 归为 AdminLayout 的 vertical / horizontal 两大类
 const layoutMode = computed(() => {
   const vertical: LayoutMode = 'vertical';
   const horizontal: LayoutMode = 'horizontal';
   return themeStore.layout.mode.includes(vertical) ? vertical : horizontal;
 });
 
+// 按当前布局模式推导顶栏是否展示 Logo、菜单、折叠按钮等
 const headerProps = computed(() => {
   const { mode, reverseHorizontalMix } = themeStore.layout;
 
@@ -57,16 +62,23 @@ const headerProps = computed(() => {
   return headerPropsConfig[mode];
 });
 
+// 纯顶栏布局时隐藏侧栏
 const siderVisible = computed(() => themeStore.layout.mode !== 'horizontal');
 
 const isVerticalMix = computed(() => themeStore.layout.mode === 'vertical-mix');
 
 const isHorizontalMix = computed(() => themeStore.layout.mode === 'horizontal-mix');
 
+// 展开态侧栏总宽度（含混合模式子菜单宽）
 const siderWidth = computed(() => getSiderWidth());
 
+// 折叠态侧栏占位宽度
 const siderCollapsedWidth = computed(() => getSiderCollapsedWidth());
 
+/**
+ * 作用：根据混合布局、固定子菜单等计算侧栏展开宽度。
+ * @returns {number} 像素宽度
+ */
 function getSiderWidth() {
   const { reverseHorizontalMix } = themeStore.layout;
   const { width, mixWidth, mixChildMenuWidth } = themeStore.sider;
@@ -84,6 +96,10 @@ function getSiderWidth() {
   return w;
 }
 
+/**
+ * 作用：计算侧栏折叠后的占位宽度。
+ * @returns {number} 像素宽度
+ */
 function getSiderCollapsedWidth() {
   const { reverseHorizontalMix } = themeStore.layout;
   const { collapsedWidth, mixCollapsedWidth, mixChildMenuWidth } = themeStore.sider;

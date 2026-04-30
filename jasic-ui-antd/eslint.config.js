@@ -1,8 +1,10 @@
 import { defineConfig } from '@soybeanjs/eslint-config';
 
+/** ESLint 配置入口 */
 export default defineConfig(
   { vue: true, unocss: true },
   {
+    // 规则配置，包含 Vue 和 UnoCSS 规则
     rules: {
       'vue/multi-word-component-names': [
         'warn',
@@ -21,7 +23,7 @@ export default defineConfig(
       'unocss/order-attributify': 'off'
     }
   },
-  // 大块业务页：先放宽规则以便通过 pre-commit；后续可逐步拆函数、收紧规则
+  // 大块业务页规则配置，先放宽规则以便通过 pre-commit；后续可逐步拆函数、收紧规则
   {
     files: ['src/views/advanced-modules/**/*.vue', 'src/views/org/**/*.vue'],
     rules: {

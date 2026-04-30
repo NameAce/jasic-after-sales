@@ -1,4 +1,7 @@
 <script lang="ts" setup>
+/**
+ * 登录等页面的波浪渐变背景：由主题色生成 palette 上的浅/深色圆环 SVG。
+ */
 import { computed } from 'vue';
 import { getColorPalette } from '@sa/utils';
 
@@ -9,7 +12,9 @@ interface Props {
 
 const props = defineProps<Props>();
 
+// 渐变浅色一圈：主题色 palette 第 3 档
 const lightColor = computed(() => getColorPalette(props.themeColor, 3));
+// 渐变深色一圈：palette 第 6 档
 const darkColor = computed(() => getColorPalette(props.themeColor, 6));
 </script>
 

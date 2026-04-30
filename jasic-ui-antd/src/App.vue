@@ -1,8 +1,10 @@
 <script setup lang="ts">
+/**
+ * 根组件：注入 Ant Design Vue 主题与中文、AppProvider、路由出口及可选全屏水印。
+ */
 import { computed } from 'vue';
 import { ConfigProvider } from 'ant-design-vue';
 import type { WatermarkProps } from 'ant-design-vue';
-import { useAppStore } from './store/modules/app';
 import { useThemeStore } from './store/modules/theme';
 import { antdLocales } from './locales/antd';
 
@@ -10,13 +12,13 @@ defineOptions({
   name: 'App'
 });
 
-const appStore = useAppStore();
+// 主题商店
 const themeStore = useThemeStore();
 
-const antdLocale = computed(() => {
-  return antdLocales[appStore.locale];
-});
+// Ant Design Vue 组件库使用的语言包（固定中文）
+const antdLocale = computed(() => antdLocales['zh-CN']);
 
+// 全屏水印组件绑定属性（内容、样式、层级等）
 const watermarkProps = computed(() => {
   const props: WatermarkProps = {
     content: themeStore.watermark.text,

@@ -1,13 +1,12 @@
+/**
+ * 自定义与静态路由：在 elegant 生成路由上追加业务/异常路由，并导出 `createStaticRoutes` 等。
+ */
 import type { CustomRoute, ElegantConstRoute, ElegantRoute } from '@elegant-router/types';
 import { generatedRoutes } from '../elegant/routes';
 import { layouts, views } from '../elegant/imports';
 import { transformElegantRoutesToVueRoutes } from '../elegant/transform';
 
-/**
- * custom routes
- *
- * @link https://github.com/soybeanjs/elegant-router?tab=readme-ov-file#custom-route
- */
+/** 追加在生成路由之外的自定义路由（如 exception 分组） */
 const customRoutes: CustomRoute[] = [
   {
     name: 'exception',

@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 布局区背景容器：默认容器色；`inverted` 时用于侧栏等反色底（与全局暗色模式区分）。
+ */
 defineOptions({ name: 'DarkModeContainer' });
 
 interface Props {

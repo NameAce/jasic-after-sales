@@ -1,4 +1,7 @@
 <script setup lang="ts" generic="T extends Record<string, unknown>, K = never">
+/**
+ * 表格列配置弹层：拖拽排序 + 勾选显示列，结果通过 v-model:columns 回写。
+ */
 import { VueDraggable } from 'vue-draggable-plus';
 import { $t } from '@/locales';
 

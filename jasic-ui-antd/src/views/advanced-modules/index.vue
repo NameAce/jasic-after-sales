@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 高级/运维配置聚合页：字典、参数、通知模板、角色模板、同步任务等多 Tab（对接 system 等接口）。
+ */
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { tagColorEnabled, tagColorPositiveNeutral } from '@/constants/list-status-tag';
@@ -64,34 +67,41 @@ type DataScopeOption = {
 };
 type ModuleKey = 'dict' | 'config' | 'notifyTemplate' | 'barcode' | 'syncTask' | 'fault' | 'roleTemplate' | 'region';
 
+// 表格滚动
 const { tableWrapperRef, scrollConfig } = useTableScroll(960);
 const route = useRoute();
 const { hasAuth } = useAuth();
 
+// 主列表加载与 Tab
 const loading = ref(false);
 const activeKey = ref<ModuleKey>('dict');
 const rows = ref<RowData[]>([]);
 const total = ref(0);
+// 通用分页
 const pageQuery = reactive({ pageNum: 1, pageSize: 10 });
 
+// 字典筛选
 const dictQuery = reactive({
   dictName: '',
   dictType: '',
   status: undefined as number | undefined
 });
 
+// 参数配置筛选
 const configQuery = reactive({
   configName: '',
   configKey: '',
   configType: undefined as number | undefined
 });
 
+// 通知模板筛选
 const notifyQuery = reactive({
   templateCode: '',
   templateName: '',
   templateSource: undefined as string | undefined
 });
 
+// 机器条码档案筛选
 const barcodeQuery = reactive({
   barcode: '',
   deliverNumber: '',
@@ -101,6 +111,7 @@ const barcodeQuery = reactive({
   status: undefined as number | undefined
 });
 
+// 同步任务筛选
 const syncTaskQuery = reactive({
   taskCode: '',
   taskName: '',
@@ -108,6 +119,7 @@ const syncTaskQuery = reactive({
   status: undefined as number | undefined
 });
 
+// 故障维修配置筛选
 const faultQuery = reactive({
   companyId: undefined as number | undefined,
   productCode: '',
@@ -116,15 +128,20 @@ const faultQuery = reactive({
   status: undefined as number | undefined
 });
 
+// 角色模板：当前筛选的类型编码
 const roleTemplateTypeCode = ref<string | undefined>(undefined);
+// typeCode -> 类型名称
 const typeCodeLabelMap = ref<Record<string, string>>({});
 
+// 系统大区：当前总部
 const regionHqId = ref<number | undefined>(undefined);
 const hqCompanyOptions = ref<RowData[]>([]);
 
+// 同步任务处理器下拉 / 故障配置归属公司下拉
 const handlerOptions = ref<RowData[]>([]);
 const faultCompanyOptions = ref<RowData[]>([]);
 
+// 顶部 Tab 选项
 const tabOptions = [
   { key: 'dict' as const, label: '字典管理' },
   { key: 'config' as const, label: '参数配置' },
@@ -136,6 +153,7 @@ const tabOptions = [
   { key: 'region' as const, label: '系统大区' }
 ];
 
+// 路由 name -> 子模块 key
 const ROUTE_NAME_TO_MODULE_KEY: Record<string, ModuleKey> = {
   'system_role-template': 'roleTemplate',
   system_config: 'config',
@@ -148,12 +166,15 @@ const ROUTE_NAME_TO_MODULE_KEY: Record<string, ModuleKey> = {
   system_region: 'region'
 };
 
+// 字典/参数配置等通用表单抽屉
 const formOpen = ref(false);
 const formModel = reactive<RowData>({});
 const formTitle = ref('');
 
+// 条码档案详情弹窗
 const barcodeDetailOpen = ref(false);
 const barcodeDetail = ref<RowData | null>(null);
+// 条码详情描述列表（computed）
 const barcodeDetailRows = computed(() => {
   const detail = barcodeDetail.value || {};
   const statusValue = Number(detail.status);
@@ -178,8 +199,9 @@ const barcodeDetailRows = computed(() => {
   ];
 });
 
+// 通知模板：列表查看抽屉与关联行
 const notifyViewOpen = ref(false);
-const notifyViewRecord = ref<RowData | null>(null);
+// 通知模板：抽屉表单与预览弹窗状态
 const notifyFormOpen = ref(false);
 const notifyFormTitle = ref('');
 const notifyFormReadonly = ref(false);
@@ -195,16 +217,19 @@ const notifyRouteTypeOptions = [
   { label: '工单评价', value: 'WORK_ORDER_EVALUATE' }
 ];
 
+// 通知渠道配置抽屉
 const channelsOpen = ref(false);
 const channelsLoading = ref(false);
 const channelsReadonly = ref(false);
 const channelsTemplateCode = ref('');
 const channelsRows = ref<RowData[]>([]);
 
+// 同步任务编辑抽屉
 const syncFormOpen = ref(false);
 const syncFormTitle = ref('');
 const syncFormModel = reactive<RowData>({});
 
+// 同步任务执行日志弹窗
 const logOpen = ref(false);
 const logDialogTitle = ref('执行日志');
 const logTaskId = ref<number | string | undefined>(undefined);
@@ -216,8 +241,11 @@ const logQuery = reactive({
   status: undefined as string | undefined
 });
 
+// 角色模板数据范围映射（按 typeCode，供表格列展示标签）
 const roleTemplateDataScopeMap = ref<Record<string, DataScopeOption[]>>({});
+// 角色模板表单：当前 typeCode 对应的数据范围下拉
 const roleTemplateScopeOptions = ref<Array<{ label: string; value: string }>>([]);
+// 角色模板菜单分配
 const menuAssignOpen = ref(false);
 const menuAssignSubmitting = ref(false);
 const menuAssignTypeCode = ref('');
@@ -225,10 +253,12 @@ const menuAssignTemplate = ref<RowData | null>(null);
 const menuTreeData = ref<any[]>([]);
 const menuCheckedKeys = ref<Array<string | number>>([]);
 
+// 系统大区表单抽屉
 const regionFormOpen = ref(false);
 const regionFormTitle = ref('');
 const regionForm = reactive<RowData>({});
 
+// 故障配置只读详情弹窗
 const faultDetailOpen = ref(false);
 const faultDetail = ref<RowData | null>(null);
 type FaultRepairItem = {
@@ -236,20 +266,38 @@ type FaultRepairItem = {
   repairOptions: string[];
 };
 
+/**
+ * 作用：解析分页列表字段 records。
+ * @param data - 接口数据
+ * @returns 行数组
+ */
 function pickRows(data: any) {
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.records)) return data.records;
   return [];
 }
 
+/**
+ * 作用：解析分页 total。
+ * @param data - 接口数据
+ * @returns 总条数
+ */
 function pickTotal(data: any) {
   return Number(data?.total) || 0;
 }
 
+/**
+ * 作用：当前列表请求的统一分页参数。
+ * @returns pageNum/pageSize
+ */
 function listParams() {
   return { pageNum: pageQuery.pageNum, pageSize: pageQuery.pageSize };
 }
 
+/**
+ * 作用：懒加载同步任务处理器选项。
+ * @returns 无
+ */
 async function ensureHandlerOptions() {
   if (handlerOptions.value.length) return;
   try {
@@ -260,6 +308,10 @@ async function ensureHandlerOptions() {
   }
 }
 
+/**
+ * 作用：懒加载故障配置可选归属公司列表。
+ * @returns 无
+ */
 async function ensureFaultCompanyOptions() {
   if (faultCompanyOptions.value.length) return;
   try {
@@ -270,6 +322,10 @@ async function ensureFaultCompanyOptions() {
   }
 }
 
+/**
+ * 作用：加载总部列表供「系统大区」筛选；默认选中第一项。
+ * @returns 无
+ */
 async function loadHqForRegion() {
   const { data } = await listCompany({ pageNum: 1, pageSize: 999, category: 'HQ' });
   const list = pickRows(data);
@@ -279,6 +335,10 @@ async function loadHqForRegion() {
   }
 }
 
+/**
+ * 作用：加载公司类型标签映射与角色模板数据范围选项映射。
+ * @returns 无
+ */
 async function loadTypeCodeLabels() {
   try {
     const { data } = await listCompanyType();
@@ -302,6 +362,10 @@ async function loadTypeCodeLabels() {
   }
 }
 
+/**
+ * 作用：按当前子模块构造列表请求 Promise。
+ * @returns 接口 Promise
+ */
 function loadByModule() {
   const p = listParams();
   switch (activeKey.value) {
@@ -365,6 +429,7 @@ function loadByModule() {
   }
 }
 
+// 当前子模块表格列定义
 const columns = computed(() => {
   const actionCol = { title: '操作', key: 'actions', width: 220, fixed: 'right' as const };
   switch (activeKey.value) {
@@ -458,13 +523,22 @@ const columns = computed(() => {
   }
 });
 
-/** 字典/参数：表格行内「编辑/删除」 */
+// 字典/参数模块是否展示行内编辑删除
 const hasDictConfigRowActions = computed(() => activeKey.value === 'dict' || activeKey.value === 'config');
 
+/**
+ * 作用：为表格行生成稳定 key。
+ * @param r - 行数据
+ * @returns 唯一键字符串
+ */
 function resolveRowKey(r: RowData) {
   return r.id ?? r.dictId ?? r.configId ?? r.templateCode ?? String(r.taskCode ?? r.barcode ?? Math.random());
 }
 
+/**
+ * 作用：拉取当前子模块列表数据并写入 rows/total。
+ * @returns 无
+ */
 async function loadList() {
   loading.value = true;
   try {
@@ -493,6 +567,11 @@ async function loadList() {
   }
 }
 
+/**
+ * 作用：根据路由 name 切换 Tab 并触发列表加载。
+ * @param routeName - 当前路由 name
+ * @returns 是否发生了 Tab 切换
+ */
 function syncActiveModuleByRouteName(routeName: unknown) {
   const key = String(routeName || '');
   const moduleKey = ROUTE_NAME_TO_MODULE_KEY[key];
@@ -506,11 +585,19 @@ function syncActiveModuleByRouteName(routeName: unknown) {
   return true;
 }
 
+/**
+ * 作用：查询：重置到第一页并重新加载列表。
+ * @returns 无
+ */
 function handleSearch() {
   pageQuery.pageNum = 1;
   loadList();
 }
 
+/**
+ * 作用：清空当前子模块筛选条件并重新查询。
+ * @returns 无
+ */
 function resetSearch() {
   switch (activeKey.value) {
     case 'dict':
@@ -562,6 +649,12 @@ function resetSearch() {
   handleSearch();
 }
 
+/**
+ * 作用：表格分页变更。
+ * @param page - 页码
+ * @param pageSize - 每页条数（可选）
+ * @returns 无
+ */
 function onPageChange(page: number, pageSize?: number) {
   if (pageSize !== undefined && pageSize !== pageQuery.pageSize) {
     pageQuery.pageSize = pageSize;
@@ -573,6 +666,11 @@ function onPageChange(page: number, pageSize?: number) {
   loadList();
 }
 
+/**
+ * 作用：打开通用表单抽屉并按子模块初始化表单模型。
+ * @param record - 编辑时的行数据，新增时省略
+ * @param title - 抽屉标题，可选
+ */
 async function openForm(record?: RowData, title?: string) {
   if (activeKey.value === 'roleTemplate') {
     formTitle.value = title || (record?.id ? '编辑模板' : '新增模板');
@@ -625,6 +723,11 @@ async function openForm(record?: RowData, title?: string) {
   formOpen.value = true;
 }
 
+/**
+ * 作用：判断字典/参数表单字段是否必填。
+ * @param key - 字段名
+ * @returns 是否必填
+ */
 function isFormFieldRequired(key: string) {
   if (activeKey.value === 'dict') {
     return key === 'dictName' || key === 'dictType' || key === 'status';
@@ -635,6 +738,10 @@ function isFormFieldRequired(key: string) {
   return false;
 }
 
+/**
+ * 作用：返回当前子模块抽屉内表单字段定义。
+ * @returns 字段列表
+ */
 function formFields(): { label: string; key: string; type: 'input' | 'textarea' | 'number' | 'radio' }[] {
   switch (activeKey.value) {
     case 'dict':
@@ -684,6 +791,11 @@ function formFields(): { label: string; key: string; type: 'input' | 'textarea' 
   }
 }
 
+/**
+ * 作用：字典/参数.radio 类型字段的选项。
+ * @param key - 字段名
+ * @returns 选项列表
+ */
 function getFormRadioOptions(key: string) {
   if (key === 'status') {
     return [
@@ -700,6 +812,12 @@ function getFormRadioOptions(key: string) {
   return [];
 }
 
+/**
+ * 作用：表单控件占位提示文案。
+ * @param key - 字段名
+ * @param type - 控件类型
+ * @returns 占位符或 undefined
+ */
 function getFormPlaceholder(key: string, type: 'input' | 'textarea' | 'number' | 'radio') {
   if (activeKey.value === 'dict') {
     if (key === 'dictName') return '请输入字典名称';
@@ -715,6 +833,10 @@ function getFormPlaceholder(key: string, type: 'input' | 'textarea' | 'number' |
   return undefined;
 }
 
+/**
+ * 作用：新建一条空的故障-维修项。
+ * @returns 故障项结构
+ */
 function createFaultItem(): FaultRepairItem {
   return {
     faultDesc: '',
@@ -722,6 +844,11 @@ function createFaultItem(): FaultRepairItem {
   };
 }
 
+/**
+ * 作用：将接口/行数据规整为故障维修表单可用的结构。
+ * @param data - 原始数据，可选
+ * @returns 表单模型片段
+ */
 function normalizeFaultFormData(data?: RowData) {
   const faultsRaw = Array.isArray(data?.faults) ? data.faults : [];
   const faults: FaultRepairItem[] = (faultsRaw.length ? faultsRaw : [createFaultItem()]).map((item: RowData) => {
@@ -746,27 +873,50 @@ function normalizeFaultFormData(data?: RowData) {
   };
 }
 
+/**
+ * 作用：在故障表单中追加一条故障信息。
+ * @returns 无
+ */
 function addFaultItem() {
   const list = Array.isArray(formModel.faults) ? (formModel.faults as FaultRepairItem[]) : [];
   list.push(createFaultItem());
   formModel.faults = list;
 }
 
+/**
+ * 作用：移除指定索引的故障信息（至少保留一条）。
+ * @param index - 下标
+ */
 function removeFaultItem(index: number) {
   const list = Array.isArray(formModel.faults) ? (formModel.faults as FaultRepairItem[]) : [];
   if (list.length <= 1) return;
   list.splice(index, 1);
 }
 
+/**
+ * 作用：为某故障追加一项维修说明输入框。
+ * @param item - 故障项
+ * @returns 无
+ */
 function addRepairOption(item: FaultRepairItem) {
   item.repairOptions.push('');
 }
 
+/**
+ * 作用：移除指定维修说明项（至少保留一项）。
+ * @param item - 故障项
+ * @param index - 下标
+ */
 function removeRepairOption(item: FaultRepairItem, index: number) {
   if (item.repairOptions.length <= 1) return;
   item.repairOptions.splice(index, 1);
 }
 
+/**
+ * 作用：校验故障维修表单业务规则。
+ * @param data - 表单数据
+ * @returns 是否通过
+ */
 function validateFaultForm(data: RowData) {
   if (data.companyId == null || data.companyId === '') {
     window.$message?.warning?.('请选择归属总部');
@@ -812,6 +962,11 @@ function validateFaultForm(data: RowData) {
   return true;
 }
 
+/**
+ * 作用：组装故障维修提交给后端的 payload。
+ * @param data - 表单数据
+ * @returns 提交体
+ */
 function buildFaultSubmitPayload(data: RowData) {
   return {
     id: data.id,
@@ -829,6 +984,10 @@ function buildFaultSubmitPayload(data: RowData) {
   };
 }
 
+/**
+ * 作用：提交通用表单（字典/参数/通知/故障/角色模板等）。
+ * @returns 无
+ */
 async function submitForm() {
   const data = { ...formModel };
   switch (activeKey.value) {
@@ -909,6 +1068,11 @@ async function submitForm() {
   loadList();
 }
 
+/**
+ * 作用：按当前子模块删除表格行。
+ * @param record - 行数据
+ * @returns 无
+ */
 async function removeRow(record: RowData) {
   switch (activeKey.value) {
     case 'dict':
@@ -936,6 +1100,10 @@ async function removeRow(record: RowData) {
   loadList();
 }
 
+/**
+ * 作用：刷新当前 Tab 对应的后端缓存（字典/参数/通知模板）。
+ * @returns 无
+ */
 async function onRefreshCache() {
   if (activeKey.value === 'dict') {
     await refreshDictTypeCache();
@@ -950,6 +1118,11 @@ async function onRefreshCache() {
   loadList();
 }
 
+/**
+ * 作用：手动触发一条同步任务执行。
+ * @param record - 任务行
+ * @returns 无
+ */
 async function onRunSyncTask(record: RowData) {
   const id = record.id ?? record.taskId;
   if (id == null) return;
@@ -958,6 +1131,11 @@ async function onRunSyncTask(record: RowData) {
   loadList();
 }
 
+/**
+ * 作用：同步单行角色模板至业务侧。
+ * @param record - 模板行
+ * @returns 无
+ */
 async function onSyncRoleTemplateRow(record: RowData) {
   const id = record.id;
   if (id == null) return;
@@ -965,12 +1143,21 @@ async function onSyncRoleTemplateRow(record: RowData) {
   window.$message?.success?.('全量同步成功');
 }
 
+/**
+ * 作用：触发机器条码全量同步任务。
+ * @returns 无
+ */
 async function onFullSyncBarcode() {
   await fullSyncMachineBarcode();
   window.$message?.success?.('已触发全量同步');
   loadList();
 }
 
+/**
+ * 作用：打开条码档案详情抽屉并加载详情。
+ * @param record - 列表行
+ * @returns 无
+ */
 async function openBarcodeDetail(record: RowData) {
   const id = record.id;
   if (id == null) return;
@@ -979,6 +1166,11 @@ async function openBarcodeDetail(record: RowData) {
   barcodeDetailOpen.value = true;
 }
 
+/**
+ * 作用：判断列表中是否已存在某编码的自定义通知模板。
+ * @param templateCode - 模板编码
+ * @returns 是否存在 CUSTOM 来源记录
+ */
 function hasCustomNotifyTemplate(templateCode?: string) {
   const code = String(templateCode || '');
   if (!code) return false;
@@ -987,6 +1179,11 @@ function hasCustomNotifyTemplate(templateCode?: string) {
   );
 }
 
+/**
+ * 作用：生成通知模板预览用的示例变量 JSON 字符串。
+ * @param templateCode - 模板编码，用于分支变量集合
+ * @returns JSON 字符串
+ */
 function buildNotifyPreviewVariables(templateCode?: string) {
   // 给预览接口准备一个“尽量全”的变量集合，
   // 避免不同模板的占位符差异导致标题/摘要/路由值渲染时缺变量。
@@ -1009,6 +1206,11 @@ function buildNotifyPreviewVariables(templateCode?: string) {
   return JSON.stringify(commonVars, null, 2);
 }
 
+/**
+ * 作用：用详情数据填充通知模板表单模型。
+ * @param detail - 模板详情
+ * @returns 无
+ */
 function fillNotifyForm(detail: RowData) {
   Object.keys(notifyForm).forEach(k => delete notifyForm[k]);
   Object.assign(notifyForm, {
@@ -1018,6 +1220,11 @@ function fillNotifyForm(detail: RowData) {
   });
 }
 
+/**
+ * 作用：只读打开通知模板详情抽屉。
+ * @param record - 行或详情引用
+ * @returns 无
+ */
 async function openNotifyView(record: RowData) {
   notifyFormTitle.value = '查看通知模板';
   notifyFormReadonly.value = true;
@@ -1026,6 +1233,11 @@ async function openNotifyView(record: RowData) {
   notifyFormOpen.value = true;
 }
 
+/**
+ * 作用：基于标准模板打开「新增自定义模板」表单。
+ * @param record - 基准行（提供编码等）
+ * @returns 无
+ */
 async function openNotifyAddCustom(record: RowData) {
   notifyFormTitle.value = '新增自定义模板';
   notifyFormReadonly.value = false;
@@ -1044,6 +1256,11 @@ async function openNotifyAddCustom(record: RowData) {
   notifyFormOpen.value = true;
 }
 
+/**
+ * 作用：打开自定义模板编辑抽屉。
+ * @param record - 列表行
+ * @returns 无
+ */
 async function openNotifyEdit(record: RowData) {
   notifyFormTitle.value = '编辑自定义模板';
   notifyFormReadonly.value = false;
@@ -1052,6 +1269,10 @@ async function openNotifyEdit(record: RowData) {
   notifyFormOpen.value = true;
 }
 
+/**
+ * 作用：提交通知模板表单（新增或更新自定义模板）。
+ * @returns 无
+ */
 async function submitNotifyForm() {
   if (!notifyForm.templateCode) return window.$message?.warning?.('模板编码不能为空');
   if (notifyForm.notifyEnabled == null) return window.$message?.warning?.('请选择通知开关');
@@ -1080,6 +1301,11 @@ async function submitNotifyForm() {
   }
 }
 
+/**
+ * 作用：从列表行打开模板预览弹窗并请求预览接口。
+ * @param record - 模板行
+ * @returns 无
+ */
 async function onPreviewNotify(record: RowData) {
   const payload = {
     templateCode: record.templateCode,
@@ -1097,6 +1323,10 @@ async function onPreviewNotify(record: RowData) {
   await runNotifyPreview(payload);
 }
 
+/**
+ * 作用：从抽屉表单打开预览并带上当前编辑内容。
+ * @returns 无
+ */
 async function onPreviewNotifyForm() {
   const payload = {
     templateCode: notifyForm.templateCode,
@@ -1115,6 +1345,11 @@ async function onPreviewNotifyForm() {
   await runNotifyPreview(payload);
 }
 
+/**
+ * 作用：调用预览接口并写入预览结果。
+ * @param payload - 模板内容与开关等
+ * @returns 无
+ */
 async function runNotifyPreview(payload: RowData) {
   let variables = {};
   try {
@@ -1132,6 +1367,11 @@ async function runNotifyPreview(payload: RowData) {
   }
 }
 
+/**
+ * 作用：打开通知渠道配置抽屉并加载渠道列表。
+ * @param record - 模板行（含 templateCode）
+ * @returns 无
+ */
 async function openChannelsEditor(record: RowData) {
   channelsReadonly.value = !hasAuth('system:notifyTemplate:update');
   channelsTemplateCode.value = String(record.templateCode || '');
@@ -1147,6 +1387,10 @@ async function openChannelsEditor(record: RowData) {
   }
 }
 
+/**
+ * 作用：新建一行渠道配置默认值（按模板编码可返回预设）。
+ * @returns 渠道行对象
+ */
 function createChannelRow() {
   if (channelsTemplateCode.value === 'WORK_ORDER_EVALUATION_INVITE') {
     return {
@@ -1174,10 +1418,19 @@ function createChannelRow() {
   };
 }
 
+/**
+ * 作用：无渠道数据时的默认一行。
+ * @returns 渠道行数组
+ */
 function defaultChannelRows() {
   return [createChannelRow()];
 }
 
+/**
+ * 作用：将接口渠道项规整为表单行结构。
+ * @param item - 原始项
+ * @returns 规整后的行
+ */
 function normalizeChannelRow(item: RowData) {
   return {
     id: item.id,
@@ -1194,6 +1447,11 @@ function normalizeChannelRow(item: RowData) {
   };
 }
 
+/**
+ * 作用：组装单条渠道保存请求体。
+ * @param item - 表单行
+ * @returns payload
+ */
 function buildChannelPayload(item: RowData) {
   return {
     id: item.id,
@@ -1211,24 +1469,45 @@ function buildChannelPayload(item: RowData) {
   };
 }
 
+/**
+ * 作用：渠道表格追加一行。
+ * @returns 无
+ */
 function addChannelRow() {
   channelsRows.value.push(createChannelRow());
 }
 
+/**
+ * 作用：删除指定索引的渠道行。
+ * @param index - 下标
+ */
 function removeChannelRow(index: number) {
   channelsRows.value.splice(index, 1);
 }
 
+/**
+ * 作用：为渠道行追加一条字段映射空行。
+ * @param item - 渠道行
+ */
 function addFieldMapping(item: RowData) {
   if (!Array.isArray(item.fieldMapping)) item.fieldMapping = [];
   item.fieldMapping.push({ field: '', value: '' });
 }
 
+/**
+ * 作用：移除渠道行内指定字段映射。
+ * @param item - 渠道行
+ * @param index - 映射下标
+ */
 function removeFieldMapping(item: RowData, index: number) {
   if (!Array.isArray(item.fieldMapping)) return;
   item.fieldMapping.splice(index, 1);
 }
 
+/**
+ * 作用：批量保存当前模板渠道配置。
+ * @returns 无
+ */
 async function saveChannels() {
   channelsLoading.value = true;
   try {
@@ -1241,6 +1520,11 @@ async function saveChannels() {
   }
 }
 
+/**
+ * 作用：打开同步任务新增/编辑抽屉。
+ * @param record - 编辑时传入行数据，新增时省略
+ * @returns 无
+ */
 function openSyncForm(record?: RowData) {
   syncFormTitle.value = record ? '编辑同步任务' : '新增同步任务';
   Object.keys(syncFormModel).forEach(k => delete syncFormModel[k]);
@@ -1253,6 +1537,10 @@ function openSyncForm(record?: RowData) {
   syncFormOpen.value = true;
 }
 
+/**
+ * 作用：提交同步任务表单。
+ * @returns 无
+ */
 async function submitSyncForm() {
   const data = { ...syncFormModel };
   if (data.id) await updateSyncTask(data);
@@ -1262,6 +1550,11 @@ async function submitSyncForm() {
   loadList();
 }
 
+/**
+ * 作用：拉取任务详情后打开编辑抽屉。
+ * @param record - 列表行
+ * @returns 无
+ */
 async function openSyncFormEdit(record: RowData) {
   const id = record.id;
   if (id == null) return;
@@ -1269,6 +1562,11 @@ async function openSyncFormEdit(record: RowData) {
   openSyncForm((data as RowData) || record);
 }
 
+/**
+ * 作用：打开同步任务执行日志弹窗并加载第一页。
+ * @param record - 任务行
+ * @returns 无
+ */
 async function openLogDialog(record: RowData) {
   logTaskId.value = record.id;
   logPage.pageNum = 1;
@@ -1278,6 +1576,10 @@ async function openLogDialog(record: RowData) {
   await loadSyncLogs();
 }
 
+/**
+ * 作用：按当前任务与筛选分页加载执行日志。
+ * @returns 无
+ */
 async function loadSyncLogs() {
   if (logTaskId.value == null) return;
   logLoading.value = true;
@@ -1295,17 +1597,32 @@ async function loadSyncLogs() {
   }
 }
 
+/**
+ * 作用：日志表格分页变更。
+ * @param page - 页码
+ * @param pageSize - 每页条数，可选
+ * @returns 无
+ */
 function onLogPageChange(page: number, pageSize?: number) {
   logPage.pageNum = page;
   if (pageSize) logPage.pageSize = pageSize;
   loadSyncLogs();
 }
 
+/**
+ * 作用：日志状态筛选变更时回到第一页并刷新。
+ * @returns 无
+ */
 function handleLogStatusChange() {
   logPage.pageNum = 1;
   loadSyncLogs();
 }
 
+/**
+ * 作用：同步日志状态对应 Tag 颜色。
+ * @param status - 状态枚举字符串
+ * @returns Ant Tag color
+ */
 function syncLogStatusTagColor(status: unknown) {
   const s = String(status || '');
   if (s === 'SUCCESS') return 'success';
@@ -1314,6 +1631,11 @@ function syncLogStatusTagColor(status: unknown) {
   return 'default';
 }
 
+/**
+ * 作用：打开角色模板菜单分配抽屉并加载菜单树。
+ * @param record - 模板行
+ * @returns 无
+ */
 async function openRoleTemplateMenuAssign(record: RowData) {
   const typeCode = String(record.typeCode || '');
   if (!typeCode) {
@@ -1328,6 +1650,10 @@ async function openRoleTemplateMenuAssign(record: RowData) {
   menuCheckedKeys.value = (Array.isArray(record.menuIds) ? record.menuIds : []) as Array<string | number>;
 }
 
+/**
+ * 作用：提交模板菜单勾选结果。
+ * @returns 无
+ */
 async function submitRoleTemplateMenuAssign() {
   if (!menuAssignTypeCode.value || !menuAssignTemplate.value?.id) return;
   menuAssignSubmitting.value = true;
@@ -1351,6 +1677,11 @@ async function submitRoleTemplateMenuAssign() {
   }
 }
 
+/**
+ * 作用：打开系统大区新增/编辑表单。
+ * @param record - 编辑时传入行，新增时省略
+ * @returns 无
+ */
 function openRegionForm(record?: RowData) {
   if (!regionHqId.value) {
     window.$message?.warning?.('请先选择总部公司');
@@ -1366,6 +1697,10 @@ function openRegionForm(record?: RowData) {
   regionFormOpen.value = true;
 }
 
+/**
+ * 作用：提交大区表单（新增或更新）。
+ * @returns 无
+ */
 async function submitRegionForm() {
   const data = { ...regionForm };
   if (data.id) await updateRegion(data);
@@ -1375,6 +1710,11 @@ async function submitRegionForm() {
   loadList();
 }
 
+/**
+ * 作用：打开故障维修配置只读详情。
+ * @param record - 列表行
+ * @returns 无
+ */
 async function openFaultDetail(record: RowData) {
   const id = record.id;
   if (id == null) return;
@@ -1383,25 +1723,44 @@ async function openFaultDetail(record: RowData) {
   faultDetailOpen.value = true;
 }
 
+/**
+ * 作用：将类型编码转为可读名称（查映射表）。
+ * @param code - typeCode
+ * @returns 展示文案
+ */
 function typeCodeLabel(code: string) {
   return typeCodeLabelMap.value[code] || code;
 }
 
+/**
+ * 作用：表格中展示角色模板数据范围的可读标签。
+ * @param row - 模板行
+ * @returns 标签或原值
+ */
 function getRoleTemplateDataScopeLabel(row: RowData) {
   const typeCode = String(row.typeCode || '');
   const dataScope = String(row.dataScope || '');
   if (!typeCode || !dataScope) return row.dataScope || '-';
 
   const options = roleTemplateDataScopeMap.value[typeCode] || [];
-  const matched = options.find(option => option.value === dataScope);
+  const matched = options.find((option: DataScopeOption) => option.value === dataScope);
   return matched?.label || dataScope;
 }
 
+/**
+ * 作用：角色模板类型筛选变更后回到第一页并刷新列表。
+ * @returns 无
+ */
 function onRoleTemplateTypeChange() {
   pageQuery.pageNum = 1;
   loadList();
 }
 
+/**
+ * 作用：按表单中的 typeCode 拉取可选数据范围并重置 dataScope（可选保留当前值）。
+ * @param keepCurrentValue - 为 true 时在合法时保留当前 dataScope
+ * @returns 无
+ */
 async function onRoleTemplateDataScopeInit(keepCurrentValue = false) {
   const typeCode = String(formModel.typeCode || '');
   if (!typeCode) {
@@ -1430,10 +1789,12 @@ async function onRoleTemplateDataScopeInit(keepCurrentValue = false) {
   }
 }
 
+// 系统大区 Tab：切换所选总部后刷新列表
 watch(regionHqId, () => {
   if (activeKey.value === 'region') loadList();
 });
 
+// 路由 name 变化时同步当前高级配置子模块 Tab
 watch(
   () => route.name,
   name => {
@@ -1441,6 +1802,9 @@ watch(
   }
 );
 
+/**
+ * 作用：挂载时按路由初始化 Tab；若路由未切换 Tab 则直接加载列表。
+ */
 onMounted(() => {
   const changedByRoute = syncActiveModuleByRouteName(route.name);
   if (!changedByRoute) {
@@ -2053,7 +2417,10 @@ onMounted(() => {
                   option-filter-prop="label"
                   placeholder="请选择归属总部"
                   :options="
-                    faultCompanyOptions.map((c: RowData) => ({ label: c.companyName ?? c.label, value: c.id ?? c.value }))
+                    faultCompanyOptions.map((c: RowData) => ({
+                      label: c.companyName ?? c.label,
+                      value: c.id ?? c.value
+                    }))
                   "
                 />
               </AFormItem>
@@ -2289,7 +2656,9 @@ onMounted(() => {
         </AButton>
       </div>
       <ADescriptions v-if="notifyPreviewResult" :column="1" bordered size="small">
-        <ADescriptionsItem label="是否发送">{{ Number(notifyPreviewResult.notifyEnabled) === 1 ? '是' : '否' }}</ADescriptionsItem>
+        <ADescriptionsItem label="是否发送">
+          {{ Number(notifyPreviewResult.notifyEnabled) === 1 ? '是' : '否' }}
+        </ADescriptionsItem>
         <ADescriptionsItem label="实际来源">{{ notifyPreviewResult.templateSource || '-' }}</ADescriptionsItem>
         <ADescriptionsItem label="标题">{{ notifyPreviewResult.title || '-' }}</ADescriptionsItem>
         <ADescriptionsItem label="摘要">{{ notifyPreviewResult.summary || '-' }}</ADescriptionsItem>

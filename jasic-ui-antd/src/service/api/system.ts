@@ -1,5 +1,9 @@
 import { request } from '../request';
 
+/**
+ * 系统管理域接口：用户/角色/菜单/字典/通知模板/同步任务等后台配置与运维。
+ */
+
 type IdLike = string | number;
 type Query = Record<string, unknown>;
 

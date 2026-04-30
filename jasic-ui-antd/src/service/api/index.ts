@@ -1,5 +1,5 @@
+/** API 按业务域聚合导出（auth、system、工单等） */
 export * from './auth';
-export * from './route';
 export * from './file';
 export * from './system';
 export * from './org';

@@ -14,10 +14,14 @@ defineOptions({
 const router = useRouter();
 const appStore = useAppStore();
 const { hasAuth } = useAuth();
+// 可按用户列表权限查看用户汇总
 const canViewUser = computed(() => hasAuth('system:user:list'));
+// 可按角色列表权限查看角色汇总
 const canViewRole = computed(() => hasAuth('system:role:list'));
+// 是否展示组织维度的用户/角色汇总（否则展示待办/消息）
 const useOrgSummary = computed(() => canViewUser.value || canViewRole.value);
 
+// 汇总条形图所用的数值（部分为占位 '--'）
 const summary = reactive({
   userTotal: '--' as number | string,
   roleTotal: '--' as number | string,
@@ -25,6 +29,7 @@ const summary = reactive({
   messageTotal: '--' as number | string
 });
 
+// 横向条形图各柱数据
 const chartItems = computed(() => {
   if (useOrgSummary.value) {
     return [
@@ -39,6 +44,13 @@ const chartItems = computed(() => {
   ];
 });
 
+/**
+ * 作用：在允许时请求接口并用 extractor 取数，失败返回 '--'。
+ * @param enabled - 是否请求
+ * @param requester - 请求函数
+ * @param extractor - 从响应取 total/count
+ * @returns 数字或 '--'
+ */
 async function safeGetTotal(enabled: boolean, requester: () => Promise<any>, extractor: (res: any) => number) {
   if (!enabled) return '--';
   try {
@@ -49,6 +61,11 @@ async function safeGetTotal(enabled: boolean, requester: () => Promise<any>, ext
   }
 }
 
+/**
+ * 作用：根据权限加载用户/角色或待办/消息汇总并刷新图表。
+ * @param 无
+ * @returns 返回 Promise，汇总与图表更新后结束
+ */
 async function loadSummary() {
   try {
     if (useOrgSummary.value) {
@@ -92,10 +109,20 @@ async function loadSummary() {
   }
 }
 
+/**
+ * 作用：挂载后拉取汇总数据。
+ * @param 无
+ * @returns {void} 无
+ */
 onMounted(() => {
   loadSummary();
 });
 
+/**
+ * 作用：点击柱状图条目跳转对应管理页或消息中心。
+ * @param key - 条目 key
+ * @returns {void} 无
+ */
 function openSummaryPage(key: string) {
   if (key === 'user') {
     router.push({ path: '/system/user' });
@@ -112,6 +139,7 @@ function openSummaryPage(key: string) {
   router.push({ path: '/notify', query: { box: 'HISTORY' } });
 }
 
+// 横向汇总条形图 ECharts 实例
 const { domRef, updateOptions } = useEcharts(
   () => ({
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
@@ -174,6 +202,11 @@ const { domRef, updateOptions } = useEcharts(
   }
 );
 
+/**
+ * 作用：将 summary/chartItems 同步到图表配置。
+ * @param 无
+ * @returns {void} 无
+ */
 function updateChart() {
   updateOptions(opts => {
     opts.series[0].name = $t('page.home.summaryTitle');
@@ -186,6 +219,7 @@ function updateChart() {
   });
 }
 
+// 语言切换后重绘汇总图
 watch(
   () => appStore.locale,
   () => {

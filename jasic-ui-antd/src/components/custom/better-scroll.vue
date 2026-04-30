@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * BetterScroll 封装：根据父级传入 options 创建实例，尺寸变化时 refresh，并 expose `instance`。
+ */
 import { computed, onMounted, ref, watch } from 'vue';
 import { useElementSize } from '@vueuse/core';
 import BScroll from '@better-scroll/core';
@@ -23,14 +26,16 @@ const { width: wrapWidth } = useElementSize(bsWrapper);
 const { width, height } = useElementSize(bsContent);
 
 const instance = ref<BScroll>();
+// 是否启用纵向滚动（影响容器高度计算）
 const isScrollY = computed(() => Boolean(props.options.scrollY));
 
+/** 在挂载节点上实例化 BScroll */
 function initBetterScroll() {
   if (!bsWrapper.value) return;
   instance.value = new BScroll(bsWrapper.value, props.options);
 }
 
-// refresh BS when scroll element size changed
+// 包装层或内容尺寸变化时 refresh，避免滚动区域留白/卡死
 watch([() => wrapWidth.value, () => width.value, () => height.value], () => {
   instance.value?.refresh();
 });

@@ -1,14 +1,15 @@
+/**
+ * 路由跳转封装：按 RouteKey、登录模块、首页等统一 `push`/`replace` 与 query 拼接。
+ */
 import { useRouter } from 'vue-router';
 import type { RouteLocationRaw } from 'vue-router';
 import type { RouteKey } from '@elegant-router/types';
 import { router as globalRouter } from '@/router';
 
 /**
- * Router push
- *
- * Jump to the specified route, it can replace function router.push
- *
- * @param inSetup Whether is in vue script setup
+ * 作用：封装常用路由跳转（按 name、登录模块、首页等），可选择在 setup 内或外使用全局 router。
+ * @param inSetup 是否在 `setup()` 中调用（决定用 `useRouter()` 还是全局实例）
+ * @returns 路由操作方法集合
  */
 export function useRouterPush(inSetup = true) {
   const router = inSetup ? useRouter() : globalRouter;
@@ -59,10 +60,10 @@ export function useRouterPush(inSetup = true) {
   }
 
   /**
-   * Navigate to login page
-   *
-   * @param loginModule The login module
-   * @param redirectUrl The redirect url, if not specified, it will be the current route fullPath
+   * 作用：跳转登录页并带上当前页 redirect。
+   * @param loginModule 登录子模块（如 pwd-login）
+   * @param redirectUrl 自定义回跳地址，默认当前 fullPath
+   * @returns {Promise} `router.push` 结果
    */
   async function toLogin(loginModule?: UnionKey.LoginModule, redirectUrl?: string) {
     const module = loginModule || 'pwd-login';
@@ -83,9 +84,9 @@ export function useRouterPush(inSetup = true) {
   }
 
   /**
-   * Toggle login module
-   *
-   * @param module
+   * 作用：留在登录路由仅切换 query 中的 module 参数。
+   * @param module 登录模块名
+   * @returns {Promise}
    */
   async function toggleLoginModule(module: UnionKey.LoginModule) {
     const query = route.value.query as Record<string, string>;
@@ -94,9 +95,9 @@ export function useRouterPush(inSetup = true) {
   }
 
   /**
-   * Redirect from login
-   *
-   * @param [needRedirect=true] Whether to redirect after login. Default is `true`
+   * 作用：登录成功后按 query.redirect 回跳或回首页。
+   * @param needRedirect 是否执行 redirect，默认 true
+   * @returns {Promise}
    */
   async function redirectFromLogin(needRedirect = true) {
     const redirect = route.value.query?.redirect as string;

@@ -1,21 +1,9 @@
 {
-  "name": "soybean-admin-antd",
+  "name": "jasic-ui-antd",
   "type": "module",
   "version": "1.3.11",
   "description": "A fresh and elegant admin template, based on Vue3,Vite3,TypeScript,AntDesign and UnoCSS.",
-  "author": {
-    "name": "Soybean",
-    "email": "soybeanjs@outlook.com",
-    "url": "https://github.com/soybeanjs"
-  },
   "license": "MIT",
-  "homepage": "https://github.com/soybeanjs/soybean-admin-antd",
-  "repository": {
-    "url": "https://github.com/soybeanjs/soybean-admin-antd.git"
-  },
-  "bugs": {
-    "url": "https://github.com/soybeanjs/soybean-admin-antd/issues"
-  },
   "keywords": [
     "Vue3 admin ",
     "vue-admin-template",
@@ -61,14 +49,12 @@
     "dayjs": "1.11.19",
     "defu": "6.1.4",
     "echarts": "6.0.0",
-    "element-china-area-data": "^6.1.0",
     "json5": "2.2.3",
     "nprogress": "0.2.0",
     "pinia": "3.0.4",
     "tailwind-merge": "3.4.0",
     "vue": "3.5.26",
     "vue-draggable-plus": "0.6.0",
-    "vue-i18n": "11.2.7",
     "vue-router": "4.6.4"
   },
   "devDependencies": {
@@ -109,6 +95,5 @@
   },
   "lint-staged": {
     "*": "eslint --fix"
-  },
-  "website": "https://antd.soybeanjs.cn"
+  }
 }

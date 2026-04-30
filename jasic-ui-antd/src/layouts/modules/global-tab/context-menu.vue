@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 单个页签的右键菜单：关闭当前/其他/左侧/右侧/全部，结合 exclude/disabled 控制展示与置灰。
+ */
 import { computed } from 'vue';
 import type { Trigger } from 'ant-design-vue/es/dropdown/props';
 import { useTabStore } from '@/store/modules/tab';
@@ -23,6 +26,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const { removeTab, clearTabs, clearLeftTabs, clearRightTabs } = useTabStore();
 
+/** 下拉菜单展示用：文案、图标与禁用态 */
 interface DropdownOption {
   key: App.Global.DropdownKey;
   label: string;
@@ -30,6 +34,7 @@ interface DropdownOption {
   disabled?: boolean;
 }
 
+// 右键菜单项：按 excludeKeys/disabledKeys 过滤与置灰
 const options = computed(() => {
   const opts: DropdownOption[] = [
     {
@@ -73,6 +78,7 @@ const options = computed(() => {
   return result;
 });
 
+// 各菜单项 key 与 tabStore 清理方法的映射
 const dropdownAction: Record<App.Global.DropdownKey, () => void> = {
   closeCurrent() {
     removeTab(props.tabId);

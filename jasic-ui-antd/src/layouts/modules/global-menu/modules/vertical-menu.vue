@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 纵向布局侧栏菜单：Teleport 到侧栏容器，内联子菜单 + 选中路径 openKeys。
+ */
 import { computed } from 'vue';
 import type { MenuInfo } from 'ant-design-vue/es/menu/src/interface';
 import type { RouteKey } from '@elegant-router/types';
@@ -20,10 +23,13 @@ const routeStore = useRouteStore();
 const { routerPushByKeyWithMetaQuery } = useRouterPush();
 const { selectedKey } = useMenu();
 
+// 侧栏 inverted 时 AMenu 使用 dark 主题
 const darkTheme = computed(() => !themeStore.darkMode && themeStore.sider.inverted);
 
+// AMenu 的 theme 属性：dark | light
 const menuTheme = computed(() => (darkTheme.value ? 'dark' : 'light'));
 
+// 同 vertical-mix：根据选中菜单推导应展开的父级 key
 const openKeys = computed(() => {
   if (appStore.siderCollapse || !selectedKey.value) return [];
 
@@ -32,6 +38,7 @@ const openKeys = computed(() => {
   return routeStore.getSelectedMenuKeyPath(selectedKey.value);
 });
 
+/** 菜单项点击：携带 meta.query 等按路由 key 跳转 */
 function handleClickMenu(menuInfo: MenuInfo) {
   const key = menuInfo.key as RouteKey;
 

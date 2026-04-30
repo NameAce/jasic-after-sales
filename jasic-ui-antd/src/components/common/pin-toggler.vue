@@ -1,4 +1,7 @@
 <script lang="ts" setup>
+/**
+ * 混合子菜单「固定/浮动」切换：图钉开为固定侧栏子区。
+ */
 import { computed } from 'vue';
 import { $t } from '@/locales';
 
@@ -10,6 +13,7 @@ interface Props {
 
 const props = defineProps<Props>();
 
+// 固定/取消固定侧栏时切换图标
 const icon = computed(() => (props.pin ? 'mdi-pin-off' : 'mdi-pin'));
 </script>
 

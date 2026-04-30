@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 水平混合（反转）：顶栏为一级菜单，侧栏为当前一级下的子菜单（与默认 horizontal-mix 区域对调）。
+ */
 import { computed } from 'vue';
 import type { MenuInfo } from 'ant-design-vue/es/menu/src/interface';
 import type { RouteKey } from '@elegant-router/types';
@@ -27,6 +30,7 @@ const {
 } = useMixMenuContext();
 const { selectedKey } = useMenu();
 
+/** 顶栏一级点击：更新激活一级；无子级时直接跳转该路由 */
 function handleSelectMixMenu(menuInfo: MenuInfo) {
   const key = menuInfo.key as RouteKey;
 
@@ -37,6 +41,7 @@ function handleSelectMixMenu(menuInfo: MenuInfo) {
   }
 }
 
+// 水平反转混合布局下侧栏子菜单的 openKeys（与 vertical 逻辑相同）
 const openKeys = computed(() => {
   if (appStore.siderCollapse || !selectedKey.value) return [];
 
@@ -45,6 +50,7 @@ const openKeys = computed(() => {
   return routeStore.getSelectedMenuKeyPath(selectedKey.value);
 });
 
+/** 侧栏子菜单项点击跳转 */
 function handleClickMenu(menuInfo: MenuInfo) {
   const key = menuInfo.key as RouteKey;
 

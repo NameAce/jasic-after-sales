@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 主题抽屉内单行设置：左侧标签（可选 suffix 插槽）+ 右侧控件插槽。
+ */
 defineOptions({
   name: 'SettingItem'
 });

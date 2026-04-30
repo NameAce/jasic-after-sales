@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 系统管理 — 菜单：树表维护、发布、复制及与路由组件绑定（对接后端菜单接口）。
+ */
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { tagColorEnabled, tagColorPositiveNeutral } from '@/constants/list-status-tag';
 import {
@@ -82,6 +85,7 @@ const publishForm = reactive({
   syncExistingCompanies: true
 });
 
+// 菜单树表格列
 const columns = computed(() => [
   { title: '菜单名称', dataIndex: 'menuName', key: 'menuName', width: 220 },
   { title: '图标', dataIndex: 'icon', key: 'icon', width: 120 },
@@ -94,6 +98,7 @@ const columns = computed(() => [
   { title: '操作', key: 'actions', width: 220, fixed: 'right' as const }
 ]);
 
+// 发布弹窗中按所选公司类型分组后的角色模板列表
 const groupedPublishTemplates = computed(() => {
   const selectedTypeCodes = new Set(publishForm.targetTypeCodes);
   const typeLabelMap = publishOptions.value.typeOptions.reduce<Record<string, string>>((map, item) => {
@@ -117,6 +122,11 @@ const groupedPublishTemplates = computed(() => {
   return Object.values(groupMap);
 });
 
+/**
+ * 作用：将接口菜单树数据规范为数组（兼容 records 包装）。
+ * @param data - 原始数据
+ * @returns 菜单行数组
+ */
 function normalizeMenuTree(data: unknown) {
   if (Array.isArray(data)) return data as RowData[];
   if (data && typeof data === 'object') {
@@ -126,6 +136,11 @@ function normalizeMenuTree(data: unknown) {
   return [];
 }
 
+/**
+ * 作用：深度遍历菜单树收集所有行 id（用于展开/折叠）。
+ * @param rows - 树行
+ * @returns id 列表
+ */
 function collectRowKeys(rows: RowData[]): Array<string | number> {
   const keys: Array<string | number> = [];
   const stack = [...rows];
@@ -141,11 +156,21 @@ function collectRowKeys(rows: RowData[]): Array<string | number> {
   return keys;
 }
 
+/**
+ * 作用：加载上级菜单树选项（表单 TreeSelect 用）。
+ * @param 无
+ * @returns 返回 Promise，请求结束后结束
+ */
 async function loadMenuOptions() {
   const { data } = await menuTree(String(formModel.subjectType || subjectType.value));
   menuOptions.value = [{ id: 0, menuName: '顶级菜单', children: normalizeMenuTree(data) }];
 }
 
+/**
+ * 作用：打开新增菜单抽屉；可指定父级以新增子菜单。
+ * @param parent - 父菜单行，可选
+ * @returns {void} 无
+ */
 function openAdd(parent?: RowData) {
   formTitle.value = '新增菜单';
   Object.assign(formModel, {
@@ -166,6 +191,11 @@ function openAdd(parent?: RowData) {
   formOpen.value = true;
 }
 
+/**
+ * 作用：打开菜单拷贝抽屉并重置源树。
+ * @param 无
+ * @returns 返回 Promise，源树加载完成后结束
+ */
 async function openCopyDialog() {
   copyForm.sourceSubjectType = 'PLATFORM';
   copyForm.targetSubjectType = 'HQ';
@@ -175,6 +205,11 @@ async function openCopyDialog() {
   await loadCopySourceTree();
 }
 
+/**
+ * 作用：按源主体类型拉取可勾选的菜单树。
+ * @param 无
+ * @returns 返回 Promise，加载结束后结束
+ */
 async function loadCopySourceTree() {
   copyTreeLoading.value = true;
   try {
@@ -186,6 +221,11 @@ async function loadCopySourceTree() {
   }
 }
 
+/**
+ * 作用：提交跨主体菜单拷贝并刷新当前列表。
+ * @param 无
+ * @returns 返回 Promise，拷贝完成后结束
+ */
 async function submitCopy() {
   if (copyForm.sourceSubjectType === copyForm.targetSubjectType) {
     window.$message?.warning('源主体与目标主体不能相同');
@@ -208,6 +248,11 @@ async function submitCopy() {
   }
 }
 
+/**
+ * 作用：打开编辑抽屉并回填菜单详情。
+ * @param record - 表格行
+ * @returns 返回 Promise，表单就绪后结束
+ */
 async function openEdit(record: RowData) {
   formTitle.value = '编辑菜单';
   const { data } = await getMenu(record.id);
@@ -230,12 +275,23 @@ async function openEdit(record: RowData) {
   formOpen.value = true;
 }
 
+/**
+ * 作用：拉取菜单最新数据后打开发布弹窗。
+ * @param record - 表格行
+ * @returns 返回 Promise，弹窗打开后结束
+ */
 async function openPublish(record: RowData) {
   const { data } = await getMenu(record.id);
   const menu = (data as RowData) || record;
   await openPublishDialog(menu, false);
 }
 
+/**
+ * 作用：打开发布配置抽屉并加载目标公司类型/模板选项。
+ * @param menu - 待发布菜单对象
+ * @param returnToForm - 关闭后是否返回编辑抽屉
+ * @returns 返回 Promise，选项加载结束后结束
+ */
 async function openPublishDialog(menu: RowData, returnToForm: boolean) {
   publishDialogTitle.value = `${menu?.id ? '发布菜单' : '保存并发布'} - ${menu?.menuName || ''}`;
   publishReturnToForm.value = returnToForm;
@@ -262,6 +318,11 @@ async function openPublishDialog(menu: RowData, returnToForm: boolean) {
   }
 }
 
+/**
+ * 作用：关闭发布弹窗并按需重新打开表单抽屉。
+ * @param 无
+ * @returns {void} 无
+ */
 function closePublishDialog() {
   const shouldReturn = publishReturnToForm.value;
   publishOpen.value = false;
@@ -271,6 +332,11 @@ function closePublishDialog() {
   }
 }
 
+/**
+ * 作用：从表单模型组装新增/更新菜单 DTO。
+ * @param 无
+ * @returns 菜单 DTO
+ */
 function createMenuPayload(): SysMenuDTO {
   return {
     id: formModel.id,
@@ -288,6 +354,11 @@ function createMenuPayload(): SysMenuDTO {
   };
 }
 
+/**
+ * 作用：公司类型勾选变化时，同步勾选对应类型下的全部模板 id。
+ * @param 无
+ * @returns {void} 无
+ */
 function onPublishTypeCodesChange() {
   const selected = new Set(publishForm.targetTypeCodes);
   publishForm.targetTemplateIds = publishOptions.value.templateOptions
@@ -295,6 +366,11 @@ function onPublishTypeCodesChange() {
     .map(item => item.id);
 }
 
+/**
+ * 作用：校验并提交菜单发布请求。
+ * @param 无
+ * @returns 返回 Promise，发布后刷新列表
+ */
 async function submitPublish() {
   if (!publishForm.menu) {
     window.$message?.warning('菜单信息为空');
@@ -329,6 +405,11 @@ async function submitPublish() {
   }
 }
 
+/**
+ * 作用：校验表单后关闭编辑抽屉并打开发布弹窗（携带当前表单草稿）。
+ * @param 无
+ * @returns 返回 Promise，发布弹窗打开后结束
+ */
 async function handleSaveAndPublish() {
   if (!String(formModel.menuName || '').trim()) {
     window.$message?.warning('请输入菜单名称');
@@ -353,6 +434,11 @@ async function handleSaveAndPublish() {
   }
 }
 
+/**
+ * 作用：校验并提交新增或更新菜单。
+ * @param 无
+ * @returns 返回 Promise，保存后刷新树表
+ */
 async function submitForm() {
   if (!String(formModel.menuName || '').trim()) {
     window.$message?.warning('请输入菜单名称');
@@ -385,21 +471,37 @@ async function submitForm() {
   }
 }
 
+/**
+ * 作用：删除菜单节点并刷新树。
+ * @param record - 表格行
+ * @returns 返回 Promise，删除完成后结束
+ */
 async function removeMenu(record: RowData) {
   const { response } = await deleteMenu(record.id);
   window.$message?.success(getResponseMsg(response, '删除成功'));
   await loadList();
 }
 
+/**
+ * 作用：切换全部展开/折叠并更新 expandedRowKeys。
+ * @param 无
+ * @returns {void} 无
+ */
 function toggleExpand() {
   isExpandAll.value = !isExpandAll.value;
   expandedRowKeys.value = isExpandAll.value ? collectRowKeys(menuTreeRows.value) : [];
 }
 
+// 切换主体类型时重新加载菜单树
 watch(subjectType, () => {
   loadList();
 });
 
+/**
+ * 作用：按当前主体类型加载菜单树并同步展开状态。
+ * @param 无
+ * @returns 返回 Promise，加载结束后结束
+ */
 async function loadList() {
   loading.value = true;
   try {
@@ -411,6 +513,11 @@ async function loadList() {
   }
 }
 
+/**
+ * 作用：页面挂载时加载菜单树。
+ * @param 无
+ * @returns {void} 无
+ */
 onMounted(() => {
   loadList();
 });

@@ -1,3 +1,6 @@
+/**
+ * 表格与列表页：分页请求、列配置、移动端分页简化等与 `useHookTable` 的封装。
+ */
 import { computed, effectScope, onScopeDispose, reactive, ref, shallowRef, toValue, watch } from 'vue';
 import type { MaybeRef, Ref } from 'vue';
 import { useElementSize } from '@vueuse/core';
@@ -12,6 +15,11 @@ type TableData = AntDesign.TableData;
 type GetTableData<A extends AntDesign.TableApiFn> = AntDesign.GetTableData<A>;
 type TableColumn<T> = AntDesign.TableColumn<T>;
 
+/**
+ * 作用：对接后端分页列表 API 的表格状态：加载、列显隐、分页、搜索参数与移动端简化分页。
+ * @param config 表格配置（apiFn、列、immediate 等）
+ * @returns 表格数据与分页相关方法与状态
+ */
 export function useTable<A extends AntDesign.TableApiFn>(config: AntDesign.AntDesignTableConfig<A>) {
   const scope = effectScope();
   const appStore = useAppStore();
@@ -113,7 +121,7 @@ export function useTable<A extends AntDesign.TableApiFn>(config: AntDesign.AntDe
     }
   });
 
-  // this is for mobile, if the system does not support mobile, you can use `pagination` directly
+  // 移动端下分页使用 simple 样式，依赖 appStore.isMobile
   const mobilePagination = computed(() => {
     const p: TablePaginationConfig = {
       ...pagination,
@@ -128,9 +136,9 @@ export function useTable<A extends AntDesign.TableApiFn>(config: AntDesign.AntDe
   }
 
   /**
-   * get data by page number
-   *
-   * @param pageNum the page number. default is 1
+   * 作用：跳到指定页并拉取数据。
+   * @param pageNum 页码，默认 1
+   * @returns {Promise<void>}
    */
   async function getDataByPage(pageNum: number = 1) {
     updatePagination({
@@ -146,6 +154,7 @@ export function useTable<A extends AntDesign.TableApiFn>(config: AntDesign.AntDe
   }
 
   scope.run(() => {
+    // 语言变化时重载列标题等文案
     watch(
       () => appStore.locale,
       () => {
@@ -176,6 +185,12 @@ export function useTable<A extends AntDesign.TableApiFn>(config: AntDesign.AntDe
   };
 }
 
+/**
+ * 作用：表格行内「新增/编辑抽屉」、多选行与批量删除/删除后刷新的通用状态。
+ * @param data 表格行数据 ref
+ * @param getData 刷新列表函数
+ * @returns 抽屉显隐、操作类型、选中 keys、rowSelection 与删除回调
+ */
 export function useTableOperate<T extends TableData = TableData>(data: Ref<T[]>, getData: () => Promise<void>) {
   const { bool: drawerVisible, setTrue: openDrawer, setFalse: closeDrawer } = useBoolean();
 
@@ -204,6 +219,7 @@ export function useTableOperate<T extends TableData = TableData>(data: Ref<T[]>,
     checkedRowKeys.value = keys as T['id'][];
   }
 
+  /** 根据选中 keys 推导 Ant Design Table rowSelection */
   const rowSelection = computed<TableRowSelection<T>>(() => {
     return {
       columnWidth: 48,
@@ -213,7 +229,7 @@ export function useTableOperate<T extends TableData = TableData>(data: Ref<T[]>,
     };
   });
 
-  /** the hook after the batch delete operation is completed */
+  /** 批量删除成功后的提示与清空选中 */
   async function onBatchDeleted() {
     window.$message?.success($t('common.deleteSuccess'));
 
@@ -222,7 +238,7 @@ export function useTableOperate<T extends TableData = TableData>(data: Ref<T[]>,
     await getData();
   }
 
-  /** the hook after the delete operation is completed */
+  /** 单行删除成功后的提示 */
   async function onDeleted() {
     window.$message?.success($t('common.deleteSuccess'));
 
@@ -245,10 +261,16 @@ export function useTableOperate<T extends TableData = TableData>(data: Ref<T[]>,
   };
 }
 
+/**
+ * 作用：根据容器高度计算表格纵向滚动高度与横向 scroll.x。
+ * @param scrollX 横向滚动宽度 ref 或静态值
+ * @returns 包装 ref 与 scroll 配置 computed
+ */
 export function useTableScroll(scrollX: MaybeRef<number> = 702) {
   const tableWrapperRef = shallowRef<HTMLElement | null>(null);
   const { height: wrapperElHeight } = useElementSize(tableWrapperRef);
 
+  // 依赖外层高度与 scrollX，生成 y/x 滚动配置
   const scrollConfig = computed(() => {
     return {
       y: wrapperElHeight.value - 72,

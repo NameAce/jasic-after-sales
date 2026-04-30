@@ -9,6 +9,7 @@ defineOptions({
   name: 'Register'
 });
 
+// 注册占位页：路由、验证码与表单
 const { toggleLoginModule } = useRouterPush();
 const { formRef, validate } = useAntdForm();
 const { label, isCounting, loading, getCaptcha } = useCaptcha();
@@ -27,6 +28,7 @@ const model: FormModel = reactive({
   confirmPassword: ''
 });
 
+// 注册表单校验（随语言切换）
 const rules = computed<Record<keyof FormModel, App.Global.FormRule[]>>(() => {
   const { formRules, createConfirmPwdRule } = useFormRules();
 
@@ -38,12 +40,22 @@ const rules = computed<Record<keyof FormModel, App.Global.FormRule[]>>(() => {
   };
 });
 
+/**
+ * 作用：校验后提示 PC 注册流程未开放。
+ * @param 无
+ * @returns 返回 Promise，校验完成后结束
+ */
 async function handleSubmit() {
   await validate();
   // PC 主链路不走 mp 绑定，注册入口暂作为占位提示。
   window.$message?.warning('当前版本暂未开放该 PC 流程，请使用密码登录。');
 }
 
+/**
+ * 作用：校验手机号后请求短信验证码。
+ * @param 无
+ * @returns 返回 Promise，验证码请求结束后结束
+ */
 async function handleGetCaptcha() {
   if (!model.phone) {
     window.$message?.warning($t('page.login.common.phonePlaceholder'));

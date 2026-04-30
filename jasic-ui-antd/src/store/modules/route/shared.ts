@@ -1,3 +1,6 @@
+/**
+ * 路由与菜单共享工具：后端菜单与 elegant 路由的归一化、排序、按角色过滤、全局菜单/面包屑/缓存路由名等。
+ */
 import type { RouteLocationNormalizedLoaded, RouteRecordRaw, _RouteRecordBase } from 'vue-router';
 import type { ElegantConstRoute, LastLevelRouteKey, RouteKey, RouteMap } from '@elegant-router/types';
 import { MENU_ICON_OVERRIDES, resolveMenuIconFromApi } from '@/constants/menu-icon';

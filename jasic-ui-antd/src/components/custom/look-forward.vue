@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 「敬请期待」占位页：用于未完成菜单或演示路由，可通过默认插槽替换标题。
+ */
 import { $t } from '@/locales';
 
 defineOptions({

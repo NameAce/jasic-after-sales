@@ -1,5 +1,8 @@
-/** 与 jasic-ui `workOrder/index.vue` 列表操作一致 */
-
+/**
+ * 工单列表主操作：按状态与权限生成行内按钮配置（与 jasic-ui 列表操作一致）。
+ *
+ * @see jasic-ui `workOrder/index.vue` 列表操作
+ */
 export type WorkOrderListActionCode =
   | 'ASSIGN'
   | 'TECH_ACCEPT'
@@ -17,6 +20,7 @@ export interface ListActionMeta {
   type: ListActionType;
 }
 
+// 各列表动作编码对应的展示文案与按钮样式
 export const ACTION_META: Record<WorkOrderListActionCode, ListActionMeta> = {
   ASSIGN: { label: '派单', title: '派单', type: 'primary' },
   TECH_ACCEPT: { label: '维修员接单', title: '维修员接单', type: 'primary' },
@@ -27,9 +31,10 @@ export const ACTION_META: Record<WorkOrderListActionCode, ListActionMeta> = {
   CLOSE: { label: '关闭工单', title: '关闭工单', type: 'danger' }
 };
 
-/** 列表行内全部展示为链接按钮，不再收入「更多」下拉 */
+// 列表行内主操作按钮最大展示数量（全部链接展示，不再收入「更多」）
 const LIST_MAX_PRIMARY_ACTIONS = 20;
 
+// 按主状态约定的一级展示动作顺序，其余动作按接口顺序补足
 const LIST_PRIMARY_ACTION_ORDER: Partial<Record<string, WorkOrderListActionCode[]>> = {
   PENDING_ASSIGN: ['ASSIGN', 'UPLOAD_SEND_EXPRESS'],
   PENDING_TECH_ACCEPT: ['TECH_ACCEPT', 'UPLOAD_SEND_EXPRESS'],
@@ -44,10 +49,20 @@ export interface RowActionButton {
   type: ListActionType;
 }
 
+/**
+ * 作用：判断字符串是否为有效的工单列表动作编码。
+ * @param s - 待判断字符串
+ * @returns 是否为 WorkOrderListActionCode
+ */
 function isActionCode(s: string): s is WorkOrderListActionCode {
   return Object.hasOwn(ACTION_META, s);
 }
 
+/**
+ * 作用：从行数据解析并规范化可用动作编码列表。
+ * @param row - 表格行对象（含 availableActions）
+ * @returns 有效动作编码数组
+ */
 export function normalizeRowActionCodes(row: Record<string, unknown>): WorkOrderListActionCode[] {
   const raw = row?.availableActions;
   const actions = Array.isArray(raw) ? raw : [];
@@ -58,6 +73,11 @@ export function normalizeRowActionCodes(row: Record<string, unknown>): WorkOrder
   });
 }
 
+/**
+ * 作用：将行可用动作拆成主按钮区与「更多」区（当前策略为主区尽量展示全部）。
+ * @param row - 表格行对象
+ * @returns primary：优先顺序排列的主操作；more：剩余动作
+ */
 export function splitRowActions(row: Record<string, unknown>): {
   primary: RowActionButton[];
   more: RowActionButton[];
@@ -96,14 +116,30 @@ export function splitRowActions(row: Record<string, unknown>): {
   };
 }
 
+/**
+ * 作用：获取行数据对应的主操作按钮列表。
+ * @param row - 表格行对象
+ * @returns 主操作按钮配置数组
+ */
 export function getRowPrimaryActions(row: Record<string, unknown>): RowActionButton[] {
   return splitRowActions(row).primary;
 }
 
+/**
+ * 作用：获取行数据中归入「更多」的动作按钮列表。
+ * @param row - 表格行对象
+ * @returns 更多区按钮配置数组
+ */
 export function getRowMoreActions(row: Record<string, unknown>): RowActionButton[] {
   return splitRowActions(row).more;
 }
 
+/**
+ * 作用：当前视图下是否应展示只读原因提示。
+ * @param row - 表格行对象
+ * @param isCurrentView - 是否为「当前处理」视图
+ * @returns 是否展示只读原因
+ */
 export function shouldShowReadonlyReason(row: Record<string, unknown>, isCurrentView: boolean): boolean {
   if (!isCurrentView) return false;
   if (String(row?.mainStatus || '') === 'CLOSED') return false;

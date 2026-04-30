@@ -2,11 +2,13 @@
 import { computed, reactive } from 'vue';
 import { useRouterPush } from '@/hooks/common/router';
 import { useAntdForm, useFormRules } from '@/hooks/common/form';
+import { $t } from '@/locales';
 
 defineOptions({
   name: 'ResetPwd'
 });
 
+// 找回密码占位表单与登录模块切换
 const { toggleLoginModule } = useRouterPush();
 const { formRef, validate } = useAntdForm();
 
@@ -26,6 +28,7 @@ const model: FormModel = reactive({
 
 type RuleRecord = Partial<Record<keyof FormModel, App.Global.FormRule[]>>;
 
+// 动态校验规则（确认密码依赖 model.password）
 const rules = computed<RuleRecord>(() => {
   const { formRules, createConfirmPwdRule } = useFormRules();
 
@@ -36,6 +39,11 @@ const rules = computed<RuleRecord>(() => {
   };
 });
 
+/**
+ * 作用：校验表单后提示占位（PC 暂未开放该流程）。
+ * @param 无
+ * @returns 返回 Promise，校验完成后结束
+ */
 async function handleSubmit() {
   await validate();
   // PC 主链路不走 mp 绑定，重置密码入口暂作为占位提示。

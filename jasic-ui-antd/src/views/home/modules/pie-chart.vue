@@ -6,6 +6,7 @@ import { useAppStore } from '@/store/modules/app';
 import { useEcharts } from '@/hooks/common/echarts';
 import { $t } from '@/locales';
 
+// 应用语言、路由与 ECharts 封装（工单状态饼图）
 defineOptions({
   name: 'PieChart'
 });
@@ -57,6 +58,7 @@ const { domRef, updateOptions } = useEcharts(() => ({
   ]
 }));
 
+// 工单主状态枚举 → 中文展示（接口无 displayStatus 时兜底）
 const STATUS_LABEL_MAP: Record<string, string> = {
   PENDING_ASSIGN: '待派单',
   PENDING_TECH_ACCEPT: '待接单',
@@ -65,6 +67,11 @@ const STATUS_LABEL_MAP: Record<string, string> = {
   CLOSED: '已关闭'
 };
 
+/**
+ * 作用：请求当前视角工单状态分布并更新饼图数据。
+ * @param 无
+ * @returns 返回 Promise，更新图表后结束
+ */
 async function loadRealData() {
   const res = await countWorkOrderStatus({ viewScope: 'CURRENT' });
   const rows = Array.isArray(res.data) ? res.data : [];
@@ -82,6 +89,11 @@ async function loadRealData() {
   });
 }
 
+/**
+ * 作用：语言切换时刷新图表标题与系列名。
+ * @param 无
+ * @returns {void} 无
+ */
 function updateLocale() {
   updateOptions((opts, factory) => {
     const originOpts = factory();
@@ -92,6 +104,11 @@ function updateLocale() {
   });
 }
 
+/**
+ * 作用：首次挂载时加载数据，失败则清空系列。
+ * @param 无
+ * @returns 返回 Promise，初始化结束后结束
+ */
 async function init() {
   try {
     await loadRealData();
@@ -103,6 +120,7 @@ async function init() {
   }
 }
 
+// 切换语言时更新图表文案
 watch(
   () => appStore.locale,
   () => {
@@ -110,10 +128,20 @@ watch(
   }
 );
 
+/**
+ * 作用：挂载后初始化图表数据。
+ * @param 无
+ * @returns {void} 无
+ */
 onMounted(() => {
   init();
 });
 
+/**
+ * 作用：跳转工单列表并按当前视角筛选。
+ * @param 无
+ * @returns {void} 无
+ */
 function goWorkOrderStatusPage() {
   router.push({ name: 'after-sales_work-order', query: { viewScope: 'CURRENT' } });
 }

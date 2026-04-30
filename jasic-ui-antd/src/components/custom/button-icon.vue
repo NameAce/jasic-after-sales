@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 带 Tooltip 的文本按钮：可仅展示 Iconify 图标或默认插槽自定义内容；支持 tooltip 挂到父节点避免裁剪。
+ */
 import type { TooltipPlacement } from 'ant-design-vue/es/tooltip';
 import { twMerge } from 'tailwind-merge';
 defineOptions({
@@ -27,6 +30,7 @@ const props = withDefaults(defineProps<Props>(), {
   triggerParent: false
 });
 
+/** Tooltip 挂载容器：`triggerParent` 时挂到触发按钮父级，否则挂 body */
 function getPopupContainer(triggerNode: HTMLElement) {
   return props.triggerParent ? triggerNode.parentElement! : document.body;
 }

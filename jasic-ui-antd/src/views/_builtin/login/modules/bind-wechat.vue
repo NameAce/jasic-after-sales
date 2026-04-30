@@ -9,6 +9,7 @@ defineOptions({
   name: 'BindWechat'
 });
 
+// 路由跳转、绑定票据表单与认证会话
 const { toggleLoginModule } = useRouterPush();
 const authStore = useAuthStore();
 const { formRef, validate } = useAntdForm();
@@ -30,6 +31,11 @@ const rules: Record<keyof FormModel, App.Global.FormRule[]> = {
   code: [defaultRequiredRule]
 };
 
+/**
+ * 作用：校验后确认微信绑定并完成登录。
+ * @param 无
+ * @returns 返回 Promise，登录结束后结束
+ */
 async function handleSubmit() {
   await validate();
   await authStore.confirmWechatBindAndLogin(model);

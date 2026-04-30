@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 顶栏一键切换亮/暗/跟随系统：向外 emit `switch`，由父级调用 themeStore。
+ */
 import { computed } from 'vue';
 import type { TooltipPlacement } from 'ant-design-vue/es/tooltip';
 import { $t } from '@/locales';
@@ -25,6 +28,7 @@ interface Emits {
 
 const emit = defineEmits<Emits>();
 
+/** 点击后通知父级切换主题方案 */
 function handleSwitch() {
   emit('switch');
 }
@@ -35,8 +39,10 @@ const icons: Record<UnionKey.ThemeScheme, string> = {
   auto: 'material-symbols:hdr-auto'
 };
 
+// 当前主题方案对应的太阳/月亮/HDR 图标名
 const icon = computed(() => icons[props.themeSchema]);
 
+// 关闭 tooltip 时返回空串，避免无谓的浮层
 const tooltipContent = computed(() => {
   if (!props.showTooltip) return '';
 

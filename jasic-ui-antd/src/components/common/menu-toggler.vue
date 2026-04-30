@@ -1,4 +1,7 @@
 <script lang="ts" setup>
+/**
+ * 侧栏折叠切换：支持普通折叠图标或双箭头样式（混合菜单底部等场景）。
+ */
 import { computed } from 'vue';
 import { $t } from '@/locales';
 
@@ -15,6 +18,7 @@ const props = defineProps<Props>();
 
 type NumberBool = 0 | 1;
 
+// 根据折叠态与箭头样式从二维表取 Iconify 名
 const icon = computed(() => {
   const icons: Record<NumberBool, Record<NumberBool, string>> = {
     0: {

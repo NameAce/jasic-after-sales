@@ -1,16 +1,11 @@
+/**
+ * ECharts 按需引入与 DOM 尺寸联动：封装折线/柱状/饼图等常用配置的 composable。
+ */
 import { computed, effectScope, nextTick, onScopeDispose, ref, watch } from 'vue';
 import { useElementSize } from '@vueuse/core';
 import * as echarts from 'echarts/core';
-import { BarChart, GaugeChart, LineChart, PictorialBarChart, PieChart, RadarChart, ScatterChart } from 'echarts/charts';
-import type {
-  BarSeriesOption,
-  GaugeSeriesOption,
-  LineSeriesOption,
-  PictorialBarSeriesOption,
-  PieSeriesOption,
-  RadarSeriesOption,
-  ScatterSeriesOption
-} from 'echarts/charts';
+import { BarChart, LineChart, PieChart } from 'echarts/charts';
+import type { BarSeriesOption, LineSeriesOption, PieSeriesOption } from 'echarts/charts';
 import {
   DatasetComponent,
   GridComponent,
@@ -36,10 +31,6 @@ export type ECOption = echarts.ComposeOption<
   | BarSeriesOption
   | LineSeriesOption
   | PieSeriesOption
-  | ScatterSeriesOption
-  | PictorialBarSeriesOption
-  | RadarSeriesOption
-  | GaugeSeriesOption
   | TitleComponentOption
   | LegendComponentOption
   | TooltipComponentOption
@@ -59,10 +50,6 @@ echarts.use([
   BarChart,
   LineChart,
   PieChart,
-  ScatterChart,
-  PictorialBarChart,
-  RadarChart,
-  GaugeChart,
   LabelLayout,
   UniversalTransition,
   CanvasRenderer
@@ -75,15 +62,16 @@ interface ChartHooks {
 }
 
 /**
- * use echarts
- *
- * @param optionsFactory echarts options factory function
- * @param darkMode dark mode
+ * 作用：创建 ECharts 实例并响应容器尺寸与主题切换；对外暴露 `domRef` 与更新 options 方法。
+ * @param optionsFactory 返回初始 option 的工厂函数
+ * @param hooks 渲染/更新/销毁钩子
+ * @returns {{ domRef; updateOptions; setOptions }}
  */
 export function useEcharts<T extends ECOption>(optionsFactory: () => T, hooks: ChartHooks = {}) {
   const scope = effectScope();
 
   const themeStore = useThemeStore();
+  // 来自主题 Store 的暗色开关，驱动 chart 主题与 loading 配色
   const darkMode = computed(() => themeStore.darkMode);
 
   const domRef = ref<HTMLElement | null>(null);
@@ -112,23 +100,22 @@ export function useEcharts<T extends ECOption>(optionsFactory: () => T, hooks: C
   } = hooks;
 
   /**
-   * whether can render chart
-   *
-   * when domRef is ready and initialSize is valid
+   * 作用：判断当前 DOM 与尺寸是否允许初始化图表。
+   * @returns {boolean}
    */
   function canRender() {
     return domRef.value && initialSize.width > 0 && initialSize.height > 0;
   }
 
-  /** is chart rendered */
+  /** 是否已完成 init 且存在实例 */
   function isRendered() {
     return Boolean(domRef.value && chart);
   }
 
   /**
-   * update chart options
-   *
-   * @param callback callback function
+   * 作用：在已渲染状态下合并并应用新 option，可传入回调二次加工。
+   * @param callback 接收当前 opts 与工厂，返回待 setOption 的对象
+   * @returns {Promise<void>}
    */
   async function updateOptions(callback: (opts: T, optsFactory: () => T) => ECOption = () => chartOptions) {
     if (!isRendered()) return;
@@ -150,7 +137,7 @@ export function useEcharts<T extends ECOption>(optionsFactory: () => T, hooks: C
     chart?.setOption(options);
   }
 
-  /** render chart */
+  /** 首屏或主题切换后创建实例并 setOption */
   async function render() {
     if (!isRendered()) {
       const chartTheme = darkMode.value ? 'dark' : 'light';
@@ -165,12 +152,12 @@ export function useEcharts<T extends ECOption>(optionsFactory: () => T, hooks: C
     }
   }
 
-  /** resize chart */
+  /** 调用 echarts resize */
   function resize() {
     chart?.resize();
   }
 
-  /** destroy chart */
+  /** dispose 实例并清空引用 */
   async function destroy() {
     if (!chart) return;
 
@@ -179,7 +166,7 @@ export function useEcharts<T extends ECOption>(optionsFactory: () => T, hooks: C
     chart = null;
   }
 
-  /** change chart theme */
+  /** 暗色变化时销毁并重建以切换 echarts 内置主题 */
   async function changeTheme() {
     await destroy();
     await render();
@@ -187,10 +174,10 @@ export function useEcharts<T extends ECOption>(optionsFactory: () => T, hooks: C
   }
 
   /**
-   * render chart by size
-   *
-   * @param w width
-   * @param h height
+   * 作用：在容器宽高变化时更新内部 initialSize 并 render/resize/destroy。
+   * @param w 宽
+   * @param h 高
+   * @returns {Promise<void>}
    */
   async function renderChartBySize(w: number, h: number) {
     initialSize.width = w;
@@ -213,10 +200,12 @@ export function useEcharts<T extends ECOption>(optionsFactory: () => T, hooks: C
   }
 
   scope.run(() => {
+    // 容器尺寸变化：重算是否可渲染并 resize 或重建
     watch([width, height], ([newWidth, newHeight]) => {
       renderChartBySize(newWidth, newHeight);
     });
 
+    // 暗色模式切换：换主题重建图表
     watch(darkMode, () => {
       changeTheme();
     });

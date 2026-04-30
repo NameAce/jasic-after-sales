@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 主内容区：RouterView + KeepAlive，配合页签 id 作为 key，并在路由切换时滚动复位。
+ */
 import { computed } from 'vue';
 import { LAYOUT_SCROLL_EL_ID } from '@sa/materials';
 import { useAppStore } from '@/store/modules/app';
@@ -24,8 +27,10 @@ const themeStore = useThemeStore();
 const routeStore = useRouteStore();
 const tabStore = useTabStore();
 
+// 主题中开启页面切换动画时返回 animateMode，否则无过渡名
 const transitionName = computed(() => (themeStore.page.animate ? themeStore.page.animateMode : ''));
 
+/** 将布局主滚动容器滚回顶部，避免切换路由后保留旧滚动位置 */
 function resetScroll() {
   const el = document.querySelector(`#${LAYOUT_SCROLL_EL_ID}`);
 

@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 全屏切换图标按钮：`full` 为 true 时展示退出全屏文案与图标。
+ */
 import { $t } from '@/locales';
 
 defineOptions({

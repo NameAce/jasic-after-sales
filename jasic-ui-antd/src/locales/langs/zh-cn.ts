@@ -1,3 +1,6 @@
+/**
+ * 简体中文文案表：键结构与 `App.I18n.Schema` 一致，为 `$t` 的唯一数据源。
+ */
 const local: App.I18n.Schema = {
   system: {
     title: 'Jasic 佳士售后平台',
@@ -254,7 +257,7 @@ const local: App.I18n.Schema = {
     },
     about: {
       title: '关于',
-      introduction: `SoybeanAdmin 是一个优雅且功能强大的后台管理模板，基于最新的前端技术栈，包括 Vue3, Vite5, TypeScript, Pinia 和 UnoCSS。它内置了丰富的主题配置和组件，代码规范严谨，实现了自动化的文件路由系统。此外，它还采用了基于 ApiFox 的在线Mock数据方案。SoybeanAdmin 为您提供了一站式的后台管理解决方案，无需额外配置，开箱即用。同样是一个快速学习前沿技术的最佳实践。`,
+      introduction: `JasicUIAdmin 是一个优雅且功能强大的后台管理模板，基于最新的前端技术栈，包括 Vue3, Vite5, TypeScript, Pinia 和 UnoCSS。它内置了丰富的主题配置和组件，代码规范严谨，实现了自动化的文件路由系统。此外，它还采用了基于 ApiFox 的在线Mock数据方案。JasicUIAdmin 为您提供了一站式的后台管理解决方案，无需额外配置，开箱即用。同样是一个快速学习前沿技术的最佳实践。`,
       projectInfo: {
         title: '项目信息',
         version: '版本',
@@ -289,11 +292,11 @@ const local: App.I18n.Schema = {
         title: '通知动态',
         moreNews: '更多动态',
         empty: '暂无历史通知',
-        desc1: 'Soybean 在2021年5月28日创建了开源项目 soybean-admin!',
-        desc2: 'Yanbowe 向 soybean-admin 提交了一个bug，多标签栏不会自适应。',
-        desc3: 'Soybean 准备为 soybean-admin 的发布做充分的准备工作!',
-        desc4: 'Soybean 正在忙于为soybean-admin写项目说明文档！',
-        desc5: 'Soybean 刚才把工作台页面随便写了一些，凑合能看了！'
+        desc1: 'Jasic 在2026年4月30日创建了开源项目 JasicUIAdmin!',
+        desc2: 'Yanbowe 向 JasicUIAdmin 提交了一个bug，多标签栏不会自适应。',
+        desc3: 'Jasic 准备为 JasicUIAdmin 的发布做充分的准备工作!',
+        desc4: 'Jasic 正在忙于为JasicUIAdmin写项目说明文档！',
+        desc5: 'Jasic 刚才把工作台页面随便写了一些，凑合能看了！'
       },
       creativity: '创意',
       summaryTitle: '组织概览',

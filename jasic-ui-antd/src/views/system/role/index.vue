@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 系统管理 — 角色：分页列表、数据范围、分配菜单与角色模板维护（对接后端角色接口）。
+ */
 import { computed, onMounted, reactive, ref } from 'vue';
 import { tagColorEnabled } from '@/constants/list-status-tag';
 import {
@@ -61,6 +64,7 @@ const menuTreeData = ref<any[]>([]);
 const menuCheckedKeys = ref<Array<string | number>>([]);
 const currentRoleId = ref<number | null>(null);
 
+// 角色列表表格列
 const columns = computed(() => [
   { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
   { title: '角色名称', dataIndex: 'roleName', key: 'roleName', width: 160 },
@@ -72,12 +76,22 @@ const columns = computed(() => [
   { title: '操作', key: 'actions', width: 260, fixed: 'right' as const }
 ]);
 
+/**
+ * 作用：从分页或数组结构中解析表格行数据。
+ * @param data - 接口返回体
+ * @returns 行数组
+ */
 function pickRows(data: any) {
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.records)) return data.records;
   return [];
 }
 
+/**
+ * 作用：将数据范围选项列表转为 value→label 映射表。
+ * @param options - 数据范围选项
+ * @returns 映射对象
+ */
 function buildDataScopeMap(options: ScopeOption[]) {
   return (options || []).reduce<Record<string, string>>((map, option) => {
     map[option.value] = option.label;
@@ -85,6 +99,12 @@ function buildDataScopeMap(options: ScopeOption[]) {
   }, {});
 }
 
+/**
+ * 作用：合并历史遗留的数据范围值到选项列表（禁用展示）。
+ * @param options - 当前可选列表
+ * @param currentValue - 当前表单中的旧值
+ * @returns 合并后的选项数组
+ */
 function mergeLegacyOption(options: ScopeOption[], currentValue?: string) {
   const result = [...(options || [])];
   if (currentValue && !result.some(item => item.value === currentValue)) {
@@ -97,19 +117,39 @@ function mergeLegacyOption(options: ScopeOption[], currentValue?: string) {
   return result;
 }
 
+/**
+ * 作用：根据主数据范围选项同步表单内下拉可选项（含历史值兜底）。
+ * @param currentValue - 当前 dataScope 字符串
+ * @returns {void} 无
+ */
 function syncFormDataScopeOptions(currentValue = String(formModel.dataScope || '')) {
   formDataScopeOptions.value = mergeLegacyOption(dataScopeOptions.value, currentValue);
 }
 
+/**
+ * 作用：读取后端标记的默认数据范围编码。
+ * @param 无
+ * @returns 默认 value，无则 SELF
+ */
 function getDefaultDataScope() {
   const defaultOption = dataScopeOptions.value.find(item => item.defaultOption);
   return defaultOption?.value || 'SELF';
 }
 
+/**
+ * 作用：校验 dataScope 是否在当前公司允许列表内。
+ * @param value - 数据范围编码
+ * @returns 是否合法
+ */
 function isValidDataScope(value: string) {
   return dataScopeOptions.value.some(item => item.value === value);
 }
 
+/**
+ * 作用：加载数据范围字典并更新映射与表单选项。
+ * @param 无
+ * @returns 返回 Promise，请求结束后结束
+ */
 async function loadDataScopeMap() {
   try {
     const { data } = await roleDataScopeOptions();
@@ -124,6 +164,11 @@ async function loadDataScopeMap() {
   }
 }
 
+/**
+ * 作用：分页拉取角色列表并更新表格。
+ * @param page - 目标页码，默认可不传则用当前 pageNum
+ * @returns 返回 Promise，加载结束后结束
+ */
 async function loadList(page = pageNum.value) {
   loading.value = true;
   pageNum.value = page;
@@ -142,17 +187,33 @@ async function loadList(page = pageNum.value) {
   }
 }
 
+/**
+ * 作用：搜索时回到第一页并刷新列表。
+ * @param 无
+ * @returns {void} 无
+ */
 function handleSearch() {
   pageNum.value = 1;
   loadList(1);
 }
 
+/**
+ * 作用：重置筛选条件并重新查询。
+ * @param 无
+ * @returns {void} 无
+ */
 function resetSearch() {
   queryParams.roleName = '';
   queryParams.status = undefined;
   handleSearch();
 }
 
+/**
+ * 作用：表格分页变化时重新拉取（每页条数变化时回到第一页）。
+ * @param page - 页码
+ * @param pageSizeArg - 每页条数，可选
+ * @returns {void} 无
+ */
 function handleTablePageChange(page: number, pageSizeArg?: number) {
   if (pageSizeArg !== undefined && pageSizeArg !== pageSize.value) {
     pageSize.value = pageSizeArg;
@@ -162,6 +223,11 @@ function handleTablePageChange(page: number, pageSizeArg?: number) {
   loadList(page);
 }
 
+/**
+ * 作用：打开新增角色抽屉并初始化表单默认值。
+ * @param 无
+ * @returns {void} 无
+ */
 function openAdd() {
   formTitle.value = '新增角色';
   Object.assign(formModel, {
@@ -177,6 +243,11 @@ function openAdd() {
   formOpen.value = true;
 }
 
+/**
+ * 作用：打开编辑抽屉并回填指定角色详情。
+ * @param record - 表格行数据
+ * @returns 返回 Promise，详情加载并回填后结束
+ */
 async function openEdit(record: RowData) {
   formTitle.value = '编辑角色';
   const { data } = await getRole(record.id);
@@ -194,6 +265,11 @@ async function openEdit(record: RowData) {
   formOpen.value = true;
 }
 
+/**
+ * 作用：校验并提交新增/编辑角色表单。
+ * @param 无
+ * @returns 返回 Promise，提交结束后结束
+ */
 async function submitForm() {
   if (!String(formModel.roleName || '').trim()) {
     window.$message?.warning('请输入角色名称');
@@ -237,12 +313,22 @@ async function submitForm() {
   }
 }
 
+/**
+ * 作用：删除角色并刷新当前页列表。
+ * @param record - 表格行
+ * @returns 返回 Promise，删除完成后结束
+ */
 async function removeRole(record: RowData) {
   const { response } = await deleteRole(record.id);
   window.$message?.success(getResponseMsg(response, '删除成功'));
   await loadList(pageNum.value);
 }
 
+/**
+ * 作用：打开分配菜单抽屉，加载当前公司类型下的菜单树与角色已选 menuIds。
+ * @param record - 角色行
+ * @returns 返回 Promise，数据就绪后结束
+ */
 async function openAssignMenu(record: RowData) {
   const typeCode = String(authStore.userInfo.currentTypeCode || '');
   if (!typeCode) {
@@ -259,6 +345,11 @@ async function openAssignMenu(record: RowData) {
   menuOpen.value = true;
 }
 
+/**
+ * 作用：提交角色菜单权限勾选结果。
+ * @param 无
+ * @returns 返回 Promise，提交完成后结束
+ */
 async function submitAssignMenu() {
   if (!currentRoleId.value) return;
 
@@ -272,6 +363,11 @@ async function submitAssignMenu() {
   }
 }
 
+/**
+ * 作用：挂载时先加载数据范围字典再加载列表。
+ * @param 无
+ * @returns 返回 Promise，初始化完成后结束
+ */
 onMounted(async () => {
   await loadDataScopeMap();
   await loadList(1);

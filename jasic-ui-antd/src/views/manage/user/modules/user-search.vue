@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 用户列表 — 搜索表单：状态、性别、关键词等，emit reset/search。
+ */
 import { computed } from 'vue';
 import { enableStatusOptions, userGenderOptions } from '@/constants/business';
 import { useAntdForm, useFormRules } from '@/hooks/common/form';
@@ -16,12 +19,15 @@ interface Emits {
 
 const emit = defineEmits<Emits>();
 
+// 查询表单重置、搜索事件向父组件传递
 const { formRef, validate, resetFields } = useAntdForm();
 
+// 双向绑定的查询条件模型
 const model = defineModel<Api.SystemManage.UserSearchParams>('model', { required: true });
 
 type RuleKey = Extract<keyof Api.SystemManage.UserSearchParams, 'userEmail' | 'userPhone'>;
 
+// 邮箱/手机校验规则（内层使用 useFormRules 以保持语言切换响应）
 const rules = computed<Record<RuleKey, App.Global.FormRule>>(() => {
   const { patternRules } = useFormRules(); // inside computed to make locale reactive
 
@@ -31,11 +37,21 @@ const rules = computed<Record<RuleKey, App.Global.FormRule>>(() => {
   };
 });
 
+/**
+ * 作用：重置表单并通知父级执行查询重置。
+ * @param 无
+ * @returns 返回 Promise，重置完成后结束
+ */
 async function reset() {
   await resetFields();
   emit('reset');
 }
 
+/**
+ * 作用：校验通过后通知父级触发搜索。
+ * @param 无
+ * @returns 返回 Promise，校验通过后结束
+ */
 async function search() {
   await validate();
   emit('search');

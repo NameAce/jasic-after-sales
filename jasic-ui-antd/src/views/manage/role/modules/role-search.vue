@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 角色列表 — 搜索表单：角色名、状态等，emit reset/search。
+ */
 import { enableStatusOptions } from '@/constants/business';
 import { $t } from '@/locales';
 
@@ -13,12 +16,23 @@ interface Emits {
 
 const emit = defineEmits<Emits>();
 
+// 查询表单双向绑定模型
 const model = defineModel<Api.SystemManage.RoleSearchParams>('model', { required: true });
 
+/**
+ * 作用：触发父级重置查询条件。
+ * @param 无
+ * @returns {void} 无
+ */
 function reset() {
   emit('reset');
 }
 
+/**
+ * 作用：触发父级执行搜索。
+ * @param 无
+ * @returns {void} 无
+ */
 function search() {
   emit('search');
 }

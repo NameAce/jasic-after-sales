@@ -1,3 +1,6 @@
+/**
+ * 核心路由守卫：常量/动态路由初始化、登录与选公司流程、角色与外链处理。
+ */
 import type {
   LocationQueryRaw,
   NavigationGuardNext,
@@ -12,9 +15,9 @@ import { localStg } from '@/utils/storage';
 import { getRouteName } from '@/router/elegant/transform';
 
 /**
- * create route guard
- *
- * @param router router instance
+ * 作用：注册全局前置守卫：初始化常量/鉴权路由、登录态与公司选择流程、meta.roles 与外链等。
+ * @param router Vue Router 实例
+ * @returns {void}
  */
 export function createRouteGuard(router: Router) {
   router.beforeEach(async (to, from, next) => {
@@ -91,9 +94,9 @@ export function createRouteGuard(router: Router) {
 }
 
 /**
- * initialize route
- *
- * @param to to route
+ * 作用：在登录后首次或常量路由未就绪时补全路由，必要时重定向登录或选公司页。
+ * @param to 目标路由
+ * @returns {Promise<RouteLocationRaw | null>} 需要重定向时返回目标，否则 null 表示继续当前导航
  */
 async function initRoute(to: RouteLocationNormalized): Promise<RouteLocationRaw | null> {
   const routeStore = useRouteStore();
@@ -208,6 +211,13 @@ async function initRoute(to: RouteLocationNormalized): Promise<RouteLocationRaw 
   return null;
 }
 
+/**
+ * 作用：处理带外链 meta.href 的跳转，并在新窗口打开后用原路径 replace 当前历史。
+ * @param to 目标路由
+ * @param from 来源路由
+ * @param next 导航 next
+ * @returns {void}
+ */
 function handleRouteSwitch(to: RouteLocationNormalized, from: RouteLocationNormalized, next: NavigationGuardNext) {
   // route with href
   if (to.meta.href) {
@@ -221,6 +231,12 @@ function handleRouteSwitch(to: RouteLocationNormalized, from: RouteLocationNorma
   next();
 }
 
+/**
+ * 作用：构造跳转登录页时的 query（redirect、首页带 query 的特殊拼接）。
+ * @param to 当前目标路由
+ * @param routeHome 应用首页路由 name
+ * @returns {LocationQueryRaw} 登录页 query
+ */
 function getRouteQueryOfLoginRoute(to: RouteLocationNormalized, routeHome: RouteKey) {
   const loginRoute: RouteKey = 'login';
   const redirect = to.fullPath;
@@ -238,6 +254,12 @@ function getRouteQueryOfLoginRoute(to: RouteLocationNormalized, routeHome: Route
   return query;
 }
 
+/**
+ * 作用：无权限时返回重定向目标（非根回根，已在根则进 403）。
+ * @param to 当前路由
+ * @param noAuthorizationRoute 无权限页路由名
+ * @returns {RouteLocationRaw} 重定向位置
+ */
 function getNoAuthFallbackLocation(to: RouteLocationNormalized, noAuthorizationRoute: RouteKey): RouteLocationRaw {
   const rootRoute: RouteKey = 'root';
 

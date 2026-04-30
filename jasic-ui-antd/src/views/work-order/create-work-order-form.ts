@@ -1,8 +1,14 @@
+/**
+ * 工单创建表单共享：服务方式常量、故障选项、表单默认值与入口代理（供创建弹窗与列表联动）。
+ */
 import { CREATE_ENTRY_PROXY, type CreateEntryMode } from './create-entry';
 
+// 服务方式：邮寄维修
 export const SERVICE_MODE_MAIL = 'MAIL' as const;
+// 服务方式：送店维修
 export const SERVICE_MODE_STORE = 'STORE' as const;
 
+// 「其它故障」默认展示文案
 export const DEFAULT_OTHER_FAULT_LABEL = '其它故障';
 
 /** 与 contractor `REPAIR_TYPE_OPTIONS` 文案一致：送店维修 / 邮寄维修 */
@@ -63,10 +69,19 @@ export interface CreateWorkOrderFormState {
   senderVoucherFiles: CreateFileItem[];
 }
 
+/**
+ * 作用：将任意值规范为空字符串或 trim 后的字符串。
+ * @param value - 原始值
+ * @returns 规范化字符串
+ */
 export function normalizeText(value: unknown): string {
   return value === null || value === undefined ? '' : String(value).trim();
 }
 
+/**
+ * 作用：生成建单表单的默认状态对象。
+ * @returns 初始表单状态
+ */
 export function buildDefaultCreateForm(): CreateWorkOrderFormState {
   return {
     entryMode: CREATE_ENTRY_PROXY,
@@ -104,6 +119,11 @@ export function buildDefaultCreateForm(): CreateWorkOrderFormState {
   };
 }
 
+/**
+ * 作用：从附件列表提取有效的 fileId 数组。
+ * @param fileList - 附件项列表
+ * @returns fileId 数字数组
+ */
 export function buildFileIdList(fileList: CreateFileItem[] | undefined): number[] {
   return (fileList || [])
     .map(item => item?.fileId)
@@ -112,14 +132,29 @@ export function buildFileIdList(fileList: CreateFileItem[] | undefined): number[
     .filter(id => Number.isFinite(id));
 }
 
+/**
+ * 作用：浅拷贝附件列表（每项展开为新对象）。
+ * @param fileList - 附件项列表
+ * @returns 拷贝后的数组
+ */
 export function cloneFileItems(fileList: CreateFileItem[] | undefined): CreateFileItem[] {
   return (fileList || []).map(item => ({ ...item }));
 }
 
+/**
+ * 作用：浅拷贝故障媒体列表。
+ * @param list - CreateFaultMediaItem 列表
+ * @returns 拷贝后的数组
+ */
 export function cloneFaultMediaItems(list: CreateFaultMediaItem[] | undefined): CreateFaultMediaItem[] {
   return (list || []).map(item => ({ ...item }));
 }
 
+/**
+ * 作用：将接口或下拉原始对象转为受理网点选项。
+ * @param raw - 原始对象
+ * @returns 规范化选项或无效时 null
+ */
 export function normalizeTargetCompanyOption(raw: Record<string, unknown>): TargetCompanyOption | null {
   const id = Number(raw.id ?? raw.companyId ?? raw.value);
   if (!Number.isFinite(id)) return null;

@@ -1,12 +1,17 @@
 <script setup lang="ts">
+/**
+ * 菜单演示页：多 Tab 同路由不同 query 时展示当前 query，用于验证页签与路由同步。
+ */
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useRouterPush } from '@/hooks/common/router';
 import { $t } from '@/locales';
 
+// 演示多开 Tab：读取当前路由 query
 const route = useRoute();
 const { routerPushByKey } = useRouterPush();
 
+// 当前路由 query 的 JSON 展示（多 Tab 演示页）
 const routeQuery = computed(() => JSON.stringify(route.query));
 </script>
 

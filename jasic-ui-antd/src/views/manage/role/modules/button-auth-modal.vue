@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 角色授权 — 按钮权限弹窗：按角色勾选接口级/按钮级权限树。
+ */
 import { computed, shallowRef } from 'vue';
 import type { DataNode } from 'ant-design-vue/es/tree';
 import { $t } from '@/locales';
@@ -8,7 +11,7 @@ defineOptions({
 });
 
 interface Props {
-  /** the roleId */
+  /** 角色 id */
   roleId: number;
 }
 
@@ -18,14 +21,26 @@ const visible = defineModel<boolean>('visible', {
   default: false
 });
 
+/**
+ * 作用：关闭按钮授权抽屉。
+ * @param 无
+ * @returns {void} 无
+ */
 function closeModal() {
   visible.value = false;
 }
 
+// 抽屉标题
 const title = computed(() => $t('common.edit') + $t('page.manage.role.buttonAuth'));
 
+// 按钮权限树（示例 Mock）
 const tree = shallowRef<DataNode[]>([]);
 
+/**
+ * 作用：加载全部按钮节点（示例 Mock）。
+ * @param 无
+ * @returns 返回 Promise，本地树更新后结束
+ */
 async function getAllButtons() {
   // request
   tree.value = [
@@ -42,14 +57,25 @@ async function getAllButtons() {
   ];
 }
 
+// 已勾选按钮节点 id
 const checks = shallowRef<number[]>([]);
 
+/**
+ * 作用：加载角色已选按钮（示例 Mock）。
+ * @param 无
+ * @returns 返回 Promise，本地状态更新后结束
+ */
 async function getChecks() {
   console.log(props.roleId);
   // request
   checks.value = [1, 2, 3, 4, 5];
 }
 
+/**
+ * 作用：提交按钮勾选（示例仅提示）。
+ * @param 无
+ * @returns {void} 无
+ */
 function handleSubmit() {
   console.log(checks.value, props.roleId);
   // request
@@ -59,12 +85,17 @@ function handleSubmit() {
   closeModal();
 }
 
+/**
+ * 作用：初始化按钮树与勾选状态。
+ * @param 无
+ * @returns {void} 无
+ */
 function init() {
   getAllButtons();
   getChecks();
 }
 
-// init
+// 组件创建时拉取示例数据
 init();
 </script>
 

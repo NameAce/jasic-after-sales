@@ -1,3 +1,6 @@
+/**
+ * 鉴权与会话：登录/登出、选公司、用户信息、token 与小程序绑定等，并与路由/页签 store 协同。
+ */
 import { computed, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { defineStore } from 'pinia';
@@ -27,9 +30,12 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
   const { toLogin, redirectFromLogin } = useRouterPush(false);
   const { loading: loginLoading, startLoading, endLoading } = useLoading();
 
+  // 访问令牌，与本地存储同步
   const token = ref(getToken());
+  // 需要选公司时后端返回的可选公司列表
   const companyOptions = ref<Api.Auth.CompanyOption[]>([]);
 
+  // 当前登录用户展示信息与权限口径
   const userInfo: Api.Auth.UserInfo = reactive({
     userId: '',
     userName: '',
@@ -37,12 +43,13 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     buttons: []
   });
 
-  /** Is login */
+  // 是否已持有 token（不代表 userInfo 一定已拉取）
   const isLogin = computed(() => Boolean(token.value));
   /** 与 jasic-ui user.js：仅当后端声明 needChooseCompany 时进入选公司流程；user-info 里带 companies 列表不触发 */
   const needChooseCompany = ref(false);
+  // 去重后的角色 key 列表，用于静态超管等判断
   const roleKeys = computed(() => Array.from(new Set(userInfo.roles.filter(Boolean))));
-  /** Is super role in static route */
+  // 静态路由模式下是否命中配置的超级角色
   const isStaticSuper = computed(() => {
     const { VITE_AUTH_ROUTE_MODE, VITE_STATIC_SUPER_ROLE } = import.meta.env;
 
@@ -71,6 +78,12 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     currentSubjectType?: string;
   };
 
+  /**
+   * 将后端角色数组规范为 roleKey 字符串数组（忽略纯字符串角色）。
+   *
+   * @param roles - 原始角色列表
+   * @returns {string[]} 角色 key 列表
+   */
   function normalizeRoles(roles: RawUserInfo['roles']) {
     if (!Array.isArray(roles)) return [];
 
@@ -86,6 +99,12 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
       .filter(Boolean);
   }
 
+  /**
+   * 从用户信息中提取按钮/权限码列表（优先 perms）。
+   *
+   * @param raw - 原始用户字段
+   * @returns {string[]} 权限码数组
+   */
   function normalizeButtons(raw: RawUserInfo | null | undefined) {
     if (Array.isArray(raw?.perms)) {
       return raw.perms;
@@ -96,6 +115,12 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     return [];
   }
 
+  /**
+   * 将后端用户对象转为前端统一的 UserInfo 结构。
+   *
+   * @param raw - 原始用户信息
+   * @returns {Api.Auth.UserInfo} 规范化后的用户信息
+   */
   function normalizeUserInfo(raw: RawUserInfo | null | undefined): Api.Auth.UserInfo {
     const roles = normalizeRoles(raw?.roles);
     const buttons = normalizeButtons(raw);
@@ -113,16 +138,34 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     };
   }
 
+  /**
+   * 用规范化结果覆盖响应式 userInfo。
+   *
+   * @param raw - 原始用户信息
+   * @returns {void} 无返回值
+   */
   function applyUserInfo(raw: RawUserInfo | null | undefined) {
     const normalized = normalizeUserInfo(raw);
     Object.assign(userInfo, normalized);
   }
 
+  /**
+   * 判断当前用户是否拥有目标角色中的任意一个。
+   *
+   * @param targetRoles - 目标角色 key 列表；空数组视为通过
+   * @returns {boolean} 是否匹配
+   */
   function hasAnyRole(targetRoles: string[]) {
     if (!targetRoles.length) return true;
     return roleKeys.value.some(role => targetRoles.includes(role));
   }
 
+  /**
+   * 根据登录或用户信息接口结果更新 token 上下文、公司与用户字段。
+   *
+   * @param payload - 登录响应或用户信息体
+   * @returns {void} 无返回值
+   */
   function applyLoginResponseContext(payload: Api.Auth.LoginResponse | Api.Auth.BackendUserInfo | null | undefined) {
     if (!payload) {
       companyOptions.value = [];
@@ -145,7 +188,11 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     }
   }
 
-  /** Reset auth store */
+  /**
+   * 清空登录态与本地凭证，并按需跳转登录、重置路由与标签缓存。
+   *
+   * @returns {Promise<void>} 无返回值
+   */
   async function resetStore() {
     const authStore = useAuthStore();
 
@@ -161,7 +208,11 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     routeStore.resetStore();
   }
 
-  /** Logout with backend session cleanup */
+  /**
+   * 调用后端登出接口后执行本地 resetStore。
+   *
+   * @returns {Promise<void>} 无返回值
+   */
   async function logout() {
     try {
       await fetchLogout();
@@ -171,11 +222,12 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
   }
 
   /**
-   * Login
+   * PC 密码登录：换 token、拉用户信息或进入选公司，并按需跳转与提示。
    *
-   * @param userName User name
-   * @param password Password
-   * @param [redirect=true] Whether to redirect after login. Default is `true`
+   * @param userName - 用户名
+   * @param password - 密码
+   * @param redirect - 登录成功后是否执行登录前重定向，默认 true
+   * @returns {Promise<void>} 无返回值
    */
   async function login(userName: string, password: string, redirect = true) {
     // PC 主流程登录入口：仅密码登录会走该分支（/auth/login）。
@@ -204,6 +256,12 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     endLoading();
   }
 
+  /**
+   * 使用登录接口返回的 token 落库并继续拉取用户态或标记需选公司。
+   *
+   * @param loginToken - 含 access/refresh token 及可选用户与公司上下文
+   * @returns {Promise<boolean>} 是否已完成可进入系统的用户态（false 可能表示需选公司）
+   */
   async function loginByToken(loginToken: Api.Auth.LoginToken) {
     // 1. stored in the localStorage, the later requests need it in headers
     localStg.set('token', loginToken.token);
@@ -235,6 +293,11 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     return false;
   }
 
+  /**
+   * 请求 /auth/user-info 并合并到本地 userInfo / 选公司状态。
+   *
+   * @returns {Promise<boolean>} 是否拉取成功
+   */
   async function getUserInfo() {
     // PC 主流程用户态拉取口径：/auth/user-info
     const { data: info, error } = await fetchGetUserInfo();
@@ -248,6 +311,12 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     return false;
   }
 
+  /**
+   * 提交选中的公司并完成登录后用户上下文更新。
+   *
+   * @param companyId - 公司主键
+   * @returns {Promise<boolean>} 是否成功
+   */
   async function chooseCompany(companyId: Api.Common.IdLike) {
     // PC 主流程选公司口径：/auth/choose-company
     const { data, error } = await fetchChooseCompany({ companyId });
@@ -260,6 +329,11 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     return false;
   }
 
+  /**
+   * 应用启动时若本地有 token 则尝试静默拉取用户信息，失败则清理登录态。
+   *
+   * @returns {Promise<void>} 无返回值
+   */
   async function initUserInfo() {
     const hasToken = getToken();
 
@@ -272,6 +346,13 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     }
   }
 
+  /**
+   * 小程序等场景：用微信 code 换 token（兼容链路，非 PC 主入口）。
+   *
+   * @param code - 微信授权码
+   * @param redirect - 成功后是否重定向
+   * @returns {Promise<void>} 无返回值
+   */
   async function loginByWechatCode(code: string, redirect = true) {
     // 非 PC 主流程：该函数仅用于兼容保留的 mp 登录链路，不应作为 PC 登录入口接入。
     startLoading();
@@ -290,6 +371,13 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     endLoading();
   }
 
+  /**
+   * 绑定微信并登录（兼容 mp 链路）。
+   *
+   * @param payload - 绑定登录参数
+   * @param redirect - 成功后是否重定向
+   * @returns {Promise<void>} 无返回值
+   */
   async function bindWechatAndLogin(payload: Api.Auth.MpBindLoginParams, redirect = true) {
     // 非 PC 主流程：该函数仅用于兼容保留的 mp 绑定登录链路，不应由 PC register/reset-pwd 触发。
     startLoading();
@@ -307,6 +395,13 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     endLoading();
   }
 
+  /**
+   * 确认微信绑定并完成登录（兼容 mp 链路）。
+   *
+   * @param payload - 绑定确认参数
+   * @param redirect - 成功后是否重定向
+   * @returns {Promise<void>} 无返回值
+   */
   async function confirmWechatBindAndLogin(payload: Api.Auth.MpBindConfirmParams, redirect = true) {
     // 非 PC 主流程：该函数仅用于兼容保留的 mp 绑定确认链路，不应由 PC 登录页主入口触发。
     startLoading();

@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 主题抽屉页脚：一键重置主题为默认、复制当前主题为 JSON（键名去引号便于粘贴到配置）。
+ */
 import { onMounted, ref } from 'vue';
 import Clipboard from 'clipboard';
 import { useThemeStore } from '@/store/modules/theme';
@@ -12,6 +15,7 @@ const themeStore = useThemeStore();
 
 const domRef = ref<HTMLElement | null>(null);
 
+/** 绑定 Clipboard 到「复制配置」按钮容器 */
 function initClipboard() {
   if (!domRef.value) return;
 
@@ -24,6 +28,7 @@ function initClipboard() {
   });
 }
 
+/** 生成复制文本：将 JSON 中 `"key":` 形式的键名去掉引号 */
 function getClipboardText() {
   const reg = /"\w+":/g;
 
@@ -32,6 +37,7 @@ function getClipboardText() {
   return json.replace(reg, match => match.replace(/"/g, ''));
 }
 
+/** 恢复默认主题配置并提示 */
 function handleReset() {
   themeStore.resetStore();
 

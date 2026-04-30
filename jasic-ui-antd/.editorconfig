@@ -2,10 +2,15 @@
 
 root = true
 
-[*]
+[*]# 字符集
 charset = utf-8
+# 缩进风格
 indent_style = space
+# 缩进大小
 indent_size = 2
+# 行尾换行符
 end_of_line = lf
+# 删除行尾空白字符
 trim_trailing_whitespace = true
+# 插入最终换行符
 insert_final_newline = true

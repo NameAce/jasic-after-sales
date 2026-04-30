@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 纵向混合菜单：左侧一级 + 可选固定/抽屉式子菜单，与 mix-menu 上下文联动。
+ */
 import { computed } from 'vue';
 import type { MenuInfo } from 'ant-design-vue/es/menu/src/interface';
 import type { RouteKey } from '@elegant-router/types';
@@ -25,25 +28,23 @@ const routeStore = useRouteStore();
 const authStore = useAuthStore();
 const { routerPushByKeyWithMetaQuery } = useRouterPush();
 const { bool: drawerVisible, setBool: setDrawerVisible } = useBoolean();
-const {
-  allMenus,
-  childLevelMenus,
-  activeFirstLevelMenuKey,
-  setActiveFirstLevelMenuKey,
-  getActiveFirstLevelMenuKey
-  //
-} = useMixMenuContext();
+const { allMenus, childLevelMenus, activeFirstLevelMenuKey, setActiveFirstLevelMenuKey, getActiveFirstLevelMenuKey } =
+  useMixMenuContext();
 const { selectedKey } = useMenu();
 
+// 侧栏菜单暗色皮肤：全局非暗色且开启 sider.inverted 时
 const inverted = computed(() => !themeStore.darkMode && themeStore.sider.inverted);
 
 const menuTheme = computed(() => (inverted.value ? 'dark' : 'light'));
 
+// 当前一级下是否存在可展示子菜单
 const hasChildMenus = computed(() => childLevelMenus.value.length > 0);
 
+// 有子菜单且抽屉已开或开启固定混合子栏时展示抽屉
 const showDrawer = computed(() => hasChildMenus.value && (drawerVisible.value || appStore.mixSiderFixed));
 const systemTitle = computed(() => authStore.userInfo.currentCompanyName || $t('system.title'));
 
+/** 点击一级：有子级则开抽屉，无子级则直接跳转 */
 function handleSelectMixMenu(menu: App.Global.Menu) {
   setActiveFirstLevelMenuKey(menu.key);
 
@@ -54,6 +55,7 @@ function handleSelectMixMenu(menu: App.Global.Menu) {
   }
 }
 
+/** 鼠标离开混合区：关抽屉并在非固定模式下重算一级选中 */
 function handleResetActiveMenu() {
   setDrawerVisible(false);
 
@@ -62,6 +64,7 @@ function handleResetActiveMenu() {
   }
 }
 
+// 侧栏未折叠时展开至当前选中项的各级 key（用于 SubMenu openKeys）
 const openKeys = computed(() => {
   if (appStore.siderCollapse || !selectedKey.value) return [];
 
@@ -70,6 +73,7 @@ const openKeys = computed(() => {
   return routeStore.getSelectedMenuKeyPath(selectedKey.value);
 });
 
+/** 子菜单项点击跳转 */
 function handleClickMenu(menuInfo: MenuInfo) {
   const key = menuInfo.key as RouteKey;
 

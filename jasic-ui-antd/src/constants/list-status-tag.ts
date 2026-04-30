@@ -1,5 +1,6 @@
 /**
- * 列表中 ATag 语义色统一：与 Ant Design 预设色一致，全站列表复用。
+ * 列表中 ATag 语义色：与 Ant Design Tag 预设色一致，封装启用/停用、布尔正反、工单主状态等映射，全站列表复用。
+ *
  * @see https://ant.design/components/tag-cn
  */
 

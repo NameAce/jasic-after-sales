@@ -1,4 +1,7 @@
 <script lang="ts" setup>
+/**
+ * 403/404/500 异常占位页：大图 + 回首页，配合内置错误路由使用。
+ */
 import { computed } from 'vue';
 import { useRouterPush } from '@/hooks/common/router';
 import { $t } from '@/locales';
@@ -28,6 +31,7 @@ const iconMap: Record<ExceptionType, string> = {
   '500': 'service-error'
 };
 
+// 异常类型对应本地雪碧图中的 symbol 名
 const icon = computed(() => iconMap[props.type]);
 </script>
 

@@ -6,6 +6,7 @@ import { useAppStore } from '@/store/modules/app';
 import { useEcharts } from '@/hooks/common/echarts';
 import { $t } from '@/locales';
 
+// 应用语言与 ECharts 封装（工单与待办趋势折线）
 defineOptions({
   name: 'LineChart'
 });
@@ -110,11 +111,21 @@ const { domRef, updateOptions } = useEcharts(() => ({
   ]
 }));
 
+/**
+ * 作用：将时间字符串截断为 yyyy-MM-dd 作为统计键。
+ * @param input - 任意时间表示
+ * @returns 日期键或空串
+ */
 function toDateKey(input: unknown) {
   const text = String(input || '');
   return text.length >= 10 ? text.slice(0, 10) : '';
 }
 
+/**
+ * 作用：生成向前连续若干天的日期键（yyyy-MM-dd）。
+ * @param size - 天数，默认 7
+ * @returns 日期键数组（从早到晚）
+ */
 function buildDayKeys(size = 7) {
   const result: string[] = [];
   const now = new Date();
@@ -129,10 +140,20 @@ function buildDayKeys(size = 7) {
   return result;
 }
 
+/**
+ * 作用：将完整日期键格式化为坐标轴短标签（MM-DD）。
+ * @param dayKey - yyyy-MM-dd
+ * @returns 短标签
+ */
 function toAxisLabel(dayKey: string) {
   return dayKey.slice(5);
 }
 
+/**
+ * 作用：统计近 7 日建单数与待办通知数并更新折线图。
+ * @param 无
+ * @returns 返回 Promise，图表更新后结束
+ */
 async function loadRealData() {
   const dayKeys = buildDayKeys(7);
   const orderCountMap: Record<string, number> = {};
@@ -169,6 +190,11 @@ async function loadRealData() {
   });
 }
 
+/**
+ * 作用：语言切换时同步图例与系列名称文案。
+ * @param 无
+ * @returns {void} 无
+ */
 function updateLocale() {
   updateOptions((opts, factory) => {
     const originOpts = factory();
@@ -181,6 +207,11 @@ function updateLocale() {
   });
 }
 
+/**
+ * 作用：挂载时加载折线数据，失败则清空坐标与系列。
+ * @param 无
+ * @returns 返回 Promise，初始化结束后结束
+ */
 async function init() {
   try {
     await loadRealData();
@@ -194,6 +225,7 @@ async function init() {
   }
 }
 
+// 语言变更时刷新图表文案
 watch(
   () => appStore.locale,
   () => {
@@ -201,10 +233,20 @@ watch(
   }
 );
 
+/**
+ * 作用：挂载后拉取折线图数据。
+ * @param 无
+ * @returns {void} 无
+ */
 onMounted(() => {
   init();
 });
 
+/**
+ * 作用：跳转工单列表（全部视角）。
+ * @param 无
+ * @returns {void} 无
+ */
 function goWorkOrderPage() {
   router.push({ name: 'after-sales_work-order', query: { viewScope: 'ALL' } });
 }

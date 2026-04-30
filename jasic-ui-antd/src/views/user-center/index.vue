@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 个人中心：资料修改、改密、微信绑定状态与二维码等（对接 auth 用户信息接口）。
+ */
 import { computed, onMounted, reactive, ref } from 'vue';
 import { Modal } from 'ant-design-vue';
 import {
@@ -24,14 +27,21 @@ type WechatBindState = {
   hasActiveTicket: boolean;
 };
 
+// 全局认证状态（当前用户、公司等）
 const authStore = useAuthStore();
 
+// 资料保存按钮加载态
 const profileLoading = ref(false);
+// 修改密码提交加载态
 const passwordLoading = ref(false);
+// 微信绑定相关请求加载态
 const bindLoading = ref(false);
+// 绑定二维码图片（Base64 或 URL）
 const bindQrImage = ref('');
+// 解绑微信时输入的当前密码
 const unbindPassword = ref('');
 
+// 个人资料表单模型
 const profileForm = reactive({
   username: '',
   realName: '',
@@ -40,12 +50,14 @@ const profileForm = reactive({
   currentPassword: ''
 });
 
+// 修改密码表单模型
 const passwordForm = reactive({
   currentPassword: '',
   newPassword: '',
   confirmPassword: ''
 });
 
+// 微信绑定状态（是否已绑定、票据与过期等）
 const bindStatus = reactive<WechatBindState>({
   bound: false,
   maskedOpenid: '',
@@ -54,10 +66,16 @@ const bindStatus = reactive<WechatBindState>({
   hasActiveTicket: false
 });
 
+// 当前用户角色键名展示文案（顿号分隔）
 const roleText = computed(() => {
   return authStore.roleKeys.length ? authStore.roleKeys.join('、') : '-';
 });
 
+/**
+ * 作用：将接口返回的微信绑定状态写入本地响应式对象。
+ * @param raw - 接口原始数据
+ * @returns {void} 无
+ */
 function applyBindStatus(raw: unknown) {
   const data = (raw || {}) as Record<string, unknown>;
   bindStatus.bound = Boolean(data.bound);
@@ -67,6 +85,11 @@ function applyBindStatus(raw: unknown) {
   bindStatus.hasActiveTicket = Boolean(data.hasActiveTicket);
 }
 
+/**
+ * 作用：拉取当前用户资料并回填资料表单。
+ * @param 无
+ * @returns 返回 Promise，请求结束后结束
+ */
 async function loadUserInfo() {
   const { data, error } = await fetchGetUserInfo();
   if (error || !data) return;
@@ -78,16 +101,31 @@ async function loadUserInfo() {
   profileForm.currentPassword = '';
 }
 
+/**
+ * 作用：重置资料表单为服务端最新数据。
+ * @param 无
+ * @returns {void} 无
+ */
 function resetProfileForm() {
   loadUserInfo();
 }
 
+/**
+ * 作用：清空修改密码表单输入。
+ * @param 无
+ * @returns {void} 无
+ */
 function resetPasswordForm() {
   passwordForm.currentPassword = '';
   passwordForm.newPassword = '';
   passwordForm.confirmPassword = '';
 }
 
+/**
+ * 作用：校验并提交个人资料修改。
+ * @param 无
+ * @returns 返回 Promise，提交流程结束后结束
+ */
 async function submitProfile() {
   if (!profileForm.realName.trim()) {
     window.$message?.warning('请输入姓名');
@@ -121,6 +159,11 @@ async function submitProfile() {
   }
 }
 
+/**
+ * 作用：校验并提交修改密码，成功后退出登录。
+ * @param 无
+ * @returns 返回 Promise，提交流程结束后结束
+ */
 async function submitPassword() {
   if (!passwordForm.currentPassword.trim()) {
     window.$message?.warning('请输入当前密码');
@@ -150,6 +193,11 @@ async function submitPassword() {
   }
 }
 
+/**
+ * 作用：刷新微信绑定状态；若由未绑定变为已绑定则提示并刷新用户信息。
+ * @param 无
+ * @returns 返回 Promise，请求结束后结束
+ */
 async function refreshBindStatus() {
   bindLoading.value = true;
   try {
@@ -170,6 +218,11 @@ async function refreshBindStatus() {
   }
 }
 
+/**
+ * 作用：请求生成微信绑定二维码并更新绑定状态与图片。
+ * @param 无
+ * @returns 返回 Promise，请求结束后结束
+ */
 async function generateBindQrcode() {
   bindLoading.value = true;
   try {
@@ -194,6 +247,11 @@ async function generateBindQrcode() {
   }
 }
 
+/**
+ * 作用：校验密码后弹出确认框，确认则调用解绑并退出登录。
+ * @param 无
+ * @returns {void} 无
+ */
 function handleUnbindWechat() {
   const currentPassword = unbindPassword.value.trim();
   if (!currentPassword) {
@@ -220,6 +278,11 @@ function handleUnbindWechat() {
   });
 }
 
+/**
+ * 作用：进入页面时并行加载用户资料与微信绑定状态。
+ * @param 无
+ * @returns 返回 Promise，初始化完成后结束
+ */
 onMounted(async () => {
   await Promise.all([loadUserInfo(), refreshBindStatus()]);
 });

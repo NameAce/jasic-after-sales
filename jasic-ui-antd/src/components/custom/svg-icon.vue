@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 图标组件：优先渲染本地 SVG 雪碧（`localIcon`），否则走 Iconify 在线/离线图标。
+ */
 import { computed, useAttrs } from 'vue';
 import { Icon } from '@iconify/vue';
 
@@ -26,6 +29,7 @@ const bindAttrs = computed<{ class: string; style: string }>(() => ({
   style: (attrs.style as string) || ''
 }));
 
+// svg use 引用的 symbol id（与 vite 雪碧前缀一致）
 const symbolId = computed(() => {
   const { VITE_ICON_LOCAL_PREFIX: prefix } = import.meta.env;
 
@@ -36,7 +40,7 @@ const symbolId = computed(() => {
   return `#${prefix}-${icon}`;
 });
 
-/** If localIcon is passed, render localIcon first */
+// 有 localIcon 或仅有本地占位时走雪碧图，否则走 Iconify
 const renderLocalIcon = computed(() => props.localIcon || !props.icon);
 </script>
 

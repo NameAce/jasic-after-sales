@@ -1,9 +1,11 @@
 <script setup lang="ts">
+/**
+ * 登录入口页：波浪背景 + 按 `module` 切换密码/验证码/注册/重置密码/绑定微信等子表单。
+ */
 import { computed } from 'vue';
 import type { Component } from 'vue';
 import { getColorPalette, mixColor } from '@sa/utils';
 import { loginModuleRecord } from '@/constants/app';
-import { useAppStore } from '@/store/modules/app';
 import { useThemeStore } from '@/store/modules/theme';
 import { $t } from '@/locales';
 import PwdLogin from './modules/pwd-login.vue';
@@ -19,7 +21,7 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const appStore = useAppStore();
+// 主题配置（背景渐变等）
 const themeStore = useThemeStore();
 
 interface LoginModule {
@@ -27,6 +29,7 @@ interface LoginModule {
   component: Component;
 }
 
+// 登录子模块与组件映射
 const moduleMap: Record<UnionKey.LoginModule, LoginModule> = {
   'pwd-login': { label: loginModuleRecord['pwd-login'], component: PwdLogin },
   'code-login': { label: loginModuleRecord['code-login'], component: CodeLogin },
@@ -35,19 +38,22 @@ const moduleMap: Record<UnionKey.LoginModule, LoginModule> = {
   'bind-wechat': { label: loginModuleRecord['bind-wechat'], component: BindWechat }
 };
 
-// PC 登录页仅放行密码登录主链路与找回密码分支；其余模块仅兼容保留，不作为 PC 主入口。
+// PC 端允许的登录模块白名单（其余回落到密码登录）
 const PC_ENTRY_WHITELIST: ReadonlySet<UnionKey.LoginModule> = new Set(['pwd-login', 'reset-pwd']);
 
+// 当前展示的登录子模块（含白名单纠正）
 const activeModule = computed(() => {
   const module = props.module || 'pwd-login';
   const resolvedModule = PC_ENTRY_WHITELIST.has(module) ? module : 'pwd-login';
   return moduleMap[resolvedModule];
 });
 
+// 波浪背景主题色（暗色用调色板加深）
 const bgThemeColor = computed(() =>
   themeStore.darkMode ? getColorPalette(themeStore.themeColor, 7) : themeStore.themeColor
 );
 
+// 登录页整页背景混合色
 const bgColor = computed(() => {
   const COLOR_WHITE = '#ffffff';
 
@@ -56,6 +62,7 @@ const bgColor = computed(() => {
   return mixColor(COLOR_WHITE, themeStore.themeColor, ratio);
 });
 
+// 系统标题文案（i18n）
 const systemTitle = computed(() => $t('system.title'));
 </script>
 
@@ -73,12 +80,6 @@ const systemTitle = computed(() => $t('system.title'));
               :show-tooltip="false"
               class="text-20px lt-sm:text-18px"
               @switch="themeStore.toggleThemeScheme"
-            />
-            <LangSwitch
-              :lang="appStore.locale"
-              :lang-options="appStore.localeOptions"
-              :show-tooltip="false"
-              @change-lang="appStore.changeLocale"
             />
           </div>
         </header>

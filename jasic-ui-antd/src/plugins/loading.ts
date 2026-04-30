@@ -3,7 +3,12 @@ import { getRgb } from '@sa/color';
 import { localStg } from '@/utils/storage';
 import { $t } from '@/locales';
 
+/**
+ * 作用：在 #app 挂载前注入全屏加载动画 HTML，使用本地存储中的主题主色与系统标题文案。
+ * @returns {void}
+ */
 export function setupLoading() {
+  // 与主题设置同步的主色（RGB），供 UnoCSS primary 工具类在首屏生效
   const themeColor = localStg.get('themeColor') || '#646cff';
 
   const { r, g, b } = getRgb(themeColor);
@@ -11,6 +16,7 @@ export function setupLoading() {
   const primaryColor = `--primary-color: ${r} ${g} ${b}`;
   const cssVars = `${primaryColor};`;
 
+  // 四角脉冲小方块动画 class 片段
   const loadingClasses = [
     'left-0 top-0',
     'left-0 bottom-0 animate-delay-500',
@@ -44,6 +50,10 @@ export function setupLoading() {
   }
 }
 
+/**
+ * 作用：生成内联 SVG Logo 字符串，供首屏加载层展示。
+ * @returns {string} SVG 标记字符串
+ */
 function getLogoSvg() {
   const logoSvg = `<svg
         width="100%"

@@ -20,7 +20,9 @@ interface CardData {
 }
 
 const router = useRouter();
+// 卡片数据加载态
 const loading = ref(false);
+// 各主状态工单数量
 const statusCountMap = ref<Record<CardData['key'], number>>({
   ALL: 0,
   PENDING_ASSIGN: 0,
@@ -30,6 +32,7 @@ const statusCountMap = ref<Record<CardData['key'], number>>({
   CLOSED: 0
 });
 
+// 首页工单状态卡片列表（含样式与图标）
 const cardData = computed<CardData[]>(() => [
   {
     key: 'ALL',
@@ -97,12 +100,23 @@ interface GradientBgProps {
   gradientColor: string;
 }
 
+// 可复用渐变背景模板（工单状态卡片外壳）
 const [DefineGradientBg, GradientBg] = createReusableTemplate<GradientBgProps>();
 
+/**
+ * 作用：生成卡片背景渐变 CSS。
+ * @param color - 起止色配置
+ * @returns linear-gradient 字符串
+ */
 function getGradientColor(color: CardData['color']) {
   return `linear-gradient(to bottom right, ${color.start}, ${color.end})`;
 }
 
+/**
+ * 作用：将接口状态分布写入本地 countMap。
+ * @param rows - WorkOrderStatusCountVO 列表
+ * @returns {void} 无
+ */
 function syncStatusCountMap(rows: WorkOrderStatusCountVO[] | null | undefined) {
   const next: Record<CardData['key'], number> = {
     ALL: 0,
@@ -123,6 +137,11 @@ function syncStatusCountMap(rows: WorkOrderStatusCountVO[] | null | undefined) {
   statusCountMap.value = next;
 }
 
+/**
+ * 作用：请求当前视角工单状态统计并更新卡片数字。
+ * @param 无
+ * @returns 返回 Promise，请求结束后结束
+ */
 async function loadStatusCount() {
   loading.value = true;
   try {
@@ -133,11 +152,21 @@ async function loadStatusCount() {
   }
 }
 
+/**
+ * 作用：按状态跳转工单列表。
+ * @param status - 卡片对应主状态或 ALL
+ * @returns {void} 无
+ */
 function openWorkOrderPage(status: CardData['key']) {
   const query = status === 'ALL' ? { viewScope: 'CURRENT' } : { viewScope: 'CURRENT', mainStatus: status };
   router.push({ name: 'after-sales_work-order', query });
 }
 
+/**
+ * 作用：挂载后加载工单状态卡片数据。
+ * @param 无
+ * @returns {void} 无
+ */
 onMounted(() => {
   loadStatusCount();
 });

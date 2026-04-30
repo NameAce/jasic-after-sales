@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 售后工单列表：状态统计、表格筛选、创建/详情抽屉与行内主操作（对接 work-order 接口）。
+ */
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { transformColorWithOpacity } from '@sa/utils';
@@ -14,15 +17,21 @@ import { getRowPrimaryActions } from './list-actions';
 
 type RowData = Record<string, any>;
 
+// 表格滚动容器 ref 与横向滚动配置
 const { tableWrapperRef, scrollConfig } = useTableScroll(1500);
+// 权限钩子（如「建维修订单」按钮）
 const { hasAuth } = useAuth();
 
 type MainStatusTab = 'ALL' | 'PENDING_ASSIGN' | 'PENDING_TECH_ACCEPT' | 'IN_PROGRESS' | 'COMPLETED' | 'CLOSED';
 
+// 列表加载态
 const loading = ref(false);
+// 工单表格数据
 const rows = ref<RowData[]>([]);
+// 分页总条数
 const total = ref(0);
 
+// 列表查询条件（分页、视图范围、筛选字段）
 const query = reactive({
   pageNum: 1,
   pageSize: 10,
@@ -35,6 +44,7 @@ const query = reactive({
   hasTransfer: undefined as undefined | 0 | 1
 });
 
+// 各主状态工单数量（用于状态 Segmented 角标）
 const statusCountMap = ref<Record<string, number>>({
   ALL: 0,
   PENDING_ASSIGN: 0,
@@ -44,19 +54,25 @@ const statusCountMap = ref<Record<string, number>>({
   CLOSED: 0
 });
 
+// 「是否转单」筛选下拉选项
 const hasTransferOptions = [
   { label: '是', value: 1 },
   { label: '否', value: 0 }
 ];
 
+// 建单弹窗组件实例引用
 const createModalsRef = ref<InstanceType<typeof WorkOrderCreateModals> | null>(null);
+// 当前路由（详情 query、筛选参数）
 const route = useRoute();
 const router = useRouter();
+// 主题 store（主色、暗色模式，用于 Segmented 选中底）
 const themeStore = useThemeStore();
+// 路由 query 中合法的视图范围取值
 const VIEW_SCOPE_SET = new Set(['CURRENT', 'HISTORY', 'ALL']);
+// 路由 query 中合法的主状态取值
 const MAIN_STATUS_SET = new Set(['PENDING_ASSIGN', 'PENDING_TECH_ACCEPT', 'IN_PROGRESS', 'COMPLETED', 'CLOSED']);
 
-/** 与顶部 PageTab `chrome-tab_active` / `chrome-tab_active_dark` 下 `.chrome-tab__bg` 的 fill 色一致（createTabCssVars：primaryColor1 / primaryColor2） */
+// 工单状态 Segmented 选中拇指背景色（与 PageTab 激活底同色）
 const workOrderStatusSegmentedThumbBg = computed(() => {
   const primary = themeStore.themeColors.primary;
   return themeStore.darkMode
@@ -64,10 +80,14 @@ const workOrderStatusSegmentedThumbBg = computed(() => {
     : transformColorWithOpacity(primary, 0.1, '#ffffff');
 });
 
+// 详情抽屉是否打开
 const detailOpen = ref(false);
+// 当前查看的工单 ID
 const detailWorkOrderId = ref<number | null>(null);
+// 工单详情抽屉组件引用（列表操作直达弹层内动作）
 const detailDrawerRef = ref<InstanceType<typeof WorkOrderDetailDrawer> | null>(null);
 
+// 绑定主状态 Segmented 与 query.mainStatus（ALL 表示空字符串）
 const activeMainStatus = computed({
   get: () => (query.mainStatus ? query.mainStatus : 'ALL') as MainStatusTab,
   set: (v: MainStatusTab) => {
@@ -75,6 +95,7 @@ const activeMainStatus = computed({
   }
 });
 
+// 主状态 Tab 元数据（文案 + 对应数量）
 const statusTabOptions = computed(() => [
   { value: 'ALL' as const, label: '全部', count: statusCountMap.value.ALL || 0 },
   { value: 'PENDING_ASSIGN' as const, label: '待派单', count: statusCountMap.value.PENDING_ASSIGN || 0 },
@@ -84,6 +105,7 @@ const statusTabOptions = computed(() => [
   { value: 'CLOSED' as const, label: '已关闭', count: statusCountMap.value.CLOSED || 0 }
 ]);
 
+// Segmented 组件用的选项（标签含数量）
 const statusSegmentOptions = computed(() =>
   statusTabOptions.value.map(item => ({
     label: `${item.label}（${item.count}）`,
@@ -91,9 +113,10 @@ const statusSegmentOptions = computed(() =>
   }))
 );
 
-/** 当前列表页至少一条存在可操作按钮时，才展示「操作」列 */
+// 是否存在任一行的主操作按钮；有则显示「操作」列
 const hasAnyRowActionButtons = computed(() => rows.value.some(row => getRowPrimaryActions(row).length > 0));
 
+// 表格列定义（按需追加操作列）
 const columns = computed(() => {
   const baseColumns: any[] = [
     { title: '工单号', dataIndex: 'orderNo', key: 'orderNo', width: 180 },
@@ -126,18 +149,32 @@ const columns = computed(() => {
   return baseColumns;
 });
 
+/**
+ * 作用：从接口分页对象中取出列表数组。
+ * @param data - 接口返回的分页或数组
+ * @returns 表格行数组
+ */
 function pickRows(data: any) {
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.records)) return data.records;
   return [];
 }
 
+/**
+ * 作用：解析分页总条数。
+ * @param data - 接口返回数据
+ * @param fallback - 无法解析时的默认值
+ * @returns 总条数
+ */
 function pickTotal(data: any, fallback: number) {
   const value = data?.total ?? data?.count ?? fallback;
   return Number(value) || fallback;
 }
 
-/** 与 jasic-ui `buildStatusCountParams` 一致：统计接口不带 mainStatus、不带分页 */
+/**
+ * 作用：构造状态统计接口参数（不含 mainStatus、不含分页），与 jasic-ui buildStatusCountParams 一致。
+ * @returns 状态统计查询参数
+ */
 function buildStatusCountParams(): WorkOrderStatusCountQuery {
   return {
     viewScope: query.viewScope,
@@ -149,6 +186,10 @@ function buildStatusCountParams(): WorkOrderStatusCountQuery {
   };
 }
 
+/**
+ * 作用：构造工单列表分页查询参数。
+ * @returns 列表查询参数
+ */
 function buildListParams(): WorkOrderQuery {
   return {
     pageNum: query.pageNum,
@@ -163,6 +204,10 @@ function buildListParams(): WorkOrderQuery {
   };
 }
 
+/**
+ * 作用：将统计接口返回列表写入 statusCountMap。
+ * @param list - 各状态数量列表
+ */
 function syncStatusCountMap(list: unknown) {
   const next: Record<string, number> = {
     ALL: 0,
@@ -184,6 +229,9 @@ function syncStatusCountMap(list: unknown) {
   statusCountMap.value = next;
 }
 
+/**
+ * 作用：并行拉取工单列表与各状态数量。
+ */
 async function loadData() {
   loading.value = true;
   try {
@@ -200,6 +248,9 @@ async function loadData() {
   }
 }
 
+/**
+ * 作用：裁剪查询条件中的字符串首尾空格。
+ */
 function trimSearchFields() {
   query.orderNo = query.orderNo.trim();
   query.customerName = query.customerName.trim();
@@ -207,22 +258,34 @@ function trimSearchFields() {
   query.barcode = query.barcode.trim();
 }
 
+/**
+ * 作用：执行查询并重置到第一页。
+ */
 function handleSearch() {
   trimSearchFields();
   query.pageNum = 1;
   loadData();
 }
 
+/**
+ * 作用：切换「当前处理 / 历史」视图后重新加载。
+ */
 function handleScopeChange() {
   query.pageNum = 1;
   loadData();
 }
 
+/**
+ * 作用：主状态 Segmented 变更后重新加载列表。
+ */
 function handleMainStatusChange() {
   query.pageNum = 1;
   loadData();
 }
 
+/**
+ * 作用：重置查询条件并重新加载。
+ */
 function resetQuery() {
   query.pageNum = 1;
   query.pageSize = 10;
@@ -236,7 +299,11 @@ function resetQuery() {
   loadData();
 }
 
-/** 与 ant-design-vue Pagination 行为一致：改每页条数时回到第 1 页 */
+/**
+ * 作用：表格分页变更（改 pageSize 时回到第一页，与 ant-design-vue Pagination 一致）。
+ * @param page - 当前页码
+ * @param pageSize - 每页条数（可选）
+ */
 function handleTableChange(page: number, pageSize?: number) {
   if (pageSize !== undefined && pageSize !== query.pageSize) {
     query.pageSize = pageSize;
@@ -248,6 +315,10 @@ function handleTableChange(page: number, pageSize?: number) {
   loadData();
 }
 
+/**
+ * 作用：打开工单详情抽屉。
+ * @param row - 表格行数据
+ */
 function openDetail(row: RowData) {
   const wid = Number(row.id);
   if (!Number.isFinite(wid)) return;
@@ -255,6 +326,11 @@ function openDetail(row: RowData) {
   detailOpen.value = true;
 }
 
+/**
+ * 作用：从列表点击操作按钮，打开详情并让抽屉执行指定动作。
+ * @param row - 表格行数据
+ * @param action - 动作编码
+ */
 async function handleListAction(row: RowData, action: string) {
   const wid = Number(row.id);
   if (!Number.isFinite(wid) || !action) return;
@@ -264,6 +340,9 @@ async function handleListAction(row: RowData, action: string) {
   await detailDrawerRef.value?.openActionFromList(action);
 }
 
+/**
+ * 作用：根据路由 query.detailId 打开详情并清除相关 query 参数。
+ */
 function openDetailByRouteQuery() {
   const detailId = Number(route.query.detailId);
   if (!Number.isFinite(detailId) || detailId <= 0) return;
@@ -277,6 +356,9 @@ function openDetailByRouteQuery() {
   router.replace({ query: nextQuery });
 }
 
+/**
+ * 作用：从路由 query 同步视图范围与主状态到本地 query。
+ */
 function applyFiltersFromRouteQuery() {
   const routeViewScope = String(route.query.viewScope || '').toUpperCase();
   const routeMainStatus = String(route.query.mainStatus || '').toUpperCase();
@@ -292,6 +374,7 @@ onMounted(() => {
   openDetailByRouteQuery();
 });
 
+// 路由 query 中视图范围或主状态变化时同步筛选并刷新列表
 watch(
   () => [route.query.viewScope, route.query.mainStatus],
   () => {

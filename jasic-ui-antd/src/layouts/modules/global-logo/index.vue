@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 系统 Logo + 标题：点击回首页，标题优先展示当前公司名称。
+ */
 import { computed } from 'vue';
 import { useAuthStore } from '@/store/modules/auth';
 import { $t } from '@/locales';
@@ -17,6 +20,7 @@ withDefaults(defineProps<Props>(), {
 });
 
 const authStore = useAuthStore();
+// 侧栏/顶栏标题：优先展示当前公司名称
 const systemTitle = computed(() => authStore.userInfo.currentCompanyName || $t('system.title'));
 </script>
 

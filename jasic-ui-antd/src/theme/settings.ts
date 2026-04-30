@@ -1,4 +1,6 @@
-/** Default theme settings */
+/**
+ * 默认主题与布局：色板、滚动模式、页签/顶栏/侧栏/页脚/水印等；运行时会与用户本地缓存合并。
+ */
 export const themeSettings: App.Theme.ThemeSetting = {
   themeScheme: 'light',
   grayscale: false,
@@ -52,7 +54,7 @@ export const themeSettings: App.Theme.ThemeSetting = {
   },
   watermark: {
     visible: false,
-    text: 'SoybeanAdmin'
+    text: 'JasicUIAdmin'
   },
   tokens: {
     light: {
@@ -79,8 +81,7 @@ export const themeSettings: App.Theme.ThemeSetting = {
 };
 
 /**
- * Override theme settings
- *
- * If publish new version, use `overrideThemeSettings` to override certain theme settings
+ * 作用：发版时用其字段覆盖用户本地缓存中的部分主题项（与 BUILD_TIME 联动）。
+ * @remarks 修改此处可在新版本强制刷新部分默认主题
  */
 export const overrideThemeSettings: Partial<App.Theme.ThemeSetting> = {};

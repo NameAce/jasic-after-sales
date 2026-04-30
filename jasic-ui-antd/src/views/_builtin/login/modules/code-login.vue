@@ -10,6 +10,7 @@ defineOptions({
   name: 'CodeLogin'
 });
 
+// 路由切换、验证码与登录会话
 const { toggleLoginModule } = useRouterPush();
 const { formRef, validate } = useAntdForm();
 const { label, isCounting, loading, getCaptcha } = useCaptcha();
@@ -25,6 +26,7 @@ const model: FormModel = reactive({
   code: ''
 });
 
+// 手机号验证码登录校验
 const rules = computed<Record<keyof FormModel, App.Global.FormRule[]>>(() => {
   const { formRules } = useFormRules();
 
@@ -34,11 +36,21 @@ const rules = computed<Record<keyof FormModel, App.Global.FormRule[]>>(() => {
   };
 });
 
+/**
+ * 作用：校验后以微信 code 登录。
+ * @param 无
+ * @returns 返回 Promise，登录结束后结束
+ */
 async function handleSubmit() {
   await validate();
   await authStore.loginByWechatCode(model.code);
 }
 
+/**
+ * 作用：校验手机号非空后获取短信验证码。
+ * @param 无
+ * @returns 返回 Promise，请求结束后结束
+ */
 async function handleGetCaptcha() {
   if (!model.phone) {
     window.$message?.warning($t('page.login.common.phonePlaceholder'));

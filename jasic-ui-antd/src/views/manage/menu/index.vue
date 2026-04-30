@@ -1,4 +1,7 @@
 <script setup lang="tsx">
+/**
+ * 管理端演示 — 菜单管理：树形表格、路由页选择与菜单增删改（对接 Mock/演示接口）。
+ */
 import { ref } from 'vue';
 import type { Ref } from 'vue';
 import { Button, Popconfirm, Tag } from 'ant-design-vue';
@@ -12,6 +15,7 @@ import { $t } from '@/locales';
 import SvgIcon from '@/components/custom/svg-icon.vue';
 import MenuOperateModal, { type OperateType } from './modules/menu-operate-modal.vue';
 
+// 菜单表格、弹窗显隐与路由页面选项
 const { bool: visible, setTrue: openModal } = useBoolean();
 const { tableWrapperRef, scrollConfig } = useTableScroll();
 
@@ -165,28 +169,49 @@ const { columns, columnChecks, data, loading, pagination, getData, getDataByPage
 
 const { checkedRowKeys, rowSelection, onBatchDeleted, onDeleted } = useTableOperate(data, getData);
 
+// 菜单操作弹窗类型
 const operateType = ref<OperateType>('add');
+// 传入菜单编辑抽屉的当前行（新增子级时为父节点）
+const editingData: Ref<Api.SystemManage.Menu | null> = ref(null);
 
+/**
+ * 作用：打开新增菜单弹窗。
+ * @param 无
+ * @returns {void} 无
+ */
 function handleAdd() {
   operateType.value = 'add';
   openModal();
 }
 
+/**
+ * 作用：批量删除菜单（示例占位）。
+ * @param 无
+ * @returns 返回 Promise，回调结束后结束
+ */
 async function handleBatchDelete() {
   // request
 
   onBatchDeleted();
 }
 
+/**
+ * 作用：删除单条菜单（示例占位）。
+ * @param id - 菜单 id
+ * @returns {void} 无
+ */
 function handleDelete(id: number) {
   // request
   console.log(id);
 
   onDeleted();
 }
-/** the edit menu data or the parent menu data when adding a child menu */
-const editingData: Ref<Api.SystemManage.Menu | null> = ref(null);
 
+/**
+ * 作用：打开编辑菜单弹窗。
+ * @param item - 菜单行
+ * @returns {void} 无
+ */
 function handleEdit(item: Api.SystemManage.Menu) {
   operateType.value = 'edit';
   editingData.value = { ...item };
@@ -194,6 +219,11 @@ function handleEdit(item: Api.SystemManage.Menu) {
   openModal();
 }
 
+/**
+ * 作用：为指定父级打开新增子菜单弹窗。
+ * @param item - 父菜单
+ * @returns {void} 无
+ */
 function handleAddChildMenu(item: Api.SystemManage.Menu) {
   operateType.value = 'addChild';
 
@@ -202,13 +232,24 @@ function handleAddChildMenu(item: Api.SystemManage.Menu) {
   openModal();
 }
 
+// 系统内全部页面路径（菜单表单选择用）
 const allPages = ref<string[]>([]);
 
+/**
+ * 作用：拉取全部页面名称列表。
+ * @param 无
+ * @returns 返回 Promise，请求结束后结束
+ */
 async function getAllPages() {
   const { data: pages } = await fetchGetAllPages();
   allPages.value = pages || [];
 }
 
+/**
+ * 作用：初始化页面：加载全部路由页面选项。
+ * @param 无
+ * @returns {void} 无
+ */
 function init() {
   getAllPages();
 }

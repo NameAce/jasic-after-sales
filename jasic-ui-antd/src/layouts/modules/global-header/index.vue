@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 全局顶栏：Logo、菜单/面包屑占位、全屏与主题切换、用户区；具体菜单由 Teleport 注入对应 DOM 节点。
+ */
 import { useFullscreen } from '@vueuse/core';
 import { GLOBAL_HEADER_MENU_ID } from '@/constants/app';
 import { useAppStore } from '@/store/modules/app';
@@ -25,6 +28,7 @@ defineProps<Props>();
 
 const appStore = useAppStore();
 const themeStore = useThemeStore();
+// 浏览器全屏（顶栏按钮）
 const { isFullscreen, toggle } = useFullscreen();
 </script>
 
@@ -38,7 +42,6 @@ const { isFullscreen, toggle } = useFullscreen();
     </div>
     <div class="h-full flex-y-center justify-end">
       <FullScreen v-if="!appStore.isMobile" :full="isFullscreen" @click="toggle" />
-      <LangSwitch :lang="appStore.locale" :lang-options="appStore.localeOptions" @change-lang="appStore.changeLocale" />
       <ThemeSchemaSwitch
         :theme-schema="themeStore.themeScheme"
         :is-dark="themeStore.darkMode"

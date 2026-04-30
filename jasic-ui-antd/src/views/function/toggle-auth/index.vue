@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 菜单演示 — 切换登录账号：用于验证不同角色下菜单与权限展示（非生产逻辑）。
+ */
 import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useLoading } from '@sa/hooks';
@@ -8,6 +11,7 @@ import { useTabStore } from '@/store/modules/tab';
 import { useAuth } from '@/hooks/business/auth';
 import { $t } from '@/locales';
 
+// 演示切换账号所用路由与全局状态
 const route = useRoute();
 const appStore = useAppStore();
 const authStore = useAuthStore();
@@ -24,6 +28,7 @@ interface Account {
   password: string;
 }
 
+// 演示用快捷登录账号列表
 const accounts = computed<Account[]>(() => [
   {
     key: 'super',
@@ -45,8 +50,14 @@ const accounts = computed<Account[]>(() => [
   }
 ]);
 
+// 当前正在切换的账号 key（用于按钮 loading）
 const loginAccount = ref<AccountKey>('super');
 
+/**
+ * 作用：切换演示账号并重新登录、初始化 Tab 后整页刷新。
+ * @param account - 目标账号配置
+ * @returns 返回 Promise，登录与刷新流程结束后结束
+ */
 async function handleToggleAccount(account: Account) {
   loginAccount.value = account.key;
 

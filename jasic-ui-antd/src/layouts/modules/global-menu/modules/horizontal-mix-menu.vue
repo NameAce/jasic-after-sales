@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 水平混合菜单：顶栏展示当前一级下的子级横向菜单，侧栏为一级图标列表。
+ */
 import { computed } from 'vue';
 import type { MenuInfo } from 'ant-design-vue/es/menu/src/interface';
 import type { RouteKey } from '@elegant-router/types';
@@ -19,14 +22,17 @@ const { routerPushByKeyWithMetaQuery } = useRouterPush();
 const { allMenus, childLevelMenus, activeFirstLevelMenuKey, setActiveFirstLevelMenuKey } = useMixMenuContext();
 const { selectedKey } = useMenu();
 
+// 顶栏下菜单区若启用 inverted，仅在非全局暗色时生效
 const inverted = computed(() => !themeStore.darkMode && themeStore.sider.inverted);
 
+/** 顶栏子菜单项点击 */
 function handleClickMenu(menuInfo: MenuInfo) {
   const key = menuInfo.key as RouteKey;
 
   routerPushByKeyWithMetaQuery(key);
 }
 
+/** 侧栏一级选中：仅叶子一级直接跳转 */
 function handleSelectMixMenu(menu: App.Global.Menu) {
   setActiveFirstLevelMenuKey(menu.key);
 

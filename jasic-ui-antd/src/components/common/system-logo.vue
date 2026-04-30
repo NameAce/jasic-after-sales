@@ -1,4 +1,5 @@
 <template>
+  <!-- 品牌 SVG Logo（侧栏/顶栏与登录页等复用） -->
   <div class="app-logo">
     <svg
       width="100%"

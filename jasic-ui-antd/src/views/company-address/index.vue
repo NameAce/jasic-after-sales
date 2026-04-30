@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 公司地址簿：当前公司下联系人地址列表、默认地址与增删改（对接 company-address 接口）。
+ */
 import { onMounted, reactive, ref } from 'vue';
 import { Cascader as ACascader } from 'ant-design-vue';
 import { tagColorPositiveNeutral } from '@/constants/list-status-tag';
@@ -11,18 +14,28 @@ import {
 } from '@/service/api';
 import { getResponseMsg } from '@/service/request/shared';
 import {
-  chinaRegionCascaderOptions,
+  type RegionCascaderOption,
   composeAddressWithRegion,
+  fetchRegionCascaderOptions,
   isFullRegionSelection,
+  loadRegionCascaderData,
   splitFullAddressToRegionAndDetail
 } from '@/utils/china-region';
 
 type RowData = Record<string, any>;
 
+// 省市区级联选项（懒加载子节点）
+const regionOptions = ref<RegionCascaderOption[]>([]);
+
+// 列表加载态
 const loading = ref(false);
+// 地址表格数据
 const rows = ref<RowData[]>([]);
+// 新增/编辑抽屉是否打开
 const formOpen = ref(false);
+// 表单提交中
 const submitting = ref(false);
+// 抽屉标题
 const formTitle = ref('新增地址');
 const formModel = reactive<{
   id?: number;
@@ -41,6 +54,7 @@ const formModel = reactive<{
   isDefault: 0
 });
 
+// 表格列配置
 const columns = [
   { title: '公司ID', dataIndex: 'companyId', key: 'companyId', width: 120 },
   { title: '地址详情', dataIndex: 'address', key: 'address', ellipsis: true },
@@ -50,12 +64,20 @@ const columns = [
   { title: '操作', dataIndex: 'actions', key: 'actions', width: 220 }
 ];
 
+/**
+ * 作用：从接口分页对象中取出列表数组。
+ * @param data - 接口返回数据
+ * @returns 表格行数组
+ */
 function pickRows(data: any) {
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.records)) return data.records;
   return [];
 }
 
+/**
+ * 作用：加载公司地址列表。
+ */
 async function loadList() {
   loading.value = true;
   const { data } = await listCompanyAddress();
@@ -63,6 +85,10 @@ async function loadList() {
   loading.value = false;
 }
 
+/**
+ * 作用：将指定地址设为默认地址。
+ * @param record - 表格行数据
+ */
 async function setDefault(record: RowData) {
   const id = record.addressId ?? record.id;
   if (!id) return;
@@ -70,6 +96,9 @@ async function setDefault(record: RowData) {
   loadList();
 }
 
+/**
+ * 作用：打开新增抽屉并重置表单。
+ */
 function openCreate() {
   formTitle.value = '新增地址';
   formModel.id = undefined;
@@ -81,13 +110,17 @@ function openCreate() {
   formOpen.value = true;
 }
 
-function openEdit(record: RowData) {
+/**
+ * 作用：打开编辑抽屉并根据完整地址拆解省市区与详细地址。
+ * @param record - 表格行数据
+ */
+async function openEdit(record: RowData) {
   formTitle.value = '编辑地址';
   formModel.id = Number(record.id ?? record.addressId);
   formModel.contactName = String(record.contactName ?? '');
   formModel.contactPhone = String(record.contactPhone ?? '');
   const rawAddr = String(record.address ?? '');
-  const parsed = splitFullAddressToRegionAndDetail(rawAddr);
+  const parsed = await splitFullAddressToRegionAndDetail(rawAddr);
   formModel.regionCodes = [...parsed.regionCodes];
   formModel.addressDetail = parsed.addressDetail;
   if (rawAddr.trim() && !parsed.regionCodes.length) {
@@ -97,6 +130,9 @@ function openEdit(record: RowData) {
   formOpen.value = true;
 }
 
+/**
+ * 作用：校验并提交新增或编辑地址。
+ */
 async function submitForm() {
   if (!formModel.contactName.trim() || !formModel.contactPhone.trim()) {
     window.$message?.warning('请填写联系人和联系电话');
@@ -113,7 +149,7 @@ async function submitForm() {
     return;
   }
 
-  const address = composeAddressWithRegion(formModel.regionCodes, detail);
+  const address = await composeAddressWithRegion(formModel.regionCodes, detail);
 
   submitting.value = true;
   try {
@@ -137,6 +173,10 @@ async function submitForm() {
   }
 }
 
+/**
+ * 作用：删除指定地址。
+ * @param record - 表格行数据
+ */
 async function removeAddress(record: RowData) {
   const id = Number(record.id ?? record.addressId);
   if (!Number.isFinite(id) || id <= 0) return;
@@ -145,7 +185,9 @@ async function removeAddress(record: RowData) {
   await loadList();
 }
 
-onMounted(loadList);
+onMounted(async () => {
+  await Promise.all([loadList(), fetchRegionCascaderOptions().then(list => (regionOptions.value = list))]);
+});
 </script>
 
 <template>
@@ -190,7 +232,8 @@ onMounted(loadList);
           <ACascader
             v-model:value="formModel.regionCodes"
             class="w-full"
-            :options="chinaRegionCascaderOptions"
+            :options="regionOptions"
+            :load-data="loadRegionCascaderData"
             placeholder="请选择省 / 市 / 区"
             allow-clear
           />

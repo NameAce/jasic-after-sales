@@ -1,9 +1,16 @@
+/**
+ * 应用级插件：Vue 全局错误处理、生产环境构建版本检测与更新通知等。
+ */
 import { h } from 'vue';
 import type { App } from 'vue';
 import { Button } from 'ant-design-vue';
 import { router } from '@/router';
 import { $t } from '@/locales';
 
+/**
+ * 作用：若当前不在 500 页则跳转至 500，避免重复导航。
+ * @returns {void}
+ */
 function redirectTo500IfNeeded() {
   const currentRouteName = String(router.currentRoute.value.name || '');
   if (currentRouteName === '500') return;
@@ -11,6 +18,11 @@ function redirectTo500IfNeeded() {
   router.push({ name: '500' }).catch(() => {});
 }
 
+/**
+ * 作用：注册 Vue 全局 errorHandler，将运行时错误输出到控制台并视情况进入 500 页。
+ * @param app Vue 应用实例
+ * @returns {void}
+ */
 export function setupAppErrorHandle(app: App) {
   app.config.errorHandler = (err, vm, info) => {
     // eslint-disable-next-line no-console
@@ -19,8 +31,12 @@ export function setupAppErrorHandle(app: App) {
   };
 }
 
+/**
+ * 作用：生产环境下按间隔拉取 index.html 的 buildTime，若有新版本则弹出刷新提示（受 VITE_AUTOMATICALLY_DETECT_UPDATE 控制）。
+ * @returns {void}
+ */
 export function setupAppVersionNotification() {
-  // Update check interval in milliseconds
+  // 检测新版本的时间间隔（毫秒）
   const UPDATE_CHECK_INTERVAL = 3 * 60 * 1000;
 
   const canAutoUpdateApp = import.meta.env.VITE_AUTOMATICALLY_DETECT_UPDATE === 'Y' && import.meta.env.PROD;
@@ -99,6 +115,10 @@ export function setupAppVersionNotification() {
   }
 }
 
+/**
+ * 作用：请求首页 HTML 并解析 meta buildTime，用于与当前构建时间比对。
+ * @returns {Promise<string>} 构建时间字符串，解析失败为空串
+ */
 async function getHtmlBuildTime() {
   const baseUrl = import.meta.env.VITE_BASE_URL || '/';
 

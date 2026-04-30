@@ -1,5 +1,8 @@
 <script setup lang="ts">
 /* eslint-disable vue/component-name-in-template-casing -- Ant Design Vue Input.TextArea */
+/**
+ * 工单详情抽屉：展示工单全量信息、附件预览，以及派单/接单/转单/维修登记/复检/寄件凭证/关闭等列表动作对应的子弹层。
+ */
 import { computed, reactive, ref, watch } from 'vue';
 import type { UploadFile } from 'ant-design-vue/es/upload/interface';
 import type { UploadRequestOption } from 'ant-design-vue/es/vc-upload/interface';
@@ -23,44 +26,60 @@ import { useAuthStore } from '@/store/modules/auth';
 import { useAuth } from '@/hooks/business/auth';
 import type { WorkOrderListActionCode } from '../list-actions';
 
-/** 维修登记 / 复检登记「故障处图片」每格 1 张；与建单页 picture-card 达上限隐藏「+」逻辑一致 */
+// 维修登记 / 复检「故障处图片」每格最多张数（与建单页 picture-card 逻辑一致）
 const DETAIL_UPLOAD_SINGLE_MAX = 1;
+// 关闭工单时回寄凭证最多张数
 const DETAIL_UPLOAD_CLOSE_VOUCHER_MAX = 4;
 
+// 父组件传入：抽屉显隐、当前查看的工单主键
 const props = defineProps<{
   open: boolean;
   workOrderId: number | null;
 }>();
 
+// 向父组件同步抽屉 open；业务成功后通知列表刷新
 const emit = defineEmits<{
   (e: 'update:open', v: boolean): void;
   (e: 'success'): void;
 }>();
 
+// 详情接口请求中
 const loading = ref(false);
+// 工单详情原始数据（接口 getWorkOrder）
 const detail = ref<Record<string, unknown>>({});
+// 附件预览弹窗显隐
 const previewOpen = ref(false);
+// 附件预览类型：图片或视频
 const previewType = ref<'image' | 'video'>('image');
+// 预览资源 URL
 const previewUrl = ref('');
+// 预览弹窗标题
 const previewTitle = ref('');
+// 按钮级权限判断
 const { hasAuth } = useAuth();
 const authStore = useAuthStore();
 
+// 派单子弹层
 const assignOpen = ref(false);
 const assignSubmitting = ref(false);
 const assignUserId = ref<number | undefined>(undefined);
 const assignOptions = ref<Array<{ label: string; value: number }>>([]);
+// 接单故障判定选项文案
 const faultJudgeHasFault = '有故障';
 const faultJudgeNoFault = '无故障';
+// 维修/复检多选中的「其它维修说明」固定项
 const OTHER_REPAIR_OPTION = '其它维修说明';
+// 故障多选中的「其它故障」固定项标签
 const DEFAULT_OTHER_FAULT_LABEL = '其它故障';
 
+// 转单子弹层
 const transferOpen = ref(false);
 const transferSubmitting = ref(false);
 const transferCompanyId = ref<number | undefined>(undefined);
 const transferRemark = ref('');
 const transferOptions = ref<Array<{ label: string; value: number }>>([]);
 
+// 维修登记子弹层与表单
 const repairOpen = ref(false);
 const repairSubmitting = ref(false);
 const repairForm = reactive({
@@ -79,6 +98,7 @@ const repairForm = reactive({
   otherImageFileIds: [] as number[]
 });
 
+// 复检登记子弹层与表单
 const reviewOpen = ref(false);
 const reviewSubmitting = ref(false);
 const reviewForm = reactive({
@@ -93,12 +113,14 @@ const reviewForm = reactive({
   otherImageFileIds: [] as number[]
 });
 
+// 上传寄件凭证子弹层
 const mailOpen = ref(false);
 const mailSubmitting = ref(false);
 const mailForm = reactive({
   senderVoucherFileIds: [] as number[]
 });
 
+// 关闭工单子弹层
 const closeOpen = ref(false);
 const closeSubmitting = ref(false);
 const closeForm = reactive({
@@ -107,6 +129,7 @@ const closeForm = reactive({
   returnVoucherFileIds: [] as number[]
 });
 
+// 维修员接单（故障判定、报价）
 const techAcceptOpen = ref(false);
 const techAcceptSubmitting = ref(false);
 const techAcceptForm = reactive({
@@ -114,15 +137,25 @@ const techAcceptForm = reactive({
   quoteAmount: undefined as number | undefined,
   quoteDesc: ''
 });
+// 维修/复检表单的故障-维修项配置（按工单拉取）
 const actionRepairFaultOptions = ref<Array<{ faultDesc: string; repairOptions: string[] }>>([]);
+// 无故障接单时暂存待与关闭工单合并提交的载荷
 const pendingTechAcceptPayload = ref<Record<string, unknown> | null>(null);
+// 佳士工单补录机型弹层
 const repairProductModelOpen = ref(false);
 const repairProductModelSubmitting = ref(false);
 const repairProductModelOptionsLoading = ref(false);
+// 补录机型完成后要打开的列表动作码
 const repairProductModelPendingAction = ref<WorkOrderListActionCode | ''>('');
 const repairProductModel = ref('');
 const repairProductModelOptions = ref<string[]>([]);
 
+/**
+ * 从分页结构或数组中取出数据行列表。
+ *
+ * @param data - 接口返回体或数组
+ * @returns {unknown[]} 行数组
+ */
 function pickRows(data: unknown) {
   if (Array.isArray(data)) return data;
   if (data && typeof data === 'object') {
@@ -132,6 +165,12 @@ function pickRows(data: unknown) {
   return [];
 }
 
+/**
+ * 从上传接口响应中解析文件主键 id。
+ *
+ * @param raw - 上传成功响应体
+ * @returns {number | undefined} 文件 id，无法解析时 undefined
+ */
 function pickUploadedFileId(raw: unknown): number | undefined {
   if (raw && typeof raw === 'object') {
     const o = raw as Record<string, unknown>;
@@ -142,7 +181,12 @@ function pickUploadedFileId(raw: unknown): number | undefined {
   return undefined;
 }
 
-/** 与建单页一致：从 Upload 列表删除时同步移除已提交的 fileId */
+/**
+ * 生成 Ant Design Upload 的 onRemove：从指定 fileId 数组中移除已删文件对应 id。
+ *
+ * @param bucket - 存储本组上传 fileId 的数组
+ * @returns {(file: UploadFile) => void} 移除回调
+ */
 function handleDetailIdUploadRemove(bucket: number[]) {
   return (file: UploadFile) => {
     const fid = pickUploadedFileId(file.response as unknown);
@@ -153,16 +197,31 @@ function handleDetailIdUploadRemove(bucket: number[]) {
   };
 }
 
+// 当前详情对应的工单 id（与 props.workOrderId 同步）
 const id = computed(() => props.workOrderId);
 
+// 后端下发的当前用户可执行动作编码列表（过滤 RETURN_METHOD）
 const availableActionCodes = computed(() => {
   const raw = detail.value?.availableActions;
   const list = Array.isArray(raw) ? raw : [];
   return list.filter(item => typeof item === 'string' && item !== 'RETURN_METHOD') as WorkOrderListActionCode[];
 });
+
+/**
+ * 判断详情数据中是否包含指定列表动作码。
+ *
+ * @param action - 动作编码
+ * @returns {boolean} 是否包含
+ */
 function hasAction(action: WorkOrderListActionCode) {
   return availableActionCodes.value.includes(action);
 }
+
+/**
+ * 无 ASSIGN 动作但具备派单权限、待派单且未指派、当前公司为受理方时，展示派单入口兜底。
+ *
+ * @returns {boolean} 是否展示派单兜底入口
+ */
 function shouldShowAssignFallback() {
   if (!detail.value || typeof detail.value !== 'object') return false;
   if (hasAction('ASSIGN')) return false;
@@ -172,19 +231,31 @@ function shouldShowAssignFallback() {
   if (d.assignedUserId !== undefined && d.assignedUserId !== null && String(d.assignedUserId) !== '') return false;
   return String(d.currentAcceptCompanyId || '') === String(authStore.userInfo.currentCompanyId || '');
 }
+
+// 是否展示「派单」主按钮（含兜底）
 const showAssign = computed(() => hasAction('ASSIGN') || shouldShowAssignFallback());
+// 是否展示「维修员接单」
 const showAccept = computed(() => hasAction('TECH_ACCEPT'));
+// 是否展示「转单」
 const showTransfer = computed(() => hasAction('TRANSFER'));
+// 是否展示「维修登记」
 const showRepair = computed(() => hasAction('REPAIR_FINISH'));
+// 是否展示「复检登记」
 const showReview = computed(() => hasAction('REVIEW'));
+// 是否展示「上传寄件单号」
 const showMail = computed(() => hasAction('UPLOAD_SEND_EXPRESS'));
+// 是否展示「关闭工单」
 const showClose = computed(() => hasAction('CLOSE'));
+// 是否已加载故障-维修联动配置
 const hasRepairFaultConfig = computed(() => actionRepairFaultOptions.value.length > 0);
+// 故障多选项（末尾固定「其它故障」）
 const repairFaultOptionsWithOther = computed(() => {
   const list = actionRepairFaultOptions.value.map(item => item.faultDesc).filter(Boolean);
   if (!list.includes(DEFAULT_OTHER_FAULT_LABEL)) list.push(DEFAULT_OTHER_FAULT_LABEL);
   return list;
 });
+
+// 最近一次维修登记阶段（REPAIR）的首条故障记录
 const firstRepairFaultRecord = computed(() => {
   const repairs = (detail.value.repairs || []) as Array<Record<string, unknown>>;
   for (let i = repairs.length - 1; i >= 0; i -= 1) {
@@ -195,13 +266,20 @@ const firstRepairFaultRecord = computed(() => {
   }
   return null;
 });
+
+// 首次维修确认的故障描述（trim）
 const firstRepairConfirmedFaultDesc = computed(() => normalizeText(firstRepairFaultRecord.value?.faultDesc));
+// 首次维修确认的故障备注
 const firstRepairConfirmedFaultRemark = computed(() => normalizeText(firstRepairFaultRecord.value?.faultRemark));
+// 复检侧按分号拆分的故障多选值
 const reviewFaultItems = computed(() => splitFaultDescSelections(firstRepairConfirmedFaultDesc.value));
+// 维修登记是否需填写「其它故障说明」
 const showRepairFaultRemarkInput = computed(() =>
   normalizeFaultItems(repairForm.faultItems).includes(DEFAULT_OTHER_FAULT_LABEL)
 );
+// 复检区是否展示首次故障备注（只读）
 const showReviewFaultRemark = computed(() => Boolean(firstRepairConfirmedFaultRemark.value));
+// 维修登记当前所选故障对应的维修措施候选项
 const currentRepairOptions = computed(() => {
   const optionSet = new Set<string>();
   normalizeFaultItems(repairForm.faultItems).forEach(faultDesc => {
@@ -213,6 +291,8 @@ const currentRepairOptions = computed(() => {
   });
   return [...optionSet];
 });
+
+// 复检表单根据首次故障推导的维修措施候选项
 const reviewRepairOptions = computed(() => {
   const optionSet = new Set<string>();
   reviewFaultItems.value.forEach(faultDesc => {
@@ -224,13 +304,21 @@ const reviewRepairOptions = computed(() => {
   });
   return [...optionSet];
 });
+
+// 维修登记是否勾选「其它维修说明」
 const isOtherRepairSelected = computed(() =>
   normalizeRepairItems(repairForm.repairItems).includes(OTHER_REPAIR_OPTION)
 );
+// 复检是否勾选「其它维修说明」
 const isOtherReviewSelected = computed(() =>
   normalizeRepairItems(reviewForm.repairItems).includes(OTHER_REPAIR_OPTION)
 );
 
+/**
+ * 根据当前工单 id 请求并写入详情数据。
+ *
+ * @returns {Promise<void>} 无返回值
+ */
 async function loadDetail() {
   if (!id.value) {
     detail.value = {};
@@ -249,6 +337,7 @@ async function loadDetail() {
   }
 }
 
+// 抽屉打开或工单 id 变化时重新拉取详情
 watch(
   () => [props.open, props.workOrderId] as const,
   ([isOpen]) => {
@@ -257,6 +346,12 @@ watch(
   { immediate: true }
 );
 
+/**
+ * 按多个字段名顺序取详情中首个非空值。
+ *
+ * @param keys - 字段名列表
+ * @returns {unknown} 字段值或空字符串
+ */
 function valueByKeys(...keys: string[]) {
   const d = detail.value as Record<string, unknown>;
   for (const key of keys) {
@@ -266,12 +361,19 @@ function valueByKeys(...keys: string[]) {
   return '';
 }
 
+/**
+ * 判断文本是否包含「其它/其他故障」表述。
+ *
+ * @param raw - 任意原始值
+ * @returns {boolean} 是否命中
+ */
 function containsOtherFault(raw: unknown) {
   const text = normalizeText(raw);
   if (!text) return false;
   return text.includes('其它故障') || text.includes('其他故障');
 }
 
+// 详情区 Descriptions 单行结构
 type DetailInfoItem = {
   key: string;
   label: string;
@@ -279,6 +381,7 @@ type DetailInfoItem = {
   span?: number;
 };
 
+// 工单基础信息描述项
 const workOrderInfoItems = computed<DetailInfoItem[]>(() => [
   { key: 'orderNo', label: '工单号', value: valueByKeys('orderNo') },
   { key: 'mainStatus', label: '主状态', value: valueByKeys('mainStatusLabel', 'mainStatus', 'displayStatus') },
@@ -290,6 +393,7 @@ const workOrderInfoItems = computed<DetailInfoItem[]>(() => [
   { key: 'hqCompanyName', label: '归属总部', value: valueByKeys('hqCompanyName') }
 ]);
 
+// 商品/设备信息描述项
 const productInfoItems = computed<DetailInfoItem[]>(() => [
   { key: 'productModel', label: '机器型号', value: valueByKeys('productModel') },
   { key: 'barcode', label: '条形码', value: valueByKeys('barcode') },
@@ -301,16 +405,18 @@ const productInfoItems = computed<DetailInfoItem[]>(() => [
   { key: 'warrantyStatus', label: '质保判定', value: valueByKeys('warrantyStatus') }
 ]);
 
+// 主状态展示用合并文案
 const statusText = computed(() => normalizeText(valueByKeys('mainStatusLabel', 'mainStatus', 'displayStatus')));
+// 是否为已完成类状态（控制首次维修信息等区块）
 const showCompletedRepairInfo = computed(() => /已完成|完成|COMPLETED|FINISHED/i.test(statusText.value));
 
-/** 详情接口 `quotes`（`WorkOrderQuoteVO`：faultJudge、quoteAmount、quoteDesc 等） */
+// 详情接口 quotes 数组（报价/判定记录）
 const detailQuotesList = computed(() => {
   const raw = (detail.value as Record<string, unknown>)?.quotes;
   return Array.isArray(raw) ? (raw as Record<string, unknown>[]) : [];
 });
 
-/** 当前有效报价行，无则取最新一条（与后端 `listQuoteVos` 排序一致） */
+// 当前用于展示的报价行（优先 isCurrentValid=1）
 const displayQuoteForWorkOrder = computed(() => {
   const list = detailQuotesList.value;
   if (!list.length) return null;
@@ -318,7 +424,7 @@ const displayQuoteForWorkOrder = computed(() => {
   return current || list[0] || null;
 });
 
-/** 维修信息区顶部：故障判定 / 维修报价 / 说明（接口 `quotes` 有值才展示） */
+// 维修信息区顶部报价摘要（有 quotes 时展示）
 const repairQuoteSummaryItems = computed<DetailInfoItem[]>(() => {
   const q = displayQuoteForWorkOrder.value;
   if (!q) return [];
@@ -334,12 +440,19 @@ const repairQuoteSummaryItems = computed<DetailInfoItem[]>(() => {
   return items;
 });
 
+/**
+ * 判断服务信息某字段是否应在详情中展示。
+ *
+ * @param value - 字段原始值
+ * @returns {boolean} 是否有有效展示值
+ */
 function serviceInfoFieldHasValue(value: unknown): boolean {
   if (value === undefined || value === null) return false;
   if (typeof value === 'number') return Number.isFinite(value);
   return String(value).trim() !== '';
 }
 
+// 服务/邮寄相关描述项（含动态追加的返回方式、回寄单号等）
 const serviceInfoItems = computed<DetailInfoItem[]>(() => {
   const items: DetailInfoItem[] = [
     { key: 'serviceMode', label: '维修方式', value: valueByKeys('serviceModeLabel', 'serviceMode') },
@@ -360,13 +473,20 @@ const serviceInfoItems = computed<DetailInfoItem[]>(() => {
   return items;
 });
 
+// 建单故障图片附件列表
 const faultImageFiles = computed(() => asFileList(detail.value.faultImageFiles));
+// 建单故障视频附件列表
 const faultVideoFiles = computed(() => asFileList(detail.value.faultVideoFiles));
+// 是否存在可展示的故障图或视频
 const hasFaultImageOrVideo = computed(() => faultImageFiles.value.length > 0 || faultVideoFiles.value.length > 0);
+// 故障语音附件列表
 const faultVoiceFiles = computed(() => asFileList(detail.value.faultVoiceFiles));
+// 寄件凭证附件列表
 const senderVoucherFiles = computed(() => asFileList(detail.value.senderVoucherFiles));
+// 退回/回寄凭证附件列表
 const returnVoucherFiles = computed(() => asFileList(detail.value.returnVoucherFiles));
 
+// 故障与客户信息描述项
 const faultInfoItems = computed<DetailInfoItem[]>(() => {
   const faultDesc = valueByKeys('faultDesc');
   const firstRepairDesc = firstRepairConfirmedFaultDesc.value;
@@ -381,12 +501,18 @@ const faultInfoItems = computed<DetailInfoItem[]>(() => {
   if (showCompletedRepairInfo.value) {
     items.push({ key: 'firstRepairConfirmedFaultDesc', label: '首次维修确认故障', value: firstRepairDesc, span: 2 });
     if (containsOtherFault(firstRepairDesc)) {
-      items.push({ key: 'firstRepairConfirmedFaultRemark', label: '其它故障说明', value: firstRepairConfirmedFaultRemark.value, span: 2 });
+      items.push({
+        key: 'firstRepairConfirmedFaultRemark',
+        label: '其它故障说明',
+        value: firstRepairConfirmedFaultRemark.value,
+        span: 2
+      });
     }
   }
   return items;
 });
 
+// 受理方与维修员等信息描述项
 const acceptorInfoItems = computed<DetailInfoItem[]>(() => [
   { key: 'currentAcceptCompanyName', label: '受理方', value: valueByKeys('currentAcceptCompanyName') },
   { key: 'currentAcceptCompanyPhone', label: '网点电话', value: valueByKeys('currentAcceptCompanyPhone') },
@@ -394,6 +520,7 @@ const acceptorInfoItems = computed<DetailInfoItem[]>(() => [
   { key: 'transferCount', label: '转单次数', value: valueByKeys('transferCount') || '0' }
 ]);
 
+// 客户评价描述项（无评价对象时为空数组）
 const evaluationInfoItems = computed(() => {
   const evaluation = detail.value.evaluation as Record<string, unknown> | undefined;
   if (!evaluation) return [];
@@ -407,23 +534,53 @@ const evaluationInfoItems = computed(() => {
   ];
 });
 
+/**
+ * 将详情字段规范为附件对象数组。
+ *
+ * @param value - 任意字段值
+ * @returns {Array<Record<string, unknown>>} 附件数组
+ */
 function asFileList(value: unknown) {
   return Array.isArray(value) ? (value as Array<Record<string, unknown>>) : [];
 }
 
+/**
+ * 附件展示文件名兜底。
+ *
+ * @param file - 附件对象
+ * @returns {string} 展示用文件名
+ */
 function fileDisplayName(file: Record<string, unknown>) {
   return textValue(file.fileName || file.originName || file.name || file.originalFilename, '附件');
 }
 
+/**
+ * 解析附件可打开或可预览的 URL。
+ *
+ * @param file - 附件对象
+ * @returns {string} URL 字符串
+ */
 function fileOpenUrl(file: Record<string, unknown>) {
   const raw = file.url || file.fileUrl || file.previewUrl || file.downloadUrl || file.path;
   return normalizeText(raw);
 }
 
+/**
+ * 读取附件 MIME 类型（小写）。
+ *
+ * @param file - 附件对象
+ * @returns {string} mime 类型字符串
+ */
 function fileMimeType(file: Record<string, unknown>) {
   return normalizeText(file.contentType || file.mimeType || file.fileType).toLowerCase();
 }
 
+/**
+ * 推断附件扩展名（优先文件名，其次 URL 路径）。
+ *
+ * @param file - 附件对象
+ * @returns {string} 扩展名
+ */
 function fileExt(file: Record<string, unknown>) {
   const name = normalizeText(file.fileName || file.originName || file.name || file.originalFilename).toLowerCase();
   const url = fileOpenUrl(file).toLowerCase().split('?')[0];
@@ -432,18 +589,36 @@ function fileExt(file: Record<string, unknown>) {
   return fromName || fromUrl;
 }
 
+/**
+ * 判断附件是否为图片类型。
+ *
+ * @param file - 附件对象
+ * @returns {boolean} 是否为图片
+ */
 function isImageFile(file: Record<string, unknown>) {
   const mime = fileMimeType(file);
   if (mime.startsWith('image/')) return true;
   return ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(fileExt(file));
 }
 
+/**
+ * 判断附件是否为视频类型。
+ *
+ * @param file - 附件对象
+ * @returns {boolean} 是否为视频
+ */
 function isVideoFile(file: Record<string, unknown>) {
   const mime = fileMimeType(file);
   if (mime.startsWith('video/')) return true;
   return ['mp4', 'webm', 'ogg', 'mov', 'm4v', 'avi'].includes(fileExt(file));
 }
 
+/**
+ * 打开图片/视频预览弹窗，其它类型则新窗口打开链接。
+ *
+ * @param file - 附件对象
+ * @returns {void} 无返回值
+ */
 function openFilePreview(file: Record<string, unknown>) {
   const url = fileOpenUrl(file);
   if (!url) {
@@ -463,11 +638,17 @@ function openFilePreview(file: Record<string, unknown>) {
   previewOpen.value = true;
 }
 
+// 参与方表格数据源
 const participants = computed(() => (Array.isArray(detail.value.participants) ? detail.value.participants : []));
+// 流转历史表格数据源
 const flows = computed(() => (Array.isArray(detail.value.flows) ? detail.value.flows : []));
+// 报价记录表格数据源
 const quotes = computed(() => (Array.isArray(detail.value.quotes) ? detail.value.quotes : []));
+// 维修登记记录列表
 const repairs = computed(() => (Array.isArray(detail.value.repairs) ? detail.value.repairs : []));
+// 通知事件表格数据源
 const notifyEvents = computed(() => (Array.isArray(detail.value.notifyEvents) ? detail.value.notifyEvents : []));
+// 故障点全历史扁平行（供履历表）
 const faultPointHistoryRows = computed(() => {
   const rows: Array<Record<string, unknown>> = [];
   repairs.value.forEach((repair, repairIndex) => {
@@ -491,15 +672,33 @@ const faultPointHistoryRows = computed(() => {
   return rows;
 });
 
+function toRepairRow(repair: unknown): Record<string, unknown> {
+  return repair as Record<string, unknown>;
+}
+
+/**
+ * 将单次维修记录下的分组附件整理为展示用列表（仅非空分组）。
+ *
+ * @param repair - 单条维修记录
+ * @returns {{ key: string; label: string; files: Array<Record<string, unknown>> }[]} 分组列表
+ */
 function repairAttachmentFileLists(repair: Record<string, unknown>) {
   return [
-    { key: 'faultOld', label: '故障处旧图片', files: asFileList(repair.faultOldImageFiles ?? repair.faultOldImageFileList) },
+    {
+      key: 'faultOld',
+      label: '故障处旧图片',
+      files: asFileList(repair.faultOldImageFiles ?? repair.faultOldImageFileList)
+    },
     {
       key: 'faultNew',
       label: '故障处新图片',
       files: asFileList(repair.faultImageFiles ?? repair.faultNewImageFiles ?? repair.faultNewImageFileList)
     },
-    { key: 'machine', label: '机器正面照片', files: asFileList(repair.machineImageFiles ?? repair.machineImageFileList) },
+    {
+      key: 'machine',
+      label: '机器正面照片',
+      files: asFileList(repair.machineImageFiles ?? repair.machineImageFileList)
+    },
     {
       key: 'barcode',
       label: '机器条码照片',
@@ -509,6 +708,7 @@ function repairAttachmentFileLists(repair: Record<string, unknown>) {
   ].filter(g => g.files.length > 0);
 }
 
+// 维修历程中有实质内容（字段或附件）的记录
 const visibleRepairs = computed(() =>
   repairs.value.filter(item => {
     if (!item || typeof item !== 'object') return false;
@@ -543,6 +743,7 @@ const visibleRepairs = computed(() =>
   })
 );
 
+// 参与方表格列
 const participantsColumns = [
   { title: '公司', dataIndex: 'companyName', key: 'companyName' },
   { title: '主体类型', dataIndex: 'subjectType', key: 'subjectType' },
@@ -552,6 +753,7 @@ const participantsColumns = [
   { title: '最后参与时间', dataIndex: 'lastParticipateTime', key: 'lastParticipateTime' }
 ];
 
+// 流转历史表格列
 const flowsColumns = [
   { title: '动作', dataIndex: 'actionName', key: 'actionName' },
   { title: '前状态', dataIndex: 'beforeStatusName', key: 'beforeStatusName' },
@@ -564,6 +766,7 @@ const flowsColumns = [
   { title: '创建时间', dataIndex: 'createTime', key: 'createTime' }
 ];
 
+// 报价记录表格列
 const quotesColumns = [
   { title: '报价公司', dataIndex: 'companyName', key: 'companyName' },
   { title: '报价人', dataIndex: 'quotedByName', key: 'quotedByName' },
@@ -574,6 +777,7 @@ const quotesColumns = [
   { title: '创建时间', dataIndex: 'createTime', key: 'createTime' }
 ];
 
+// 通知事件表格列
 const notifyColumns = [
   { title: '归属公司', dataIndex: 'companyName', key: 'companyName' },
   { title: '事件类型', dataIndex: 'eventType', key: 'eventType' },
@@ -586,6 +790,7 @@ const notifyColumns = [
   { title: '发送时间', dataIndex: 'sendTime', key: 'sendTime' }
 ];
 
+// 故障点历史表格列
 const faultPointColumns = [
   { title: '登记阶段', dataIndex: 'registerStageLabel', key: 'registerStageLabel' },
   { title: '故障点', dataIndex: 'faultDesc', key: 'faultDesc' },
@@ -596,11 +801,25 @@ const faultPointColumns = [
   { title: '登记时间', dataIndex: 'createTime', key: 'createTime' }
 ];
 
+/**
+ * 将任意值格式化为展示字符串，空则用占位符。
+ *
+ * @param value - 原始值
+ * @param empty - 空值占位符，默认 -
+ * @returns {string} 展示文本
+ */
 function textValue(value: unknown, empty = '-') {
   const text = String(value ?? '').trim();
   return text || empty;
 }
 
+/**
+ * 从接口返回体中解析成功提示文案（兼容多种嵌套结构）。
+ *
+ * @param result - 接口原始返回或字符串
+ * @param fallback - 无 msg 时的默认提示
+ * @returns {string} 用于 message.success 的文案
+ */
 function successMessageFromResult(result: unknown, fallback: string) {
   if (!result) return fallback;
   if (typeof result === 'string') {
@@ -615,7 +834,9 @@ function successMessageFromResult(result: unknown, fallback: string) {
       const response = o.response as Record<string, unknown>;
       if (response.data && typeof response.data === 'object') {
         const responseData = response.data as Record<string, unknown>;
-        const responseMsg = [responseData.msg, responseData.message].find(v => typeof v === 'string' && String(v).trim());
+        const responseMsg = [responseData.msg, responseData.message].find(
+          v => typeof v === 'string' && String(v).trim()
+        );
         if (typeof responseMsg === 'string') return responseMsg.trim() || fallback;
       }
     }
@@ -628,18 +849,42 @@ function successMessageFromResult(result: unknown, fallback: string) {
   return fallback;
 }
 
+/**
+ * 将任意值规范为 trim 后的字符串（null/undefined 视为空）。
+ *
+ * @param value - 原始值
+ * @returns {string} 规范化字符串
+ */
 function normalizeText(value: unknown) {
   return value === null || value === undefined ? '' : String(value).trim();
 }
 
+/**
+ * 故障多选项去重并去除空串。
+ *
+ * @param items - 选项数组
+ * @returns {string[]} 规范化后的故障文案数组
+ */
 function normalizeFaultItems(items: unknown[]) {
   return [...new Set((items || []).map(item => normalizeText(item)).filter(Boolean))];
 }
 
+/**
+ * 维修措施多选项去空（不去重）。
+ *
+ * @param items - 选项数组
+ * @returns {string[]} 字符串数组
+ */
 function normalizeRepairItems(items: unknown[]) {
   return (items || []).map(item => normalizeText(item)).filter(Boolean);
 }
 
+/**
+ * 将接口存储的故障描述按中英文分号拆成多选片段。
+ *
+ * @param rawFaultDesc - 原始描述串
+ * @returns {string[]} 拆分后的非空片段
+ */
 function splitFaultDescSelections(rawFaultDesc: string) {
   if (!rawFaultDesc) return [];
   return rawFaultDesc
@@ -648,6 +893,11 @@ function splitFaultDescSelections(rawFaultDesc: string) {
     .filter(Boolean);
 }
 
+/**
+ * 拉取当前工单的故障-维修联动配置，写入 actionRepairFaultOptions。
+ *
+ * @returns {Promise<void>} 无返回值；无工单 id 时直接返回
+ */
 async function loadRepairFaultConfig() {
   if (!id.value) return;
   const { data } = await listRepairFaultOptions(id.value);
@@ -662,6 +912,11 @@ async function loadRepairFaultConfig() {
     .filter(item => item.faultDesc);
 }
 
+/**
+ * 维修登记中故障多选变更时，联动清空备注、维修说明等关联字段。
+ *
+ * @returns {void} 无返回值
+ */
 function handleRepairFaultItemsChange() {
   repairForm.faultItems = normalizeFaultItems(repairForm.faultItems);
   if (!showRepairFaultRemarkInput.value) repairForm.faultRemark = '';
@@ -670,18 +925,33 @@ function handleRepairFaultItemsChange() {
   if (hasRepairFaultConfig.value) repairForm.repairDesc = '';
 }
 
+/**
+ * 维修登记中维修说明多选变更时，联动清空「其他维修说明」等。
+ *
+ * @returns {void} 无返回值
+ */
 function handleRepairItemsChange() {
   repairForm.repairItems = normalizeRepairItems(repairForm.repairItems);
   if (!isOtherRepairSelected.value) repairForm.otherDesc = '';
   if (hasRepairFaultConfig.value) repairForm.repairDesc = '';
 }
 
+/**
+ * 复检登记表单中维修说明多选变更时，联动清空「其他维修说明」等。
+ *
+ * @returns {void} 无返回值
+ */
 function handleReviewItemsChange() {
   reviewForm.repairItems = normalizeRepairItems(reviewForm.repairItems);
   if (!isOtherReviewSelected.value) reviewForm.otherDesc = '';
   if (hasRepairFaultConfig.value) reviewForm.repairDesc = '';
 }
 
+/**
+ * 打开派单抽屉并加载可选维修员列表。
+ *
+ * @returns {Promise<void>} 无返回值
+ */
 async function openAssign() {
   if (!id.value) return;
   assignUserId.value = undefined;
@@ -702,14 +972,18 @@ async function openAssign() {
         normalizeText(r.label) ||
         normalizeText(r.name) ||
         String(uid);
-      const label =
-        Number.isFinite(selfId) && selfId > 0 && uid === selfId ? `${base}（本人）` : base;
+      const label = Number.isFinite(selfId) && selfId > 0 && uid === selfId ? `${base}（本人）` : base;
       return { label, value: uid };
     })
     .filter(Boolean) as Array<{ label: string; value: number }>;
   assignOpen.value = true;
 }
 
+/**
+ * 提交派单；成功后提示、刷新详情并 emit success。
+ *
+ * @returns {Promise<void>} 校验失败时 reject；成功时 resolve
+ */
 async function submitAssign() {
   if (!id.value || assignUserId.value === undefined || assignUserId.value === null) {
     window.$message?.warning('请选择维修员');
@@ -734,6 +1008,11 @@ async function submitAssign() {
   return undefined;
 }
 
+/**
+ * 打开维修员接单抽屉并重置表单。
+ *
+ * @returns {void} 无返回值
+ */
 function openAccept() {
   techAcceptForm.faultJudge = '';
   techAcceptForm.quoteAmount = undefined;
@@ -741,6 +1020,11 @@ function openAccept() {
   techAcceptOpen.value = true;
 }
 
+/**
+ * 提交接单；选「无故障」时缓存载荷并打开关闭工单弹窗合并提交。
+ *
+ * @returns {Promise<void>} 校验失败时 reject
+ */
 async function submitAccept() {
   if (!id.value) return undefined;
   if (!techAcceptForm.faultJudge) {
@@ -770,12 +1054,24 @@ async function submitAccept() {
   return undefined;
 }
 
+/**
+ * 佳士品牌且未填机型时，维修/复检前需先走补录机型弹窗。
+ *
+ * @param action - 列表动作码
+ * @returns {boolean} 是否需补录机型
+ */
 function shouldSupplementRepairProductModel(action: WorkOrderListActionCode) {
   const brandType = normalizeText(detail.value.brandType);
   const productModel = normalizeText(detail.value.productModel);
   return (action === 'REPAIR_FINISH' || action === 'REVIEW') && brandType === 'JASIC' && !productModel;
 }
 
+/**
+ * 按关键字拉取可选机型列表并写入 repairProductModelOptions。
+ *
+ * @param keyword - 搜索关键字，默认空为全量
+ * @returns {Promise<string[]>} 机型字符串数组
+ */
 async function loadRepairProductModelOptionList(keyword = '') {
   if (!id.value) {
     repairProductModelOptions.value = [];
@@ -803,6 +1099,12 @@ async function loadRepairProductModelOptionList(keyword = '') {
   }
 }
 
+/**
+ * 打开补录机型弹窗并预拉选项；无可用机型时提示并关闭。
+ *
+ * @param action - 补录完成后要打开的列表动作
+ * @returns {Promise<void>} 无返回值
+ */
 async function prepareRepairProductModelDialog(action: WorkOrderListActionCode) {
   repairProductModelPendingAction.value = action;
   repairProductModel.value = '';
@@ -815,6 +1117,11 @@ async function prepareRepairProductModelDialog(action: WorkOrderListActionCode) 
   }
 }
 
+/**
+ * 提交补录机型，刷新详情后按 pending 打开维修或复检抽屉。
+ *
+ * @returns {Promise<void>} 无返回值
+ */
 async function submitRepairProductModel() {
   if (!id.value || !normalizeText(repairProductModel.value)) {
     window.$message?.warning('请选择机型');
@@ -834,6 +1141,12 @@ async function submitRepairProductModel() {
   }
 }
 
+/**
+ * 校验配件明细至少一行有效，且名称、数量合法。
+ *
+ * @param partList - 配件行数组
+ * @returns {boolean} 是否通过校验
+ */
 function validatePartList(partList: Array<{ partName: string; partQty?: number }>) {
   let hasValidPart = false;
   for (const item of partList || []) {
@@ -858,6 +1171,11 @@ function validatePartList(partList: Array<{ partName: string; partQty?: number }
   return true;
 }
 
+/**
+ * 打开转单抽屉并加载目标公司选项。
+ *
+ * @returns {Promise<void>} 无返回值
+ */
 async function openTransfer() {
   if (!id.value) return;
   transferCompanyId.value = undefined;
@@ -874,6 +1192,11 @@ async function openTransfer() {
   transferOpen.value = true;
 }
 
+/**
+ * 提交转单请求并刷新详情。
+ *
+ * @returns {Promise<void>} 校验失败时 reject
+ */
 async function submitTransfer() {
   if (!id.value || transferCompanyId.value === undefined || transferCompanyId.value === null) {
     window.$message?.warning('请选择目标公司');
@@ -895,6 +1218,11 @@ async function submitTransfer() {
   return undefined;
 }
 
+/**
+ * 打开维修登记抽屉：重置表单、预填报价、拉取故障配置。
+ *
+ * @returns {void} 无返回值
+ */
 function openRepair() {
   const qa = detail.value.quoteAmount;
   repairForm.quoteAmount = qa !== undefined && qa !== null && qa !== '' ? Number(qa) : undefined;
@@ -914,6 +1242,11 @@ function openRepair() {
   repairOpen.value = true;
 }
 
+/**
+ * 校验并提交维修登记（含配置化故障分支与附件 id）。
+ *
+ * @returns {Promise<void>} 校验失败时 reject；成功关闭抽屉并刷新
+ */
 // eslint-disable-next-line complexity
 async function submitRepair() {
   if (!id.value) return undefined;
@@ -974,6 +1307,11 @@ async function submitRepair() {
   return undefined;
 }
 
+/**
+ * 打开复检登记抽屉：重置表单并拉取故障配置。
+ *
+ * @returns {void} 无返回值
+ */
 function openReview() {
   reviewForm.repairDesc = '';
   reviewForm.repairItems = [];
@@ -988,6 +1326,11 @@ function openReview() {
   reviewOpen.value = true;
 }
 
+/**
+ * 校验并提交复检登记。
+ *
+ * @returns {Promise<void>} 校验失败时 reject
+ */
 // eslint-disable-next-line complexity
 async function submitReview() {
   if (!id.value) return undefined;
@@ -1037,11 +1380,21 @@ async function submitReview() {
   return undefined;
 }
 
+/**
+ * 打开上传寄件凭证抽屉并清空已选 fileId。
+ *
+ * @returns {void} 无返回值
+ */
 function openMail() {
   mailForm.senderVoucherFileIds = [];
   mailOpen.value = true;
 }
 
+/**
+ * 提交寄件凭证并刷新详情。
+ *
+ * @returns {Promise<void>} 校验失败时 reject
+ */
 async function submitMail() {
   if (!id.value) return undefined;
   if (!mailForm.senderVoucherFileIds.length) {
@@ -1063,6 +1416,12 @@ async function submitMail() {
   return undefined;
 }
 
+/**
+ * 打开关闭工单抽屉并重置表单；可保留无故障接单待合并载荷。
+ *
+ * @param options - 可选；fromNoFaultTechAccept 为 true 时保留 pendingTechAcceptPayload
+ * @returns {void} 无返回值
+ */
 function openClose(options: { fromNoFaultTechAccept?: boolean } = {}) {
   if (!options.fromNoFaultTechAccept) {
     pendingTechAcceptPayload.value = null;
@@ -1073,6 +1432,11 @@ function openClose(options: { fromNoFaultTechAccept?: boolean } = {}) {
   closeOpen.value = true;
 }
 
+/**
+ * 提交关闭工单；若存在 pending 接单载荷则与关闭字段合并调用接单接口。
+ *
+ * @returns {Promise<void>} 校验失败时 reject
+ */
 async function submitClose() {
   if (!id.value || !closeForm.closeReason.trim()) {
     window.$message?.warning('请填写关闭原因');
@@ -1116,11 +1480,23 @@ async function submitClose() {
   return undefined;
 }
 
+/**
+ * 取消关闭工单：丢弃待合并接单载荷并关闭抽屉。
+ *
+ * @returns {void} 无返回值
+ */
 function cancelCloseDialog() {
   pendingTechAcceptPayload.value = null;
   closeOpen.value = false;
 }
 
+/**
+ * 通用上传：调用系统上传接口并把返回的 fileId 追加到指定数组。
+ *
+ * @param bucket - 存储 fileId 的响应式数组
+ * @param opt - Ant Design Upload customRequest 参数
+ * @returns {Promise<void>} 无返回值
+ */
 async function runUploadToIds(bucket: number[], opt: UploadRequestOption) {
   try {
     const raw = opt.file as File;
@@ -1137,18 +1513,42 @@ async function runUploadToIds(bucket: number[], opt: UploadRequestOption) {
   }
 }
 
+/**
+ * 维修登记：故障新图上传 customRequest。
+ *
+ * @param opt - Upload 自定义请求参数
+ * @returns {Promise<void>} 无返回值
+ */
 async function customRequestRepairImage(opt: UploadRequestOption) {
   await runUploadToIds(repairForm.faultImageFileIds, opt);
 }
 
+/**
+ * 复检登记：故障新图上传 customRequest。
+ *
+ * @param opt - Upload 自定义请求参数
+ * @returns {Promise<void>} 无返回值
+ */
 async function customRequestReviewImage(opt: UploadRequestOption) {
   await runUploadToIds(reviewForm.faultImageFileIds, opt);
 }
 
+/**
+ * 关闭工单：回寄凭证上传 customRequest。
+ *
+ * @param opt - Upload 自定义请求参数
+ * @returns {Promise<void>} 无返回值
+ */
 async function customRequestCloseVoucher(opt: UploadRequestOption) {
   await runUploadToIds(closeForm.returnVoucherFileIds, opt);
 }
 
+/**
+ * 邮寄场景：寄件凭证单张上传，成功则覆盖 mailForm.senderVoucherFileIds。
+ *
+ * @param opt - Upload 自定义请求参数
+ * @returns {Promise<void>} 无返回值
+ */
 async function customRequestMailVoucher(opt: UploadRequestOption) {
   try {
     const raw = opt.file as File;
@@ -1165,48 +1565,114 @@ async function customRequestMailVoucher(opt: UploadRequestOption) {
   }
 }
 
+/**
+ * 维修登记：故障旧图上传 customRequest。
+ *
+ * @param opt - Upload 自定义请求参数
+ * @returns {Promise<void>} 无返回值
+ */
 async function customRequestRepairOldImage(opt: UploadRequestOption) {
   await runUploadToIds(repairForm.faultOldImageFileIds, opt);
 }
 
+/**
+ * 维修登记：机器正面照上传 customRequest。
+ *
+ * @param opt - Upload 自定义请求参数
+ * @returns {Promise<void>} 无返回值
+ */
 async function customRequestRepairMachineImage(opt: UploadRequestOption) {
   await runUploadToIds(repairForm.machineImageFileIds, opt);
 }
 
+/**
+ * 维修登记：条码照上传 customRequest。
+ *
+ * @param opt - Upload 自定义请求参数
+ * @returns {Promise<void>} 无返回值
+ */
 async function customRequestRepairMachineBarcodeImage(opt: UploadRequestOption) {
   await runUploadToIds(repairForm.machineBarcodeImageFileIds, opt);
 }
 
+/**
+ * 维修登记：其它图片上传 customRequest。
+ *
+ * @param opt - Upload 自定义请求参数
+ * @returns {Promise<void>} 无返回值
+ */
 async function customRequestRepairOtherImage(opt: UploadRequestOption) {
   await runUploadToIds(repairForm.otherImageFileIds, opt);
 }
 
+/**
+ * 复检登记：故障旧图上传 customRequest。
+ *
+ * @param opt - Upload 自定义请求参数
+ * @returns {Promise<void>} 无返回值
+ */
 async function customRequestReviewOldImage(opt: UploadRequestOption) {
   await runUploadToIds(reviewForm.faultOldImageFileIds, opt);
 }
 
+/**
+ * 复检登记：机器正面照上传 customRequest。
+ *
+ * @param opt - Upload 自定义请求参数
+ * @returns {Promise<void>} 无返回值
+ */
 async function customRequestReviewMachineImage(opt: UploadRequestOption) {
   await runUploadToIds(reviewForm.machineImageFileIds, opt);
 }
 
+/**
+ * 复检登记：条码照上传 customRequest。
+ *
+ * @param opt - Upload 自定义请求参数
+ * @returns {Promise<void>} 无返回值
+ */
 async function customRequestReviewMachineBarcodeImage(opt: UploadRequestOption) {
   await runUploadToIds(reviewForm.machineBarcodeImageFileIds, opt);
 }
 
+/**
+ * 复检登记：其它图片上传 customRequest。
+ *
+ * @param opt - Upload 自定义请求参数
+ * @returns {Promise<void>} 无返回值
+ */
 async function customRequestReviewOtherImage(opt: UploadRequestOption) {
   await runUploadToIds(reviewForm.otherImageFileIds, opt);
 }
 
+/**
+ * 配件明细表追加一行空行。
+ *
+ * @param target - 配件数组引用
+ * @returns {void} 无返回值
+ */
 function addPartRow(target: Array<{ partName: string; partQty?: number }>) {
   target.push({ partName: '', partQty: 1 });
 }
 
+/**
+ * 删除配件明细一行（至少保留一行）。
+ *
+ * @param target - 配件数组引用
+ * @param index - 行下标
+ * @returns {void} 无返回值
+ */
 function removePartRow(target: Array<{ partName: string; partQty?: number }>, index: number) {
   if (target.length <= 1) return;
   target.splice(index, 1);
 }
 
-/** 列表行点击「派单」等与 jasic-ui 一致：先拉详情再打开对应子流程 */
+/**
+ * 列表页传入动作码时：先刷新详情再打开派单/接单/转单/维修/复检/邮寄/关闭等子流程（与 jasic-ui 行为一致）。
+ *
+ * @param action - 列表动作字符串
+ * @returns {Promise<void>} 无返回值
+ */
 async function openActionFromList(action: string) {
   if (!id.value) return;
   await loadDetail();
@@ -1246,6 +1712,7 @@ async function openActionFromList(action: string) {
   }
 }
 
+// 暴露给父组件：从列表按动作码打开子流程
 defineExpose({
   openActionFromList
 });
@@ -1316,7 +1783,11 @@ defineExpose({
                 @click="openFilePreview(file)"
               />
               <div v-else class="h-full w-full flex items-center justify-center bg-gray-50 p-4px text-center">
-                <AButton type="link" class="max-w-full text-ellipsis whitespace-nowrap p-0" @click="openFilePreview(file)">
+                <AButton
+                  type="link"
+                  class="max-w-full text-ellipsis whitespace-nowrap p-0"
+                  @click="openFilePreview(file)"
+                >
                   {{ fileDisplayName(file) }}
                 </AButton>
               </div>
@@ -1347,7 +1818,11 @@ defineExpose({
                 @click="openFilePreview(file)"
               />
               <div v-else class="h-full w-full flex items-center justify-center bg-gray-50 p-4px text-center">
-                <AButton type="link" class="max-w-full text-ellipsis whitespace-nowrap p-0" @click="openFilePreview(file)">
+                <AButton
+                  type="link"
+                  class="max-w-full text-ellipsis whitespace-nowrap p-0"
+                  @click="openFilePreview(file)"
+                >
                   {{ fileDisplayName(file) }}
                 </AButton>
               </div>
@@ -1420,7 +1895,11 @@ defineExpose({
               class="h-100px w-100px overflow-hidden border border-gray-200 rounded"
             >
               <div class="h-full w-full flex items-center justify-center bg-gray-50 p-4px text-center">
-                <AButton type="link" class="max-w-full text-ellipsis whitespace-nowrap p-0" @click="openFilePreview(file)">
+                <AButton
+                  type="link"
+                  class="max-w-full text-ellipsis whitespace-nowrap p-0"
+                  @click="openFilePreview(file)"
+                >
                   {{ fileDisplayName(file) }}
                 </AButton>
               </div>
@@ -1445,43 +1924,34 @@ defineExpose({
       <template v-if="visibleRepairs.length">
         <div class="mb-8px text-14px text-gray-700">维修信息</div>
       </template>
-      <ADescriptions
-        v-if="repairQuoteSummaryItems.length"
-        bordered
-        size="small"
-        :column="2"
-        class="mb-12px"
-      >
-        <ADescriptionsItem
-          v-for="it in repairQuoteSummaryItems"
-          :key="it.key"
-          :label="it.label"
-          :span="it.span || 1"
-        >
+      <ADescriptions v-if="repairQuoteSummaryItems.length" bordered size="small" :column="2" class="mb-12px">
+        <ADescriptionsItem v-for="it in repairQuoteSummaryItems" :key="it.key" :label="it.label" :span="it.span || 1">
           {{ textValue(it.value) }}
         </ADescriptionsItem>
       </ADescriptions>
       <div
         v-for="(repair, repairIndex) in visibleRepairs"
-        :key="String((repair as Record<string, unknown>).id || `repair-${repairIndex}`)"
+        :key="String(toRepairRow(repair).id || `repair-${repairIndex}`)"
         class="mb-16px"
       >
         <ADescriptions bordered size="small" :column="2">
-          <ADescriptionsItem label="登记阶段">{{ textValue((repair as Record<string, unknown>).registerStageLabel) }}</ADescriptionsItem>
-          <ADescriptionsItem label="登记时间">{{ textValue((repair as Record<string, unknown>).createTime) }}</ADescriptionsItem>
-          <ADescriptionsItem label="维修公司">{{ textValue((repair as Record<string, unknown>).companyName) }}</ADescriptionsItem>
-          <ADescriptionsItem label="维修人">{{ textValue((repair as Record<string, unknown>).repairUserName) }}</ADescriptionsItem>
-          <ADescriptionsItem label="维修完成">{{ textValue((repair as Record<string, unknown>).isFinished) }}</ADescriptionsItem>
-          <ADescriptionsItem label="完成时间">{{ textValue((repair as Record<string, unknown>).finishedTime) }}</ADescriptionsItem>
+          <ADescriptionsItem label="登记阶段">
+            {{ textValue(toRepairRow(repair).registerStageLabel) }}
+          </ADescriptionsItem>
+          <ADescriptionsItem label="登记时间">{{ textValue(toRepairRow(repair).createTime) }}</ADescriptionsItem>
+          <ADescriptionsItem label="维修公司">{{ textValue(toRepairRow(repair).companyName) }}</ADescriptionsItem>
+          <ADescriptionsItem label="维修人">{{ textValue(toRepairRow(repair).repairUserName) }}</ADescriptionsItem>
+          <ADescriptionsItem label="维修完成">{{ textValue(toRepairRow(repair).isFinished) }}</ADescriptionsItem>
+          <ADescriptionsItem label="完成时间">{{ textValue(toRepairRow(repair).finishedTime) }}</ADescriptionsItem>
           <template
-            v-for="att in repairAttachmentFileLists(repair as Record<string, unknown>)"
-            :key="`${(repair as Record<string, unknown>).id || repairIndex}-${att.key}`"
+            v-for="att in repairAttachmentFileLists(toRepairRow(repair))"
+            :key="`${toRepairRow(repair).id || repairIndex}-${att.key}`"
           >
             <ADescriptionsItem :label="att.label" :span="2">
               <div class="flex flex-wrap gap-8px">
                 <div
                   v-for="(file, fileIndex) in att.files"
-                  :key="`${(repair as Record<string, unknown>).id || repairIndex}-${att.key}-${String(file.fileId || file.id || fileIndex)}`"
+                  :key="`${toRepairRow(repair).id || repairIndex}-${att.key}-${String(file.fileId || file.id || fileIndex)}`"
                   class="h-100px w-100px overflow-hidden border border-gray-200 rounded"
                 >
                   <img
@@ -1501,7 +1971,11 @@ defineExpose({
                     @click="openFilePreview(file)"
                   />
                   <div v-else class="h-full w-full flex items-center justify-center bg-gray-50 p-4px text-center">
-                    <AButton type="link" class="max-w-full text-ellipsis whitespace-nowrap p-0" @click="openFilePreview(file)">
+                    <AButton
+                      type="link"
+                      class="max-w-full text-ellipsis whitespace-nowrap p-0"
+                      @click="openFilePreview(file)"
+                    >
                       {{ fileDisplayName(file) }}
                     </AButton>
                   </div>

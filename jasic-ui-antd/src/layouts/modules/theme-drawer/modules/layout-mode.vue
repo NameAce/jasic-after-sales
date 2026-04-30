@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 主题抽屉 — 布局模式：四种主布局卡片 + 水平混合时「反转一级/子级位置」开关。
+ */
 import { useAppStore } from '@/store/modules/app';
 import { useThemeStore } from '@/store/modules/theme';
 import { $t } from '@/locales';
@@ -14,6 +17,7 @@ const themeStore = useThemeStore();
 
 type CheckedType = boolean | string | number;
 
+/** 水平混合布局下是否将一级菜单放到侧栏（与默认顶栏一级相反） */
 function handleReverseHorizontalMixChange(value: CheckedType) {
   themeStore.setLayoutReverseHorizontalMix(value as boolean);
 }

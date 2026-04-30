@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 主题抽屉 — 主题色：推荐色开关与各语义色 ColorPicker（info 可跟随主色）。
+ */
 import { ColorPicker } from '@sa/materials';
 import { useThemeStore } from '@/store/modules/theme';
 import { $t } from '@/locales';
@@ -10,6 +13,7 @@ defineOptions({
 
 const themeStore = useThemeStore();
 
+/** 更新某一语义色并同步派生样式 */
 function handleUpdateColor(color: string, key: App.Theme.ThemeColorKey) {
   themeStore.updateThemeColors(key, color);
 }

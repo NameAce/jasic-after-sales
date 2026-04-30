@@ -1,8 +1,9 @@
+/**
+ * Ant Design Vue 语言包映射：当前仅注册 `zh-CN`，供根 ConfigProvider 使用。
+ */
 import type { Locale } from 'ant-design-vue/es/locale';
 import zhCN from 'ant-design-vue/es/locale/zh_CN';
-import enUS from 'ant-design-vue/es/locale/en_US';
 
-export const antdLocales: Record<App.I18n.LangType, Locale> = {
-  'zh-CN': zhCN,
-  'en-US': enUS
+export const antdLocales: Record<'zh-CN', Locale> = {
+  'zh-CN': zhCN
 };

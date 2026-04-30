@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 菜单根组件：按主题布局 mode 动态选择竖/横/混合等具体菜单实现，并注入选中项背景 CSS 变量。
+ */
 import { computed } from 'vue';
 import type { Component } from 'vue';
 import { transformColorWithOpacity } from '@sa/utils';
@@ -17,6 +20,7 @@ defineOptions({
 const appStore = useAppStore();
 const themeStore = useThemeStore();
 
+// 按 layout mode 选择具体菜单组件（含水平混合是否反转）
 const activeMenu = computed(() => {
   const menuMap: Record<UnionKey.ThemeLayoutMode, Component> = {
     vertical: VerticalMenu,
@@ -28,8 +32,10 @@ const activeMenu = computed(() => {
   return menuMap[themeStore.layout.mode];
 });
 
+// 移动端竖向布局下强制重挂载菜单以修正宽度样式
 const reRenderVertical = computed(() => themeStore.layout.mode === 'vertical' && appStore.isMobile);
 
+// 菜单选中项背景：亮/暗下对主色做不同透明度叠加
 const selectedBgColor = computed(() => {
   const { darkMode, themeColor } = themeStore;
 

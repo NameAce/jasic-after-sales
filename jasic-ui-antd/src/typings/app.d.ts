@@ -683,7 +683,12 @@ declare namespace App {
 
     type I18nKey = GetI18nKey<Schema>;
 
-    type TranslateOptions<Locales extends string> = import('vue-i18n').TranslateOptions<Locales>;
+    /** 占位：原 vue-i18n 的翻译选项，本项目仅保留 $t 兼容签名 */
+    type TranslateOptions<Locales extends string = LangType> = {
+      locale?: Locales;
+      named?: Record<string, unknown>;
+      plural?: number;
+    };
 
     interface $T {
       (key: I18nKey): string;

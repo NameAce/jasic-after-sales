@@ -7,10 +7,10 @@ import { request } from '../request';
  */
 
 /**
- * Login
- *
- * @param userName User name
- * @param password Password
+ * 作用：用户名密码登录（PC 主链路）。
+ * @param userName 登录名
+ * @param password 密码
+ * @returns {Promise} 请求封装结果
  */
 export function fetchLogin(userName: string, password: string) {
   return request<Api.Auth.LoginResponse>({
@@ -55,12 +55,12 @@ export function fetchGetUserInfo() {
   return request<Api.Auth.BackendUserInfo>({ url: '/auth/user-info', method: 'get' });
 }
 
-/** Get auth menus */
+/** 拉取侧边鉴权菜单树（动态路由数据源） */
 export function fetchGetMenus() {
   return request<Api.Route.AuthMenusResponse>({ url: '/auth/menus', method: 'get' });
 }
 
-/** Choose company when backend requires company scope */
+/** 后端要求选择公司主体时提交选择 */
 export function fetchChooseCompany(data: Api.Auth.ChooseCompanyParams) {
   return request<Api.Auth.BackendUserInfo>({
     url: '/auth/choose-company',
@@ -74,7 +74,7 @@ export function fetchUpdateProfile(data: Partial<Api.Auth.BackendUserInfo>) {
   return request<null>({ url: '/auth/profile', method: 'put', data });
 }
 
-/** Change current user password */
+/** 修改当前用户密码 */
 export function fetchChangePassword(data: Api.Auth.ChangePasswordParams) {
   return request<null>({
     url: '/auth/change-password',
@@ -98,7 +98,7 @@ export function fetchUnbindWechat(data?: Api.Auth.UnbindWechatParams) {
   return request<null>({ url: '/auth/wechat-bind/unbind', method: 'post', data });
 }
 
-/** Logout */
+/** 退出登录 */
 export function fetchLogout() {
   return request<null>({
     url: '/auth/logout',
@@ -124,10 +124,10 @@ export function fetchRefreshToken(refreshToken: string) {
 }
 
 /**
- * return custom backend error
- *
- * @param code error code
- * @param msg error message
+ * 作用：按后端约定返回自定义错误（联调/测试用）。
+ * @param code 错误码
+ * @param msg 错误信息
+ * @returns {Promise}
  */
 export function fetchCustomBackendError(code: string, msg: string) {
   return request({ url: '/auth/error', params: { code, msg } });

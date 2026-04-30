@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 选公司页：多公司账号登录后需选择当前会话公司，再写入 token 上下文并进入业务首页。
+ */
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/store/modules/auth';
@@ -10,9 +13,16 @@ const router = useRouter();
 const authStore = useAuthStore();
 const { toHome } = useRouterPush();
 
+// 用户选中的公司 id
 const selected = ref<Api.Common.IdLike | null>(null);
+// 确认进入公司加载态
 const loading = ref(false);
 
+/**
+ * 作用：进入页时若无需选公司则回首页；否则尝试补全公司列表。
+ * @param 无
+ * @returns {void} 无
+ */
 onMounted(async () => {
   if (!authStore.needChooseCompany) {
     await router.replace({ name: 'root' }).catch(() => {});
@@ -30,6 +40,11 @@ onMounted(async () => {
   }
 });
 
+/**
+ * 作用：提交当前选中的公司并完成会话切换后进入首页。
+ * @param 无
+ * @returns 返回 Promise，流程结束后结束
+ */
 async function handleChoose() {
   if (selected.value === null) return;
   loading.value = true;

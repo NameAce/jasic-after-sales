@@ -1,5 +1,9 @@
 import { request } from '../request';
 
+/**
+ * 售后工单域接口：列表、状态统计、创建/指派/流转/维修/关闭等全生命周期。
+ */
+
 type IdLike = string | number;
 type Query = Record<string, unknown>;
 

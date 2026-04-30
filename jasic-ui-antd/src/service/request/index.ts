@@ -1,3 +1,6 @@
+/**
+ * HTTP 请求实例：主后端 createFlatRequest、多 baseURL 的 createRequest，统一鉴权与业务错误码处理。
+ */
 import { BACKEND_ERROR_CODE, createFlatRequest, createRequest } from '@sa/axios';
 import { router } from '@/router';
 import { useAuthStore } from '@/store/modules/auth';
@@ -6,15 +9,26 @@ import { getServiceBaseURL } from '@/utils/service';
 import { getAuthorization, showErrorMsg } from './shared';
 import type { RequestInstanceState } from './type';
 
+/** 开发环境且开启代理时，请求将走 Vite 代理前缀 */
 const isHttpProxy = import.meta.env.DEV && import.meta.env.VITE_HTTP_PROXY === 'Y';
 const { baseURL, otherBaseURL } = getServiceBaseURL(import.meta.env, isHttpProxy);
 
+/**
+ * 作用：将环境变量中的逗号分隔错误码解析为去空白的字符串数组。
+ * @param raw 原始字符串
+ * @returns {string[]} 错误码列表
+ */
 function parseCodeList(raw: string | undefined) {
   return (raw?.split(',') || []).map(c => c.trim()).filter(Boolean);
 }
 
 type ExceptionRouteName = '403' | '404' | '500';
 
+/**
+ * 作用：跳转到统一异常页（403/404/500），避免与当前路由重复 push。
+ * @param routeName 目标异常路由名
+ * @returns {void}
+ */
 function redirectToExceptionPage(routeName: ExceptionRouteName) {
   const currentRouteName = String(router.currentRoute.value.name || '');
   if (currentRouteName === routeName) return;
@@ -22,6 +36,10 @@ function redirectToExceptionPage(routeName: ExceptionRouteName) {
   router.push({ name: routeName }).catch(() => {});
 }
 
+/**
+ * 作用：判断当前是否处于首页相关路由，用于无权限时在首页仅弹消息而不跳 403。
+ * @returns {boolean} 是否在首页
+ */
 function isOnHomeRoute() {
   const current = router.currentRoute.value;
   const routeName = String(current.name || '');
@@ -31,11 +49,16 @@ function isOnHomeRoute() {
 }
 
 const defaultRequestHeaders: Record<string, string> = {};
+// 联调 Apifox 等工具时可在请求头附加 token
 const apifoxToken = import.meta.env.VITE_APIFOX_TOKEN;
 if (apifoxToken) {
   defaultRequestHeaders.apifoxToken = apifoxToken;
 }
 
+/**
+ * 作用：主后端扁平请求实例：附加 Authorization、按业务码处理登出/无权限/500、转换 data 与网络错误提示。
+ * @remarks 与 `@sa/axios` createFlatRequest 配置对象配对导出
+ */
 export const request = createFlatRequest<App.Service.Response, RequestInstanceState>(
   {
     baseURL,
@@ -173,6 +196,10 @@ export const request = createFlatRequest<App.Service.Response, RequestInstanceSt
   }
 );
 
+/**
+ * 作用：演示/第二基地址请求实例（成功判断与数据结构不同于主接口）。
+ * @remarks 使用 demo 服务 baseURL 与独立 token 头格式
+ */
 export const demoRequest = createRequest<App.Service.DemoResponse>(
   {
     baseURL: otherBaseURL.demo

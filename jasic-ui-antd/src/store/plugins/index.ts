@@ -1,11 +1,15 @@
+/**
+ * Pinia 插件：为枚举内的 setup Store 注入可恢复到初始快照的 `$reset`。
+ */
 import type { PiniaPluginContext } from 'pinia';
 import { jsonClone } from '@sa/utils';
 import { SetupStoreId } from '@/enum';
 
 /**
- * The plugin reset the state of the store which is written by setup syntax
+ * Pinia 插件：为 setup 语法的 store 提供可恢复到初始快照的 `$reset`。
  *
- * @param context
+ * @param context - Pinia 插件上下文
+ * @returns {void} 无返回值
  */
 export function resetSetupStore(context: PiniaPluginContext) {
   const setupSyntaxIds = Object.values(SetupStoreId) as string[];

@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 顶栏用户区：未登录显示登录/注册；已登录下拉含个人中心与退出（带确认）。
+ */
 import { Modal } from 'ant-design-vue';
 import { useAuthStore } from '@/store/modules/auth';
 import { useRouterPush } from '@/hooks/common/router';
@@ -11,10 +14,12 @@ defineOptions({
 const authStore = useAuthStore();
 const { routerPushByKey, toLogin } = useRouterPush();
 
+/** 跳转登录页（或注册入口由路由决定） */
 function loginOrRegister() {
   toLogin();
 }
 
+/** 退出登录前二次确认 */
 function logout() {
   Modal.confirm({
     title: $t('common.tip'),

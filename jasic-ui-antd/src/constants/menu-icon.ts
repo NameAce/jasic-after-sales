@@ -1,4 +1,6 @@
-/** 与 `SvgIcon` / 路由 meta 一致 */
+/**
+ * 菜单图标：后端 icon 字符串的别名、集合前缀解析，以及按路由名覆盖图标（与 SvgIcon、路由 meta 一致）。
+ */
 export type MenuIconOverride = {
   /** Iconify 名称，例如 `mdi:clipboard-text-outline` */
   icon?: string;

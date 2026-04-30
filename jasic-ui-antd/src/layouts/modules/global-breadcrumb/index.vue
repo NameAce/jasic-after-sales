@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 全局面包屑：读取 routeStore.breadcrumbs，支持带子菜单的下拉跳转。
+ */
 import { useAttrs } from 'vue';
 import { createReusableTemplate } from '@vueuse/core';
 import type { RouteKey } from '@elegant-router/types';
@@ -22,6 +25,7 @@ interface BreadcrumbContentProps {
 
 const [DefineBreadcrumbContent, BreadcrumbContent] = createReusableTemplate<BreadcrumbContentProps>();
 
+/** 面包屑下拉项点击：按路由 key 跳转 */
 function handleClickMenu(key: RouteKey) {
   routerPushByKey(key);
 }

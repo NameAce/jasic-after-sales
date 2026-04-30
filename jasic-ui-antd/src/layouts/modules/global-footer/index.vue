@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 全局页脚：版权与外链展示（可按项目替换文案与链接）。
+ */
 defineOptions({
   name: 'GlobalFooter'
 });
@@ -6,9 +9,7 @@ defineOptions({
 
 <template>
   <DarkModeContainer class="h-full flex-center">
-    <a href="https://github.com/honghuangdc/soybean-admin/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">
-      Copyright MIT © 2021 Soybean
-    </a>
+    <a target="_blank" rel="noopener noreferrer">Copyright MIT © 2026 Jasic</a>
   </DarkModeContainer>
 </template>
 

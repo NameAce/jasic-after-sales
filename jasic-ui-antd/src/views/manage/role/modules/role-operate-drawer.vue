@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 角色列表 — 新增/编辑抽屉：基本信息与跳转菜单/按钮授权弹窗。
+ */
 import { computed, ref, watch } from 'vue';
 import { useBoolean } from '@sa/hooks';
 import { enableStatusOptions } from '@/constants/business';
@@ -12,9 +15,9 @@ defineOptions({
 });
 
 interface Props {
-  /** the type of operation */
+  /** 表格操作类型 */
   operateType: AntDesign.TableOperateType;
-  /** the edit row data */
+  /** 编辑行数据 */
   rowData?: Api.SystemManage.Role | null;
 }
 
@@ -35,6 +38,7 @@ const { defaultRequiredRule } = useFormRules();
 const { bool: menuAuthVisible, setTrue: openMenuAuthModal } = useBoolean();
 const { bool: buttonAuthVisible, setTrue: openButtonAuthModal } = useBoolean();
 
+// 抽屉标题文案
 const title = computed(() => {
   const titles: Record<AntDesign.TableOperateType, string> = {
     add: $t('page.manage.role.addRole'),
@@ -45,8 +49,14 @@ const title = computed(() => {
 
 type Model = Pick<Api.SystemManage.Role, 'roleName' | 'roleCode' | 'roleDesc' | 'status'>;
 
+// 角色表单模型
 const model = ref(createDefaultModel());
 
+/**
+ * 作用：返回角色表单默认值。
+ * @param 无
+ * @returns 默认模型
+ */
 function createDefaultModel(): Model {
   return {
     roleName: '',
@@ -64,10 +74,17 @@ const rules: Record<RuleKey, App.Global.FormRule> = {
   status: defaultRequiredRule
 };
 
+// 编辑模式下当前角色 id（菜单/按钮授权弹窗用）
 const roleId = computed(() => props.rowData?.id || -1);
 
+// 是否为编辑态
 const isEdit = computed(() => props.operateType === 'edit');
 
+/**
+ * 作用：初始化表单模型。
+ * @param 无
+ * @returns {void} 无
+ */
 function handleInitModel() {
   model.value = createDefaultModel();
 
@@ -76,10 +93,20 @@ function handleInitModel() {
   }
 }
 
+/**
+ * 作用：关闭抽屉。
+ * @param 无
+ * @returns {void} 无
+ */
 function closeDrawer() {
   visible.value = false;
 }
 
+/**
+ * 作用：校验并模拟提交（示例未接保存接口）。
+ * @param 无
+ * @returns 返回 Promise，校验完成后结束
+ */
 async function handleSubmit() {
   await validate();
   // request
@@ -88,6 +115,7 @@ async function handleSubmit() {
   emit('submitted');
 }
 
+// 打开抽屉时初始化表单并清校验
 watch(visible, () => {
   if (visible.value) {
     handleInitModel();

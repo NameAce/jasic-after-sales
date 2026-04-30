@@ -1,5 +1,9 @@
 import { request } from '../request';
 
+/**
+ * 组织与客商域接口：公司类型/档案、合同与区域级联、外部客户导入等。
+ */
+
 type IdLike = string | number;
 type Query = Record<string, unknown>;
 
@@ -212,12 +216,30 @@ export function getExternalCompanyImportPreview(custId: IdLike) {
   return request({ url: `/org/company/external/${custId}/import-preview`, method: 'get' });
 }
 
+/** 与后端 `SysAreaOptionVO` 一致 */
+export interface SysAreaOptionVO {
+  areaCode: string;
+  areaName: string;
+  parentCode?: string;
+  areaLevel?: string;
+  leaf?: boolean;
+}
+
+/** 与后端 `SysArea` 实体一致（接口常用字段） */
+export interface SysArea {
+  areaCode: string;
+  areaName: string;
+  parentCode?: string;
+  areaLevel?: string;
+  fullName?: string;
+}
+
 /** 与 jasic-ui `GET /org/area/options` 一致 */
 export function listAreaOptions(parentCode?: string) {
-  return request({ url: '/org/area/options', method: 'get', params: { parentCode } });
+  return request<SysAreaOptionVO[]>({ url: '/org/area/options', method: 'get', params: { parentCode } });
 }
 
 /** 与 jasic-ui `GET /org/area/:areaCode` 一致 */
 export function getAreaDetail(areaCode: IdLike) {
-  return request({ url: `/org/area/${areaCode}`, method: 'get' });
+  return request<SysArea>({ url: `/org/area/${areaCode}`, method: 'get' });
 }

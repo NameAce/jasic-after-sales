@@ -1,4 +1,7 @@
 <script setup lang="tsx">
+/**
+ * 管理端演示 — 角色管理：分页列表、搜索与角色维护抽屉（含菜单/按钮授权入口）。
+ */
 import { Button, Popconfirm, Tag } from 'ant-design-vue';
 import { tagColorEnabled } from '@/constants/list-status-tag';
 import { enableStatusRecord } from '@/constants/business';
@@ -8,6 +11,7 @@ import { $t } from '@/locales';
 import RoleOperateDrawer from './modules/role-operate-drawer.vue';
 import RoleSearch from './modules/role-search.vue';
 
+// 表格滚动与 useTable（角色列与列表请求）
 const { tableWrapperRef, scrollConfig } = useTableScroll();
 
 const {
@@ -107,12 +111,22 @@ const {
   // closeDrawer
 } = useTableOperate(data, getData);
 
+/**
+ * 作用：批量删除角色（示例占位）。
+ * @param 无
+ * @returns 返回 Promise，回调结束后结束
+ */
 async function handleBatchDelete() {
   // request
 
   onBatchDeleted();
 }
 
+/**
+ * 作用：删除单条角色（示例占位）。
+ * @param id - 角色 id
+ * @returns {void} 无
+ */
 function handleDelete(id: number) {
   // request
   console.log(id);
@@ -120,6 +134,11 @@ function handleDelete(id: number) {
   onDeleted();
 }
 
+/**
+ * 作用：按 id 打开角色编辑。
+ * @param id - 角色 id
+ * @returns {void} 无
+ */
 function edit(id: number) {
   handleEdit(id);
 }

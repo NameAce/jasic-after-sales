@@ -1,5 +1,11 @@
 export {};
 
+declare module 'vue' {
+  interface ComponentCustomProperties {
+    $t: App.I18n.$T;
+  }
+}
+
 declare global {
   export interface Window {
     /** NProgress instance */

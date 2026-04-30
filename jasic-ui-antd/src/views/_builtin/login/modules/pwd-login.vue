@@ -9,6 +9,7 @@ defineOptions({
   name: 'PwdLogin'
 });
 
+// 会话 Store、登录切换与表单校验
 const authStore = useAuthStore();
 const { toggleLoginModule } = useRouterPush();
 const { formRef, validate } = useAntdForm();
@@ -23,6 +24,7 @@ const model: FormModel = reactive({
   password: ''
 });
 
+// 密码登录校验规则
 const rules = computed<Record<keyof FormModel, App.Global.FormRule[]>>(() => {
   // inside computed to make locale reactive, if not apply i18n, you can define it without computed
   const { formRules, createRequiredRule } = useFormRules();
@@ -33,6 +35,11 @@ const rules = computed<Record<keyof FormModel, App.Global.FormRule[]>>(() => {
   };
 });
 
+/**
+ * 作用：校验并调用账号密码登录。
+ * @param 无
+ * @returns 返回 Promise，登录流程结束后结束
+ */
 async function handleSubmit() {
   await validate();
   await authStore.login(model.userName, model.password);

@@ -17,10 +17,17 @@ interface NewsItem {
 }
 
 const router = useRouter();
+// 动态列表加载态
 const loading = ref(false);
+// 首页展示的最新动态条目
 const newses = ref<NewsItem[]>([]);
 const { hasAuth } = useAuth();
 
+/**
+ * 作用：解析消息列表接口中的行数组。
+ * @param data - 接口数据
+ * @returns 行数组
+ */
 function pickRows(data: any) {
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.records)) return data.records;
@@ -28,6 +35,11 @@ function pickRows(data: any) {
   return [];
 }
 
+/**
+ * 作用：拼接标题与摘要为列表展示文案。
+ * @param row - 原始行
+ * @returns 展示字符串
+ */
 function buildContent(row: Record<string, any>) {
   const title = String(row?.title || '').trim();
   const summary = String(row?.summary || '').trim();
@@ -35,6 +47,11 @@ function buildContent(row: Record<string, any>) {
   return title || summary || '-';
 }
 
+/**
+ * 作用：加载首页「最新动态」列表（来自消息历史）。
+ * @param 无
+ * @returns 返回 Promise，加载结束后结束
+ */
 async function loadNews() {
   loading.value = true;
   try {
@@ -51,6 +68,11 @@ async function loadNews() {
   }
 }
 
+/**
+ * 作用：点击动态项跳转工单或消息中心。
+ * @param item - 列表项
+ * @returns {void} 无
+ */
 function openNewsItem(item: NewsItem) {
   if (item.workOrderId) {
     router.push({ name: 'after-sales_work-order', query: { detailId: String(item.workOrderId), fromNotify: '1' } });
@@ -59,6 +81,11 @@ function openNewsItem(item: NewsItem) {
   router.push({ path: '/notify', query: { box: 'HISTORY' } });
 }
 
+/**
+ * 作用：挂载后拉取动态列表。
+ * @param 无
+ * @returns {void} 无
+ */
 onMounted(() => {
   loadNews();
 });

@@ -1,3 +1,6 @@
+/**
+ * 业务枚举与展示：启用状态、性别、菜单类型等 Record + 下拉 options（文案走 i18n key）。
+ */
 import { transformRecordToOption } from '@/utils/common';
 
 export const enableStatusRecord: Record<Api.Common.EnableStatus, App.I18n.I18nKey> = {

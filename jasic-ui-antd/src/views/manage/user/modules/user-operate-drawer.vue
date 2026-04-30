@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 用户列表 — 新增/编辑抽屉：表单校验、角色选择与提交。
+ */
 import { computed, ref, watch } from 'vue';
 import { enableStatusOptions, userGenderOptions } from '@/constants/business';
 import { fetchGetAllRoles } from '@/service/api';
@@ -10,9 +13,9 @@ defineOptions({
 });
 
 interface Props {
-  /** the type of operation */
+  /** 表格操作类型：新增或编辑 */
   operateType: AntDesign.TableOperateType;
-  /** the edit row data */
+  /** 编辑时的行数据 */
   rowData?: Api.SystemManage.User | null;
 }
 
@@ -31,6 +34,7 @@ const visible = defineModel<boolean>('visible', {
 const { formRef, validate, resetFields } = useAntdForm();
 const { defaultRequiredRule } = useFormRules();
 
+// 抽屉标题（随操作类型切换）
 const title = computed(() => {
   const titles: Record<AntDesign.TableOperateType, string> = {
     add: $t('page.manage.user.addUser'),
@@ -44,8 +48,14 @@ type Model = Pick<
   'userName' | 'userGender' | 'nickName' | 'userPhone' | 'userEmail' | 'userRoles' | 'status'
 >;
 
+// 抽屉内表单模型
 const model = ref(createDefaultModel());
 
+/**
+ * 作用：创建用户新增/编辑表单项的默认值。
+ * @param 无
+ * @returns 默认模型
+ */
 function createDefaultModel(): Model {
   return {
     userName: '',
@@ -65,9 +75,14 @@ const rules: Record<RuleKey, App.Global.FormRule> = {
   status: defaultRequiredRule
 };
 
-/** the enabled role options */
+/** 角色多选下拉的数据源 */
 const roleOptions = ref<CommonType.Option<string>[]>([]);
 
+/**
+ * 作用：请求全部角色并合并当前用户已有角色为选项。
+ * @param 无
+ * @returns 返回 Promise，请求结束后结束
+ */
 async function getRoleOptions() {
   const { error, data } = await fetchGetAllRoles();
 
@@ -89,6 +104,11 @@ async function getRoleOptions() {
   }
 }
 
+/**
+ * 作用：按操作类型初始化表单（编辑时合并行数据）。
+ * @param 无
+ * @returns {void} 无
+ */
 function handleInitModel() {
   model.value = createDefaultModel();
 
@@ -97,10 +117,20 @@ function handleInitModel() {
   }
 }
 
+/**
+ * 作用：关闭抽屉。
+ * @param 无
+ * @returns {void} 无
+ */
 function closeDrawer() {
   visible.value = false;
 }
 
+/**
+ * 作用：校验表单并模拟提交成功（示例页未接真实接口）。
+ * @param 无
+ * @returns 返回 Promise，校验与提示完成后结束
+ */
 async function handleSubmit() {
   await validate();
   // request
@@ -109,6 +139,7 @@ async function handleSubmit() {
   emit('submitted');
 }
 
+// 打开抽屉时重置表单并拉取角色选项
 watch(visible, () => {
   if (visible.value) {
     handleInitModel();

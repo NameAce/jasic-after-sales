@@ -1,4 +1,7 @@
 <script setup lang="tsx">
+/**
+ * 管理端演示 — 用户管理：分页列表、搜索与新增/编辑抽屉。
+ */
 import { Button, Popconfirm, Tag } from 'ant-design-vue';
 import { tagColorEnabled } from '@/constants/list-status-tag';
 import { enableStatusRecord, userGenderRecord } from '@/constants/business';
@@ -8,6 +11,7 @@ import { $t } from '@/locales';
 import UserOperateDrawer from './modules/user-operate-drawer.vue';
 import UserSearch from './modules/user-search.vue';
 
+// 表格滚动与 useTable（用户列配置、数据源、分页）
 const { tableWrapperRef, scrollConfig } = useTableScroll();
 
 const {
@@ -141,6 +145,11 @@ const {
   // closeDrawer
 } = useTableOperate(data, getData);
 
+/**
+ * 作用：批量删除选中用户（示例未接接口，仅清空选择）。
+ * @param 无
+ * @returns 返回 Promise，回调结束后结束
+ */
 async function handleBatchDelete() {
   // request
   // console.log(checkedRowKeys.value);
@@ -148,6 +157,11 @@ async function handleBatchDelete() {
   onBatchDeleted();
 }
 
+/**
+ * 作用：删除单条用户（示例占位，仅刷新列表状态）。
+ * @param id - 用户 id
+ * @returns {void} 无
+ */
 function handleDelete(id: number) {
   // request
   console.log(id);
@@ -155,6 +169,11 @@ function handleDelete(id: number) {
   onDeleted();
 }
 
+/**
+ * 作用：打开编辑抽屉并传入指定用户 id。
+ * @param id - 用户 id
+ * @returns {void} 无
+ */
 function edit(id: number) {
   handleEdit(id);
 }

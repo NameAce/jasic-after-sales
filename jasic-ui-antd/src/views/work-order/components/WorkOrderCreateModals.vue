@@ -1,6 +1,9 @@
 <script setup lang="ts">
 /* eslint-disable vue/component-name-in-template-casing -- Ant Design Vue Input.TextArea */
-import { computed, reactive, ref, watch } from 'vue';
+/**
+ * 工单创建弹窗：分步表单、客户与设备信息、地址级联、附件上传；支持代填/上游报修等建单入口。
+ */
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { Cascader as ACascader, Modal, Upload } from 'ant-design-vue';
 import type { FormInstance } from 'ant-design-vue';
 import type { CheckboxChangeEvent } from 'ant-design-vue/es/checkbox/interface';
@@ -27,9 +30,11 @@ import {
 } from '@/service/api';
 import { useAuthStore } from '@/store/modules/auth';
 import {
-  chinaRegionCascaderOptions,
+  type RegionCascaderOption,
   composeAddressWithRegion,
+  fetchRegionCascaderOptions,
   isFullRegionSelection,
+  loadRegionCascaderData,
   splitFullAddressToRegionAndDetail
 } from '@/utils/china-region';
 import {
@@ -58,21 +63,39 @@ const emit = defineEmits<{
   (e: 'created'): void;
 }>();
 
+// 登录用户信息（用于建单入口选项）
 const authStore = useAuthStore();
+// 建单抽屉是否打开
 const createDrawerOpen = ref(false);
+// 建单表单状态
 const createForm = reactive<CreateWorkOrderFormState>(buildDefaultCreateForm());
+// Ant Design 表单实例
 const createFormRef = ref<FormInstance | null>(null);
+// 建单提交中
 const createSubmitting = ref(false);
+// 条码查询加载中
 const createBarcodeLoading = ref(false);
+// 补充信息区块折叠状态
 const createSupplementExpanded = ref(false);
 
+// 地址表单省市区级联选项
+const companyAddressRegionOptions = ref<RegionCascaderOption[]>([]);
+
+// 公司地址列表加载中
 const companyAddressLoading = ref(false);
+// 公司地址列表数据
 const companyAddressList = ref<CompanyAddressVO[]>([]);
+// 地址簿弹窗是否显示
 const companyAddressDialogVisible = ref(false);
+// 地址簿模式：选择寄件 / 管理
 const companyAddressDialogMode = ref<'select' | 'manage'>('manage');
+// 地址编辑子弹窗是否显示
 const companyAddressFormVisible = ref(false);
+// 地址表单标题
 const companyAddressFormTitle = ref('新增地址');
+// 地址表单提交中
 const companyAddressSubmitting = ref(false);
+// 地址簿内编辑表单模型
 const companyAddressForm = reactive({
   id: undefined as number | undefined,
   contactName: '',
@@ -82,23 +105,35 @@ const companyAddressForm = reactive({
   isDefault: 0 as 0 | 1
 });
 
+// 当前用户可用的建单入口选项
 const createEntryOptions = computed(() => getCreateEntryOptions(authStore.userInfo.currentTypeCode));
 
+// 是否为上游报修建单（非代填）
 const isCreateUpstreamEntry = computed(() => createForm.entryMode !== CREATE_ENTRY_PROXY);
+// 是否展示客户姓名/手机等代填字段
 const showCreateCustomerFields = computed(() => !isCreateUpstreamEntry.value);
+// 是否邮寄维修路径
 const isCreateMailMode = computed(() => createForm.serviceMode === SERVICE_MODE_MAIL);
+// 条码是否已成功解析出商品信息
 const hasCreateResolvedBarcodeInfo = computed(() => Boolean(createForm.barcodeResolved));
+// 上游建单且有待选受理网点时展示目标公司选择
 const showCreateTargetCompany = computed(
   () => isCreateUpstreamEntry.value && (createForm.targetCompanyOptions || []).length > 0
 );
+// 目标公司字段标签（一级 / 总部）
 const createTargetCompanyLabel = computed(() =>
   createForm.entryMode === CREATE_ENTRY_UPSTREAM_FIRST ? '目标一级' : '目标总部'
 );
-/** 与小程序 `请选择${upstreamTargetCompanyLabel}` 一致 */
+// 目标公司下拉占位符（与小程序一致）
 const createTargetCompanySelectPlaceholder = computed(() => `请选择${createTargetCompanyLabel.value}`);
+// 仅有一个可选网点时自动带出
 const isCreateTargetAutoFilled = computed(() => (createForm.targetCompanyOptions || []).length <= 1);
 
-/** 与小程序 `isOtherFaultSelection` 语义对齐（选项 value 多为故障文案） */
+/**
+ * 作用：判断故障选项是否属于「其它故障」类（与小程序 isOtherFaultSelection 语义对齐）。
+ * @param value - 选项值或文案
+ * @returns 是否为其它故障项
+ */
 function isCreateOtherFaultItem(value: string): boolean {
   const v = normalizeText(value);
   if (!v) return false;
@@ -110,21 +145,23 @@ function isCreateOtherFaultItem(value: string): boolean {
   return false;
 }
 
-/** 与 contractor `jasicRepair` 一致：仅条码查询成功且接口返回非空 faultOptions 时展示「故障描述」多选并校验必填 */
+// 条码查询成功且存在故障选项时需展示故障多选（与 contractor jasicRepair 一致）
 const createBarcodeQueryHasFaultDescription = computed(
   () =>
     createForm.barcodeQueried &&
     !createForm.barcodeQueryFailed &&
     (createForm.faultOptions || []).some(o => Boolean(normalizeText(o)))
 );
+// 当前生效的故障选项列表（无描述场景为空）
 const effectiveCreateFaultOptions = computed(() => {
   if (!createBarcodeQueryHasFaultDescription.value) return [];
   return createForm.faultOptions || [];
 });
+// 已填条码但未完成查询时禁用故障选择
 const isCreateFaultSelectDisabled = computed(
   () => Boolean(normalizeText(createForm.barcode)) && !createForm.barcodeQueried
 );
-/** 与小程序 `syncShowFaultRemarkFromState` 一致 */
+// 是否展示故障备注输入（与小程序 syncShowFaultRemarkFromState 一致）
 const showCreateFaultRemark = computed(() => {
   const code = normalizeText(createForm.barcode);
   if (!code) return true;
@@ -134,6 +171,7 @@ const showCreateFaultRemark = computed(() => {
   if (hasCreateResolvedBarcodeInfo.value || createForm.barcodeQueryFailed) return true;
   return false;
 });
+// 根据字段多少动态设置抽屉宽度
 const createDrawerWidth = computed(() => {
   // 字段较多时加宽抽屉，便于双列排版减少换行
   if (hasCreateResolvedBarcodeInfo.value || isCreateMailMode.value || showCreateTargetCompany.value) {
@@ -141,11 +179,13 @@ const createDrawerWidth = computed(() => {
   }
   return 560;
 });
+// 故障选择框占位提示文案
 const createFaultPlaceholder = computed(() => {
   if (isCreateFaultSelectDisabled.value) return '请先完成商品查询';
   if (!createBarcodeQueryHasFaultDescription.value) return '当前查询结果无故障选项，请填写下方故障说明备注';
   return '请选择';
 });
+// 邮寄场景寄件信息摘要（姓名/手机/地址）
 const createShippingAddressSummary = computed(() => {
   const list = [
     normalizeText(createForm.senderName),
@@ -156,10 +196,12 @@ const createShippingAddressSummary = computed(() => {
   if (list.length === 3) return `${list[0]} / ${list[1]}\n${list[2]}`;
   return list.join('\n');
 });
+// 地址簿弹窗标题（选择 / 管理）
 const companyAddressDialogTitle = computed(() =>
   companyAddressDialogMode.value === 'select' ? '选择寄件信息' : '公司地址簿'
 );
 
+// 地址簿表格列（选择模式下多一列「选用」）
 const companyAddressColumns = computed(() => {
   const rest = [
     { title: '默认', key: 'isDefault', width: 88, align: 'center' as const },
@@ -179,7 +221,7 @@ const companyAddressColumns = computed(() => {
   return rest;
 });
 
-/** 与 jasic-ui createRules 一致 */
+// 建单表单校验规则（与 jasic-ui createRules 一致）
 const createFormRules = computed(() => ({
   customerMobile: [
     {
@@ -199,6 +241,11 @@ const createFormRules = computed(() => ({
   serviceMode: [{ required: true, message: '请选择维修路径', trigger: 'change' }]
 }));
 
+/**
+ * 作用：解析初始建单入口，非法或不允许时回落到首个可选值。
+ * @param entry - 期望的入口模式（可选）
+ * @returns 实际使用的入口模式
+ */
 function resolveInitialEntry(entry?: CreateEntryMode): CreateEntryMode {
   const opts = createEntryOptions.value;
   const allowed = new Set(opts.map(o => o.value));
@@ -206,16 +253,28 @@ function resolveInitialEntry(entry?: CreateEntryMode): CreateEntryMode {
   return opts[0]!.value;
 }
 
+/**
+ * 作用：用新状态整体替换建单表单（浅合并字段）。
+ * @param next - 新的表单状态对象
+ */
 function assignCreateForm(next: CreateWorkOrderFormState) {
   Object.assign(createForm, next);
 }
 
+/**
+ * 作用：按指定入口重置为默认表单并写入 entryMode。
+ * @param entry - 建单入口模式
+ */
 function resetCreateFormToEntry(entry: CreateEntryMode) {
   const d = buildDefaultCreateForm();
   d.entryMode = entry;
   assignCreateForm(d);
 }
 
+/**
+ * 作用：切换建单入口 Tab，保留寄件与附件等通用字段后重置业务字段。
+ * @param entryMode - 目标入口模式
+ */
 function handleCreateEntryModeChange(entryMode: CreateEntryMode) {
   const nextForm = buildDefaultCreateForm();
   nextForm.entryMode = entryMode;
@@ -235,14 +294,24 @@ function handleCreateEntryModeChange(entryMode: CreateEntryMode) {
   syncCreateEntryDefaults();
 }
 
+/**
+ * 作用：入口 Segmented 切换回调。
+ * @param key - 选中的入口 key
+ */
 function onTabsChange(key: string | number) {
   handleCreateEntryModeChange(String(key) as CreateEntryMode);
 }
 
+/**
+ * 作用：切换补充信息折叠面板展开状态。
+ */
 function toggleCreateSupplementSection() {
   createSupplementExpanded.value = !createSupplementExpanded.value;
 }
 
+/**
+ * 作用：二级网点「报修一级」且无条码时拉取默认一级受理网点。
+ */
 async function syncCreateEntryDefaults() {
   if (createForm.entryMode !== CREATE_ENTRY_UPSTREAM_FIRST || normalizeText(createForm.barcode)) {
     return;
@@ -272,6 +341,10 @@ async function syncCreateEntryDefaults() {
   }
 }
 
+/**
+ * 作用：清空条码解析产物；可选保留已选目标网点。
+ * @param options.preserveTargetSelection - 是否保留 targetCompany 相关字段
+ */
 function resetCreateQueryState(options: { preserveTargetSelection?: boolean } = {}) {
   const preserveTargetSelection = Boolean(options.preserveTargetSelection);
   Object.assign(createForm, {
@@ -297,6 +370,11 @@ function resetCreateQueryState(options: { preserveTargetSelection?: boolean } = 
   });
 }
 
+/**
+ * 作用：将条码查询接口返回写入表单（商品、网点、故障选项等）。
+ * @param data - 接口 body
+ * @param queriedBarcode - 当前查询的条码字符串
+ */
 // eslint-disable-next-line complexity
 function applyCreateBarcodeInfo(data: Record<string, unknown>, queriedBarcode: string) {
   const rawOpts = Array.isArray(data.targetCompanyOptions) ? data.targetCompanyOptions : [];
@@ -349,6 +427,11 @@ function applyCreateBarcodeInfo(data: Record<string, unknown>, queriedBarcode: s
   }
 }
 
+/**
+ * 作用：按当前建单入口解析对应的条码查询请求。
+ * @param barcode - 条码
+ * @returns 请求 Promise 或 null
+ */
 function resolveCreateBarcodeInfoRequest(barcode: string) {
   if (createForm.entryMode === CREATE_ENTRY_PROXY) {
     return getProxyCreateBarcodeInfo({ barcode });
@@ -364,12 +447,22 @@ function resolveCreateBarcodeInfoRequest(barcode: string) {
   return null;
 }
 
+/**
+ * 作用：从接口结果中提取提示文案。
+ * @param result - 接口返回或任意对象
+ * @returns 文案字符串
+ */
 function pickApiMessage(result: unknown): string {
   if (!result || typeof result !== 'object') return '';
   const obj = result as Record<string, unknown>;
   return normalizeText(obj.msg ?? obj.message);
 }
 
+/**
+ * 作用：请求条码信息并回填表单；失败时标记 barcodeQueryFailed。
+ * @param options.preserveTargetSelection - 是否保留目标网点
+ * @param options.silentSuccess - 成功时不弹 success 提示
+ */
 async function queryCreateBarcodeInfo(options: { preserveTargetSelection?: boolean; silentSuccess?: boolean } = {}) {
   const barcode = normalizeText(createForm.barcode);
   if (!barcode) {
@@ -416,11 +509,18 @@ async function queryCreateBarcodeInfo(options: { preserveTargetSelection?: boole
   }
 }
 
+/**
+ * 作用：目标网点变更后若已查过条码则静默重新查询。
+ */
 function handleCreateTargetCompanyChange() {
   if (!createForm.barcodeQueried) return;
   queryCreateBarcodeInfo({ preserveTargetSelection: true, silentSuccess: true });
 }
 
+/**
+ * 作用：加载公司地址簿列表并同步当前选中寄件地址。
+ * @param options.preserveSelection - 是否尽量保留当前 addressId 选中项
+ */
 async function loadCompanyAddressList(options: { preserveSelection?: boolean } = {}) {
   companyAddressLoading.value = true;
   try {
@@ -432,6 +532,10 @@ async function loadCompanyAddressList(options: { preserveSelection?: boolean } =
   }
 }
 
+/**
+ * 作用：将选中的公司地址写入建单寄件字段。
+ * @param address - 地址 VO 或 null 表示清空
+ */
 function applySelectedCompanyAddress(address: CompanyAddressVO | null) {
   createForm.companyAddressId = address ? address.id : undefined;
   createForm.senderName = address ? address.contactName || '' : '';
@@ -439,6 +543,10 @@ function applySelectedCompanyAddress(address: CompanyAddressVO | null) {
   createForm.senderAddress = address ? address.address || '' : '';
 }
 
+/**
+ * 作用：列表刷新后同步默认选中地址（默认项或第一项）。
+ * @param options.preserveSelection - 是否优先保留当前 ID
+ */
 function syncCreateCompanyAddressSelection(options: { preserveSelection?: boolean } = {}) {
   const preserveSelection = Boolean(options.preserveSelection);
   const currentAddressId = createForm.companyAddressId;
@@ -452,28 +560,45 @@ function syncCreateCompanyAddressSelection(options: { preserveSelection?: boolea
   applySelectedCompanyAddress(selected);
 }
 
+/**
+ * 作用：在地址簿中选择一行并关闭弹窗。
+ * @param row - 地址行
+ */
 function handleSelectCompanyAddress(row: CompanyAddressVO) {
   applySelectedCompanyAddress(row);
   companyAddressDialogVisible.value = false;
 }
 
+/**
+ * 作用：表格内勾选「选用」时选中该地址。
+ * @param e - Checkbox 变更事件
+ * @param row - 地址行
+ */
 function onCompanyAddressCheckboxChange(e: CheckboxChangeEvent, row: CompanyAddressVO) {
   if (e.target.checked) handleSelectCompanyAddress(row);
 }
 
+/**
+ * 作用：打开公司地址簿弹窗并加载列表。
+ * @param mode - 选择寄件信息或管理模式
+ */
 function openCompanyAddressDialog(mode: 'select' | 'manage' = 'manage') {
   companyAddressDialogMode.value = mode;
   companyAddressDialogVisible.value = true;
   loadCompanyAddressList({ preserveSelection: true });
 }
 
-function openCompanyAddressForm(address?: CompanyAddressVO | null) {
+/**
+ * 作用：打开新增/编辑地址子弹窗并回填表单。
+ * @param address - 编辑时传入；新增不传
+ */
+async function openCompanyAddressForm(address?: CompanyAddressVO | null) {
   if (address) {
     companyAddressFormTitle.value = '编辑地址';
     companyAddressForm.id = address.id;
     companyAddressForm.contactName = address.contactName || '';
     companyAddressForm.contactPhone = address.contactPhone || '';
-    const parsed = splitFullAddressToRegionAndDetail(address.address || '');
+    const parsed = await splitFullAddressToRegionAndDetail(address.address || '');
     companyAddressForm.regionCodes = [...parsed.regionCodes];
     companyAddressForm.addressDetail = parsed.addressDetail;
     if (normalizeText(address.address) && !parsed.regionCodes.length) {
@@ -492,6 +617,9 @@ function openCompanyAddressForm(address?: CompanyAddressVO | null) {
   companyAddressFormVisible.value = true;
 }
 
+/**
+ * 作用：校验并提交地址簿表单（新增或更新）。
+ */
 async function submitCompanyAddress() {
   const isDef = (companyAddressForm.isDefault === 1 ? 1 : 0) as 0 | 1;
   const contactName = normalizeText(companyAddressForm.contactName);
@@ -515,7 +643,7 @@ async function submitCompanyAddress() {
     return;
   }
 
-  const address = composeAddressWithRegion(companyAddressForm.regionCodes, detail);
+  const address = await composeAddressWithRegion(companyAddressForm.regionCodes, detail);
 
   const payload = {
     contactName,
@@ -541,6 +669,10 @@ async function submitCompanyAddress() {
   }
 }
 
+/**
+ * 作用：删除地址簿中的一条记录。
+ * @param row - 地址行
+ */
 async function handleDeleteCompanyAddress(row: CompanyAddressVO) {
   if (!row?.id) return;
   Modal.confirm({
@@ -557,6 +689,10 @@ async function handleDeleteCompanyAddress(row: CompanyAddressVO) {
   });
 }
 
+/**
+ * 作用：将地址设为默认并刷新列表。
+ * @param row - 地址行
+ */
 async function handleSetDefaultCompanyAddress(row: CompanyAddressVO) {
   if (!row?.id || row.isDefault === 1) return;
   const res = await setDefaultCompanyAddress(row.id);
@@ -565,6 +701,10 @@ async function handleSetDefaultCompanyAddress(row: CompanyAddressVO) {
   await loadCompanyAddressList({ preserveSelection: true });
 }
 
+/**
+ * 作用：校验邮寄模式下寄件四要素是否齐全。
+ * @returns 是否通过
+ */
 function validateSendInfo(): boolean {
   if (!createForm.companyAddressId) {
     window.$message?.error('请选择寄件信息');
@@ -585,6 +725,10 @@ function validateSendInfo(): boolean {
   return true;
 }
 
+/**
+ * 作用：提交前业务校验（条码、网点、故障等）。
+ * @returns 是否通过
+ */
 function validateCreateBeforeSubmit(): boolean {
   const barcode = normalizeText(createForm.barcode);
   if (barcode && (!createForm.barcodeQueried || createForm.queriedBarcode !== barcode)) {
@@ -610,6 +754,10 @@ function validateCreateBeforeSubmit(): boolean {
   return true;
 }
 
+/**
+ * 作用：组装提交用的故障项数组（无故障选项场景返回空）。
+ * @returns 故障文案数组
+ */
 function resolveCreateFaultItemsForSubmit(): string[] {
   if (createBarcodeQueryHasFaultDescription.value) {
     return (createForm.faultItems || []).map(item => normalizeText(item)).filter(Boolean);
@@ -617,6 +765,10 @@ function resolveCreateFaultItemsForSubmit(): string[] {
   return [];
 }
 
+/**
+ * 作用：根据表单状态构造建单请求 body。
+ * @returns 提交载荷对象
+ */
 function buildCreatePayload(): Record<string, unknown> {
   const payload: Record<string, unknown> = {
     customerName: normalizeText(createForm.customerName),
@@ -647,6 +799,11 @@ function buildCreatePayload(): Record<string, unknown> {
   return payload;
 }
 
+/**
+ * 作用：按入口模式选择对应创建工单接口。
+ * @param payload - 请求体
+ * @returns API 调用 Promise 或 null
+ */
 function resolveCreateRequest(payload: Record<string, unknown>) {
   if (createForm.entryMode === CREATE_ENTRY_PROXY) {
     return createProxyWorkOrder(payload as unknown as WorkOrderProxyCreateDTO);
@@ -660,6 +817,9 @@ function resolveCreateRequest(payload: Record<string, unknown>) {
   return null;
 }
 
+/**
+ * 作用：校验通过后调用创建接口；无条码时可二次确认。
+ */
 async function submitCreate() {
   try {
     await createFormRef.value?.validate();
@@ -698,6 +858,11 @@ async function submitCreate() {
   await runSubmit();
 }
 
+/**
+ * 作用：从上传接口响应解析为 CreateFileItem。
+ * @param raw - 响应体
+ * @returns 文件项或 null
+ */
 function pickUploadedFileItem(raw: unknown): CreateFileItem | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
@@ -710,6 +875,11 @@ function pickUploadedFileItem(raw: unknown): CreateFileItem | null {
   };
 }
 
+/**
+ * 作用：通用单文件上传并追加到指定列表。
+ * @param opt - Upload 自定义请求参数
+ * @param list - 目标附件列表
+ */
 async function runFileUpload(opt: UploadRequestOption, list: CreateFileItem[]) {
   try {
     const raw = opt.file as File;
@@ -726,17 +896,29 @@ async function runFileUpload(opt: UploadRequestOption, list: CreateFileItem[]) {
   }
 }
 
+// 字节换算基数（1MB）
 const CREATE_UPLOAD_MB = 1024 * 1024;
 
 /** 与 contractor `validateFaultMediaSelection` 一致：最多 1 个视频、3 张图片 */
+// 故障图片最大数量
 const FAULT_MEDIA_MAX_IMAGE = 3;
+// 故障视频最大数量
 const FAULT_MEDIA_MAX_VIDEO = 1;
+// 故障媒体（图+视频）总数上限
 const FAULT_MEDIA_MAX_TOTAL = FAULT_MEDIA_MAX_IMAGE + FAULT_MEDIA_MAX_VIDEO;
+// 寄件凭证图片最大数量
 const SENDER_VOUCHER_MAX_COUNT = 2;
+// 故障语音最大条数
 const FAULT_VOICE_MAX_COUNT = 6;
+// 上传队列中待确认的故障媒体类型（按文件 key）
 const pendingFaultMediaKinds = new Map<string, 'image' | 'video'>();
+// 上传队列中待确认的寄件凭证文件 key
 const pendingSenderVoucherKeys = new Set<string>();
 
+/**
+ * 作用：故障图片/视频上传请求处理。
+ * @param opt - Upload 自定义请求参数
+ */
 async function runFaultMediaUpload(opt: UploadRequestOption) {
   const raw = opt.file as File;
   const kind = inferFaultMediaKind(raw);
@@ -768,11 +950,23 @@ async function runFaultMediaUpload(opt: UploadRequestOption) {
   }
 }
 
+/**
+ * 作用：按 fileId 从附件列表移除一项。
+ * @param list - 附件列表
+ * @param fileId - 文件 ID
+ */
 function removeFileItem(list: CreateFileItem[], fileId: number) {
   const i = list.findIndex(f => f.fileId === fileId);
   if (i >= 0) list.splice(i, 1);
 }
 
+/**
+ * 作用：校验文件大小上限，超限则提示。
+ * @param file - 文件对象
+ * @param maxBytes - 最大字节
+ * @param label - 提示中的类型名称
+ * @returns 是否通过
+ */
 function rejectOversize(file: File, maxBytes: number, label: string): boolean {
   if (file.size > maxBytes) {
     window.$message?.error(`${label}单文件不能超过 ${Math.round(maxBytes / CREATE_UPLOAD_MB)}MB`);
@@ -781,6 +975,11 @@ function rejectOversize(file: File, maxBytes: number, label: string): boolean {
   return true;
 }
 
+/**
+ * 作用：为 Upload 组件生成稳定的文件标识 key。
+ * @param file - 本地 File 或 UploadFile
+ * @returns key 字符串
+ */
 function getUploadFileKey(file: File | UploadFile): string {
   const anyFile = file as unknown as Record<string, unknown>;
   const uid = normalizeText(anyFile.uid);
@@ -791,6 +990,11 @@ function getUploadFileKey(file: File | UploadFile): string {
   return `${name}-${size}-${lastModified}`;
 }
 
+/**
+ * 作用：根据 MIME/扩展名推断故障媒体类型。
+ * @param file - 本地文件
+ * @returns image / video 或不识别时为 null
+ */
 function inferFaultMediaKind(file: File): 'image' | 'video' | null {
   if (['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || /\.(jpe?g|png|webp)$/i.test(file.name)) {
     return 'image';
@@ -801,6 +1005,11 @@ function inferFaultMediaKind(file: File): 'image' | 'video' | null {
   return null;
 }
 
+/**
+ * 作用：故障媒体上传前校验类型与数量配额。
+ * @param file - 本地文件
+ * @returns true 放行、LIST_IGNORE 拒绝或 Upload 约定值
+ */
 function beforeUploadFaultMedia(file: File) {
   const kind = inferFaultMediaKind(file);
   if (!kind) {
@@ -835,6 +1044,10 @@ function beforeUploadFaultMedia(file: File) {
   return true;
 }
 
+/**
+ * 作用：寄件凭证图片上传前校验。
+ * @param file - 本地文件
+ */
 function beforeUploadFaultImage(file: File) {
   const okType =
     ['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || /\.(jpe?g|png|webp)$/i.test(file.name);
@@ -851,6 +1064,11 @@ function beforeUploadFaultImage(file: File) {
   return true;
 }
 
+/**
+ * 作用：故障语音上传前校验格式与条数。
+ * @param file - 本地文件
+ * @returns 是否允许上传
+ */
 function beforeUploadFaultVoice(file: File) {
   if (createForm.faultVoiceFiles.length >= FAULT_VOICE_MAX_COUNT) {
     return Upload.LIST_IGNORE;
@@ -865,6 +1083,10 @@ function beforeUploadFaultVoice(file: File) {
   return rejectOversize(file, 10 * CREATE_UPLOAD_MB, '语音');
 }
 
+/**
+ * 作用：寄件凭证自定义上传实现。
+ * @param opt - Upload 自定义请求参数
+ */
 async function runSenderVoucherUpload(opt: UploadRequestOption) {
   const raw = opt.file as File;
   const uploadKey = getUploadFileKey(raw);
@@ -894,24 +1116,45 @@ async function runSenderVoucherUpload(opt: UploadRequestOption) {
   }
 }
 
+/**
+ * 作用：判断是否已达到故障媒体（图+视频）总数上限。
+ * @returns 是否已满
+ */
 function isFaultMediaAtLimit(): boolean {
   return createForm.faultMediaFiles.length + pendingFaultMediaKinds.size >= FAULT_MEDIA_MAX_TOTAL;
 }
 
+/**
+ * 作用：判断是否已达到寄件凭证上传上限。
+ * @returns 是否已满
+ */
 function isSenderVoucherAtLimit(): boolean {
   return createForm.senderVoucherFiles.length + pendingSenderVoucherKeys.size >= SENDER_VOUCHER_MAX_COUNT;
 }
 
+/**
+ * 作用：判断是否已达到故障语音条数上限。
+ * @returns 是否已满
+ */
 function isFaultVoiceAtLimit(): boolean {
   return createForm.faultVoiceFiles.length >= FAULT_VOICE_MAX_COUNT;
 }
 
+/**
+ * 作用：从 UploadFile.response 解析 fileId。
+ * @param file - Upload 文件对象
+ * @returns 文件 ID 或 undefined
+ */
 function pickFileIdFromUploadFile(file: UploadFile): number | undefined {
   const item = pickUploadedFileItem(file.response as unknown);
   return item?.fileId;
 }
 
-/** 与 Upload 列表移除同步，保证提交用的 fileId 列表一致 */
+/**
+ * 作用：Upload 列表移除时同步删除表单中的 fileId（与提交列表一致）。
+ * @param list - 故障媒体或凭证列表引用
+ * @returns 移除回调
+ */
 function handleCreateUploadRemove(list: CreateFileItem[] | CreateFaultMediaItem[]) {
   return (file: UploadFile) => {
     if (list === createForm.faultMediaFiles) {
@@ -925,6 +1168,11 @@ function handleCreateUploadRemove(list: CreateFileItem[] | CreateFaultMediaItem[
   };
 }
 
+onMounted(async () => {
+  companyAddressRegionOptions.value = await fetchRegionCascaderOptions();
+});
+
+// 条码输入变化时重置查询状态或清除与上次查询不一致的缓存
 watch(
   () => createForm.barcode,
   value => {
@@ -940,6 +1188,10 @@ watch(
   }
 );
 
+/**
+ * 作用：对外打开建单抽屉并完成初始化（入口、地址簿等）。
+ * @param entry - 指定入口模式（可选）
+ */
 async function open(entry?: CreateEntryMode) {
   const mode = resolveInitialEntry(entry);
   resetCreateFormToEntry(mode);
@@ -1264,7 +1516,8 @@ defineExpose({
         <ACascader
           v-model:value="companyAddressForm.regionCodes"
           class="w-full"
-          :options="chinaRegionCascaderOptions"
+          :options="companyAddressRegionOptions"
+          :load-data="loadRegionCascaderData"
           placeholder="请选择省 / 市 / 区"
           allow-clear
         />

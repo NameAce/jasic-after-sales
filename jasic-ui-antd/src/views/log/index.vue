@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 操作日志：分页查询、条件筛选与清理/删除（对接 log 域接口）。
+ */
 import { onMounted, reactive, ref } from 'vue';
 import { tagColorEnabled } from '@/constants/list-status-tag';
 import { type OperLogQuery, cleanOperLog, deleteOperLog, listOperLog } from '@/service/api';
@@ -8,9 +11,11 @@ type RowData = Record<string, any>;
 
 const { tableWrapperRef, scrollConfig } = useTableScroll(1200);
 
+// 列表请求加载态
 const loading = ref(false);
 const rows = ref<RowData[]>([]);
 const total = ref(0);
+// 表格多选主键
 const selectedRowKeys = ref<(string | number)[]>([]);
 
 const queryParams = reactive<OperLogQuery>({
@@ -24,6 +29,7 @@ const queryParams = reactive<OperLogQuery>({
   endTime: ''
 });
 
+// 操作日期区间（映射到 beginTime/endTime）
 const dateRange = ref<[string, string] | undefined>(undefined);
 
 const operTypeMap: Record<number, string> = {
@@ -36,6 +42,7 @@ const operTypeMap: Record<number, string> = {
   99: '其他'
 };
 
+// 表格列定义
 const columns = [
   { title: '日志ID', dataIndex: 'id', key: 'id', width: 80 },
   { title: '操作模块', dataIndex: 'title', key: 'title', width: 150 },
@@ -49,13 +56,14 @@ const columns = [
   { title: '操作时间', dataIndex: 'operTime', key: 'operTime', width: 170 }
 ];
 
+// 详情弹窗开关与当前行数据
 const detailOpen = ref(false);
 const detail = ref<RowData>({});
 
 /**
- * 兼容不同返回结构，提取日志列表数组数据。
- * @param data 日志列表接口返回的数据主体。
- * @returns 返回可渲染表格的日志数组。
+ * 作用：兼容分页或数组响应，取出日志表格行数组。
+ * @param data - 日志列表接口返回的数据主体
+ * @returns 可渲染表格的行数组
  */
 function pickRows(data: any) {
   if (Array.isArray(data)) return data;
@@ -64,9 +72,9 @@ function pickRows(data: any) {
 }
 
 /**
- * 组装日志列表查询参数，按日期控件同步开始和结束时间。
+ * 作用：组装列表查询参数，并将日期范围写入 begin/end。
  * @param 无
- * @returns 返回可直接用于日志列表接口的查询参数对象。
+ * @returns 可直接用于日志列表接口的查询对象
  */
 function buildListParams(): OperLogQuery {
   const p = { ...queryParams };
@@ -81,9 +89,9 @@ function buildListParams(): OperLogQuery {
 }
 
 /**
- * 加载操作日志列表并更新表格数据、总条数与加载状态。
+ * 作用：请求操作日志分页并刷新表格与总数。
  * @param 无
- * @returns 返回 Promise，在列表加载完成后结束。
+ * @returns Promise，列表加载完成后结束
  */
 async function loadList() {
   loading.value = true;
@@ -97,9 +105,9 @@ async function loadList() {
 }
 
 /**
- * 执行查询操作，重置到第一页并重新拉取日志列表。
+ * 作用：查询：重置到第一页并拉取日志。
  * @param 无
- * @returns 无返回值。
+ * @returns {void} 无
  */
 function handleQuery() {
   queryParams.pageNum = 1;
@@ -107,9 +115,9 @@ function handleQuery() {
 }
 
 /**
- * 重置查询表单和分页参数后重新加载日志列表。
+ * 作用：重置筛选条件与分页为第一页默认值并刷新。
  * @param 无
- * @returns 无返回值。
+ * @returns {void} 无
  */
 function resetQuery() {
   dateRange.value = undefined;
@@ -125,10 +133,10 @@ function resetQuery() {
 }
 
 /**
- * 处理分页变化，兼容页码切换与每页条数变更。
- * @param page 当前页码。
- * @param pageSize 当前每页条数，可选。
- * @returns 无返回值。
+ * 作用：分页或每页条数变化时刷新列表。
+ * @param page - 目标页码
+ * @param pageSize - 每页条数，可选
+ * @returns {void} 无
  */
 function onPageChange(page: number, pageSize?: number) {
   if (pageSize !== undefined && pageSize !== queryParams.pageSize) {
@@ -142,9 +150,9 @@ function onPageChange(page: number, pageSize?: number) {
 }
 
 /**
- * 打开日志详情弹窗并写入当前行详情数据。
- * @param row 当前选中的日志行数据。
- * @returns 无返回值。
+ * 作用：打开详情弹窗并展示当前行数据。
+ * @param row - 日志表格行
+ * @returns {void} 无
  */
 function openDetail(row: RowData) {
   detail.value = row;
@@ -152,9 +160,9 @@ function openDetail(row: RowData) {
 }
 
 /**
- * 批量删除选中的日志记录并清空勾选状态。
+ * 作用：批量删除勾选的日志并清空选择。
  * @param 无
- * @returns 返回 Promise，在批量删除流程完成后结束。
+ * @returns Promise，删除完成后结束
  */
 async function batchDelete() {
   if (!selectedRowKeys.value.length) return;
@@ -164,9 +172,9 @@ async function batchDelete() {
 }
 
 /**
- * 清空全部操作日志并重置勾选状态后刷新列表。
+ * 作用：清空全部操作日志后刷新并与勾选清零。
  * @param 无
- * @returns 返回 Promise，在清空流程完成后结束。
+ * @returns Promise，清空完成后结束
  */
 async function cleanAll() {
   await cleanOperLog();
@@ -174,6 +182,11 @@ async function cleanAll() {
   loadList();
 }
 
+/**
+ * 作用：挂载后首次加载日志列表。
+ * @param 无
+ * @returns {void} 无
+ */
 onMounted(loadList);
 </script>
 

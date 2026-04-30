@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 主题抽屉 — 页面与框架细节：缓存策略、滚动模式、页签/顶栏/侧栏/页脚/水印等可选项。
+ */
 import { computed } from 'vue';
 import {
   resetCacheStrategyOptions,
@@ -16,10 +19,12 @@ defineOptions({
 
 const themeStore = useThemeStore();
 
+// 当前主题配置中的布局 mode（用于子组件判断是否与 mix 相关）
 const layoutMode = computed(() => themeStore.layout.mode);
 
 const isMixLayoutMode = computed(() => layoutMode.value.includes('mix'));
 
+// 内容区由外层 wrapper 滚动时部分选项仅展示
 const isWrapperScrollMode = computed(() => themeStore.layout.scrollMode === 'wrapper');
 </script>
 
@@ -113,7 +118,7 @@ const isWrapperScrollMode = computed(() => themeStore.layout.scrollMode === 'wra
       <ASwitch v-model:checked="themeStore.watermark.visible" />
     </SettingItem>
     <SettingItem v-if="themeStore.watermark.visible" key="8-1" :label="$t('theme.watermark.text')">
-      <AInput v-model:value="themeStore.watermark.text" placeholder="SoybeanAdmin" class="w-120px" />
+      <AInput v-model:value="themeStore.watermark.text" placeholder="JasicUIAdmin" class="w-120px" />
     </SettingItem>
   </TransitionGroup>
 </template>

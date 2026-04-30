@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 系统管理 — 用户：分页列表、增删改、分配角色/区域、强退等（对接后端 system 域接口）。
+ */
 import { computed, onMounted, reactive, ref } from 'vue';
 import { tagColorEnabled } from '@/constants/list-status-tag';
 import {
@@ -23,7 +26,10 @@ import { useTableScroll } from '@/hooks/common/table';
 
 type RowData = Record<string, any>;
 
+// 表格区域滚动 Hook
 const { tableWrapperRef, scrollConfig } = useTableScroll(1250);
+
+// 列表分页、表单与分配弹窗等业务状态（含大区/角色勾选）
 
 const loading = ref(false);
 const rows = ref<RowData[]>([]);
@@ -59,9 +65,11 @@ const regionOpen = ref(false);
 const regionSubmitting = ref(false);
 const regionUserId = ref<number | undefined>(undefined);
 const regionValues = ref<number[]>([]);
+// 会话与 RBAC（列表按钮显隐）
 const authStore = useAuthStore();
 const { hasAuth } = useAuth();
 
+// Toolbar 分页与筛选字段
 const query = reactive({
   pageNum: 1,
   pageSize: 10,
@@ -75,8 +83,10 @@ const statusOptions = [
   { label: '启用', value: 1 },
   { label: '停用', value: 0 }
 ];
+// 中国大陆手机号正则（表单校验）
 const mobileReg = /^1[3-9]\d{9}$/;
 
+// 用户管理表格列定义
 const columns = computed(() => [
   { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
   { title: '用户名', dataIndex: 'username', key: 'username', width: 160 },
@@ -89,9 +99,9 @@ const columns = computed(() => [
 ]);
 
 /**
- * 从接口响应中提取列表数组，兼容 records 包装结构。
- * @param data 接口返回数据。
- * @returns 可用于表格渲染的行数据数组。
+ * 作用：从接口响应中提取列表数组（兼容数组或 records 包装）。
+ * @param data - 接口返回数据
+ * @returns 可用于表格渲染的行数据数组
  */
 function pickRows(data: any) {
   if (Array.isArray(data)) return data;
@@ -99,11 +109,10 @@ function pickRows(data: any) {
   return [];
 }
 
-/** 与 jasic-ui `views/system/user/index.vue` 的 `listUser(this.queryParams)` 入参一致（pageNum/pageSize + username/realName/phone/status） */
 /**
- * 构建用户列表查询参数。
+ * 作用：构建用户列表查询参数（pageNum/pageSize + 筛选字段）。
  * @param 无
- * @returns 返回请求用户列表接口的查询对象。
+ * @returns 请求用户列表接口的查询对象
  */
 function buildListParams(): SysUserQuery {
   return {
@@ -117,9 +126,9 @@ function buildListParams(): SysUserQuery {
 }
 
 /**
- * 加载用户列表数据并更新表格状态。
+ * 作用：调用接口加载用户列表并回填表格。
  * @param 无
- * @returns 返回 Promise，在列表加载完成后结束。
+ * @returns Promise，列表加载结束后结束
  */
 async function loadData() {
   loading.value = true;
@@ -133,9 +142,9 @@ async function loadData() {
 }
 
 /**
- * 懒加载分配相关下拉选项（角色）。
+ * 作用：懒加载角色下拉（首次分配角色前请求）。
  * @param 无
- * @returns 返回 Promise，在选项加载完成后结束。
+ * @returns Promise，选项就绪后结束
  */
 async function ensureAssignOptions() {
   if (!roleOpts.value.length) {
@@ -151,9 +160,9 @@ async function ensureAssignOptions() {
 }
 
 /**
- * 获取当前登录用户所属公司 ID。
+ * 作用：取当前会话中的公司 ID（无效则返回 null）。
  * @param 无
- * @returns 返回有效公司 ID，无效时返回 null。
+ * @returns 有效公司 ID 或 null
  */
 function currentCompanyId() {
   const cid = Number(authStore.userInfo.currentCompanyId);
@@ -161,9 +170,9 @@ function currentCompanyId() {
 }
 
 /**
- * 判断当前用户是否具备绑定大区的前置条件和权限。
+ * 作用：判断是否具备 HQ 绑定大区的权限与数据前提。
  * @param 无
- * @returns 满足绑定条件返回 true，否则返回 false。
+ * @returns 可绑定时为 true，否则 false
  */
 function canBindRegion() {
   return (
@@ -174,9 +183,9 @@ function canBindRegion() {
 }
 
 /**
- * 加载当前公司可绑定的大区选项。
+ * 作用：拉取当前公司下可选大区下拉数据。
  * @param 无
- * @returns 返回 Promise，在大区选项加载完成后结束。
+ * @returns Promise，大区选项加载完成后结束
  */
 async function loadRegionOptions() {
   const cid = currentCompanyId();
@@ -196,9 +205,9 @@ async function loadRegionOptions() {
 }
 
 /**
- * 执行查询并重置到第一页。
+ * 作用：搜索：回到第一页并刷新用户列表。
  * @param 无
- * @returns 无返回值。
+ * @returns {void} 无
  */
 function handleSearch() {
   query.pageNum = 1;
@@ -206,9 +215,9 @@ function handleSearch() {
 }
 
 /**
- * 重置查询条件并重新加载用户列表。
+ * 作用：重置筛选条件为第一页默认值并刷新列表。
  * @param 无
- * @returns 无返回值。
+ * @returns {void} 无
  */
 function resetQuery() {
   query.pageNum = 1;
@@ -221,10 +230,10 @@ function resetQuery() {
 }
 
 /**
- * 处理分页变化并刷新列表。
- * @param page 当前页码。
- * @param pageSize 当前每页条数，可选。
- * @returns 无返回值。
+ * 作用：分页或每页条数变化时刷新列表。
+ * @param page - 目标页码
+ * @param pageSize - 每页条数，可选
+ * @returns {void} 无
  */
 function handlePaginationChange(page: number, pageSize?: number) {
   if (pageSize !== undefined && pageSize !== query.pageSize) {
@@ -238,9 +247,9 @@ function handlePaginationChange(page: number, pageSize?: number) {
 }
 
 /**
- * 打开新增用户抽屉并初始化表单。
+ * 作用：打开新增抽屉并清空编辑表单默认值。
  * @param 无
- * @returns 返回 Promise，在弹窗状态更新后结束。
+ * @returns Promise，弹窗打开后结束
  */
 async function openAdd() {
   Object.assign(editForm, {
@@ -256,9 +265,9 @@ async function openAdd() {
 }
 
 /**
- * 打开编辑用户抽屉并回填用户信息。
- * @param record 当前选中的用户行数据。
- * @returns 返回 Promise，在用户详情加载并回填后结束。
+ * 作用：打开编辑抽屉并拉取用户详情回填。
+ * @param record - 表格行用户数据
+ * @returns Promise，详情回填后结束
  */
 async function openEdit(record: RowData) {
   const { data } = await getUser(record.id);
@@ -275,35 +284,26 @@ async function openEdit(record: RowData) {
   editOpen.value = true;
 }
 
+function getUserEditValidationMessage(isAdd: boolean): string | null {
+  if (!editForm.username?.trim()) return '请输入用户名';
+  if (isAdd && !editForm.password?.trim()) return '请输入密码';
+  if (!editForm.realName?.trim()) return '请输入姓名';
+  if (!editForm.phone?.trim()) return '请输入手机号';
+  if (!mobileReg.test(editForm.phone.trim())) return '请输入正确的手机号';
+  if (!Number.isFinite(Number(editForm.status))) return '请选择状态';
+  return null;
+}
+
 /**
- * 提交新增或编辑用户表单。
+ * 作用：校验后提交新增或更新用户。
  * @param 无
- * @returns 返回 Promise，在提交流程结束后完成。
+ * @returns Promise，接口流程结束后结束
  */
 async function submitEdit() {
   const isAdd = !editForm.id;
-  if (!editForm.username?.trim()) {
-    window.$message?.warning('请输入用户名');
-    return;
-  }
-  if (isAdd && !editForm.password?.trim()) {
-    window.$message?.warning('请输入密码');
-    return;
-  }
-  if (!editForm.realName?.trim()) {
-    window.$message?.warning('请输入姓名');
-    return;
-  }
-  if (!editForm.phone?.trim()) {
-    window.$message?.warning('请输入手机号');
-    return;
-  }
-  if (!mobileReg.test(editForm.phone.trim())) {
-    window.$message?.warning('请输入正确的手机号');
-    return;
-  }
-  if (!Number.isFinite(Number(editForm.status))) {
-    window.$message?.warning('请选择状态');
+  const msg = getUserEditValidationMessage(isAdd);
+  if (msg) {
+    window.$message?.warning(msg);
     return;
   }
   editSubmitting.value = true;
@@ -336,9 +336,9 @@ async function submitEdit() {
 }
 
 /**
- * 删除指定用户并刷新列表。
- * @param record 待删除用户行数据。
- * @returns 返回 Promise，在删除完成后结束。
+ * 作用：调用删除接口并刷新表格。
+ * @param record - 待删除用户行
+ * @returns Promise，删除完成后结束
  */
 async function removeRow(record: RowData) {
   const { response } = await deleteUser(record.id);
@@ -347,9 +347,9 @@ async function removeRow(record: RowData) {
 }
 
 /**
- * 打开分配角色抽屉并回填已选角色。
- * @param record 当前选中的用户行数据。
- * @returns 返回 Promise，在角色数据准备完成后结束。
+ * 作用：打开分配角色抽屉并回填角色多选。
+ * @param record - 表格行用户
+ * @returns Promise，选项与已选就绪后结束
  */
 async function openAssignRoles(record: RowData) {
   await ensureAssignOptions();
@@ -369,9 +369,9 @@ async function openAssignRoles(record: RowData) {
 }
 
 /**
- * 提交用户角色分配结果。
+ * 作用：提交角色分配并关闭抽屉。
  * @param 无
- * @returns 返回 Promise，在分配流程结束后完成。
+ * @returns Promise，提交成功后结束
  */
 async function submitAssignRoles() {
   if (!roleUserId.value) return;
@@ -387,9 +387,9 @@ async function submitAssignRoles() {
 }
 
 /**
- * 打开重置密码抽屉并初始化表单。
- * @param record 当前选中的用户行数据。
- * @returns 无返回值。
+ * 作用：打开重置密码抽屉。
+ * @param record - 目标用户行
+ * @returns {void} 无
  */
 function openResetPwd(record: RowData) {
   resetForm.userId = Number(record.id);
@@ -398,9 +398,9 @@ function openResetPwd(record: RowData) {
 }
 
 /**
- * 提交重置密码请求。
+ * 作用：校验后提交重置密码。
  * @param 无
- * @returns 返回 Promise，在重置流程结束后完成。
+ * @returns Promise，重置流程结束后结束
  */
 async function submitResetPwd() {
   if (!resetForm.userId || !resetForm.password.trim()) {
@@ -418,9 +418,9 @@ async function submitResetPwd() {
 }
 
 /**
- * 强制指定用户下线。
- * @param record 当前选中的用户行数据。
- * @returns 返回 Promise，在下线操作完成后结束。
+ * 作用：调用强制下线接口并提示。
+ * @param record - 目标用户行
+ * @returns Promise，接口返回后结束
  */
 async function forceKickout(record: RowData) {
   const { response } = await kickoutUser(record.id);
@@ -428,9 +428,9 @@ async function forceKickout(record: RowData) {
 }
 
 /**
- * 打开绑定大区抽屉并加载用户已绑定大区。
- * @param record 当前选中的用户行数据。
- * @returns 返回 Promise，在大区数据准备完成后结束。
+ * 作用：打开绑定大区抽屉并回填已绑定大区。
+ * @param record - 表格行用户
+ * @returns Promise，大区与勾选就绪后结束
  */
 async function openAssignRegions(record: RowData) {
   if (!canBindRegion()) {
@@ -455,9 +455,9 @@ async function openAssignRegions(record: RowData) {
 }
 
 /**
- * 提交用户绑定大区结果。
+ * 作用：提交用户与大区绑定关系。
  * @param 无
- * @returns 返回 Promise，在绑定流程结束后完成。
+ * @returns Promise，提交成功后结束
  */
 async function submitAssignRegions() {
   if (!regionUserId.value) return;
@@ -471,6 +471,11 @@ async function submitAssignRegions() {
   }
 }
 
+/**
+ * 作用：挂载后首次加载用户列表。
+ * @param 无
+ * @returns {void} 无
+ */
 onMounted(() => {
   loadData();
 });

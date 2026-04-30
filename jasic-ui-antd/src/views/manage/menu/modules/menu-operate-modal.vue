@@ -1,4 +1,7 @@
 <script setup lang="tsx">
+/**
+ * 菜单管理 — 新增/编辑弹窗：菜单类型、路由、图标、排序与权限等表单项。
+ */
 import { computed, nextTick, ref, watch } from 'vue';
 import { SimpleScrollbar } from '@sa/materials';
 import { enableStatusOptions, menuIconTypeOptions, menuTypeOptions } from '@/constants/business';
@@ -22,11 +25,11 @@ defineOptions({
 export type OperateType = AntDesign.TableOperateType | 'addChild';
 
 interface Props {
-  /** the type of operation */
+  /** 操作类型：新增/编辑/加子级 */
   operateType: OperateType;
-  /** the edit menu data or the parent menu data when adding a child menu */
+  /** 编辑行数据；新增子级时为父级行 */
   rowData?: Api.SystemManage.Menu | null;
-  /** all pages */
+  /** 系统内全部页面路径（供 page 下拉） */
   allPages: string[];
 }
 
@@ -45,6 +48,7 @@ const visible = defineModel<boolean>('visible', {
 const { formRef, validate, resetFields } = useAntdForm();
 const { defaultRequiredRule } = useFormRules();
 
+// 抽屉标题（随 operateType 变化）
 const title = computed(() => {
   const titles: Record<OperateType, string> = {
     add: $t('page.manage.menu.addMenu'),
@@ -82,8 +86,14 @@ type Model = Pick<
   pathParam: string;
 };
 
+// 菜单表单模型
 const model = ref(createDefaultModel());
 
+/**
+ * 作用：创建菜单表单的默认值。
+ * @param 无
+ * @returns 默认 Model
+ */
 function createDefaultModel(): Model {
   return {
     menuType: '1',
@@ -121,6 +131,7 @@ const rules: Record<RuleKey, App.Global.FormRule> = {
   routePath: defaultRequiredRule
 };
 
+// 编辑时禁止改菜单类型
 const disabledMenuType = computed(() => props.operateType === 'edit');
 
 const localIcons = getLocalIcons();
@@ -134,10 +145,13 @@ const localIconOptions = localIcons.map(item => ({
   value: item
 }));
 
+// 顶级菜单时展示布局选择
 const showLayout = computed(() => model.value.parentId === 0);
 
+// 菜单类型为「页面」时展示 page 选择
 const showPage = computed(() => model.value.menuType === '2');
 
+// 页面组件下拉选项（含当前 routeName 兜底）
 const pageOptions = computed(() => {
   const allPages = [...props.allPages];
 
@@ -164,9 +178,14 @@ const layoutOptions: CommonType.Option[] = [
   }
 ];
 
-/** the enabled role options */
+/** 角色下拉（表单扩展示例用） */
 const roleOptions = ref<CommonType.Option<string>[]>([]);
 
+/**
+ * 作用：拉取全部角色选项。
+ * @param 无
+ * @returns 返回 Promise，请求结束后结束
+ */
 async function getRoleOptions() {
   const { error, data } = await fetchGetAllRoles();
 
@@ -180,7 +199,11 @@ async function getRoleOptions() {
   }
 }
 
-/** - add a query input */
+/**
+ * 作用：在路由 query 列表指定下标后插入一项。
+ * @param index - 参考下标，新项插在 index+1
+ * @returns {void} 无
+ */
 function addQuery(index: number) {
   model.value.query.splice(index + 1, 0, {
     key: '',
@@ -188,12 +211,20 @@ function addQuery(index: number) {
   });
 }
 
-/** - remove a query input */
+/**
+ * 作用：删除路由 query 指定下标项。
+ * @param index - 下标
+ * @returns {void} 无
+ */
 function removeQuery(index: number) {
   model.value.query.splice(index, 1);
 }
 
-/** - add a button input */
+/**
+ * 作用：在按钮权限列表指定下标后插入一项。
+ * @param index - 参考下标
+ * @returns {void} 无
+ */
 function addButton(index: number) {
   model.value.buttons.splice(index + 1, 0, {
     code: '',
@@ -201,11 +232,20 @@ function addButton(index: number) {
   });
 }
 
-/** - remove a button input */
+/**
+ * 作用：删除按钮项指定下标。
+ * @param index - 下标
+ * @returns {void} 无
+ */
 function removeButton(index: number) {
   model.value.buttons.splice(index, 1);
 }
 
+/**
+ * 作用：根据 operateType 与 rowData 初始化或回填表单。
+ * @param 无
+ * @returns 返回 Promise，nextTick 与赋值完成后结束
+ */
 async function handleInitModel() {
   model.value = createDefaultModel();
 
@@ -236,10 +276,20 @@ async function handleInitModel() {
   }
 }
 
+/**
+ * 作用：关闭菜单编辑抽屉。
+ * @param 无
+ * @returns {void} 无
+ */
 function closeDrawer() {
   visible.value = false;
 }
 
+/**
+ * 作用：根据 routeName 同步生成 routePath。
+ * @param 无
+ * @returns {void} 无
+ */
 function handleUpdateRoutePathByRouteName() {
   if (model.value.routeName) {
     model.value.routePath = getRoutePathByRouteName(model.value.routeName);
@@ -248,6 +298,11 @@ function handleUpdateRoutePathByRouteName() {
   }
 }
 
+/**
+ * 作用：根据 routeName 同步生成 i18nKey。
+ * @param 无
+ * @returns {void} 无
+ */
 function handleUpdateI18nKeyByRouteName() {
   if (model.value.routeName) {
     model.value.i18nKey = `route.${model.value.routeName}` as App.I18n.I18nKey;
@@ -256,6 +311,11 @@ function handleUpdateI18nKeyByRouteName() {
   }
 }
 
+/**
+ * 作用：组装提交给后端的菜单参数（component、routePath 等派生字段）。
+ * @param 无
+ * @returns 提交用对象
+ */
 function getSubmitParams() {
   const { layout, page, pathParam, ...params } = model.value;
 
@@ -268,6 +328,11 @@ function getSubmitParams() {
   return params;
 }
 
+/**
+ * 作用：校验表单并模拟保存成功（示例未接接口）。
+ * @param 无
+ * @returns 返回 Promise，校验与提示完成后结束
+ */
 async function handleSubmit() {
   await validate();
 
@@ -281,6 +346,7 @@ async function handleSubmit() {
   emit('submitted');
 }
 
+// 打开弹窗时初始化表单、清校验并拉角色
 watch(visible, () => {
   if (visible.value) {
     handleInitModel();
@@ -289,6 +355,7 @@ watch(visible, () => {
   }
 });
 
+// routeName 变化时联动 routePath 与 i18nKey
 watch(
   () => model.value.routeName,
   () => {

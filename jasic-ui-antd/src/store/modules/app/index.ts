@@ -1,3 +1,6 @@
+/**
+ * 全局应用布局状态：断点、主题抽屉、侧栏折叠、整页重载、全内容区与横向滚动控制等。
+ */
 import { effectScope, nextTick, onScopeDispose, ref, watch } from 'vue';
 import { breakpointsTailwind, useBreakpoints, useEventListener, useTitle } from '@vueuse/core';
 import { defineStore } from 'pinia';
@@ -5,17 +8,17 @@ import { useBoolean } from '@sa/hooks';
 import { router } from '@/router';
 import { localStg } from '@/utils/storage';
 import { SetupStoreId } from '@/enum';
-import { $t, setLocale } from '@/locales';
+import { $t } from '@/locales';
 import { setDayjsLocale } from '@/locales/dayjs';
 import { useRouteStore } from '../route';
-import { useTabStore } from '../tab';
 import { useThemeStore } from '../theme';
 
 export const useAppStore = defineStore(SetupStoreId.App, () => {
   const themeStore = useThemeStore();
   const routeStore = useRouteStore();
-  const tabStore = useTabStore();
+  // 副作用作用域，便于在 store 销毁时统一停止 watch
   const scope = effectScope();
+  // 基于 Tailwind 断点的响应式工具
   const breakpoints = useBreakpoints(breakpointsTailwind);
   const { bool: themeDrawerVisible, setTrue: openThemeDrawer, setFalse: closeThemeDrawer } = useBoolean();
   const { bool: reloadFlag, setBool: setReloadFlag } = useBoolean(true);
@@ -28,13 +31,14 @@ export const useAppStore = defineStore(SetupStoreId.App, () => {
     toggle: toggleMixSiderFixed
   } = useBoolean(localStg.get('mixSiderFixed') === 'Y');
 
-  /** Is mobile layout */
+  // 当前视口是否处于移动端布局（小于 sm 断点）
   const isMobile = breakpoints.smaller('sm');
 
   /**
-   * Reload page
+   * 通过卸载再挂载路由视图实现整页刷新，并可按主题动画时长等待。
    *
-   * @param duration Duration time
+   * @param duration - 刷新前等待的毫秒数（有页面动画时略长）
+   * @returns {Promise<void>} 无返回值
    */
   async function reloadPage(duration = 300) {
     setReloadFlag(false);
@@ -52,26 +56,14 @@ export const useAppStore = defineStore(SetupStoreId.App, () => {
     }
   }
 
-  const locale = ref<App.I18n.LangType>(localStg.get('lang') || 'zh-CN');
+  // 固定中文环境：不再支持语言切换
+  const locale = ref<App.I18n.LangType>('zh-CN');
 
-  const localeOptions: App.I18n.LangOption[] = [
-    {
-      label: '中文',
-      key: 'zh-CN'
-    },
-    {
-      label: 'English',
-      key: 'en-US'
-    }
-  ];
-
-  function changeLocale(lang: App.I18n.LangType) {
-    locale.value = lang;
-    setLocale(lang);
-    localStg.set('lang', lang);
-  }
-
-  /** Update document title by locale */
+  /**
+   * 根据当前路由 meta 更新浏览器标签页标题。
+   *
+   * @returns {void} 无返回值
+   */
   function updateDocumentTitleByLocale() {
     const { i18nKey, title } = router.currentRoute.value.meta;
 
@@ -80,13 +72,18 @@ export const useAppStore = defineStore(SetupStoreId.App, () => {
     useTitle(documentTitle);
   }
 
+  /**
+   * 应用级初始化：同步 dayjs 语言、同步文档标题。
+   *
+   * @returns {void} 无返回值
+   */
   function init() {
-    setDayjsLocale(locale.value);
+    setDayjsLocale();
+    updateDocumentTitleByLocale();
   }
 
-  // watch store
   scope.run(() => {
-    // watch isMobile, if is mobile, collapse sider
+    // 监听移动端断点：进入移动端时备份布局并切竖排+收拢侧栏，退出时恢复
     watch(
       isMobile,
       newValue => {
@@ -115,29 +112,14 @@ export const useAppStore = defineStore(SetupStoreId.App, () => {
       },
       { immediate: true }
     );
-
-    // watch locale
-    watch(locale, () => {
-      // update document title by locale
-      updateDocumentTitleByLocale();
-
-      // update global menus by locale
-      routeStore.updateGlobalMenusByLocale();
-
-      // update tabs by locale
-      tabStore.updateTabsByLocale();
-
-      // set dayjs locale
-      setDayjsLocale(locale.value);
-    });
   });
 
-  // cache mixSiderFixed
+  // 页面关闭前将混合侧栏固定状态写入本地存储
   useEventListener(window, 'beforeunload', () => {
     localStg.set('mixSiderFixed', mixSiderFixed.value ? 'Y' : 'N');
   });
 
-  /** On scope dispose */
+  // store 卸载时停止 effectScope 内所有 watch
   onScopeDispose(() => {
     scope.stop();
   });
@@ -151,8 +133,6 @@ export const useAppStore = defineStore(SetupStoreId.App, () => {
     reloadPage,
     fullContent,
     locale,
-    localeOptions,
-    changeLocale,
     themeDrawerVisible,
     openThemeDrawer,
     closeThemeDrawer,

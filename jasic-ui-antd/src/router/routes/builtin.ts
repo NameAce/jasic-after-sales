@@ -1,3 +1,6 @@
+/**
+ * 内置常量路由：根重定向、404 捕获及由 elegant 视图映射得到的初始 `RouteRecordRaw[]`。
+ */
 import type { CustomRoute } from '@elegant-router/types';
 import { layouts, views } from '../elegant/imports';
 import { getRoutePath, transformElegantRoutesToVueRoutes } from '../elegant/transform';

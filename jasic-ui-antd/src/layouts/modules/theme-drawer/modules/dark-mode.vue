@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 主题抽屉 — 外观模式：亮/暗/跟随系统、侧栏反色、灰度与色弱辅助。
+ */
 import { computed } from 'vue';
 import type { SegmentedOption } from 'ant-design-vue/es/segmented/src/segmented';
 import { themeSchemaRecord } from '@/constants/app';
@@ -18,6 +21,7 @@ const icons: Record<UnionKey.ThemeScheme, string> = {
   auto: 'material-symbols:hdr-auto'
 };
 
+/** 构建 Segmented 选项（含图标 payload） */
 function getSegmentOptions() {
   const opts: SegmentedOption[] = Object.keys(themeSchemaRecord).map(item => {
     const key = item as UnionKey.ThemeScheme;
@@ -32,20 +36,25 @@ function getSegmentOptions() {
   return opts;
 }
 
+// Segmented 控件选项（亮/暗/跟随系统）含图标 payload
 const options = computed(() => getSegmentOptions());
 
+/** Segmented 变更：写入全局 themeScheme */
 function handleSegmentChange(value: string | number) {
   themeStore.setThemeScheme(value as UnionKey.ThemeScheme);
 }
 
+// 仅亮色全局 + 纵向类布局时展示「侧栏反色」开关
 const showSiderInverted = computed(() => !themeStore.darkMode && themeStore.layout.mode.includes('vertical'));
 
 type CheckedType = boolean | string | number;
 
+/** 灰度模式开关 */
 function handleGrayscaleChange(value: CheckedType) {
   themeStore.setGrayscale(value as boolean);
 }
 
+/** 色弱模式开关 */
 function handleColourWeaknessChange(value: CheckedType) {
   themeStore.setColourWeakness(value as boolean);
 }

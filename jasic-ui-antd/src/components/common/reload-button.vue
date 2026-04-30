@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 页签栏等处使用的刷新按钮：`loading` 时图标旋转表示正在重载。
+ */
 import { $t } from '@/locales';
 
 defineOptions({

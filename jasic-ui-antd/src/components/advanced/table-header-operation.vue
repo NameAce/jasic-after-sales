@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 列表页顶栏常用操作区：新增、批量删除、刷新与列设置（`columns` 为 v-model 与 TableColumnSetting 联动）。
+ */
 import { $t } from '@/locales';
 
 defineOptions({
@@ -20,18 +23,22 @@ interface Emits {
 
 const emit = defineEmits<Emits>();
 
+// 表格列显隐与排序状态，交给 TableColumnSetting 编辑
 const columns = defineModel<AntDesign.TableColumnCheck[]>('columns', {
   default: () => []
 });
 
+/** 触发新增（由父级打开表单或跳转） */
 function add() {
   emit('add');
 }
 
+/** 批量删除：由父级在 Popconfirm 确认后执行接口 */
 function batchDelete() {
   emit('delete');
 }
 
+/** 刷新列表数据 */
 function refresh() {
   emit('refresh');
 }

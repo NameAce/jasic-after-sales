@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/**
+ * 水平布局顶栏菜单：Teleport 到顶栏 `#GLOBAL_HEADER_MENU_ID`。
+ */
 import type { MenuInfo } from 'ant-design-vue/es/menu/src/interface';
 import type { RouteKey } from '@elegant-router/types';
 import { GLOBAL_HEADER_MENU_ID } from '@/constants/app';
@@ -16,6 +19,7 @@ const routeStore = useRouteStore();
 const { routerPushByKeyWithMetaQuery } = useRouterPush();
 const { selectedKey } = useMenu();
 
+/** 菜单项点击跳转 */
 function handleClickMenu(menuInfo: MenuInfo) {
   const key = menuInfo.key as RouteKey;
 

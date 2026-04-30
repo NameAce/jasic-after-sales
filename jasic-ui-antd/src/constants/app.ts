@@ -1,3 +1,6 @@
+/**
+ * 应用级常量：顶栏/侧栏菜单挂载点 DOM id、主题方案与布局模式 i18n key、登录子模块与主题抽屉选项等。
+ */
 import { transformRecordToOption } from '@/utils/common';
 
 export const GLOBAL_HEADER_MENU_ID = '__GLOBAL_HEADER_MENU__';
