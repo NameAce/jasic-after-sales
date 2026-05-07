@@ -9,10 +9,12 @@ import { setupUnplugin } from './unplugin';
 import { setupHtmlPlugin } from './html';
 
 export function setupVitePlugins(viteEnv: Env.ViteEnv, buildTime: string) {
+  const isEnableVueDevtools = viteEnv.VITE_ENABLE_VUE_DEVTOOLS === 'Y';
+
   const plugins: PluginOption = [
     vue(),
     vueJsx(),
-    VueDevtools(),
+    ...(isEnableVueDevtools ? [VueDevtools()] : []),
     setupElegantRouter(),
     setupUnocss(viteEnv),
     ...setupUnplugin(viteEnv),

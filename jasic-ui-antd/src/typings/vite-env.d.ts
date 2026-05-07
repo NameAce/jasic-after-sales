@@ -120,6 +120,8 @@ declare namespace Env {
     readonly VITE_MENU_ICON_API_COLLECTION?: string;
     /** Whether to build with sourcemap */
     readonly VITE_SOURCE_MAP?: CommonType.YesOrNo;
+    /** Whether to enable vite-plugin-vue-devtools in local development */
+    readonly VITE_ENABLE_VUE_DEVTOOLS?: CommonType.YesOrNo;
     /**
      * Iconify api provider url
      *

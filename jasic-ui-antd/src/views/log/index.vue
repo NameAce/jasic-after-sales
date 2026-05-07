@@ -330,18 +330,18 @@ onMounted(loadList);
         <ADescriptionsItem label="请求方式">{{ detail.requestMethod }}</ADescriptionsItem>
         <ADescriptionsItem label="操作人">{{ detail.operUserName }}</ADescriptionsItem>
         <ADescriptionsItem label="IP地址">{{ detail.ip }}</ADescriptionsItem>
-        <ADescriptionsItem label="请求URL" :span="2">{{ detail.requestUrl }}</ADescriptionsItem>
-        <ADescriptionsItem label="调用方法" :span="2">{{ detail.method }}</ADescriptionsItem>
-        <ADescriptionsItem label="请求参数" :span="2">
+        <ADescriptionsItem label="请求URL">{{ detail.requestUrl }}</ADescriptionsItem>
+        <ADescriptionsItem label="调用方法">{{ detail.method }}</ADescriptionsItem>
+        <ADescriptionsItem label="请求参数">
           <div class="max-h-120px overflow-y-auto break-all">{{ detail.requestParam }}</div>
         </ADescriptionsItem>
-        <ADescriptionsItem label="返回结果" :span="2">
+        <ADescriptionsItem label="返回结果">
           <div class="max-h-120px overflow-y-auto break-all">{{ detail.responseResult }}</div>
         </ADescriptionsItem>
         <ADescriptionsItem label="状态">{{ detail.status === 1 ? '成功' : '失败' }}</ADescriptionsItem>
         <ADescriptionsItem label="耗时">{{ detail.costTime }} ms</ADescriptionsItem>
-        <ADescriptionsItem label="操作时间" :span="2">{{ detail.operTime }}</ADescriptionsItem>
-        <ADescriptionsItem v-if="detail.errorMsg" label="错误信息" :span="2">
+        <ADescriptionsItem label="操作时间">{{ detail.operTime }}</ADescriptionsItem>
+        <ADescriptionsItem v-if="detail.errorMsg" label="错误信息">
           <span class="text-red-500">{{ detail.errorMsg }}</span>
         </ADescriptionsItem>
       </ADescriptions>
