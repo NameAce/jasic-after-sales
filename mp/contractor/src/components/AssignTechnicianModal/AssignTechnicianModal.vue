@@ -59,9 +59,10 @@
 <script setup lang="ts">
   import { computed, ref, watch } from 'vue'
   import CommonModal from '@/components/CommonModal/CommonModal.vue'
+  import { ASSET_IMAGES } from '@/constants/assets'
 
   /** 派单弹窗：未设置头像时使用默认维修员形象 */
-  const DEFAULT_ASSIGN_AVATAR = '/static/images/worker.png'
+  const DEFAULT_ASSIGN_AVATAR = ASSET_IMAGES.worker
 
   const avatarDisplayUrl = (avatar?: string) => {
     const s = (avatar ?? '').trim()

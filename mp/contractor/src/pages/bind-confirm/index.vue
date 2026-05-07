@@ -1,7 +1,7 @@
 <template>
   <view class="page-bind-confirm">
     <view class="bg-wrapper">
-      <image class="bg-image" src="/static/images/login-bg.jpg" mode="aspectFill" />
+      <image class="bg-image" :src="ASSET_IMAGES.loginBg" mode="aspectFill" />
       <view class="hero-vignette"></view>
     </view>
 
@@ -67,6 +67,7 @@
   import { getApiMessage, type ApiResponse } from '@/utils/http'
   import { finalizeMpLoginSession } from '@/utils/mpSession'
   import type { LoginResult } from '@/utils/permissions'
+  import { ASSET_IMAGES } from '@/constants/assets'
 
   const bindTicket = ref('')
   const isSubmitting = ref(false)

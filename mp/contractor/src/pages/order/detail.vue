@@ -317,6 +317,7 @@
     type DetailEntryAction
   } from './useOrderDetailPage'
   import type { WorkOrderActionKey } from '@/constants/orderActions'
+  import { requestWorkOrderSubscribe } from '@/utils/requestWorkOrderSubscribe'
 
   const appStore = useAppStore()
   const userStore = useUserStore()
@@ -1023,7 +1024,7 @@
    * 维修完成（无故障）：先打开机器返回方式；填完关单原因后仅调关闭工单接口（不调 tech-accept）
    * @returns void
    */
-  const onRepairComplete = () => {
+  const onRepairComplete = async () => {
     if (!canCloseWorkOrder.value) {
       uni.showToast({ title: '暂无工单关闭权限', icon: 'none' })
       return
@@ -1046,6 +1047,7 @@
       uni.showToast({ title: '工单ID无效', icon: 'none' })
       return
     }
+    await requestWorkOrderSubscribe()
     returnMethodType.value = ''
     closeOrderReturnMethodPayload.value = null
     pendingNoFaultRepairAfterReturnMethod.value = true
@@ -1178,6 +1180,7 @@
       uni.showToast({ title: '工单ID无效', icon: 'none' })
       return
     }
+    await requestWorkOrderSubscribe()
     uni.showLoading({ title: '提交中...' })
     try {
       const res = await techAcceptWorkOrder({

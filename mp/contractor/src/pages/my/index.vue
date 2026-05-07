@@ -74,8 +74,10 @@
   import { Perms } from '@/utils/permissions'
   import { buildUserProfile, DEFAULT_MY_MENU } from '@/models/user'
   import { verifiedIcon, postAddIcon, menuInfoIcon, logoutIcon, locationOnIcon } from '@/svgs'
-  import defaultAvatar from '@/static/images/default-avatar.jpg'
+  import { ASSET_IMAGES } from '@/constants/assets'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
+
+  const defaultAvatar = ASSET_IMAGES.defaultAvatar
   // 菜单图标映射
   const MENU_ICON_MAP: Record<string, string> = {
     post_add: postAddIcon,
