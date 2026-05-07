@@ -52,6 +52,15 @@ export type ApiResponse<T> = {
 /** 模块级互斥：短时间内 A0100/401 并发只弹一次 modal */
 let authExpiredHandling = false
 
+/** 统一在错误提示前收起 loading，避免提示与 loading 叠层互相干扰。 */
+function safeHideLoading() {
+  try {
+    uni.hideLoading()
+  } catch {
+    /* ignore */
+  }
+}
+
 /**
  * 计算 API baseURL：`VITE_HTTP + '/api'`，与 jasic-ui 的 `axios.create({ baseURL: '/api' })` 对齐。
  * VITE_HTTP 不存在时回退为 `/api`，避免小程序端空字符串导致的相对路径拼接异常。
@@ -91,6 +100,7 @@ function redirectToLogin() {
 function handleAuthExpired() {
   if (authExpiredHandling) return
   authExpiredHandling = true
+  safeHideLoading()
   try {
     uni.removeStorageSync('token')
   } catch {
@@ -141,10 +151,12 @@ function handleResponseBody<T>(
     return
   }
   if (body.code === API_NO_PERMISSION) {
+    safeHideLoading()
     uni.showToast({ icon: 'none', title: API_MSG_NO_PERMISSION, duration: 1500 })
     reject(body)
     return
   }
+  safeHideLoading()
   uni.showToast({ icon: 'none', title: body.msg || API_MSG_OPERATION_FAILED, duration: 1500 })
   reject(body)
 }
@@ -168,6 +180,7 @@ function requestWithUni<T>(options: UniApp.RequestOptions): Promise<ApiResponse<
         }
         if (res.statusCode < 200 || res.statusCode >= 300) {
           const msg = pickHttpErrorMsg(res.data)
+          safeHideLoading()
           uni.showToast({ icon: 'none', title: msg, duration: 1500 })
           reject(res.data as ApiResponse<T>)
           return
@@ -183,6 +196,7 @@ function requestWithUni<T>(options: UniApp.RequestOptions): Promise<ApiResponse<
         }
         const raw = res.data as Partial<ApiResponse<T>> | null | undefined
         if (!raw || typeof raw !== 'object' || typeof raw.code !== 'string') {
+          safeHideLoading()
           uni.showToast({ icon: 'none', title: API_MSG_BAD_RESPONSE, duration: 1500 })
           reject(res.data as ApiResponse<T>)
           return
@@ -199,6 +213,7 @@ function requestWithUni<T>(options: UniApp.RequestOptions): Promise<ApiResponse<
       },
       fail(err) {
         const msg = err.errMsg?.includes('timeout') ? API_MSG_TIMEOUT : API_MSG_NETWORK_ERROR
+        safeHideLoading()
         uni.showToast({
           icon: 'none',
           title: msg,

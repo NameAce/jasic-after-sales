@@ -1330,7 +1330,6 @@
         repairItems,
         workOrderId: wid
       }
-
       const res = isRecheck
         ? await reviewWorkOrder(reviewDto)
         : await repairWorkOrder({
@@ -1358,18 +1357,21 @@
             workOrderId: wid
           } satisfies WorkOrderRepairDTO)
       appStore.markOrderListScrollRefresherOnNextShow()
+      // 先关闭 loading，再等待原生层切换完成后展示成功提示，避免真机上与 loading 叠闪。
+      uni.hideLoading()
+      await new Promise<void>((resolve) => {
+        setTimeout(() => resolve(), 120)
+      })
       uni.showToast({
         title: getApiMessage(res, isRecheck ? '复检登记已提交' : '登记成功'),
         icon: 'none',
-        duration: 1500
+        duration: 2000
       })
       setTimeout(() => {
         uni.navigateBack()
-      }, 1500)
+      }, 2200)
     } catch {
-      // 失败提示已在 http / submit 中处理
-    } finally {
-      uni.hideLoading()
+      // 失败提示已在 http 层处理；此处不再 hideLoading，避免冲掉失败提示。
     }
   }
 </script>
