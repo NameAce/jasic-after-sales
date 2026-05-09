@@ -317,7 +317,9 @@
     type DetailEntryAction
   } from './useOrderDetailPage'
   import type { WorkOrderActionKey } from '@/constants/orderActions'
-  import { requestWorkOrderSubscribe } from '@/utils/requestWorkOrderSubscribe'
+  import {
+    requestWorkOrderSubscribe
+  } from '@/utils/requestWorkOrderSubscribe'
 
   const appStore = useAppStore()
   const userStore = useUserStore()
@@ -377,6 +379,8 @@
   const closeOrderReturnMethodPayload = ref<ReturnMethodConfirmPayload | null>(null)
   // 返回方式类型
   const returnMethodType = ref<'' | 'self' | 'mail'>('')
+  /** 无故障维修完成链路：是否已在当前操作中请求过订阅（用于兜底重试） */
+  const noFaultSubscribeRequested = ref(false)
 
   watch(faultJudgeSelect, (v) => {
     if (v !== '无故障') {
@@ -1047,7 +1051,9 @@
       uni.showToast({ title: '工单ID无效', icon: 'none' })
       return
     }
+    noFaultSubscribeRequested.value = false
     await requestWorkOrderSubscribe()
+    noFaultSubscribeRequested.value = true
     returnMethodType.value = ''
     closeOrderReturnMethodPayload.value = null
     pendingNoFaultRepairAfterReturnMethod.value = true
@@ -1152,6 +1158,10 @@
     if (!payload) {
       uni.showToast({ title: '请先完成机器返回方式', icon: 'none' })
       return
+    }
+    if (!noFaultSubscribeRequested.value) {
+      await requestWorkOrderSubscribe()
+      noFaultSubscribeRequested.value = true
     }
     await submitCloseOrderWithReturnPayload(payload, reason)
   }

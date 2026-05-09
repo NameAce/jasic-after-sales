@@ -60,6 +60,8 @@
   import { computed, ref, watch } from 'vue'
   import CommonModal from '@/components/CommonModal/CommonModal.vue'
   import { ASSET_IMAGES } from '@/constants/assets'
+  import { WECHAT_TMPL_WORKORDER_ASSIGN_NOTICE } from '@/constants/subscribeMessage'
+  import { requestWorkOrderSubscribeWithTemplateIds } from '@/utils/requestWorkOrderSubscribe'
 
   /** 派单弹窗：未设置头像时使用默认维修员形象 */
   const DEFAULT_ASSIGN_AVATAR = ASSET_IMAGES.worker
@@ -191,7 +193,7 @@
   /**
    * 确认指派
    */
-  const onConfirm = () => {
+  const onConfirm = async () => {
     if (selectedId.value === null || selectedId.value === undefined || selectedId.value === '') {
       uni.showToast({ title: '请选择维修员', icon: 'none' })
       return
@@ -206,6 +208,7 @@
       uni.showToast({ title: '工单信息缺失，请关闭后重试', icon: 'none' })
       return
     }
+    await requestWorkOrderSubscribeWithTemplateIds([WECHAT_TMPL_WORKORDER_ASSIGN_NOTICE])
     emit('confirm', { workOrderId: wid, selectedTechId: selectedId.value, technician: tech })
   }
 </script>
