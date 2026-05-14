@@ -16,7 +16,7 @@ export interface SysUserQuery extends Query {
   phone?: string;
   email?: string;
   status?: number;
-  companyId?: number;
+  targetCompanyId?: number;
 }
 
 export interface SysUserDTO {
@@ -29,16 +29,14 @@ export interface SysUserDTO {
   sex?: number;
   status?: number;
   remark?: string;
-  companyIds?: number[];
+  targetCompanyId?: number;
   roleIds?: number[];
 }
 
 export interface ResetUserPasswordDTO {
   userId: IdLike;
-  /** jasic-ui 现网参数名 */
+  targetCompanyId?: number;
   newPassword?: string;
-  /** 兼容已迁移页面 */
-  password?: string;
 }
 
 export interface SysUserVO {
@@ -66,12 +64,13 @@ export interface SysRoleQuery extends Query {
   roleName?: string;
   roleKey?: string;
   status?: number;
-  companyId?: number;
+  targetCompanyId?: number;
 }
 
 export interface SysRoleVO {
   id: number;
   companyId?: number;
+  targetCompanyId?: number;
   roleName: string;
   roleKey: string;
   dataScope?: string;
@@ -128,8 +127,8 @@ export function listUser(params?: SysUserQuery) {
   return request<PageResult<SysUserVO>>({ url: '/system/user/list', method: 'get', params });
 }
 
-export function getUser(userId: IdLike) {
-  return request<SysUserVO>({ url: `/system/user/${userId}`, method: 'get' });
+export function getUser(userId: IdLike, params?: { targetCompanyId?: number }) {
+  return request<SysUserVO>({ url: `/system/user/${userId}`, method: 'get', params });
 }
 
 export function addUser(data: SysUserDTO) {
@@ -140,13 +139,13 @@ export function updateUser(data: SysUserDTO) {
   return request({ url: '/system/user', method: 'put', data });
 }
 
-export function deleteUser(userId: IdLike) {
-  return request({ url: `/system/user/${userId}`, method: 'delete' });
+export function deleteUser(userId: IdLike, params?: { targetCompanyId?: number }) {
+  return request({ url: `/system/user/${userId}`, method: 'delete', params });
 }
 
 /** 与 jasic-ui `POST /system/user/:userId/kickout` */
-export function kickoutUser(userId: IdLike) {
-  return request({ url: `/system/user/${userId}/kickout`, method: 'post' });
+export function kickoutUser(userId: IdLike, params?: { targetCompanyId?: number }) {
+  return request({ url: `/system/user/${userId}/kickout`, method: 'post', params });
 }
 
 /** 与 jasic-ui `PUT /system/user/reset-pwd` 一致 */
@@ -159,12 +158,12 @@ export function listRole(params?: SysRoleQuery) {
   return request<PageResult<SysRoleVO>>({ url: '/system/role/list', method: 'get', params });
 }
 
-export function roleOptions() {
-  return request<SysRoleVO[]>({ url: '/system/role/options', method: 'get' });
+export function roleOptions(params?: { targetCompanyId?: number }) {
+  return request<SysRoleVO[]>({ url: '/system/role/options', method: 'get', params });
 }
 
-export function getRole(roleId: IdLike) {
-  return request<SysRoleVO>({ url: `/system/role/${roleId}`, method: 'get' });
+export function getRole(roleId: IdLike, params?: { targetCompanyId?: number }) {
+  return request<SysRoleVO>({ url: `/system/role/${roleId}`, method: 'get', params });
 }
 
 export function addRole(data: SysRoleVO) {
@@ -175,32 +174,32 @@ export function updateRole(data: SysRoleVO) {
   return request({ url: '/system/role', method: 'put', data });
 }
 
-export function deleteRole(roleId: IdLike) {
-  return request({ url: `/system/role/${roleId}`, method: 'delete' });
+export function deleteRole(roleId: IdLike, params?: { targetCompanyId?: number }) {
+  return request({ url: `/system/role/${roleId}`, method: 'delete', params });
 }
 
 /** 与 jasic-ui `GET /system/role/data-scope-options` */
-export function roleDataScopeOptions() {
-  return request<unknown[]>({ url: '/system/role/data-scope-options', method: 'get' });
+export function roleDataScopeOptions(params?: { targetCompanyId?: number }) {
+  return request<unknown[]>({ url: '/system/role/data-scope-options', method: 'get', params });
 }
 
 /** 与 jasic-ui `PUT /system/role/:roleId/menus` */
-export function assignRoleMenus(roleId: IdLike, data: IdLike[]) {
-  return request({ url: `/system/role/${roleId}/menus`, method: 'put', data });
+export function assignRoleMenus(roleId: IdLike, data: IdLike[], params?: { targetCompanyId?: number }) {
+  return request({ url: `/system/role/${roleId}/menus`, method: 'put', params, data });
 }
 
-export function assignUserRoles(userId: IdLike, data: IdLike[]) {
-  return request({ url: `/system/user/${userId}/roles`, method: 'put', data });
+export function assignUserRoles(userId: IdLike, data: IdLike[], params?: { targetCompanyId?: number }) {
+  return request({ url: `/system/user/${userId}/roles`, method: 'put', params, data });
 }
 
 /** 与 jasic-ui `GET /system/region/:userId/regions` */
-export function getUserRegions(userId: IdLike) {
-  return request<unknown[]>({ url: `/system/region/${userId}/regions`, method: 'get' });
+export function getUserRegions(userId: IdLike, params?: { targetCompanyId?: number }) {
+  return request<unknown[]>({ url: `/system/region/${userId}/regions`, method: 'get', params });
 }
 
 /** 与 jasic-ui `PUT /system/region/:userId/regions` */
-export function assignUserRegions(userId: IdLike, data: unknown) {
-  return request({ url: `/system/region/${userId}/regions`, method: 'put', data });
+export function assignUserRegions(userId: IdLike, data: unknown, params?: { targetCompanyId?: number }) {
+  return request({ url: `/system/region/${userId}/regions`, method: 'put', params, data });
 }
 
 // menu
@@ -410,8 +409,13 @@ export function listMachineBarcode(params?: Query) {
 }
 
 /** 与 jasic-ui `GET /system/machine-barcode/:id` */
-export function getMachineBarcode(id: IdLike) {
-  return request<Query>({ url: `/system/machine-barcode/${id}`, method: 'get' });
+export function getMachineBarcode(id: IdLike, params?: Query) {
+  return request<Query>({ url: `/system/machine-barcode/${id}`, method: 'get', params });
+}
+
+/** 机器条码档案可维护总部选项 */
+export function listMachineBarcodeHqOptions() {
+  return request<Query[]>({ url: '/system/machine-barcode/hq-options', method: 'get' });
 }
 
 /** 与 jasic-ui `POST /system/machine-barcode/full-sync` */
@@ -457,8 +461,8 @@ export function listFaultRepairConfig(params?: Query) {
   return request<PageResult<Query>>({ url: '/system/fault-repair-config/list', method: 'get', params });
 }
 
-export function getFaultRepairConfig(id: IdLike) {
-  return request<Query>({ url: `/system/fault-repair-config/${id}`, method: 'get' });
+export function getFaultRepairConfig(id: IdLike, params?: { ownerHqId?: IdLike }) {
+  return request<Query>({ url: `/system/fault-repair-config/${id}`, method: 'get', params });
 }
 
 export function addFaultRepairConfig(data: Query) {
@@ -519,26 +523,26 @@ export function syncRoleTemplate(templateId: IdLike) {
   return request({ url: `/system/role-template/${templateId}/sync`, method: 'post' });
 }
 
-/** 与 jasic-ui `GET /system/region/list?companyId=`（返回大区列表，多为数组或统一包装） */
-export function listRegion(companyId: IdLike, params?: Query) {
+/** 与 jasic-ui `GET /system/region/list?targetCompanyId=`（返回大区列表，多为数组或统一包装） */
+export function listRegion(targetCompanyId: IdLike, params?: Query) {
   return request<Query[] | PageResult<Query>>({
     url: '/system/region/list',
     method: 'get',
-    params: { ...params, companyId }
+    params: { ...params, targetCompanyId }
   });
 }
 
-/** 与 jasic-ui `POST /system/region` */
-export function addRegion(data: Query) {
+/** 与 jasic-ui `POST /system/region`，归属公司通过 targetCompanyId 表达。 */
+export function addRegion(data: Query & { targetCompanyId?: IdLike }) {
   return request<number>({ url: '/system/region', method: 'post', data });
 }
 
-/** 与 jasic-ui `PUT /system/region` */
-export function updateRegion(data: Query) {
+/** 与 jasic-ui `PUT /system/region`，归属公司通过 targetCompanyId 表达。 */
+export function updateRegion(data: Query & { targetCompanyId?: IdLike }) {
   return request({ url: '/system/region', method: 'put', data });
 }
 
 /** 与 jasic-ui `DELETE /system/region/:id` */
-export function deleteRegion(id: IdLike) {
-  return request({ url: `/system/region/${id}`, method: 'delete' });
+export function deleteRegion(id: IdLike, params?: { targetCompanyId?: IdLike }) {
+  return request({ url: `/system/region/${id}`, method: 'delete', params });
 }

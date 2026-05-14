@@ -40,11 +40,18 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
     @Resource
     private List<NotifyChannelSender> notifyChannelSenders = Collections.emptyList();
 
+    /**
+     * ?????
+     *
+     * @param dispatch ??
+     * @return ????
+     */
     @Resource
     private TransactionTemplate transactionTemplate;
 
     @Override
     public Long createDispatch(SysNotifyDispatch dispatch) {
+        // ????????????????????????
         SysNotifyDispatch existing = getExistingDispatch(dispatch);
         if (existing != null) {
             return existing.getId();
@@ -53,14 +60,28 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
         return dispatch.getId();
     }
 
+    /**
+     * ??By Id?
+     *
+     * @param id ??ID
+     * @return ????
+     */
     @Override
     public SysNotifyDispatch getById(Long id) {
         return sysNotifyDispatchMapper.selectById(id);
     }
 
+    /**
+     * ???????
+     *
+     * @param now ??
+     * @param limit ??
+     * @return ????
+     */
     @Override
     public List<SysNotifyDispatch> listSendableDispatches(LocalDateTime now, Integer limit) {
         LocalDateTime targetTime = now == null ? LocalDateTime.now() : now;
+        // ????????????????????????
         LambdaQueryWrapper<SysNotifyDispatch> wrapper = new LambdaQueryWrapper<>();
         wrapper.and(condition -> condition
                         .eq(SysNotifyDispatch::getDispatchStatus, NotifyDispatchStatusEnum.PENDING.getCode())
@@ -76,8 +97,15 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
         return sysNotifyDispatchMapper.selectList(wrapper);
     }
 
+    /**
+     * ?? markProcessing ?????
+     *
+     * @param dispatchId dispatch ID
+     * @return true ??????
+     */
     @Override
     public boolean markProcessing(Long dispatchId) {
+        // ????????????????????????
         LambdaUpdateWrapper<SysNotifyDispatch> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(SysNotifyDispatch::getId, dispatchId)
                 .and(condition -> condition
@@ -89,8 +117,17 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
         return sysNotifyDispatchMapper.update(null, wrapper) > 0;
     }
 
+    /**
+     * ?? markSuccess ?????
+     *
+     * @param dispatchId dispatch ID
+     * @param resultCode ??
+     * @param resultMessage ??
+     * @param channelResponseJson ??
+     */
     @Override
     public void markSuccess(Long dispatchId, String resultCode, String resultMessage, String channelResponseJson) {
+        // ????????????????????????
         LambdaUpdateWrapper<SysNotifyDispatch> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(SysNotifyDispatch::getId, dispatchId)
                 .set(SysNotifyDispatch::getDispatchStatus, NotifyDispatchStatusEnum.SUCCESS.getCode())
@@ -102,9 +139,20 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
         sysNotifyDispatchMapper.update(null, wrapper);
     }
 
+    /**
+     * ?? markFailed ?????
+     *
+     * @param dispatchId dispatch ID
+     * @param retryCount ??
+     * @param nextRetryTime ??
+     * @param resultCode ??
+     * @param resultMessage ??
+     * @param channelResponseJson ??
+     */
     @Override
     public void markFailed(Long dispatchId, Integer retryCount, LocalDateTime nextRetryTime,
                            String resultCode, String resultMessage, String channelResponseJson) {
+        // ????????????????????????
         LambdaUpdateWrapper<SysNotifyDispatch> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(SysNotifyDispatch::getId, dispatchId)
                 .set(SysNotifyDispatch::getDispatchStatus, NotifyDispatchStatusEnum.FAILED.getCode())
@@ -116,8 +164,17 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
         sysNotifyDispatchMapper.update(null, wrapper);
     }
 
+    /**
+     * ?? markSkipped ?????
+     *
+     * @param dispatchId dispatch ID
+     * @param resultCode ??
+     * @param resultMessage ??
+     * @param channelResponseJson ??
+     */
     @Override
     public void markSkipped(Long dispatchId, String resultCode, String resultMessage, String channelResponseJson) {
+        // ????????????????????????
         LambdaUpdateWrapper<SysNotifyDispatch> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(SysNotifyDispatch::getId, dispatchId)
                 .set(SysNotifyDispatch::getDispatchStatus, NotifyDispatchStatusEnum.SKIPPED.getCode())
@@ -128,8 +185,14 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
         sysNotifyDispatchMapper.update(null, wrapper);
     }
 
+    /**
+     * ?? consumePendingDispatches ?????
+     *
+     * @return ????
+     */
     @Override
     public int consumePendingDispatches() {
+        // ????????????????????????
         List<SysNotifyDispatch> dispatches = listSendableDispatches(LocalDateTime.now(), NotifyConstants.DISPATCH_SEND_BATCH_SIZE);
         int successCount = 0;
         for (SysNotifyDispatch dispatch : dispatches) {
@@ -150,7 +213,13 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
         return successCount;
     }
 
+    /**
+     * ?? consumeSingleDispatch ?????
+     *
+     * @param dispatchId dispatch ID
+     */
     private void consumeSingleDispatch(Long dispatchId) {
+        // ????????????????????????
         SysNotifyDispatch dispatch = getRequiredProcessingDispatch(dispatchId);
         NotifyDispatchPayload payload = parsePayload(dispatch);
         NotifyChannelSender sender = resolveSender(dispatch.getChannelType());
@@ -161,7 +230,14 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
         applySendResult(dispatch, sendResult);
     }
 
+    /**
+     * ??Required Processing Dispatch?
+     *
+     * @param dispatchId dispatch ID
+     * @return ????
+     */
     private SysNotifyDispatch getRequiredProcessingDispatch(Long dispatchId) {
+        // ????????????????????????
         SysNotifyDispatch dispatch = sysNotifyDispatchMapper.selectById(dispatchId);
         if (dispatch == null) {
             throw new ServiceException("Notify dispatch not found");
@@ -172,8 +248,15 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
         return dispatch;
     }
 
+    /**
+     * ?? parsePayload ?????
+     *
+     * @param dispatch ??
+     * @return ????
+     */
     private NotifyDispatchPayload parsePayload(SysNotifyDispatch dispatch) {
         if (StrUtil.isBlank(dispatch.getPayloadJson())) {
+            // ????????????????????????
             throw new ServiceException("Notify dispatch payload cannot be blank");
         }
         try {
@@ -189,7 +272,14 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param channelType ??
+     * @return ????
+     */
     private NotifyChannelSender resolveSender(String channelType) {
+        // ????????????????????????
         for (NotifyChannelSender sender : notifyChannelSenders) {
             if (sender.supports(channelType)) {
                 return sender;
@@ -198,8 +288,15 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
         throw new ServiceException("Unsupported notify channel sender: " + channelType);
     }
 
+    /**
+     * ?? applySendResult ?????
+     *
+     * @param dispatch ??
+     * @param sendResult ??
+     */
     private void applySendResult(SysNotifyDispatch dispatch, NotifyChannelSendResult sendResult) {
         if (sendResult == null) {
+            // ????????????????????????
             throw new ServiceException("Notify channel sender returned null result");
         }
         String status = sendResult.getDispatchStatus();
@@ -224,7 +321,14 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
                 sendResult.getResultCode(), sendResult.getResultMessage(), sendResult.getChannelResponseJson());
     }
 
+    /**
+     * ?? markDispatchFailed ?????
+     *
+     * @param dispatchId dispatch ID
+     * @param ex ??
+     */
     private void markDispatchFailed(Long dispatchId, Exception ex) {
+        // ????????????????????????
         SysNotifyDispatch current = sysNotifyDispatchMapper.selectById(dispatchId);
         int nextRetryCount = current == null || current.getRetryCount() == null ? 1 : current.getRetryCount() + 1;
         LocalDateTime nextRetryTime = nextRetryCount >= NotifyConstants.DISPATCH_RETRY_MAX_COUNT
@@ -240,7 +344,14 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
         );
     }
 
+    /**
+     * ??Existing Dispatch?
+     *
+     * @param dispatch ??
+     * @return ????
+     */
     private SysNotifyDispatch getExistingDispatch(SysNotifyDispatch dispatch) {
+        // ????????????????????????
         LambdaQueryWrapper<SysNotifyDispatch> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysNotifyDispatch::getBizType, dispatch.getBizType())
                 .eq(SysNotifyDispatch::getBizId, dispatch.getBizId())
@@ -256,6 +367,12 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
         return sysNotifyDispatchMapper.selectOne(wrapper);
     }
 
+    /**
+     * ???????
+     *
+     * @param ex ??
+     * @return ?????
+     */
     private String buildErrorMessage(Exception ex) {
         String message = ex == null ? null : StrUtil.trim(ex.getMessage());
         if (StrUtil.isBlank(message) && ex != null) {
@@ -264,6 +381,13 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
         return trimValue(message, 500);
     }
 
+    /**
+     * ?? trimValue ?????
+     *
+     * @param value ???
+     * @param maxLength ??
+     * @return ?????
+     */
     private String trimValue(String value, int maxLength) {
         if (value == null) {
             return null;
@@ -275,6 +399,12 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
         return StrUtil.sub(actual, 0, maxLength);
     }
 
+    /**
+     * ?? trimText ?????
+     *
+     * @param value ???
+     * @return ?????
+     */
     private String trimText(String value) {
         if (value == null) {
             return null;

@@ -42,6 +42,11 @@ public class CrmHqFirstContractSnapshotServiceImpl implements ICrmHqFirstContrac
     @Resource(name = "jdbcTemplate")
     private JdbcTemplate jdbcTemplate;
 
+    /**
+     * ??Earliest Change Time?
+     *
+     * @return ????
+     */
     @Resource(name = "crmJdbcTemplate")
     private JdbcTemplate crmJdbcTemplate;
 
@@ -50,6 +55,7 @@ public class CrmHqFirstContractSnapshotServiceImpl implements ICrmHqFirstContrac
 
     @Override
     public LocalDateTime getEarliestChangeTime() {
+        // ?????????????????????????????
         JdbcTemplate crm = requireCrmJdbcTemplate();
         String sql = "SELECT MIN(t.change_time) FROM ("
                 + "SELECT add_time AS change_time FROM " + CRM_CONTRACT_TABLE + " WHERE add_time IS NOT NULL "
@@ -60,11 +66,19 @@ public class CrmHqFirstContractSnapshotServiceImpl implements ICrmHqFirstContrac
         return timestamp == null ? null : timestamp.toLocalDateTime();
     }
 
+    /**
+     * ???????
+     *
+     * @param startInclusive ???????
+     * @param endExclusive ????????
+     * @return ????
+     */
     @Override
     public CrmHqFirstContractSyncSummaryVO syncByTimeRange(LocalDateTime startInclusive, LocalDateTime endExclusive) {
         if (startInclusive == null || endExclusive == null || !startInclusive.isBefore(endExclusive)) {
             throw new ServiceException("CRM 签约快照同步时间范围不合法");
         }
+        // ?????????????????????????????
         JdbcTemplate crm = requireCrmJdbcTemplate();
         String sql = "SELECT kunnr, cust_id, name, vkorg, vkbur, vkbxt, alive_flag, add_time, oper_time "
                 + "FROM " + CRM_CONTRACT_TABLE + " "
@@ -112,6 +126,13 @@ public class CrmHqFirstContractSnapshotServiceImpl implements ICrmHqFirstContrac
         return summary;
     }
 
+    /**
+     * ?? flushBatch ?????
+     *
+     * @param rows ??
+     * @param syncTime ??
+     * @param counter ??
+     */
     private void flushBatch(List<CrmHqFirstContractSnapshot> rows, LocalDateTime syncTime, SyncCounter counter) {
         List<String> uniqueKeys = rows.stream()
                 .map(this::buildUniqueKey)
@@ -120,6 +141,7 @@ public class CrmHqFirstContractSnapshotServiceImpl implements ICrmHqFirstContrac
                 .collect(Collectors.toList());
         Set<String> existingKeys = Collections.emptySet();
         if (CollUtil.isNotEmpty(uniqueKeys)) {
+            // ??????????????????????????
             existingKeys = crmHqFirstContractSnapshotMapper.selectList(null).stream()
                     .map(this::buildUniqueKey)
                     .filter(key -> key != null && uniqueKeys.contains(key))
@@ -141,6 +163,12 @@ public class CrmHqFirstContractSnapshotServiceImpl implements ICrmHqFirstContrac
                 + "last_sync_time = VALUES(last_sync_time), "
                 + "update_time = NOW()";
         jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+            /**
+             * ??Values?
+             *
+             * @param ps ??
+             * @param i ??
+             */
             @Override
             public void setValues(PreparedStatement ps, int i) throws SQLException {
                 CrmHqFirstContractSnapshot row = rows.get(i);
@@ -156,6 +184,11 @@ public class CrmHqFirstContractSnapshotServiceImpl implements ICrmHqFirstContrac
                 ps.setTimestamp(10, toTimestamp(syncTime));
             }
 
+            /**
+             * ??Batch Size?
+             *
+             * @return ????
+             */
             @Override
             public int getBatchSize() {
                 return rows.size();
@@ -171,6 +204,12 @@ public class CrmHqFirstContractSnapshotServiceImpl implements ICrmHqFirstContrac
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param row ??
+     * @return ?????
+     */
     private String buildUniqueKey(CrmHqFirstContractSnapshot row) {
         if (row == null || StrUtil.isBlank(row.getKunnr()) || StrUtil.isBlank(row.getSalesOrg())) {
             return null;
@@ -178,6 +217,11 @@ public class CrmHqFirstContractSnapshotServiceImpl implements ICrmHqFirstContrac
         return row.getKunnr().trim() + "#" + row.getSalesOrg().trim();
     }
 
+    /**
+     * ??????????
+     *
+     * @return ????
+     */
     private JdbcTemplate requireCrmJdbcTemplate() {
         if (crmJdbcTemplate == null) {
             throw new ServiceException("当前未配置客户关系管理（CRM）数据源，请先完善 jasic.crm.datasource");
@@ -185,10 +229,23 @@ public class CrmHqFirstContractSnapshotServiceImpl implements ICrmHqFirstContrac
         return crmJdbcTemplate;
     }
 
+    /**
+     * ?? toTimestamp ?????
+     *
+     * @param value ???
+     * @return ????
+     */
     private Timestamp toTimestamp(LocalDateTime value) {
         return value == null ? null : Timestamp.valueOf(value);
     }
 
+    /**
+     * ?? toLocalDateTime ?????
+     *
+     * @param rs ??
+     * @param column ??
+     * @return ????
+     */
     private static LocalDateTime toLocalDateTime(ResultSet rs, String column) throws SQLException {
         Timestamp value = rs.getTimestamp(column);
         return value == null ? null : value.toLocalDateTime();

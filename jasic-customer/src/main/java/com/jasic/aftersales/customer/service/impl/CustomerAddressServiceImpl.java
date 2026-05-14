@@ -36,6 +36,11 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
     private static final int REGION_MAX_LENGTH = 64;
     private static final int DETAIL_ADDRESS_MAX_LENGTH = 255;
 
+    /**
+     * ???????
+     *
+     * @return ????
+     */
     @Resource
     private CustomerAddressMapper customerAddressMapper;
 
@@ -73,6 +78,7 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long create(CustomerAddressCreateDTO dto) {
+        // ?????????????????????????????
         Long customerId = requireCurrentCustomerId();
         List<CustomerAddress> currentAddresses = listEntities(customerId);
         if (currentAddresses.size() >= MAX_ADDRESS_COUNT) {
@@ -89,6 +95,7 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
         if (shouldSetDefault) {
             clearDefault(customerId, null);
         }
+        // ???????????????????????
         customerAddressMapper.insert(entity);
         return entity.getId();
     }
@@ -101,10 +108,12 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void update(CustomerAddressUpdateDTO dto) {
+        // ?????????????????????????????
         Long customerId = requireCurrentCustomerId();
         CustomerAddress entity = requireOwnedAddress(dto.getId(), customerId);
         fillAddress(entity, dto.getContactName(), dto.getContactMobile(), dto.getProvince(), dto.getCity(),
                 dto.getCounty(), dto.getDetailAddress());
+        // ???????????????????????
         customerAddressMapper.updateById(entity);
     }
 
@@ -116,8 +125,10 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long addressId) {
+        // ?????????????????????????????
         Long customerId = requireCurrentCustomerId();
         CustomerAddress entity = requireOwnedAddress(addressId, customerId);
+        // ???????????????????????
         customerAddressMapper.deleteById(entity.getId());
         if (!isDefaultFlag(entity.getIsDefault())) {
             return;
@@ -137,6 +148,7 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void setDefault(Long addressId) {
+        // ?????????????????????????????
         Long customerId = requireCurrentCustomerId();
         CustomerAddress entity = requireOwnedAddress(addressId, customerId);
         if (isDefaultFlag(entity.getIsDefault())) {
@@ -163,6 +175,7 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
      * @return 地址实体
      */
     private CustomerAddress requireOwnedAddress(Long addressId, Long customerId) {
+        // ??????????????????????????
         CustomerAddress entity = customerAddressMapper.selectById(addressId);
         if (entity == null) {
             throw new ServiceException("地址不存在");
@@ -180,6 +193,7 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
      * @return 地址列表
      */
     private List<CustomerAddress> listEntities(Long customerId) {
+        // ??????????????????????????
         List<CustomerAddress> entities = customerAddressMapper.selectList(
                 new LambdaQueryWrapper<CustomerAddress>().eq(CustomerAddress::getCustomerId, customerId)
         );
@@ -208,6 +222,7 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
                 continue;
             }
             item.setIsDefault(0);
+            // ???????????????????????
             customerAddressMapper.updateById(item);
         }
     }
@@ -220,8 +235,10 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
      */
     private void setDefaultInternal(Long customerId, Long addressId) {
         clearDefault(customerId, addressId);
+        // ?????????????????????????????
         CustomerAddress entity = requireOwnedAddress(addressId, customerId);
         entity.setIsDefault(1);
+        // ???????????????????????
         customerAddressMapper.updateById(entity);
     }
 

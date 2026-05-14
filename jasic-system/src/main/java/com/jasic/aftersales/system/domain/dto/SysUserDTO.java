@@ -61,7 +61,7 @@ public class SysUserDTO implements Serializable {
 
     /** 关联公司ID列表 */
     @ApiModelProperty(value = "关联公司ID列表")
-    private List<Long> companyIds;
+    private Long targetCompanyId;
 
     /** 角色ID列表（当前公司下） */
     @ApiModelProperty(value = "角色ID列表（当前公司下）")

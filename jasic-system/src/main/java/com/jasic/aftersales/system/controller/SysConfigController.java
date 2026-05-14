@@ -38,23 +38,47 @@ public class SysConfigController extends BaseController {
     @Resource
     private ISysConfigService configService;
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @SaCheckPermission("system:config:list")
     @GetMapping("/list")
     public Result<PageResult<SysConfigVO>> list(SysConfigQuery query) {
         return Result.ok(configService.listPage(query));
     }
 
+    /**
+     * ??By Id?
+     *
+     * @param id ??ID
+     * @return ??????
+     */
     @SaCheckPermission("system:config:list")
     @GetMapping("/{id}")
     public Result<SysConfigVO> getById(@PathVariable Long id) {
         return Result.ok(configService.getById(id));
     }
 
+    /**
+     * ??Value By Key?
+     *
+     * @param configKey ??
+     * @return ??????
+     */
     @GetMapping("/key/{configKey}")
     public Result<String> getValueByKey(@PathVariable String configKey) {
         return Result.ok(configService.getValueByKey(configKey));
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     * @return ??????
+     */
     @SaCheckPermission("system:config:add")
     @OperLog(title = "参数设置", operType = OperTypeEnum.INSERT)
     @PostMapping
@@ -62,6 +86,12 @@ public class SysConfigController extends BaseController {
         return Result.ok(configService.save(dto));
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     * @return ??????
+     */
     @SaCheckPermission("system:config:update")
     @OperLog(title = "参数设置", operType = OperTypeEnum.UPDATE)
     @PutMapping
@@ -70,6 +100,12 @@ public class SysConfigController extends BaseController {
         return Result.ok();
     }
 
+    /**
+     * ?????
+     *
+     * @param id ??ID
+     * @return ??????
+     */
     @SaCheckPermission("system:config:remove")
     @OperLog(title = "参数设置", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/{id}")
@@ -78,6 +114,11 @@ public class SysConfigController extends BaseController {
         return Result.ok();
     }
 
+    /**
+     * ?? refreshCache ?????
+     *
+     * @return ??????
+     */
     @SaCheckPermission("system:config:refresh")
     @OperLog(title = "参数设置", operType = OperTypeEnum.OTHER)
     @DeleteMapping("/refresh-cache")

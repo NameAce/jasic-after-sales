@@ -4,7 +4,6 @@ import com.jasic.aftersales.common.core.domain.PageQuery;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import java.util.List;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 
@@ -24,26 +23,6 @@ public class WorkOrderQuery extends PageQuery {
     /** 查看范围（CURRENT/HISTORY/ALL） */
     @ApiModelProperty(value = "查看范围", allowableValues = "CURRENT,HISTORY,ALL")
     private String viewScope;
-
-    /** 当前公司ID */
-    @ApiModelProperty(value = "当前公司ID")
-    private Long companyId;
-
-    /** 当前用户ID（服务端注入） */
-    @ApiModelProperty(value = "当前用户ID（服务端注入）")
-    private Long currentUserId;
-
-    /** 当前主体类型（服务端注入） */
-    @ApiModelProperty(value = "当前主体类型（服务端注入）")
-    private String subjectType;
-
-    /** 当前有效数据范围（服务端注入） */
-    @ApiModelProperty(value = "当前有效数据范围（服务端注入）")
-    private String dataScope;
-
-    /** 关联服务公司范围（服务端注入） */
-    @ApiModelProperty(value = "关联服务公司范围（服务端注入）")
-    private List<Long> relatedCompanyIds;
 
     /** 工单号（模糊） */
     @ApiModelProperty(value = "工单号（模糊）")

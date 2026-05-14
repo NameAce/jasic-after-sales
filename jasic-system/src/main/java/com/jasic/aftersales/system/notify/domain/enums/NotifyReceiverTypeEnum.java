@@ -14,6 +14,13 @@ public enum NotifyReceiverTypeEnum {
     CUSTOMER("CUSTOMER", "瀹㈡埛"),
     SYS_USER("SYS_USER", "绯荤粺鐢ㄦ埛");
 
+    /**
+     * ?? NotifyReceiverTypeEnum ?????
+     *
+     * @param code ??
+     * @param desc ??
+     * @return ????
+     */
     private final String code;
 
     private final String desc;
@@ -23,6 +30,12 @@ public enum NotifyReceiverTypeEnum {
         this.desc = desc;
     }
 
+    /**
+     * ??By Code?
+     *
+     * @param code ??
+     * @return ????
+     */
     public static NotifyReceiverTypeEnum getByCode(String code) {
         if (code == null) {
             return null;
@@ -39,6 +52,12 @@ public enum NotifyReceiverTypeEnum {
         return null;
     }
 
+    /**
+     * ?? fromCode ?????
+     *
+     * @param code ??
+     * @return ????
+     */
     @JsonCreator
     public static NotifyReceiverTypeEnum fromCode(String code) {
         NotifyReceiverTypeEnum value = getByCode(code);
@@ -48,11 +67,21 @@ public enum NotifyReceiverTypeEnum {
         return value;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @JsonValue
     public String getCode() {
         return code;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     public String getDesc() {
         return desc;
     }

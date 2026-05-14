@@ -23,6 +23,10 @@ public class CrmHqFirstContractImportQuery extends PageQuery {
     @ApiModelProperty(value = "当前选择的总部公司ID", required = true)
     private Long hqCompanyId;
 
+    /** 目标总部公司ID */
+    @ApiModelProperty(value = "目标总部公司ID", required = true)
+    private Long targetCompanyId;
+
     /** 一级公司ID */
     @ApiModelProperty(value = "一级公司ID")
     private Long firstCompanyId;

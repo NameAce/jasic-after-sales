@@ -30,6 +30,11 @@ import javax.annotation.Resource;
 @Service
 public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
 
+    /**
+     * ?? publishAssignedEvent ?????
+     *
+     * @param dto ????
+     */
     @Resource
     private NotifyMessageService notifyMessageService;
 
@@ -38,11 +43,13 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
 
     @Override
     public void publishAssignedEvent(NotifyAssignedEventDTO dto) {
+        // ?????????????????????????????
         validateAssignedEvent(dto);
         if (dto.getOldAssignedUserId() != null && dto.getOldAssignedUserId().equals(dto.getNewAssignedUserId())) {
             return;
         }
         String eventKey = buildAssignedEventKey(dto);
+        // ????????????????????????
         if (notifyEventService.getByEventKey(eventKey) != null) {
             return;
         }
@@ -58,10 +65,17 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
         createEventSafely(notifyEvent);
     }
 
+    /**
+     * ?? publishEvaluationInviteEvent ?????
+     *
+     * @param dto ????
+     */
     @Override
     public void publishEvaluationInviteEvent(NotifyEvaluationInviteEventDTO dto) {
+        // ?????????????????????????????
         validateEvaluationInviteEvent(dto);
         String eventKey = buildEvaluationInviteEventKey(dto);
+        // ????????????????????????
         if (notifyEventService.getByEventKey(eventKey) != null) {
             return;
         }
@@ -77,23 +91,51 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
         createEventSafely(notifyEvent);
     }
 
+    /**
+     * ?? markReadByBiz ?????
+     *
+     * @param dto ????
+     */
     @Override
     public void markReadByBiz(NotifyReadByBizDTO dto) {
         notifyMessageService.markReadByBiz(dto);
     }
 
+    /**
+     * ?? completeTodoByBizAndReceiver ?????
+     *
+     * @param dto ????
+     */
     @Override
     public void completeTodoByBizAndReceiver(NotifyTodoCompleteDTO dto) {
         notifyMessageService.completeTodoByBizAndReceiver(dto);
     }
 
+    /**
+     * ?? invalidateTodoByBiz ?????
+     *
+     * @param dto ????
+     */
     @Override
     public void invalidateTodoByBiz(NotifyTodoInvalidateDTO dto) {
         notifyMessageService.invalidateTodoByBiz(dto);
     }
 
+    /**
+     * ???????
+     *
+     * @param eventKey ??
+     * @param eventType ??
+     * @param bizId ??ID
+     * @param bizNo ??
+     * @param operatorId operator ID
+     * @param receiverId receiver ID
+     * @param payloadJson ??
+     * @return ????
+     */
     private SysNotifyEvent buildEvent(String eventKey, String eventType, Long bizId, String bizNo,
                                       Long operatorId, Long receiverId, String payloadJson) {
+        // ????????????????????????
         SysNotifyEvent notifyEvent = new SysNotifyEvent();
         notifyEvent.setEventKey(eventKey);
         notifyEvent.setEventType(eventType);
@@ -108,14 +150,25 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
         return notifyEvent;
     }
 
+    /**
+     * ?????
+     *
+     * @param notifyEvent ??
+     */
     private void createEventSafely(SysNotifyEvent notifyEvent) {
         try {
+            // ????????????????????????
             notifyEventService.createEvent(notifyEvent);
         } catch (DuplicateKeyException ignored) {
             // Ignore duplicate inserts for the same event_key.
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param dto ????
+     */
     private void validateAssignedEvent(NotifyAssignedEventDTO dto) {
         if (dto == null) {
             throw new ServiceException("Assigned event payload cannot be null");
@@ -129,6 +182,9 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
         if (dto.getNewAssignedUserId() == null) {
             throw new ServiceException("Assigned event missing newAssignedUserId");
         }
+        if (dto.getReceiverCompanyId() == null) {
+            throw new ServiceException("Assigned event missing receiverCompanyId");
+        }
         if (StrUtil.isBlank(dto.getAssignType())) {
             throw new ServiceException("Assigned event missing assignType");
         }
@@ -137,6 +193,11 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param dto ????
+     */
     private void validateEvaluationInviteEvent(NotifyEvaluationInviteEventDTO dto) {
         if (dto == null) {
             throw new ServiceException("Evaluation invite event payload cannot be null");
@@ -152,6 +213,12 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param dto ????
+     * @return ?????
+     */
     private String buildAssignedEventKey(NotifyAssignedEventDTO dto) {
         return String.format("%s:%s:%s:%s",
                 NotifyConstants.EVENT_KEY_PREFIX_WORK_ORDER_ASSIGNED,
@@ -161,6 +228,12 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
         );
     }
 
+    /**
+     * ???????
+     *
+     * @param dto ????
+     * @return ?????
+     */
     private String buildEvaluationInviteEventKey(NotifyEvaluationInviteEventDTO dto) {
         return String.format("%s:%s",
                 NotifyConstants.EVENT_KEY_PREFIX_WORK_ORDER_EVALUATION_INVITE,

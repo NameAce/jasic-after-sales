@@ -25,6 +25,7 @@ import com.jasic.aftersales.system.mapper.SysRoleMapper;
 import com.jasic.aftersales.system.mapper.SysUserCompanyMapper;
 import com.jasic.aftersales.system.mapper.SysUserRoleMapper;
 import com.jasic.aftersales.system.mapper.SysUserMapper;
+import com.jasic.aftersales.system.service.CompanyDataAccessService;
 import com.jasic.aftersales.system.service.ISysUserService;
 import com.jasic.aftersales.system.service.SysPermissionService;
 import com.jasic.aftersales.system.service.support.SysUserIdentityValidator;
@@ -34,8 +35,10 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -65,8 +68,17 @@ public class SysUserServiceImpl implements ISysUserService {
     @Resource
     private SysRoleMapper sysRoleMapper;
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @Resource
     private SysUserIdentityValidator userIdentityValidator;
+
+    @Resource
+    private CompanyDataAccessService companyDataAccessService;
 
     /**
      * 分页查询用户列表
@@ -77,9 +89,13 @@ public class SysUserServiceImpl implements ISysUserService {
     @Override
     public PageResult<SysUserVO> listPage(SysUserQuery query) {
         List<Long> userIds = null;
-        if (query.getCompanyId() != null) {
+        if (query.getTargetCompanyId() == null) {
+            throw new ServiceException("缺少公司数据访问上下文");
+        }
+        if (query.getTargetCompanyId() != null) {
             LambdaQueryWrapper<SysUserCompany> ucWrapper = new LambdaQueryWrapper<>();
-            ucWrapper.eq(SysUserCompany::getCompanyId, query.getCompanyId());
+            ucWrapper.eq(SysUserCompany::getCompanyId, query.getTargetCompanyId());
+            // ??????????????????????????
             List<SysUserCompany> userCompanies = sysUserCompanyMapper.selectList(ucWrapper);
             if (userCompanies == null || userCompanies.isEmpty()) {
                 return PageResult.of(Collections.emptyList(), 0L, query.getPageNum(), query.getPageSize());
@@ -124,7 +140,11 @@ public class SysUserServiceImpl implements ISysUserService {
      * @return 用户详情
      */
     @Override
-    public SysUserVO getById(Long userId) {
+    public SysUserVO getById(Long userId, Long targetCompanyId) {
+        Long resolvedTargetCompanyId = resolveTargetCompanyId(targetCompanyId);
+        // ?????????????????????????????
+        validateUserInCompany(userId, resolvedTargetCompanyId);
+        // ??????????????????????????
         SysUser user = sysUserMapper.selectById(userId);
         if (user == null) {
             throw new ServiceException("用户不存在或已删除");
@@ -133,40 +153,10 @@ public class SysUserServiceImpl implements ISysUserService {
         SysUserVO vo = convertToVO(user);
 
         // 查询用户关联公司列表
-        LambdaQueryWrapper<SysUserCompany> ucWrapper = new LambdaQueryWrapper<>();
-        ucWrapper.eq(SysUserCompany::getUserId, userId);
-        List<SysUserCompany> userCompanies = sysUserCompanyMapper.selectList(ucWrapper);
-        if (userCompanies != null && !userCompanies.isEmpty()) {
-            List<Long> companyIds = userCompanies.stream()
-                    .map(SysUserCompany::getCompanyId)
-                    .collect(Collectors.toList());
-            vo.setCompanies(buildCompanySimpleList(companyIds));
-        } else {
-            vo.setCompanies(Collections.emptyList());
-        }
+        vo.setCompanies(buildCompanySimpleList(Collections.singletonList(resolvedTargetCompanyId)));
 
         // 查询用户角色（当前公司下）
-        Long currentCompanyId = SecurityContext.getCurrentCompanyId();
-        if (currentCompanyId != null) {
-            LambdaQueryWrapper<SysUserRole> urWrapper = new LambdaQueryWrapper<>();
-            urWrapper.eq(SysUserRole::getUserId, userId);
-            List<SysUserRole> userRoles = sysUserRoleMapper.selectList(urWrapper);
-            if (userRoles != null && !userRoles.isEmpty()) {
-                List<Long> roleIds = userRoles.stream()
-                        .map(SysUserRole::getRoleId)
-                        .collect(Collectors.toList());
-                LambdaQueryWrapper<SysRole> roleWrapper = new LambdaQueryWrapper<>();
-                roleWrapper.in(SysRole::getId, roleIds)
-                        .eq(SysRole::getCompanyId, currentCompanyId);
-                List<SysRole> roles = sysRoleMapper.selectList(roleWrapper);
-                vo.setRoles(roles == null ? Collections.emptyList()
-                        : roles.stream().map(this::convertRoleToVO).collect(Collectors.toList()));
-            } else {
-                vo.setRoles(Collections.emptyList());
-            }
-        } else {
-            vo.setRoles(Collections.emptyList());
-        }
+        vo.setRoles(listUserRolesInCompany(userId, resolvedTargetCompanyId));
 
         return vo;
     }
@@ -180,24 +170,23 @@ public class SysUserServiceImpl implements ISysUserService {
     @Transactional(rollbackFor = Exception.class)
     @Override
     public Long save(SysUserDTO dto) {
+        Long targetCompanyId = resolveTargetCompanyId(dto.getTargetCompanyId());
         normalizeUserDto(dto);
+        // ?????????????????????????????
         userIdentityValidator.validateLoginIdentityUnique(null, dto.getUsername(), dto.getPhone());
 
         SysUser user = new SysUser();
         BeanUtil.copyProperties(dto, user);
         user.setPassword(BCrypt.hashpw(dto.getPassword(), BCrypt.gensalt()));
         user.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
+        // ???????????????????????
         sysUserMapper.insert(user);
 
-        saveUserCompanies(user.getId(), Collections.singletonList(requireCurrentCompanyIdForSave()));
+        saveUserCompanies(user.getId(), Collections.singletonList(targetCompanyId));
 
         if (dto.getRoleIds() != null && !dto.getRoleIds().isEmpty()) {
-            for (Long roleId : dto.getRoleIds()) {
-                SysUserRole ur = new SysUserRole();
-                ur.setUserId(user.getId());
-                ur.setRoleId(roleId);
-                sysUserRoleMapper.insert(ur);
-            }
+            validateRoleIdsBelongToCompany(dto.getRoleIds(), targetCompanyId);
+            insertUserRoles(user.getId(), dto.getRoleIds());
         }
 
         return user.getId();
@@ -211,43 +200,28 @@ public class SysUserServiceImpl implements ISysUserService {
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void update(SysUserDTO dto) {
+        Long targetCompanyId = resolveTargetCompanyId(dto.getTargetCompanyId());
         if (dto.getId() == null) {
             throw new ServiceException("用户ID不能为空");
         }
         normalizeUserDto(dto);
 
+        // ??????????????????????????
         SysUser user = sysUserMapper.selectById(dto.getId());
         if (user == null) {
             throw new ServiceException("用户不存在");
         }
 
+        // ?????????????????????????????
+        validateUserInCompany(user.getId(), targetCompanyId);
         userIdentityValidator.validateLoginIdentityUnique(user.getId(), dto.getUsername(), dto.getPhone());
 
         BeanUtil.copyProperties(dto, user, "password", "id");
+        // ???????????????????????
         sysUserMapper.updateById(user);
 
-        if (dto.getCompanyIds() != null) {
-            LambdaQueryWrapper<SysUserCompany> delWrapper = new LambdaQueryWrapper<>();
-            delWrapper.eq(SysUserCompany::getUserId, user.getId());
-            sysUserCompanyMapper.delete(delWrapper);
-            List<Long> companyIds = sanitizeCompanyIds(dto.getCompanyIds());
-            if (!companyIds.isEmpty()) {
-                saveUserCompanies(user.getId(), companyIds);
-            }
-        }
-
         if (dto.getRoleIds() != null) {
-            LambdaQueryWrapper<SysUserRole> delWrapper = new LambdaQueryWrapper<>();
-            delWrapper.eq(SysUserRole::getUserId, user.getId());
-            sysUserRoleMapper.delete(delWrapper);
-            if (!dto.getRoleIds().isEmpty()) {
-                for (Long roleId : dto.getRoleIds()) {
-                    SysUserRole ur = new SysUserRole();
-                    ur.setUserId(user.getId());
-                    ur.setRoleId(roleId);
-                    sysUserRoleMapper.insert(ur);
-                }
-            }
+            replaceUserRolesInCompany(user.getId(), targetCompanyId, dto.getRoleIds());
         }
 
         sysPermissionService.clearAllPermsCache(user.getId());
@@ -261,16 +235,23 @@ public class SysUserServiceImpl implements ISysUserService {
      */
     @Transactional(rollbackFor = Exception.class)
     @Override
-    public void remove(Long userId) {
-        sysUserMapper.deleteById(userId);
-
+    public void remove(Long userId, Long targetCompanyId) {
+        Long resolvedTargetCompanyId = resolveTargetCompanyId(targetCompanyId);
+        // ?????????????????????????????
+        validateUserInCompany(userId, resolvedTargetCompanyId);
+        deleteUserRolesInCompany(userId, resolvedTargetCompanyId);
         LambdaQueryWrapper<SysUserCompany> ucWrapper = new LambdaQueryWrapper<>();
-        ucWrapper.eq(SysUserCompany::getUserId, userId);
+        ucWrapper.eq(SysUserCompany::getUserId, userId)
+                .eq(SysUserCompany::getCompanyId, resolvedTargetCompanyId);
+        // ???????????????????????
         sysUserCompanyMapper.delete(ucWrapper);
 
-        LambdaQueryWrapper<SysUserRole> urWrapper = new LambdaQueryWrapper<>();
-        urWrapper.eq(SysUserRole::getUserId, userId);
-        sysUserRoleMapper.delete(urWrapper);
+        LambdaQueryWrapper<SysUserCompany> remainingWrapper = new LambdaQueryWrapper<>();
+        remainingWrapper.eq(SysUserCompany::getUserId, userId);
+        // ??????????????????????????
+        if (sysUserCompanyMapper.selectCount(remainingWrapper) == 0) {
+            sysUserMapper.deleteById(userId);
+        }
 
         sysPermissionService.clearAllPermsCache(userId);
         StpUtil.kickout(userId);
@@ -283,11 +264,16 @@ public class SysUserServiceImpl implements ISysUserService {
      */
     @Override
     public void resetPwd(ResetPwdDTO dto) {
+        Long targetCompanyId = resolveTargetCompanyId(dto.getTargetCompanyId());
+        // ?????????????????????????????
+        validateUserInCompany(dto.getUserId(), targetCompanyId);
+        // ??????????????????????????
         SysUser user = sysUserMapper.selectById(dto.getUserId());
         if (user == null) {
             throw new ServiceException("用户不存在");
         }
         user.setPassword(BCrypt.hashpw(dto.getNewPassword(), BCrypt.gensalt()));
+        // ???????????????????????
         sysUserMapper.updateById(user);
         StpUtil.kickout(dto.getUserId());
     }
@@ -298,7 +284,11 @@ public class SysUserServiceImpl implements ISysUserService {
      * @param userId 用户ID
      */
     @Override
-    public void kickout(Long userId) {
+    public void kickout(Long userId, Long targetCompanyId) {
+        Long resolvedTargetCompanyId = resolveTargetCompanyId(targetCompanyId);
+        // ?????????????????????????????
+        validateUserInCompany(userId, resolvedTargetCompanyId);
+        // ??????????????????????
         sysPermissionService.clearAllPermsCache(userId);
         StpUtil.kickout(userId);
     }
@@ -311,20 +301,12 @@ public class SysUserServiceImpl implements ISysUserService {
      */
     @Transactional(rollbackFor = Exception.class)
     @Override
-    public void assignRoles(Long userId, List<Long> roleIds) {
-        LambdaQueryWrapper<SysUserRole> delWrapper = new LambdaQueryWrapper<>();
-        delWrapper.eq(SysUserRole::getUserId, userId);
-        sysUserRoleMapper.delete(delWrapper);
-
-        if (roleIds != null && !roleIds.isEmpty()) {
-            for (Long roleId : roleIds) {
-                SysUserRole ur = new SysUserRole();
-                ur.setUserId(userId);
-                ur.setRoleId(roleId);
-                sysUserRoleMapper.insert(ur);
-            }
-        }
-
+    public void assignRoles(Long userId, Long targetCompanyId, List<Long> roleIds) {
+        Long resolvedTargetCompanyId = resolveTargetCompanyId(targetCompanyId);
+        // ?????????????????????????????
+        validateUserInCompany(userId, resolvedTargetCompanyId);
+        replaceUserRolesInCompany(userId, resolvedTargetCompanyId, roleIds);
+        // ??????????????????????
         sysPermissionService.clearAllPermsCache(userId);
         StpUtil.kickout(userId);
     }
@@ -401,12 +383,178 @@ public class SysUserServiceImpl implements ISysUserService {
      * @param userId 用户ID
      * @param companyIds 公司ID列表
      */
+    private Long resolveTargetCompanyId(Long targetCompanyId) {
+        return companyDataAccessService.resolveCurrentCompanyTarget(targetCompanyId);
+    }
+
+    /**
+     * ???????
+     *
+     * @param userId ??ID
+     * @param companyId ??ID
+     */
+    private void validateUserInCompany(Long userId, Long companyId) {
+        if (userId == null) {
+            throw new ServiceException("用户ID不能为空");
+        }
+        if (companyId == null) {
+            throw new ServiceException("缺少公司数据访问上下文");
+        }
+        LambdaQueryWrapper<SysUserCompany> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysUserCompany::getUserId, userId)
+                .eq(SysUserCompany::getCompanyId, companyId);
+        // ??????????????????????????
+        if (sysUserCompanyMapper.selectCount(wrapper) == 0) {
+            throw new ServiceException("无权操作目标公司用户关系");
+        }
+    }
+
+    /**
+     * ???????
+     *
+     * @param userId ??ID
+     * @param companyId ??ID
+     * @return ????
+     */
+    private List<SysRoleVO> listUserRolesInCompany(Long userId, Long companyId) {
+        List<Long> companyRoleIds = listRoleIdsByCompanyId(companyId);
+        if (companyRoleIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        LambdaQueryWrapper<SysUserRole> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysUserRole::getUserId, userId)
+                .in(SysUserRole::getRoleId, companyRoleIds);
+        // ??????????????????????????
+        List<SysUserRole> userRoles = sysUserRoleMapper.selectList(wrapper);
+        if (userRoles == null || userRoles.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Long> roleIds = userRoles.stream()
+                .map(SysUserRole::getRoleId)
+                .distinct()
+                .collect(Collectors.toList());
+        List<SysRole> roles = sysRoleMapper.selectBatchIds(roleIds);
+        return roles == null ? Collections.emptyList()
+                : roles.stream().map(this::convertRoleToVO).collect(Collectors.toList());
+    }
+
+    /**
+     * ?? replaceUserRolesInCompany ?????
+     *
+     * @param userId ??ID
+     * @param companyId ??ID
+     * @param roleIds ??ID??
+     */
+    private void replaceUserRolesInCompany(Long userId, Long companyId, List<Long> roleIds) {
+        deleteUserRolesInCompany(userId, companyId);
+        if (roleIds == null || roleIds.isEmpty()) {
+            return;
+        }
+        // ?????????????????????????????
+        validateRoleIdsBelongToCompany(roleIds, companyId);
+        insertUserRoles(userId, roleIds);
+    }
+
+    /**
+     * ?????
+     *
+     * @param userId ??ID
+     * @param companyId ??ID
+     */
+    private void deleteUserRolesInCompany(Long userId, Long companyId) {
+        List<Long> companyRoleIds = listRoleIdsByCompanyId(companyId);
+        if (companyRoleIds.isEmpty()) {
+            return;
+        }
+        LambdaQueryWrapper<SysUserRole> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysUserRole::getUserId, userId)
+                .in(SysUserRole::getRoleId, companyRoleIds);
+        // ???????????????????????
+        sysUserRoleMapper.delete(wrapper);
+    }
+
+    /**
+     * ???????
+     *
+     * @param roleIds ??ID??
+     * @param companyId ??ID
+     */
+    private void validateRoleIdsBelongToCompany(List<Long> roleIds, Long companyId) {
+        Set<Long> distinctRoleIds = normalizeRoleIds(roleIds);
+        if (distinctRoleIds.isEmpty()) {
+            return;
+        }
+        LambdaQueryWrapper<SysRole> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysRole::getCompanyId, companyId)
+                .in(SysRole::getId, distinctRoleIds);
+        // ??????????????????????????
+        Long count = sysRoleMapper.selectCount(wrapper);
+        if (count == null || count.intValue() != distinctRoleIds.size()) {
+            throw new ServiceException("存在不属于目标公司的角色");
+        }
+    }
+
+    /**
+     * ?????
+     *
+     * @param userId ??ID
+     * @param roleIds ??ID??
+     */
+    private void insertUserRoles(Long userId, List<Long> roleIds) {
+        for (Long roleId : normalizeRoleIds(roleIds)) {
+            SysUserRole ur = new SysUserRole();
+            ur.setUserId(userId);
+            ur.setRoleId(roleId);
+            // ???????????????????????
+            sysUserRoleMapper.insert(ur);
+        }
+    }
+
+    /**
+     * ???????
+     *
+     * @param companyId ??ID
+     * @return ????
+     */
+    private List<Long> listRoleIdsByCompanyId(Long companyId) {
+        LambdaQueryWrapper<SysRole> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysRole::getCompanyId, companyId);
+        // ??????????????????????????
+        List<SysRole> roles = sysRoleMapper.selectList(wrapper);
+        if (roles == null || roles.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return roles.stream().map(SysRole::getId).collect(Collectors.toList());
+    }
+
+    /**
+     * ????????
+     *
+     * @param roleIds ??ID??
+     * @return ????
+     */
+    private Set<Long> normalizeRoleIds(List<Long> roleIds) {
+        if (roleIds == null || roleIds.isEmpty()) {
+            return Collections.emptySet();
+        }
+        return roleIds.stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    /**
+     * ?????
+     *
+     * @param userId ??ID
+     * @param companyIds ??ID??
+     */
     private void saveUserCompanies(Long userId, List<Long> companyIds) {
         for (int i = 0; i < companyIds.size(); i++) {
             SysUserCompany uc = new SysUserCompany();
             uc.setUserId(userId);
             uc.setCompanyId(companyIds.get(i));
             uc.setIsDefault(i == 0 ? 1 : 0);
+            // ???????????????????????
             sysUserCompanyMapper.insert(uc);
         }
     }
@@ -423,6 +571,7 @@ public class SysUserServiceImpl implements ISysUserService {
         }
         List<SysCompanySimpleVO> result = new ArrayList<>();
         for (Long companyId : companyIds) {
+            // ??????????????????????????
             SysCompany company = sysCompanyMapper.selectById(companyId);
             if (company == null) {
                 continue;

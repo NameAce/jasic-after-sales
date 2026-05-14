@@ -15,6 +15,13 @@ public enum NotifyTemplateSourceEnum {
     BUILT_IN(NotifyConstants.TEMPLATE_SOURCE_BUILT_IN, "内置模板"),
     CUSTOM(NotifyConstants.TEMPLATE_SOURCE_CUSTOM, "自定义模板");
 
+    /**
+     * ?? NotifyTemplateSourceEnum ?????
+     *
+     * @param code ??
+     * @param desc ??
+     * @return ????
+     */
     private final String code;
 
     private final String desc;
@@ -24,6 +31,12 @@ public enum NotifyTemplateSourceEnum {
         this.desc = desc;
     }
 
+    /**
+     * ??By Code?
+     *
+     * @param code ??
+     * @return ????
+     */
     public static NotifyTemplateSourceEnum getByCode(String code) {
         if (code == null) {
             return null;
@@ -40,6 +53,12 @@ public enum NotifyTemplateSourceEnum {
         return null;
     }
 
+    /**
+     * ?? fromCode ?????
+     *
+     * @param code ??
+     * @return ????
+     */
     @JsonCreator
     public static NotifyTemplateSourceEnum fromCode(String code) {
         NotifyTemplateSourceEnum value = getByCode(code);
@@ -49,11 +68,21 @@ public enum NotifyTemplateSourceEnum {
         return value;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @JsonValue
     public String getCode() {
         return code;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     public String getDesc() {
         return desc;
     }

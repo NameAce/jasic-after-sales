@@ -38,18 +38,36 @@ public class SysDictTypeController extends BaseController {
     @Resource
     private ISysDictTypeService dictTypeService;
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @SaCheckPermission("system:dictType:list")
     @GetMapping("/list")
     public Result<PageResult<SysDictTypeVO>> list(SysDictTypeQuery query) {
         return Result.ok(dictTypeService.listPage(query));
     }
 
+    /**
+     * ??By Id?
+     *
+     * @param id ??ID
+     * @return ??????
+     */
     @SaCheckPermission("system:dictType:list")
     @GetMapping("/{id}")
     public Result<SysDictTypeVO> getById(@PathVariable Long id) {
         return Result.ok(dictTypeService.getById(id));
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     * @return ??????
+     */
     @SaCheckPermission("system:dictType:add")
     @OperLog(title = "字典类型管理", operType = OperTypeEnum.INSERT)
     @PostMapping
@@ -57,6 +75,12 @@ public class SysDictTypeController extends BaseController {
         return Result.ok(dictTypeService.save(dto));
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     * @return ??????
+     */
     @SaCheckPermission("system:dictType:update")
     @OperLog(title = "字典类型管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
@@ -65,6 +89,12 @@ public class SysDictTypeController extends BaseController {
         return Result.ok();
     }
 
+    /**
+     * ?????
+     *
+     * @param id ??ID
+     * @return ??????
+     */
     @SaCheckPermission("system:dictType:remove")
     @OperLog(title = "字典类型管理", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/{id}")
@@ -73,6 +103,11 @@ public class SysDictTypeController extends BaseController {
         return Result.ok();
     }
 
+    /**
+     * ?? refreshCache ?????
+     *
+     * @return ??????
+     */
     @SaCheckPermission("system:dictType:refresh")
     @OperLog(title = "字典类型管理", operType = OperTypeEnum.OTHER)
     @DeleteMapping("/refresh-cache")

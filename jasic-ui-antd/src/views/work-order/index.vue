@@ -172,7 +172,7 @@ function pickTotal(data: any, fallback: number) {
 }
 
 /**
- * 作用：构造状态统计接口参数（不含 mainStatus、不含分页），与 jasic-ui buildStatusCountParams 一致。
+ * 作用：构造状态统计接口参数，仅包含前端筛选字段。
  * @returns 状态统计查询参数
  */
 function buildStatusCountParams(): WorkOrderStatusCountQuery {

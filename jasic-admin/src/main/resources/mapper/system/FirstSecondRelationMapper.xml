@@ -17,6 +17,15 @@
         LEFT JOIN sys_company fc ON fsr.first_company_id = fc.id
         LEFT JOIN sys_company sc ON fsr.second_company_id = sc.id
         <where>
+            <if test="query.targetCompanyId != null">
+                AND EXISTS (
+                    SELECT 1
+                    FROM hq_first_contract hfc
+                    WHERE hfc.first_company_id = fsr.first_company_id
+                      AND hfc.hq_company_id = #{query.targetCompanyId}
+                      AND hfc.status = 1
+                )
+            </if>
             <if test="query.firstCompanyId != null">
                 AND fsr.first_company_id = #{query.firstCompanyId}
             </if>

@@ -23,6 +23,13 @@ public enum NotifyEventStatusEnum {
     /** 消费失败。 */
     FAILED("FAILED", "失败");
 
+    /**
+     * ?? NotifyEventStatusEnum ?????
+     *
+     * @param code ??
+     * @param desc ??
+     * @return ????
+     */
     private final String code;
 
     private final String desc;
@@ -32,6 +39,12 @@ public enum NotifyEventStatusEnum {
         this.desc = desc;
     }
 
+    /**
+     * ??By Code?
+     *
+     * @param code ??
+     * @return ????
+     */
     public static NotifyEventStatusEnum getByCode(String code) {
         if (code == null) {
             return null;
@@ -48,6 +61,12 @@ public enum NotifyEventStatusEnum {
         return null;
     }
 
+    /**
+     * ?? fromCode ?????
+     *
+     * @param code ??
+     * @return ????
+     */
     @JsonCreator
     public static NotifyEventStatusEnum fromCode(String code) {
         NotifyEventStatusEnum value = getByCode(code);
@@ -57,11 +76,21 @@ public enum NotifyEventStatusEnum {
         return value;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @JsonValue
     public String getCode() {
         return code;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     public String getDesc() {
         return desc;
     }

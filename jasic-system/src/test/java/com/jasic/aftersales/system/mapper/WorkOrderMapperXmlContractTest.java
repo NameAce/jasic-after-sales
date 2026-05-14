@@ -20,7 +20,7 @@ public class WorkOrderMapperXmlContractTest {
         String normalized = xml.replace("\r\n", "\n");
 
         Assert.assertTrue(normalized.contains("<sql id=\"CurrentUserAllVisibilityCondition\">"));
-        Assert.assertTrue(normalized.contains("w.assigned_user_id = #{query.currentUserId}"));
+        Assert.assertTrue(normalized.contains("w.assigned_user_id = #{query.accessContext.currentUserId}"));
         Assert.assertTrue(normalized.contains("OR <include refid=\"CurrentUserHistoryParticipationCondition\" />"));
         Assert.assertEquals(2, countOccurrences(normalized,
                 "<when test=\"query.viewScope == 'ALL'\">\n" +
@@ -32,7 +32,7 @@ public class WorkOrderMapperXmlContractTest {
         String xml = new String(Files.readAllBytes(resolveMapperPath()), StandardCharsets.UTF_8);
         String normalized = xml.replace("\r\n", "\n");
 
-        Assert.assertEquals(4, countOccurrences(normalized, "<if test=\"query.dataScope == 'SELF'\">"));
+        Assert.assertEquals(4, countOccurrences(normalized, "<if test=\"query.accessContext.dataScope == 'SELF'\">"));
         Assert.assertEquals(4, countOccurrences(normalized,
                 "AND <include refid=\"CurrentUserHistoryParticipationCondition\" />"));
     }
@@ -45,7 +45,7 @@ public class WorkOrderMapperXmlContractTest {
         Assert.assertTrue(normalized.contains("<select id=\"selectHqSiteSummary\""));
         Assert.assertTrue(normalized.contains("<select id=\"selectHqSiteOrderPage\""));
         Assert.assertTrue(normalized.contains("AND w.current_accept_subject_type = 'SERVICE'"));
-        Assert.assertTrue(normalized.contains("AND w.current_accept_company_id &lt;&gt; #{query.companyId}"));
+        Assert.assertTrue(normalized.contains("AND w.current_accept_company_id &lt;&gt; #{query.accessContext.currentCompanyId}"));
         Assert.assertTrue(normalized.contains("w.main_status IN ('PENDING_ASSIGN', 'PENDING_TECH_ACCEPT')"));
         Assert.assertTrue(normalized.contains("SUM(CASE WHEN w.main_status = 'COMPLETED' THEN 1 ELSE 0 END) AS completedCount"));
     }

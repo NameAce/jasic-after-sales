@@ -43,4 +43,8 @@ public class CompanyAddressUpdateDTO implements Serializable {
     /** 是否默认地址（1=是，0=否） */
     @ApiModelProperty(value = "是否默认地址（1=是，0=否）")
     private Integer isDefault;
+
+    /** 平台维护公司级数据时指定的目标公司ID */
+    @ApiModelProperty(value = "目标公司ID，平台维护公司级数据时必填")
+    private Long targetCompanyId;
 }

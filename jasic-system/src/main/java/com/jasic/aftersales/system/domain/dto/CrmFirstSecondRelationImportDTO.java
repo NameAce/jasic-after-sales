@@ -5,6 +5,7 @@ import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
 import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.util.List;
 
@@ -19,6 +20,11 @@ import java.util.List;
 public class CrmFirstSecondRelationImportDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
+
+    /** 目标总部公司ID */
+    @ApiModelProperty(value = "目标总部公司ID", required = true)
+    @NotNull(message = "请选择目标总部公司")
+    private Long targetCompanyId;
 
     /** 选中的快照 ID 列表 */
     @ApiModelProperty(value = "选中的快照ID列表", required = true)

@@ -62,6 +62,12 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
     @Resource
     private FaultRepairConfigOptionMapper faultRepairConfigOptionMapper;
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @Resource
     private SysCompanyMapper sysCompanyMapper;
 
@@ -76,15 +82,15 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
      */
     @Override
     public PageResult<FaultRepairConfigVO> listPage(FaultRepairConfigQuery query) {
-        ensureManagePermission();
-        if (isCurrentHqUser()) {
-            query.setCompanyId(requireCurrentHqCompany().getId());
+        if (query == null) {
+            query = new FaultRepairConfigQuery();
         }
+        // ?????????????????????????????
+        ensureManagePermission();
+        SysCompany ownerHq = resolveOwnerHqForManage(query == null ? null : query.getCompanyId());
         Page<FaultRepairConfig> page = new Page<>(query.getPageNum(), query.getPageSize());
         LambdaQueryWrapper<FaultRepairConfig> wrapper = new LambdaQueryWrapper<>();
-        if (query.getCompanyId() != null) {
-            wrapper.eq(FaultRepairConfig::getCompanyId, query.getCompanyId());
-        }
+        wrapper.eq(FaultRepairConfig::getCompanyId, ownerHq.getId());
         if (StrUtil.isNotBlank(query.getProductCode())) {
             wrapper.like(FaultRepairConfig::getProductCode, query.getProductCode().trim());
         }
@@ -103,6 +109,7 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         }
         wrapper.orderByDesc(FaultRepairConfig::getUpdateTime)
                 .orderByDesc(FaultRepairConfig::getId);
+        // ??????????????????????????
         Page<FaultRepairConfig> result = faultRepairConfigMapper.selectPage(page, wrapper);
         List<FaultRepairConfigVO> records = buildConfigVos(result.getRecords(), false);
         return PageResult.of(records, result.getTotal(), query.getPageNum(), query.getPageSize());
@@ -115,13 +122,15 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
      * @return 配置详情
      */
     @Override
-    public FaultRepairConfigVO getById(Long id) {
+    public FaultRepairConfigVO getById(Long id, Long ownerHqId) {
+        // ?????????????????????????????
         ensureManagePermission();
+        SysCompany ownerHq = resolveOwnerHqForManage(ownerHqId);
+        // ??????????????????????????
         FaultRepairConfig entity = faultRepairConfigMapper.selectById(id);
-        if (entity == null) {
+        if (entity == null || !Objects.equals(entity.getCompanyId(), ownerHq.getId())) {
             throw new ServiceException("故障与维修配置不存在");
         }
-        assertConfigAccessible(entity);
         List<FaultRepairConfigVO> records = buildConfigVos(Collections.singletonList(entity), true);
         return records.isEmpty() ? null : records.get(0);
     }
@@ -135,8 +144,9 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
     @Transactional(rollbackFor = Exception.class)
     @Override
     public Long save(FaultRepairConfigDTO dto) {
+        // ?????????????????????????????
         ensureManagePermission();
-        SysCompany targetCompany = resolveOperateCompany(dto.getCompanyId());
+        SysCompany targetCompany = resolveOwnerHqForManage(dto.getCompanyId());
         dto.setCompanyId(targetCompany.getId());
         dto.setTargetCompanyName(targetCompany.getCompanyName());
         FaultRepairConfig entity = new FaultRepairConfig();
@@ -145,6 +155,7 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         List<FaultRepairConfigFaultDTO> faults = normalizeFaultDtos(dto.getFaults());
         validateConfig(entity, null);
         validateFaults(faults);
+        // ???????????????????????
         faultRepairConfigMapper.insert(entity);
         saveFaultItems(entity.getId(), faults);
         return entity.getId();
@@ -158,15 +169,17 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void update(FaultRepairConfigDTO dto) {
+        // ?????????????????????????????
         ensureManagePermission();
         if (dto.getId() == null) {
             throw new ServiceException("配置ID不能为空");
         }
+        SysCompany ownerHq = resolveOwnerHqForManage(dto.getCompanyId());
+        // ??????????????????????????
         FaultRepairConfig current = faultRepairConfigMapper.selectById(dto.getId());
-        if (current == null) {
+        if (current == null || !Objects.equals(current.getCompanyId(), ownerHq.getId())) {
             throw new ServiceException("故障与维修配置不存在");
         }
-        assertConfigAccessible(current);
         if (!Objects.equals(current.getStatus(), STATUS_ENABLED)) {
             throw new ServiceException("停用历史配置不允许编辑");
         }
@@ -174,13 +187,12 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         if (targetStatus == null) {
             throw new ServiceException("配置状态不合法");
         }
-        SysCompany targetCompany = Objects.equals(targetStatus, 0)
-                ? requireCompany(current.getCompanyId())
-                : resolveOperateCompany(dto.getCompanyId());
+        SysCompany targetCompany = ownerHq;
         dto.setCompanyId(targetCompany.getId());
         dto.setTargetCompanyName(targetCompany.getCompanyName());
         if (Objects.equals(targetStatus, 0)) {
             current.setStatus(0);
+            // ???????????????????????
             faultRepairConfigMapper.updateById(current);
             return;
         }
@@ -205,6 +217,7 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
      */
     @Override
     public List<SysCompanySimpleVO> listCompanyOptions() {
+        // ?????????????????????????????
         ensureManagePermission();
         if (isCurrentHqUser()) {
             return Collections.singletonList(buildCompanySimpleVo(requireCurrentHqCompany()));
@@ -222,6 +235,7 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
                 .eq(SysCompany::getStatus, STATUS_ENABLED)
                 .orderByAsc(SysCompany::getCompanyName)
                 .orderByAsc(SysCompany::getId);
+        // ??????????????????????????
         List<SysCompany> companies = sysCompanyMapper.selectList(wrapper);
         Map<String, String> typeNameMap = companyTypes.stream()
                 .collect(Collectors.toMap(SysCompanyType::getTypeCode, SysCompanyType::getTypeName, (a, b) -> a));
@@ -247,26 +261,53 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
      * @return 故障配置选项
      */
     @Override
-    public List<WorkOrderRepairFaultOptionVO> listRepairFaultOptions(Long companyId, String productCode, String productModel) {
-        FaultRepairConfig config = findMatchedConfig(companyId, normalizeNullableText(productCode), normalizeNullableText(productModel));
+    public List<WorkOrderRepairFaultOptionVO> listRepairFaultOptionsForResolvedHq(Long resolvedHqCompanyId,
+                                                                                  String productCode,
+                                                                                  String productModel) {
+        // TODO: 非合作总部配置读取属于业务兼容场景。后续需结合转单闭环、总部选择、服务关系规则进一步确认。
+        FaultRepairConfig config = findMatchedConfigForResolvedHq(resolvedHqCompanyId, normalizeNullableText(productCode),
+                normalizeNullableText(productModel));
         return buildRepairFaultOptions(config);
     }
 
+    /**
+     * ???????
+     *
+     * @param configId config ID
+     * @return ????
+     */
     @Override
     public List<WorkOrderRepairFaultOptionVO> listRepairFaultOptionsByConfigId(Long configId) {
         if (configId == null) {
             return Collections.emptyList();
         }
+        // ??????????????????????????
         FaultRepairConfig config = faultRepairConfigMapper.selectById(configId);
         return buildRepairFaultOptions(config);
     }
 
+    /**
+     * ?? findEnabledConfigIdForResolvedHq ?????
+     *
+     * @param resolvedHqCompanyId resolved Hq Company ID
+     * @param productCode ??
+     * @param productModel ??
+     * @return ????
+     */
     @Override
-    public Long findEnabledConfigId(Long companyId, String productCode, String productModel) {
-        FaultRepairConfig config = findMatchedConfig(companyId, normalizeNullableText(productCode), normalizeNullableText(productModel));
+    public Long findEnabledConfigIdForResolvedHq(Long resolvedHqCompanyId, String productCode, String productModel) {
+        // TODO: 非合作总部配置读取属于业务兼容场景。后续需结合转单闭环、总部选择、服务关系规则进一步确认。
+        FaultRepairConfig config = findMatchedConfigForResolvedHq(resolvedHqCompanyId, normalizeNullableText(productCode),
+                normalizeNullableText(productModel));
         return config == null ? null : config.getId();
     }
 
+    /**
+     * ???????
+     *
+     * @param config ??
+     * @return ????
+     */
     private List<WorkOrderRepairFaultOptionVO> buildRepairFaultOptions(FaultRepairConfig config) {
         if (config == null) {
             return Collections.emptyList();
@@ -293,12 +334,13 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
      * @return 机型选项
      */
     @Override
-    public List<String> listEnabledProductModels(Long companyId, String keyword) {
-        if (companyId == null) {
+    public List<String> listEnabledProductModelsForResolvedHq(Long resolvedHqCompanyId, String keyword) {
+        // TODO: 非合作总部配置读取属于业务兼容场景。后续需结合转单闭环、总部选择、服务关系规则进一步确认。
+        if (resolvedHqCompanyId == null) {
             return Collections.emptyList();
         }
         LambdaQueryWrapper<FaultRepairConfig> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FaultRepairConfig::getCompanyId, companyId)
+        wrapper.eq(FaultRepairConfig::getCompanyId, resolvedHqCompanyId)
                 .eq(FaultRepairConfig::getStatus, STATUS_ENABLED)
                 .isNotNull(FaultRepairConfig::getProductModel)
                 .orderByAsc(FaultRepairConfig::getProductModel)
@@ -308,6 +350,7 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         if (normalizedKeyword != null) {
             wrapper.like(FaultRepairConfig::getProductModel, normalizedKeyword);
         }
+        // ??????????????????????????
         List<FaultRepairConfig> configs = faultRepairConfigMapper.selectList(wrapper);
         if (configs == null || configs.isEmpty()) {
             return Collections.emptyList();
@@ -331,6 +374,7 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
     private List<Long> listConfigIdsByFaultDesc(String faultDesc) {
         LambdaQueryWrapper<FaultRepairConfigFault> wrapper = new LambdaQueryWrapper<>();
         wrapper.like(FaultRepairConfigFault::getFaultDesc, faultDesc);
+        // ??????????????????????????
         List<FaultRepairConfigFault> faults = faultRepairConfigFaultMapper.selectList(wrapper);
         if (faults.isEmpty()) {
             return Collections.emptyList();
@@ -384,17 +428,30 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         return result;
     }
 
+    /**
+     * ???????
+     *
+     * @param companyIds ??ID??
+     * @return ????
+     */
     private Map<Long, String> buildCompanyNameMap(Set<Long> companyIds) {
         if (companyIds.isEmpty()) {
             return Collections.emptyMap();
         }
         LambdaQueryWrapper<SysCompany> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(SysCompany::getId, companyIds);
+        // ??????????????????????????
         List<SysCompany> companies = sysCompanyMapper.selectList(wrapper);
         return companies.stream()
                 .collect(Collectors.toMap(SysCompany::getId, SysCompany::getCompanyName, (a, b) -> a));
     }
 
+    /**
+     * ???????
+     *
+     * @param configIds config ID??
+     * @return ????
+     */
     private Map<Long, List<FaultRepairConfigFaultVO>> buildFaultVoMap(Set<Long> configIds) {
         if (configIds.isEmpty()) {
             return Collections.emptyMap();
@@ -404,6 +461,7 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
                 .orderByAsc(FaultRepairConfigFault::getConfigId)
                 .orderByAsc(FaultRepairConfigFault::getSortNum)
                 .orderByAsc(FaultRepairConfigFault::getId);
+        // ??????????????????????????
         List<FaultRepairConfigFault> faults = faultRepairConfigFaultMapper.selectList(faultWrapper);
         if (faults.isEmpty()) {
             return Collections.emptyMap();
@@ -422,6 +480,12 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         return result;
     }
 
+    /**
+     * ???????
+     *
+     * @param configIds config ID??
+     * @return ????
+     */
     private Map<Long, String> buildFaultSummaryMap(Set<Long> configIds) {
         if (configIds.isEmpty()) {
             return Collections.emptyMap();
@@ -431,6 +495,7 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
                 .orderByAsc(FaultRepairConfigFault::getConfigId)
                 .orderByAsc(FaultRepairConfigFault::getSortNum)
                 .orderByAsc(FaultRepairConfigFault::getId);
+        // ??????????????????????????
         List<FaultRepairConfigFault> faults = faultRepairConfigFaultMapper.selectList(faultWrapper);
         Map<Long, List<String>> grouped = new LinkedHashMap<>();
         for (FaultRepairConfigFault fault : faults) {
@@ -441,6 +506,12 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         return result;
     }
 
+    /**
+     * ???????
+     *
+     * @param faultIds fault ID??
+     * @return ????
+     */
     private Map<Long, List<String>> buildOptionMap(Set<Long> faultIds) {
         if (faultIds.isEmpty()) {
             return Collections.emptyMap();
@@ -450,6 +521,7 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
                 .orderByAsc(FaultRepairConfigOption::getFaultId)
                 .orderByAsc(FaultRepairConfigOption::getSortNum)
                 .orderByAsc(FaultRepairConfigOption::getId);
+        // ??????????????????????????
         List<FaultRepairConfigOption> options = faultRepairConfigOptionMapper.selectList(optionWrapper);
         Map<Long, List<String>> result = new LinkedHashMap<>();
         for (FaultRepairConfigOption option : options) {
@@ -458,6 +530,12 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         return result;
     }
 
+    /**
+     * ?????
+     *
+     * @param configId config ID
+     * @param faults ??
+     */
     private void saveFaultItems(Long configId, List<FaultRepairConfigFaultDTO> faults) {
         int faultSort = 1;
         for (FaultRepairConfigFaultDTO item : faults) {
@@ -465,6 +543,7 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
             fault.setConfigId(configId);
             fault.setFaultDesc(item.getFaultDesc());
             fault.setSortNum(faultSort++);
+            // ???????????????????????
             faultRepairConfigFaultMapper.insert(fault);
 
             int optionSort = 1;
@@ -478,65 +557,96 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         }
     }
 
+    /**
+     * ?????
+     *
+     * @param configId config ID
+     */
     private void removeFaultItems(Long configId) {
         LambdaQueryWrapper<FaultRepairConfigFault> faultWrapper = new LambdaQueryWrapper<>();
         faultWrapper.eq(FaultRepairConfigFault::getConfigId, configId);
+        // ??????????????????????????
         List<FaultRepairConfigFault> faults = faultRepairConfigFaultMapper.selectList(faultWrapper);
         if (!faults.isEmpty()) {
             Set<Long> faultIds = faults.stream().map(FaultRepairConfigFault::getId).collect(Collectors.toSet());
             LambdaQueryWrapper<FaultRepairConfigOption> optionWrapper = new LambdaQueryWrapper<>();
             optionWrapper.in(FaultRepairConfigOption::getFaultId, faultIds);
+            // ???????????????????????
             faultRepairConfigOptionMapper.delete(optionWrapper);
         }
         faultRepairConfigFaultMapper.delete(faultWrapper);
     }
 
+    /**
+     * ?????????
+     */
     private void ensureManagePermission() {
         if (SecurityContext.isPlatformUser()) {
             return;
         }
         if (isCurrentHqUser()) {
+            // ?????????????????????????????
             requireCurrentHqCompany();
             return;
         }
         throw new ServiceException("当前公司不支持维护故障与维修配置");
     }
 
+    /**
+     * ????Current Hq User?
+     *
+     * @return true ??????
+     */
     private boolean isCurrentHqUser() {
         return SubjectTypeEnum.HQ.getCode().equals(SecurityContext.getCurrentSubjectType());
     }
 
-    private void assertConfigAccessible(FaultRepairConfig entity) {
-        if (!isCurrentHqUser()) {
-            return;
-        }
-        if (!Objects.equals(requireCurrentHqCompany().getId(), entity.getCompanyId())) {
-            throw new ServiceException("无权查看当前总部之外的配置");
-        }
-    }
-
-    private SysCompany resolveOperateCompany(Long requestedCompanyId) {
+    /**
+     * ???????
+     *
+     * @param requestedCompanyId requested Company ID
+     * @return ????
+     */
+    private SysCompany resolveOwnerHqForManage(Long requestedCompanyId) {
         if (SecurityContext.isPlatformUser()) {
             if (requestedCompanyId == null) {
-                throw new ServiceException("归属总部不能为空");
+                throw new ServiceException("缺少目标公司上下文");
             }
+            // ?????????????????????????????
             return requireCompany(requestedCompanyId);
         }
         if (isCurrentHqUser()) {
-            return requireCurrentHqCompany();
+            SysCompany currentHq = requireCurrentHqCompany();
+            if (requestedCompanyId != null && !Objects.equals(requestedCompanyId, currentHq.getId())) {
+                throw new ServiceException("无权查看当前总部之外的配置");
+            }
+            return currentHq;
         }
         throw new ServiceException("当前公司不支持维护故障与维修配置");
     }
 
+    /**
+     * ??????????
+     *
+     * @return ????
+     */
     private SysCompany requireCurrentHqCompany() {
         Long currentCompanyId = SecurityContext.getCurrentCompanyId();
         if (currentCompanyId == null) {
             throw new ServiceException("当前总部不能为空");
         }
+        // ?????????????????????????????
         return requireCompany(currentCompanyId);
     }
 
+    /**
+     * ??????????
+     *
+     * @param companyId ??ID
+     * @return ????
+     */
     private SysCompany requireCompany(Long companyId) {
+        // ??????????????????????????
         SysCompany company = sysCompanyMapper.selectById(companyId);
         if (company == null) {
             throw new ServiceException("归属总部不存在");
@@ -549,6 +659,12 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         return company;
     }
 
+    /**
+     * ???????
+     *
+     * @param company ??
+     * @return ????
+     */
     private SysCompanySimpleVO buildCompanySimpleVo(SysCompany company) {
         SysCompanySimpleVO vo = new SysCompanySimpleVO();
         vo.setId(company.getId());
@@ -561,6 +677,12 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         return vo;
     }
 
+    /**
+     * ???????
+     *
+     * @param entity ????
+     * @param currentId current ID
+     */
     private void validateConfig(FaultRepairConfig entity, Long currentId) {
         if (entity.getCompanyId() == null) {
             throw new ServiceException("归属总部不能为空");
@@ -571,13 +693,20 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         if (!Objects.equals(entity.getStatus(), 0) && !Objects.equals(entity.getStatus(), 1)) {
             throw new ServiceException("配置状态不合法");
         }
+        // ?????????????????????????????
         validateCompany(entity.getCompanyId());
         if (Objects.equals(entity.getStatus(), STATUS_ENABLED)) {
             validateUniqueEnabled(entity.getCompanyId(), entity.getProductCode(), entity.getProductModel(), currentId);
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param companyId ??ID
+     */
     private void validateCompany(Long companyId) {
+        // ??????????????????????????
         SysCompany company = sysCompanyMapper.selectById(companyId);
         if (company == null) {
             throw new ServiceException("归属总部不存在");
@@ -589,6 +718,14 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param companyId ??ID
+     * @param productCode ??
+     * @param productModel ??
+     * @param currentId current ID
+     */
     private void validateUniqueEnabled(Long companyId, String productCode, String productModel, Long currentId) {
         LambdaQueryWrapper<FaultRepairConfig> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(FaultRepairConfig::getCompanyId, companyId)
@@ -603,12 +740,18 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         } else {
             wrapper.eq(FaultRepairConfig::getProductModel, productModel);
         }
+        // ??????????????????????????
         FaultRepairConfig exists = faultRepairConfigMapper.selectOne(wrapper);
         if (exists != null && (currentId == null || !exists.getId().equals(currentId))) {
             throw new ServiceException("当前归属总部下已存在相同产品配置");
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param faults ??
+     */
     private void validateFaults(List<FaultRepairConfigFaultDTO> faults) {
         if (CollUtil.isEmpty(faults)) {
             throw new ServiceException("请至少添加一条故障信息");
@@ -636,6 +779,12 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         }
     }
 
+    /**
+     * ????????
+     *
+     * @param faults ??
+     * @return ????
+     */
     private List<FaultRepairConfigFaultDTO> normalizeFaultDtos(List<FaultRepairConfigFaultDTO> faults) {
         if (faults == null) {
             return Collections.emptyList();
@@ -653,6 +802,12 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         return result;
     }
 
+    /**
+     * ????????
+     *
+     * @param repairOptions ??
+     * @return ????
+     */
     private List<String> normalizeRepairOptions(List<String> repairOptions) {
         if (repairOptions == null) {
             return Collections.emptyList();
@@ -667,21 +822,35 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         return result;
     }
 
+    /**
+     * ????????
+     *
+     * @param entity ????
+     */
     private void normalizeConfig(FaultRepairConfig entity) {
         entity.setProductCode(normalizeNullableText(entity.getProductCode()));
         entity.setProductModel(normalizeNullableText(entity.getProductModel()));
         entity.setRemark(normalizeNullableText(entity.getRemark()));
     }
 
-    private FaultRepairConfig findMatchedConfig(Long companyId, String productCode, String productModel) {
-        if (companyId == null) {
+    /**
+     * ?? findMatchedConfigForResolvedHq ?????
+     *
+     * @param resolvedHqCompanyId resolved Hq Company ID
+     * @param productCode ??
+     * @param productModel ??
+     * @return ????
+     */
+    private FaultRepairConfig findMatchedConfigForResolvedHq(Long resolvedHqCompanyId, String productCode, String productModel) {
+        if (resolvedHqCompanyId == null) {
             return null;
         }
         LambdaQueryWrapper<FaultRepairConfig> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FaultRepairConfig::getCompanyId, companyId)
+        wrapper.eq(FaultRepairConfig::getCompanyId, resolvedHqCompanyId)
                 .eq(FaultRepairConfig::getStatus, STATUS_ENABLED)
                 .orderByDesc(FaultRepairConfig::getUpdateTime)
                 .orderByDesc(FaultRepairConfig::getId);
+        // ??????????????????????????
         List<FaultRepairConfig> candidates = faultRepairConfigMapper.selectList(wrapper);
         FaultRepairConfig bestMatch = null;
         int bestScore = -1;
@@ -695,6 +864,14 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         return bestScore < 0 ? null : bestMatch;
     }
 
+    /**
+     * ???????
+     *
+     * @param candidate ??
+     * @param productCode ??
+     * @param productModel ??
+     * @return ????
+     */
     private int calculateMatchScore(FaultRepairConfig candidate, String productCode, String productModel) {
         String configProductCode = normalizeNullableText(candidate.getProductCode());
         String configProductModel = normalizeNullableText(candidate.getProductModel());
@@ -718,6 +895,12 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
         return score;
     }
 
+    /**
+     * ???????
+     *
+     * @param faults ??
+     * @return ?????
+     */
     private String buildFaultSummary(List<FaultRepairConfigFaultVO> faults) {
         if (CollUtil.isEmpty(faults)) {
             return "";
@@ -727,6 +910,12 @@ public class FaultRepairConfigServiceImpl implements IFaultRepairConfigService {
                 .collect(Collectors.joining("；"));
     }
 
+    /**
+     * ????????
+     *
+     * @param value ???
+     * @return ?????
+     */
     private String normalizeNullableText(String value) {
         return StrUtil.isBlank(value) ? null : value.trim();
     }

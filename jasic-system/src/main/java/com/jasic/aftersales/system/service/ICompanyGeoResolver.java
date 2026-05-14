@@ -23,6 +23,13 @@ public interface ICompanyGeoResolver {
      */
     class GeoLocation {
 
+        /**
+         * ?? GeoLocation ?????
+         *
+         * @param longitude ??
+         * @param latitude ??
+         * @return ????
+         */
         private final BigDecimal longitude;
 
         private final BigDecimal latitude;
@@ -32,10 +39,20 @@ public interface ICompanyGeoResolver {
             this.latitude = latitude;
         }
 
+        /**
+         * ??Longitude?
+         *
+         * @return ????
+         */
         public BigDecimal getLongitude() {
             return longitude;
         }
 
+        /**
+         * ??Latitude?
+         *
+         * @return ????
+         */
         public BigDecimal getLatitude() {
             return latitude;
         }

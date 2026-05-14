@@ -20,6 +20,11 @@ public class CrmHqFirstContractSnapshotSyncTaskHandler implements SyncTaskHandle
     public static final String HANDLER_CODE = "crmHqFirstContractSnapshotSync";
     private static final String HANDLER_NAME = "CRM签约快照同步";
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @Resource
     private ICrmHqFirstContractSnapshotService crmHqFirstContractSnapshotService;
 
@@ -28,11 +33,23 @@ public class CrmHqFirstContractSnapshotSyncTaskHandler implements SyncTaskHandle
         return HANDLER_CODE;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @Override
     public String getName() {
         return HANDLER_NAME;
     }
 
+    /**
+     * ?????
+     *
+     * @param task ????
+     * @param context ?????
+     * @return ????
+     */
     @Override
     public SyncTaskExecutionResult execute(SyncTask task, SyncTaskExecutionContext context) {
         LocalDateTime earliestChangeTime = crmHqFirstContractSnapshotService.getEarliestChangeTime();
@@ -70,6 +87,12 @@ public class CrmHqFirstContractSnapshotSyncTaskHandler implements SyncTaskHandle
                 .build();
     }
 
+    /**
+     * ??????
+     *
+     * @param value ???
+     * @return ????
+     */
     private int defaultInt(Integer value) {
         return value == null ? 0 : value;
     }

@@ -13,6 +13,9 @@ import java.util.Set;
  */
 public class RoleConstants {
 
+    /**
+     * ?? RoleConstants ???
+     */
     private RoleConstants() {
     }
 

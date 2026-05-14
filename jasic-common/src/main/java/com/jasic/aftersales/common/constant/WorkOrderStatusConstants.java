@@ -16,6 +16,9 @@ import java.util.Set;
  */
 public class WorkOrderStatusConstants {
 
+    /**
+     * ?? WorkOrderStatusConstants ???
+     */
     private WorkOrderStatusConstants() {
     }
 
@@ -51,6 +54,11 @@ public class WorkOrderStatusConstants {
                 entry(CLOSED, "已关闭")
         );
 
+        /**
+         * ?? MainStatus ?????
+         *
+         * @return ????
+         */
         private MainStatus() {
         }
     }
@@ -78,6 +86,11 @@ public class WorkOrderStatusConstants {
                 entry(CLOSED, "已关闭")
         );
 
+        /**
+         * ?? DisplayStatus ?????
+         *
+         * @return ????
+         */
         private DisplayStatus() {
         }
     }
@@ -101,6 +114,11 @@ public class WorkOrderStatusConstants {
                 entry(EVALUATED, "已评价")
         );
 
+        /**
+         * ?? EvaluateStatus ?????
+         *
+         * @return ????
+         */
         private EvaluateStatus() {
         }
     }
@@ -168,6 +186,13 @@ public class WorkOrderStatusConstants {
         return resolveLabel(EvaluateStatus.LABELS, evaluateStatus);
     }
 
+    /**
+     * ???????
+     *
+     * @param labelMap ??
+     * @param code ??
+     * @return ?????
+     */
     private static String resolveLabel(Map<String, String> labelMap, String code) {
         if (code == null || code.trim().isEmpty()) {
             return code;
@@ -176,6 +201,12 @@ public class WorkOrderStatusConstants {
         return label == null ? code : label;
     }
 
+    /**
+     * ?? unmodifiableMap ?????
+     *
+     * @param entries ??
+     * @return ????
+     */
     @SafeVarargs
     private static Map<String, String> unmodifiableMap(Map.Entry<String, String>... entries) {
         Map<String, String> map = new LinkedHashMap<>();
@@ -185,6 +216,13 @@ public class WorkOrderStatusConstants {
         return Collections.unmodifiableMap(map);
     }
 
+    /**
+     * ?? entry ?????
+     *
+     * @param key ??
+     * @param value ???
+     * @return ????
+     */
     private static Map.Entry<String, String> entry(String key, String value) {
         return new AbstractMap.SimpleEntry<>(key, value);
     }

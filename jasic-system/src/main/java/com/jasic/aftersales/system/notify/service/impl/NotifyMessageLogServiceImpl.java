@@ -21,11 +21,18 @@ import java.util.List;
 @Service
 public class NotifyMessageLogServiceImpl implements NotifyMessageLogService {
 
+    /**
+     * ?????
+     *
+     * @param notifyMessageLog ??
+     * @return ????
+     */
     @Resource
     private SysNotifyMessageLogMapper sysNotifyMessageLogMapper;
 
     @Override
     public Long createLog(SysNotifyMessageLog notifyMessageLog) {
+        // ????????????????????????
         if (notifyMessageLog.getCreateTime() == null) {
             notifyMessageLog.setCreateTime(LocalDateTime.now());
         }
@@ -33,11 +40,18 @@ public class NotifyMessageLogServiceImpl implements NotifyMessageLogService {
         return notifyMessageLog.getId();
     }
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @Override
     public List<SysNotifyMessageLog> listByQuery(NotifyMessageLogQuery query) {
         if (query == null) {
             return Collections.emptyList();
         }
+        // ????????????????????????
         LambdaQueryWrapper<SysNotifyMessageLog> wrapper = new LambdaQueryWrapper<>();
         if (query.getMessageId() != null) {
             wrapper.eq(SysNotifyMessageLog::getMessageId, query.getMessageId());

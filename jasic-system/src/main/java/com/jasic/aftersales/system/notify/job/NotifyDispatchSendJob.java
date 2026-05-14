@@ -19,6 +19,11 @@ import javax.annotation.Resource;
 @DisallowConcurrentExecution
 public class NotifyDispatchSendJob implements Job {
 
+    /**
+     * ?????
+     *
+     * @param context ?????
+     */
     @Resource
     private NotifyDispatchService notifyDispatchService;
 

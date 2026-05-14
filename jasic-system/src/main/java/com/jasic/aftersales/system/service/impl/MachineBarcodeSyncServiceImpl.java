@@ -46,6 +46,11 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
     @Resource(name = "jdbcTemplate")
     private JdbcTemplate jdbcTemplate;
 
+    /**
+     * ?? fullSyncFromCrm ?????
+     *
+     * @return ????
+     */
     @Resource(name = "crmJdbcTemplate")
     private JdbcTemplate crmJdbcTemplate;
 
@@ -61,8 +66,14 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         return syncByAddTimeRange(earliestAddTime, LocalDateTime.now());
     }
 
+    /**
+     * ??Earliest Add Time?
+     *
+     * @return ????
+     */
     @Override
     public LocalDateTime getEarliestAddTime() {
+        // ?????????????????????????????
         JdbcTemplate crm = requireCrmJdbcTemplate();
         String barcodeTable = validateTableName(CRM_BARCODE_TABLE, "CRM 主条码表");
         String sql = "SELECT MIN(add_time) FROM " + barcodeTable
@@ -71,6 +82,13 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         return timestamp == null ? null : timestamp.toLocalDateTime();
     }
 
+    /**
+     * ???????
+     *
+     * @param startInclusive ???????
+     * @param endExclusive ????????
+     * @return ????
+     */
     @Override
     public MachineBarcodeSyncResultVO syncByAddTimeRange(LocalDateTime startInclusive, LocalDateTime endExclusive) {
         if (startInclusive == null || endExclusive == null || !startInclusive.isBefore(endExclusive)) {
@@ -78,6 +96,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         }
         log.info("条码同步开始，数据范围=[{}, {})", startInclusive, endExclusive);
 
+        // ?????????????????????????????
         JdbcTemplate crm = requireCrmJdbcTemplate();
         String barcodeTable = validateTableName(CRM_BARCODE_TABLE, "CRM 主条码表");
         String productTable = validateTableName(CRM_PRODUCT_TABLE, "SAP 物料表");
@@ -137,6 +156,17 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         return result;
     }
 
+    /**
+     * ???????
+     *
+     * @param crm ??
+     * @param barcodeTable ??
+     * @param startInclusive ???????
+     * @param endExclusive ????????
+     * @param mappingSnapshot ??
+     * @param productSnapshotMap ??
+     * @return ????
+     */
     private SyncSummary syncBarcodeBase(JdbcTemplate crm, String barcodeTable, LocalDateTime startInclusive,
                                         LocalDateTime endExclusive, CompanyMappingSnapshot mappingSnapshot,
                                         Map<ProductKey, ProductSnapshot> productSnapshotMap) {
@@ -191,6 +221,12 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         return summary;
     }
 
+    /**
+     * ?? mergeSummary ?????
+     *
+     * @param target ??
+     * @param source ??
+     */
     private void mergeSummary(SyncSummary target, SyncSummary source) {
         target.addProcessedCount(source.getProcessedCount());
         target.addInsertedCount(source.getInsertedCount());
@@ -200,6 +236,12 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         target.addProductUnmatchedCount(source.getProductUnmatchedCount());
     }
 
+    /**
+     * ?? nextMonthStart ?????
+     *
+     * @param current ??
+     * @return ????
+     */
     private LocalDateTime nextMonthStart(LocalDateTime current) {
         return current.toLocalDate()
                 .withDayOfMonth(1)
@@ -207,6 +249,12 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
                 .atStartOfDay();
     }
 
+    /**
+     * ?????
+     *
+     * @param tableName ??
+     * @return ????
+     */
     private CompanyMappingSnapshot loadCompanyMappings(String tableName) {
         String sql = "SELECT cust_id, sales_org, hq_company_id FROM " + tableName + " WHERE status = 1";
         List<CompanyMappingRow> rows = jdbcTemplate.query(sql, COMPANY_MAPPING_ROW_MAPPER);
@@ -225,6 +273,13 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         return snapshot;
     }
 
+    /**
+     * ?????
+     *
+     * @param crm ??
+     * @param tableName ??
+     * @return ????
+     */
     private Map<ProductKey, ProductSnapshot> loadAllProductSnapshots(JdbcTemplate crm, String tableName) {
         log.info("条码同步开始加载物料快照，来源表={}", tableName);
         String sql = "SELECT product_numeric, sales_org, product_name, product_model, product_trumpet "
@@ -239,6 +294,13 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         return result;
     }
 
+    /**
+     * ?? enrichCompanyMapping ?????
+     *
+     * @param row ??
+     * @param mappingSnapshot ??
+     * @param summary ??
+     */
     private void enrichCompanyMapping(CrmBarcodeRow row, CompanyMappingSnapshot mappingSnapshot, SyncSummary summary) {
         String salesOrg = normalizeNullableText(mappingSnapshot.getSalesOrgByCustId().get(row.getCustId()));
         row.setSalesOrg(salesOrg);
@@ -259,6 +321,13 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         }
     }
 
+    /**
+     * ?? enrichProductInfo ?????
+     *
+     * @param row ??
+     * @param productMap ??
+     * @param summary ??
+     */
     private void enrichProductInfo(CrmBarcodeRow row, Map<ProductKey, ProductSnapshot> productMap, SyncSummary summary) {
         if (StrUtil.isBlank(row.getProductCode()) || StrUtil.isBlank(row.getSalesOrg())) {
             if (StrUtil.isNotBlank(row.getProductCode())) {
@@ -276,12 +345,25 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         row.setMachineNo(snapshot.getMachineNo());
     }
 
+    /**
+     * ?? batchInsertBarcodeRows ?????
+     *
+     * @param rows ??
+     * @param syncTime ??
+     * @param summary ??
+     */
     private void batchInsertBarcodeRows(List<CrmBarcodeRow> rows, LocalDateTime syncTime, SyncSummary summary) {
         String sql = "INSERT IGNORE INTO machine_barcode ("
                 + "barcode, deliver_number, hq_company_id, cust_id, sales_org, product_code, "
                 + "product_name, machine_no, product_model, scan_date, crm_add_time, last_sync_time, status, create_time, update_time"
                 + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
         int[] results = jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+            /**
+             * ??Values?
+             *
+             * @param ps ??
+             * @param i ??
+             */
             @Override
             public void setValues(PreparedStatement ps, int i) throws SQLException {
                 CrmBarcodeRow row = rows.get(i);
@@ -300,6 +382,11 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
                 ps.setInt(13, 1);
             }
 
+            /**
+             * ??Batch Size?
+             *
+             * @return ????
+             */
             @Override
             public int getBatchSize() {
                 return rows.size();
@@ -315,6 +402,11 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         }
     }
 
+    /**
+     * ??????????
+     *
+     * @return ????
+     */
     private JdbcTemplate requireCrmJdbcTemplate() {
         if (crmJdbcTemplate == null) {
             throw new ServiceException("当前未配置客户关系管理（CRM）数据源，请先完善 jasic.crm.datasource");
@@ -322,6 +414,13 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         return crmJdbcTemplate;
     }
 
+    /**
+     * ???????
+     *
+     * @param tableName ??
+     * @param label ??
+     * @return ?????
+     */
     private String validateTableName(String tableName, String label) {
         String normalized = StrUtil.trim(tableName);
         if (StrUtil.isBlank(normalized)) {
@@ -333,15 +432,34 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         return normalized;
     }
 
+    /**
+     * ?? toTimestamp ?????
+     *
+     * @param value ???
+     * @return ????
+     */
     private Timestamp toTimestamp(LocalDateTime value) {
         return value == null ? null : Timestamp.valueOf(value);
     }
 
+    /**
+     * ????????
+     *
+     * @param value ???
+     * @return ?????
+     */
     private String normalizeNullableText(String value) {
         String normalized = StrUtil.trim(value);
         return StrUtil.isBlank(normalized) ? null : normalized;
     }
 
+    /**
+     * ?? toLocalDateTime ?????
+     *
+     * @param rs ??
+     * @param column ??
+     * @return ????
+     */
     private static LocalDateTime toLocalDateTime(ResultSet rs, String column) throws SQLException {
         Timestamp value = rs.getTimestamp(column);
         return value == null ? null : value.toLocalDateTime();
@@ -378,6 +496,11 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
     };
 
     private static class SyncSummary {
+        /**
+         * ??Start Time?
+         *
+         * @return ????
+         */
         private LocalDateTime startTime;
         private LocalDateTime endTime;
         private int processedCount;
@@ -391,62 +514,137 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
             return startTime;
         }
 
+        /**
+         * ??Start Time?
+         *
+         * @param startTime ??
+         */
         public void setStartTime(LocalDateTime startTime) {
             this.startTime = startTime;
         }
 
+        /**
+         * ??End Time?
+         *
+         * @return ????
+         */
         public LocalDateTime getEndTime() {
             return endTime;
         }
 
+        /**
+         * ??End Time?
+         *
+         * @param endTime ??
+         */
         public void setEndTime(LocalDateTime endTime) {
             this.endTime = endTime;
         }
 
+        /**
+         * ??Processed Count?
+         *
+         * @return ????
+         */
         public int getProcessedCount() {
             return processedCount;
         }
 
+        /**
+         * ?? addProcessedCount ?????
+         *
+         * @param value ???
+         */
         public void addProcessedCount(int value) {
             this.processedCount += value;
         }
 
+        /**
+         * ??Inserted Count?
+         *
+         * @return ????
+         */
         public int getInsertedCount() {
             return insertedCount;
         }
 
+        /**
+         * ?? addInsertedCount ?????
+         *
+         * @param value ???
+         */
         public void addInsertedCount(int value) {
             this.insertedCount += value;
         }
 
+        /**
+         * ??Skipped Existing Count?
+         *
+         * @return ????
+         */
         public int getSkippedExistingCount() {
             return skippedExistingCount;
         }
 
+        /**
+         * ?? addSkippedExistingCount ?????
+         *
+         * @param value ???
+         */
         public void addSkippedExistingCount(int value) {
             this.skippedExistingCount += value;
         }
 
+        /**
+         * ??Hq Unmatched Count?
+         *
+         * @return ????
+         */
         public int getHqUnmatchedCount() {
             return hqUnmatchedCount;
         }
 
+        /**
+         * ?? addHqUnmatchedCount ?????
+         *
+         * @param value ???
+         */
         public void addHqUnmatchedCount(int value) {
             this.hqUnmatchedCount += value;
         }
 
+        /**
+         * ??Hq Conflict Count?
+         *
+         * @return ????
+         */
         public int getHqConflictCount() {
             return hqConflictCount;
         }
 
+        /**
+         * ?? addHqConflictCount ?????
+         *
+         * @param value ???
+         */
         public void addHqConflictCount(int value) {
             this.hqConflictCount += value;
         }
 
+        /**
+         * ??Product Unmatched Count?
+         *
+         * @return ????
+         */
         public int getProductUnmatchedCount() {
             return productUnmatchedCount;
         }
 
+        /**
+         * ?? addProductUnmatchedCount ?????
+         *
+         * @param value ???
+         */
         public void addProductUnmatchedCount(int value) {
             this.productUnmatchedCount += value;
         }
@@ -457,20 +655,40 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         private final Map<String, Long> hqCompanyIdByCustId = new LinkedHashMap<>();
         private final Map<String, Long> hqCompanyIdBySalesOrg = new LinkedHashMap<>();
 
+        /**
+         * ??Sales Org By Cust Id?
+         *
+         * @return ????
+         */
         public Map<String, String> getSalesOrgByCustId() {
             return salesOrgByCustId;
         }
 
+        /**
+         * ??Hq Company Id By Cust Id?
+         *
+         * @return ????
+         */
         public Map<String, Long> getHqCompanyIdByCustId() {
             return hqCompanyIdByCustId;
         }
 
+        /**
+         * ??Hq Company Id By Sales Org?
+         *
+         * @return ????
+         */
         public Map<String, Long> getHqCompanyIdBySalesOrg() {
             return hqCompanyIdBySalesOrg;
         }
     }
 
     private static class CompanyMappingRow {
+        /**
+         * ??Cust Id?
+         *
+         * @return ?????
+         */
         private String custId;
         private String salesOrg;
         private Long hqCompanyId;
@@ -479,28 +697,58 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
             return custId;
         }
 
+        /**
+         * ??Cust Id?
+         *
+         * @param custId cust ID
+         */
         public void setCustId(String custId) {
             this.custId = custId;
         }
 
+        /**
+         * ??Sales Org?
+         *
+         * @return ?????
+         */
         public String getSalesOrg() {
             return salesOrg;
         }
 
+        /**
+         * ??Sales Org?
+         *
+         * @param salesOrg ??
+         */
         public void setSalesOrg(String salesOrg) {
             this.salesOrg = salesOrg;
         }
 
+        /**
+         * ??Hq Company Id?
+         *
+         * @return ????
+         */
         public Long getHqCompanyId() {
             return hqCompanyId;
         }
 
+        /**
+         * ??Hq Company Id?
+         *
+         * @param hqCompanyId hq Company ID
+         */
         public void setHqCompanyId(Long hqCompanyId) {
             this.hqCompanyId = hqCompanyId;
         }
     }
 
     private static class CrmBarcodeRow {
+        /**
+         * ??Barcode?
+         *
+         * @return ?????
+         */
         private String barcode;
         private String deliverNumber;
         private String custId;
@@ -518,100 +766,220 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
             return barcode;
         }
 
+        /**
+         * ??Barcode?
+         *
+         * @param barcode ??
+         */
         public void setBarcode(String barcode) {
             this.barcode = barcode;
         }
 
+        /**
+         * ??Deliver Number?
+         *
+         * @return ?????
+         */
         public String getDeliverNumber() {
             return deliverNumber;
         }
 
+        /**
+         * ??Deliver Number?
+         *
+         * @param deliverNumber ??
+         */
         public void setDeliverNumber(String deliverNumber) {
             this.deliverNumber = deliverNumber;
         }
 
+        /**
+         * ??Cust Id?
+         *
+         * @return ?????
+         */
         public String getCustId() {
             return custId;
         }
 
+        /**
+         * ??Cust Id?
+         *
+         * @param custId cust ID
+         */
         public void setCustId(String custId) {
             this.custId = custId;
         }
 
+        /**
+         * ??Sales Org?
+         *
+         * @return ?????
+         */
         public String getSalesOrg() {
             return salesOrg;
         }
 
+        /**
+         * ??Sales Org?
+         *
+         * @param salesOrg ??
+         */
         public void setSalesOrg(String salesOrg) {
             this.salesOrg = salesOrg;
         }
 
+        /**
+         * ??Product Code?
+         *
+         * @return ?????
+         */
         public String getProductCode() {
             return productCode;
         }
 
+        /**
+         * ??Product Code?
+         *
+         * @param productCode ??
+         */
         public void setProductCode(String productCode) {
             this.productCode = productCode;
         }
 
+        /**
+         * ??Product Name?
+         *
+         * @return ?????
+         */
         public String getProductName() {
             return productName;
         }
 
+        /**
+         * ??Product Name?
+         *
+         * @param productName ??
+         */
         public void setProductName(String productName) {
             this.productName = productName;
         }
 
+        /**
+         * ??Product Model?
+         *
+         * @return ?????
+         */
         public String getProductModel() {
             return productModel;
         }
 
+        /**
+         * ??Product Model?
+         *
+         * @param productModel ??
+         */
         public void setProductModel(String productModel) {
             this.productModel = productModel;
         }
 
+        /**
+         * ??Machine No?
+         *
+         * @return ?????
+         */
         public String getMachineNo() {
             return machineNo;
         }
 
+        /**
+         * ??Machine No?
+         *
+         * @param machineNo ??
+         */
         public void setMachineNo(String machineNo) {
             this.machineNo = machineNo;
         }
 
+        /**
+         * ??Hq Company Id?
+         *
+         * @return ????
+         */
         public Long getHqCompanyId() {
             return hqCompanyId;
         }
 
+        /**
+         * ??Hq Company Id?
+         *
+         * @param hqCompanyId hq Company ID
+         */
         public void setHqCompanyId(Long hqCompanyId) {
             this.hqCompanyId = hqCompanyId;
         }
 
+        /**
+         * ??Scan Date?
+         *
+         * @return ????
+         */
         public LocalDateTime getScanDate() {
             return scanDate;
         }
 
+        /**
+         * ??Scan Date?
+         *
+         * @param scanDate ??
+         */
         public void setScanDate(LocalDateTime scanDate) {
             this.scanDate = scanDate;
         }
 
+        /**
+         * ??Add Time?
+         *
+         * @return ????
+         */
         public LocalDateTime getAddTime() {
             return addTime;
         }
 
+        /**
+         * ??Add Time?
+         *
+         * @param addTime ??
+         */
         public void setAddTime(LocalDateTime addTime) {
             this.addTime = addTime;
         }
 
+        /**
+         * ????Hq Conflict?
+         *
+         * @return true ??????
+         */
         public boolean isHqConflict() {
             return hqConflict;
         }
 
+        /**
+         * ??Hq Conflict?
+         *
+         * @param hqConflict ??
+         */
         public void setHqConflict(boolean hqConflict) {
             this.hqConflict = hqConflict;
         }
     }
 
     private static class ProductSnapshot {
+        /**
+         * ??Product Code?
+         *
+         * @return ?????
+         */
         private String productCode;
         private String salesOrg;
         private String productName;
@@ -622,44 +990,96 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
             return productCode;
         }
 
+        /**
+         * ??Product Code?
+         *
+         * @param productCode ??
+         */
         public void setProductCode(String productCode) {
             this.productCode = productCode;
         }
 
+        /**
+         * ??Sales Org?
+         *
+         * @return ?????
+         */
         public String getSalesOrg() {
             return salesOrg;
         }
 
+        /**
+         * ??Sales Org?
+         *
+         * @param salesOrg ??
+         */
         public void setSalesOrg(String salesOrg) {
             this.salesOrg = salesOrg;
         }
 
+        /**
+         * ??Product Name?
+         *
+         * @return ?????
+         */
         public String getProductName() {
             return productName;
         }
 
+        /**
+         * ??Product Name?
+         *
+         * @param productName ??
+         */
         public void setProductName(String productName) {
             this.productName = productName;
         }
 
+        /**
+         * ??Product Model?
+         *
+         * @return ?????
+         */
         public String getProductModel() {
             return productModel;
         }
 
+        /**
+         * ??Product Model?
+         *
+         * @param productModel ??
+         */
         public void setProductModel(String productModel) {
             this.productModel = productModel;
         }
 
+        /**
+         * ??Machine No?
+         *
+         * @return ?????
+         */
         public String getMachineNo() {
             return machineNo;
         }
 
+        /**
+         * ??Machine No?
+         *
+         * @param machineNo ??
+         */
         public void setMachineNo(String machineNo) {
             this.machineNo = machineNo;
         }
     }
 
     private static class ProductKey {
+        /**
+         * ?? ProductKey ?????
+         *
+         * @param productCode ??
+         * @param salesOrg ??
+         * @return ????
+         */
         private final String productCode;
         private final String salesOrg;
 
@@ -668,6 +1088,12 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
             this.salesOrg = salesOrg;
         }
 
+        /**
+         * ?? equals ?????
+         *
+         * @param o ??
+         * @return true ??????
+         */
         @Override
         public boolean equals(Object o) {
             if (this == o) {
@@ -681,6 +1107,11 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
                     && Objects.equals(salesOrg, productKey.salesOrg);
         }
 
+        /**
+         * ??????h Code?
+         *
+         * @return ????
+         */
         @Override
         public int hashCode() {
             return Objects.hash(productCode, salesOrg);

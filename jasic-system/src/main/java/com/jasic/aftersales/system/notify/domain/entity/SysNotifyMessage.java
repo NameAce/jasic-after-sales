@@ -48,6 +48,9 @@ public class SysNotifyMessage extends BaseEntity {
     /** 接收人ID */
     private Long receiverId;
 
+    /** 接收公司ID */
+    private Long receiverCompanyId;
+
     /** 接收人名称快照 */
     private String receiverName;
 

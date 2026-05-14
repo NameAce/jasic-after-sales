@@ -23,6 +23,13 @@ public enum WorkOrderUserParticipationActionEnum {
     /** 复检。 */
     REVIEW("REVIEW", "复检");
 
+    /**
+     * ?? WorkOrderUserParticipationActionEnum ?????
+     *
+     * @param code ??
+     * @param label ??
+     * @return ????
+     */
     private final String code;
 
     private final String label;

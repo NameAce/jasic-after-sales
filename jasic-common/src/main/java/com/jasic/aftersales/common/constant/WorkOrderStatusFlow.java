@@ -8,6 +8,9 @@ package com.jasic.aftersales.common.constant;
  */
 public class WorkOrderStatusFlow {
 
+    /**
+     * ?? WorkOrderStatusFlow ???
+     */
     private WorkOrderStatusFlow() {
     }
 
@@ -83,6 +86,12 @@ public class WorkOrderStatusFlow {
         return WorkOrderStatusConstants.EvaluateStatus.PENDING_EVALUATE;
     }
 
+    /**
+     * ?? afterCloseEvaluateStatus ?????
+     *
+     * @param canEvaluate ??
+     * @return ?????
+     */
     public static String afterCloseEvaluateStatus(boolean canEvaluate) {
         return canEvaluate
                 ? WorkOrderStatusConstants.EvaluateStatus.PENDING_EVALUATE

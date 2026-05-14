@@ -16,6 +16,11 @@ public class NotifyChannelSendResult implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    /**
+     * ?? success ?????
+     *
+     * @return ????
+     */
     private String dispatchStatus;
 
     private String resultCode;
@@ -30,6 +35,13 @@ public class NotifyChannelSendResult implements Serializable {
         return result;
     }
 
+    /**
+     * ?? skipped ?????
+     *
+     * @param resultCode ??
+     * @param resultMessage ??
+     * @return ????
+     */
     public static NotifyChannelSendResult skipped(String resultCode, String resultMessage) {
         NotifyChannelSendResult result = new NotifyChannelSendResult();
         result.setDispatchStatus(NotifyDispatchStatusEnum.SKIPPED.getCode());
@@ -38,6 +50,13 @@ public class NotifyChannelSendResult implements Serializable {
         return result;
     }
 
+    /**
+     * ?? failed ?????
+     *
+     * @param resultCode ??
+     * @param resultMessage ??
+     * @return ????
+     */
     public static NotifyChannelSendResult failed(String resultCode, String resultMessage) {
         NotifyChannelSendResult result = new NotifyChannelSendResult();
         result.setDispatchStatus(NotifyDispatchStatusEnum.FAILED.getCode());

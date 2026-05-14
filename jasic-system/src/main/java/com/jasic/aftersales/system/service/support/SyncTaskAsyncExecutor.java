@@ -14,6 +14,12 @@ import javax.annotation.Resource;
 @Component
 public class SyncTaskAsyncExecutor {
 
+    /**
+     * ?????
+     *
+     * @param taskId task ID
+     * @param logId log ID
+     */
     @Resource
     private SyncTaskExecutionRunner syncTaskExecutionRunner;
 

@@ -20,6 +20,11 @@ public class MachineBarcodeSyncTaskHandler implements SyncTaskHandler {
     public static final String HANDLER_CODE = "machineBarcodeSync";
     private static final String HANDLER_NAME = "条码档案同步";
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @Resource
     private IMachineBarcodeSyncService machineBarcodeSyncService;
 
@@ -28,11 +33,23 @@ public class MachineBarcodeSyncTaskHandler implements SyncTaskHandler {
         return HANDLER_CODE;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @Override
     public String getName() {
         return HANDLER_NAME;
     }
 
+    /**
+     * ?????
+     *
+     * @param task ????
+     * @param context ?????
+     * @return ????
+     */
     @Override
     public SyncTaskExecutionResult execute(SyncTask task, SyncTaskExecutionContext context) {
         LocalDateTime earliestAddTime = machineBarcodeSyncService.getEarliestAddTime();
@@ -68,6 +85,12 @@ public class MachineBarcodeSyncTaskHandler implements SyncTaskHandler {
                 .build();
     }
 
+    /**
+     * ???????
+     *
+     * @param summary ??
+     * @return ?????
+     */
     private String buildMessage(MachineBarcodeSyncResultVO summary) {
         return String.format("条码同步完成：处理 %d 条，新增 %d 条，跳过 %d 条，总部未匹配 %d 条，总部冲突 %d 条，物料未匹配 %d 条",
                 defaultInt(summary.getBarcodeProcessedCount()),
@@ -78,6 +101,12 @@ public class MachineBarcodeSyncTaskHandler implements SyncTaskHandler {
                 defaultInt(summary.getProductUnmatchedCount()));
     }
 
+    /**
+     * ??????
+     *
+     * @param value ???
+     * @return ????
+     */
     private int defaultInt(Integer value) {
         return value == null ? 0 : value;
     }

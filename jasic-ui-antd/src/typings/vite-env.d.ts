@@ -27,6 +27,8 @@ declare namespace Env {
     readonly VITE_ICON_LOCAL_PREFIX: 'local-icon';
     /** backend service base url */
     readonly VITE_SERVICE_BASE_URL: string;
+    /** backend proxy target origin in local dev, the configured base url path will be appended automatically */
+    readonly VITE_SERVICE_PROXY_TARGET?: string;
     /**
      * success code of backend service
      *

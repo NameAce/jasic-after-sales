@@ -31,7 +31,7 @@ public interface IFaultRepairConfigService {
      * @param id 配置ID
      * @return 配置详情
      */
-    FaultRepairConfigVO getById(Long id);
+    FaultRepairConfigVO getById(Long id, Long ownerHqId);
 
     /**
      * 新增配置
@@ -58,12 +58,13 @@ public interface IFaultRepairConfigService {
     /**
      * 按产品查询维修故障选项
      *
-     * @param companyId    归属总部ID
+     * @param resolvedHqCompanyId 后端解析出的归属总部ID
      * @param productCode  物料编码
      * @param productModel 产品型号
      * @return 故障与维修说明选项
      */
-    List<WorkOrderRepairFaultOptionVO> listRepairFaultOptions(Long companyId, String productCode, String productModel);
+    List<WorkOrderRepairFaultOptionVO> listRepairFaultOptionsForResolvedHq(Long resolvedHqCompanyId, String productCode,
+                                                                            String productModel);
 
     /**
      * 按已绑定配置ID查询维修故障选项。
@@ -76,19 +77,19 @@ public interface IFaultRepairConfigService {
     /**
      * 按总部和产品信息匹配当前应绑定的启用配置ID。
      *
-     * @param companyId    归属总部ID
+     * @param resolvedHqCompanyId 后端解析出的归属总部ID
      * @param productCode  物料编码
      * @param productModel 产品型号
      * @return 配置ID
      */
-    Long findEnabledConfigId(Long companyId, String productCode, String productModel);
+    Long findEnabledConfigIdForResolvedHq(Long resolvedHqCompanyId, String productCode, String productModel);
 
     /**
      * 查询指定总部下启用状态的产品型号选项。
      *
-     * @param companyId 归属总部ID
+     * @param resolvedHqCompanyId 后端解析出的归属总部ID
      * @param keyword 产品型号关键字
      * @return 产品型号选项
      */
-    List<String> listEnabledProductModels(Long companyId, String keyword);
+    List<String> listEnabledProductModelsForResolvedHq(Long resolvedHqCompanyId, String keyword);
 }

@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS `sys_notify_message` (
   `biz_id` bigint unsigned NOT NULL COMMENT '业务ID',
   `biz_no` varchar(64) NOT NULL COMMENT '业务编号',
   `receiver_id` bigint unsigned NOT NULL COMMENT '接收人ID',
+  `receiver_company_id` bigint unsigned NOT NULL COMMENT '接收公司ID',
   `receiver_name` varchar(64) NOT NULL COMMENT '接收人名称快照',
   `title` varchar(128) NOT NULL COMMENT '标题',
   `summary` varchar(255) NOT NULL COMMENT '摘要',
@@ -53,7 +54,8 @@ CREATE TABLE IF NOT EXISTS `sys_notify_message` (
   `update_time` datetime NOT NULL COMMENT '更新时间',
   PRIMARY KEY (`id`),
   KEY `idx_receiver_status_time` (`receiver_id`, `todo_status`, `create_time`),
-  KEY `idx_biz_receiver` (`biz_type`, `biz_id`, `receiver_id`),
+  KEY `idx_receiver_company_status_time` (`receiver_company_id`, `receiver_id`, `todo_status`, `create_time`),
+  KEY `idx_biz_receiver` (`biz_type`, `biz_id`, `receiver_company_id`, `receiver_id`),
   KEY `idx_event_id` (`event_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='通知消息表';
 

@@ -100,6 +100,12 @@ public class SysContractServiceImpl implements ISysContractService {
     @Resource
     private CrmFirstSecondRelationSnapshotMapper crmFirstSecondRelationSnapshotMapper;
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @Resource
     private CrmBizCompanySnapshotMapper crmBizCompanySnapshotMapper;
 
@@ -114,16 +120,34 @@ public class SysContractServiceImpl implements ISysContractService {
      */
     @Override
     public PageResult<HqFirstContractVO> listHqFirstPage(HqFirstContractQuery query) {
+        // ?????????????????????????????
+        requirePlatformOperator();
+        if (query == null) {
+            query = new HqFirstContractQuery();
+        }
+        Long targetHqId = resolveContractTargetHq(query.getTargetCompanyId());
+        bindHqFirstQueryToTarget(query, targetHqId);
         Page<HqFirstContractVO> page = new Page<>(query.getPageNum(), query.getPageSize());
+        // ??????????????????????????
         IPage<HqFirstContractVO> result = hqFirstContractMapper.selectHqFirstPage(page, query);
         return PageResult.of(result.getRecords(), result.getTotal(), query.getPageNum(), query.getPageSize());
     }
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @Override
     public PageResult<CrmHqFirstContractImportVO> listCrmHqFirstImportPage(CrmHqFirstContractImportQuery query) {
-        if (query == null || query.getHqCompanyId() == null) {
-            throw new ServiceException("请选择总部公司");
+        // ?????????????????????????????
+        requirePlatformOperator();
+        if (query == null) {
+            query = new CrmHqFirstContractImportQuery();
         }
+        Long targetHqId = resolveContractTargetHq(query.getTargetCompanyId());
+        bindCrmHqFirstQueryToTarget(query, targetHqId);
         validateImportHqCompany(query.getHqCompanyId());
         String salesOrg = resolveSalesOrgByHqCompanyId(query.getHqCompanyId());
         List<CrmHqFirstContractSnapshot> snapshots = listSnapshotsBySalesOrg(salesOrg);
@@ -146,6 +170,13 @@ public class SysContractServiceImpl implements ISysContractService {
     @Transactional(rollbackFor = Exception.class)
     @Override
     public Long saveHqFirst(HqFirstContractDTO dto) {
+        // ?????????????????????????????
+        requirePlatformOperator();
+        if (dto == null) {
+            throw new ServiceException("签约参数不能为空");
+        }
+        Long targetHqId = resolveContractTargetHq(dto.getTargetCompanyId());
+        bindHqFirstDtoToTarget(dto, targetHqId);
         normalizeHqFirst(dto);
         Map<String, String> subjectTypeMap = buildSubjectTypeMap();
 
@@ -168,6 +199,7 @@ public class SysContractServiceImpl implements ISysContractService {
         BeanUtil.copyProperties(dto, entity);
         applyDefaultStatus(entity);
         try {
+            // ???????????????????????
             hqFirstContractMapper.insert(entity);
         } catch (DuplicateKeyException ex) {
             throw translateHqFirstDuplicateException(ex);
@@ -183,10 +215,18 @@ public class SysContractServiceImpl implements ISysContractService {
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void updateHqFirst(HqFirstContractDTO dto) {
+        // ?????????????????????????????
+        requirePlatformOperator();
+        if (dto == null) {
+            throw new ServiceException("签约参数不能为空");
+        }
+        Long targetHqId = resolveContractTargetHq(dto.getTargetCompanyId());
+        bindHqFirstDtoToTarget(dto, targetHqId);
         normalizeHqFirst(dto);
         if (dto.getId() == null) {
             throw new ServiceException("签约ID不能为空");
         }
+        // ??????????????????????????
         HqFirstContract entity = hqFirstContractMapper.selectById(dto.getId());
         if (entity == null) {
             throw new ServiceException("签约记录不存在");
@@ -211,6 +251,7 @@ public class SysContractServiceImpl implements ISysContractService {
         BeanUtil.copyProperties(dto, entity);
         applyDefaultStatus(entity);
         try {
+            // ???????????????????????
             hqFirstContractMapper.updateById(entity);
         } catch (DuplicateKeyException ex) {
             throw translateHqFirstDuplicateException(ex);
@@ -224,21 +265,37 @@ public class SysContractServiceImpl implements ISysContractService {
      */
     @Transactional(rollbackFor = Exception.class)
     @Override
-    public void removeHqFirst(Long id) {
+    public void removeHqFirst(Long id, Long targetCompanyId) {
+        // ?????????????????????????????
+        requirePlatformOperator();
+        Long targetHqId = resolveContractTargetHq(targetCompanyId);
+        // ??????????????????????????
         HqFirstContract entity = hqFirstContractMapper.selectById(id);
         if (entity == null) {
             throw new ServiceException("签约记录不存在");
         }
+        validateHqFirstInTarget(entity, targetHqId);
         saveHqFirstDeleteRecord(entity);
+        // ???????????????????????
         hqFirstContractMapper.deleteById(id);
     }
 
+    /**
+     * ?? importHqFirstFromCrm ?????
+     *
+     * @param dto ????
+     * @return ????
+     */
     @Transactional(rollbackFor = Exception.class)
     @Override
     public CrmHqFirstContractImportResultVO importHqFirstFromCrm(CrmHqFirstContractImportDTO dto) {
-        if (dto == null || dto.getHqCompanyId() == null) {
-            throw new ServiceException("请选择总部公司");
+        // ?????????????????????????????
+        requirePlatformOperator();
+        if (dto == null) {
+            throw new ServiceException("导入参数不能为空");
         }
+        Long targetHqId = resolveContractTargetHq(dto.getTargetCompanyId());
+        bindCrmHqFirstDtoToTarget(dto, targetHqId);
         if (CollUtil.isEmpty(dto.getSnapshotIds())) {
             throw new ServiceException("请选择要导入的 CRM 签约关系");
         }
@@ -254,6 +311,7 @@ public class SysContractServiceImpl implements ISysContractService {
         LambdaQueryWrapper<CrmHqFirstContractSnapshot> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(CrmHqFirstContractSnapshot::getId, snapshotIds)
                 .eq(CrmHqFirstContractSnapshot::getSalesOrg, salesOrg);
+        // ??????????????????????????
         List<CrmHqFirstContractSnapshot> snapshots = crmHqFirstContractSnapshotMapper.selectList(wrapper);
         Map<Long, CrmHqFirstContractImportVO> importVOMap = buildCrmImportVOList(dto.getHqCompanyId(), snapshots).stream()
                 .collect(Collectors.toMap(CrmHqFirstContractImportVO::getId, item -> item, (a, b) -> a));
@@ -276,6 +334,7 @@ public class SysContractServiceImpl implements ISysContractService {
             }
 
             HqFirstContractDTO saveDTO = new HqFirstContractDTO();
+            saveDTO.setTargetCompanyId(targetHqId);
             saveDTO.setHqCompanyId(dto.getHqCompanyId());
             saveDTO.setFirstCompanyId(importVO.getFirstCompanyId());
             saveDTO.setRegionId(importVO.getRegionId());
@@ -303,18 +362,36 @@ public class SysContractServiceImpl implements ISysContractService {
      */
     @Override
     public PageResult<FirstSecondRelationVO> listFirstSecondPage(FirstSecondRelationQuery query) {
+        // ?????????????????????????????
+        requirePlatformOperator();
+        if (query == null) {
+            query = new FirstSecondRelationQuery();
+        }
+        Long targetHqId = resolveContractTargetHq(query.getTargetCompanyId());
+        query.setTargetCompanyId(targetHqId);
         Page<FirstSecondRelationVO> page = new Page<>(query.getPageNum(), query.getPageSize());
+        // ??????????????????????????
         IPage<FirstSecondRelationVO> result = firstSecondRelationMapper.selectFirstSecondPage(page, query);
         return PageResult.of(result.getRecords(), result.getTotal(), query.getPageNum(), query.getPageSize());
     }
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @Override
     public PageResult<CrmFirstSecondRelationImportVO> listCrmFirstSecondImportPage(CrmFirstSecondRelationImportQuery query) {
+        // ?????????????????????????????
+        requirePlatformOperator();
         if (query == null) {
             query = new CrmFirstSecondRelationImportQuery();
         }
+        Long targetHqId = resolveContractTargetHq(query.getTargetCompanyId());
+        query.setTargetCompanyId(targetHqId);
         List<CrmFirstSecondRelationSnapshot> snapshots = listFirstSecondSnapshots();
-        List<CrmFirstSecondRelationImportVO> records = buildCrmFirstSecondImportVOList(snapshots);
+        List<CrmFirstSecondRelationImportVO> records = buildCrmFirstSecondImportVOList(targetHqId, snapshots);
         records = filterCrmFirstSecondImportRecords(records, query);
         if (!Boolean.TRUE.equals(query.getShowAbnormal())) {
             records = records.stream()
@@ -324,10 +401,22 @@ public class SysContractServiceImpl implements ISysContractService {
         return buildPageResult(records, query.getPageNum(), query.getPageSize());
     }
 
+    /**
+     * ?? importFirstSecondFromCrm ?????
+     *
+     * @param dto ????
+     * @return ????
+     */
     @Transactional(rollbackFor = Exception.class)
     @Override
     public CrmFirstSecondRelationImportResultVO importFirstSecondFromCrm(CrmFirstSecondRelationImportDTO dto) {
-        if (dto == null || CollUtil.isEmpty(dto.getSnapshotIds())) {
+        // ?????????????????????????????
+        requirePlatformOperator();
+        if (dto == null) {
+            throw new ServiceException("导入参数不能为空");
+        }
+        Long targetHqId = resolveContractTargetHq(dto.getTargetCompanyId());
+        if (CollUtil.isEmpty(dto.getSnapshotIds())) {
             throw new ServiceException("请选择要导入的一二级关系");
         }
         Set<Long> snapshotIds = dto.getSnapshotIds().stream()
@@ -339,8 +428,9 @@ public class SysContractServiceImpl implements ISysContractService {
 
         LambdaQueryWrapper<CrmFirstSecondRelationSnapshot> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(CrmFirstSecondRelationSnapshot::getId, snapshotIds);
+        // ??????????????????????????
         List<CrmFirstSecondRelationSnapshot> snapshots = crmFirstSecondRelationSnapshotMapper.selectList(wrapper);
-        Map<Long, CrmFirstSecondRelationImportVO> importVOMap = buildCrmFirstSecondImportVOList(snapshots).stream()
+        Map<Long, CrmFirstSecondRelationImportVO> importVOMap = buildCrmFirstSecondImportVOList(targetHqId, snapshots).stream()
                 .collect(Collectors.toMap(CrmFirstSecondRelationImportVO::getId, item -> item, (a, b) -> a));
 
         CrmFirstSecondRelationImportResultVO result = new CrmFirstSecondRelationImportResultVO();
@@ -365,6 +455,7 @@ public class SysContractServiceImpl implements ISysContractService {
             }
 
             FirstSecondRelationDTO saveDTO = new FirstSecondRelationDTO();
+            saveDTO.setTargetCompanyId(targetHqId);
             saveDTO.setFirstCompanyId(importVO.getFirstCompanyId());
             saveDTO.setSecondCompanyId(importVO.getSecondCompanyId());
             saveDTO.setStatus(STATUS_ENABLED);
@@ -394,11 +485,18 @@ public class SysContractServiceImpl implements ISysContractService {
     @Transactional(rollbackFor = Exception.class)
     @Override
     public Long saveFirstSecond(FirstSecondRelationDTO dto) {
+        // ?????????????????????????????
+        requirePlatformOperator();
+        if (dto == null) {
+            throw new ServiceException("从属关系参数不能为空");
+        }
+        Long targetHqId = resolveContractTargetHq(dto.getTargetCompanyId());
         normalizeFirstSecond(dto);
 
         SysCompany firstCompany = requireCompany(dto.getFirstCompanyId(), "一级网点公司");
         validateEnabledCompany(firstCompany, "一级网点公司");
         validateFirstCompany(firstCompany);
+        validateFirstCompanyBelongsToTargetHq(dto.getFirstCompanyId(), targetHqId);
 
         SysCompany secondCompany = requireCompany(dto.getSecondCompanyId(), "二级网点公司");
         validateEnabledCompany(secondCompany, "二级网点公司");
@@ -411,6 +509,7 @@ public class SysContractServiceImpl implements ISysContractService {
         BeanUtil.copyProperties(dto, entity);
         applyDefaultStatus(entity);
         try {
+            // ???????????????????????
             firstSecondRelationMapper.insert(entity);
         } catch (DuplicateKeyException ex) {
             throw translateFirstSecondDuplicateException(ex);
@@ -425,29 +524,172 @@ public class SysContractServiceImpl implements ISysContractService {
      */
     @Transactional(rollbackFor = Exception.class)
     @Override
-    public void removeFirstSecond(Long id) {
+    public void removeFirstSecond(Long id, Long targetCompanyId) {
+        // ?????????????????????????????
+        requirePlatformOperator();
+        Long targetHqId = resolveContractTargetHq(targetCompanyId);
+        // ??????????????????????????
         FirstSecondRelation entity = firstSecondRelationMapper.selectById(id);
         if (entity == null) {
             throw new ServiceException("从属关系记录不存在");
         }
+        validateFirstCompanyBelongsToTargetHq(entity.getFirstCompanyId(), targetHqId);
         saveFirstSecondDeleteRecord(entity);
+        // ???????????????????????
         firstSecondRelationMapper.deleteById(id);
     }
 
+    /**
+     * ???????
+     *
+     * @return ????
+     */
     private Map<String, String> buildSubjectTypeMap() {
         List<SysCompanyType> companyTypes = companyTypeService.listAll();
         return companyTypes.stream()
                 .collect(Collectors.toMap(SysCompanyType::getTypeCode, SysCompanyType::getSubjectType, (a, b) -> a));
     }
 
+    /**
+     * ??????????
+     */
+    private void requirePlatformOperator() {
+        try {
+            SecurityContext.getCurrentUserId();
+            if (!SecurityContext.isPlatformUser()) {
+                throw new ServiceException("无权操作组织关系配置数据");
+            }
+        } catch (ServiceException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new ServiceException("缺少登录态");
+        }
+    }
+
+    /**
+     * ???????
+     *
+     * @param targetCompanyId ????ID
+     * @return ????
+     */
+    private Long resolveContractTargetHq(Long targetCompanyId) {
+        if (targetCompanyId == null) {
+            throw new ServiceException("缺少目标公司上下文");
+        }
+        // ?????????????????????????????
+        validateImportHqCompany(targetCompanyId);
+        return targetCompanyId;
+    }
+
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @param targetHqId target Hq ID
+     */
+    private void bindHqFirstQueryToTarget(HqFirstContractQuery query, Long targetHqId) {
+        if (query.getHqCompanyId() != null && !Objects.equals(query.getHqCompanyId(), targetHqId)) {
+            throw new ServiceException("无权操作目标总部组织关系");
+        }
+        query.setTargetCompanyId(targetHqId);
+        query.setHqCompanyId(targetHqId);
+    }
+
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @param targetHqId target Hq ID
+     */
+    private void bindCrmHqFirstQueryToTarget(CrmHqFirstContractImportQuery query, Long targetHqId) {
+        if (query.getHqCompanyId() != null && !Objects.equals(query.getHqCompanyId(), targetHqId)) {
+            throw new ServiceException("无权操作目标总部组织关系");
+        }
+        query.setTargetCompanyId(targetHqId);
+        query.setHqCompanyId(targetHqId);
+    }
+
+    /**
+     * ???????
+     *
+     * @param dto ????
+     * @param targetHqId target Hq ID
+     */
+    private void bindHqFirstDtoToTarget(HqFirstContractDTO dto, Long targetHqId) {
+        if (dto.getHqCompanyId() != null && !Objects.equals(dto.getHqCompanyId(), targetHqId)) {
+            throw new ServiceException("无权操作目标总部组织关系");
+        }
+        dto.setTargetCompanyId(targetHqId);
+        dto.setHqCompanyId(targetHqId);
+    }
+
+    /**
+     * ???????
+     *
+     * @param dto ????
+     * @param targetHqId target Hq ID
+     */
+    private void bindCrmHqFirstDtoToTarget(CrmHqFirstContractImportDTO dto, Long targetHqId) {
+        if (dto.getHqCompanyId() != null && !Objects.equals(dto.getHqCompanyId(), targetHqId)) {
+            throw new ServiceException("无权操作目标总部组织关系");
+        }
+        dto.setTargetCompanyId(targetHqId);
+        dto.setHqCompanyId(targetHqId);
+    }
+
+    /**
+     * ???????
+     *
+     * @param entity ????
+     * @param targetHqId target Hq ID
+     */
+    private void validateHqFirstInTarget(HqFirstContract entity, Long targetHqId) {
+        if (!Objects.equals(entity.getHqCompanyId(), targetHqId)) {
+            throw new ServiceException("无权操作目标总部组织关系");
+        }
+    }
+
+    /**
+     * ???????
+     *
+     * @param firstCompanyId first Company ID
+     * @param targetHqId target Hq ID
+     */
+    private void validateFirstCompanyBelongsToTargetHq(Long firstCompanyId, Long targetHqId) {
+        if (firstCompanyId == null) {
+            throw new ServiceException("一级网点公司ID不能为空");
+        }
+        LambdaQueryWrapper<HqFirstContract> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(HqFirstContract::getHqCompanyId, targetHqId)
+                .eq(HqFirstContract::getFirstCompanyId, firstCompanyId)
+                .eq(HqFirstContract::getStatus, STATUS_ENABLED);
+        // ??????????????????????????
+        if (hqFirstContractMapper.selectCount(wrapper) == 0) {
+            throw new ServiceException("一级网点不属于目标总部");
+        }
+    }
+
+    /**
+     * ???????
+     *
+     * @param hqCompanyId hq Company ID
+     */
     private void validateImportHqCompany(Long hqCompanyId) {
         Map<String, String> subjectTypeMap = buildSubjectTypeMap();
+        // ?????????????????????????????
         SysCompany hqCompany = requireCompany(hqCompanyId, "总部公司");
         validateEnabledCompany(hqCompany, "总部公司");
         validateHqCompany(hqCompany, subjectTypeMap);
     }
 
+    /**
+     * ???????
+     *
+     * @param hqCompanyId hq Company ID
+     * @return ?????
+     */
     private String resolveSalesOrgByHqCompanyId(Long hqCompanyId) {
+        // ?????????????????????????????
         SysCompany hqCompany = requireCompany(hqCompanyId, "总部公司");
         String salesOrg = StrUtil.trim(hqCompany.getSalesOrg());
         if (StrUtil.isBlank(salesOrg)) {
@@ -456,6 +698,12 @@ public class SysContractServiceImpl implements ISysContractService {
         return salesOrg;
     }
 
+    /**
+     * ???????
+     *
+     * @param salesOrg ??
+     * @return ????
+     */
     private List<CrmHqFirstContractSnapshot> listSnapshotsBySalesOrg(String salesOrg) {
         LambdaQueryWrapper<CrmHqFirstContractSnapshot> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CrmHqFirstContractSnapshot::getSalesOrg, salesOrg)
@@ -463,9 +711,17 @@ public class SysContractServiceImpl implements ISysContractService {
                 .orderByDesc(CrmHqFirstContractSnapshot::getCrmAddTime)
                 .orderByAsc(CrmHqFirstContractSnapshot::getKunnr)
                 .orderByDesc(CrmHqFirstContractSnapshot::getId);
+        // ??????????????????????????
         return crmHqFirstContractSnapshotMapper.selectList(wrapper);
     }
 
+    /**
+     * ???????
+     *
+     * @param hqCompanyId hq Company ID
+     * @param snapshots ??
+     * @return ????
+     */
     private List<CrmHqFirstContractImportVO> buildCrmImportVOList(Long hqCompanyId,
                                                                   List<CrmHqFirstContractSnapshot> snapshots) {
         if (CollUtil.isEmpty(snapshots)) {
@@ -550,28 +806,49 @@ public class SysContractServiceImpl implements ISysContractService {
         return result;
     }
 
+    /**
+     * ?????
+     *
+     * @param companyCodes ??
+     * @return ????
+     */
     private Map<String, SysCompany> loadCompanyByCode(Set<String> companyCodes) {
         if (CollUtil.isEmpty(companyCodes)) {
             return Collections.emptyMap();
         }
         LambdaQueryWrapper<SysCompany> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(SysCompany::getCompanyCode, companyCodes);
+        // ??????????????????????????
         return sysCompanyMapper.selectList(wrapper).stream()
                 .filter(item -> StrUtil.isNotBlank(item.getCompanyCode()))
                 .collect(Collectors.toMap(item -> StrUtil.trim(item.getCompanyCode()), item -> item, (a, b) -> a, LinkedHashMap::new));
     }
 
+    /**
+     * ?????
+     *
+     * @param regionCodes ??
+     * @return ????
+     */
     private Map<String, List<SysRegion>> loadRegionsByCode(Set<String> regionCodes) {
         if (CollUtil.isEmpty(regionCodes)) {
             return Collections.emptyMap();
         }
         LambdaQueryWrapper<SysRegion> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(SysRegion::getRegionCode, regionCodes);
+        // ??????????????????????????
         return sysRegionMapper.selectList(wrapper).stream()
                 .filter(item -> StrUtil.isNotBlank(item.getRegionCode()))
                 .collect(Collectors.groupingBy(item -> StrUtil.trim(item.getRegionCode()), LinkedHashMap::new, Collectors.toList()));
     }
 
+    /**
+     * ?????
+     *
+     * @param hqCompanyId hq Company ID
+     * @param firstCompanyIds first Company ID??
+     * @return ????
+     */
     private Set<Long> loadExistingContractFirstCompanyIds(Long hqCompanyId, Set<Long> firstCompanyIds) {
         if (CollUtil.isEmpty(firstCompanyIds)) {
             return Collections.emptySet();
@@ -579,21 +856,36 @@ public class SysContractServiceImpl implements ISysContractService {
         LambdaQueryWrapper<HqFirstContract> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(HqFirstContract::getHqCompanyId, hqCompanyId)
                 .in(HqFirstContract::getFirstCompanyId, firstCompanyIds);
+        // ??????????????????????????
         return hqFirstContractMapper.selectList(wrapper).stream()
                 .map(HqFirstContract::getFirstCompanyId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
+    /**
+     * ???????
+     *
+     * @return ????
+     */
     private List<CrmFirstSecondRelationSnapshot> listFirstSecondSnapshots() {
         LambdaQueryWrapper<CrmFirstSecondRelationSnapshot> wrapper = new LambdaQueryWrapper<>();
         wrapper.orderByDesc(CrmFirstSecondRelationSnapshot::getCrmOperTime)
                 .orderByAsc(CrmFirstSecondRelationSnapshot::getSecondCustId)
                 .orderByDesc(CrmFirstSecondRelationSnapshot::getId);
+        // ??????????????????????????
         return crmFirstSecondRelationSnapshotMapper.selectList(wrapper);
     }
 
-    private List<CrmFirstSecondRelationImportVO> buildCrmFirstSecondImportVOList(List<CrmFirstSecondRelationSnapshot> snapshots) {
+    /**
+     * ???????
+     *
+     * @param targetHqId target Hq ID
+     * @param snapshots ??
+     * @return ????
+     */
+    private List<CrmFirstSecondRelationImportVO> buildCrmFirstSecondImportVOList(Long targetHqId,
+                                                                                 List<CrmFirstSecondRelationSnapshot> snapshots) {
         if (CollUtil.isEmpty(snapshots)) {
             return Collections.emptyList();
         }
@@ -620,6 +912,19 @@ public class SysContractServiceImpl implements ISysContractService {
                 .filter(StrUtil::isNotBlank)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         Map<String, SysCompany> companyByCode = loadCompanyByCode(companyCodes);
+        Set<Long> firstCompanyIds = validSourceSnapshots.stream()
+                .map(CrmFirstSecondRelationSnapshot::getFirstCustId)
+                .map(crmCompanyByCustId::get)
+                .filter(Objects::nonNull)
+                .map(CrmBizCompanySnapshot::getSapCompanyCode)
+                .map(StrUtil::trim)
+                .filter(StrUtil::isNotBlank)
+                .map(companyByCode::get)
+                .filter(Objects::nonNull)
+                .map(SysCompany::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<Long> allowedFirstCompanyIds = loadTargetHqFirstCompanyIds(targetHqId, firstCompanyIds);
 
         Set<Long> secondCompanyIds = validSourceSnapshots.stream()
                 .map(CrmFirstSecondRelationSnapshot::getSecondCustId)
@@ -673,6 +978,9 @@ public class SysContractServiceImpl implements ISysContractService {
                 result.add(vo);
                 continue;
             }
+            if (!allowedFirstCompanyIds.contains(firstCompany.getId())) {
+                continue;
+            }
 
             CrmBizCompanySnapshot secondSnapshot = crmCompanyByCustId.get(snapshot.getSecondCustId());
             if (secondSnapshot == null) {
@@ -724,6 +1032,35 @@ public class SysContractServiceImpl implements ISysContractService {
         return result;
     }
 
+    /**
+     * ?????
+     *
+     * @param targetHqId target Hq ID
+     * @param firstCompanyIds first Company ID??
+     * @return ????
+     */
+    private Set<Long> loadTargetHqFirstCompanyIds(Long targetHqId, Set<Long> firstCompanyIds) {
+        if (targetHqId == null || CollUtil.isEmpty(firstCompanyIds)) {
+            return Collections.emptySet();
+        }
+        LambdaQueryWrapper<HqFirstContract> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(HqFirstContract::getHqCompanyId, targetHqId)
+                .eq(HqFirstContract::getStatus, STATUS_ENABLED)
+                .in(HqFirstContract::getFirstCompanyId, firstCompanyIds);
+        // ??????????????????????????
+        return hqFirstContractMapper.selectList(wrapper).stream()
+                .map(HqFirstContract::getFirstCompanyId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    /**
+     * ????Valid First Second Source Snapshot?
+     *
+     * @param snapshot ??
+     * @param crmCompanyByCustId crm Company By Cust ID
+     * @return true ??????
+     */
     private boolean isValidFirstSecondSourceSnapshot(CrmFirstSecondRelationSnapshot snapshot,
                                                      Map<Long, CrmBizCompanySnapshot> crmCompanyByCustId) {
         if (snapshot == null) {
@@ -737,6 +1074,13 @@ public class SysContractServiceImpl implements ISysContractService {
         return secondSnapshot != null && Objects.equals(secondSnapshot.getCustRage(), 3);
     }
 
+    /**
+     * ???????
+     *
+     * @param vo ??
+     * @param snapshot ??
+     * @param first ??
+     */
     private void fillSourceCompanyInfo(CrmFirstSecondRelationImportVO vo, CrmBizCompanySnapshot snapshot, boolean first) {
         if (first) {
             vo.setFirstCompanyCode(StrUtil.trim(snapshot.getSapCompanyCode()));
@@ -747,6 +1091,13 @@ public class SysContractServiceImpl implements ISysContractService {
         vo.setSecondCompanyName(snapshot.getCustName());
     }
 
+    /**
+     * ???????
+     *
+     * @param sourceSnapshot ??
+     * @param localCompany ??
+     * @return ?????
+     */
     private String resolveFirstCompanyImportDisabledReason(CrmBizCompanySnapshot sourceSnapshot, SysCompany localCompany) {
         if (!Objects.equals(sourceSnapshot.getCustRage(), 0)) {
             return "一级来源客户不是一级网点";
@@ -766,6 +1117,13 @@ public class SysContractServiceImpl implements ISysContractService {
         return null;
     }
 
+    /**
+     * ???????
+     *
+     * @param sourceSnapshot ??
+     * @param localCompany ??
+     * @return ?????
+     */
     private String resolveSecondCompanyImportDisabledReason(CrmBizCompanySnapshot sourceSnapshot, SysCompany localCompany) {
         if (!Objects.equals(sourceSnapshot.getCustRage(), 3)) {
             return "二级来源客户不是二级网点";
@@ -785,39 +1143,68 @@ public class SysContractServiceImpl implements ISysContractService {
         return null;
     }
 
+    /**
+     * ?????
+     *
+     * @param custIds cust ID??
+     * @return ????
+     */
     private Map<Long, CrmBizCompanySnapshot> loadCrmCompanySnapshotByCustIds(Set<Long> custIds) {
         if (CollUtil.isEmpty(custIds)) {
             return Collections.emptyMap();
         }
         LambdaQueryWrapper<CrmBizCompanySnapshot> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(CrmBizCompanySnapshot::getCustId, custIds);
+        // ??????????????????????????
         return crmBizCompanySnapshotMapper.selectList(wrapper).stream()
                 .filter(item -> item.getCustId() != null)
                 .collect(Collectors.toMap(CrmBizCompanySnapshot::getCustId, item -> item, (a, b) -> a, LinkedHashMap::new));
     }
 
+    /**
+     * ?????
+     *
+     * @param secondCompanyIds second Company ID??
+     * @return ????
+     */
     private Map<Long, FirstSecondRelation> loadFirstSecondRelationBySecondCompanyIds(Set<Long> secondCompanyIds) {
         if (CollUtil.isEmpty(secondCompanyIds)) {
             return Collections.emptyMap();
         }
         LambdaQueryWrapper<FirstSecondRelation> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(FirstSecondRelation::getSecondCompanyId, secondCompanyIds);
+        // ??????????????????????????
         return firstSecondRelationMapper.selectList(wrapper).stream()
                 .filter(item -> item.getSecondCompanyId() != null)
                 .collect(Collectors.toMap(FirstSecondRelation::getSecondCompanyId, item -> item, (a, b) -> a, LinkedHashMap::new));
     }
 
+    /**
+     * ?????
+     *
+     * @param companyIds ??ID??
+     * @return ????
+     */
     private Map<Long, SysCompany> loadCompanyByIds(Set<Long> companyIds) {
         if (CollUtil.isEmpty(companyIds)) {
             return Collections.emptyMap();
         }
         LambdaQueryWrapper<SysCompany> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(SysCompany::getId, companyIds);
+        // ??????????????????????????
         return sysCompanyMapper.selectList(wrapper).stream()
                 .filter(item -> item.getId() != null)
                 .collect(Collectors.toMap(SysCompany::getId, item -> item, (a, b) -> a, LinkedHashMap::new));
     }
 
+    /**
+     * ?? matchRegion ?????
+     *
+     * @param hqCompanyId hq Company ID
+     * @param regionCode ??
+     * @param regionByCode ??
+     * @return ????
+     */
     private RegionMatchResult matchRegion(Long hqCompanyId,
                                           String regionCode,
                                           Map<String, List<SysRegion>> regionByCode) {
@@ -836,6 +1223,14 @@ public class SysContractServiceImpl implements ISysContractService {
         return RegionMatchResult.fail("CRM大区不属于当前总部");
     }
 
+    /**
+     * ???????
+     *
+     * @param records ??
+     * @param pageNum ??
+     * @param pageSize ??
+     * @return ????
+     */
     private <T> PageResult<T> buildPageResult(List<T> records,
                                               Integer pageNum,
                                               Integer pageSize) {
@@ -850,6 +1245,13 @@ public class SysContractServiceImpl implements ISysContractService {
         return PageResult.of(records.subList(fromIndex, toIndex), (long) total, currentPageNum, currentPageSize);
     }
 
+    /**
+     * ?? filterCrmImportRecords ?????
+     *
+     * @param records ??
+     * @param query ????
+     * @return ????
+     */
     private List<CrmHqFirstContractImportVO> filterCrmImportRecords(List<CrmHqFirstContractImportVO> records,
                                                                     CrmHqFirstContractImportQuery query) {
         if (CollUtil.isEmpty(records)) {
@@ -866,6 +1268,13 @@ public class SysContractServiceImpl implements ISysContractService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * ?? filterCrmFirstSecondImportRecords ?????
+     *
+     * @param records ??
+     * @param query ????
+     * @return ????
+     */
     private List<CrmFirstSecondRelationImportVO> filterCrmFirstSecondImportRecords(List<CrmFirstSecondRelationImportVO> records,
                                                                                    CrmFirstSecondRelationImportQuery query) {
         if (CollUtil.isEmpty(records)) {
@@ -885,10 +1294,18 @@ public class SysContractServiceImpl implements ISysContractService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * ??????????
+     *
+     * @param companyId ??ID
+     * @param label ??
+     * @return ????
+     */
     private SysCompany requireCompany(Long companyId, String label) {
         if (companyId == null) {
             throw new ServiceException(label + "ID不能为空");
         }
+        // ??????????????????????????
         SysCompany company = sysCompanyMapper.selectById(companyId);
         if (company == null) {
             throw new ServiceException(label + "不存在");
@@ -896,12 +1313,24 @@ public class SysContractServiceImpl implements ISysContractService {
         return company;
     }
 
+    /**
+     * ???????
+     *
+     * @param company ??
+     * @param label ??
+     */
     private void validateEnabledCompany(SysCompany company, String label) {
         if (!Objects.equals(company.getStatus(), STATUS_ENABLED)) {
             throw new ServiceException(label + "已停用");
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param company ??
+     * @param subjectTypeMap ??
+     */
     private void validateHqCompany(SysCompany company, Map<String, String> subjectTypeMap) {
         String subjectType = subjectTypeMap.get(company.getTypeCode());
         if (!SubjectTypeEnum.HQ.getCode().equals(subjectType)) {
@@ -909,22 +1338,39 @@ public class SysContractServiceImpl implements ISysContractService {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param company ??
+     */
     private void validateFirstCompany(SysCompany company) {
         if (!CompanyCategoryEnum.getFirstLevelTypeCodes().contains(company.getTypeCode())) {
             throw new ServiceException("一级网点公司必须是一级网点类型");
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param company ??
+     */
     private void validateSecondCompany(SysCompany company) {
         if (!CompanyCategoryEnum.getSecondLevelTypeCodes().contains(company.getTypeCode())) {
             throw new ServiceException("二级网点公司必须是二级网点类型");
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param regionId region ID
+     * @param hqCompanyId hq Company ID
+     */
     private void validateRegionBelongToHq(Long regionId, Long hqCompanyId) {
         if (regionId == null) {
             return;
         }
+        // ??????????????????????????
         SysRegion region = sysRegionMapper.selectById(regionId);
         if (region == null) {
             throw new ServiceException("所属大区不存在");
@@ -934,6 +1380,12 @@ public class SysContractServiceImpl implements ISysContractService {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param status ??
+     * @param label ??
+     */
     private void validateContractStatus(Integer status, String label) {
         if (status == null) {
             return;
@@ -943,6 +1395,13 @@ public class SysContractServiceImpl implements ISysContractService {
         }
     }
 
+    /**
+     * ?? checkHqFirstDuplicate ?????
+     *
+     * @param excludeId exclude ID
+     * @param hqCompanyId hq Company ID
+     * @param firstCompanyId first Company ID
+     */
     private void checkHqFirstDuplicate(Long excludeId, Long hqCompanyId, Long firstCompanyId) {
         LambdaQueryWrapper<HqFirstContract> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(HqFirstContract::getHqCompanyId, hqCompanyId)
@@ -950,22 +1409,37 @@ public class SysContractServiceImpl implements ISysContractService {
         if (excludeId != null) {
             wrapper.ne(HqFirstContract::getId, excludeId);
         }
+        // ??????????????????????????
         if (hqFirstContractMapper.selectCount(wrapper) > 0) {
             throw new ServiceException("该总部与一级网点的签约关系已存在");
         }
     }
 
+    /**
+     * ?? checkContractNoDuplicate ?????
+     *
+     * @param excludeId exclude ID
+     * @param contractNo ??
+     */
     private void checkContractNoDuplicate(Long excludeId, String contractNo) {
         LambdaQueryWrapper<HqFirstContract> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(HqFirstContract::getContractNo, contractNo);
         if (excludeId != null) {
             wrapper.ne(HqFirstContract::getId, excludeId);
         }
+        // ??????????????????????????
         if (hqFirstContractMapper.selectCount(wrapper) > 0) {
             throw new ServiceException("合同编号已存在");
         }
     }
 
+    /**
+     * ?? checkFirstSecondDuplicate ?????
+     *
+     * @param excludeId exclude ID
+     * @param firstCompanyId first Company ID
+     * @param secondCompanyId second Company ID
+     */
     private void checkFirstSecondDuplicate(Long excludeId, Long firstCompanyId, Long secondCompanyId) {
         LambdaQueryWrapper<FirstSecondRelation> pairWrapper = new LambdaQueryWrapper<>();
         pairWrapper.eq(FirstSecondRelation::getFirstCompanyId, firstCompanyId)
@@ -973,6 +1447,7 @@ public class SysContractServiceImpl implements ISysContractService {
         if (excludeId != null) {
             pairWrapper.ne(FirstSecondRelation::getId, excludeId);
         }
+        // ??????????????????????????
         if (firstSecondRelationMapper.selectCount(pairWrapper) > 0) {
             throw new ServiceException("该一级、二级网点的从属关系已存在");
         }
@@ -988,6 +1463,11 @@ public class SysContractServiceImpl implements ISysContractService {
         }
     }
 
+    /**
+     * ?????
+     *
+     * @param entity ????
+     */
     private void saveHqFirstDeleteRecord(HqFirstContract entity) {
         HqFirstContractRecord record = new HqFirstContractRecord();
         record.setSourceId(entity.getId());
@@ -1000,9 +1480,15 @@ public class SysContractServiceImpl implements ISysContractService {
         record.setOperationType(OPERATION_DELETE);
         record.setOperatorUserId(getCurrentUserId());
         record.setOperatorCompanyId(getCurrentCompanyId());
+        // ???????????????????????
         hqFirstContractRecordMapper.insert(record);
     }
 
+    /**
+     * ?????
+     *
+     * @param entity ????
+     */
     private void saveFirstSecondDeleteRecord(FirstSecondRelation entity) {
         FirstSecondRelationRecord record = new FirstSecondRelationRecord();
         record.setSourceId(entity.getId());
@@ -1013,9 +1499,15 @@ public class SysContractServiceImpl implements ISysContractService {
         record.setOperationType(OPERATION_DELETE);
         record.setOperatorUserId(getCurrentUserId());
         record.setOperatorCompanyId(getCurrentCompanyId());
+        // ???????????????????????
         firstSecondRelationRecordMapper.insert(record);
     }
 
+    /**
+     * ??Current User Id?
+     *
+     * @return ????
+     */
     private Long getCurrentUserId() {
         try {
             return SecurityContext.getCurrentUserId();
@@ -1024,6 +1516,11 @@ public class SysContractServiceImpl implements ISysContractService {
         }
     }
 
+    /**
+     * ??Current Company Id?
+     *
+     * @return ????
+     */
     private Long getCurrentCompanyId() {
         try {
             return SecurityContext.getCurrentCompanyId();
@@ -1032,50 +1529,106 @@ public class SysContractServiceImpl implements ISysContractService {
         }
     }
 
+    /**
+     * ?? applyDefaultStatus ?????
+     *
+     * @param entity ????
+     */
     private void applyDefaultStatus(HqFirstContract entity) {
         if (entity.getStatus() == null) {
             entity.setStatus(STATUS_ENABLED);
         }
     }
 
+    /**
+     * ?? applyDefaultStatus ?????
+     *
+     * @param entity ????
+     */
     private void applyDefaultStatus(FirstSecondRelation entity) {
         if (entity.getStatus() == null) {
             entity.setStatus(STATUS_ENABLED);
         }
     }
 
+    /**
+     * ????????
+     *
+     * @param dto ????
+     */
     private void normalizeHqFirst(HqFirstContractDTO dto) {
         dto.setContractNo(normalizeNullableText(dto.getContractNo()));
         dto.setRemark(normalizeNullableText(dto.getRemark()));
     }
 
+    /**
+     * ????????
+     *
+     * @param dto ????
+     */
     private void normalizeFirstSecond(FirstSecondRelationDTO dto) {
         dto.setRemark(normalizeNullableText(dto.getRemark()));
     }
 
+    /**
+     * ????????
+     *
+     * @param value ???
+     * @return ?????
+     */
     private String normalizeNullableText(String value) {
         String normalized = StrUtil.trim(value);
         return StrUtil.isBlank(normalized) ? null : normalized;
     }
 
+    /**
+     * ??????
+     *
+     * @param value ???
+     * @return ????
+     */
     private int defaultInt(Integer value) {
         return value == null ? 0 : value;
     }
 
+    /**
+     * ????Duplicate First Second Message?
+     *
+     * @param message ??
+     * @return true ??????
+     */
     private boolean isDuplicateFirstSecondMessage(String message) {
         return StrUtil.equals(message, "该一级、二级网点的从属关系已存在")
                 || StrUtil.equals(message, "从属关系已存在，请勿重复保存");
     }
 
+    /**
+     * ????First Second Conflict Message?
+     *
+     * @param message ??
+     * @return true ??????
+     */
     private boolean isFirstSecondConflictMessage(String message) {
         return StrUtil.equals(message, "该二级网点已归属其他一级网点");
     }
 
+    /**
+     * ????Duplicate Hq First Message?
+     *
+     * @param message ??
+     * @return true ??????
+     */
     private boolean isDuplicateHqFirstMessage(String message) {
         return StrUtil.equals(message, "该总部与一级网点的签约关系已存在")
                 || StrUtil.equals(message, "签约关系已存在，请勿重复保存");
     }
 
+    /**
+     * ?? translateHqFirstDuplicateException ?????
+     *
+     * @param ex ??
+     * @return ????
+     */
     private ServiceException translateHqFirstDuplicateException(DuplicateKeyException ex) {
         String message = ex.getMessage();
         if (StrUtil.containsIgnoreCase(message, "uk_hq_first")) {
@@ -1084,6 +1637,12 @@ public class SysContractServiceImpl implements ISysContractService {
         return new ServiceException("签约关系已存在，请勿重复保存");
     }
 
+    /**
+     * ?? translateFirstSecondDuplicateException ?????
+     *
+     * @param ex ??
+     * @return ????
+     */
     private ServiceException translateFirstSecondDuplicateException(DuplicateKeyException ex) {
         String message = ex.getMessage();
         if (StrUtil.containsIgnoreCase(message, "uk_second")) {
@@ -1097,6 +1656,13 @@ public class SysContractServiceImpl implements ISysContractService {
 
     private static class RegionMatchResult {
 
+        /**
+         * ?? RegionMatchResult ?????
+         *
+         * @param region ??
+         * @param remark ??
+         * @return ????
+         */
         private final SysRegion region;
         private final String remark;
 
@@ -1105,18 +1671,40 @@ public class SysContractServiceImpl implements ISysContractService {
             this.remark = remark;
         }
 
+        /**
+         * ?? success ?????
+         *
+         * @param region ??
+         * @return ????
+         */
         private static RegionMatchResult success(SysRegion region) {
             return new RegionMatchResult(region, null);
         }
 
+        /**
+         * ?? fail ?????
+         *
+         * @param remark ??
+         * @return ????
+         */
         private static RegionMatchResult fail(String remark) {
             return new RegionMatchResult(null, remark);
         }
 
+        /**
+         * ??Region?
+         *
+         * @return ????
+         */
         private SysRegion getRegion() {
             return region;
         }
 
+        /**
+         * ??Remark?
+         *
+         * @return ?????
+         */
         private String getRemark() {
             return remark;
         }

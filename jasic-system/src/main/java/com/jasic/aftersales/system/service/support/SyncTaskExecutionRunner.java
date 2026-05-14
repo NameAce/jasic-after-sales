@@ -3,6 +3,7 @@ package com.jasic.aftersales.system.service.support;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jasic.aftersales.common.exception.ServiceException;
+import com.jasic.aftersales.framework.datapermission.CompanyDataAccessContext;
 import com.jasic.aftersales.system.domain.entity.SyncTask;
 import com.jasic.aftersales.system.domain.entity.SyncTaskLog;
 import com.jasic.aftersales.system.mapper.SyncTaskLogMapper;
@@ -35,6 +36,12 @@ public class SyncTaskExecutionRunner {
     @Resource
     private SyncTaskMapper syncTaskMapper;
 
+    /**
+     * ?????
+     *
+     * @param taskId task ID
+     * @param logId log ID
+     */
     @Resource
     private SyncTaskLogMapper syncTaskLogMapper;
 
@@ -44,8 +51,13 @@ public class SyncTaskExecutionRunner {
     @Resource
     private SyncTaskRunningRegistry syncTaskRunningRegistry;
 
+    @Resource
+    private CompanyDataAccessContext companyDataAccessContext;
+
     public void executeWithLog(Long taskId, Long logId) {
         try {
+            // 同步任务按任务参数和系统配置确定数据范围，执行前清理请求线程遗留的目标公司上下文。
+            companyDataAccessContext.clear();
             SyncTask task = getRequiredTask(taskId);
             SyncTaskHandler handler = getRequiredHandler(task.getHandlerCode());
             // 最近一次成功结束时间由任务中心统一提供给处理器，用于推导增量窗口。
@@ -55,6 +67,7 @@ public class SyncTaskExecutionRunner {
                     .lastSuccessEndTime(lastSuccessEndTime)
                     .build();
             SyncTaskExecutionResult result = handler.execute(task, context);
+            // ??????????????????????????
             SyncTaskLog logEntity = syncTaskLogMapper.selectById(logId);
             if (logEntity != null) {
                 // 无论具体处理器实现细节如何，日志结果统一在这里收口。
@@ -63,6 +76,7 @@ public class SyncTaskExecutionRunner {
                 logEntity.setDataStartTime(result == null ? null : result.getDataStartTime());
                 logEntity.setDataEndTime(result == null ? null : result.getDataEndTime());
                 logEntity.setMessage(result == null ? "执行成功" : result.getMessage());
+                // ???????????????????????
                 syncTaskLogMapper.updateById(logEntity);
             }
         } catch (Exception ex) {
@@ -70,11 +84,19 @@ public class SyncTaskExecutionRunner {
             failLog(logId, ex.getMessage());
         } finally {
             // 运行态必须在 finally 中释放，避免异常后任务永久锁死。
+            companyDataAccessContext.clear();
             syncTaskRunningRegistry.unlock(taskId);
         }
     }
 
+    /**
+     * ??Required Task?
+     *
+     * @param id ??ID
+     * @return ????
+     */
     private SyncTask getRequiredTask(Long id) {
+        // ??????????????????????????
         SyncTask task = syncTaskMapper.selectById(id);
         if (task == null) {
             throw new ServiceException("同步任务不存在");
@@ -82,6 +104,12 @@ public class SyncTaskExecutionRunner {
         return task;
     }
 
+    /**
+     * ??Required Handler?
+     *
+     * @param handlerCode ??
+     * @return ????
+     */
     private SyncTaskHandler getRequiredHandler(String handlerCode) {
         SyncTaskHandler handler = buildHandlerMap().get(handlerCode);
         if (handler == null) {
@@ -90,6 +118,11 @@ public class SyncTaskExecutionRunner {
         return handler;
     }
 
+    /**
+     * ???????
+     *
+     * @return ????
+     */
     private Map<String, SyncTaskHandler> buildHandlerMap() {
         Map<String, SyncTaskHandler> handlerMap = new LinkedHashMap<>();
         for (SyncTaskHandler handler : syncTaskHandlers) {
@@ -98,6 +131,12 @@ public class SyncTaskExecutionRunner {
         return handlerMap;
     }
 
+    /**
+     * ??Last Success End Time?
+     *
+     * @param taskId task ID
+     * @return ????
+     */
     private LocalDateTime getLastSuccessEndTime(Long taskId) {
         LambdaQueryWrapper<SyncTaskLog> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SyncTaskLog::getTaskId, taskId)
@@ -105,11 +144,19 @@ public class SyncTaskExecutionRunner {
                 .isNotNull(SyncTaskLog::getEndTime)
                 .orderByDesc(SyncTaskLog::getEndTime)
                 .last("LIMIT 1");
+        // ??????????????????????????
         SyncTaskLog lastSuccessLog = syncTaskLogMapper.selectOne(wrapper);
         return lastSuccessLog == null ? null : lastSuccessLog.getEndTime();
     }
 
+    /**
+     * ?? failLog ?????
+     *
+     * @param logId log ID
+     * @param message ??
+     */
     private void failLog(Long logId, String message) {
+        // ??????????????????????????
         SyncTaskLog logEntity = syncTaskLogMapper.selectById(logId);
         if (logEntity == null) {
             return;
@@ -118,6 +165,7 @@ public class SyncTaskExecutionRunner {
         logEntity.setStatus(LOG_STATUS_FAILED);
         logEntity.setEndTime(LocalDateTime.now());
         logEntity.setMessage("执行失败：" + StrUtil.blankToDefault(StrUtil.trim(message), "未知错误"));
+        // ???????????????????????
         syncTaskLogMapper.updateById(logEntity);
     }
 }

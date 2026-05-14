@@ -1,6 +1,5 @@
 package com.jasic.aftersales.system.mapper;
 
-import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.jasic.aftersales.system.domain.entity.WorkOrderFault;
 import org.apache.ibatis.annotations.Mapper;
@@ -12,7 +11,6 @@ import org.apache.ibatis.annotations.Mapper;
  * @date 2026/03/26
  */
 @Mapper
-@InterceptorIgnore(tenantLine = "true")
 public interface WorkOrderFaultMapper extends BaseMapper<WorkOrderFault> {
 
 }

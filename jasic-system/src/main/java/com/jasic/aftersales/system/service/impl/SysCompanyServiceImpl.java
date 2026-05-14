@@ -81,6 +81,12 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
     @Resource
     private ISysCompanyTypeService companyTypeService;
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @Resource
     private ISysConfigService configService;
 
@@ -109,10 +115,17 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
             wrapper.eq(SysCompany::getStatus, query.getStatus());
         }
         wrapper.orderByDesc(SysCompany::getId);
+        // ??????????????????????????
         Page<SysCompany> result = sysCompanyMapper.selectPage(page, wrapper);
         return PageResult.of(result.getRecords(), result.getTotal(), query.getPageNum(), query.getPageSize());
     }
 
+    /**
+     * ?? applyCategoryFilter ?????
+     *
+     * @param wrapper ??
+     * @param category ??
+     */
     private void applyCategoryFilter(LambdaQueryWrapper<SysCompany> wrapper, String category) {
         CompanyCategoryEnum categoryEnum = CompanyCategoryEnum.getByCode(category);
         if (categoryEnum == null) {
@@ -142,15 +155,28 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         }
     }
 
+    /**
+     * ??By Id?
+     *
+     * @param id ??ID
+     * @return ????
+     */
     @Override
     public SysCompany getById(Long id) {
         return sysCompanyMapper.selectById(id);
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     * @return ????
+     */
     @Transactional(rollbackFor = Exception.class)
     @Override
     public Long save(SysCompanyDTO dto) {
         normalizeDto(dto);
+        // ?????????????????????????????
         String subjectType = validateCompanyType(dto.getTypeCode());
         validateCompanyStatus(dto.getStatus());
         validateCompanyCodeRequired(subjectType, dto.getCompanyCode());
@@ -168,6 +194,7 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         company.setFullAddress(buildFullAddress(company));
         applyDefaultStatus(company);
         applyGeocodeResult(company, resolveGeoLocationSafely(company.getFullAddress()));
+        // ???????????????????????
         sysCompanyMapper.insert(company);
 
         Long adminRoleId = roleTemplateService.initCompanyRoles(company.getId(), dto.getTypeCode());
@@ -175,17 +202,24 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         return company.getId();
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     */
     @Override
     public void update(SysCompanyDTO dto) {
         normalizeDto(dto);
         if (dto.getId() == null) {
             throw new ServiceException("公司ID不能为空");
         }
+        // ??????????????????????????
         SysCompany company = sysCompanyMapper.selectById(dto.getId());
         if (company == null) {
             throw new ServiceException("公司不存在");
         }
 
+        // ?????????????????????????????
         String subjectType = validateCompanyType(dto.getTypeCode());
         validateCompanyStatus(dto.getStatus());
         validateCompanyCodeRequired(subjectType, dto.getCompanyCode());
@@ -206,19 +240,34 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         if (company.getStatus() == null) {
             company.setStatus(STATUS_ENABLED);
         }
+        // ???????????????????????
         sysCompanyMapper.updateById(company);
     }
 
+    /**
+     * ?????
+     *
+     * @param id ??ID
+     */
     @Override
     public void remove(Long id) {
         LambdaQueryWrapper<SysUserCompany> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysUserCompany::getCompanyId, id);
+        // ??????????????????????????
         if (sysUserCompanyMapper.selectCount(wrapper) > 0) {
             throw new ServiceException("该公司下存在用户，不允许删除");
         }
+        // ???????????????????????
         sysCompanyMapper.deleteById(id);
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     * @param companyId ??ID
+     * @param adminRoleId admin Role ID
+     */
     private void createDefaultAdmin(SysCompanyDTO dto, Long companyId, Long adminRoleId) {
         String initPassword = StrUtil.blankToDefault(
                 configService.getValueByKey("org.company.adminInitPassword"), DEFAULT_PASSWORD);
@@ -229,6 +278,7 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         adminUser.setRealName(dto.getContactName());
         adminUser.setPhone(dto.getContactPhone());
         adminUser.setStatus(STATUS_ENABLED);
+        // ???????????????????????
         sysUserMapper.insert(adminUser);
 
         SysUserCompany userCompany = new SysUserCompany();
@@ -245,6 +295,12 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param typeCode ??????
+     * @return ?????
+     */
     private String validateCompanyType(String typeCode) {
         for (SysCompanyType item : companyTypeService.listAll()) {
             if (StrUtil.equals(item.getTypeCode(), typeCode)) {
@@ -254,6 +310,11 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         throw new ServiceException("公司类型不存在");
     }
 
+    /**
+     * ???????
+     *
+     * @param status ??
+     */
     private void validateCompanyStatus(Integer status) {
         if (status == null) {
             return;
@@ -263,6 +324,12 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param subjectType ????
+     * @param companyCode ??
+     */
     private void validateCompanyCodeRequired(String subjectType, String companyCode) {
         if (SubjectTypeEnum.HQ.getCode().equals(subjectType)) {
             return;
@@ -272,6 +339,12 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param currentId current ID
+     * @param companyCode ??
+     */
     private void validateCompanyCodeUnique(Long currentId, String companyCode) {
         if (StrUtil.isBlank(companyCode)) {
             return;
@@ -281,23 +354,42 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         if (currentId != null) {
             wrapper.ne(SysCompany::getId, currentId);
         }
+        // ??????????????????????????
         if (sysCompanyMapper.selectCount(wrapper) > 0) {
             throw new ServiceException("公司编码已存在");
         }
     }
 
+    /**
+     * ?? applyCreateSourceType ?????
+     *
+     * @param dto ????
+     */
     private void applyCreateSourceType(SysCompanyDTO dto) {
         if (StrUtil.isBlank(dto.getSourceType())) {
             dto.setSourceType(SOURCE_TYPE_MANUAL);
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param sourceType ??
+     */
     private void validateSourceType(String sourceType) {
         if (!StrUtil.equalsAny(sourceType, SOURCE_TYPE_CRM, SOURCE_TYPE_MANUAL)) {
             throw new ServiceException("公司来源类型不合法");
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param currentId current ID
+     * @param subjectType ????
+     * @param salesOrg ??
+     * @return ?????
+     */
     private String validateSalesOrg(Long currentId, String subjectType, String salesOrg) {
         if (!SubjectTypeEnum.HQ.getCode().equals(subjectType)) {
             if (StrUtil.isNotBlank(salesOrg)) {
@@ -313,32 +405,57 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         if (currentId != null) {
             wrapper.ne(SysCompany::getId, currentId);
         }
+        // ??????????????????????????
         if (sysCompanyMapper.selectCount(wrapper) > 0) {
             throw new ServiceException("销售组织已绑定其他总部公司");
         }
         return salesOrg;
     }
 
+    /**
+     * ???????
+     *
+     * @param typeCode ??????
+     */
     private void validateAdminTemplate(String typeCode) {
         LambdaQueryWrapper<SysRoleTemplate> adminTplWrapper = new LambdaQueryWrapper<>();
         adminTplWrapper.eq(SysRoleTemplate::getTypeCode, typeCode)
                 .eq(SysRoleTemplate::getIsAdmin, 1);
+        // ??????????????????????????
         if (sysRoleTemplateMapper.selectCount(adminTplWrapper) == 0) {
             throw new ServiceException("请先维护该公司类型（" + typeCode + "）的管理员角色模板");
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param adminUsername ??
+     */
     private void validateAdminUsername(String adminUsername) {
         if (StrUtil.isBlank(adminUsername)) {
             throw new ServiceException("管理员用户名不能为空");
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param adminUsername ??
+     * @param contactPhone ??
+     */
     private void validateAdminLoginIdentity(String adminUsername, String contactPhone) {
         validateAdminUsername(adminUsername);
         userIdentityValidator.validateLoginIdentityUnique(null, adminUsername, contactPhone);
     }
 
+    /**
+     * ?? shouldResolveAddress ?????
+     *
+     * @param originalCompany ??
+     * @param dto ????
+     * @return true ??????
+     */
     private boolean shouldResolveAddress(SysCompany originalCompany, SysCompanyDTO dto) {
         if (originalCompany.getLongitude() == null || originalCompany.getLatitude() == null) {
             return true;
@@ -352,12 +469,22 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
                 || !StrUtil.equals(normalizeNullableText(originalCompany.getDetailAddress()), dto.getDetailAddress());
     }
 
+    /**
+     * ?? applyDefaultStatus ?????
+     *
+     * @param company ??
+     */
     private void applyDefaultStatus(SysCompany company) {
         if (company.getStatus() == null) {
             company.setStatus(STATUS_ENABLED);
         }
     }
 
+    /**
+     * ????????
+     *
+     * @param dto ????
+     */
     private void normalizeDto(SysCompanyDTO dto) {
         dto.setCompanyName(normalizeRequiredText(dto.getCompanyName()));
         dto.setCompanyShortName(normalizeNullableText(dto.getCompanyShortName()));
@@ -379,19 +506,38 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         dto.setRemark(normalizeNullableText(dto.getRemark()));
     }
 
+    /**
+     * ????????
+     *
+     * @param value ???
+     * @return ?????
+     */
     private String normalizeRequiredText(String value) {
         String normalized = StrUtil.trim(value);
         return StrUtil.isBlank(normalized) ? null : normalized;
     }
 
+    /**
+     * ????????
+     *
+     * @param value ???
+     * @return ?????
+     */
     private String normalizeNullableText(String value) {
         String normalized = StrUtil.trim(value);
         return StrUtil.isBlank(normalized) ? null : normalized;
     }
 
+    /**
+     * ???????
+     *
+     * @param dto ????
+     * @return ????
+     */
     private ResolvedRegion resolveRegion(SysCompanyDTO dto) {
         Map<String, SysArea> areaMap = sysAreaService.getByAreaCodes(
                 Arrays.asList(dto.getProvinceCode(), dto.getCityCode(), dto.getDistrictCode()));
+        // ?????????????????????????????
         SysArea province = requireArea(areaMap.get(dto.getProvinceCode()), dto.getProvinceCode(),
                 ISysAreaService.LEVEL_PROVINCE, "省份");
         SysArea city = requireArea(areaMap.get(dto.getCityCode()), dto.getCityCode(),
@@ -407,6 +553,15 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         return new ResolvedRegion(province, city, district);
     }
 
+    /**
+     * ??????????
+     *
+     * @param area ??
+     * @param areaCode ??
+     * @param expectedLevel ??
+     * @param label ??
+     * @return ????
+     */
     private SysArea requireArea(SysArea area, String areaCode, String expectedLevel, String label) {
         if (area == null || !StrUtil.equals(expectedLevel, area.getAreaLevel())) {
             throw new ServiceException(label + "编码无效：" + areaCode);
@@ -414,6 +569,12 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         return area;
     }
 
+    /**
+     * ?? applyResolvedRegion ?????
+     *
+     * @param company ??
+     * @param resolvedRegion ??
+     */
     private void applyResolvedRegion(SysCompany company, ResolvedRegion resolvedRegion) {
         company.setProvinceCode(resolvedRegion.getProvince().getAreaCode());
         company.setProvinceName(resolvedRegion.getProvince().getAreaName());
@@ -423,6 +584,12 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         company.setDistrictName(resolvedRegion.getDistrict().getAreaName());
     }
 
+    /**
+     * ???????
+     *
+     * @param company ??
+     * @return ?????
+     */
     private String buildFullAddress(SysCompany company) {
         StringBuilder builder = new StringBuilder();
         appendAddressPart(builder, company.getProvinceName());
@@ -434,6 +601,13 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         return builder.toString();
     }
 
+    /**
+     * ?? shouldSkipCityInFullAddress ?????
+     *
+     * @param provinceName ??
+     * @param cityName ??
+     * @return true ??????
+     */
     private boolean shouldSkipCityInFullAddress(String provinceName, String cityName) {
         if (StrUtil.isBlank(cityName)) {
             return true;
@@ -444,6 +618,12 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         return cityName.contains("直辖县级行政区划");
     }
 
+    /**
+     * ?? appendAddressPart ?????
+     *
+     * @param builder ??
+     * @param value ???
+     */
     private void appendAddressPart(StringBuilder builder, String value) {
         String normalized = normalizeNullableText(value);
         if (normalized != null) {
@@ -451,12 +631,24 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         }
     }
 
+    /**
+     * ?? applyGeocodeResult ?????
+     *
+     * @param company ??
+     * @param geocodeResult ??
+     */
     private void applyGeocodeResult(SysCompany company, GeocodeResult geocodeResult) {
         company.setGeocodeStatus(geocodeResult.getStatus());
         company.setLongitude(geocodeResult.getLongitude());
         company.setLatitude(geocodeResult.getLatitude());
     }
 
+    /**
+     * ???????
+     *
+     * @param fullAddress ??
+     * @return ????
+     */
     private GeocodeResult resolveGeoLocationSafely(String fullAddress) {
         try {
             ICompanyGeoResolver.GeoLocation geoLocation = companyGeoResolver.resolve(fullAddress);
@@ -469,6 +661,14 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
 
     private static final class ResolvedRegion {
 
+        /**
+         * ???????
+         *
+         * @param province ??
+         * @param city ??
+         * @param district ??
+         * @return ????
+         */
         private final SysArea province;
 
         private final SysArea city;
@@ -481,14 +681,29 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
             this.district = district;
         }
 
+        /**
+         * ??Province?
+         *
+         * @return ????
+         */
         private SysArea getProvince() {
             return province;
         }
 
+        /**
+         * ??City?
+         *
+         * @return ????
+         */
         private SysArea getCity() {
             return city;
         }
 
+        /**
+         * ??District?
+         *
+         * @return ????
+         */
         private SysArea getDistrict() {
             return district;
         }
@@ -496,6 +711,14 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
 
     private static final class GeocodeResult {
 
+        /**
+         * ?? GeocodeResult ?????
+         *
+         * @param status ??
+         * @param longitude ??
+         * @param latitude ??
+         * @return ????
+         */
         private final String status;
 
         private final BigDecimal longitude;
@@ -508,22 +731,48 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
             this.latitude = latitude;
         }
 
+        /**
+         * ?? success ?????
+         *
+         * @param geoLocation ??
+         * @return ????
+         */
         private static GeocodeResult success(ICompanyGeoResolver.GeoLocation geoLocation) {
             return new GeocodeResult(GEOCODE_STATUS_SUCCESS, geoLocation.getLongitude(), geoLocation.getLatitude());
         }
 
+        /**
+         * ?? failed ?????
+         *
+         * @return ????
+         */
         private static GeocodeResult failed() {
             return new GeocodeResult(GEOCODE_STATUS_FAILED, null, null);
         }
 
+        /**
+         * ??Status?
+         *
+         * @return ?????
+         */
         private String getStatus() {
             return status;
         }
 
+        /**
+         * ??Longitude?
+         *
+         * @return ????
+         */
         private BigDecimal getLongitude() {
             return longitude;
         }
 
+        /**
+         * ??Latitude?
+         *
+         * @return ????
+         */
         private BigDecimal getLatitude() {
             return latitude;
         }

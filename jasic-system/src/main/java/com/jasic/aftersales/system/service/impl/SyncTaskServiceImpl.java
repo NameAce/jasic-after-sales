@@ -2,10 +2,12 @@ package com.jasic.aftersales.system.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.common.exception.ServiceException;
+import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.dto.SyncTaskDTO;
 import com.jasic.aftersales.system.domain.entity.SyncTask;
 import com.jasic.aftersales.system.domain.entity.SyncTaskLog;
@@ -69,10 +71,18 @@ public class SyncTaskServiceImpl implements ISyncTaskService {
     private static final String LOG_STATUS_FAILED = "FAILED";
     private static final String QUARTZ_GROUP = "SYNC_TASK";
     private static final String DEFAULT_MACHINE_BARCODE_HANDLER = "machineBarcodeSync";
+    private static final String PERMISSION_SYNC_TASK_EXECUTE = "system:syncTask:execute";
+    private static final String PERMISSION_MACHINE_BARCODE_SYNC = "system:machineBarcode:sync";
 
     @Resource
     private SyncTaskMapper syncTaskMapper;
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @Resource
     private SyncTaskLogMapper syncTaskLogMapper;
 
@@ -102,6 +112,7 @@ public class SyncTaskServiceImpl implements ISyncTaskService {
             wrapper.eq(SyncTask::getStatus, query.getStatus());
         }
         wrapper.orderByDesc(SyncTask::getId);
+        // ??????????????????????????
         Page<SyncTask> result = syncTaskMapper.selectPage(page, wrapper);
 
         List<SyncTask> records = result.getRecords();
@@ -129,6 +140,12 @@ public class SyncTaskServiceImpl implements ISyncTaskService {
         return PageResult.of(voList, result.getTotal(), query.getPageNum(), query.getPageSize());
     }
 
+    /**
+     * ??By Id?
+     *
+     * @param id ??ID
+     * @return ????
+     */
     @Override
     public SyncTaskVO getById(Long id) {
         SyncTask task = getRequiredTask(id);
@@ -146,34 +163,56 @@ public class SyncTaskServiceImpl implements ISyncTaskService {
         return vo;
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     * @return ????
+     */
     @Transactional(rollbackFor = Exception.class)
     @Override
     public Long save(SyncTaskDTO dto) {
         SyncTask entity = BeanUtil.copyProperties(dto, SyncTask.class);
         normalizeTask(entity);
+        // ?????????????????????????????
         validateTask(entity, null);
+        // ???????????????????????
         syncTaskMapper.insert(entity);
         refreshSchedules();
         return entity.getId();
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     */
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void update(SyncTaskDTO dto) {
         if (dto.getId() == null) {
             throw new ServiceException("任务ID不能为空");
         }
+        // ??????????????????????????
         SyncTask entity = syncTaskMapper.selectById(dto.getId());
         if (entity == null) {
             throw new ServiceException("同步任务不存在");
         }
         BeanUtil.copyProperties(dto, entity);
         normalizeTask(entity);
+        // ?????????????????????????????
         validateTask(entity, entity.getId());
+        // ???????????????????????
         syncTaskMapper.updateById(entity);
         refreshSchedules();
     }
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @Override
     public PageResult<SyncTaskLogVO> listLogPage(SyncTaskLogQuery query) {
         Page<SyncTaskLog> page = new Page<>(query.getPageNum(), query.getPageSize());
@@ -185,6 +224,7 @@ public class SyncTaskServiceImpl implements ISyncTaskService {
             wrapper.eq(SyncTaskLog::getStatus, query.getStatus().trim());
         }
         wrapper.orderByDesc(SyncTaskLog::getId);
+        // ??????????????????????????
         Page<SyncTaskLog> result = syncTaskLogMapper.selectPage(page, wrapper);
 
         Map<Long, String> taskNameMap = buildTaskNameMap(result.getRecords().stream()
@@ -201,6 +241,11 @@ public class SyncTaskServiceImpl implements ISyncTaskService {
         return PageResult.of(records, result.getTotal(), query.getPageNum(), query.getPageSize());
     }
 
+    /**
+     * ???????
+     *
+     * @return ????
+     */
     @Override
     public List<SyncTaskHandlerOptionVO> listHandlerOptions() {
         return syncTaskHandlers.stream()
@@ -214,27 +259,63 @@ public class SyncTaskServiceImpl implements ISyncTaskService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * ?????
+     *
+     * @param id ??ID
+     * @return ????
+     */
     @Override
     public Long execute(Long id) {
+        requirePlatformManualTrigger(PERMISSION_SYNC_TASK_EXECUTE);
         return syncTaskExecutionService.submitManualExecution(id);
     }
 
+    /**
+     * ?????
+     *
+     * @return ????
+     */
     @Override
     public Long executeDefaultMachineBarcodeTask() {
+        // ?????????????????????????????
+        requirePlatformManualTrigger(PERMISSION_MACHINE_BARCODE_SYNC);
         LambdaQueryWrapper<SyncTask> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SyncTask::getHandlerCode, DEFAULT_MACHINE_BARCODE_HANDLER)
                 .orderByAsc(SyncTask::getId)
                 .last("LIMIT 1");
+        // ??????????????????????????
         SyncTask task = syncTaskMapper.selectOne(wrapper);
         if (task == null) {
             throw new ServiceException("未配置条码同步任务，请先在同步任务中新增 machineBarcodeSync 处理器任务");
         }
-        return execute(task.getId());
+        return syncTaskExecutionService.submitManualExecution(task.getId());
     }
 
+    /**
+     * ??????????
+     *
+     * @param permissionCode ??
+     */
+    private void requirePlatformManualTrigger(String permissionCode) {
+        if (!StpUtil.isLogin()) {
+            throw new ServiceException("缺少登录态，无法手动触发同步任务");
+        }
+        if (!SecurityContext.isPlatformUser()) {
+            throw new ServiceException("仅平台用户可以手动触发同步任务");
+        }
+        if (StrUtil.isBlank(permissionCode) || !StpUtil.hasPermission(permissionCode)) {
+            throw new ServiceException("无权手动触发同步任务");
+        }
+    }
+
+    /**
+     * ?? refreshSchedules ?????
+     */
     @Override
     public void refreshSchedules() {
         try {
+            // ??????????????????????????
             List<SyncTask> tasks = syncTaskMapper.selectList(new LambdaQueryWrapper<>());
             // 先计算数据库中应当存在的启用任务集合，再清理 Quartz 中多余的历史任务。
             Set<String> activeJobKeys = tasks.stream()
@@ -264,6 +345,9 @@ public class SyncTaskServiceImpl implements ISyncTaskService {
         }
     }
 
+    /**
+     * ????????
+     */
     @EventListener(ApplicationReadyEvent.class)
     public void initSchedules() {
         // 应用启动后先恢复上次异常中断的运行日志，再重建所有调度任务。
@@ -271,9 +355,13 @@ public class SyncTaskServiceImpl implements ISyncTaskService {
         refreshSchedules();
     }
 
+    /**
+     * ?? recoverRunningLogs ?????
+     */
     private void recoverRunningLogs() {
         LambdaQueryWrapper<SyncTaskLog> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SyncTaskLog::getStatus, LOG_STATUS_RUNNING);
+        // ??????????????????????????
         List<SyncTaskLog> runningLogs = syncTaskLogMapper.selectList(wrapper);
         if (runningLogs.isEmpty()) {
             return;
@@ -284,11 +372,18 @@ public class SyncTaskServiceImpl implements ISyncTaskService {
             runningLog.setStatus(LOG_STATUS_FAILED);
             runningLog.setEndTime(now);
             runningLog.setMessage("应用重启，上一轮执行已中断");
+            // ???????????????????????
             syncTaskLogMapper.updateById(runningLog);
         }
     }
 
+    /**
+     * ?? scheduleTask ?????
+     *
+     * @param task ????
+     */
     private void scheduleTask(SyncTask task) throws SchedulerException {
+        // ?????????????????????????????
         validateCronExpression(task.getCronExpression());
         JobKey jobKey = buildJobKey(task.getId());
         TriggerKey triggerKey = buildTriggerKey(task.getId());
@@ -312,6 +407,11 @@ public class SyncTaskServiceImpl implements ISyncTaskService {
         scheduler.scheduleJob(jobDetail, trigger);
     }
 
+    /**
+     * ?? unscheduleTask ?????
+     *
+     * @param taskId task ID
+     */
     private void unscheduleTask(Long taskId) throws SchedulerException {
         JobKey jobKey = buildJobKey(taskId);
         if (scheduler.checkExists(jobKey)) {
@@ -319,6 +419,12 @@ public class SyncTaskServiceImpl implements ISyncTaskService {
         }
     }
 
+    /**
+     * ??Next Fire Time?
+     *
+     * @param taskId task ID
+     * @return ????
+     */
     private LocalDateTime getNextFireTime(Long taskId) {
         try {
             Trigger trigger = scheduler.getTrigger(buildTriggerKey(taskId));
@@ -332,7 +438,14 @@ public class SyncTaskServiceImpl implements ISyncTaskService {
         }
     }
 
+    /**
+     * ??Required Task?
+     *
+     * @param id ??ID
+     * @return ????
+     */
     private SyncTask getRequiredTask(Long id) {
+        // ??????????????????????????
         SyncTask task = syncTaskMapper.selectById(id);
         if (task == null) {
             throw new ServiceException("同步任务不存在");
@@ -340,6 +453,11 @@ public class SyncTaskServiceImpl implements ISyncTaskService {
         return task;
     }
 
+    /**
+     * ???????
+     *
+     * @return ????
+     */
     private Map<String, SyncTaskHandler> buildHandlerMap() {
         Map<String, SyncTaskHandler> handlerMap = new LinkedHashMap<>();
         for (SyncTaskHandler handler : syncTaskHandlers) {
@@ -348,12 +466,19 @@ public class SyncTaskServiceImpl implements ISyncTaskService {
         return handlerMap;
     }
 
+    /**
+     * ???????
+     *
+     * @param taskIds task ID??
+     * @return ????
+     */
     private Map<Long, SyncTaskLog> buildLatestLogMap(Collection<Long> taskIds) {
         if (taskIds == null || taskIds.isEmpty()) {
             return Collections.emptyMap();
         }
         LambdaQueryWrapper<SyncTaskLog> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(SyncTaskLog::getTaskId, taskIds).orderByDesc(SyncTaskLog::getId);
+        // ??????????????????????????
         List<SyncTaskLog> logs = syncTaskLogMapper.selectList(wrapper);
         Map<Long, SyncTaskLog> result = new LinkedHashMap<>();
         for (SyncTaskLog logEntity : logs) {
@@ -362,32 +487,64 @@ public class SyncTaskServiceImpl implements ISyncTaskService {
         return result;
     }
 
+    /**
+     * ??Latest Log?
+     *
+     * @param taskId task ID
+     * @return ????
+     */
     private SyncTaskLog getLatestLog(Long taskId) {
         LambdaQueryWrapper<SyncTaskLog> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SyncTaskLog::getTaskId, taskId)
                 .orderByDesc(SyncTaskLog::getId)
                 .last("LIMIT 1");
+        // ??????????????????????????
         return syncTaskLogMapper.selectOne(wrapper);
     }
 
+    /**
+     * ???????
+     *
+     * @param taskIds task ID??
+     * @return ????
+     */
     private Map<Long, String> buildTaskNameMap(Collection<Long> taskIds) {
         if (taskIds == null || taskIds.isEmpty()) {
             return Collections.emptyMap();
         }
         LambdaQueryWrapper<SyncTask> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(SyncTask::getId, taskIds);
+        // ??????????????????????????
         return syncTaskMapper.selectList(wrapper).stream()
                 .collect(Collectors.toMap(SyncTask::getId, SyncTask::getTaskName, (a, b) -> a));
     }
 
+    /**
+     * ???????
+     *
+     * @param taskId task ID
+     * @return ????
+     */
     private JobKey buildJobKey(Long taskId) {
         return new JobKey("sync-task-" + taskId, QUARTZ_GROUP);
     }
 
+    /**
+     * ???????
+     *
+     * @param taskId task ID
+     * @return ????
+     */
     private TriggerKey buildTriggerKey(Long taskId) {
         return new TriggerKey("sync-trigger-" + taskId, QUARTZ_GROUP);
     }
 
+    /**
+     * ???????
+     *
+     * @param entity ????
+     * @param currentId current ID
+     */
     private void validateTask(SyncTask entity, Long currentId) {
         if (StrUtil.isBlank(entity.getTaskCode())) {
             throw new ServiceException("任务编码不能为空");
@@ -398,6 +555,7 @@ public class SyncTaskServiceImpl implements ISyncTaskService {
         if (StrUtil.isBlank(entity.getHandlerCode())) {
             throw new ServiceException("处理器不能为空");
         }
+        // ?????????????????????????????
         validateCronExpression(entity.getCronExpression());
         validateStatus(entity.getStatus());
         if (!buildHandlerMap().containsKey(entity.getHandlerCode())) {
@@ -408,36 +566,65 @@ public class SyncTaskServiceImpl implements ISyncTaskService {
         checkUniqueHandlerCode(entity.getHandlerCode(), currentId);
     }
 
+    /**
+     * ?? checkUniqueTaskCode ?????
+     *
+     * @param taskCode ??
+     * @param currentId current ID
+     */
     private void checkUniqueTaskCode(String taskCode, Long currentId) {
         LambdaQueryWrapper<SyncTask> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SyncTask::getTaskCode, taskCode).last("LIMIT 1");
+        // ??????????????????????????
         SyncTask existing = syncTaskMapper.selectOne(wrapper);
         if (existing != null && !Objects.equals(existing.getId(), currentId)) {
             throw new ServiceException("任务编码已存在");
         }
     }
 
+    /**
+     * ?? checkUniqueHandlerCode ?????
+     *
+     * @param handlerCode ??
+     * @param currentId current ID
+     */
     private void checkUniqueHandlerCode(String handlerCode, Long currentId) {
         LambdaQueryWrapper<SyncTask> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SyncTask::getHandlerCode, handlerCode).last("LIMIT 1");
+        // ??????????????????????????
         SyncTask existing = syncTaskMapper.selectOne(wrapper);
         if (existing != null && !Objects.equals(existing.getId(), currentId)) {
             throw new ServiceException("处理器已绑定其他同步任务");
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param cronExpression ??
+     */
     private void validateCronExpression(String cronExpression) {
         if (StrUtil.isBlank(cronExpression) || !CronExpression.isValidExpression(cronExpression.trim())) {
             throw new ServiceException("Cron表达式不合法");
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param status ??
+     */
     private void validateStatus(Integer status) {
         if (!Objects.equals(status, STATUS_ENABLED) && !Objects.equals(status, STATUS_DISABLED)) {
             throw new ServiceException("任务状态不合法");
         }
     }
 
+    /**
+     * ????????
+     *
+     * @param entity ????
+     */
     private void normalizeTask(SyncTask entity) {
         // 所有文本字段入库前统一 trim，避免因首尾空格导致唯一性校验和页面展示异常。
         entity.setTaskCode(normalizeRequiredText(entity.getTaskCode()));
@@ -447,11 +634,23 @@ public class SyncTaskServiceImpl implements ISyncTaskService {
         entity.setRemark(normalizeOptionalText(entity.getRemark()));
     }
 
+    /**
+     * ????????
+     *
+     * @param value ???
+     * @return ?????
+     */
     private String normalizeRequiredText(String value) {
         String normalized = StrUtil.trim(value);
         return StrUtil.isBlank(normalized) ? null : normalized;
     }
 
+    /**
+     * ????????
+     *
+     * @param value ???
+     * @return ?????
+     */
     private String normalizeOptionalText(String value) {
         String normalized = StrUtil.trim(value);
         return StrUtil.isBlank(normalized) ? null : normalized;

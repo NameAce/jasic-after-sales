@@ -73,6 +73,7 @@ public class NotifyEventConsumeServiceImplTest {
         Assert.assertEquals(1, successCount);
         Assert.assertEquals(NotifyEventStatusEnum.SUCCESS.getCode(), eventService.events.get(1L).getStatus());
         Assert.assertEquals(1, messageService.createdMessages.size());
+        Assert.assertEquals(Long.valueOf(2002L), messageService.createdMessages.get(0).getReceiverCompanyId());
         Assert.assertEquals(1, logService.logs.size());
         Assert.assertTrue(dispatchService.createdDispatches.isEmpty());
     }
@@ -228,6 +229,7 @@ public class NotifyEventConsumeServiceImplTest {
         payload.setOrderNo("WO-" + bizId);
         payload.setOldAssignedUserId(oldAssignedUserId);
         payload.setNewAssignedUserId(newAssignedUserId);
+        payload.setReceiverCompanyId(2002L);
         payload.setOperatorId(operatorId);
         payload.setAssignType(assignType);
         payload.setOperationId("op-" + eventId);
@@ -296,6 +298,7 @@ public class NotifyEventConsumeServiceImplTest {
         message.setBizId(bizId);
         message.setBizNo("WO-" + bizId);
         message.setReceiverId(receiverId);
+        message.setReceiverCompanyId(2002L);
         message.setTodoStatus(todoStatus);
         return message;
     }
@@ -418,7 +421,11 @@ public class NotifyEventConsumeServiceImplTest {
         }
 
         @Override
-        public List<SysNotifyMessage> listActiveTodoByBizAndReceiver(String bizType, Long bizId, Long receiverId) {
+        public List<SysNotifyMessage> listActiveTodoByBizAndReceiver(String bizType, Long bizId, Long receiverId,
+                                                                     Long receiverCompanyId) {
+            if (receiverCompanyId == null) {
+                return Collections.emptyList();
+            }
             return activeTodosByReceiver.getOrDefault(receiverId, Collections.emptyList());
         }
 
@@ -438,7 +445,7 @@ public class NotifyEventConsumeServiceImplTest {
         }
 
         @Override
-        public void markRead(Long id, Long receiverId) {
+        public void markRead(Long id, Long receiverId, Long receiverCompanyId) {
         }
 
         @Override
@@ -460,7 +467,7 @@ public class NotifyEventConsumeServiceImplTest {
         }
 
         @Override
-        public Long countTodo(Long receiverId) {
+        public Long countTodo(Long receiverId, Long receiverCompanyId) {
             return 0L;
         }
     }

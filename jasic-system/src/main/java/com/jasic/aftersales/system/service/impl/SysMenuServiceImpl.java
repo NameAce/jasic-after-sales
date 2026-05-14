@@ -77,6 +77,12 @@ public class SysMenuServiceImpl implements ISysMenuService {
     @Resource
     private SysCompanyMapper sysCompanyMapper;
 
+    /**
+     * ???????
+     *
+     * @param subjectType ????
+     * @return ????
+     */
     @Resource
     private SysRoleMapper sysRoleMapper;
 
@@ -95,6 +101,7 @@ public class SysMenuServiceImpl implements ISysMenuService {
                 .eq(SysMenu::getSubjectType, subjectType)
                 .eq(SysMenu::getStatus, 1)
                 .orderByAsc(SysMenu::getParentId, SysMenu::getOrderNum);
+        // ??????????????????????????
         List<SysMenu> menus = sysMenuMapper.selectList(wrapper);
         List<SysMenuVO> voList = menus.stream()
                 .map(this::convertToVO)
@@ -107,6 +114,7 @@ public class SysMenuServiceImpl implements ISysMenuService {
      */
     @Override
     public List<SysMenuVO> listMenuTreeByUser(Long userId, Long companyId) {
+        // ??????????????????????????
         List<SysMenu> menus = sysMenuMapper.selectMenuTreeByUserIdAndCompanyId(userId, companyId);
         if (menus == null || menus.isEmpty()) {
             return Collections.emptyList();
@@ -126,26 +134,45 @@ public class SysMenuServiceImpl implements ISysMenuService {
         return perms != null ? perms : Collections.emptySet();
     }
 
+    /**
+     * ??By Id?
+     *
+     * @param menuId ??ID
+     * @return ????
+     */
     @Override
     public SysMenu getById(Long menuId) {
         return sysMenuMapper.selectById(menuId);
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     * @return ????
+     */
     @Override
     public Long save(SysMenuDTO dto) {
         SysMenu menu = BeanUtil.copyProperties(dto, SysMenu.class);
         if (menu.getParentId() == null) {
             menu.setParentId(0L);
         }
+        // ???????????????????????
         sysMenuMapper.insert(menu);
         return menu.getId();
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     */
     @Override
     public void update(SysMenuDTO dto) {
         if (dto.getId() == null) {
             throw new ServiceException("菜单ID不能为空");
         }
+        // ??????????????????????????
         SysMenu menu = sysMenuMapper.selectById(dto.getId());
         if (menu == null) {
             throw new ServiceException("菜单不存在");
@@ -154,6 +181,7 @@ public class SysMenuServiceImpl implements ISysMenuService {
         if (menu.getParentId() == null) {
             menu.setParentId(0L);
         }
+        // ???????????????????????
         sysMenuMapper.updateById(menu);
     }
 
@@ -162,6 +190,7 @@ public class SysMenuServiceImpl implements ISysMenuService {
      */
     @Override
     public void remove(Long menuId) {
+        // ??????????????????????????
         long childCount = sysMenuMapper.selectCount(
                 new LambdaQueryWrapper<SysMenu>().eq(SysMenu::getParentId, menuId));
         if (childCount > 0) {
@@ -179,6 +208,7 @@ public class SysMenuServiceImpl implements ISysMenuService {
         if (templateMenuCount > 0) {
             throw new ServiceException("菜单已分配给角色模板，请先取消分配");
         }
+        // ???????????????????????
         sysTypeCodeMenuMapper.delete(
                 new LambdaQueryWrapper<SysTypeCodeMenu>()
                         .eq(SysTypeCodeMenu::getMenuId, menuId));
@@ -194,6 +224,7 @@ public class SysMenuServiceImpl implements ISysMenuService {
                 .eq(SysMenu::getSubjectType, subjectType)
                 .eq(SysMenu::getStatus, 1)
                 .orderByAsc(SysMenu::getParentId, SysMenu::getOrderNum);
+        // ??????????????????????????
         return sysMenuMapper.selectList(wrapper);
     }
 
@@ -204,6 +235,7 @@ public class SysMenuServiceImpl implements ISysMenuService {
     public List<Long> listTypeCodeMenuIds(String typeCode) {
         LambdaQueryWrapper<SysTypeCodeMenu> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysTypeCodeMenu::getTypeCode, typeCode);
+        // ??????????????????????????
         List<SysTypeCodeMenu> list = sysTypeCodeMenuMapper.selectList(wrapper);
         if (list == null || list.isEmpty()) {
             return Collections.emptyList();
@@ -216,6 +248,7 @@ public class SysMenuServiceImpl implements ISysMenuService {
      */
     @Override
     public void assignTypeCodeMenus(String typeCode, List<Long> menuIds) {
+        // ???????????????????????
         sysTypeCodeMenuMapper.delete(
                 new LambdaQueryWrapper<SysTypeCodeMenu>()
                         .eq(SysTypeCodeMenu::getTypeCode, typeCode));
@@ -243,6 +276,7 @@ public class SysMenuServiceImpl implements ISysMenuService {
                 .in(SysMenu::getId, menuIds)
                 .eq(SysMenu::getStatus, 1)
                 .orderByAsc(SysMenu::getParentId, SysMenu::getOrderNum);
+        // ??????????????????????????
         List<SysMenu> menus = sysMenuMapper.selectList(wrapper);
         List<SysMenuVO> voList = menus.stream()
                 .map(this::convertToVO)
@@ -255,6 +289,7 @@ public class SysMenuServiceImpl implements ISysMenuService {
      */
     @Override
     public SysMenuPublishOptionsVO getPublishOptions(String subjectType) {
+        // ??????????????????????????
         List<SysCompanyType> companyTypes = sysCompanyTypeMapper.selectList(
                 new LambdaQueryWrapper<SysCompanyType>()
                         .eq(SysCompanyType::getSubjectType, subjectType)
@@ -301,6 +336,7 @@ public class SysMenuServiceImpl implements ISysMenuService {
             throw new ServiceException("菜单信息不能为空");
         }
         Set<String> targetTypeCodeSet = normalizeTypeCodes(dto.getTargetTypeCodes());
+        // ?????????????????????????????
         validateTargetCompanyTypes(menuDto.getSubjectType(), targetTypeCodeSet);
         Set<Long> targetTemplateIdSet = normalizeTemplateIds(dto.getTargetTemplateIds());
         List<SysRoleTemplate> targetTemplates = validateTargetTemplates(targetTemplateIdSet, targetTypeCodeSet);
@@ -331,6 +367,12 @@ public class SysMenuServiceImpl implements ISysMenuService {
         return result;
     }
 
+    /**
+     * ???????
+     *
+     * @param menus ??
+     * @return ????
+     */
     private List<SysMenuVO> buildMenuTree(List<SysMenuVO> menus) {
         if (menus == null || menus.isEmpty()) {
             return Collections.emptyList();
@@ -342,6 +384,12 @@ public class SysMenuServiceImpl implements ISysMenuService {
         return topLevel;
     }
 
+    /**
+     * ???????
+     *
+     * @param parent ??
+     * @param groupMap ??
+     */
     private void buildChildren(SysMenuVO parent, Map<Long, List<SysMenuVO>> groupMap) {
         List<SysMenuVO> children = groupMap.get(parent.getId());
         if (children != null && !children.isEmpty()) {
@@ -350,10 +398,24 @@ public class SysMenuServiceImpl implements ISysMenuService {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param menu ??
+     * @return ????
+     */
     private SysMenuVO convertToVO(SysMenu menu) {
         return BeanUtil.copyProperties(menu, SysMenuVO.class);
     }
 
+    /**
+     * ?? copyMenus ?????
+     *
+     * @param sourceSubjectType ??
+     * @param targetSubjectType ??
+     * @param menuIds ??ID??
+     * @return ????
+     */
     @Override
     public int copyMenus(String sourceSubjectType, String targetSubjectType, List<Long> menuIds) {
         if (sourceSubjectType.equals(targetSubjectType)) {
@@ -362,6 +424,7 @@ public class SysMenuServiceImpl implements ISysMenuService {
         LambdaQueryWrapper<SysMenu> sourceWrapper = new LambdaQueryWrapper<SysMenu>()
                 .eq(SysMenu::getSubjectType, sourceSubjectType)
                 .orderByAsc(SysMenu::getParentId, SysMenu::getOrderNum);
+        // ??????????????????????????
         List<SysMenu> allSourceMenus = sysMenuMapper.selectList(sourceWrapper);
         if (allSourceMenus == null || allSourceMenus.isEmpty()) {
             throw new ServiceException("源主体下暂无菜单可拷贝");
@@ -447,12 +510,19 @@ public class SysMenuServiceImpl implements ISysMenuService {
             Long newParentId = (oldParentId == 0 || !oldIdToNewId.containsKey(oldParentId))
                     ? 0L : oldIdToNewId.get(oldParentId);
             target.setParentId(newParentId);
+            // ???????????????????????
             sysMenuMapper.insert(target);
             oldIdToNewId.put(src.getId(), target.getId());
         }
         return toCopyList.size();
     }
 
+    /**
+     * ????????
+     *
+     * @param targetTypeCodes ??
+     * @return ????
+     */
     private Set<String> normalizeTypeCodes(List<String> targetTypeCodes) {
         if (targetTypeCodes == null || targetTypeCodes.isEmpty()) {
             throw new ServiceException("目标公司类型不能为空");
@@ -466,6 +536,12 @@ public class SysMenuServiceImpl implements ISysMenuService {
         return result;
     }
 
+    /**
+     * ????????
+     *
+     * @param templateIds template ID??
+     * @return ????
+     */
     private Set<Long> normalizeTemplateIds(List<Long> templateIds) {
         if (templateIds == null || templateIds.isEmpty()) {
             return Collections.emptySet();
@@ -475,7 +551,15 @@ public class SysMenuServiceImpl implements ISysMenuService {
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
+    /**
+     * ???????
+     *
+     * @param subjectType ????
+     * @param targetTypeCodeSet ??
+     * @return ????
+     */
     private List<SysCompanyType> validateTargetCompanyTypes(String subjectType, Set<String> targetTypeCodeSet) {
+        // ??????????????????????????
         List<SysCompanyType> companyTypes = sysCompanyTypeMapper.selectList(
                 new LambdaQueryWrapper<SysCompanyType>()
                         .in(SysCompanyType::getTypeCode, targetTypeCodeSet));
@@ -490,10 +574,18 @@ public class SysMenuServiceImpl implements ISysMenuService {
         return companyTypes;
     }
 
+    /**
+     * ???????
+     *
+     * @param targetTemplateIdSet ??
+     * @param targetTypeCodeSet ??
+     * @return ????
+     */
     private List<SysRoleTemplate> validateTargetTemplates(Set<Long> targetTemplateIdSet, Set<String> targetTypeCodeSet) {
         if (targetTemplateIdSet.isEmpty()) {
             return Collections.emptyList();
         }
+        // ??????????????????????????
         List<SysRoleTemplate> templates = sysRoleTemplateMapper.selectList(
                 new LambdaQueryWrapper<SysRoleTemplate>()
                         .in(SysRoleTemplate::getId, targetTemplateIdSet));
@@ -508,10 +600,18 @@ public class SysMenuServiceImpl implements ISysMenuService {
         return templates;
     }
 
+    /**
+     * ?????????
+     *
+     * @param menuId ??ID
+     * @param targetTypeCodeSet ??
+     * @return ????
+     */
     private int ensureTypeCodeMenuRelations(Long menuId, Set<String> targetTypeCodeSet) {
         if (targetTypeCodeSet.isEmpty()) {
             return 0;
         }
+        // ??????????????????????????
         List<SysTypeCodeMenu> existingList = sysTypeCodeMenuMapper.selectList(
                 new LambdaQueryWrapper<SysTypeCodeMenu>()
                         .eq(SysTypeCodeMenu::getMenuId, menuId)
@@ -528,16 +628,25 @@ public class SysMenuServiceImpl implements ISysMenuService {
             SysTypeCodeMenu relation = new SysTypeCodeMenu();
             relation.setTypeCode(typeCode);
             relation.setMenuId(menuId);
+            // ???????????????????????
             sysTypeCodeMenuMapper.insert(relation);
             addedCount++;
         }
         return addedCount;
     }
 
+    /**
+     * ?????????
+     *
+     * @param menuId ??ID
+     * @param targetTemplateIdSet ??
+     * @return ????
+     */
     private int ensureTemplateMenuRelations(Long menuId, Set<Long> targetTemplateIdSet) {
         if (targetTemplateIdSet.isEmpty()) {
             return 0;
         }
+        // ??????????????????????????
         List<SysRoleTemplateMenu> existingList = sysRoleTemplateMenuMapper.selectList(
                 new LambdaQueryWrapper<SysRoleTemplateMenu>()
                         .eq(SysRoleTemplateMenu::getMenuId, menuId)
@@ -554,12 +663,20 @@ public class SysMenuServiceImpl implements ISysMenuService {
             SysRoleTemplateMenu relation = new SysRoleTemplateMenu();
             relation.setTemplateId(templateId);
             relation.setMenuId(menuId);
+            // ???????????????????????
             sysRoleTemplateMenuMapper.insert(relation);
             addedCount++;
         }
         return addedCount;
     }
 
+    /**
+     * ???????
+     *
+     * @param menuId ??ID
+     * @param templates ??
+     * @return ????
+     */
     private SyncStats syncMenuToCompanies(Long menuId, List<SysRoleTemplate> templates) {
         Set<String> typeCodes = templates.stream()
                 .map(SysRoleTemplate::getTypeCode)
@@ -568,6 +685,7 @@ public class SysMenuServiceImpl implements ISysMenuService {
             return SyncStats.empty();
         }
 
+        // ??????????????????????????
         List<SysCompany> companies = sysCompanyMapper.selectList(
                 new LambdaQueryWrapper<SysCompany>()
                         .in(SysCompany::getTypeCode, typeCodes));
@@ -625,6 +743,7 @@ public class SysMenuServiceImpl implements ISysMenuService {
                 SysRoleMenu roleMenu = new SysRoleMenu();
                 roleMenu.setRoleId(role.getId());
                 roleMenu.setMenuId(menuId);
+                // ???????????????????????
                 sysRoleMenuMapper.insert(roleMenu);
                 roleIdsWithMenu.add(role.getId());
                 updatedRoleIds.add(role.getId());
@@ -635,10 +754,17 @@ public class SysMenuServiceImpl implements ISysMenuService {
         return new SyncStats(updatedRoleIds.size(), kickedUserCount, skippedCompanyIds.size());
     }
 
+    /**
+     * ?? kickAffectedUsers ?????
+     *
+     * @param updatedRoleIds updated Role ID??
+     * @return ????
+     */
     private int kickAffectedUsers(Set<Long> updatedRoleIds) {
         if (updatedRoleIds == null || updatedRoleIds.isEmpty()) {
             return 0;
         }
+        // ??????????????????????????
         List<SysUserRole> userRoles = sysUserRoleMapper.selectList(
                 new LambdaQueryWrapper<SysUserRole>()
                         .in(SysUserRole::getRoleId, updatedRoleIds));
@@ -649,18 +775,34 @@ public class SysMenuServiceImpl implements ISysMenuService {
                 .map(SysUserRole::getUserId)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         for (Long userId : userIds) {
+            // ??????????????????????
             sysPermissionService.clearAllPermsCache(userId);
             StpUtil.kickout(userId);
         }
         return userIds.size();
     }
 
+    /**
+     * ???????
+     *
+     * @param companyId ??ID
+     * @param roleKey ??
+     * @return ?????
+     */
     private String buildRoleMapKey(Long companyId, String roleKey) {
         return companyId + "#" + roleKey;
     }
 
     private static class SyncStats {
 
+        /**
+         * ???????
+         *
+         * @param updatedRoleCount ??
+         * @param kickedUserCount ??
+         * @param skippedCompanyCount ??
+         * @return ????
+         */
         private final int updatedRoleCount;
         private final int kickedUserCount;
         private final int skippedCompanyCount;
@@ -671,18 +813,38 @@ public class SysMenuServiceImpl implements ISysMenuService {
             this.skippedCompanyCount = skippedCompanyCount;
         }
 
+        /**
+         * ?? empty ?????
+         *
+         * @return ????
+         */
         private static SyncStats empty() {
             return new SyncStats(0, 0, 0);
         }
 
+        /**
+         * ??Updated Role Count?
+         *
+         * @return ????
+         */
         private int getUpdatedRoleCount() {
             return updatedRoleCount;
         }
 
+        /**
+         * ??Kicked User Count?
+         *
+         * @return ????
+         */
         private int getKickedUserCount() {
             return kickedUserCount;
         }
 
+        /**
+         * ??Skipped Company Count?
+         *
+         * @return ????
+         */
         private int getSkippedCompanyCount() {
             return skippedCompanyCount;
         }

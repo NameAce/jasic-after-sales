@@ -47,6 +47,12 @@ public class SyncTaskLog implements Serializable {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime dataEndTime;
 
+    /** 触发类型（MANUAL/SCHEDULED） */
+    private String triggerType;
+
+    /** 触发人ID，自动调度时固定为 0 表示系统任务 */
+    private Long triggerUserId;
+
     /** 执行信息 */
     private String message;
 

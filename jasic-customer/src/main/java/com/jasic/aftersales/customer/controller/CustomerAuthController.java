@@ -104,6 +104,12 @@ public class CustomerAuthController {
         return Result.ok();
     }
 
+    /**
+     * ???????
+     *
+     * @param user ??
+     * @return ????
+     */
     private CustomerUserInfoVO buildUserInfo(CUser user) {
         CustomerUserInfoVO vo = new CustomerUserInfoVO();
         vo.setUserId(user.getId());

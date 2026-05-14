@@ -1,6 +1,5 @@
 package com.jasic.aftersales.system.mapper;
 
-import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.jasic.aftersales.common.enums.SysFileBizTypeEnum;
 import com.jasic.aftersales.system.domain.entity.SysFileBiz;
@@ -18,13 +17,12 @@ import java.util.List;
 public interface SysFileBizMapper extends BaseMapper<SysFileBiz> {
 
     /**
-     * 按业务类型查询附件关系，忽略公司隔离，确保工单详情可见跨来源附件。
+     * 按业务类型查询附件关系，业务对象权限由调用方先行校验。
      *
      * @param bizType 业务类型
      * @param bizId 业务ID
      * @return 附件关系列表
      */
-    @InterceptorIgnore(tenantLine = "true")
     @Select({
             "<script>",
             "SELECT *",
@@ -38,13 +36,12 @@ public interface SysFileBizMapper extends BaseMapper<SysFileBiz> {
                                                @Param("bizId") Long bizId);
 
     /**
-     * 按业务类型列表批量查询附件关系，忽略公司隔离，统一用于工单附件聚合。
+     * 按业务类型列表批量查询附件关系，业务对象权限由调用方先行校验。
      *
      * @param bizTypes 业务类型列表
      * @param bizId 业务ID
      * @return 附件关系列表
      */
-    @InterceptorIgnore(tenantLine = "true")
     @Select({
             "<script>",
             "SELECT *",

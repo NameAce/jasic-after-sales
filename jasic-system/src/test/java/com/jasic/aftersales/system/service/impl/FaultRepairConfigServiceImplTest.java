@@ -89,7 +89,7 @@ public class FaultRepairConfigServiceImplTest {
         setField(service, "sysCompanyMapper",
                 createCompanyMapperProxy(Collections.singletonList(buildCompany(9L, "总部A"))));
 
-        List<WorkOrderRepairFaultOptionVO> result = service.listRepairFaultOptions(9L, "P-100", "M-200");
+        List<WorkOrderRepairFaultOptionVO> result = service.listRepairFaultOptionsForResolvedHq(9L, "P-100", "M-200");
 
         Assert.assertEquals(1, result.size());
         Assert.assertEquals("电源故障", result.get(0).getFaultDesc());
@@ -102,7 +102,7 @@ public class FaultRepairConfigServiceImplTest {
         setField(service, "faultRepairConfigMapper",
                 createConfigMapperProxy(Collections.singletonList(buildConfig(1L, 9L, "P-100", "M-200"))));
 
-        List<WorkOrderRepairFaultOptionVO> result = service.listRepairFaultOptions(9L, "P-999", "M-999");
+        List<WorkOrderRepairFaultOptionVO> result = service.listRepairFaultOptionsForResolvedHq(9L, "P-999", "M-999");
 
         Assert.assertTrue(result.isEmpty());
     }
@@ -144,8 +144,8 @@ public class FaultRepairConfigServiceImplTest {
                         buildConfig(5L, 9L, "P-104", "M-300")
                 )));
 
-        List<String> allOptions = allOptionsService.listEnabledProductModels(9L, null);
-        List<String> filteredOptions = filteredOptionsService.listEnabledProductModels(9L, "300");
+        List<String> allOptions = allOptionsService.listEnabledProductModelsForResolvedHq(9L, null);
+        List<String> filteredOptions = filteredOptionsService.listEnabledProductModelsForResolvedHq(9L, "300");
 
         Assert.assertEquals(Arrays.asList("M-200", "M-300"), allOptions);
         Assert.assertEquals(Collections.singletonList("M-300"), filteredOptions);
@@ -160,7 +160,7 @@ public class FaultRepairConfigServiceImplTest {
                         buildConfig(4L, 9L, "P-400", "M-900")
                 )));
 
-        Long configId = service.findEnabledConfigId(9L, null, "M-900");
+        Long configId = service.findEnabledConfigIdForResolvedHq(9L, null, "M-900");
 
         Assert.assertEquals(Long.valueOf(5L), configId);
     }
@@ -220,6 +220,9 @@ public class FaultRepairConfigServiceImplTest {
         history.setStatus(0);
         setField(service, "faultRepairConfigMapper",
                 createConfigMapperProxy(Collections.singletonList(history)));
+        setField(service, "sysCompanyMapper",
+                createCompanyMapperProxy(Collections.singletonList(buildCompany(9L, "总部A", "HQ"))));
+        setField(service, "companyTypeService", createCompanyTypeServiceStub());
 
         FaultRepairConfigDTO dto = new FaultRepairConfigDTO();
         dto.setId(1L);
@@ -250,7 +253,7 @@ public class FaultRepairConfigServiceImplTest {
         setField(service, "companyTypeService", createCompanyTypeServiceStub());
 
         FaultRepairConfigDTO dto = new FaultRepairConfigDTO();
-        dto.setCompanyId(10L);
+        dto.setCompanyId(null);
         dto.setProductCode("P-100");
         dto.setProductModel("M-200");
         dto.setStatus(1);
@@ -297,10 +300,10 @@ public class FaultRepairConfigServiceImplTest {
         setField(service, "companyTypeService", createCompanyTypeServiceStub());
 
         try {
-            service.getById(2L);
+            service.getById(2L, null);
             Assert.fail("预期应拒绝查看其他总部配置");
         } catch (ServiceException ex) {
-            Assert.assertEquals("无权查看当前总部之外的配置", ex.getMessage());
+            Assert.assertEquals("故障与维修配置不存在", ex.getMessage());
         }
     }
 

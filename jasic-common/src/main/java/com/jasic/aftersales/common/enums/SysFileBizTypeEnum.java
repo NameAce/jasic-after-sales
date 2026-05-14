@@ -41,6 +41,13 @@ public enum SysFileBizTypeEnum {
     /** 维修登记其他图片 */
     WORK_ORDER_REPAIR_OTHER_IMAGE("WORK_ORDER_REPAIR_OTHER_IMAGE", "维修登记其他图片");
 
+    /**
+     * ?? SysFileBizTypeEnum ?????
+     *
+     * @param code ??
+     * @param desc ??
+     * @return ????
+     */
     private final String code;
 
     private final String desc;
@@ -50,6 +57,12 @@ public enum SysFileBizTypeEnum {
         this.desc = desc;
     }
 
+    /**
+     * ??By Code?
+     *
+     * @param code ??
+     * @return ????
+     */
     public static SysFileBizTypeEnum getByCode(String code) {
         if (code == null) {
             return null;
@@ -66,6 +79,12 @@ public enum SysFileBizTypeEnum {
         return null;
     }
 
+    /**
+     * ?? fromCode ?????
+     *
+     * @param code ??
+     * @return ????
+     */
     @JsonCreator
     public static SysFileBizTypeEnum fromCode(String code) {
         SysFileBizTypeEnum value = getByCode(code);
@@ -75,11 +94,21 @@ public enum SysFileBizTypeEnum {
         return value;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @JsonValue
     public String getCode() {
         return code;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     public String getDesc() {
         return desc;
     }

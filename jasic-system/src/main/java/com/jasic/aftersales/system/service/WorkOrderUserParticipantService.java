@@ -18,6 +18,15 @@ import java.time.LocalDateTime;
 @Service
 public class WorkOrderUserParticipantService {
 
+    /**
+     * ?? recordAction ?????
+     *
+     * @param workOrderId ??ID
+     * @param companyId ??ID
+     * @param userId ??ID
+     * @param action ??
+     * @param actionTime ??
+     */
     @Resource
     private WorkOrderUserParticipantMapper workOrderUserParticipantMapper;
 
@@ -35,6 +44,7 @@ public class WorkOrderUserParticipantService {
         if (workOrderId == null || companyId == null || userId == null || action == null) {
             return;
         }
+        // ???????????????????????
         WorkOrderUserParticipant participant = new WorkOrderUserParticipant();
         participant.setWorkOrderId(workOrderId);
         participant.setCompanyId(companyId);
@@ -56,6 +66,7 @@ public class WorkOrderUserParticipantService {
         if (workOrderId == null || companyId == null || userId == null) {
             return false;
         }
+        // ???????????????????????
         LambdaQueryWrapper<WorkOrderUserParticipant> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrderUserParticipant::getWorkOrderId, workOrderId)
                 .eq(WorkOrderUserParticipant::getCompanyId, companyId)

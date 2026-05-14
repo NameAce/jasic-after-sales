@@ -19,15 +19,16 @@ export interface CompanyAddressCreateDTO {
   contactPhone: string;
   address: string;
   isDefault?: 0 | 1;
+  targetCompanyId?: number;
 }
 
 export interface CompanyAddressUpdateDTO extends CompanyAddressCreateDTO {
   id: number;
 }
 
-/** 作用：查询当前公司收货地址列表。 */
-export function listCompanyAddress() {
-  return request<CompanyAddressVO[]>({ url: '/system/company-address/list', method: 'get' });
+/** 作用：查询当前或已指定目标公司的收货地址列表。 */
+export function listCompanyAddress(params?: { targetCompanyId?: number }) {
+  return request<CompanyAddressVO[]>({ url: '/system/company-address/list', method: 'get', params });
 }
 
 /** 作用：新增收货地址。 */
@@ -41,11 +42,11 @@ export function updateCompanyAddress(data: CompanyAddressUpdateDTO) {
 }
 
 /** 作用：删除收货地址。 */
-export function deleteCompanyAddress(addressId: IdLike) {
-  return request({ url: `/system/company-address/${addressId}`, method: 'delete' });
+export function deleteCompanyAddress(addressId: IdLike, params?: { targetCompanyId?: number }) {
+  return request({ url: `/system/company-address/${addressId}`, method: 'delete', params });
 }
 
 /** 作用：将指定地址设为默认。 */
-export function setDefaultCompanyAddress(addressId: IdLike) {
-  return request({ url: `/system/company-address/${addressId}/default`, method: 'put' });
+export function setDefaultCompanyAddress(addressId: IdLike, params?: { targetCompanyId?: number }) {
+  return request({ url: `/system/company-address/${addressId}/default`, method: 'put', params });
 }

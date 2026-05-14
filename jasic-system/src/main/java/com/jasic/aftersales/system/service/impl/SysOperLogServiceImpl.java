@@ -26,6 +26,11 @@ public class SysOperLogServiceImpl implements ISysOperLogService {
 
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
+    /**
+     * ?????
+     *
+     * @param operLog ??
+     */
     @Resource
     private SysOperLogMapper sysOperLogMapper;
 
@@ -78,6 +83,7 @@ public class SysOperLogServiceImpl implements ISysOperLogService {
             }
         }
         wrapper.orderByDesc(SysOperLog::getOperTime);
+        // ??????????????????????????
         Page<SysOperLog> result = sysOperLogMapper.selectPage(page, wrapper);
         return PageResult.of(result.getRecords(), result.getTotal(), query.getPageNum(), query.getPageSize());
     }
@@ -92,6 +98,7 @@ public class SysOperLogServiceImpl implements ISysOperLogService {
         if (ids == null || ids.isEmpty()) {
             return;
         }
+        // ???????????????????????
         sysOperLogMapper.deleteBatchIds(ids);
     }
 

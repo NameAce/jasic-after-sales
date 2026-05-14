@@ -20,6 +20,13 @@ import java.util.Set;
 @Component
 public class StpInterfaceImpl implements StpInterface {
 
+    /**
+     * ??Permission List?
+     *
+     * @param loginId login ID
+     * @param loginType ??
+     * @return ????
+     */
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
 

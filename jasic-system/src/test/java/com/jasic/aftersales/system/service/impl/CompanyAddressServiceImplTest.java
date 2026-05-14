@@ -7,7 +7,9 @@ import cn.dev33.satoken.context.model.SaRequest;
 import cn.dev33.satoken.context.model.SaResponse;
 import cn.dev33.satoken.context.model.SaStorage;
 import cn.dev33.satoken.stp.StpUtil;
+import com.jasic.aftersales.framework.datapermission.CompanyDataAccessContext;
 import com.jasic.aftersales.framework.security.SecurityContext;
+import com.jasic.aftersales.system.domain.dto.CompanyAddressCreateDTO;
 import com.jasic.aftersales.system.domain.dto.CompanyAddressUpdateDTO;
 import com.jasic.aftersales.system.domain.entity.CompanyAddress;
 import com.jasic.aftersales.system.mapper.CompanyAddressMapper;
@@ -35,6 +37,7 @@ import java.util.Map;
 public class CompanyAddressServiceImplTest {
 
     private CompanyAddressServiceImpl service;
+    private CompanyDataAccessContext companyDataAccessContext;
 
     @Before
     public void setUp() throws Exception {
@@ -43,6 +46,8 @@ public class CompanyAddressServiceImplTest {
         StpUtil.login(101L);
         SecurityContext.setCurrentCompanyId(2002L);
         service = new CompanyAddressServiceImpl();
+        companyDataAccessContext = new CompanyDataAccessContext();
+        setField(service, "companyDataAccessContext", companyDataAccessContext);
     }
 
     @After
@@ -97,6 +102,25 @@ public class CompanyAddressServiceImplTest {
         Assert.assertEquals(Integer.valueOf(1), store.get(3L).getIsDefault());
     }
 
+    @Test
+    public void shouldCreateAddressInScopedTargetCompanyWithoutChangingLoginCompany() throws Exception {
+        Map<Long, CompanyAddress> store = new LinkedHashMap<>();
+        setField(service, "companyAddressMapper", createCompanyAddressMapperProxy(store));
+
+        CompanyAddressCreateDTO dto = new CompanyAddressCreateDTO();
+        dto.setContactName("平台维护地址");
+        dto.setContactPhone("13700137000");
+        dto.setAddress("广东省深圳市南山区1号");
+        dto.setIsDefault(1);
+
+        Long id = companyDataAccessContext.runWithTargetCompany(3003L, () -> service.create(dto));
+
+        Assert.assertNotNull(id);
+        Assert.assertEquals(Long.valueOf(2002L), SecurityContext.getCurrentCompanyId());
+        Assert.assertEquals(Long.valueOf(3003L), store.get(id).getCompanyId());
+        Assert.assertNull(companyDataAccessContext.getTargetCompanyId());
+    }
+
     private CompanyAddress buildAddress(Long id, Long companyId, String contactName, Integer isDefault,
                                         LocalDateTime updateTime) {
         CompanyAddress address = new CompanyAddress();
@@ -128,6 +152,9 @@ public class CompanyAddressServiceImplTest {
                 }
                 if ("insert".equals(name)) {
                     CompanyAddress entity = (CompanyAddress) args[0];
+                    if (entity.getId() == null) {
+                        entity.setId((long) (store.size() + 1));
+                    }
                     store.put(entity.getId(), entity);
                     return 1;
                 }

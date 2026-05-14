@@ -22,9 +22,9 @@ public class SysRegionDTO implements Serializable {
     @ApiModelProperty(value = "主键（修改时必传）")
     private Long id;
 
-    /** 所属总部公司ID */
-    @ApiModelProperty(value = "所属总部公司ID")
-    private Long companyId;
+    /** 目标总部公司ID */
+    @ApiModelProperty(value = "目标总部公司ID")
+    private Long targetCompanyId;
 
     /** 大区名称 */
     @ApiModelProperty(value = "大区名称")

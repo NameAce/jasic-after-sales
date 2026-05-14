@@ -13,21 +13,6 @@ export function uploadSystemFile(file) {
   })
 }
 
-export function getFilePreviewUrl(fileId) {
-  return request({
-    url: `/system/file/${fileId}/preview-url`,
-    method: 'get'
-  })
-}
-
-export function listBizFiles(params) {
-  return request({
-    url: '/system/file/biz/list',
-    method: 'get',
-    params
-  })
-}
-
 export function bindBizFiles(data) {
   return request({
     url: '/system/file/biz/bind',

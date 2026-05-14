@@ -17,6 +17,13 @@ public enum SysFileUploadUserTypeEnum {
     /** 客户用户 */
     CUSTOMER("CUSTOMER", "客户用户");
 
+    /**
+     * ?? SysFileUploadUserTypeEnum ?????
+     *
+     * @param code ??
+     * @param desc ??
+     * @return ????
+     */
     private final String code;
 
     private final String desc;
@@ -26,6 +33,12 @@ public enum SysFileUploadUserTypeEnum {
         this.desc = desc;
     }
 
+    /**
+     * ??By Code?
+     *
+     * @param code ??
+     * @return ????
+     */
     public static SysFileUploadUserTypeEnum getByCode(String code) {
         if (code == null) {
             return null;
@@ -42,6 +55,12 @@ public enum SysFileUploadUserTypeEnum {
         return null;
     }
 
+    /**
+     * ?? fromCode ?????
+     *
+     * @param code ??
+     * @return ????
+     */
     @JsonCreator
     public static SysFileUploadUserTypeEnum fromCode(String code) {
         SysFileUploadUserTypeEnum value = getByCode(code);
@@ -51,11 +70,21 @@ public enum SysFileUploadUserTypeEnum {
         return value;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @JsonValue
     public String getCode() {
         return code;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     public String getDesc() {
         return desc;
     }

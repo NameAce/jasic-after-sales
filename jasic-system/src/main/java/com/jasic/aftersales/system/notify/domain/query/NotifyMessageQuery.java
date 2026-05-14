@@ -27,6 +27,10 @@ public class NotifyMessageQuery extends PageQuery {
     @ApiModelProperty(value = "接收人ID")
     private Long receiverId;
 
+    /** 接收公司ID */
+    @ApiModelProperty(value = "接收公司ID")
+    private Long receiverCompanyId;
+
     /** 业务类型 */
     @ApiModelProperty(value = "业务类型")
     private String bizType;

@@ -31,6 +31,12 @@ import java.util.stream.Collectors;
 @Service
 public class SysDictTypeServiceImpl implements ISysDictTypeService {
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @Resource
     private SysDictTypeMapper sysDictTypeMapper;
 
@@ -54,6 +60,7 @@ public class SysDictTypeServiceImpl implements ISysDictTypeService {
             wrapper.eq(SysDictType::getStatus, query.getStatus());
         }
         wrapper.orderByDesc(SysDictType::getId);
+        // ??????????????????????????
         Page<SysDictType> result = sysDictTypeMapper.selectPage(page, wrapper);
         List<SysDictTypeVO> records = result.getRecords().stream()
                 .map(this::toVO)
@@ -61,27 +68,46 @@ public class SysDictTypeServiceImpl implements ISysDictTypeService {
         return PageResult.of(records, result.getTotal(), query.getPageNum(), query.getPageSize());
     }
 
+    /**
+     * ??By Id?
+     *
+     * @param id ??ID
+     * @return ????
+     */
     @Override
     public SysDictTypeVO getById(Long id) {
         SysDictType entity = sysDictTypeMapper.selectById(id);
         return entity == null ? null : toVO(entity);
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     * @return ????
+     */
     @Override
     public Long save(SysDictTypeDTO dto) {
         checkDictTypeUnique(dto.getDictType(), null);
         SysDictType entity = BeanUtil.copyProperties(dto, SysDictType.class);
+        // ???????????????????????
         sysDictTypeMapper.insert(entity);
         dictDataService.refreshCache(entity.getDictType());
         return entity.getId();
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     */
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void update(SysDictTypeDTO dto) {
         if (dto.getId() == null) {
             throw new ServiceException("字典类型ID不能为空");
         }
+        // ??????????????????????????
         SysDictType entity = sysDictTypeMapper.selectById(dto.getId());
         if (entity == null) {
             throw new ServiceException("字典类型不存在");
@@ -89,6 +115,7 @@ public class SysDictTypeServiceImpl implements ISysDictTypeService {
         checkDictTypeUnique(dto.getDictType(), dto.getId());
         String oldDictType = entity.getDictType();
         BeanUtil.copyProperties(dto, entity);
+        // ???????????????????????
         sysDictTypeMapper.updateById(entity);
         if (!StrUtil.equals(oldDictType, entity.getDictType())) {
             LambdaQueryWrapper<SysDictData> wrapper = new LambdaQueryWrapper<>();
@@ -103,9 +130,15 @@ public class SysDictTypeServiceImpl implements ISysDictTypeService {
         dictDataService.refreshCache(entity.getDictType());
     }
 
+    /**
+     * ?????
+     *
+     * @param id ??ID
+     */
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void remove(Long id) {
+        // ??????????????????????????
         SysDictType entity = sysDictTypeMapper.selectById(id);
         if (entity == null) {
             throw new ServiceException("字典类型不存在");
@@ -115,24 +148,41 @@ public class SysDictTypeServiceImpl implements ISysDictTypeService {
         if (sysDictDataMapper.selectCount(wrapper) > 0) {
             throw new ServiceException("该字典类型下存在数据项，不允许删除");
         }
+        // ???????????????????????
         sysDictTypeMapper.deleteById(id);
         dictDataService.removeCache(entity.getDictType());
     }
 
+    /**
+     * ?? refreshCache ?????
+     */
     @Override
     public void refreshCache() {
         dictDataService.refreshCache();
     }
 
+    /**
+     * ?? checkDictTypeUnique ?????
+     *
+     * @param dictType ??
+     * @param excludeId exclude ID
+     */
     private void checkDictTypeUnique(String dictType, Long excludeId) {
         LambdaQueryWrapper<SysDictType> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysDictType::getDictType, dictType);
+        // ??????????????????????????
         SysDictType exists = sysDictTypeMapper.selectOne(wrapper);
         if (exists != null && (excludeId == null || !exists.getId().equals(excludeId))) {
             throw new ServiceException("字典类型已存在");
         }
     }
 
+    /**
+     * ?? toVO ?????
+     *
+     * @param entity ????
+     * @return ????
+     */
     private SysDictTypeVO toVO(SysDictType entity) {
         return BeanUtil.copyProperties(entity, SysDictTypeVO.class);
     }

@@ -50,6 +50,11 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
     @Resource(name = "jdbcTemplate")
     private JdbcTemplate jdbcTemplate;
 
+    /**
+     * ???????
+     *
+     * @return ????
+     */
     @Resource(name = "crmJdbcTemplate")
     private JdbcTemplate crmJdbcTemplate;
 
@@ -58,6 +63,7 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
 
     @Override
     public CrmWarehouseScanOutstorageSyncSummaryVO syncIncremental() {
+        // ?????????????????????????????
         JdbcTemplate crm = requireCrmJdbcTemplate();
         Long lastSourceId = getLocalMaxSourceId();
         // 褰撳墠婧愯〃鎸?scan_outstorage_id 閫掑杩藉姞锛屾晠浣跨敤涓婚敭娓告爣鎷夊彇澧為噺鏄庣粏銆?
@@ -108,6 +114,13 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
         return summary;
     }
 
+    /**
+     * ?? flushBatch ?????
+     *
+     * @param rows ??
+     * @param syncTime ??
+     * @param counter ??
+     */
     private void flushBatch(List<CrmWarehouseScanOutstorageSnapshot> rows, LocalDateTime syncTime, SyncCounter counter) {
         // 鏄庣粏蹇収淇濈暀 CRM 鍘熷璁板綍锛岄噰鐢?source_id 骞傜瓑鏇存柊锛屽吋瀹归噸澶嶆墽琛屻€?
         String sql = "INSERT INTO crm_warehouse_scan_outstorage_snapshot ("
@@ -123,6 +136,12 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
                 + "last_sync_time = VALUES(last_sync_time), "
                 + "update_time = NOW()";
         jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+            /**
+             * ??Values?
+             *
+             * @param ps ??
+             * @param i ??
+             */
             @Override
             public void setValues(PreparedStatement ps, int i) throws SQLException {
                 CrmWarehouseScanOutstorageSnapshot row = rows.get(i);
@@ -136,6 +155,11 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
                 ps.setTimestamp(8, toTimestamp(syncTime));
             }
 
+            /**
+             * ??Batch Size?
+             *
+             * @return ????
+             */
             @Override
             public int getBatchSize() {
                 return rows.size();
@@ -151,6 +175,12 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
         }
     }
 
+    /**
+     * ?? projectLastOutDate ?????
+     *
+     * @param barcodeSet ??
+     * @param counter ??
+     */
     private void projectLastOutDate(Set<String> barcodeSet, SyncCounter counter) {
         List<String> barcodes = new ArrayList<>(barcodeSet);
         int batchSize = 500;
@@ -160,6 +190,7 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
             // 鍙洿鏂版湰鍦板凡瀛樺湪鐨勬潯鐮佹。妗堬紱鏈尮閰嶆潯鐮佷粎鍋氳鏁帮紝涓嶈嚜鍔ㄥ缓妗ｃ€?
             LambdaQueryWrapper<MachineBarcode> wrapper = new LambdaQueryWrapper<>();
             wrapper.in(MachineBarcode::getBarcode, slice);
+            // ??????????????????????????
             List<MachineBarcode> existingBarcodes = machineBarcodeMapper.selectList(wrapper);
             Set<String> existingBarcodeSet = existingBarcodes.stream()
                     .map(MachineBarcode::getBarcode)
@@ -184,6 +215,12 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
             String updateSql = "UPDATE machine_barcode SET last_out_date = ?, last_sync_time = NOW(), update_time = NOW() "
                     + "WHERE barcode = ?";
             jdbcTemplate.batchUpdate(updateSql, new BatchPreparedStatementSetter() {
+                /**
+                 * ??Values?
+                 *
+                 * @param ps ??
+                 * @param i ??
+                 */
                 @Override
                 public void setValues(PreparedStatement ps, int i) throws SQLException {
                     Map.Entry<String, LocalDateTime> item = updates.get(i);
@@ -191,6 +228,11 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
                     ps.setString(2, item.getKey());
                 }
 
+                /**
+                 * ??Batch Size?
+                 *
+                 * @return ????
+                 */
                 @Override
                 public int getBatchSize() {
                     return updates.size();
@@ -200,6 +242,12 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
         }
     }
 
+    /**
+     * ?????
+     *
+     * @param barcodes ??
+     * @return ????
+     */
     private Map<String, LocalDateTime> queryMinScanDateMap(List<String> barcodes) {
         if (CollUtil.isEmpty(barcodes)) {
             return Collections.emptyMap();
@@ -227,6 +275,11 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
         return result;
     }
 
+    /**
+     * ??Local Max Source Id?
+     *
+     * @return ????
+     */
     private Long getLocalMaxSourceId() {
         // 蹇収琛ㄤ繚瀛樿繃鐨勬渶澶?source_id 鍗冲綋鍓嶅閲忓悓姝ユ父鏍囥€?
         String sql = "SELECT MAX(source_id) FROM crm_warehouse_scan_outstorage_snapshot";
@@ -234,6 +287,11 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
         return value == null ? 0L : value;
     }
 
+    /**
+     * ??????????
+     *
+     * @return ????
+     */
     private JdbcTemplate requireCrmJdbcTemplate() {
         if (crmJdbcTemplate == null) {
             throw new ServiceException("褰撳墠鏈厤缃鎴峰叧绯荤鐞嗭紙CRM锛夋暟鎹簮锛岃鍏堝畬鍠?jasic.crm.datasource");
@@ -241,10 +299,23 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
         return crmJdbcTemplate;
     }
 
+    /**
+     * ?? toTimestamp ?????
+     *
+     * @param value ???
+     * @return ????
+     */
     private Timestamp toTimestamp(LocalDateTime value) {
         return value == null ? null : Timestamp.valueOf(value);
     }
 
+    /**
+     * ?? toLocalDateTime ?????
+     *
+     * @param rs ??
+     * @param column ??
+     * @return ????
+     */
     private static LocalDateTime toLocalDateTime(ResultSet rs, String column) throws SQLException {
         Timestamp value = rs.getTimestamp(column);
         return value == null ? null : value.toLocalDateTime();

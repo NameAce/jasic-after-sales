@@ -38,6 +38,13 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
 
     private final ConcurrentMap<String, WxMaServiceHolder> serviceHolderMap = new ConcurrentHashMap<>();
 
+    /**
+     * ?? code2Session ?????
+     *
+     * @param scene ??
+     * @param code ??
+     * @return ????
+     */
     @Resource
     private ISysConfigService sysConfigService;
 
@@ -67,6 +74,13 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
         return session;
     }
 
+    /**
+     * ??Phone Number?
+     *
+     * @param scene ??
+     * @param phoneCode ??
+     * @return ????
+     */
     @Override
     public WechatPhoneInfo getPhoneNumber(WechatMiniProgramScene scene, String phoneCode) {
         if (StrUtil.isBlank(phoneCode)) {
@@ -94,6 +108,14 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
         return phoneInfo;
     }
 
+    /**
+     * ?????
+     *
+     * @param scene ??
+     * @param sceneValue ??
+     * @param pagePath ??
+     * @return ?????
+     */
     @Override
     public String createQrcodeBase64(WechatMiniProgramScene scene, String sceneValue, String pagePath) {
         if (StrUtil.isBlank(sceneValue)) {
@@ -118,6 +140,15 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
         return "data:image/png;base64," + Base64.getEncoder().encodeToString(qrcodeBytes);
     }
 
+    /**
+     * ???????
+     *
+     * @param scene ??
+     * @param openid ??openid
+     * @param templateId ??ID
+     * @param pagePath ??
+     * @param data ??
+     */
     @Override
     public void sendSubscribeMessage(WechatMiniProgramScene scene, String openid, String templateId, String pagePath,
                                      JSONObject data) {
@@ -185,6 +216,12 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
         return service;
     }
 
+    /**
+     * ?????
+     *
+     * @param scene ??
+     * @return ????
+     */
     private WechatMiniProgramConfig loadRequiredConfig(WechatMiniProgramScene scene) {
         String appId = sysConfigService.getValueByKey(scene.getAppIdKey());
         String secret = sysConfigService.getValueByKey(scene.getSecretKey());
@@ -241,6 +278,13 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
      */
     private static class WechatMiniProgramConfig {
 
+        /**
+         * ?? WechatMiniProgramConfig ?????
+         *
+         * @param appId app ID
+         * @param secret ??
+         * @return ????
+         */
         private final String appId;
         private final String secret;
 
@@ -249,10 +293,20 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
             this.secret = secret;
         }
 
+        /**
+         * ??App Id?
+         *
+         * @return ?????
+         */
         public String getAppId() {
             return appId;
         }
 
+        /**
+         * ??Secret?
+         *
+         * @return ?????
+         */
         public String getSecret() {
             return secret;
         }
@@ -263,6 +317,14 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
      */
     private static class WxMaServiceHolder {
 
+        /**
+         * ?? WxMaServiceHolder ?????
+         *
+         * @param appId app ID
+         * @param secret ??
+         * @param service ??
+         * @return ????
+         */
         private final String appId;
         private final String secret;
         private final WxMaService service;
@@ -273,10 +335,21 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
             this.service = service;
         }
 
+        /**
+         * ??Service?
+         *
+         * @return ????
+         */
         public WxMaService getService() {
             return service;
         }
 
+        /**
+         * ?? matches ?????
+         *
+         * @param config ??
+         * @return true ??????
+         */
         public boolean matches(WechatMiniProgramConfig config) {
             return StrUtil.equals(appId, config.getAppId()) && StrUtil.equals(secret, config.getSecret());
         }

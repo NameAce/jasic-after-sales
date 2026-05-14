@@ -17,6 +17,13 @@ public enum NotifyDispatchStatusEnum {
     FAILED("FAILED", "Failed"),
     SKIPPED("SKIPPED", "Skipped");
 
+    /**
+     * ?? NotifyDispatchStatusEnum ?????
+     *
+     * @param code ??
+     * @param desc ??
+     * @return ????
+     */
     private final String code;
 
     private final String desc;
@@ -26,6 +33,12 @@ public enum NotifyDispatchStatusEnum {
         this.desc = desc;
     }
 
+    /**
+     * ??By Code?
+     *
+     * @param code ??
+     * @return ????
+     */
     public static NotifyDispatchStatusEnum getByCode(String code) {
         if (code == null) {
             return null;
@@ -42,6 +55,12 @@ public enum NotifyDispatchStatusEnum {
         return null;
     }
 
+    /**
+     * ?? fromCode ?????
+     *
+     * @param code ??
+     * @return ????
+     */
     @JsonCreator
     public static NotifyDispatchStatusEnum fromCode(String code) {
         NotifyDispatchStatusEnum value = getByCode(code);
@@ -51,11 +70,21 @@ public enum NotifyDispatchStatusEnum {
         return value;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @JsonValue
     public String getCode() {
         return code;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     public String getDesc() {
         return desc;
     }

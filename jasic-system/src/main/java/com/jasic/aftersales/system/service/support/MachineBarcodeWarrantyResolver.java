@@ -16,9 +16,21 @@ public final class MachineBarcodeWarrantyResolver {
     public static final String IN_WARRANTY = "IN_WARRANTY";
     public static final String OUT_OF_WARRANTY = "OUT_OF_WARRANTY";
 
+    /**
+     * ?? MachineBarcodeWarrantyResolver ???
+     */
     private MachineBarcodeWarrantyResolver() {
     }
 
+    /**
+     * ???????
+     *
+     * @param barcode ??
+     * @param lastOutDate ??
+     * @param scanDate ??
+     * @param fallbackStatus ??
+     * @return ?????
+     */
     public static String resolveWarrantyStatus(String barcode, LocalDateTime lastOutDate, LocalDateTime scanDate,
                                                String fallbackStatus) {
         if (StrUtil.isBlank(StrUtil.trim(barcode))) {
@@ -32,6 +44,12 @@ public final class MachineBarcodeWarrantyResolver {
         return StrUtil.isBlank(normalizedFallback) ? OUT_OF_WARRANTY : normalizedFallback;
     }
 
+    /**
+     * ???????
+     *
+     * @param barcodeArchive ??
+     * @return ?????
+     */
     public static String resolveWarrantyStatus(MachineBarcode barcodeArchive) {
         if (barcodeArchive == null) {
             return OUT_OF_WARRANTY;
@@ -44,6 +62,12 @@ public final class MachineBarcodeWarrantyResolver {
         );
     }
 
+    /**
+     * ???????
+     *
+     * @param barcodeArchive ??
+     * @return ????
+     */
     public static LocalDateTime resolveLastOutDate(MachineBarcode barcodeArchive) {
         if (barcodeArchive == null) {
             return null;
@@ -51,10 +75,24 @@ public final class MachineBarcodeWarrantyResolver {
         return resolveLastOutDate(barcodeArchive.getLastOutDate(), barcodeArchive.getScanDate());
     }
 
+    /**
+     * ???????
+     *
+     * @param lastOutDate ??
+     * @param scanDate ??
+     * @return ????
+     */
     public static LocalDateTime resolveLastOutDate(LocalDateTime lastOutDate, LocalDateTime scanDate) {
         return lastOutDate != null ? lastOutDate : scanDate;
     }
 
+    /**
+     * ???????
+     *
+     * @param lastOutDate ??
+     * @param scanDate ??
+     * @return ????
+     */
     private static LocalDateTime resolveExpireTime(LocalDateTime lastOutDate, LocalDateTime scanDate) {
         if (lastOutDate != null) {
             return lastOutDate.plusYears(3);

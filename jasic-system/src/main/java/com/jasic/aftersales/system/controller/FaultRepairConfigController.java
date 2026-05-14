@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
@@ -39,24 +40,49 @@ public class FaultRepairConfigController extends BaseController {
     @Resource
     private IFaultRepairConfigService faultRepairConfigService;
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @SaCheckPermission("system:faultRepairConfig:list")
     @GetMapping("/list")
     public Result<PageResult<FaultRepairConfigVO>> list(FaultRepairConfigQuery query) {
         return Result.ok(faultRepairConfigService.listPage(query));
     }
 
+    /**
+     * ??By Id?
+     *
+     * @param id ??ID
+     * @param ownerHqId ????ID
+     * @return ??????
+     */
     @SaCheckPermission("system:faultRepairConfig:list")
     @GetMapping("/{id}")
-    public Result<FaultRepairConfigVO> getById(@PathVariable Long id) {
-        return Result.ok(faultRepairConfigService.getById(id));
+    public Result<FaultRepairConfigVO> getById(@PathVariable Long id,
+                                               @RequestParam(required = false) Long ownerHqId) {
+        return Result.ok(faultRepairConfigService.getById(id, ownerHqId));
     }
 
+    /**
+     * ???????
+     *
+     * @return ????
+     */
     @SaCheckPermission("system:faultRepairConfig:list")
     @GetMapping("/company-options")
     public Result<List<SysCompanySimpleVO>> listCompanyOptions() {
         return Result.ok(faultRepairConfigService.listCompanyOptions());
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     * @return ??????
+     */
     @SaCheckPermission("system:faultRepairConfig:add")
     @OperLog(title = "故障与维修配置", operType = OperTypeEnum.INSERT)
     @PostMapping
@@ -64,6 +90,12 @@ public class FaultRepairConfigController extends BaseController {
         return Result.ok(faultRepairConfigService.save(dto));
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     * @return ??????
+     */
     @SaCheckPermission("system:faultRepairConfig:update")
     @OperLog(title = "故障与维修配置", operType = OperTypeEnum.UPDATE)
     @PutMapping

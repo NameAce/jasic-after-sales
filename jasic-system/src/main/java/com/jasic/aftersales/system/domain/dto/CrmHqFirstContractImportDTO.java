@@ -26,6 +26,11 @@ public class CrmHqFirstContractImportDTO implements Serializable {
     @NotNull(message = "请选择总部公司")
     private Long hqCompanyId;
 
+    /** 目标总部公司ID */
+    @ApiModelProperty(value = "目标总部公司ID", required = true)
+    @NotNull(message = "请选择目标总部公司")
+    private Long targetCompanyId;
+
     /** 选中的快照ID列表 */
     @ApiModelProperty(value = "选中的快照ID列表", required = true)
     @NotEmpty(message = "请选择需要导入的 CRM 签约数据")

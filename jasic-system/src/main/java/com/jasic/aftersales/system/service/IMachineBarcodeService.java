@@ -31,7 +31,7 @@ public interface IMachineBarcodeService {
      * @param id 主键
      * @return 条码档案详情
      */
-    MachineBarcodeVO getById(Long id);
+    MachineBarcodeVO getById(Long id, Long ownerHqId, Long targetCompanyId);
 
     /**
      * 查询可选总部列表

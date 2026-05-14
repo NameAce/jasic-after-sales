@@ -39,16 +39,16 @@ public class SysRegionController extends BaseController {
     private ISysRegionService regionService;
 
     /**
-     * 根据公司ID查询大区列表
+     * 根据目标公司ID查询大区列表
      *
-     * @param companyId 公司ID
+     * @param targetCompanyId 目标公司ID
      * @return 大区列表
      */
-    @ApiOperation(value = "根据公司ID查询大区列表")
+    @ApiOperation(value = "根据目标公司ID查询大区列表")
     @SaCheckPermission("system:region:list")
     @GetMapping("/list")
-    public Result<List<SysRegion>> listByCompanyId(@RequestParam Long companyId) {
-        return Result.ok(regionService.listByCompanyId(companyId));
+    public Result<List<SysRegion>> listByCompanyId(@RequestParam(required = false) Long targetCompanyId) {
+        return Result.ok(regionService.listByTargetCompanyId(targetCompanyId));
     }
 
     /**
@@ -60,8 +60,9 @@ public class SysRegionController extends BaseController {
     @ApiOperation(value = "根据ID查询大区")
     @SaCheckPermission("system:region:list")
     @GetMapping("/{id}")
-    public Result<SysRegion> getById(@PathVariable Long id) {
-        return Result.ok(regionService.getById(id));
+    public Result<SysRegion> getById(@PathVariable Long id,
+                                      @RequestParam(required = false) Long targetCompanyId) {
+        return Result.ok(regionService.getById(id, targetCompanyId));
     }
 
     /**
@@ -103,8 +104,9 @@ public class SysRegionController extends BaseController {
     @SaCheckPermission("system:region:remove")
     @OperLog(title = "大区管理", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/{id}")
-    public Result<Void> remove(@PathVariable Long id) {
-        regionService.remove(id);
+    public Result<Void> remove(@PathVariable Long id,
+                               @RequestParam(required = false) Long targetCompanyId) {
+        regionService.remove(id, targetCompanyId);
         return Result.ok();
     }
 
@@ -117,8 +119,9 @@ public class SysRegionController extends BaseController {
     @ApiOperation(value = "查询用户在当前公司的大区绑定")
     @SaCheckPermission("system:region:assign")
     @GetMapping("/{userId}/regions")
-    public Result<List<Long>> listUserRegions(@PathVariable Long userId) {
-        return Result.ok(regionService.listCurrentCompanyRegionIdsByUserId(userId));
+    public Result<List<Long>> listUserRegions(@PathVariable Long userId,
+                                              @RequestParam(required = false) Long targetCompanyId) {
+        return Result.ok(regionService.listUserRegionIdsByTargetCompanyId(userId, targetCompanyId));
     }
 
     /**
@@ -132,8 +135,10 @@ public class SysRegionController extends BaseController {
     @SaCheckPermission("system:region:assign")
     @OperLog(title = "大区管理", operType = OperTypeEnum.GRANT)
     @PutMapping("/{userId}/regions")
-    public Result<Void> assignUserRegions(@PathVariable Long userId, @RequestBody List<Long> regionIds) {
-        regionService.assignUserRegions(userId, regionIds);
+    public Result<Void> assignUserRegions(@PathVariable Long userId,
+                                          @RequestParam(required = false) Long targetCompanyId,
+                                          @RequestBody List<Long> regionIds) {
+        regionService.assignUserRegions(userId, targetCompanyId, regionIds);
         return Result.ok();
     }
 }

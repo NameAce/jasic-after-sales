@@ -32,9 +32,21 @@ public class QuartzConfig {
     private static final String NOTIFY_DISPATCH_JOB_NAME = "notify-dispatch-send-job";
     private static final String NOTIFY_DISPATCH_TRIGGER_NAME = "notify-dispatch-send-trigger";
 
+    /**
+     * ?? schedulerFactoryBeanCustomizer ?????
+     *
+     * @param beanFactory ??
+     * @return ????
+     */
     @Bean
     public SchedulerFactoryBeanCustomizer schedulerFactoryBeanCustomizer(AutowireCapableBeanFactory beanFactory) {
         return schedulerFactoryBean -> schedulerFactoryBean.setJobFactory(new SpringBeanJobFactory() {
+            /**
+             * ?????
+             *
+             * @param bundle ??
+             * @return ????
+             */
             @Override
             protected Object createJobInstance(TriggerFiredBundle bundle) throws Exception {
                 Object job = super.createJobInstance(bundle);
@@ -44,6 +56,11 @@ public class QuartzConfig {
         });
     }
 
+    /**
+     * ?? notifyEventConsumeJobDetail ?????
+     *
+     * @return ????
+     */
     @Bean
     public JobDetail notifyEventConsumeJobDetail() {
         return JobBuilder.newJob(NotifyEventConsumeJob.class)
@@ -52,6 +69,13 @@ public class QuartzConfig {
                 .build();
     }
 
+    /**
+     * ?? notifyEventConsumeTrigger ?????
+     *
+     * @param jobDetail ??
+     * @param intervalSeconds ??
+     * @return ????
+     */
     @Bean
     public Trigger notifyEventConsumeTrigger(
             @Qualifier("notifyEventConsumeJobDetail") JobDetail jobDetail,
@@ -59,6 +83,11 @@ public class QuartzConfig {
         return buildSimpleTrigger(jobDetail, NOTIFY_EVENT_TRIGGER_NAME, NOTIFY_EVENT_JOB_GROUP, intervalSeconds);
     }
 
+    /**
+     * ?? notifyDispatchSendJobDetail ?????
+     *
+     * @return ????
+     */
     @Bean
     public JobDetail notifyDispatchSendJobDetail() {
         return JobBuilder.newJob(NotifyDispatchSendJob.class)
@@ -67,6 +96,13 @@ public class QuartzConfig {
                 .build();
     }
 
+    /**
+     * ?? notifyDispatchSendTrigger ?????
+     *
+     * @param jobDetail ??
+     * @param intervalSeconds ??
+     * @return ????
+     */
     @Bean
     public Trigger notifyDispatchSendTrigger(
             @Qualifier("notifyDispatchSendJobDetail") JobDetail jobDetail,
@@ -74,6 +110,15 @@ public class QuartzConfig {
         return buildSimpleTrigger(jobDetail, NOTIFY_DISPATCH_TRIGGER_NAME, NOTIFY_DISPATCH_JOB_GROUP, intervalSeconds);
     }
 
+    /**
+     * ???????
+     *
+     * @param jobDetail ??
+     * @param triggerName ??
+     * @param triggerGroup ??
+     * @param intervalSeconds ??
+     * @return ????
+     */
     private Trigger buildSimpleTrigger(JobDetail jobDetail, String triggerName, String triggerGroup, int intervalSeconds) {
         int safeIntervalSeconds = Math.max(intervalSeconds, 1);
         return TriggerBuilder.newTrigger()

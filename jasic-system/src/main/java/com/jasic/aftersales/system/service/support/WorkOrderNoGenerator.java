@@ -23,6 +23,11 @@ public class WorkOrderNoGenerator {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final long MAX_DAILY_SEQUENCE = 99999L;
 
+    /**
+     * ?? nextOrderNo ?????
+     *
+     * @return ?????
+     */
     @Resource
     private StringRedisTemplate stringRedisTemplate;
 
@@ -33,6 +38,12 @@ public class WorkOrderNoGenerator {
         return ORDER_NO_PREFIX + datePart + String.format("%05d", sequence);
     }
 
+    /**
+     * ?? nextDailySequence ?????
+     *
+     * @param datePart ??
+     * @return ????
+     */
     private long nextDailySequence(String datePart) {
         String redisKey = REDIS_KEY_PREFIX + datePart;
         Long sequence = stringRedisTemplate.opsForValue().increment(redisKey);

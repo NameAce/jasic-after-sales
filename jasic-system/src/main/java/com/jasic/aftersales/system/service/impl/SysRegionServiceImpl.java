@@ -2,22 +2,17 @@ package com.jasic.aftersales.system.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.jasic.aftersales.common.enums.SubjectTypeEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
-import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.dto.SysRegionDTO;
 import com.jasic.aftersales.system.domain.entity.HqFirstContract;
-import com.jasic.aftersales.system.domain.entity.SysCompany;
-import com.jasic.aftersales.system.domain.entity.SysCompanyType;
 import com.jasic.aftersales.system.domain.entity.SysRegion;
 import com.jasic.aftersales.system.domain.entity.SysUserCompany;
 import com.jasic.aftersales.system.domain.entity.SysUserRegion;
 import com.jasic.aftersales.system.mapper.HqFirstContractMapper;
-import com.jasic.aftersales.system.mapper.SysCompanyMapper;
 import com.jasic.aftersales.system.mapper.SysRegionMapper;
 import com.jasic.aftersales.system.mapper.SysUserCompanyMapper;
 import com.jasic.aftersales.system.mapper.SysUserRegionMapper;
-import com.jasic.aftersales.system.service.ISysCompanyTypeService;
+import com.jasic.aftersales.system.service.CompanyDataAccessService;
 import com.jasic.aftersales.system.service.ISysRegionService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,8 +21,6 @@ import javax.annotation.Resource;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -40,8 +33,6 @@ import java.util.stream.Collectors;
 @Service
 public class SysRegionServiceImpl implements ISysRegionService {
 
-    private static final Integer STATUS_ENABLED = 1;
-
     @Resource
     private SysRegionMapper sysRegionMapper;
 
@@ -51,14 +42,14 @@ public class SysRegionServiceImpl implements ISysRegionService {
     @Resource
     private SysUserCompanyMapper sysUserCompanyMapper;
 
-    @Resource
-    private SysCompanyMapper sysCompanyMapper;
-
+    /**
+     * ???????
+     *
+     * @param targetCompanyId ????ID
+     * @return ????
+     */
     @Resource
     private HqFirstContractMapper hqFirstContractMapper;
-
-    @Resource
-    private ISysCompanyTypeService companyTypeService;
 
     /**
      * 根据公司ID查询大区列表
@@ -66,15 +57,19 @@ public class SysRegionServiceImpl implements ISysRegionService {
      * @param companyId 公司ID
      * @return 大区列表
      */
+    @Resource
+    private CompanyDataAccessService companyDataAccessService;
+
     @Override
-    public List<SysRegion> listByCompanyId(Long companyId) {
-        if (companyId == null) {
-            return Collections.emptyList();
-        }
-        LambdaQueryWrapper<SysRegion> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysRegion::getCompanyId, companyId)
-                .orderByAsc(SysRegion::getId);
-        return sysRegionMapper.selectList(wrapper);
+    public List<SysRegion> listByTargetCompanyId(Long targetCompanyId) {
+        Long companyId = companyDataAccessService.resolveOwnerHqTarget(targetCompanyId);
+        return companyDataAccessService.runWithOwnerHqTarget(companyId, () -> {
+            LambdaQueryWrapper<SysRegion> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(SysRegion::getCompanyId, companyId)
+                    .orderByAsc(SysRegion::getId);
+            // ??????????????????????????
+            return sysRegionMapper.selectList(wrapper);
+        });
     }
 
     /**
@@ -84,8 +79,9 @@ public class SysRegionServiceImpl implements ISysRegionService {
      * @return 大区实体
      */
     @Override
-    public SysRegion getById(Long id) {
-        return sysRegionMapper.selectById(id);
+    public SysRegion getById(Long id, Long targetCompanyId) {
+        Long companyId = companyDataAccessService.resolveOwnerHqTarget(targetCompanyId);
+        return companyDataAccessService.runWithOwnerHqTarget(companyId, () -> sysRegionMapper.selectById(id));
     }
 
     /**
@@ -96,11 +92,15 @@ public class SysRegionServiceImpl implements ISysRegionService {
      */
     @Override
     public Long save(SysRegionDTO dto) {
-        validateHqCompany(dto.getCompanyId());
-        SysRegion entity = new SysRegion();
-        BeanUtil.copyProperties(dto, entity);
-        sysRegionMapper.insert(entity);
-        return entity.getId();
+        Long companyId = companyDataAccessService.resolveOwnerHqTarget(dto.getTargetCompanyId());
+        return companyDataAccessService.runWithOwnerHqTarget(companyId, () -> {
+            SysRegion entity = new SysRegion();
+            BeanUtil.copyProperties(dto, entity);
+            entity.setCompanyId(companyId);
+            // ???????????????????????
+            sysRegionMapper.insert(entity);
+            return entity.getId();
+        });
     }
 
     /**
@@ -113,13 +113,18 @@ public class SysRegionServiceImpl implements ISysRegionService {
         if (dto.getId() == null) {
             throw new ServiceException("大区ID不能为空");
         }
-        SysRegion entity = sysRegionMapper.selectById(dto.getId());
-        if (entity == null) {
-            throw new ServiceException("大区不存在");
-        }
-        validateHqCompany(dto.getCompanyId());
-        BeanUtil.copyProperties(dto, entity);
-        sysRegionMapper.updateById(entity);
+        Long companyId = companyDataAccessService.resolveOwnerHqTarget(dto.getTargetCompanyId());
+        companyDataAccessService.runWithOwnerHqTarget(companyId, () -> {
+            // ??????????????????????????
+            SysRegion entity = sysRegionMapper.selectById(dto.getId());
+            if (entity == null) {
+                throw new ServiceException("大区不存在");
+            }
+            BeanUtil.copyProperties(dto, entity);
+            entity.setCompanyId(companyId);
+            // ???????????????????????
+            sysRegionMapper.updateById(entity);
+        });
     }
 
     /**
@@ -128,17 +133,22 @@ public class SysRegionServiceImpl implements ISysRegionService {
      * @param id 主键ID
      */
     @Override
-    public void remove(Long id) {
-        SysRegion entity = sysRegionMapper.selectById(id);
-        if (entity == null) {
-            throw new ServiceException("大区不存在");
-        }
-        LambdaQueryWrapper<HqFirstContract> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(HqFirstContract::getRegionId, id);
-        if (hqFirstContractMapper.selectCount(wrapper) > 0) {
-            throw new ServiceException("该大区已被签约关系引用，不允许删除");
-        }
-        sysRegionMapper.deleteById(id);
+    public void remove(Long id, Long targetCompanyId) {
+        Long companyId = companyDataAccessService.resolveOwnerHqTarget(targetCompanyId);
+        companyDataAccessService.runWithOwnerHqTarget(companyId, () -> {
+            // ??????????????????????????
+            SysRegion entity = sysRegionMapper.selectById(id);
+            if (entity == null) {
+                throw new ServiceException("大区不存在");
+            }
+            LambdaQueryWrapper<HqFirstContract> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(HqFirstContract::getRegionId, id);
+            if (hqFirstContractMapper.selectCount(wrapper) > 0) {
+                throw new ServiceException("该大区已被签约关系引用，不允许删除");
+            }
+            // ???????????????????????
+            sysRegionMapper.deleteById(id);
+        });
     }
 
     /**
@@ -149,9 +159,10 @@ public class SysRegionServiceImpl implements ISysRegionService {
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void assignUserRegions(Long userId, List<Long> regionIds) {
-        Long companyId = requireCurrentHqCompany();
-        validateUserInCurrentCompany(userId, companyId);
+    public void assignUserRegions(Long userId, Long targetCompanyId, List<Long> regionIds) {
+        Long companyId = companyDataAccessService.resolveOwnerHqTarget(targetCompanyId);
+        // ?????????????????????????????
+        validateUserInTargetCompany(userId, companyId);
 
         List<Long> targetRegionIds = normalizeRegionIds(regionIds);
         validateRegionsBelongToCompany(companyId, targetRegionIds);
@@ -161,6 +172,7 @@ public class SysRegionServiceImpl implements ISysRegionService {
             LambdaQueryWrapper<SysUserRegion> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(SysUserRegion::getUserId, userId)
                     .in(SysUserRegion::getRegionId, currentCompanyRegionIds);
+            // ???????????????????????
             sysUserRegionMapper.delete(wrapper);
         }
 
@@ -172,10 +184,17 @@ public class SysRegionServiceImpl implements ISysRegionService {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param userId ??ID
+     * @param targetCompanyId ????ID
+     * @return ????
+     */
     @Override
-    public List<Long> listCurrentCompanyRegionIdsByUserId(Long userId) {
-        Long companyId = requireCurrentHqCompany();
-        validateUserInCurrentCompany(userId, companyId);
+    public List<Long> listUserRegionIdsByTargetCompanyId(Long userId, Long targetCompanyId) {
+        Long companyId = companyDataAccessService.resolveOwnerHqTarget(targetCompanyId);
+        validateUserInTargetCompany(userId, companyId);
         return listRegionIdsByUserIdAndCompanyId(userId, companyId);
     }
 
@@ -192,6 +211,7 @@ public class SysRegionServiceImpl implements ISysRegionService {
         }
         LambdaQueryWrapper<SysUserRegion> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysUserRegion::getUserId, userId);
+        // ??????????????????????????
         List<SysUserRegion> list = sysUserRegionMapper.selectList(wrapper);
         return list.stream().map(SysUserRegion::getRegionId).collect(Collectors.toList());
     }
@@ -216,34 +236,36 @@ public class SysRegionServiceImpl implements ISysRegionService {
         wrapper.eq(SysRegion::getCompanyId, companyId)
                 .in(SysRegion::getId, regionIds)
                 .orderByAsc(SysRegion::getId);
+        // ??????????????????????????
         List<SysRegion> regions = sysRegionMapper.selectList(wrapper);
         return regions.stream().map(SysRegion::getId).collect(Collectors.toList());
     }
 
-    private Long requireCurrentHqCompany() {
-        Long companyId = SecurityContext.getCurrentCompanyId();
-        if (companyId == null) {
-            throw new ServiceException("当前公司不能为空");
-        }
-        String subjectType = SecurityContext.getCurrentSubjectType();
-        if (!SubjectTypeEnum.HQ.getCode().equals(subjectType)) {
-            throw new ServiceException("当前公司不是总部，不能绑定大区");
-        }
-        return companyId;
-    }
-
-    private void validateUserInCurrentCompany(Long userId, Long companyId) {
+    /**
+     * ???????
+     *
+     * @param userId ??ID
+     * @param companyId ??ID
+     */
+    private void validateUserInTargetCompany(Long userId, Long companyId) {
         if (userId == null) {
             throw new ServiceException("用户ID不能为空");
         }
         LambdaQueryWrapper<SysUserCompany> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysUserCompany::getUserId, userId)
                 .eq(SysUserCompany::getCompanyId, companyId);
+        // ??????????????????????????
         if (sysUserCompanyMapper.selectCount(wrapper) == 0) {
             throw new ServiceException("用户未关联当前公司");
         }
     }
 
+    /**
+     * ????????
+     *
+     * @param regionIds region ID??
+     * @return ????
+     */
     private List<Long> normalizeRegionIds(List<Long> regionIds) {
         if (regionIds == null || regionIds.isEmpty()) {
             return Collections.emptyList();
@@ -257,6 +279,12 @@ public class SysRegionServiceImpl implements ISysRegionService {
         return distinctIds.stream().collect(Collectors.toList());
     }
 
+    /**
+     * ???????
+     *
+     * @param companyId ??ID
+     * @param regionIds region ID??
+     */
     private void validateRegionsBelongToCompany(Long companyId, List<Long> regionIds) {
         if (regionIds == null || regionIds.isEmpty()) {
             return;
@@ -264,27 +292,11 @@ public class SysRegionServiceImpl implements ISysRegionService {
         LambdaQueryWrapper<SysRegion> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysRegion::getCompanyId, companyId)
                 .in(SysRegion::getId, regionIds);
+        // ??????????????????????????
         Long matchedCount = sysRegionMapper.selectCount(wrapper);
         if (matchedCount == null || matchedCount.intValue() != regionIds.size()) {
             throw new ServiceException("存在不属于当前总部的大区");
         }
     }
 
-    private void validateHqCompany(Long companyId) {
-        if (companyId == null) {
-            throw new ServiceException("公司ID不能为空");
-        }
-        SysCompany company = sysCompanyMapper.selectById(companyId);
-        if (company == null) {
-            throw new ServiceException("总部公司不存在");
-        }
-        if (!Objects.equals(company.getStatus(), STATUS_ENABLED)) {
-            throw new ServiceException("总部公司已停用");
-        }
-        Map<String, String> subjectTypeMap = companyTypeService.listAll().stream()
-                .collect(Collectors.toMap(SysCompanyType::getTypeCode, SysCompanyType::getSubjectType, (a, b) -> a));
-        if (!SubjectTypeEnum.HQ.getCode().equals(subjectTypeMap.get(company.getTypeCode()))) {
-            throw new ServiceException("所属公司必须是总部类型");
-        }
-    }
 }

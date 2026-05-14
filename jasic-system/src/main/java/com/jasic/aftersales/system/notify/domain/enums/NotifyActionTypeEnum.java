@@ -23,6 +23,13 @@ public enum NotifyActionTypeEnum {
     /** 标记失效。 */
     INVALID("INVALID", "失效");
 
+    /**
+     * ?? NotifyActionTypeEnum ?????
+     *
+     * @param code ??
+     * @param desc ??
+     * @return ????
+     */
     private final String code;
 
     private final String desc;
@@ -32,6 +39,12 @@ public enum NotifyActionTypeEnum {
         this.desc = desc;
     }
 
+    /**
+     * ??By Code?
+     *
+     * @param code ??
+     * @return ????
+     */
     public static NotifyActionTypeEnum getByCode(String code) {
         if (code == null) {
             return null;
@@ -48,6 +61,12 @@ public enum NotifyActionTypeEnum {
         return null;
     }
 
+    /**
+     * ?? fromCode ?????
+     *
+     * @param code ??
+     * @return ????
+     */
     @JsonCreator
     public static NotifyActionTypeEnum fromCode(String code) {
         NotifyActionTypeEnum value = getByCode(code);
@@ -57,11 +76,21 @@ public enum NotifyActionTypeEnum {
         return value;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @JsonValue
     public String getCode() {
         return code;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     public String getDesc() {
         return desc;
     }

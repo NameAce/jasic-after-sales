@@ -8,13 +8,9 @@ type IdLike = string | number;
 type Query = Record<string, unknown>;
 
 export interface WorkOrderQuery extends Query {
-  /**
-   * 与 jasic-ui `views/workOrder/index.vue` 的 `queryParams` 一致：列表为 PageHelper 风格 `pageNum`/`pageSize`（非 MyBatis-Plus 的 current/size）。
-   */
   pageNum?: number;
   pageSize?: number;
   viewScope?: 'CURRENT' | 'HISTORY' | 'ALL';
-  companyId?: number;
   orderNo?: string;
   customerName?: string;
   customerMobile?: string;
@@ -24,10 +20,10 @@ export interface WorkOrderQuery extends Query {
   hasTransfer?: 0 | 1;
 }
 
-/** `GET /system/work-order/status-count`：与 jasic `buildStatusCountParams` 一致，不含分页与 mainStatus */
+/** `GET /system/work-order/status-count`：仅提交前端筛选字段，不提交权限上下文字段。 */
 export type WorkOrderStatusCountQuery = Pick<
   WorkOrderQuery,
-  'viewScope' | 'orderNo' | 'customerName' | 'customerMobile' | 'barcode' | 'hasTransfer' | 'companyId'
+  'viewScope' | 'orderNo' | 'customerName' | 'customerMobile' | 'barcode' | 'hasTransfer'
 >;
 
 export interface WorkOrderListVO {
@@ -146,15 +142,6 @@ export interface WorkOrderCreateOptionsVO {
   faultItems?: Array<{ label: string; value: string }>;
 }
 
-export interface WorkOrderMailInfoDTO {
-  workOrderId: number;
-  senderName?: string;
-  senderMobile?: string;
-  senderAddress?: string;
-  sendExpressNo?: string;
-  senderVoucherFileIds?: number[];
-}
-
 export function listWorkOrder(params?: WorkOrderQuery) {
   return request<WorkOrderPageResult>({ url: '/system/work-order/list', method: 'get', params });
 }
@@ -170,9 +157,6 @@ export function getWorkOrder(workOrderId: IdLike) {
 export function listCreateHqOptions() {
   return request<WorkOrderCreateOptionsVO>({ url: '/system/work-order/create-hq-options', method: 'get' });
 }
-
-/** @deprecated 使用 listCreateHqOptions（与 jasic-ui 路径一致） */
-export const getWorkOrderCreateOptions = listCreateHqOptions;
 
 export function getProxyCreateBarcodeInfo(params?: Query) {
   return request({ url: '/system/work-order/create/proxy/barcode-info', method: 'get', params });
@@ -194,18 +178,8 @@ export function listAssignUserOptions(workOrderId: IdLike) {
   return request({ url: `/system/work-order/${workOrderId}/assign-user-options`, method: 'get' });
 }
 
-/** @deprecated 使用 listAssignUserOptions(workOrderId) */
-export function listAssignCandidates(workOrderId: IdLike) {
-  return listAssignUserOptions(workOrderId);
-}
-
 export function listTransferTargetOptions(workOrderId: IdLike) {
   return request({ url: `/system/work-order/${workOrderId}/transfer-target-options`, method: 'get' });
-}
-
-/** @deprecated 使用 listTransferTargetOptions(workOrderId) */
-export function listTransferCandidates(workOrderId: IdLike) {
-  return listTransferTargetOptions(workOrderId);
 }
 
 export function listRepairFaultOptions(workOrderId: IdLike) {
@@ -254,11 +228,6 @@ export function updateRepairProductModel(data: Query) {
 
 export function updateWorkOrderSendExpress(data: Query) {
   return request({ url: '/system/work-order/send-express', method: 'put', data });
-}
-
-/** @deprecated 使用 updateWorkOrderSendExpress（字段以后端 DTO 为准） */
-export function saveWorkOrderMailInfo(data: WorkOrderMailInfoDTO) {
-  return updateWorkOrderSendExpress(data as unknown as Query);
 }
 
 export function closeWorkOrder(data: WorkOrderCloseDTO) {

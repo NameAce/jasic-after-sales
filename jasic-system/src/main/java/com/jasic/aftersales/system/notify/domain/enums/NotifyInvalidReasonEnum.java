@@ -23,6 +23,13 @@ public enum NotifyInvalidReasonEnum {
     /** 工单作废导致失效。 */
     WORK_ORDER_CANCELLED("WORK_ORDER_CANCELLED", "工单已作废");
 
+    /**
+     * ?? NotifyInvalidReasonEnum ?????
+     *
+     * @param code ??
+     * @param desc ??
+     * @return ????
+     */
     private final String code;
 
     private final String desc;
@@ -32,6 +39,12 @@ public enum NotifyInvalidReasonEnum {
         this.desc = desc;
     }
 
+    /**
+     * ??By Code?
+     *
+     * @param code ??
+     * @return ????
+     */
     public static NotifyInvalidReasonEnum getByCode(String code) {
         if (code == null) {
             return null;
@@ -48,6 +61,12 @@ public enum NotifyInvalidReasonEnum {
         return null;
     }
 
+    /**
+     * ?? fromCode ?????
+     *
+     * @param code ??
+     * @return ????
+     */
     @JsonCreator
     public static NotifyInvalidReasonEnum fromCode(String code) {
         NotifyInvalidReasonEnum value = getByCode(code);
@@ -57,11 +76,21 @@ public enum NotifyInvalidReasonEnum {
         return value;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @JsonValue
     public String getCode() {
         return code;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     public String getDesc() {
         return desc;
     }

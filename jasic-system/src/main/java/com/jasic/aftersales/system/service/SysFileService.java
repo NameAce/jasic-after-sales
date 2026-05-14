@@ -3,7 +3,6 @@ package com.jasic.aftersales.system.service;
 import com.jasic.aftersales.common.enums.SysFileBizTypeEnum;
 import com.jasic.aftersales.common.enums.SysFileUploadUserTypeEnum;
 import com.jasic.aftersales.system.domain.vo.SysFileItemVO;
-import com.jasic.aftersales.system.domain.vo.SysFilePreviewVO;
 import com.jasic.aftersales.system.domain.vo.SysFileUploadVO;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -30,14 +29,6 @@ public interface SysFileService {
      */
     SysFileUploadVO upload(MultipartFile file, String bizDir, Long uploadUserId,
                            SysFileUploadUserTypeEnum uploadUserType, Long uploadCompanyId);
-
-    /**
-     * 生成预览地址
-     *
-     * @param fileId 文件ID
-     * @return 预览地址
-     */
-    SysFilePreviewVO getPreviewUrl(Long fileId);
 
     /**
      * 按业务整组替换附件

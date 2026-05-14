@@ -23,6 +23,12 @@ import java.util.List;
 @Service
 public class CUserServiceImpl implements ICUserService {
 
+    /**
+     * ??By Openid?
+     *
+     * @param openid ??openid
+     * @return ????
+     */
     @Resource
     private CUserMapper cUserMapper;
 
@@ -47,6 +53,7 @@ public class CUserServiceImpl implements ICUserService {
      */
     @Override
     public CUser getByPhone(String phone) {
+        // ??????????????????????????
         List<CUser> users = cUserMapper.selectList(
                 new LambdaQueryWrapper<CUser>().eq(CUser::getPhone, phone).orderByAsc(CUser::getId)
         );
@@ -98,6 +105,7 @@ public class CUserServiceImpl implements ICUserService {
      */
     @Override
     public CUser updateProfile(CustomerProfileUpdateDTO dto) {
+        // ?????????????????????????????
         CUser user = requireCurrentUser();
         boolean changed = false;
         if (dto.getNickname() != null) {
@@ -109,6 +117,7 @@ public class CUserServiceImpl implements ICUserService {
             changed = true;
         }
         if (changed) {
+            // ???????????????????????
             cUserMapper.updateById(user);
         }
         return user;
@@ -122,11 +131,13 @@ public class CUserServiceImpl implements ICUserService {
      * @return 更新后的客户
      */
     private CUser updateLoginSnapshot(CUser user, String phone) {
+        // ?????????????????????????????
         ensureUserActive(user);
         if (StringUtils.hasText(phone)) {
             user.setPhone(phone);
         }
         user.setLastLoginTime(LocalDateTime.now());
+        // ???????????????????????
         cUserMapper.updateById(user);
         return user;
     }
@@ -144,6 +155,7 @@ public class CUserServiceImpl implements ICUserService {
         newUser.setPhone(phone);
         newUser.setStatus(1);
         newUser.setLastLoginTime(LocalDateTime.now());
+        // ???????????????????????
         cUserMapper.insert(newUser);
         return newUser;
     }
@@ -156,10 +168,12 @@ public class CUserServiceImpl implements ICUserService {
     private CUser requireCurrentUser() {
         StpCustomerUtil.checkLogin();
         Long userId = StpCustomerUtil.getLoginIdAsLong();
+        // ??????????????????????????
         CUser user = cUserMapper.selectById(userId);
         if (user == null) {
             throw new ServiceException("当前客户不存在");
         }
+        // ?????????????????????????????
         ensureUserActive(user);
         return user;
     }

@@ -19,6 +19,10 @@ public class FirstSecondRelationQuery extends PageQuery {
 
     private static final long serialVersionUID = 1L;
 
+    /** 目标总部公司ID */
+    @ApiModelProperty(value = "目标总部公司ID", required = true)
+    private Long targetCompanyId;
+
     /** 一级网点公司ID */
     @ApiModelProperty(value = "一级网点公司ID")
     private Long firstCompanyId;

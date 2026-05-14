@@ -20,6 +20,9 @@ public class StpCustomerUtil {
 
     private static final StpLogic STP_LOGIC = new StpLogic(TYPE);
 
+    /**
+     * ?? StpCustomerUtil ???
+     */
     private StpCustomerUtil() {
     }
 

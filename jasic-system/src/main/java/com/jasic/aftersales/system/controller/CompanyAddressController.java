@@ -1,11 +1,13 @@
 package com.jasic.aftersales.system.controller;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import com.jasic.aftersales.common.annotation.OperLog;
 import com.jasic.aftersales.common.core.domain.Result;
 import com.jasic.aftersales.common.enums.OperTypeEnum;
 import com.jasic.aftersales.system.domain.dto.CompanyAddressCreateDTO;
 import com.jasic.aftersales.system.domain.dto.CompanyAddressUpdateDTO;
 import com.jasic.aftersales.system.domain.vo.CompanyAddressVO;
+import com.jasic.aftersales.system.service.CompanyDataAccessService;
 import com.jasic.aftersales.system.service.ICompanyAddressService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
@@ -36,6 +39,9 @@ public class CompanyAddressController {
     @Resource
     private ICompanyAddressService companyAddressService;
 
+    @Resource
+    private CompanyDataAccessService companyDataAccessService;
+
     /**
      * 查询当前公司地址列表。
      *
@@ -43,8 +49,13 @@ public class CompanyAddressController {
      */
     @ApiOperation(value = "查询当前公司地址列表")
     @GetMapping("/list")
-    public Result<List<CompanyAddressVO>> list() {
-        return Result.ok(companyAddressService.list());
+    @SaCheckPermission("companyAddress:list")
+    public Result<List<CompanyAddressVO>> list(@RequestParam(required = false) Long targetCompanyId) {
+        // ????????????????????????
+        return Result.ok(companyDataAccessService.runWithCurrentCompanyTarget(
+                targetCompanyId,
+                () -> companyAddressService.list()
+        ));
     }
 
     /**
@@ -55,8 +66,14 @@ public class CompanyAddressController {
      */
     @ApiOperation(value = "查询公司地址详情")
     @GetMapping("/{addressId}")
-    public Result<CompanyAddressVO> getById(@PathVariable Long addressId) {
-        return Result.ok(companyAddressService.getById(addressId));
+    @SaCheckPermission("companyAddress:list")
+    public Result<CompanyAddressVO> getById(@PathVariable Long addressId,
+                                            @RequestParam(required = false) Long targetCompanyId) {
+        // ????????????????????????
+        return Result.ok(companyDataAccessService.runWithCurrentCompanyTarget(
+                targetCompanyId,
+                () -> companyAddressService.getById(addressId)
+        ));
     }
 
     /**
@@ -66,10 +83,15 @@ public class CompanyAddressController {
      * @return 地址ID
      */
     @ApiOperation(value = "新增公司地址")
+    @SaCheckPermission("companyAddress:manage")
     @OperLog(title = "公司地址簿", operType = OperTypeEnum.INSERT)
     @PostMapping
     public Result<Long> create(@Validated @RequestBody CompanyAddressCreateDTO dto) {
-        return Result.ok(companyAddressService.create(dto));
+        // ????????????????????????
+        return Result.ok(companyDataAccessService.runWithCurrentCompanyTarget(
+                dto.getTargetCompanyId(),
+                () -> companyAddressService.create(dto)
+        ));
     }
 
     /**
@@ -79,10 +101,14 @@ public class CompanyAddressController {
      * @return 操作结果
      */
     @ApiOperation(value = "修改公司地址")
+    @SaCheckPermission("companyAddress:manage")
     @OperLog(title = "公司地址簿", operType = OperTypeEnum.UPDATE)
     @PutMapping
     public Result<Void> update(@Validated @RequestBody CompanyAddressUpdateDTO dto) {
-        companyAddressService.update(dto);
+        companyDataAccessService.runWithCurrentCompanyTarget(
+                dto.getTargetCompanyId(),
+                () -> companyAddressService.update(dto)
+        );
         return Result.ok();
     }
 
@@ -93,10 +119,15 @@ public class CompanyAddressController {
      * @return 操作结果
      */
     @ApiOperation(value = "删除公司地址")
+    @SaCheckPermission("companyAddress:manage")
     @OperLog(title = "公司地址簿", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/{addressId}")
-    public Result<Void> delete(@PathVariable Long addressId) {
-        companyAddressService.delete(addressId);
+    public Result<Void> delete(@PathVariable Long addressId,
+                               @RequestParam(required = false) Long targetCompanyId) {
+        companyDataAccessService.runWithCurrentCompanyTarget(
+                targetCompanyId,
+                () -> companyAddressService.delete(addressId)
+        );
         return Result.ok();
     }
 
@@ -107,10 +138,15 @@ public class CompanyAddressController {
      * @return 操作结果
      */
     @ApiOperation(value = "设为默认公司地址")
+    @SaCheckPermission("companyAddress:manage")
     @OperLog(title = "公司地址簿", operType = OperTypeEnum.UPDATE)
     @PutMapping("/{addressId}/default")
-    public Result<Void> setDefault(@PathVariable Long addressId) {
-        companyAddressService.setDefault(addressId);
+    public Result<Void> setDefault(@PathVariable Long addressId,
+                                   @RequestParam(required = false) Long targetCompanyId) {
+        companyDataAccessService.runWithCurrentCompanyTarget(
+                targetCompanyId,
+                () -> companyAddressService.setDefault(addressId)
+        );
         return Result.ok();
     }
 }

@@ -21,6 +21,11 @@ import java.util.List;
 @Service
 public class SysCompanyTypeServiceImpl implements ISysCompanyTypeService {
 
+    /**
+     * ???????
+     *
+     * @return ????
+     */
     @Resource
     private SysCompanyTypeMapper sysCompanyTypeMapper;
 
@@ -60,9 +65,11 @@ public class SysCompanyTypeServiceImpl implements ISysCompanyTypeService {
     public Long save(SysCompanyType entity) {
         LambdaQueryWrapper<SysCompanyType> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysCompanyType::getTypeCode, entity.getTypeCode());
+        // ??????????????????????????
         if (sysCompanyTypeMapper.selectCount(wrapper) > 0) {
             throw new ServiceException("类型编码已存在");
         }
+        // ???????????????????????
         sysCompanyTypeMapper.insert(entity);
         return entity.getId();
     }
@@ -84,6 +91,7 @@ public class SysCompanyTypeServiceImpl implements ISysCompanyTypeService {
      */
     @Override
     public void remove(Long id) {
+        // ??????????????????????????
         SysCompanyType companyType = sysCompanyTypeMapper.selectById(id);
         if (companyType == null) {
             return;
@@ -93,6 +101,7 @@ public class SysCompanyTypeServiceImpl implements ISysCompanyTypeService {
         if (sysCompanyMapper.selectCount(wrapper) > 0) {
             throw new ServiceException("该类型下存在公司，不允许删除");
         }
+        // ???????????????????????
         sysCompanyTypeMapper.deleteById(id);
     }
 }

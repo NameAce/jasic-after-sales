@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS `sync_task_log` (
   `end_time`        datetime        DEFAULT NULL            COMMENT '结束时间',
   `data_start_time` datetime        DEFAULT NULL            COMMENT '数据开始时间',
   `data_end_time`   datetime        DEFAULT NULL            COMMENT '数据结束时间',
+  `trigger_type`    varchar(16)     NOT NULL DEFAULT 'SCHEDULED' COMMENT '触发类型（MANUAL/SCHEDULED）',
+  `trigger_user_id` bigint unsigned NOT NULL DEFAULT 0       COMMENT '触发人ID，0表示系统任务',
   `message`         varchar(1000)   DEFAULT NULL            COMMENT '执行信息',
   `create_time`     datetime        NOT NULL                COMMENT '创建时间',
   PRIMARY KEY (`id`),

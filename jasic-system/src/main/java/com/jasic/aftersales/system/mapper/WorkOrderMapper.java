@@ -1,12 +1,11 @@
 package com.jasic.aftersales.system.mapper;
 
-import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jasic.aftersales.system.domain.entity.WorkOrder;
 import com.jasic.aftersales.system.domain.query.WorkOrderHqSiteInternalQuery;
-import com.jasic.aftersales.system.domain.query.WorkOrderQuery;
+import com.jasic.aftersales.system.domain.query.WorkOrderScopedQuery;
 import com.jasic.aftersales.system.domain.vo.WorkOrderDetailVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderHqSiteSummaryVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderListVO;
@@ -24,7 +23,6 @@ import java.util.List;
  * @date 2026/03/26
  */
 @Mapper
-@InterceptorIgnore(tenantLine = "true")
 public interface WorkOrderMapper extends BaseMapper<WorkOrder> {
 
     /**
@@ -34,7 +32,7 @@ public interface WorkOrderMapper extends BaseMapper<WorkOrder> {
      * @param query 查询条件
      * @return 分页结果
      */
-    IPage<WorkOrderListVO> selectWorkOrderPage(Page<WorkOrderListVO> page, @Param("query") WorkOrderQuery query);
+    IPage<WorkOrderListVO> selectWorkOrderPage(Page<WorkOrderListVO> page, @Param("query") WorkOrderScopedQuery query);
 
     /**
      * 按状态统计工单数量
@@ -42,7 +40,7 @@ public interface WorkOrderMapper extends BaseMapper<WorkOrder> {
      * @param query 查询条件
      * @return 状态统计结果
      */
-    List<WorkOrderStatusCountVO> selectStatusCount(@Param("query") WorkOrderQuery query);
+    List<WorkOrderStatusCountVO> selectStatusCount(@Param("query") WorkOrderScopedQuery query);
 
     /**
      * 查询总部网点工单汇总。

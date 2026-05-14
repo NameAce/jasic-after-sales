@@ -21,6 +21,11 @@ public class WarehouseScanOutstorageSyncTaskHandler implements SyncTaskHandler {
     public static final String HANDLER_CODE = "warehouseScanOutstorageSync";
     private static final String HANDLER_NAME = "销售出库扫码同步";
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @Resource
     private ICrmWarehouseScanOutstorageSyncService crmWarehouseScanOutstorageSyncService;
 
@@ -29,11 +34,23 @@ public class WarehouseScanOutstorageSyncTaskHandler implements SyncTaskHandler {
         return HANDLER_CODE;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @Override
     public String getName() {
         return HANDLER_NAME;
     }
 
+    /**
+     * ?????
+     *
+     * @param task ????
+     * @param context ?????
+     * @return ????
+     */
     @Override
     public SyncTaskExecutionResult execute(SyncTask task, SyncTaskExecutionContext context) {
         CrmWarehouseScanOutstorageSyncSummaryVO summary = crmWarehouseScanOutstorageSyncService.syncIncremental();
@@ -48,6 +65,12 @@ public class WarehouseScanOutstorageSyncTaskHandler implements SyncTaskHandler {
                 .build();
     }
 
+    /**
+     * ??????
+     *
+     * @param value ???
+     * @return ????
+     */
     private int defaultInt(Integer value) {
         return value == null ? 0 : value;
     }

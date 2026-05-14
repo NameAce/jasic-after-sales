@@ -24,6 +24,12 @@ import java.util.List;
 @Service
 public class NotifyEventServiceImpl implements NotifyEventService {
 
+    /**
+     * ?????
+     *
+     * @param notifyEvent ??
+     * @return ????
+     */
     @Resource
     private SysNotifyEventMapper sysNotifyEventMapper;
 
@@ -33,25 +39,46 @@ public class NotifyEventServiceImpl implements NotifyEventService {
         return notifyEvent.getId();
     }
 
+    /**
+     * ??By Id?
+     *
+     * @param id ??ID
+     * @return ????
+     */
     @Override
     public SysNotifyEvent getById(Long id) {
         return sysNotifyEventMapper.selectById(id);
     }
 
+    /**
+     * ??By Event Key?
+     *
+     * @param eventKey ??
+     * @return ????
+     */
     @Override
     public SysNotifyEvent getByEventKey(String eventKey) {
         if (StrUtil.isBlank(eventKey)) {
             return null;
         }
+        // ????????????????????????
         LambdaQueryWrapper<SysNotifyEvent> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysNotifyEvent::getEventKey, eventKey);
         wrapper.last("limit 1");
         return sysNotifyEventMapper.selectOne(wrapper);
     }
 
+    /**
+     * ???????
+     *
+     * @param now ??
+     * @param limit ??
+     * @return ????
+     */
     @Override
     public List<SysNotifyEvent> listConsumableEvents(LocalDateTime now, Integer limit) {
         LocalDateTime targetTime = now == null ? LocalDateTime.now() : now;
+        // ????????????????????????
         LambdaQueryWrapper<SysNotifyEvent> wrapper = new LambdaQueryWrapper<>();
         wrapper.and(condition -> condition
                 .eq(SysNotifyEvent::getStatus, NotifyEventStatusEnum.NEW.getCode())
@@ -66,11 +93,18 @@ public class NotifyEventServiceImpl implements NotifyEventService {
         return sysNotifyEventMapper.selectList(wrapper);
     }
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @Override
     public List<SysNotifyEvent> listByQuery(NotifyEventQuery query) {
         if (query == null) {
             return Collections.emptyList();
         }
+        // ????????????????????????
         LambdaQueryWrapper<SysNotifyEvent> wrapper = new LambdaQueryWrapper<>();
         if (StrUtil.isNotBlank(query.getEventKey())) {
             wrapper.eq(SysNotifyEvent::getEventKey, query.getEventKey());
@@ -94,16 +128,30 @@ public class NotifyEventServiceImpl implements NotifyEventService {
         return sysNotifyEventMapper.selectList(wrapper);
     }
 
+    /**
+     * ?????
+     *
+     * @param eventId event ID
+     * @param status ??
+     */
     @Override
     public void updateStatus(Long eventId, String status) {
+        // ????????????????????????
         SysNotifyEvent notifyEvent = new SysNotifyEvent();
         notifyEvent.setId(eventId);
         notifyEvent.setStatus(status);
         sysNotifyEventMapper.updateById(notifyEvent);
     }
 
+    /**
+     * ?? markProcessing ?????
+     *
+     * @param eventId event ID
+     * @return true ??????
+     */
     @Override
     public boolean markProcessing(Long eventId) {
+        // ????????????????????????
         LambdaUpdateWrapper<SysNotifyEvent> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(SysNotifyEvent::getId, eventId)
                 .and(condition -> condition
@@ -116,8 +164,14 @@ public class NotifyEventServiceImpl implements NotifyEventService {
         return sysNotifyEventMapper.update(null, wrapper) > 0;
     }
 
+    /**
+     * ?? markSuccess ?????
+     *
+     * @param eventId event ID
+     */
     @Override
     public void markSuccess(Long eventId) {
+        // ????????????????????????
         LambdaUpdateWrapper<SysNotifyEvent> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(SysNotifyEvent::getId, eventId)
                 .eq(SysNotifyEvent::getStatus, NotifyEventStatusEnum.PROCESSING.getCode())
@@ -127,8 +181,17 @@ public class NotifyEventServiceImpl implements NotifyEventService {
         sysNotifyEventMapper.update(null, wrapper);
     }
 
+    /**
+     * ?? markFailed ?????
+     *
+     * @param eventId event ID
+     * @param retryCount ??
+     * @param nextRetryTime ??
+     * @param errorMessage ??
+     */
     @Override
     public void markFailed(Long eventId, Integer retryCount, LocalDateTime nextRetryTime, String errorMessage) {
+        // ????????????????????????
         LambdaUpdateWrapper<SysNotifyEvent> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(SysNotifyEvent::getId, eventId)
                 .set(SysNotifyEvent::getStatus, NotifyEventStatusEnum.FAILED.getCode())
@@ -138,8 +201,17 @@ public class NotifyEventServiceImpl implements NotifyEventService {
         sysNotifyEventMapper.update(null, wrapper);
     }
 
+    /**
+     * ?????
+     *
+     * @param eventId event ID
+     * @param retryCount ??
+     * @param nextRetryTime ??
+     * @param errorMessage ??
+     */
     @Override
     public void updateRetryInfo(Long eventId, Integer retryCount, LocalDateTime nextRetryTime, String errorMessage) {
+        // ????????????????????????
         SysNotifyEvent notifyEvent = new SysNotifyEvent();
         notifyEvent.setId(eventId);
         notifyEvent.setRetryCount(retryCount);

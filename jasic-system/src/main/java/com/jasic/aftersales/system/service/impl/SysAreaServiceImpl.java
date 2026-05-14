@@ -34,6 +34,12 @@ public class SysAreaServiceImpl implements ISysAreaService {
             "省", "市", "区", "县", "旗"
     };
 
+    /**
+     * ???????
+     *
+     * @param parentCode ??
+     * @return ????
+     */
     @Resource
     private SysAreaMapper sysAreaMapper;
 
@@ -46,11 +52,18 @@ public class SysAreaServiceImpl implements ISysAreaService {
         return children.stream().map(this::buildOption).collect(Collectors.toList());
     }
 
+    /**
+     * ??By Area Code?
+     *
+     * @param areaCode ??
+     * @return ????
+     */
     @Override
     public SysArea getByAreaCode(String areaCode) {
         if (StrUtil.isBlank(areaCode)) {
             return null;
         }
+        // ??????????????????????????
         SysArea area = sysAreaMapper.selectById(StrUtil.trim(areaCode));
         if (area == null || !Objects.equals(area.getStatus(), STATUS_ENABLED)) {
             return null;
@@ -58,6 +71,12 @@ public class SysAreaServiceImpl implements ISysAreaService {
         return area;
     }
 
+    /**
+     * ??By Area Codes?
+     *
+     * @param areaCodes ??
+     * @return ????
+     */
     @Override
     public Map<String, SysArea> getByAreaCodes(Collection<String> areaCodes) {
         if (areaCodes == null || areaCodes.isEmpty()) {
@@ -73,6 +92,7 @@ public class SysAreaServiceImpl implements ISysAreaService {
         LambdaQueryWrapper<SysArea> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(SysArea::getAreaCode, normalizedCodes)
                 .eq(SysArea::getStatus, STATUS_ENABLED);
+        // ??????????????????????????
         List<SysArea> areas = sysAreaMapper.selectList(wrapper);
         if (areas.isEmpty()) {
             return Collections.emptyMap();
@@ -80,6 +100,15 @@ public class SysAreaServiceImpl implements ISysAreaService {
         return areas.stream().collect(Collectors.toMap(SysArea::getAreaCode, item -> item, (a, b) -> a, LinkedHashMap::new));
     }
 
+    /**
+     * ?? matchRegion ?????
+     *
+     * @param provinceName ??
+     * @param cityName ??
+     * @param districtName ??
+     * @param detailAddress ??
+     * @return ????
+     */
     @Override
     public AreaMatchResult matchRegion(String provinceName, String cityName, String districtName, String detailAddress) {
         SysArea province = findBestMatch(listEnabledChildren(ROOT_PARENT_CODE), provinceName, null);
@@ -105,6 +134,12 @@ public class SysAreaServiceImpl implements ISysAreaService {
         return new AreaMatchResult(province, city, district);
     }
 
+    /**
+     * ???????
+     *
+     * @param area ??
+     * @return ????
+     */
     private SysAreaOptionVO buildOption(SysArea area) {
         SysAreaOptionVO option = new SysAreaOptionVO();
         option.setAreaCode(area.getAreaCode());
@@ -115,6 +150,14 @@ public class SysAreaServiceImpl implements ISysAreaService {
         return option;
     }
 
+    /**
+     * ???????
+     *
+     * @param city ??
+     * @param districtName ??
+     * @param detailAddress ??
+     * @return ????
+     */
     private SysArea resolveDistrict(SysArea city, String districtName, String detailAddress) {
         List<SysArea> districts = listEnabledChildren(city.getAreaCode());
         if (districts.isEmpty()) {
@@ -127,6 +170,15 @@ public class SysAreaServiceImpl implements ISysAreaService {
         return findBestMatch(districts, detailAddress, detailAddress);
     }
 
+    /**
+     * ???????
+     *
+     * @param province ??
+     * @param cityName ??
+     * @param districtName ??
+     * @param detailAddress ??
+     * @return ????
+     */
     private AreaPair resolvePairByCityLikeDistrict(SysArea province, String cityName, String districtName, String detailAddress) {
         List<SysArea> cities = listEnabledChildren(province.getAreaCode());
         if (cities.isEmpty()) {
@@ -143,6 +195,14 @@ public class SysAreaServiceImpl implements ISysAreaService {
         return findUniquePairByDistrict(cities, detailAddress, detailAddress);
     }
 
+    /**
+     * ?? findUniquePairByDistrict ?????
+     *
+     * @param cities ??
+     * @param candidateName ??
+     * @param addressText ??
+     * @return ????
+     */
     private AreaPair findUniquePairByDistrict(List<SysArea> cities, String candidateName, String addressText) {
         if (StrUtil.isBlank(candidateName) && StrUtil.isBlank(addressText)) {
             return null;
@@ -162,6 +222,14 @@ public class SysAreaServiceImpl implements ISysAreaService {
         return matched;
     }
 
+    /**
+     * ?? findBestMatch ?????
+     *
+     * @param candidates ??
+     * @param preferredName ??
+     * @param fuzzyAddressText ??
+     * @return ????
+     */
     private SysArea findBestMatch(List<SysArea> candidates, String preferredName, String fuzzyAddressText) {
         if (candidates == null || candidates.isEmpty()) {
             return null;
@@ -185,6 +253,13 @@ public class SysAreaServiceImpl implements ISysAreaService {
         return findUniqueAddressMatch(candidates, normalizedAddressText);
     }
 
+    /**
+     * ?? findExactNameMatch ?????
+     *
+     * @param candidates ??
+     * @param targetName ??
+     * @return ????
+     */
     private SysArea findExactNameMatch(List<SysArea> candidates, String targetName) {
         String normalizedTargetName = normalizeText(targetName);
         if (normalizedTargetName == null) {
@@ -203,6 +278,13 @@ public class SysAreaServiceImpl implements ISysAreaService {
         return matched;
     }
 
+    /**
+     * ?? findUniqueAliasMatch ?????
+     *
+     * @param candidates ??
+     * @param alias ??
+     * @return ????
+     */
     private SysArea findUniqueAliasMatch(List<SysArea> candidates, String alias) {
         if (alias == null) {
             return null;
@@ -220,6 +302,13 @@ public class SysAreaServiceImpl implements ISysAreaService {
         return matched;
     }
 
+    /**
+     * ?? findUniqueAddressMatch ?????
+     *
+     * @param candidates ??
+     * @param normalizedAddressText ??
+     * @return ????
+     */
     private SysArea findUniqueAddressMatch(List<SysArea> candidates, String normalizedAddressText) {
         SysArea matched = null;
         for (SysArea candidate : candidates) {
@@ -240,15 +329,28 @@ public class SysAreaServiceImpl implements ISysAreaService {
         return matched;
     }
 
+    /**
+     * ???????
+     *
+     * @param parentCode ??
+     * @return ????
+     */
     private List<SysArea> listEnabledChildren(String parentCode) {
         LambdaQueryWrapper<SysArea> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysArea::getParentCode, parentCode)
                 .eq(SysArea::getStatus, STATUS_ENABLED)
                 .orderByAsc(SysArea::getSortNum)
                 .orderByAsc(SysArea::getAreaCode);
+        // ??????????????????????????
         return sysAreaMapper.selectList(wrapper);
     }
 
+    /**
+     * ????????
+     *
+     * @param value ???
+     * @return ?????
+     */
     private String normalizeAreaAlias(String value) {
         String normalized = normalizeText(value);
         if (normalized == null) {
@@ -269,11 +371,24 @@ public class SysAreaServiceImpl implements ISysAreaService {
         return normalized;
     }
 
+    /**
+     * ????????
+     *
+     * @param value ???
+     * @return ?????
+     */
     private String normalizeText(String value) {
         String normalized = StrUtil.trim(value);
         return StrUtil.isBlank(normalized) ? null : normalized;
     }
 
+    /**
+     * ?? firstNonBlank ?????
+     *
+     * @param first ??
+     * @param second ??
+     * @return ?????
+     */
     private String firstNonBlank(String first, String second) {
         String normalizedFirst = normalizeText(first);
         if (normalizedFirst != null) {
@@ -284,6 +399,13 @@ public class SysAreaServiceImpl implements ISysAreaService {
 
     private static final class AreaPair {
 
+        /**
+         * ?? AreaPair ?????
+         *
+         * @param city ??
+         * @param district ??
+         * @return ????
+         */
         private final SysArea city;
 
         private final SysArea district;
@@ -293,10 +415,20 @@ public class SysAreaServiceImpl implements ISysAreaService {
             this.district = district;
         }
 
+        /**
+         * ??City?
+         *
+         * @return ????
+         */
         private SysArea getCity() {
             return city;
         }
 
+        /**
+         * ??District?
+         *
+         * @return ????
+         */
         private SysArea getDistrict() {
             return district;
         }

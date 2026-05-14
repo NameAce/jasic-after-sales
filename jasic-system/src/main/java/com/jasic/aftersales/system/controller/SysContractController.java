@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -117,8 +118,9 @@ public class SysContractController extends BaseController {
     @SaCheckPermission("org:contract:remove")
     @OperLog(title = "签约管理", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/hq-first/{id}")
-    public Result<Void> removeHqFirst(@PathVariable Long id) {
-        contractService.removeHqFirst(id);
+    public Result<Void> removeHqFirst(@PathVariable Long id,
+                                      @RequestParam(required = false) Long targetCompanyId) {
+        contractService.removeHqFirst(id, targetCompanyId);
         return Result.ok();
     }
 
@@ -151,6 +153,12 @@ public class SysContractController extends BaseController {
         return Result.ok(page);
     }
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @ApiOperation(value = "CRM一级二级关系导入分页列表")
     @SaCheckPermission("org:contract:add")
     @GetMapping("/first-second/crm-import/list")
@@ -159,6 +167,12 @@ public class SysContractController extends BaseController {
         return Result.ok(page);
     }
 
+    /**
+     * ?? importFirstSecondFromCrm ?????
+     *
+     * @param dto ????
+     * @return ??????
+     */
     @ApiOperation(value = "从CRM来源快照导入一级二级关系")
     @SaCheckPermission("org:contract:add")
     @OperLog(title = "绛剧害绠＄悊", operType = OperTypeEnum.INSERT)
@@ -193,8 +207,9 @@ public class SysContractController extends BaseController {
     @SaCheckPermission("org:contract:remove")
     @OperLog(title = "签约管理", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/first-second/{id}")
-    public Result<Void> removeFirstSecond(@PathVariable Long id) {
-        contractService.removeFirstSecond(id);
+    public Result<Void> removeFirstSecond(@PathVariable Long id,
+                                          @RequestParam(required = false) Long targetCompanyId) {
+        contractService.removeFirstSecond(id, targetCompanyId);
         return Result.ok();
     }
 }

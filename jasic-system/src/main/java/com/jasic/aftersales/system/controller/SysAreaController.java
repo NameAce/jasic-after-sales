@@ -1,6 +1,5 @@
 package com.jasic.aftersales.system.controller;
 
-import cn.dev33.satoken.annotation.SaCheckPermission;
 import com.jasic.aftersales.common.core.controller.BaseController;
 import com.jasic.aftersales.common.core.domain.Result;
 import com.jasic.aftersales.system.domain.entity.SysArea;
@@ -31,15 +30,25 @@ public class SysAreaController extends BaseController {
     @Resource
     private ISysAreaService sysAreaService;
 
-    @ApiOperation(value = "查询指定父级下的行政区划选项")
-    @SaCheckPermission("org:company:list")
+    /**
+     * ???????
+     *
+     * @param parentCode ??
+     * @return ????
+     */
+    @ApiOperation(value = "查询指定父级下的行政区划选项（基础参考数据，仅需登录即可访问）")
     @GetMapping("/options")
     public Result<List<SysAreaOptionVO>> listOptions(@RequestParam(required = false) String parentCode) {
         return Result.ok(sysAreaService.listOptionsByParentCode(parentCode));
     }
 
-    @ApiOperation(value = "按编码查询行政区划")
-    @SaCheckPermission("org:company:list")
+    /**
+     * ??By Area Code?
+     *
+     * @param areaCode ??
+     * @return ??????
+     */
+    @ApiOperation(value = "按编码查询行政区划（基础参考数据，仅需登录即可访问）")
     @GetMapping("/{areaCode}")
     public Result<SysArea> getByAreaCode(@PathVariable String areaCode) {
         return Result.ok(sysAreaService.getByAreaCode(areaCode));

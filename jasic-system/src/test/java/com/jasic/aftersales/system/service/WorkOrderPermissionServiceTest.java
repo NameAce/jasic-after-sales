@@ -10,13 +10,13 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
 import com.jasic.aftersales.common.enums.WorkOrderActionEnum;
 import com.jasic.aftersales.common.enums.WorkOrderRelationTagEnum;
-import com.jasic.aftersales.common.enums.WorkOrderRelationTypeEnum;
 import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
 import com.jasic.aftersales.system.domain.entity.HqFirstContract;
 import com.jasic.aftersales.system.domain.entity.WorkOrder;
 import com.jasic.aftersales.system.domain.entity.WorkOrderParticipant;
 import com.jasic.aftersales.system.domain.query.WorkOrderQuery;
+import com.jasic.aftersales.system.domain.query.WorkOrderScopedQuery;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
 import com.jasic.aftersales.system.mapper.HqFirstContractMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderParticipantMapper;
@@ -51,7 +51,7 @@ public class WorkOrderPermissionServiceTest {
     private Set<String> historyParticipationKeys;
 
     @Before
-    public void setUp() {
+    public void setUp() throws Exception {
         SaManager.setSaTokenContext(new SaTokenContextForThreadLocal());
         SaTokenContextForThreadLocalStorage.setBox(new MockSaRequest(), new MockSaResponse(), new MockSaStorage());
         StpUtil.login(101L);
@@ -68,6 +68,7 @@ public class WorkOrderPermissionServiceTest {
                 return historyParticipationKeys.contains(buildHistoryParticipationKey(workOrderId, companyId, userId));
             }
         };
+        setEmptyMapperDependencies();
     }
 
     @After
@@ -242,13 +243,13 @@ public class WorkOrderPermissionServiceTest {
         setField(service, "firstSecondRelationMapper", createRelationMapperProxy(Collections.emptyList()));
 
         WorkOrderQuery query = new WorkOrderQuery();
-        service.fillQueryScope(query);
+        WorkOrderScopedQuery scopedQuery = service.buildScopedQuery(query);
 
-        Assert.assertEquals(Long.valueOf(900L), query.getCompanyId());
-        Assert.assertEquals(Long.valueOf(101L), query.getCurrentUserId());
-        Assert.assertEquals("HQ", query.getSubjectType());
-        Assert.assertEquals("ALL", query.getDataScope());
-        Assert.assertEquals(Collections.emptyList(), query.getRelatedCompanyIds());
+        Assert.assertEquals(Long.valueOf(900L), scopedQuery.getAccessContext().getCurrentCompanyId());
+        Assert.assertEquals(Long.valueOf(101L), scopedQuery.getAccessContext().getCurrentUserId());
+        Assert.assertEquals("HQ", scopedQuery.getAccessContext().getSubjectType());
+        Assert.assertEquals("ALL", scopedQuery.getAccessContext().getDataScope());
+        Assert.assertEquals(Collections.emptyList(), scopedQuery.getAccessContext().getRelatedCompanyIds());
     }
 
     @Test
@@ -263,42 +264,14 @@ public class WorkOrderPermissionServiceTest {
         ));
 
         WorkOrderQuery query = new WorkOrderQuery();
-        service.fillQueryScope(query);
+        WorkOrderScopedQuery scopedQuery = service.buildScopedQuery(query);
 
-        Assert.assertEquals(Long.valueOf(900L), query.getCompanyId());
-        Assert.assertEquals(Long.valueOf(101L), query.getCurrentUserId());
-        Assert.assertEquals("HQ", query.getSubjectType());
-        Assert.assertEquals("REGION", query.getDataScope());
-        Assert.assertEquals(Arrays.asList(1001L, 1002L), query.getRelatedCompanyIds());
+        Assert.assertEquals(Long.valueOf(900L), scopedQuery.getAccessContext().getCurrentCompanyId());
+        Assert.assertEquals(Long.valueOf(101L), scopedQuery.getAccessContext().getCurrentUserId());
+        Assert.assertEquals("HQ", scopedQuery.getAccessContext().getSubjectType());
+        Assert.assertEquals("REGION", scopedQuery.getAccessContext().getDataScope());
+        Assert.assertEquals(Arrays.asList(1001L, 1002L), scopedQuery.getAccessContext().getRelatedCompanyIds());
     }
-
-    /*@Test
-    public void shouldResolveRelationTypeAsHqObserverForReadonlyHqParticipant() throws Exception {
-        setCurrentHqAllContext();
-        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(
-                buildParticipant(14L, 900L, "HQ_OBSERVER"), 0L
-        ));
-
-        WorkOrder workOrder = buildWorkOrder(14L, 900L, 1001L, 1001L, null);
-
-        Assert.assertEquals(WorkOrderRelationTypeEnum.HQ_OBSERVER, service.resolveRelationType(workOrder));
-    }
-
-    @Test
-    public void shouldResolveRelationTypeAsHistoryReadonlyForHistoricalParticipant() throws Exception {
-        SecurityContext.setCurrentCompanyId(1001L);
-        SecurityContext.setCurrentSubjectType("SERVICE");
-        SecurityContext.setCurrentTypeCode("FIRST");
-        SecurityContext.setEffectiveDataScope("ALL");
-        SecurityContext.setCurrentRegionIds(Collections.emptyList());
-        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(
-                buildParticipant(15L, 1001L, "HISTORY"), 0L
-        ));
-
-        WorkOrder workOrder = buildWorkOrder(15L, 900L, 1002L, 1001L, null);
-
-        Assert.assertEquals(WorkOrderRelationTypeEnum.HISTORY_PARTICIPANT_READONLY, service.resolveRelationType(workOrder));
-    }*/
 
     @Test
     public void shouldResolveRelationTagsForAssignedDispatcherInCurrentAcceptCompany() throws Exception {
@@ -544,6 +517,19 @@ public class WorkOrderPermissionServiceTest {
     }
 
     private void setField(Object target, String fieldName, Object value) throws Exception {
+        if ("hqFirstContractMapper".equals(fieldName) || "firstSecondRelationMapper".equals(fieldName)) {
+            Field accessContextResolverField = WorkOrderPermissionService.class.getDeclaredField("accessContextResolver");
+            accessContextResolverField.setAccessible(true);
+            WorkOrderAccessContextResolver resolver = (WorkOrderAccessContextResolver) accessContextResolverField.get(target);
+            if (resolver == null) {
+                resolver = new WorkOrderAccessContextResolver();
+                accessContextResolverField.set(target, resolver);
+            }
+            Field resolverField = WorkOrderAccessContextResolver.class.getDeclaredField(fieldName);
+            resolverField.setAccessible(true);
+            resolverField.set(resolver, value);
+            return;
+        }
         Field field = WorkOrderPermissionService.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(target, value);

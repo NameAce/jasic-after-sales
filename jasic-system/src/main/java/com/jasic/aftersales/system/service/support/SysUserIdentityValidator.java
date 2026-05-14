@@ -18,6 +18,13 @@ import javax.annotation.Resource;
 @Component
 public class SysUserIdentityValidator {
 
+    /**
+     * ???????
+     *
+     * @param excludeUserId exclude User ID
+     * @param username ???
+     * @param phone ???
+     */
     @Resource
     private SysUserMapper sysUserMapper;
 
@@ -51,39 +58,71 @@ public class SysUserIdentityValidator {
         }
     }
 
+    /**
+     * ?? existsByUsername ?????
+     *
+     * @param excludeUserId exclude User ID
+     * @param username ???
+     * @return true ??????
+     */
     private boolean existsByUsername(Long excludeUserId, String username) {
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysUser::getUsername, username);
         if (excludeUserId != null) {
             wrapper.ne(SysUser::getId, excludeUserId);
         }
+        // ??????????????????????????
         return sysUserMapper.selectCount(wrapper) > 0;
     }
 
+    /**
+     * ?? existsByPhone ?????
+     *
+     * @param excludeUserId exclude User ID
+     * @param phone ???
+     * @return true ??????
+     */
     private boolean existsByPhone(Long excludeUserId, String phone) {
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysUser::getPhone, phone);
         if (excludeUserId != null) {
             wrapper.ne(SysUser::getId, excludeUserId);
         }
+        // ??????????????????????????
         return sysUserMapper.selectCount(wrapper) > 0;
     }
 
+    /**
+     * ?? existsOtherUserPhone ?????
+     *
+     * @param excludeUserId exclude User ID
+     * @param phone ???
+     * @return true ??????
+     */
     private boolean existsOtherUserPhone(Long excludeUserId, String phone) {
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysUser::getPhone, phone);
         if (excludeUserId != null) {
             wrapper.ne(SysUser::getId, excludeUserId);
         }
+        // ??????????????????????????
         return sysUserMapper.selectCount(wrapper) > 0;
     }
 
+    /**
+     * ?? existsOtherUserUsername ?????
+     *
+     * @param excludeUserId exclude User ID
+     * @param username ???
+     * @return true ??????
+     */
     private boolean existsOtherUserUsername(Long excludeUserId, String username) {
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysUser::getUsername, username);
         if (excludeUserId != null) {
             wrapper.ne(SysUser::getId, excludeUserId);
         }
+        // ??????????????????????????
         return sysUserMapper.selectCount(wrapper) > 0;
     }
 }

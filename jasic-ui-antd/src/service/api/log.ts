@@ -31,8 +31,6 @@ export interface OperLogVO {
   userId?: number;
   /** jasic 列表列「操作人」 */
   operUserName?: string;
-  /** 兼容旧字段 */
-  username?: string;
   companyId?: number;
   ip?: string;
   status?: number;

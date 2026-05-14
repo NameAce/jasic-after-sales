@@ -121,6 +121,12 @@ public class SysAuthServiceImpl implements ISysAuthService {
     @Resource
     private WechatMiniProgramService wechatMiniProgramService;
 
+    /**
+     * ?? login ?????
+     *
+     * @param dto ????
+     * @return ????
+     */
     @Resource
     private SysUserIdentityValidator userIdentityValidator;
 
@@ -142,6 +148,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
         if (!BCrypt.checkpw(dto.getPassword(), user.getPassword())) {
             throw new ServiceException(ResultCode.LOGIN_ERROR, "用户名或密码错误");
         }
+        // ?????????????????????????????
         ensureUserActive(user);
         return doLogin(user);
     }
@@ -162,6 +169,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
             vo.setNeedChooseCompany(false);
             return vo;
         }
+        // ?????????????????????????????
         ensureUserActive(user);
         refreshWechatIdentity(user.getId(), session.getOpenid(), null);
         return buildMpLoginVO(doLogin(requireActiveUser(user.getId())));
@@ -181,6 +189,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
         if (user == null || !BCrypt.checkpw(dto.getPassword(), user.getPassword())) {
             throw new ServiceException(ResultCode.LOGIN_ERROR, "用户名或密码错误");
         }
+        // ?????????????????????????????
         ensureUserActive(user);
         validateWechatBinding(user, authSession.getOpenid());
 
@@ -208,6 +217,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
         LambdaQueryWrapper<SysUserCompany> ucQuery = new LambdaQueryWrapper<>();
         ucQuery.eq(SysUserCompany::getUserId, userId)
                 .eq(SysUserCompany::getCompanyId, companyId);
+        // ??????????????????????????
         SysUserCompany userCompany = sysUserCompanyMapper.selectOne(ucQuery);
         if (userCompany == null) {
             throw new ServiceException(ResultCode.NOT_PERMISSION, "无权限操作该公司");
@@ -227,6 +237,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
         SecurityContext.setCurrentTypeCode(company.getTypeCode());
         initDataScopeContext(userId, companyId, companyType);
 
+        // ??????????????????????
         Set<String> perms = sysPermissionService.loadPermsToCache(userId, companyId);
         sysMenuMapper.selectMenuTreeByUserIdAndCompanyId(userId, companyId);
 
@@ -244,6 +255,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
         Long userId = SecurityContext.getCurrentUserId();
         Long companyId = SecurityContext.getCurrentCompanyId();
 
+        // ??????????????????????????
         SysUser user = sysUserMapper.selectById(userId);
         if (user == null) {
             throw new ServiceException(ResultCode.DATA_NOT_FOUND, "用户不存在");
@@ -291,6 +303,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
     @Override
     public SysUserVO updateProfile(UpdateProfileDTO dto) {
         Long userId = SecurityContext.getCurrentUserId();
+        // ?????????????????????????????
         SysUser user = requireActiveUser(userId);
         verifyCurrentPassword(user, dto.getCurrentPassword());
 
@@ -304,6 +317,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
                 .set(SysUser::getRealName, realName)
                 .set(SysUser::getPhone, phone)
                 .set(SysUser::getEmail, StrUtil.isBlank(email) ? null : email);
+        // ???????????????????????
         sysUserMapper.update(null, updateWrapper);
         return getUserInfo();
     }
@@ -316,6 +330,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
     @Override
     public void changePassword(ChangePasswordDTO dto) {
         Long userId = SecurityContext.getCurrentUserId();
+        // ?????????????????????????????
         SysUser user = requireActiveUser(userId);
         verifyCurrentPassword(user, dto.getCurrentPassword());
         if (BCrypt.checkpw(dto.getNewPassword(), user.getPassword())) {
@@ -325,7 +340,9 @@ public class SysAuthServiceImpl implements ISysAuthService {
         LambdaUpdateWrapper<SysUser> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(SysUser::getId, userId)
                 .set(SysUser::getPassword, BCrypt.hashpw(dto.getNewPassword(), BCrypt.gensalt()));
+        // ???????????????????????
         sysUserMapper.update(null, updateWrapper);
+        // ??????????????????????
         sysPermissionService.clearAllPermsCache(userId);
         StpUtil.kickout(userId);
     }
@@ -338,6 +355,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
     @Override
     public WechatBindStatusVO createWechatBindQrcode() {
         Long userId = SecurityContext.getCurrentUserId();
+        // ?????????????????????????????
         SysUser user = requireActiveUser(userId);
         WechatBindSession oldSession = getBindSession(userId);
         if (StrUtil.isNotBlank(user.getOpenid())) {
@@ -374,6 +392,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
     @Override
     public WechatBindStatusVO getWechatBindStatus() {
         Long userId = SecurityContext.getCurrentUserId();
+        // ?????????????????????????????
         SysUser user = requireActiveUser(userId);
         WechatBindSession session = getBindSession(userId);
         if (StrUtil.isNotBlank(user.getOpenid())) {
@@ -392,6 +411,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public MpLoginVO confirmWechatBind(WechatBindConfirmDTO dto) {
+        // ?????????????????????????????
         WechatBindSession bindSession = requireBindSession(dto.getBindTicket());
         SysUser user = requireActiveUser(bindSession.getUserId());
         WechatAuthSession authSession = wechatMiniProgramService.code2Session(WechatMiniProgramScene.B, dto.getCode());
@@ -421,6 +441,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
     @Transactional(rollbackFor = Exception.class)
     public void unbindWechat(WechatBindUnbindDTO dto) {
         Long userId = SecurityContext.getCurrentUserId();
+        // ?????????????????????????????
         SysUser user = requireActiveUser(userId);
         verifyCurrentPassword(user, dto.getCurrentPassword());
         if (StrUtil.isBlank(user.getOpenid())) {
@@ -443,6 +464,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
         Long userId = SecurityContext.getCurrentUserId();
         Long companyId = SecurityContext.getCurrentCompanyId();
         if (companyId != null) {
+            // ??????????????????????
             sysPermissionService.clearPermsCache(userId, companyId);
         }
         StpUtil.logout();
@@ -477,6 +499,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
         if (SubjectTypeEnum.PLATFORM.getCode().equals(subjectType)) {
             return DataScopeEnum.ALL;
         }
+        // ??????????????????????
         return sysPermissionService.getEffectiveDataScope(userId, companyId, subjectType);
     }
 
@@ -509,6 +532,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
         }
         List<SysCompanySimpleVO> result = new ArrayList<>();
         for (Long companyId : companyIds) {
+            // ??????????????????????????
             SysCompany company = sysCompanyMapper.selectById(companyId);
             if (company == null) {
                 continue;
@@ -570,6 +594,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
 
         LambdaQueryWrapper<SysUserCompany> ucQuery = new LambdaQueryWrapper<>();
         ucQuery.eq(SysUserCompany::getUserId, userId);
+        // ??????????????????????????
         List<SysUserCompany> userCompanies = sysUserCompanyMapper.selectList(ucQuery);
         if (userCompanies != null && !userCompanies.isEmpty()) {
             List<Long> companyIds = userCompanies.stream()
@@ -594,6 +619,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
                     .map(String::valueOf)
                     .collect(Collectors.toSet());
         }
+        // ??????????????????????
         return sysPermissionService.loadPermsToCache(userId, companyId);
     }
 
@@ -604,6 +630,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
         if (userId == null || companyId == null) {
             return Collections.emptyList();
         }
+        // ??????????????????????????
         List<SysMenu> permissionMenus = sysMenuMapper.selectPermissionMenusByUserIdAndCompanyId(userId, companyId);
         if (permissionMenus == null || permissionMenus.isEmpty()) {
             return Collections.emptyList();
@@ -613,6 +640,12 @@ public class SysAuthServiceImpl implements ISysAuthService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * ???????
+     *
+     * @param menu ??
+     * @return ????
+     */
     private SysPermissionVO convertPermissionToVO(SysMenu menu) {
         SysPermissionVO vo = new SysPermissionVO();
         vo.setId(menu.getId());
@@ -623,6 +656,12 @@ public class SysAuthServiceImpl implements ISysAuthService {
         return vo;
     }
 
+    /**
+     * ?? doLogin ?????
+     *
+     * @param user ??
+     * @return ????
+     */
     private LoginVO doLogin(SysUser user) {
         StpUtil.login(user.getId());
         touchLastLoginTime(user.getId());
@@ -647,9 +686,16 @@ public class SysAuthServiceImpl implements ISysAuthService {
         return loginVO;
     }
 
+    /**
+     * ???????
+     *
+     * @param userId ??ID
+     * @return ????
+     */
     private List<SysCompanySimpleVO> listUserCompanies(Long userId) {
         LambdaQueryWrapper<SysUserCompany> query = new LambdaQueryWrapper<>();
         query.eq(SysUserCompany::getUserId, userId);
+        // ??????????????????????????
         List<SysUserCompany> relations = sysUserCompanyMapper.selectList(query);
         if (relations == null || relations.isEmpty()) {
             return Collections.emptyList();
@@ -659,43 +705,81 @@ public class SysAuthServiceImpl implements ISysAuthService {
                 .collect(Collectors.toList()));
     }
 
+    /**
+     * ?? touchLastLoginTime ?????
+     *
+     * @param userId ??ID
+     */
     private void touchLastLoginTime(Long userId) {
         LambdaUpdateWrapper<SysUser> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(SysUser::getId, userId)
                 .set(SysUser::getLastLoginTime, LocalDateTime.now());
+        // ???????????????????????
         sysUserMapper.update(null, updateWrapper);
     }
 
+    /**
+     * ??????????
+     *
+     * @param userId ??ID
+     * @return ????
+     */
     private SysUser requireActiveUser(Long userId) {
+        // ??????????????????????????
         SysUser user = sysUserMapper.selectById(userId);
         if (user == null) {
             throw new ServiceException(ResultCode.DATA_NOT_FOUND, "用户不存在");
         }
+        // ?????????????????????????????
         ensureUserActive(user);
         return user;
     }
 
+    /**
+     * ?????????
+     *
+     * @param user ??
+     */
     private void ensureUserActive(SysUser user) {
         if (user.getStatus() == null || user.getStatus() == 0) {
             throw new ServiceException(ResultCode.ACCOUNT_DISABLED, "账号已停用");
         }
     }
 
+    /**
+     * ?? verifyCurrentPassword ?????
+     *
+     * @param user ??
+     * @param currentPassword ??
+     */
     private void verifyCurrentPassword(SysUser user, String currentPassword) {
         if (!BCrypt.checkpw(currentPassword, user.getPassword())) {
             throw new ServiceException(ResultCode.LOGIN_ERROR, "当前密码错误");
         }
     }
 
+    /**
+     * ?? findByOpenid ?????
+     *
+     * @param openid ??openid
+     * @return ????
+     */
     private SysUser findByOpenid(String openid) {
         if (StrUtil.isBlank(openid)) {
             return null;
         }
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysUser::getOpenid, openid);
+        // ??????????????????????????
         return sysUserMapper.selectOne(wrapper);
     }
 
+    /**
+     * ?? findByLoginIdentity ?????
+     *
+     * @param loginIdentity ??
+     * @return ????
+     */
     private SysUser findByLoginIdentity(String loginIdentity) {
         String normalized = StrUtil.trim(loginIdentity);
         if (StrUtil.isBlank(normalized)) {
@@ -703,6 +787,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
         }
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
         wrapper.and(q -> q.eq(SysUser::getUsername, normalized).or().eq(SysUser::getPhone, normalized));
+        // ??????????????????????????
         List<SysUser> users = sysUserMapper.selectList(wrapper);
         if (users == null || users.isEmpty()) {
             return null;
@@ -713,12 +798,20 @@ public class SysAuthServiceImpl implements ISysAuthService {
         return users.get(0);
     }
 
+    /**
+     * ???????
+     *
+     * @param userId ??ID
+     * @param companyId ??ID
+     * @return ????
+     */
     private List<SysRoleVO> buildCurrentCompanyRoles(Long userId, Long companyId) {
         if (userId == null || companyId == null) {
             return Collections.emptyList();
         }
         LambdaQueryWrapper<SysUserRole> userRoleQuery = new LambdaQueryWrapper<>();
         userRoleQuery.eq(SysUserRole::getUserId, userId);
+        // ??????????????????????????
         List<SysUserRole> userRoles = sysUserRoleMapper.selectList(userRoleQuery);
         if (userRoles == null || userRoles.isEmpty()) {
             return Collections.emptyList();
@@ -739,6 +832,12 @@ public class SysAuthServiceImpl implements ISysAuthService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * ???????
+     *
+     * @param role ??
+     * @return ????
+     */
     private SysRoleVO convertRoleToVO(SysRole role) {
         SysRoleVO vo = new SysRoleVO();
         vo.setId(role.getId());
@@ -755,6 +854,13 @@ public class SysAuthServiceImpl implements ISysAuthService {
         return vo;
     }
 
+    /**
+     * ?? refreshWechatIdentity ?????
+     *
+     * @param userId ??ID
+     * @param openid ??openid
+     * @param wechatPhone ??
+     */
     private void refreshWechatIdentity(Long userId, String openid, String wechatPhone) {
         LambdaUpdateWrapper<SysUser> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(SysUser::getId, userId)
@@ -762,17 +868,30 @@ public class SysAuthServiceImpl implements ISysAuthService {
         if (StrUtil.isNotBlank(wechatPhone)) {
             wrapper.set(SysUser::getWechatPhone, wechatPhone);
         }
+        // ???????????????????????
         sysUserMapper.update(null, wrapper);
     }
 
+    /**
+     * ?????
+     *
+     * @param userId ??ID
+     */
     private void clearWechatIdentity(Long userId) {
         LambdaUpdateWrapper<SysUser> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(SysUser::getId, userId)
                 .set(SysUser::getOpenid, null)
                 .set(SysUser::getWechatPhone, null);
+        // ???????????????????????
         sysUserMapper.update(null, wrapper);
     }
 
+    /**
+     * ???????
+     *
+     * @param user ??
+     * @param openid ??openid
+     */
     private void validateWechatBinding(SysUser user, String openid) {
         if (StrUtil.isBlank(openid)) {
             throw new ServiceException("微信登录失败，未获取到用户标识");
@@ -786,6 +905,13 @@ public class SysAuthServiceImpl implements ISysAuthService {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param phoneCode ??
+     * @param userId ??ID
+     * @return ?????
+     */
     private String resolveWechatPhone(String phoneCode, Long userId) {
         if (StrUtil.isBlank(phoneCode)) {
             return null;
@@ -799,6 +925,13 @@ public class SysAuthServiceImpl implements ISysAuthService {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param user ??
+     * @param latestWechatPhone ??
+     * @return ?????
+     */
     private String resolveRecordWechatPhone(SysUser user, String latestWechatPhone) {
         if (StrUtil.isNotBlank(latestWechatPhone)) {
             return latestWechatPhone;
@@ -806,6 +939,11 @@ public class SysAuthServiceImpl implements ISysAuthService {
         return user.getWechatPhone();
     }
 
+    /**
+     * ?? generateBindTicket ?????
+     *
+     * @return ?????
+     */
     private String generateBindTicket() {
         for (int i = 0; i < 10; i++) {
             String bindTicket = RandomUtil.randomString(24);
@@ -816,6 +954,11 @@ public class SysAuthServiceImpl implements ISysAuthService {
         throw new ServiceException("生成绑定二维码失败，请稍后重试");
     }
 
+    /**
+     * ?????
+     *
+     * @param session ??
+     */
     private void saveBindSession(WechatBindSession session) {
         String sessionJson = JSONUtil.toJsonStr(session);
         redisTemplate.opsForValue().set(CacheConstants.WECHAT_BIND_USER_KEY + session.getUserId(), sessionJson,
@@ -824,11 +967,24 @@ public class SysAuthServiceImpl implements ISysAuthService {
                 BIND_TICKET_EXPIRE_MINUTES, TimeUnit.MINUTES);
     }
 
+    /**
+     * ??Bind Session?
+     *
+     * @param userId ??ID
+     * @return ????
+     */
     private WechatBindSession getBindSession(Long userId) {
         Object raw = redisTemplate.opsForValue().get(CacheConstants.WECHAT_BIND_USER_KEY + userId);
         return parseBindSession(raw, userId);
     }
 
+    /**
+     * ?? parseBindSession ?????
+     *
+     * @param raw ??
+     * @param userId ??ID
+     * @return ????
+     */
     private WechatBindSession parseBindSession(Object raw, Long userId) {
         if (raw == null || StrUtil.isBlank(String.valueOf(raw))) {
             return null;
@@ -851,6 +1007,12 @@ public class SysAuthServiceImpl implements ISysAuthService {
         }
     }
 
+    /**
+     * ??????????
+     *
+     * @param bindTicket ??
+     * @return ????
+     */
     private WechatBindSession requireBindSession(String bindTicket) {
         Object rawSession = redisTemplate.opsForValue().get(CacheConstants.WECHAT_BIND_TICKET_KEY + bindTicket);
         WechatBindSession session = parseBindSession(rawSession, null);
@@ -864,6 +1026,11 @@ public class SysAuthServiceImpl implements ISysAuthService {
         return session;
     }
 
+    /**
+     * ?????
+     *
+     * @param session ??
+     */
     private void clearBindSession(WechatBindSession session) {
         if (session == null) {
             return;
@@ -874,6 +1041,15 @@ public class SysAuthServiceImpl implements ISysAuthService {
         }
     }
 
+    /**
+     * ?????
+     *
+     * @param user ??
+     * @param operateType ??
+     * @param operateSource ??
+     * @param openid ??openid
+     * @param wechatPhone ??
+     */
     private void saveWechatBindRecord(SysUser user, String operateType, String operateSource,
                                       String openid, String wechatPhone) {
         WechatBindRecord record = new WechatBindRecord();
@@ -885,9 +1061,17 @@ public class SysAuthServiceImpl implements ISysAuthService {
         record.setOperatorUserId(user.getId());
         record.setOperatorUsername(user.getUsername());
         record.setOperateTime(LocalDateTime.now());
+        // ???????????????????????
         wechatBindRecordMapper.insert(record);
     }
 
+    /**
+     * ???????
+     *
+     * @param user ??
+     * @param session ??
+     * @return ????
+     */
     private WechatBindStatusVO buildWechatBindStatus(SysUser user, WechatBindSession session) {
         WechatBindStatusVO vo = new WechatBindStatusVO();
         vo.setBound(StrUtil.isNotBlank(user.getOpenid()));
@@ -900,6 +1084,12 @@ public class SysAuthServiceImpl implements ISysAuthService {
         return vo;
     }
 
+    /**
+     * ?? maskOpenid ?????
+     *
+     * @param openid ??openid
+     * @return ?????
+     */
     private String maskOpenid(String openid) {
         if (StrUtil.isBlank(openid)) {
             return null;
@@ -910,6 +1100,12 @@ public class SysAuthServiceImpl implements ISysAuthService {
         return openid.substring(0, 4) + "****" + openid.substring(openid.length() - 4);
     }
 
+    /**
+     * ???????
+     *
+     * @param loginVO ??
+     * @return ????
+     */
     private MpLoginVO buildMpLoginVO(LoginVO loginVO) {
         MpLoginVO vo = new MpLoginVO();
         vo.setStatus(WECHAT_STATUS_BIND);

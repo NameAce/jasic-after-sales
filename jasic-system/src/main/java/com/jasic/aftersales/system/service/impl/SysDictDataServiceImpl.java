@@ -36,6 +36,9 @@ import java.util.stream.Collectors;
 @Service
 public class SysDictDataServiceImpl implements ISysDictDataService {
 
+    /**
+     * ????????
+     */
     @Resource
     private SysDictDataMapper sysDictDataMapper;
 
@@ -50,6 +53,12 @@ public class SysDictDataServiceImpl implements ISysDictDataService {
         refreshCache();
     }
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @Override
     public PageResult<SysDictDataVO> listPage(SysDictDataQuery query) {
         Page<SysDictData> page = new Page<>(query.getPageNum(), query.getPageSize());
@@ -64,6 +73,7 @@ public class SysDictDataServiceImpl implements ISysDictDataService {
             wrapper.eq(SysDictData::getStatus, query.getStatus());
         }
         wrapper.orderByAsc(SysDictData::getDictSort, SysDictData::getId);
+        // ??????????????????????????
         Page<SysDictData> result = sysDictDataMapper.selectPage(page, wrapper);
         List<SysDictDataVO> records = result.getRecords().stream()
                 .map(this::toVO)
@@ -71,12 +81,24 @@ public class SysDictDataServiceImpl implements ISysDictDataService {
         return PageResult.of(records, result.getTotal(), query.getPageNum(), query.getPageSize());
     }
 
+    /**
+     * ??By Id?
+     *
+     * @param id ??ID
+     * @return ????
+     */
     @Override
     public SysDictDataVO getById(Long id) {
         SysDictData entity = sysDictDataMapper.selectById(id);
         return entity == null ? null : toVO(entity);
     }
 
+    /**
+     * ???????
+     *
+     * @param dictType ??
+     * @return ????
+     */
     @SuppressWarnings("unchecked")
     @Override
     public List<SysDictDataVO> listByType(String dictType) {
@@ -92,29 +114,45 @@ public class SysDictDataServiceImpl implements ISysDictDataService {
         return list;
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     * @return ????
+     */
     @Override
     public Long save(SysDictDataDTO dto) {
+        // ?????????????????????????????
         ensureDictTypeExists(dto.getDictType());
         checkDictValueUnique(dto.getDictType(), dto.getDictValue(), null);
         SysDictData entity = BeanUtil.copyProperties(dto, SysDictData.class);
+        // ???????????????????????
         sysDictDataMapper.insert(entity);
         refreshCache(entity.getDictType());
         return entity.getId();
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     */
     @Override
     public void update(SysDictDataDTO dto) {
         if (dto.getId() == null) {
             throw new ServiceException("字典数据ID不能为空");
         }
+        // ??????????????????????????
         SysDictData entity = sysDictDataMapper.selectById(dto.getId());
         if (entity == null) {
             throw new ServiceException("字典数据不存在");
         }
+        // ?????????????????????????????
         ensureDictTypeExists(dto.getDictType());
         checkDictValueUnique(dto.getDictType(), dto.getDictValue(), dto.getId());
         String oldDictType = entity.getDictType();
         BeanUtil.copyProperties(dto, entity);
+        // ???????????????????????
         sysDictDataMapper.updateById(entity);
         if (!StrUtil.equals(oldDictType, entity.getDictType())) {
             removeCache(oldDictType);
@@ -122,22 +160,33 @@ public class SysDictDataServiceImpl implements ISysDictDataService {
         refreshCache(entity.getDictType());
     }
 
+    /**
+     * ?????
+     *
+     * @param id ??ID
+     */
     @Override
     public void remove(Long id) {
+        // ??????????????????????????
         SysDictData entity = sysDictDataMapper.selectById(id);
         if (entity == null) {
             throw new ServiceException("字典数据不存在");
         }
+        // ???????????????????????
         sysDictDataMapper.deleteById(id);
         refreshCache(entity.getDictType());
     }
 
+    /**
+     * ?? refreshCache ?????
+     */
     @Override
     public void refreshCache() {
         clearAllCache();
         LambdaQueryWrapper<SysDictData> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysDictData::getStatus, 1)
                 .orderByAsc(SysDictData::getDictType, SysDictData::getDictSort, SysDictData::getId);
+        // ??????????????????????????
         List<SysDictDataVO> allData = sysDictDataMapper.selectList(wrapper).stream()
                 .map(this::toVO)
                 .sorted(Comparator.comparing(SysDictDataVO::getDictSort).thenComparing(SysDictDataVO::getId))
@@ -147,34 +196,64 @@ public class SysDictDataServiceImpl implements ISysDictDataService {
         grouped.forEach((dictType, list) -> redisTemplate.opsForValue().set(getCacheKey(dictType), list));
     }
 
+    /**
+     * ?? refreshCache ?????
+     *
+     * @param dictType ??
+     */
     @Override
     public void refreshCache(String dictType) {
         redisTemplate.opsForValue().set(getCacheKey(dictType), queryActiveByType(dictType));
     }
 
+    /**
+     * ?????
+     *
+     * @param dictType ??
+     */
     @Override
     public void removeCache(String dictType) {
         redisTemplate.delete(getCacheKey(dictType));
     }
 
+    /**
+     * ?????????
+     *
+     * @param dictType ??
+     */
     private void ensureDictTypeExists(String dictType) {
         LambdaQueryWrapper<SysDictType> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysDictType::getDictType, dictType);
+        // ??????????????????????????
         if (sysDictTypeMapper.selectCount(wrapper) == 0) {
             throw new ServiceException("字典类型不存在");
         }
     }
 
+    /**
+     * ?? checkDictValueUnique ?????
+     *
+     * @param dictType ??
+     * @param dictValue ??
+     * @param excludeId exclude ID
+     */
     private void checkDictValueUnique(String dictType, String dictValue, Long excludeId) {
         LambdaQueryWrapper<SysDictData> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysDictData::getDictType, dictType)
                 .eq(SysDictData::getDictValue, dictValue);
+        // ??????????????????????????
         SysDictData exists = sysDictDataMapper.selectOne(wrapper);
         if (exists != null && (excludeId == null || !exists.getId().equals(excludeId))) {
             throw new ServiceException("同一字典类型下键值不能重复");
         }
     }
 
+    /**
+     * ?????
+     *
+     * @param dictType ??
+     * @return ????
+     */
     private List<SysDictDataVO> queryActiveByType(String dictType) {
         if (StrUtil.isBlank(dictType)) {
             return Collections.emptyList();
@@ -183,11 +262,15 @@ public class SysDictDataServiceImpl implements ISysDictDataService {
         wrapper.eq(SysDictData::getDictType, dictType)
                 .eq(SysDictData::getStatus, 1)
                 .orderByAsc(SysDictData::getDictSort, SysDictData::getId);
+        // ??????????????????????????
         return sysDictDataMapper.selectList(wrapper).stream()
                 .map(this::toVO)
                 .collect(Collectors.toList());
     }
 
+    /**
+     * ?????
+     */
     private void clearAllCache() {
         Set<String> keys = redisTemplate.keys(CacheConstants.DICT_DATA_KEY + "*");
         if (keys != null && !keys.isEmpty()) {
@@ -195,10 +278,22 @@ public class SysDictDataServiceImpl implements ISysDictDataService {
         }
     }
 
+    /**
+     * ??Cache Key?
+     *
+     * @param dictType ??
+     * @return ?????
+     */
     private String getCacheKey(String dictType) {
         return CacheConstants.DICT_DATA_KEY + dictType;
     }
 
+    /**
+     * ?? toVO ?????
+     *
+     * @param entity ????
+     * @return ????
+     */
     private SysDictDataVO toVO(SysDictData entity) {
         return BeanUtil.copyProperties(entity, SysDictDataVO.class);
     }

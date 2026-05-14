@@ -1,7 +1,15 @@
 package com.jasic.aftersales.system.service.impl;
 
+import cn.dev33.satoken.stp.StpUtil;
+import cn.dev33.satoken.SaManager;
+import cn.dev33.satoken.context.SaTokenContextForThreadLocal;
+import cn.dev33.satoken.context.SaTokenContextForThreadLocalStorage;
+import cn.dev33.satoken.context.model.SaRequest;
+import cn.dev33.satoken.context.model.SaResponse;
+import cn.dev33.satoken.context.model.SaStorage;
 import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.common.exception.ServiceException;
+import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.dto.CrmFirstSecondRelationImportDTO;
 import com.jasic.aftersales.system.domain.dto.CrmHqFirstContractImportDTO;
 import com.jasic.aftersales.system.domain.entity.CrmBizCompanySnapshot;
@@ -32,7 +40,9 @@ import com.jasic.aftersales.system.mapper.HqFirstContractRecordMapper;
 import com.jasic.aftersales.system.mapper.SysCompanyMapper;
 import com.jasic.aftersales.system.mapper.SysRegionMapper;
 import com.jasic.aftersales.system.service.ISysCompanyTypeService;
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import org.springframework.dao.DuplicateKeyException;
 
@@ -56,6 +66,25 @@ import java.util.Queue;
  */
 public class SysContractServiceImplTest {
 
+    @Before
+    public void setUpSecurityContext() {
+        SaManager.setSaTokenContext(new SaTokenContextForThreadLocal());
+        SaTokenContextForThreadLocalStorage.setBox(new MockSaRequest(), new MockSaResponse(), new MockSaStorage());
+        StpUtil.login(101L);
+        SecurityContext.setCurrentSubjectType("PLATFORM");
+        SecurityContext.setCurrentTypeCode("PLATFORM");
+    }
+
+    @After
+    public void tearDownSecurityContext() {
+        try {
+            StpUtil.logout();
+        } catch (Exception ignored) {
+        } finally {
+            SaTokenContextForThreadLocalStorage.clearBox();
+        }
+    }
+
     @Test
     public void shouldRejectNonHqCompanyWhenSavingHqFirst() throws Exception {
         SysContractServiceImpl service = new SysContractServiceImpl();
@@ -67,6 +96,7 @@ public class SysContractServiceImplTest {
         setField(service, "companyTypeService", createCompanyTypeService());
 
         HqFirstContractDTO dto = new HqFirstContractDTO();
+        dto.setTargetCompanyId(1L);
         dto.setHqCompanyId(1L);
         dto.setFirstCompanyId(2L);
         dto.setStatus(1);
@@ -96,6 +126,7 @@ public class SysContractServiceImplTest {
         setField(service, "companyTypeService", createCompanyTypeService());
 
         HqFirstContractDTO dto = new HqFirstContractDTO();
+        dto.setTargetCompanyId(1L);
         dto.setHqCompanyId(1L);
         dto.setFirstCompanyId(2L);
         dto.setRegionId(10L);
@@ -113,8 +144,11 @@ public class SysContractServiceImplTest {
     public void shouldRejectSecondCompanyAlreadyBoundToOtherFirst() throws Exception {
         SysContractServiceImpl service = new SysContractServiceImpl();
         Map<Long, SysCompany> companies = new LinkedHashMap<>();
+        companies.put(9L, buildCompany(9L, "HQ_A", 1));
         companies.put(1L, buildCompany(1L, "SITE_FIRST", 1));
         companies.put(2L, buildCompany(2L, "SITE_SECOND", 1));
+        HqFirstContractMapperState contractState = new HqFirstContractMapperState();
+        contractState.selectCountResults.add(1L);
         FirstSecondRelationMapperState relationState = new FirstSecondRelationMapperState();
         relationState.selectCountResults.add(0L);
         FirstSecondRelation existing = new FirstSecondRelation();
@@ -124,9 +158,12 @@ public class SysContractServiceImplTest {
         relationState.selectOneResult = existing;
 
         setField(service, "sysCompanyMapper", createCompanyMapperProxy(companies));
+        setField(service, "companyTypeService", createCompanyTypeService());
+        setField(service, "hqFirstContractMapper", createHqFirstContractMapperProxy(contractState));
         setField(service, "firstSecondRelationMapper", createFirstSecondRelationMapperProxy(relationState));
 
         FirstSecondRelationDTO dto = new FirstSecondRelationDTO();
+        dto.setTargetCompanyId(9L);
         dto.setFirstCompanyId(1L);
         dto.setSecondCompanyId(2L);
         dto.setStatus(1);
@@ -143,16 +180,22 @@ public class SysContractServiceImplTest {
     public void shouldTranslateDuplicateKeyWhenSavingFirstSecond() throws Exception {
         SysContractServiceImpl service = new SysContractServiceImpl();
         Map<Long, SysCompany> companies = new LinkedHashMap<>();
+        companies.put(9L, buildCompany(9L, "HQ_A", 1));
         companies.put(1L, buildCompany(1L, "SITE_FIRST", 1));
         companies.put(2L, buildCompany(2L, "SITE_SECOND", 1));
+        HqFirstContractMapperState contractState = new HqFirstContractMapperState();
+        contractState.selectCountResults.add(1L);
         FirstSecondRelationMapperState relationState = new FirstSecondRelationMapperState();
         relationState.selectCountResults.add(0L);
         relationState.insertException = new DuplicateKeyException("Duplicate entry for key 'uk_second'");
 
         setField(service, "sysCompanyMapper", createCompanyMapperProxy(companies));
+        setField(service, "companyTypeService", createCompanyTypeService());
+        setField(service, "hqFirstContractMapper", createHqFirstContractMapperProxy(contractState));
         setField(service, "firstSecondRelationMapper", createFirstSecondRelationMapperProxy(relationState));
 
         FirstSecondRelationDTO dto = new FirstSecondRelationDTO();
+        dto.setTargetCompanyId(9L);
         dto.setFirstCompanyId(1L);
         dto.setSecondCompanyId(2L);
         dto.setStatus(1);
@@ -179,11 +222,15 @@ public class SysContractServiceImplTest {
         entity.setRemark("备注");
         contractState.selectByIdResult = entity;
         HqFirstContractRecordHolder recordHolder = new HqFirstContractRecordHolder();
+        Map<Long, SysCompany> companies = new LinkedHashMap<>();
+        companies.put(1L, buildCompany(1L, "HQ_A", 1));
 
+        setField(service, "sysCompanyMapper", createCompanyMapperProxy(companies));
+        setField(service, "companyTypeService", createCompanyTypeService());
         setField(service, "hqFirstContractMapper", createHqFirstContractMapperProxy(contractState));
         setField(service, "hqFirstContractRecordMapper", createHqFirstRecordMapperProxy(recordHolder));
 
-        service.removeHqFirst(7L);
+        service.removeHqFirst(7L, 1L);
 
         Assert.assertEquals(Long.valueOf(7L), contractState.deletedId);
         Assert.assertNotNull(recordHolder.record);
@@ -203,11 +250,18 @@ public class SysContractServiceImplTest {
         entity.setRemark("从属备注");
         relationState.selectByIdResult = entity;
         FirstSecondRelationRecordHolder recordHolder = new FirstSecondRelationRecordHolder();
+        Map<Long, SysCompany> companies = new LinkedHashMap<>();
+        companies.put(9L, buildCompany(9L, "HQ_A", 1));
+        HqFirstContractMapperState contractState = new HqFirstContractMapperState();
+        contractState.selectCountResults.add(1L);
 
+        setField(service, "sysCompanyMapper", createCompanyMapperProxy(companies));
+        setField(service, "companyTypeService", createCompanyTypeService());
+        setField(service, "hqFirstContractMapper", createHqFirstContractMapperProxy(contractState));
         setField(service, "firstSecondRelationMapper", createFirstSecondRelationMapperProxy(relationState));
         setField(service, "firstSecondRelationRecordMapper", createFirstSecondRecordMapperProxy(recordHolder));
 
-        service.removeFirstSecond(8L);
+        service.removeFirstSecond(8L, 9L);
 
         Assert.assertEquals(Long.valueOf(8L), relationState.deletedId);
         Assert.assertNotNull(recordHolder.record);
@@ -250,6 +304,7 @@ public class SysContractServiceImplTest {
         setField(service, "hqFirstContractMapper", createHqFirstContractMapperProxy(contractState));
 
         CrmHqFirstContractImportQuery query = new CrmHqFirstContractImportQuery();
+        query.setTargetCompanyId(1L);
         query.setHqCompanyId(1L);
         query.setShowAbnormal(false);
         query.setPageNum(1);
@@ -321,6 +376,7 @@ public class SysContractServiceImplTest {
         setField(service, "hqFirstContractMapper", createHqFirstContractMapperProxy(contractState));
 
         CrmHqFirstContractImportDTO dto = new CrmHqFirstContractImportDTO();
+        dto.setTargetCompanyId(1L);
         dto.setHqCompanyId(1L);
         dto.setSnapshotIds(Arrays.asList(100L, 101L, 102L));
 
@@ -340,6 +396,7 @@ public class SysContractServiceImplTest {
     public void shouldListOnlyImportableFirstSecondRowsWhenListingCrmImportPage() throws Exception {
         SysContractServiceImpl service = new SysContractServiceImpl();
         Map<Long, SysCompany> companies = new LinkedHashMap<>();
+        companies.put(99L, buildCompany(99L, "HQ_A", 1));
         SysCompany firstCompany = buildCompany(1L, "SITE_FIRST", 1);
         firstCompany.setCompanyCode("F001");
         firstCompany.setCompanyName("First-A");
@@ -365,13 +422,22 @@ public class SysContractServiceImplTest {
 
         FirstSecondRelationMapperState relationState = new FirstSecondRelationMapperState();
         relationState.selectListResult = Collections.emptyList();
+        HqFirstContractMapperState contractState = new HqFirstContractMapperState();
+        HqFirstContract allowedContract = new HqFirstContract();
+        allowedContract.setHqCompanyId(99L);
+        allowedContract.setFirstCompanyId(1L);
+        allowedContract.setStatus(1);
+        contractState.selectListResult = Collections.singletonList(allowedContract);
 
         setField(service, "sysCompanyMapper", createCompanyMapperProxy(companies));
+        setField(service, "companyTypeService", createCompanyTypeService());
+        setField(service, "hqFirstContractMapper", createHqFirstContractMapperProxy(contractState));
         setField(service, "crmFirstSecondRelationSnapshotMapper", createFirstSecondSnapshotMapperProxy(relationSnapshotState));
         setField(service, "crmBizCompanySnapshotMapper", createCrmBizCompanySnapshotMapperProxy(companySnapshotState));
         setField(service, "firstSecondRelationMapper", createFirstSecondRelationMapperProxy(relationState));
 
         CrmFirstSecondRelationImportQuery query = new CrmFirstSecondRelationImportQuery();
+        query.setTargetCompanyId(99L);
         query.setShowAbnormal(false);
         query.setPageNum(1);
         query.setPageSize(10);
@@ -388,6 +454,7 @@ public class SysContractServiceImplTest {
     public void shouldCountSuccessExistingConflictAndFailedWhenImportingFirstSecondFromCrm() throws Exception {
         SysContractServiceImpl service = new SysContractServiceImpl();
         Map<Long, SysCompany> companies = new LinkedHashMap<>();
+        companies.put(99L, buildCompany(99L, "HQ_A", 1));
         SysCompany firstCompanyA = buildCompany(1L, "SITE_FIRST", 1);
         firstCompanyA.setCompanyCode("F001");
         firstCompanyA.setCompanyName("First-A");
@@ -435,13 +502,23 @@ public class SysContractServiceImplTest {
         FirstSecondRelationMapperState relationState = new FirstSecondRelationMapperState();
         relationState.selectListResult = Arrays.asList(existingRelation, conflictRelation);
         relationState.selectCountResults.add(0L);
+        HqFirstContractMapperState contractState = new HqFirstContractMapperState();
+        HqFirstContract allowedContract = new HqFirstContract();
+        allowedContract.setHqCompanyId(99L);
+        allowedContract.setFirstCompanyId(1L);
+        allowedContract.setStatus(1);
+        contractState.selectListResult = Collections.singletonList(allowedContract);
+        contractState.selectCountResults.add(1L);
 
         setField(service, "sysCompanyMapper", createCompanyMapperProxy(companies));
+        setField(service, "companyTypeService", createCompanyTypeService());
+        setField(service, "hqFirstContractMapper", createHqFirstContractMapperProxy(contractState));
         setField(service, "crmFirstSecondRelationSnapshotMapper", createFirstSecondSnapshotMapperProxy(relationSnapshotState));
         setField(service, "crmBizCompanySnapshotMapper", createCrmBizCompanySnapshotMapperProxy(companySnapshotState));
         setField(service, "firstSecondRelationMapper", createFirstSecondRelationMapperProxy(relationState));
 
         CrmFirstSecondRelationImportDTO dto = new CrmFirstSecondRelationImportDTO();
+        dto.setTargetCompanyId(99L);
         dto.setSnapshotIds(Arrays.asList(500L, 501L, 502L, 503L));
 
         CrmFirstSecondRelationImportResultVO result = service.importFirstSecondFromCrm(dto);

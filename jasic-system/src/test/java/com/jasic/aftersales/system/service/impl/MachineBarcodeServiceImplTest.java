@@ -1,16 +1,30 @@
 package com.jasic.aftersales.system.service.impl;
 
+import cn.dev33.satoken.SaManager;
+import cn.dev33.satoken.context.SaTokenContextForThreadLocal;
+import cn.dev33.satoken.context.SaTokenContextForThreadLocalStorage;
+import cn.dev33.satoken.context.model.SaRequest;
+import cn.dev33.satoken.context.model.SaResponse;
+import cn.dev33.satoken.context.model.SaStorage;
+import cn.dev33.satoken.stp.StpUtil;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.jasic.aftersales.common.enums.SubjectTypeEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
+import com.jasic.aftersales.framework.datapermission.CompanyDataAccessContext;
+import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.dto.MachineBarcodeDTO;
-import com.jasic.aftersales.system.domain.dto.MachineBarcodeImportItemDTO;
 import com.jasic.aftersales.system.domain.entity.MachineBarcode;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
 import com.jasic.aftersales.system.domain.entity.SysCompanyType;
+import com.jasic.aftersales.system.domain.query.MachineBarcodeQuery;
 import com.jasic.aftersales.system.domain.vo.SysCompanySimpleVO;
 import com.jasic.aftersales.system.mapper.MachineBarcodeMapper;
 import com.jasic.aftersales.system.mapper.SysCompanyMapper;
+import com.jasic.aftersales.system.service.CompanyDataAccessService;
 import com.jasic.aftersales.system.service.ISysCompanyTypeService;
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
@@ -23,95 +37,85 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 条码档案服务测试
- *
- * @author Codex
- * @date 2026/04/01
- */
 public class MachineBarcodeServiceImplTest {
 
+    private Map<Long, SysCompany> companies;
+
+    @Before
+    public void setUp() {
+        SaManager.setSaTokenContext(new SaTokenContextForThreadLocal());
+        SaTokenContextForThreadLocalStorage.setBox(new MockSaRequest(), new MockSaResponse(), new MockSaStorage());
+        StpUtil.login(101L);
+        companies = new LinkedHashMap<>();
+        companies.put(11L, buildServiceCompany());
+        companies.put(21L, buildHqCompany(21L, "总部A", 1));
+        companies.put(22L, buildHqCompany(22L, "总部B", 1));
+        companies.put(23L, buildHqCompany(23L, "总部C", 0));
+    }
+
+    @After
+    public void tearDown() {
+        try {
+            StpUtil.logout();
+        } finally {
+            SaTokenContextForThreadLocalStorage.clearBox();
+        }
+    }
+
     @Test
-    public void shouldRejectNonHqCompanyWhenSavingBarcode() throws Exception {
-        MachineBarcodeServiceImpl service = new MachineBarcodeServiceImpl();
-        setField(service, "sysCompanyMapper", createCompanyMapperProxy(Collections.singletonMap(11L, buildServiceCompany())));
-        setField(service, "machineBarcodeMapper", createMachineBarcodeMapperProxy(new LinkedHashMap<String, MachineBarcode>()));
-        setField(service, "companyTypeService", createCompanyTypeService(buildCompanyTypes()));
+    public void platformUserShouldFailClosedWhenOwnerHqMissing() throws Exception {
+        switchContext(9999L, SubjectTypeEnum.PLATFORM.getCode(), "PLATFORM");
+        MachineBarcodeServiceImpl service = buildService(new LinkedHashMap<String, MachineBarcode>());
+
+        try {
+            service.listPage(new MachineBarcodeQuery());
+            Assert.fail("平台用户缺少目标总部应拒绝");
+        } catch (ServiceException ex) {
+            Assert.assertEquals("缺少目标公司上下文", ex.getMessage());
+        }
+    }
+
+    @Test
+    public void platformUserShouldRejectNonHqOwner() throws Exception {
+        switchContext(9999L, SubjectTypeEnum.PLATFORM.getCode(), "PLATFORM");
+        MachineBarcodeServiceImpl service = buildService(new LinkedHashMap<String, MachineBarcode>());
 
         MachineBarcodeDTO dto = new MachineBarcodeDTO();
         dto.setBarcode("JASIC-001");
-        dto.setHqCompanyId(11L);
+        dto.setOwnerHqId(11L);
         dto.setStatus(1);
 
         try {
             service.save(dto);
-            Assert.fail("预期应拒绝非总部公司");
+            Assert.fail("平台用户指定非总部目标应拒绝");
         } catch (ServiceException ex) {
-            Assert.assertEquals("归属公司不是总部类型", ex.getMessage());
+            Assert.assertEquals("目标公司不是总部类型", ex.getMessage());
         }
     }
 
     @Test
-    public void shouldReturnOnlyActiveHqCompanyOptions() throws Exception {
-        MachineBarcodeServiceImpl service = new MachineBarcodeServiceImpl();
-        Map<Long, SysCompany> companies = new LinkedHashMap<>();
-        companies.put(21L, buildHqCompany(21L, "总部A", 1));
-        companies.put(22L, buildHqCompany(22L, "总部B", 0));
-        companies.put(31L, buildServiceCompany());
-
-        setField(service, "sysCompanyMapper", createCompanyMapperProxy(companies));
-        setField(service, "machineBarcodeMapper", createMachineBarcodeMapperProxy(new LinkedHashMap<String, MachineBarcode>()));
-        setField(service, "companyTypeService", createCompanyTypeService(buildCompanyTypes()));
-
-        List<SysCompanySimpleVO> options = service.listHqCompanyOptions();
-
-        Assert.assertEquals(1, options.size());
-        Assert.assertEquals(Long.valueOf(21L), options.get(0).getId());
-        Assert.assertEquals("总部A", options.get(0).getCompanyName());
-    }
-
-    @Test
-    public void shouldRejectDuplicateBarcodeInImportPayload() throws Exception {
-        MachineBarcodeServiceImpl service = new MachineBarcodeServiceImpl();
-        Map<Long, SysCompany> companies = new LinkedHashMap<>();
-        companies.put(21L, buildHqCompany(21L, "总部A", 1));
-
-        setField(service, "sysCompanyMapper", createCompanyMapperProxy(companies));
-        setField(service, "machineBarcodeMapper", createMachineBarcodeMapperProxy(new LinkedHashMap<String, MachineBarcode>()));
-        setField(service, "companyTypeService", createCompanyTypeService(buildCompanyTypes()));
-
-        MachineBarcodeImportItemDTO first = new MachineBarcodeImportItemDTO();
-        first.setBarcode("JASIC-001");
-        first.setHqCompanyId(21L);
-        first.setStatus(1);
-
-        MachineBarcodeImportItemDTO second = new MachineBarcodeImportItemDTO();
-        second.setBarcode("JASIC-001");
-        second.setHqCompanyId(21L);
-        second.setStatus(1);
+    public void hqUserShouldRejectCrossHqOwner() throws Exception {
+        switchContext(21L, SubjectTypeEnum.HQ.getCode(), "HQ_A");
+        MachineBarcodeServiceImpl service = buildService(new LinkedHashMap<String, MachineBarcode>());
+        MachineBarcodeQuery query = new MachineBarcodeQuery();
+        query.setOwnerHqId(22L);
 
         try {
-            service.importItems(java.util.Arrays.asList(first, second));
-            Assert.fail("预期应拒绝重复条码");
+            service.listPage(query);
+            Assert.fail("总部用户跨总部查询应拒绝");
         } catch (ServiceException ex) {
-            Assert.assertEquals("导入数据存在重复条码：JASIC-001", ex.getMessage());
+            Assert.assertEquals("无权操作目标公司数据", ex.getMessage());
         }
     }
 
     @Test
-    public void shouldNormalizeProductSnapshotFieldsWhenSavingBarcode() throws Exception {
-        MachineBarcodeServiceImpl service = new MachineBarcodeServiceImpl();
-        Map<Long, SysCompany> companies = new LinkedHashMap<>();
-        companies.put(21L, buildHqCompany(21L, "总部A", 1));
+    public void hqUserShouldSaveWithCurrentHqOwnerWhenOwnerMissing() throws Exception {
+        switchContext(21L, SubjectTypeEnum.HQ.getCode(), "HQ_A");
         Map<String, MachineBarcode> store = new LinkedHashMap<>();
-
-        setField(service, "sysCompanyMapper", createCompanyMapperProxy(companies));
-        setField(service, "machineBarcodeMapper", createMachineBarcodeMapperProxy(store));
-        setField(service, "companyTypeService", createCompanyTypeService(buildCompanyTypes()));
+        MachineBarcodeServiceImpl service = buildService(store);
 
         MachineBarcodeDTO dto = new MachineBarcodeDTO();
-        dto.setBarcode("JASIC-001");
-        dto.setHqCompanyId(21L);
+        dto.setBarcode(" JASIC-001 ");
         dto.setProductName("  ZX7逆变焊机  ");
         dto.setMachineNo("  M-001  ");
         dto.setStatus(1);
@@ -120,8 +124,43 @@ public class MachineBarcodeServiceImplTest {
 
         MachineBarcode saved = store.get("JASIC-001");
         Assert.assertNotNull(saved);
+        Assert.assertEquals(Long.valueOf(21L), saved.getHqCompanyId());
         Assert.assertEquals("ZX7逆变焊机", saved.getProductName());
         Assert.assertEquals("M-001", saved.getMachineNo());
+    }
+
+    @Test
+    public void hqUserOptionsShouldOnlyReturnCurrentHq() throws Exception {
+        switchContext(21L, SubjectTypeEnum.HQ.getCode(), "HQ_A");
+        MachineBarcodeServiceImpl service = buildService(new LinkedHashMap<String, MachineBarcode>());
+
+        List<SysCompanySimpleVO> options = service.listHqCompanyOptions();
+
+        Assert.assertEquals(1, options.size());
+        Assert.assertEquals(Long.valueOf(21L), options.get(0).getId());
+    }
+
+    private MachineBarcodeServiceImpl buildService(Map<String, MachineBarcode> store) throws Exception {
+        SysCompanyMapper companyMapper = createCompanyMapperProxy(companies);
+        ISysCompanyTypeService companyTypeService = createCompanyTypeService();
+
+        CompanyDataAccessService accessService = new CompanyDataAccessService();
+        setAnyField(accessService, "companyDataAccessContext", new CompanyDataAccessContext());
+        setAnyField(accessService, "sysCompanyMapper", companyMapper);
+        setAnyField(accessService, "companyTypeService", companyTypeService);
+
+        MachineBarcodeServiceImpl service = new MachineBarcodeServiceImpl();
+        setAnyField(service, "sysCompanyMapper", companyMapper);
+        setAnyField(service, "machineBarcodeMapper", createMachineBarcodeMapperProxy(store));
+        setAnyField(service, "companyTypeService", companyTypeService);
+        setAnyField(service, "companyDataAccessService", accessService);
+        return service;
+    }
+
+    private void switchContext(Long companyId, String subjectType, String typeCode) {
+        SecurityContext.setCurrentCompanyId(companyId);
+        SecurityContext.setCurrentSubjectType(subjectType);
+        SecurityContext.setCurrentTypeCode(typeCode);
     }
 
     private SysCompany buildServiceCompany() {
@@ -145,27 +184,24 @@ public class MachineBarcodeServiceImplTest {
 
     private List<SysCompanyType> buildCompanyTypes() {
         List<SysCompanyType> result = new ArrayList<>();
-
         SysCompanyType hq = new SysCompanyType();
         hq.setTypeCode("HQ_A");
-        hq.setTypeName("总部A");
-        hq.setSubjectType("HQ");
+        hq.setTypeName("总部");
+        hq.setSubjectType(SubjectTypeEnum.HQ.getCode());
         result.add(hq);
-
         SysCompanyType first = new SysCompanyType();
         first.setTypeCode("FIRST");
         first.setTypeName("一级网点");
-        first.setSubjectType("SERVICE");
+        first.setSubjectType(SubjectTypeEnum.SERVICE.getCode());
         result.add(first);
-
         return result;
     }
 
-    private ISysCompanyTypeService createCompanyTypeService(List<SysCompanyType> companyTypes) {
+    private ISysCompanyTypeService createCompanyTypeService() {
         return new ISysCompanyTypeService() {
             @Override
             public List<SysCompanyType> listAll() {
-                return companyTypes;
+                return buildCompanyTypes();
             }
 
             @Override
@@ -188,24 +224,21 @@ public class MachineBarcodeServiceImplTest {
         };
     }
 
-    private SysCompanyMapper createCompanyMapperProxy(Map<Long, SysCompany> companies) {
-        InvocationHandler handler = new InvocationHandler() {
-            @Override
-            public Object invoke(Object proxy, Method method, Object[] args) {
-                if ("selectById".equals(method.getName())) {
-                    return companies.get(args[0]);
-                }
-                if ("selectList".equals(method.getName())) {
-                    List<SysCompany> result = new ArrayList<>();
-                    for (SysCompany company : companies.values()) {
-                        if (company.getStatus() != null && company.getStatus() == 1 && "HQ_A".equals(company.getTypeCode())) {
-                            result.add(company);
-                        }
-                    }
-                    return result;
-                }
-                return defaultValue(method.getReturnType());
+    private SysCompanyMapper createCompanyMapperProxy(Map<Long, SysCompany> store) {
+        InvocationHandler handler = (proxy, method, args) -> {
+            if ("selectById".equals(method.getName())) {
+                return store.get(args[0]);
             }
+            if ("selectList".equals(method.getName())) {
+                List<SysCompany> result = new ArrayList<>();
+                for (SysCompany company : store.values()) {
+                    if (Integer.valueOf(1).equals(company.getStatus()) && "HQ_A".equals(company.getTypeCode())) {
+                        result.add(company);
+                    }
+                }
+                return result;
+            }
+            return defaultValue(method.getReturnType());
         };
         return (SysCompanyMapper) Proxy.newProxyInstance(
                 SysCompanyMapper.class.getClassLoader(),
@@ -214,6 +247,7 @@ public class MachineBarcodeServiceImplTest {
         );
     }
 
+    @SuppressWarnings("unchecked")
     private MachineBarcodeMapper createMachineBarcodeMapperProxy(Map<String, MachineBarcode> store) {
         InvocationHandler handler = new InvocationHandler() {
             private long nextId = 1L;
@@ -221,10 +255,13 @@ public class MachineBarcodeServiceImplTest {
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectOne".equals(method.getName())) {
-                    if (store.isEmpty()) {
-                        return null;
-                    }
-                    return store.values().iterator().next();
+                    return store.isEmpty() ? null : store.values().iterator().next();
+                }
+                if ("selectPage".equals(method.getName())) {
+                    Page<MachineBarcode> page = (Page<MachineBarcode>) args[0];
+                    page.setRecords(new ArrayList<>(store.values()));
+                    page.setTotal(store.size());
+                    return page;
                 }
                 if ("insert".equals(method.getName())) {
                     MachineBarcode entity = (MachineBarcode) args[0];
@@ -234,19 +271,13 @@ public class MachineBarcodeServiceImplTest {
                     store.put(entity.getBarcode(), entity);
                     return 1;
                 }
-                if ("updateById".equals(method.getName())) {
+                if ("update".equals(method.getName())) {
                     MachineBarcode entity = (MachineBarcode) args[0];
                     store.put(entity.getBarcode(), entity);
                     return 1;
                 }
-                if ("selectById".equals(method.getName())) {
-                    Long id = (Long) args[0];
-                    for (MachineBarcode value : store.values()) {
-                        if (id.equals(value.getId())) {
-                            return value;
-                        }
-                    }
-                    return null;
+                if ("delete".equals(method.getName())) {
+                    return 1;
                 }
                 return defaultValue(method.getReturnType());
             }
@@ -258,8 +289,8 @@ public class MachineBarcodeServiceImplTest {
         );
     }
 
-    private void setField(Object target, String fieldName, Object value) throws Exception {
-        Field field = MachineBarcodeServiceImpl.class.getDeclaredField(fieldName);
+    private void setAnyField(Object target, String fieldName, Object value) throws Exception {
+        Field field = target.getClass().getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(target, value);
     }
@@ -285,5 +316,110 @@ public class MachineBarcodeServiceImplTest {
             return 0D;
         }
         return null;
+    }
+
+    private static class MockSaRequest implements SaRequest {
+        @Override
+        public Object getSource() {
+            return this;
+        }
+
+        @Override
+        public String getParam(String name) {
+            return null;
+        }
+
+        @Override
+        public List<String> getParamNames() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public Map<String, String> getParamMap() {
+            return Collections.emptyMap();
+        }
+
+        @Override
+        public String getHeader(String name) {
+            return null;
+        }
+
+        @Override
+        public String getCookieValue(String name) {
+            return null;
+        }
+
+        @Override
+        public String getRequestPath() {
+            return "/";
+        }
+
+        @Override
+        public String getUrl() {
+            return "http://localhost/test";
+        }
+
+        @Override
+        public String getMethod() {
+            return "GET";
+        }
+
+        @Override
+        public Object forward(String path) {
+            return null;
+        }
+    }
+
+    private static class MockSaResponse implements SaResponse {
+        @Override
+        public Object getSource() {
+            return this;
+        }
+
+        @Override
+        public SaResponse setStatus(int sc) {
+            return this;
+        }
+
+        @Override
+        public SaResponse setHeader(String name, String value) {
+            return this;
+        }
+
+        @Override
+        public SaResponse addHeader(String name, String value) {
+            return this;
+        }
+
+        @Override
+        public Object redirect(String url) {
+            return null;
+        }
+    }
+
+    private static class MockSaStorage implements SaStorage {
+        private final Map<String, Object> storage = new LinkedHashMap<>();
+
+        @Override
+        public Object getSource() {
+            return this;
+        }
+
+        @Override
+        public Object get(String key) {
+            return storage.get(key);
+        }
+
+        @Override
+        public SaStorage set(String key, Object value) {
+            storage.put(key, value);
+            return this;
+        }
+
+        @Override
+        public SaStorage delete(String key) {
+            storage.remove(key);
+            return this;
+        }
     }
 }

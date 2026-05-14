@@ -22,6 +22,10 @@ public class FirstSecondRelationDTO implements Serializable {
     @ApiModelProperty(value = "主键（修改时必传）")
     private Long id;
 
+    /** 目标总部公司ID */
+    @ApiModelProperty(value = "目标总部公司ID", required = true)
+    private Long targetCompanyId;
+
     /** 一级网点公司ID */
     @ApiModelProperty(value = "一级网点公司ID")
     private Long firstCompanyId;

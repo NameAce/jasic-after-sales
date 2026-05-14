@@ -39,23 +39,47 @@ public class SysDictDataController extends BaseController {
     @Resource
     private ISysDictDataService dictDataService;
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @SaCheckPermission("system:dictData:list")
     @GetMapping("/list")
     public Result<PageResult<SysDictDataVO>> list(SysDictDataQuery query) {
         return Result.ok(dictDataService.listPage(query));
     }
 
+    /**
+     * ??By Id?
+     *
+     * @param id ??ID
+     * @return ??????
+     */
     @SaCheckPermission("system:dictData:list")
     @GetMapping("/{id}")
     public Result<SysDictDataVO> getById(@PathVariable Long id) {
         return Result.ok(dictDataService.getById(id));
     }
 
+    /**
+     * ???????
+     *
+     * @param dictType ??
+     * @return ????
+     */
     @GetMapping("/type/{dictType}")
     public Result<List<SysDictDataVO>> listByType(@PathVariable String dictType) {
         return Result.ok(dictDataService.listByType(dictType));
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     * @return ??????
+     */
     @SaCheckPermission("system:dictData:add")
     @OperLog(title = "字典数据管理", operType = OperTypeEnum.INSERT)
     @PostMapping
@@ -63,6 +87,12 @@ public class SysDictDataController extends BaseController {
         return Result.ok(dictDataService.save(dto));
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     * @return ??????
+     */
     @SaCheckPermission("system:dictData:update")
     @OperLog(title = "字典数据管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
@@ -71,6 +101,12 @@ public class SysDictDataController extends BaseController {
         return Result.ok();
     }
 
+    /**
+     * ?????
+     *
+     * @param id ??ID
+     * @return ??????
+     */
     @SaCheckPermission("system:dictData:remove")
     @OperLog(title = "字典数据管理", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/{id}")

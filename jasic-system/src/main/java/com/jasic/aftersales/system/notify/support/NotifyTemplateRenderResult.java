@@ -33,6 +33,11 @@ public class NotifyTemplateRenderResult implements Serializable {
 
     private final List<String> errors = new ArrayList<>();
 
+    /**
+     * ?? addError ?????
+     *
+     * @param error ??
+     */
     public void addError(String error) {
         if (error != null && !error.trim().isEmpty()) {
             errors.add(error);

@@ -63,6 +63,11 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
     @Resource
     private NotifyMessageLogService notifyMessageLogService;
 
+    /**
+     * ?? consumePendingEvents ?????
+     *
+     * @return ????
+     */
     @Resource
     private NotifyTemplateService notifyTemplateService;
 
@@ -77,6 +82,7 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
 
     @Override
     public int consumePendingEvents() {
+        // ????????????????????????
         List<SysNotifyEvent> events = notifyEventService.listConsumableEvents(
                 LocalDateTime.now(),
                 NotifyConstants.EVENT_CONSUME_BATCH_SIZE
@@ -100,7 +106,13 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         return successCount;
     }
 
+    /**
+     * ?? consumeSingleEvent ?????
+     *
+     * @param eventId event ID
+     */
     private void consumeSingleEvent(Long eventId) {
+        // ????????????????????????
         SysNotifyEvent event = getRequiredProcessingEvent(eventId);
         if (NotifyEventTypeEnum.WORK_ORDER_ASSIGNED.getCode().equals(event.getEventType())) {
             consumeAssignedEvent(event);
@@ -112,7 +124,13 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         notifyEventService.markSuccess(event.getId());
     }
 
+    /**
+     * ?? consumeAssignedEvent ?????
+     *
+     * @param event ??
+     */
     private void consumeAssignedEvent(SysNotifyEvent event) {
+        // ????????????????????????
         NotifyAssignedEventDTO payload = parseAssignedPayload(event);
         if (NotifyConstants.ASSIGN_TYPE_TRANSFER.equals(payload.getAssignType())) {
             invalidateTransferredTodos(event, payload);
@@ -120,7 +138,13 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         createPendingMessageIfAbsent(event, payload);
     }
 
+    /**
+     * ?? consumeEvaluationInviteEvent ?????
+     *
+     * @param event ??
+     */
     private void consumeEvaluationInviteEvent(SysNotifyEvent event) {
+        // ????????????????????????
         NotifyEvaluationInviteEventDTO payload = parseEvaluationInvitePayload(event);
         String templateCode = NotifyTemplateCodeEnum.WORK_ORDER_EVALUATION_INVITE.getCode();
         boolean notifyEnabled = notifyTemplateService.isNotifyEnabled(templateCode);
@@ -137,7 +161,14 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         }
     }
 
+    /**
+     * ??Required Processing Event?
+     *
+     * @param eventId event ID
+     * @return ????
+     */
     private SysNotifyEvent getRequiredProcessingEvent(Long eventId) {
+        // ????????????????????????
         SysNotifyEvent event = notifyEventService.getById(eventId);
         if (event == null) {
             throw new ServiceException("Notify event not found");
@@ -148,8 +179,15 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         return event;
     }
 
+    /**
+     * ?? parseAssignedPayload ?????
+     *
+     * @param event ??
+     * @return ????
+     */
     private NotifyAssignedEventDTO parseAssignedPayload(SysNotifyEvent event) {
         if (StrUtil.isBlank(event.getPayloadJson())) {
+            // ????????????????????????
             throw new ServiceException("Notify event payload cannot be blank");
         }
         NotifyAssignedEventDTO payload;
@@ -176,11 +214,21 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         if (!Objects.equals(payload.getNewAssignedUserId(), event.getReceiverId())) {
             throw new ServiceException("Notify assigned payload receiver mismatch");
         }
+        if (payload.getReceiverCompanyId() == null) {
+            throw new ServiceException("Notify assigned payload missing receiverCompanyId");
+        }
         return payload;
     }
 
+    /**
+     * ?? parseEvaluationInvitePayload ?????
+     *
+     * @param event ??
+     * @return ????
+     */
     private NotifyEvaluationInviteEventDTO parseEvaluationInvitePayload(SysNotifyEvent event) {
         if (StrUtil.isBlank(event.getPayloadJson())) {
+            // ????????????????????????
             throw new ServiceException("Notify event payload cannot be blank");
         }
         NotifyEvaluationInviteEventDTO payload;
@@ -201,15 +249,23 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         return payload;
     }
 
+    /**
+     * ?? invalidateTransferredTodos ?????
+     *
+     * @param event ??
+     * @param payload ??
+     */
     private void invalidateTransferredTodos(SysNotifyEvent event, NotifyAssignedEventDTO payload) {
         if (payload.getOldAssignedUserId() == null
                 || Objects.equals(payload.getOldAssignedUserId(), payload.getNewAssignedUserId())) {
             return;
         }
+        // ????????????????????????
         List<SysNotifyMessage> messages = notifyMessageService.listActiveTodoByBizAndReceiver(
                 NotifyBizTypeEnum.WORK_ORDER.getCode(),
                 payload.getWorkOrderId(),
-                payload.getOldAssignedUserId()
+                payload.getOldAssignedUserId(),
+                payload.getReceiverCompanyId()
         );
         if (messages.isEmpty()) {
             return;
@@ -236,10 +292,18 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         }
     }
 
+    /**
+     * ?????
+     *
+     * @param event ??
+     * @param payload ??
+     */
     private void createPendingMessageIfAbsent(SysNotifyEvent event, NotifyAssignedEventDTO payload) {
+        // ????????????????????????
         if (notifyMessageService.getByEventId(event.getId()) != null) {
             return;
         }
+        // ??????????????????????????
         SysUser receiver = sysUserMapper.selectById(event.getReceiverId());
         String receiverName = resolveReceiverName(receiver, event.getReceiverId());
         NotifyTemplateRenderResult renderResult = notifyTemplateService.render(
@@ -259,6 +323,7 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         message.setBizId(event.getBizId());
         message.setBizNo(event.getBizNo());
         message.setReceiverId(event.getReceiverId());
+        message.setReceiverCompanyId(payload.getReceiverCompanyId());
         message.setReceiverName(receiverName);
         message.setTitle(renderResult.getTitle());
         message.setSummary(renderResult.getSummary());
@@ -278,9 +343,21 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         ));
     }
 
+    /**
+     * ?????
+     *
+     * @param event ??
+     * @param payload ??
+     * @param channel ??
+     * @param notifyEnabled ??
+     * @param forcedStatus ??
+     * @param forcedResultCode ??
+     * @param forcedResultMessage ??
+     */
     private void createEvaluationDispatch(SysNotifyEvent event, NotifyEvaluationInviteEventDTO payload,
                                           NotifyTemplateChannelVO channel, boolean notifyEnabled,
                                           String forcedStatus, String forcedResultCode, String forcedResultMessage) {
+        // ????????????????????????
         String channelType = channel == null ? NotifyChannelTypeEnum.MP_SUBSCRIBE.getCode() : channel.getChannelType();
         SysNotifyDispatch dispatch = buildEvaluationDispatch(event, payload, channel, channelType);
         if (forcedStatus != null) {
@@ -325,8 +402,18 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         notifyDispatchService.createDispatch(dispatch);
     }
 
+    /**
+     * ???????
+     *
+     * @param event ??
+     * @param payload ??
+     * @param channel ??
+     * @param channelType ??
+     * @return ????
+     */
     private SysNotifyDispatch buildEvaluationDispatch(SysNotifyEvent event, NotifyEvaluationInviteEventDTO payload,
                                                       NotifyTemplateChannelVO channel, String channelType) {
+        // ????????????????????????
         SysNotifyDispatch dispatch = new SysNotifyDispatch();
         dispatch.setEventId(event.getId());
         dispatch.setTemplateCode(NotifyTemplateCodeEnum.WORK_ORDER_EVALUATION_INVITE.getCode());
@@ -349,10 +436,17 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         return dispatch;
     }
 
+    /**
+     * ???????
+     *
+     * @param channel ??
+     * @return ????
+     */
     private NotifyTemplateChannelConfig buildChannelConfig(NotifyTemplateChannelVO channel) {
         if (channel == null) {
             return null;
         }
+        // ????????????????????????
         NotifyTemplateChannelConfig config = new NotifyTemplateChannelConfig();
         config.setScene(channel.getChannelScene());
         config.setTemplateId(channel.getTemplateId());
@@ -361,9 +455,19 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         return config;
     }
 
+    /**
+     * ???????
+     *
+     * @param templateCode ??
+     * @param channelType ??
+     * @param channelConfig ??
+     * @param payload ??
+     * @return ?????
+     */
     private String buildEvaluationDispatchPayload(String templateCode, String channelType,
                                                   NotifyTemplateChannelConfig channelConfig,
                                                   NotifyEvaluationInviteEventDTO payload) {
+        // ????????????????????????
         NotifyDispatchPayload dispatchPayload = new NotifyDispatchPayload();
         dispatchPayload.setTemplateCode(templateCode);
         dispatchPayload.setChannelType(channelType);
@@ -372,6 +476,13 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         return JSONUtil.toJsonStr(dispatchPayload);
     }
 
+    /**
+     * ???????
+     *
+     * @param receiver ??
+     * @param receiverId receiver ID
+     * @return ?????
+     */
     private String resolveReceiverName(SysUser receiver, Long receiverId) {
         if (receiver == null) {
             return String.valueOf(receiverId);
@@ -384,6 +495,14 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         return StrUtil.isNotBlank(username) ? username : String.valueOf(receiverId);
     }
 
+    /**
+     * ???????
+     *
+     * @param event ??
+     * @param payload ??
+     * @param receiverName ??
+     * @return ????
+     */
     private Map<String, Object> buildAssignedTemplateVariables(SysNotifyEvent event, NotifyAssignedEventDTO payload,
                                                                String receiverName) {
         Map<String, Object> variables = new LinkedHashMap<>();
@@ -399,6 +518,12 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         return variables;
     }
 
+    /**
+     * ???????
+     *
+     * @param payload ??
+     * @return ????
+     */
     private Map<String, Object> buildEvaluationVariables(NotifyEvaluationInviteEventDTO payload) {
         Map<String, Object> variables = new LinkedHashMap<>();
         variables.put("workOrderId", payload.getWorkOrderId());
@@ -412,6 +537,12 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         return variables;
     }
 
+    /**
+     * ???????
+     *
+     * @param payload ??
+     * @return ?????
+     */
     private String buildAssignedMessageExt(NotifyAssignedEventDTO payload) {
         Map<String, Object> ext = new LinkedHashMap<>();
         ext.put("assignType", payload.getAssignType());
@@ -421,8 +552,18 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         return JSONUtil.toJsonStr(ext);
     }
 
+    /**
+     * ???????
+     *
+     * @param message ??
+     * @param actionType ??
+     * @param actionUserId action User ID
+     * @param remark ??
+     * @return ????
+     */
     private SysNotifyMessageLog buildMessageLog(SysNotifyMessage message, String actionType,
                                                 Long actionUserId, String remark) {
+        // ????????????????????????
         SysNotifyMessageLog logEntity = new SysNotifyMessageLog();
         logEntity.setMessageId(message.getId());
         logEntity.setActionType(actionType);
@@ -432,7 +573,14 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         return logEntity;
     }
 
+    /**
+     * ?? markEventFailed ?????
+     *
+     * @param eventId event ID
+     * @param ex ??
+     */
     private void markEventFailed(Long eventId, Exception ex) {
+        // ????????????????????????
         SysNotifyEvent current = notifyEventService.getById(eventId);
         int currentRetryCount = current == null || current.getRetryCount() == null ? 0 : current.getRetryCount();
         notifyEventService.markFailed(
@@ -443,6 +591,12 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         );
     }
 
+    /**
+     * ???????
+     *
+     * @param ex ??
+     * @return ?????
+     */
     private String buildErrorMessage(Exception ex) {
         String message = ex == null ? null : StrUtil.trim(ex.getMessage());
         if (StrUtil.isBlank(message) && ex != null) {

@@ -121,7 +121,8 @@ function buildListParams(): SysUserQuery {
     username: query.username.trim() || undefined,
     realName: query.realName.trim() || undefined,
     phone: query.phone.trim() || undefined,
-    status: query.status
+    status: query.status,
+    ...currentTargetCompanyParams()
   };
 }
 
@@ -148,7 +149,7 @@ async function loadData() {
  */
 async function ensureAssignOptions() {
   if (!roleOpts.value.length) {
-    const { data } = await roleOptions();
+    const { data } = await roleOptions(currentTargetCompanyParams());
     const list = pickRows(data);
     roleOpts.value = list
       .map((r: RowData) => {
@@ -167,6 +168,11 @@ async function ensureAssignOptions() {
 function currentCompanyId() {
   const cid = Number(authStore.userInfo.currentCompanyId);
   return Number.isFinite(cid) && cid > 0 ? cid : null;
+}
+
+function currentTargetCompanyParams() {
+  const targetCompanyId = currentCompanyId();
+  return targetCompanyId === null ? {} : { targetCompanyId };
 }
 
 /**
@@ -270,7 +276,7 @@ async function openAdd() {
  * @returns Promise，详情回填后结束
  */
 async function openEdit(record: RowData) {
-  const { data } = await getUser(record.id);
+  const { data } = await getUser(record.id, currentTargetCompanyParams());
   const row = (data as RowData) || record;
   Object.assign(editForm, {
     id: row.id,
@@ -311,6 +317,7 @@ async function submitEdit() {
     if (editForm.id) {
       const { response } = await updateUser({
         ...editForm,
+        ...currentTargetCompanyParams(),
         username: editForm.username.trim(),
         realName: editForm.realName.trim(),
         phone: editForm.phone.trim(),
@@ -320,6 +327,7 @@ async function submitEdit() {
     } else {
       const { response } = await addUser({
         ...editForm,
+        ...currentTargetCompanyParams(),
         username: editForm.username.trim(),
         password: editForm.password.trim(),
         realName: editForm.realName.trim(),
@@ -341,7 +349,7 @@ async function submitEdit() {
  * @returns Promise，删除完成后结束
  */
 async function removeRow(record: RowData) {
-  const { response } = await deleteUser(record.id);
+  const { response } = await deleteUser(record.id, currentTargetCompanyParams());
   window.$message?.success(getResponseMsg(response, '删除成功'));
   await loadData();
 }
@@ -354,7 +362,7 @@ async function removeRow(record: RowData) {
 async function openAssignRoles(record: RowData) {
   await ensureAssignOptions();
   roleUserId.value = Number(record.id);
-  const { data } = await getUser(record.id);
+  const { data } = await getUser(record.id, currentTargetCompanyParams());
   const user = (data as RowData) || {};
   let selected: unknown[] = [];
   if (Array.isArray(user.roles)) {
@@ -377,7 +385,7 @@ async function submitAssignRoles() {
   if (!roleUserId.value) return;
   roleSubmitting.value = true;
   try {
-    const { response } = await assignUserRoles(roleUserId.value, roleValues.value);
+    const { response } = await assignUserRoles(roleUserId.value, roleValues.value, currentTargetCompanyParams());
     roleOpen.value = false;
     window.$message?.success(getResponseMsg(response, '分配成功'));
     await loadData();
@@ -409,7 +417,11 @@ async function submitResetPwd() {
   }
   resetSubmitting.value = true;
   try {
-    const { response } = await resetPwd({ userId: resetForm.userId, newPassword: resetForm.password.trim() });
+    const { response } = await resetPwd({
+      userId: resetForm.userId,
+      newPassword: resetForm.password.trim(),
+      ...currentTargetCompanyParams()
+    });
     resetOpen.value = false;
     window.$message?.success(getResponseMsg(response, '重置成功'));
   } finally {
@@ -423,7 +435,7 @@ async function submitResetPwd() {
  * @returns Promise，接口返回后结束
  */
 async function forceKickout(record: RowData) {
-  const { response } = await kickoutUser(record.id);
+  const { response } = await kickoutUser(record.id, currentTargetCompanyParams());
   window.$message?.success(getResponseMsg(response, '操作成功'));
 }
 
@@ -442,7 +454,7 @@ async function openAssignRegions(record: RowData) {
   await loadRegionOptions();
   const userId = Number(record.id);
   regionUserId.value = userId;
-  const { data } = await getUserRegions(userId);
+  const { data } = await getUserRegions(userId, currentTargetCompanyParams());
   if (Array.isArray(data) && data.every(item => typeof item === 'number' || typeof item === 'string')) {
     regionValues.value = data.map(item => Number(item)).filter(x => Number.isFinite(x));
   } else {
@@ -463,7 +475,7 @@ async function submitAssignRegions() {
   if (!regionUserId.value) return;
   regionSubmitting.value = true;
   try {
-    const { response } = await assignUserRegions(regionUserId.value, regionValues.value);
+    const { response } = await assignUserRegions(regionUserId.value, regionValues.value, currentTargetCompanyParams());
     regionOpen.value = false;
     window.$message?.success(getResponseMsg(response, '绑定成功'));
   } finally {

@@ -20,6 +20,11 @@ public class CrmFirstSecondRelationSnapshotSyncTaskHandler implements SyncTaskHa
     public static final String HANDLER_CODE = "crmFirstSecondRelationSnapshotSync";
     private static final String HANDLER_NAME = "CRM一级二级关系来源快照同步";
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @Resource
     private ICrmFirstSecondRelationSnapshotService crmFirstSecondRelationSnapshotService;
 
@@ -28,11 +33,23 @@ public class CrmFirstSecondRelationSnapshotSyncTaskHandler implements SyncTaskHa
         return HANDLER_CODE;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @Override
     public String getName() {
         return HANDLER_NAME;
     }
 
+    /**
+     * ?????
+     *
+     * @param task ????
+     * @param context ?????
+     * @return ????
+     */
     @Override
     public SyncTaskExecutionResult execute(SyncTask task, SyncTaskExecutionContext context) {
         LocalDateTime earliestChangeTime = crmFirstSecondRelationSnapshotService.getEarliestChangeTime();
@@ -70,6 +87,12 @@ public class CrmFirstSecondRelationSnapshotSyncTaskHandler implements SyncTaskHa
                 .build();
     }
 
+    /**
+     * ??????
+     *
+     * @param value ???
+     * @return ????
+     */
     private int defaultInt(Integer value) {
         return value == null ? 0 : value;
     }

@@ -15,6 +15,13 @@ public enum NotifyChannelTypeEnum {
     SMS("SMS", "SMS"),
     EMAIL("EMAIL", "Email");
 
+    /**
+     * ?? NotifyChannelTypeEnum ?????
+     *
+     * @param code ??
+     * @param desc ??
+     * @return ????
+     */
     private final String code;
 
     private final String desc;
@@ -24,6 +31,12 @@ public enum NotifyChannelTypeEnum {
         this.desc = desc;
     }
 
+    /**
+     * ??By Code?
+     *
+     * @param code ??
+     * @return ????
+     */
     public static NotifyChannelTypeEnum getByCode(String code) {
         if (code == null) {
             return null;
@@ -40,6 +53,12 @@ public enum NotifyChannelTypeEnum {
         return null;
     }
 
+    /**
+     * ?? fromCode ?????
+     *
+     * @param code ??
+     * @return ????
+     */
     @JsonCreator
     public static NotifyChannelTypeEnum fromCode(String code) {
         NotifyChannelTypeEnum value = getByCode(code);
@@ -49,11 +68,21 @@ public enum NotifyChannelTypeEnum {
         return value;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @JsonValue
     public String getCode() {
         return code;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     public String getDesc() {
         return desc;
     }

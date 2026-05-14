@@ -62,7 +62,7 @@ public interface ISysContractService {
      *
      * @param id 主键ID
      */
-    void removeHqFirst(Long id);
+    void removeHqFirst(Long id, Long targetCompanyId);
 
     /**
      * 从 CRM 快照导入总部-一级签约
@@ -109,5 +109,5 @@ public interface ISysContractService {
      *
      * @param id 主键ID
      */
-    void removeFirstSecond(Long id);
+    void removeFirstSecond(Long id, Long targetCompanyId);
 }

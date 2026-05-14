@@ -197,6 +197,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long create(CustomerWorkOrderCreateDTO dto) {
+        // ?????????????????????????????
         Long customerId = requireCustomerId();
         CUser customer = requireCustomer(customerId);
         BrandTypeEnum brandType = dto == null ? null : dto.getBrandType();
@@ -251,6 +252,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         workOrder.setFaultRepairConfigId(resolveCreateFaultRepairConfigId(barcodeArchive, hqCompanyId));
         workOrder.setHasTransfer(0);
         workOrder.setTransferCount(0);
+        // ???????????????????????
         workOrderMapper.insert(workOrder);
         replaceWorkOrderCreateFiles(workOrder.getId(), dto.getFaultImageFileIds(), dto.getFaultVideoFileIds(),
                 dto.getFaultVoiceFileIds(), dto.getSenderVoucherFileIds(), customerId);
@@ -260,11 +262,18 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return workOrder.getId();
     }
 
+    /**
+     * ???????
+     *
+     * @param barcodeArchive ??
+     * @param hqCompanyId hq Company ID
+     * @return ????
+     */
     private Long resolveCreateFaultRepairConfigId(MachineBarcode barcodeArchive, Long hqCompanyId) {
         if (barcodeArchive == null || hqCompanyId == null || faultRepairConfigService == null) {
             return null;
         }
-        return faultRepairConfigService.findEnabledConfigId(
+        return faultRepairConfigService.findEnabledConfigIdForResolvedHq(
                 hqCompanyId,
                 barcodeArchive.getProductCode(),
                 barcodeArchive.getProductModel()
@@ -289,6 +298,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
                 .eq(SysCompany::getStatus, 1)
                 .orderByAsc(SysCompany::getCompanyName)
                 .orderByAsc(SysCompany::getId);
+        // ??????????????????????????
         List<SysCompany> companies = sysCompanyMapper.selectList(wrapper);
         if (companies.isEmpty()) {
             return Collections.emptyList();
@@ -311,6 +321,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     @Override
     public List<CustomerNearbyServiceCompanyVO> listNearbyServiceCompanyOptions(BigDecimal longitude, BigDecimal latitude,
                                                                                 Integer limit) {
+        // ?????????????????????????????
         validateCoordinate(longitude, latitude);
         Long customerId = requireCustomerId();
         int normalizedLimit = normalizeNearbyLimit(limit);
@@ -337,6 +348,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     @Override
     public CustomerBarcodeInfoVO getBarcodeInfo(String barcode) {
         String normalizedBarcode = normalizeRequiredText(barcode, "机器条码不能为空");
+        // ?????????????????????????????
         MachineBarcode barcodeArchive = requireActiveMachineBarcode(normalizedBarcode);
         SysCompany hqCompany = requireHqCompany(barcodeArchive.getHqCompanyId());
         CustomerBarcodeInfoVO vo = new CustomerBarcodeInfoVO();
@@ -367,12 +379,14 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      */
     @Override
     public PageResult<CustomerWorkOrderListVO> listPage(CustomerWorkOrderQuery query) {
+        // ?????????????????????????????
         Long customerId = requireCustomerId();
         Page<WorkOrder> page = new Page<>(query.getPageNum(), query.getPageSize());
         LambdaQueryWrapper<WorkOrder> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrder::getCustomerId, customerId)
                 .orderByDesc(WorkOrder::getCreateTime);
         applyTabStatusFilter(wrapper, query.getTabStatus());
+        // ??????????????????????????
         Page<WorkOrder> result = workOrderMapper.selectPage(page, wrapper);
         List<WorkOrder> records = result.getRecords();
         if (records.isEmpty()) {
@@ -405,6 +419,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      */
     @Override
     public CustomerWorkOrderLatestSummaryVO getLatestSummary() {
+        // ?????????????????????????????
         Long customerId = requireCustomerId();
         WorkOrder workOrder = findLatestUnclosedWorkOrder(customerId);
         if (workOrder == null) {
@@ -420,6 +435,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      */
     @Override
     public CustomerWorkOrderStatusCountVO getStatusCount() {
+        // ?????????????????????????????
         Long customerId = requireCustomerId();
         CustomerWorkOrderStatusCountVO vo = new CustomerWorkOrderStatusCountVO();
         vo.setAllCount(countByStatuses(customerId));
@@ -440,6 +456,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      */
     @Override
     public CustomerWorkOrderDetailVO getById(Long workOrderId) {
+        // ?????????????????????????????
         Long customerId = requireCustomerId();
         WorkOrder workOrder = requireCustomerWorkOrder(workOrderId, customerId);
         CustomerWorkOrderDetailVO detail = new CustomerWorkOrderDetailVO();
@@ -502,6 +519,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateSendInfo(CustomerWorkOrderSendInfoDTO dto) {
+        // ?????????????????????????????
         Long customerId = requireCustomerId();
         WorkOrder workOrder = requireCustomerWorkOrder(dto.getWorkOrderId(), customerId);
         if (!canEditSendInfo(workOrder)) {
@@ -511,7 +529,9 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         workOrder.setSenderMobile(normalizeText(dto.getSenderMobile()));
         workOrder.setSenderAddress(normalizeText(dto.getSenderAddress()));
         workOrder.setSendExpressNo(normalizeText(dto.getSendExpressNo()));
+        // ???????????????????????
         workOrderMapper.updateById(workOrder);
+        // ????????????????????????
         sysFileService.replaceBizFiles(
                 SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER,
                 workOrder.getId(),
@@ -531,6 +551,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateSenderVoucher(CustomerWorkOrderSenderVoucherDTO dto) {
+        // ?????????????????????????????
         Long customerId = requireCustomerId();
         WorkOrder workOrder = requireCustomerWorkOrder(dto.getWorkOrderId(), customerId);
         if (!canEditSendInfo(workOrder)) {
@@ -539,6 +560,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         if (hasSenderVoucher(workOrder.getId())) {
             throw new ServiceException("当前工单已上传寄件凭证");
         }
+        // ????????????????????????
         sysFileService.replaceBizFiles(
                 SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER,
                 workOrder.getId(),
@@ -558,6 +580,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void evaluate(CustomerWorkOrderEvaluateDTO dto) {
+        // ?????????????????????????????
         Long customerId = requireCustomerId();
         WorkOrder workOrder = requireCustomerWorkOrder(dto.getWorkOrderId(), customerId);
         if (!WorkOrderStatusConstants.MainStatus.CLOSED.equals(workOrder.getMainStatus())) {
@@ -571,6 +594,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         }
         LambdaQueryWrapper<WorkOrderEvaluation> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrderEvaluation::getWorkOrderId, workOrder.getId());
+        // ??????????????????????????
         if (workOrderEvaluationMapper.selectCount(wrapper) > 0) {
             throw new ServiceException("当前工单已完成评价");
         }
@@ -584,6 +608,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         evaluation.setSatisfactionScore(dto.getSatisfactionScore());
         evaluation.setTags(dto.getTags());
         evaluation.setContent(dto.getContent());
+        // ???????????????????????
         workOrderEvaluationMapper.insert(evaluation);
 
         workOrder.setEvaluateStatus(WorkOrderStatusFlow.afterEvaluate());
@@ -613,16 +638,30 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         if (workOrderId == null) {
             return Collections.emptyMap();
         }
+        // ????????????????????????
         return sysFileService.listBizFileMap(WORK_ORDER_FILE_BIZ_TYPES, workOrderId);
     }
 
+    /**
+     * ???????
+     *
+     * @param repairId repair ID
+     * @return ????
+     */
     private Map<SysFileBizTypeEnum, List<SysFileItemVO>> buildRepairFileMap(Long repairId) {
         if (repairId == null) {
             return Collections.emptyMap();
         }
+        // ????????????????????????
         return sysFileService.listBizFileMap(WORK_ORDER_REPAIR_FILE_BIZ_TYPES, repairId);
     }
 
+    /**
+     * ???????
+     *
+     * @param detail ??
+     * @param fileMap ??
+     */
     private void fillAttachmentDetail(CustomerWorkOrderDetailVO detail,
                                       Map<SysFileBizTypeEnum, List<SysFileItemVO>> fileMap) {
         if (detail == null) {
@@ -636,6 +675,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         detail.setReturnVoucherFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_RETURN_VOUCHER, Collections.emptyList()));
     }
 
+    /**
+     * ???????
+     *
+     * @param repair ??
+     * @param fileMap ??
+     */
     private void fillRepairAttachmentDetail(WorkOrderRepairVO repair,
                                             Map<SysFileBizTypeEnum, List<SysFileItemVO>> fileMap) {
         if (repair == null) {
@@ -649,9 +694,20 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         repair.setOtherImageFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_REPAIR_OTHER_IMAGE, Collections.emptyList()));
     }
 
+    /**
+     * ?? replaceWorkOrderCreateFiles ?????
+     *
+     * @param workOrderId ??ID
+     * @param faultImageFileIds fault Image File ID??
+     * @param faultVideoFileIds fault Video File ID??
+     * @param faultVoiceFileIds fault Voice File ID??
+     * @param senderVoucherFileIds sender Voucher File ID??
+     * @param customerId customer ID
+     */
     private void replaceWorkOrderCreateFiles(Long workOrderId, List<Long> faultImageFileIds, List<Long> faultVideoFileIds,
                                              List<Long> faultVoiceFileIds, List<Long> senderVoucherFileIds,
                                              Long customerId) {
+        // ????????????????????????
         sysFileService.replaceBizFiles(
                 SysFileBizTypeEnum.WORK_ORDER_FAULT_IMAGE,
                 workOrderId,
@@ -708,6 +764,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      * @return 工单实体
      */
     private WorkOrder requireCustomerWorkOrder(Long workOrderId, Long customerId) {
+        // ??????????????????????????
         WorkOrder workOrder = workOrderMapper.selectById(workOrderId);
         if (workOrder == null) {
             throw new ServiceException("工单不存在");
@@ -725,6 +782,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      * @return 客户实体
      */
     private CUser requireCustomer(Long customerId) {
+        // ??????????????????????????
         CUser customer = cUserMapper.selectById(customerId);
         if (customer == null) {
             throw new ServiceException("客户不存在");
@@ -756,6 +814,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         if (brandType.isNonJasic() && hasBarcode) {
             throw new ServiceException("非佳士报修不支持填写机器条码");
         }
+        // ?????????????????????????????
         validateSendInfo(dto);
     }
 
@@ -786,6 +845,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      * @return 服务网点实体
      */
     private SysCompany requireServiceCompany(Long serviceCompanyId) {
+        // ??????????????????????????
         SysCompany company = sysCompanyMapper.selectById(serviceCompanyId);
         if (company == null) {
             throw new ServiceException("服务网点不存在");
@@ -806,6 +866,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      * @return 总部实体
      */
     private SysCompany requireHqCompany(Long hqCompanyId) {
+        // ??????????????????????????
         SysCompany company = sysCompanyMapper.selectById(hqCompanyId);
         if (company == null) {
             throw new ServiceException("归属总部不存在");
@@ -867,6 +928,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
             throw new ServiceException("默认归属总部配置不正确");
         }
         try {
+            // ?????????????????????????????
             return requireHqCompany(hqCompanyId).getId();
         } catch (ServiceException ex) {
             throw new ServiceException("默认归属总部配置不正确");
@@ -910,6 +972,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         if (barcodeArchive == null || barcodeArchive.getHqCompanyId() == null) {
             return null;
         }
+        // ?????????????????????????????
         return requireHqCompany(barcodeArchive.getHqCompanyId()).getId();
     }
 
@@ -927,6 +990,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return barcodeArchive;
     }
 
+    /**
+     * ?? findActiveMachineBarcode ?????
+     *
+     * @param barcode ??
+     * @return ????
+     */
     private MachineBarcode findActiveMachineBarcode(String barcode) {
         String normalizedBarcode = normalizeText(barcode);
         if (normalizedBarcode == null) {
@@ -936,9 +1005,17 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         wrapper.eq(MachineBarcode::getBarcode, normalizedBarcode)
                 .eq(MachineBarcode::getStatus, 1)
                 .last("LIMIT 1");
+        // ??????????????????????????
         return machineBarcodeMapper.selectOne(wrapper);
     }
 
+    /**
+     * ???????
+     *
+     * @param barcodeArchive ??
+     * @param fallbackStatus ??
+     * @return ?????
+     */
     private String resolveBarcodeWarrantyStatus(MachineBarcode barcodeArchive, String fallbackStatus) {
         return MachineBarcodeWarrantyResolver.resolveWarrantyStatus(
                 barcodeArchive == null ? null : barcodeArchive.getBarcode(),
@@ -948,10 +1025,22 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         );
     }
 
+    /**
+     * ???????
+     *
+     * @param barcodeArchive ??
+     * @return ????
+     */
     private LocalDateTime resolveBarcodeLastOutDate(MachineBarcode barcodeArchive) {
         return MachineBarcodeWarrantyResolver.resolveLastOutDate(barcodeArchive);
     }
 
+    /**
+     * ???????
+     *
+     * @param serviceCompany ??
+     * @return ????
+     */
     private List<Long> resolveFirstCompanyIds(SysCompany serviceCompany) {
         if ("SITE_FIRST".equals(serviceCompany.getTypeCode())) {
             return Collections.singletonList(serviceCompany.getId());
@@ -959,6 +1048,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         LambdaQueryWrapper<FirstSecondRelation> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(FirstSecondRelation::getSecondCompanyId, serviceCompany.getId())
                 .eq(FirstSecondRelation::getStatus, 1);
+        // ??????????????????????????
         List<FirstSecondRelation> relations = firstSecondRelationMapper.selectList(wrapper);
         if (relations.isEmpty()) {
             return Collections.emptyList();
@@ -970,6 +1060,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * ???????
+     *
+     * @param firstCompanyIds first Company ID??
+     * @return ????
+     */
     private List<Long> resolveActiveHqCompanyIds(List<Long> firstCompanyIds) {
         if (firstCompanyIds == null || firstCompanyIds.isEmpty()) {
             return Collections.emptyList();
@@ -977,6 +1073,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         LambdaQueryWrapper<HqFirstContract> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(HqFirstContract::getFirstCompanyId, firstCompanyIds)
                 .eq(HqFirstContract::getStatus, 1);
+        // ??????????????????????????
         List<HqFirstContract> contracts = hqFirstContractMapper.selectList(wrapper);
         if (contracts.isEmpty()) {
             return Collections.emptyList();
@@ -990,6 +1087,11 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * ???????
+     *
+     * @return ????
+     */
     private List<SysCompany> listActiveServiceCompanies() {
         Set<String> typeCodes = new LinkedHashSet<>();
         typeCodes.addAll(CompanyCategoryEnum.getFirstLevelTypeCodes());
@@ -1002,9 +1104,15 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
                 .eq(SysCompany::getStatus, 1)
                 .orderByAsc(SysCompany::getCompanyName)
                 .orderByAsc(SysCompany::getId);
+        // ??????????????????????????
         return sysCompanyMapper.selectList(wrapper);
     }
 
+    /**
+     * ???????
+     *
+     * @return ????
+     */
     private List<SysCompany> listNearbyEnabledServiceCompanies() {
         Set<String> typeCodes = new LinkedHashSet<>();
         typeCodes.addAll(CompanyCategoryEnum.getFirstLevelTypeCodes());
@@ -1020,6 +1128,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
                 .isNotNull(SysCompany::getLatitude)
                 .orderByAsc(SysCompany::getCompanyName)
                 .orderByAsc(SysCompany::getId);
+        // ??????????????????????????
         return sysCompanyMapper.selectList(wrapper);
     }
 
@@ -1056,6 +1165,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         flow.setOperatorCompanyId(serviceCompanyId);
         flow.setOperatorUserId(customerId);
         flow.setRemark("客户提交报修");
+        // ???????????????????????
         workOrderFlowMapper.insert(flow);
     }
 
@@ -1088,15 +1198,33 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param customerId customer ID
+     * @param statuses ??
+     * @return ????
+     */
     private Long countByStatuses(Long customerId, String... statuses) {
         LambdaQueryWrapper<WorkOrder> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrder::getCustomerId, customerId);
         if (statuses != null && statuses.length > 0) {
             wrapper.in(WorkOrder::getMainStatus, (Object[]) statuses);
         }
+        // ??????????????????????????
         return workOrderMapper.selectCount(wrapper);
     }
 
+    /**
+     * ???????
+     *
+     * @param workOrder ??
+     * @param companyMap ??
+     * @param userNameMap ??
+     * @param senderVoucherWorkOrderIds sender Voucher Work Order ID??
+     * @param currentQuoteAmountMap ??
+     * @return ????
+     */
     private CustomerWorkOrderListVO buildListVo(WorkOrder workOrder, Map<Long, SysCompany> companyMap,
                                                 Map<Long, String> userNameMap,
                                                 Set<Long> senderVoucherWorkOrderIds,
@@ -1130,6 +1258,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return vo;
     }
 
+    /**
+     * ???????
+     *
+     * @param workOrderIds work Order ID??
+     * @return ????
+     */
     private Map<Long, BigDecimal> buildCurrentValidQuoteAmountMap(List<Long> workOrderIds) {
         if (workOrderIds == null || workOrderIds.isEmpty()) {
             return Collections.emptyMap();
@@ -1146,6 +1280,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
                 .eq(WorkOrderQuote::getIsCurrentValid, 1)
                 .orderByDesc(WorkOrderQuote::getCreateTime)
                 .orderByDesc(WorkOrderQuote::getId);
+        // ??????????????????????????
         List<WorkOrderQuote> quotes = workOrderQuoteMapper.selectList(wrapper);
         if (quotes == null || quotes.isEmpty()) {
             return Collections.emptyMap();
@@ -1166,6 +1301,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return result;
     }
 
+    /**
+     * ???????
+     *
+     * @param workOrder ??
+     * @return ????
+     */
     private CustomerWorkOrderLatestSummaryVO buildLatestSummaryVo(WorkOrder workOrder) {
         CustomerWorkOrderLatestSummaryVO vo = new CustomerWorkOrderLatestSummaryVO();
         vo.setId(workOrder.getId());
@@ -1182,21 +1323,35 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return vo;
     }
 
+    /**
+     * ?? findLatestUnclosedWorkOrder ?????
+     *
+     * @param customerId customer ID
+     * @return ????
+     */
     private WorkOrder findLatestUnclosedWorkOrder(Long customerId) {
         LambdaQueryWrapper<WorkOrder> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrder::getCustomerId, customerId)
                 .ne(WorkOrder::getMainStatus, WorkOrderStatusConstants.MainStatus.CLOSED)
                 .orderByDesc(WorkOrder::getCreateTime)
                 .last("limit 1");
+        // ??????????????????????????
         List<WorkOrder> records = workOrderMapper.selectList(wrapper);
         return records == null || records.isEmpty() ? null : records.get(0);
     }
 
+    /**
+     * ?? findLatestWorkOrder ?????
+     *
+     * @param customerId customer ID
+     * @return ????
+     */
     private WorkOrder findLatestWorkOrder(Long customerId) {
         LambdaQueryWrapper<WorkOrder> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrder::getCustomerId, customerId)
                 .orderByDesc(WorkOrder::getCreateTime)
                 .last("limit 1");
+        // ??????????????????????????
         List<WorkOrder> records = workOrderMapper.selectList(wrapper);
         return records == null || records.isEmpty() ? null : records.get(0);
     }
@@ -1237,13 +1392,26 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return !hasSenderVoucher && canEditSendInfo(workOrder);
     }
 
+    /**
+     * ??????Sender Voucher?
+     *
+     * @param workOrderId ??ID
+     * @return true ??????
+     */
     private boolean hasSenderVoucher(Long workOrderId) {
         if (workOrderId == null) {
             return false;
         }
+        // ????????????????????????
         return !sysFileService.listBizFiles(SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER, workOrderId).isEmpty();
     }
 
+    /**
+     * ???????
+     *
+     * @param workOrderIds work Order ID??
+     * @return ????
+     */
     private Set<Long> buildSenderVoucherWorkOrderIdSet(Set<Long> workOrderIds) {
         if (workOrderIds == null || workOrderIds.isEmpty()) {
             return Collections.emptySet();
@@ -1257,6 +1425,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         LambdaQueryWrapper<SysFileBiz> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysFileBiz::getBizType, SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER)
                 .in(SysFileBiz::getBizId, validWorkOrderIds);
+        // ??????????????????????????
         List<SysFileBiz> relations = sysFileBizMapper.selectList(wrapper);
         if (relations == null || relations.isEmpty()) {
             return Collections.emptySet();
@@ -1281,10 +1450,22 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return result;
     }
 
+    /**
+     * ???????
+     *
+     * @param mainStatus ??
+     * @return ?????
+     */
     private String resolveCustomerDisplayStatus(String mainStatus) {
         return WorkOrderStatusConstants.resolveDisplayStatusLabel(mainStatus);
     }
 
+    /**
+     * ???????
+     *
+     * @param companyIds ??ID??
+     * @return ????
+     */
     private Map<Long, SysCompany> buildCompanyMap(Set<Long> companyIds) {
         if (companyIds == null || companyIds.isEmpty()) {
             return Collections.emptyMap();
@@ -1293,6 +1474,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         if (validCompanyIds.isEmpty()) {
             return Collections.emptyMap();
         }
+        // ??????????????????????????
         List<SysCompany> companies = sysCompanyMapper.selectBatchIds(validCompanyIds);
         Map<Long, SysCompany> map = new HashMap<>(companies.size());
         for (SysCompany company : companies) {
@@ -1303,6 +1485,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return map;
     }
 
+    /**
+     * ???????
+     *
+     * @param companyIds ??ID??
+     * @return ????
+     */
     private Map<Long, String> buildCompanyNameMap(Set<Long> companyIds) {
         Map<Long, SysCompany> companyMap = buildCompanyMap(companyIds);
         if (companyMap.isEmpty()) {
@@ -1318,6 +1506,14 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return map;
     }
 
+    /**
+     * ???????
+     *
+     * @param company ??
+     * @param longitude ??
+     * @param latitude ??
+     * @return ????
+     */
     private CustomerNearbyServiceCompanyVO buildNearbyServiceCompanyOption(SysCompany company, BigDecimal longitude,
                                                                            BigDecimal latitude) {
         CustomerNearbyServiceCompanyVO vo = new CustomerNearbyServiceCompanyVO();
@@ -1335,6 +1531,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return vo;
     }
 
+    /**
+     * ???????
+     *
+     * @param company ??
+     * @return ????
+     */
     private CustomerServiceCompanyOptionVO buildServiceCompanyOption(SysCompany company) {
         CustomerServiceCompanyOptionVO vo = new CustomerServiceCompanyOptionVO();
         vo.setId(company.getId());
@@ -1347,6 +1549,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return vo;
     }
 
+    /**
+     * ???????
+     *
+     * @param company ??
+     * @return ?????
+     */
     private String resolveCompanyAddress(SysCompany company) {
         String fullAddress = normalizeText(company.getFullAddress());
         if (fullAddress != null) {
@@ -1355,6 +1563,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return normalizeText(company.getDetailAddress());
     }
 
+    /**
+     * ???????
+     *
+     * @param typeCode ??????
+     * @return ?????
+     */
     private String resolveServiceCompanyTypeName(String typeCode) {
         if (CompanyCategoryEnum.getFirstLevelTypeCodes().contains(typeCode)) {
             return "一级服务网点";
@@ -1365,11 +1579,24 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return typeCode;
     }
 
+    /**
+     * ???????
+     *
+     * @param archiveValue ??
+     * @param requestValue ??
+     * @return ?????
+     */
     private String resolveArchiveText(String archiveValue, String requestValue) {
         String normalizedArchiveValue = normalizeText(archiveValue);
         return normalizedArchiveValue != null ? normalizedArchiveValue : normalizeText(requestValue);
     }
 
+    /**
+     * ???????
+     *
+     * @param customer ??
+     * @return ?????
+     */
     private String resolveCustomerName(CUser customer) {
         if (customer == null) {
             throw new ServiceException("当前客户不存在");
@@ -1381,11 +1608,31 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return normalizeRequiredText(customer.getPhone(), "当前客户手机号不能为空");
     }
 
+    /**
+     * ???????
+     *
+     * @param dto ????
+     * @param hqCompanyId hq Company ID
+     * @param productCode ??
+     * @param productModel ??
+     * @return ????
+     */
     private CustomerFaultSelection resolveCustomerFaultSelection(CustomerWorkOrderCreateDTO dto, Long hqCompanyId,
                                                                  String productCode, String productModel) {
         return resolveCustomerFaultSelection(dto, BrandTypeEnum.JASIC, true, hqCompanyId, productCode, productModel);
     }
 
+    /**
+     * ???????
+     *
+     * @param dto ????
+     * @param brandType ??
+     * @param hasBarcode ??
+     * @param hqCompanyId hq Company ID
+     * @param productCode ??
+     * @param productModel ??
+     * @return ????
+     */
     private CustomerFaultSelection resolveCustomerFaultSelection(CustomerWorkOrderCreateDTO dto, BrandTypeEnum brandType,
                                                                  boolean hasBarcode, Long hqCompanyId,
                                                                  String productCode, String productModel) {
@@ -1434,6 +1681,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return new CustomerFaultSelection(String.join(FAULT_DESC_SEPARATOR, faultItems), faultRemark);
     }
 
+    /**
+     * ???????
+     *
+     * @param dto ????
+     * @return ????
+     */
     private CustomerFaultSelection resolveOtherOnlyFaultSelection(CustomerWorkOrderCreateDTO dto) {
         List<String> faultItems = normalizeFaultItems(dto == null ? null : dto.getFaultItems());
         String faultRemark = normalizeText(dto == null ? null : dto.getFaultRemark());
@@ -1467,10 +1720,18 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return new ArrayList<>(faultOptions);
     }
 
+    /**
+     * ???????
+     *
+     * @param hqCompanyId hq Company ID
+     * @param productCode ??
+     * @param productModel ??
+     * @return ????
+     */
     private List<String> listConfiguredFaultOptions(Long hqCompanyId, String productCode, String productModel) {
         List<WorkOrderRepairFaultOptionVO> repairFaultOptions = faultRepairConfigService == null
                 ? Collections.emptyList()
-                : faultRepairConfigService.listRepairFaultOptions(hqCompanyId, productCode, productModel);
+                : faultRepairConfigService.listRepairFaultOptionsForResolvedHq(hqCompanyId, productCode, productModel);
         if (repairFaultOptions == null || repairFaultOptions.isEmpty()) {
             return Collections.emptyList();
         }
@@ -1484,6 +1745,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return new ArrayList<>(result);
     }
 
+    /**
+     * ????????
+     *
+     * @param faultItems ??
+     * @return ????
+     */
     private List<String> normalizeFaultItems(List<String> faultItems) {
         if (faultItems == null || faultItems.isEmpty()) {
             return new ArrayList<>();
@@ -1532,6 +1799,15 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return Math.min(limit, MAX_NEARBY_LIMIT);
     }
 
+    /**
+     * ???????
+     *
+     * @param sourceLongitude ??
+     * @param sourceLatitude ??
+     * @param targetLongitude ??
+     * @param targetLatitude ??
+     * @return ????
+     */
     private BigDecimal calculateDistanceKm(BigDecimal sourceLongitude, BigDecimal sourceLatitude,
                                            BigDecimal targetLongitude, BigDecimal targetLatitude) {
         if (targetLongitude == null || targetLatitude == null) {
@@ -1549,6 +1825,17 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return BigDecimal.valueOf(distance).setScale(2, RoundingMode.HALF_UP);
     }
 
+    /**
+     * ???????
+     *
+     * @param leftDistance ??
+     * @param rightDistance ??
+     * @param leftName ??
+     * @param rightName ??
+     * @param leftId left ID
+     * @param rightId right ID
+     * @return ????
+     */
     private int compareDistance(BigDecimal leftDistance, BigDecimal rightDistance,
                                 String leftName, String rightName, Long leftId, Long rightId) {
         if (leftDistance == null && rightDistance == null) {
@@ -1567,6 +1854,13 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return compareCompanyIdentity(leftName, rightName, leftId, rightId);
     }
 
+    /**
+     * ???????
+     *
+     * @param customerId customer ID
+     * @param companies ??
+     * @return ????
+     */
     private Map<Long, RepairHistorySummary> buildRepairHistoryMap(Long customerId, List<SysCompany> companies) {
         if (customerId == null || companies == null || companies.isEmpty() || workOrderFlowMapper == null) {
             return Collections.emptyMap();
@@ -1579,6 +1873,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
             return Collections.emptyMap();
         }
         List<WorkOrderCompanyRepairHistoryStatVO> stats =
+                // ??????????????????????????
                 workOrderFlowMapper.selectCustomerCreateCompanyRepairHistory(customerId, companyIds);
         if (stats == null || stats.isEmpty()) {
             return Collections.emptyMap();
@@ -1596,6 +1891,14 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return result;
     }
 
+    /**
+     * ???????
+     *
+     * @param left ????
+     * @param right ????
+     * @param repairHistoryMap ??
+     * @return ????
+     */
     private int compareNearbyServiceCompany(CustomerNearbyServiceCompanyVO left,
                                             CustomerNearbyServiceCompanyVO right,
                                             Map<Long, RepairHistorySummary> repairHistoryMap) {
@@ -1621,6 +1924,13 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
                 left.getCompanyName(), right.getCompanyName(), left.getId(), right.getId());
     }
 
+    /**
+     * ???????
+     *
+     * @param leftTime ??
+     * @param rightTime ??
+     * @return ????
+     */
     private int compareLastRepairTimeDesc(LocalDateTime leftTime, LocalDateTime rightTime) {
         if (leftTime == null && rightTime == null) {
             return 0;
@@ -1636,6 +1946,13 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
 
     private static class RepairHistorySummary {
 
+        /**
+         * ?? RepairHistorySummary ?????
+         *
+         * @param repairCount ??
+         * @param lastRepairTime ??
+         * @return ????
+         */
         private final Long repairCount;
 
         private final LocalDateTime lastRepairTime;
@@ -1654,6 +1971,15 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param leftName ??
+     * @param rightName ??
+     * @param leftId left ID
+     * @param rightId right ID
+     * @return ????
+     */
     private int compareCompanyIdentity(String leftName, String rightName, Long leftId, Long rightId) {
         String safeLeftName = leftName == null ? "" : leftName;
         String safeRightName = rightName == null ? "" : rightName;
@@ -1666,6 +1992,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return Long.compare(safeLeftId, safeRightId);
     }
 
+    /**
+     * ???????
+     *
+     * @param userIds ??ID??
+     * @return ????
+     */
     private Map<Long, String> buildUserNameMap(Set<Long> userIds) {
         if (userIds == null || userIds.isEmpty()) {
             return Collections.emptyMap();
@@ -1674,6 +2006,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         if (validUserIds.isEmpty()) {
             return Collections.emptyMap();
         }
+        // ??????????????????????????
         List<SysUser> users = sysUserMapper.selectBatchIds(validUserIds);
         Map<Long, String> map = new HashMap<>(users.size());
         for (SysUser user : users) {
@@ -1684,10 +2017,17 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return map;
     }
 
+    /**
+     * ???????
+     *
+     * @param workOrderId ??ID
+     * @return ????
+     */
     private List<WorkOrderQuoteVO> listQuoteVos(Long workOrderId) {
         LambdaQueryWrapper<WorkOrderQuote> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrderQuote::getWorkOrderId, workOrderId)
                 .orderByDesc(WorkOrderQuote::getCreateTime);
+        // ??????????????????????????
         List<WorkOrderQuote> quotes = workOrderQuoteMapper.selectList(wrapper);
         if (quotes.isEmpty()) {
             return Collections.emptyList();
@@ -1716,10 +2056,17 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return result;
     }
 
+    /**
+     * ???????
+     *
+     * @param workOrderId ??ID
+     * @return ????
+     */
     private List<WorkOrderRepairVO> listRepairVos(Long workOrderId) {
         LambdaQueryWrapper<WorkOrderRepair> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrderRepair::getWorkOrderId, workOrderId)
                 .orderByDesc(WorkOrderRepair::getCreateTime);
+        // ??????????????????????????
         List<WorkOrderRepair> repairs = workOrderRepairMapper.selectList(wrapper);
         if (repairs.isEmpty()) {
             return Collections.emptyList();
@@ -1752,6 +2099,13 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return result;
     }
 
+    /**
+     * ???????
+     *
+     * @param workOrderId ??ID
+     * @param repairIds repair ID??
+     * @return ????
+     */
     private Map<Long, List<WorkOrderFaultVO>> buildFaultMap(Long workOrderId, Set<Long> repairIds) {
         if (repairIds == null || repairIds.isEmpty()) {
             return Collections.emptyMap();
@@ -1761,6 +2115,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
                 .in(WorkOrderFault::getRepairId, repairIds)
                 .orderByAsc(WorkOrderFault::getSortNum)
                 .orderByAsc(WorkOrderFault::getId);
+        // ??????????????????????????
         List<WorkOrderFault> faults = workOrderFaultMapper.selectList(wrapper);
         if (faults.isEmpty()) {
             return Collections.emptyMap();
@@ -1789,6 +2144,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return result;
     }
 
+    /**
+     * ???????
+     *
+     * @param faultIds fault ID??
+     * @return ????
+     */
     private Map<Long, List<WorkOrderFaultPartVO>> buildFaultPartMap(Set<Long> faultIds) {
         if (faultIds == null || faultIds.isEmpty()) {
             return Collections.emptyMap();
@@ -1797,6 +2158,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         wrapper.in(WorkOrderFaultPart::getFaultId, faultIds)
                 .orderByAsc(WorkOrderFaultPart::getSortNum)
                 .orderByAsc(WorkOrderFaultPart::getId);
+        // ??????????????????????????
         List<WorkOrderFaultPart> faultParts = workOrderFaultPartMapper.selectList(wrapper);
         if (faultParts.isEmpty()) {
             return Collections.emptyMap();
@@ -1813,9 +2175,16 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return result;
     }
 
+    /**
+     * ??Evaluation Vo?
+     *
+     * @param workOrderId ??ID
+     * @return ????
+     */
     private WorkOrderEvaluationVO getEvaluationVo(Long workOrderId) {
         LambdaQueryWrapper<WorkOrderEvaluation> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrderEvaluation::getWorkOrderId, workOrderId);
+        // ??????????????????????????
         WorkOrderEvaluation evaluation = workOrderEvaluationMapper.selectOne(wrapper);
         if (evaluation == null) {
             return null;
@@ -1833,6 +2202,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return vo;
     }
 
+    /**
+     * ??????Fault For Evaluation?
+     *
+     * @param workOrderId ??ID
+     * @return true ??????
+     */
     private boolean hasFaultForEvaluation(Long workOrderId) {
         if (workOrderId == null) {
             return false;
@@ -1841,6 +2216,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         wrapper.eq(WorkOrderQuote::getWorkOrderId, workOrderId)
                 .eq(WorkOrderQuote::getIsCurrentValid, 1)
                 .orderByDesc(WorkOrderQuote::getCreateTime);
+        // ??????????????????????????
         List<WorkOrderQuote> quotes = workOrderQuoteMapper.selectList(wrapper);
         if (quotes == null || quotes.isEmpty()) {
             return false;
@@ -1850,6 +2226,13 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
 
     private static final class CustomerFaultSelection {
 
+        /**
+         * ?? CustomerFaultSelection ?????
+         *
+         * @param faultDesc ??
+         * @param faultRemark ??
+         * @return ????
+         */
         private final String faultDesc;
 
         private final String faultRemark;
@@ -1859,10 +2242,20 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
             this.faultRemark = faultRemark;
         }
 
+        /**
+         * ??Fault Desc?
+         *
+         * @return ?????
+         */
         private String getFaultDesc() {
             return faultDesc;
         }
 
+        /**
+         * ??Fault Remark?
+         *
+         * @return ?????
+         */
         private String getFaultRemark() {
             return faultRemark;
         }

@@ -34,6 +34,12 @@ public class AmapCompanyGeoResolver implements ICompanyGeoResolver {
     @Value("${jasic.amap.geocode.url:https://restapi.amap.com/v3/geocode/geo}")
     private String url;
 
+    /**
+     * ???????
+     *
+     * @param address ??
+     * @return ????
+     */
     @Value("${jasic.amap.geocode.timeout-ms:3000}")
     private int timeoutMs;
 

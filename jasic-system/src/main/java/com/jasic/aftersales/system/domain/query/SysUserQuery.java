@@ -37,5 +37,5 @@ public class SysUserQuery extends PageQuery {
 
     /** 公司ID（查询某公司下的用户） */
     @ApiModelProperty(value = "公司ID（查询某公司下的用户）")
-    private Long companyId;
+    private Long targetCompanyId;
 }

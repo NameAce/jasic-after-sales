@@ -23,6 +23,13 @@ public enum NotifyTodoStatusEnum {
     /** 已失效。 */
     INVALID("INVALID", "已失效");
 
+    /**
+     * ?? NotifyTodoStatusEnum ?????
+     *
+     * @param code ??
+     * @param desc ??
+     * @return ????
+     */
     private final String code;
 
     private final String desc;
@@ -32,6 +39,12 @@ public enum NotifyTodoStatusEnum {
         this.desc = desc;
     }
 
+    /**
+     * ??By Code?
+     *
+     * @param code ??
+     * @return ????
+     */
     public static NotifyTodoStatusEnum getByCode(String code) {
         if (code == null) {
             return null;
@@ -48,6 +61,12 @@ public enum NotifyTodoStatusEnum {
         return null;
     }
 
+    /**
+     * ?? fromCode ?????
+     *
+     * @param code ??
+     * @return ????
+     */
     @JsonCreator
     public static NotifyTodoStatusEnum fromCode(String code) {
         NotifyTodoStatusEnum value = getByCode(code);
@@ -57,11 +76,21 @@ public enum NotifyTodoStatusEnum {
         return value;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @JsonValue
     public String getCode() {
         return code;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     public String getDesc() {
         return desc;
     }

@@ -95,6 +95,11 @@ public enum BrandTypeEnum {
         return label;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @JsonValue
     public String getCode() {
         return code;

@@ -30,6 +30,10 @@ public class NotifyTodoCompleteDTO implements Serializable {
     @ApiModelProperty(value = "接收人ID")
     private Long receiverId;
 
+    /** 接收公司ID */
+    @ApiModelProperty(value = "接收公司ID")
+    private Long receiverCompanyId;
+
     /** 完成动作编码 */
     @ApiModelProperty(value = "完成动作编码")
     private String actionCode;

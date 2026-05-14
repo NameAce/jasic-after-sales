@@ -1,6 +1,5 @@
 package com.jasic.aftersales.system.mapper;
 
-import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.jasic.aftersales.system.domain.entity.WorkOrderFlow;
 import com.jasic.aftersales.system.domain.vo.WorkOrderCompanyRepairHistoryStatVO;
@@ -18,7 +17,6 @@ import java.util.List;
  * @date 2026/03/26
  */
 @Mapper
-@InterceptorIgnore(tenantLine = "true")
 public interface WorkOrderFlowMapper extends BaseMapper<WorkOrderFlow> {
 
     /**

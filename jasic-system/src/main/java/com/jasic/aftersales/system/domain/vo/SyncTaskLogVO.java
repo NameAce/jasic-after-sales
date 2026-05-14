@@ -51,6 +51,14 @@ public class SyncTaskLogVO implements Serializable {
     @ApiModelProperty(value = "数据结束时间")
     private LocalDateTime dataEndTime;
 
+    /** 触发类型 */
+    @ApiModelProperty(value = "触发类型")
+    private String triggerType;
+
+    /** 触发人ID */
+    @ApiModelProperty(value = "触发人ID")
+    private Long triggerUserId;
+
     /** 执行信息 */
     @ApiModelProperty(value = "执行信息")
     private String message;

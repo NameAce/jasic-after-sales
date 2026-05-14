@@ -5,7 +5,6 @@ import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
 import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
@@ -31,9 +30,11 @@ public class MachineBarcodeDTO implements Serializable {
     @ApiModelProperty(value = "发货单号")
     private String deliverNumber;
 
-    @ApiModelProperty(value = "归属总部ID", required = true)
-    @NotNull(message = "归属总部不能为空")
-    private Long hqCompanyId;
+    @ApiModelProperty(value = "归属总部ID")
+    private Long ownerHqId;
+
+    @ApiModelProperty(value = "平台目标总部ID")
+    private Long targetCompanyId;
 
     @ApiModelProperty(value = "CRM 公司ID")
     private String custId;

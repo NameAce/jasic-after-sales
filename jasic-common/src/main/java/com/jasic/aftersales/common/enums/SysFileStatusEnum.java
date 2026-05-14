@@ -14,6 +14,13 @@ public enum SysFileStatusEnum {
     /** 有效 */
     ACTIVE("ACTIVE", "有效");
 
+    /**
+     * ?? SysFileStatusEnum ?????
+     *
+     * @param code ??
+     * @param desc ??
+     * @return ????
+     */
     private final String code;
 
     private final String desc;
@@ -23,6 +30,12 @@ public enum SysFileStatusEnum {
         this.desc = desc;
     }
 
+    /**
+     * ??By Code?
+     *
+     * @param code ??
+     * @return ????
+     */
     public static SysFileStatusEnum getByCode(String code) {
         if (code == null) {
             return null;
@@ -39,6 +52,12 @@ public enum SysFileStatusEnum {
         return null;
     }
 
+    /**
+     * ?? fromCode ?????
+     *
+     * @param code ??
+     * @return ????
+     */
     @JsonCreator
     public static SysFileStatusEnum fromCode(String code) {
         SysFileStatusEnum value = getByCode(code);
@@ -48,11 +67,21 @@ public enum SysFileStatusEnum {
         return value;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @JsonValue
     public String getCode() {
         return code;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     public String getDesc() {
         return desc;
     }

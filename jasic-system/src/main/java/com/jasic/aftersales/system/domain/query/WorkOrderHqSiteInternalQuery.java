@@ -14,7 +14,7 @@ import lombok.EqualsAndHashCode;
 @ApiModel(description = "总部网点工单内部查询参数")
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class WorkOrderHqSiteInternalQuery extends WorkOrderQuery {
+public class WorkOrderHqSiteInternalQuery extends WorkOrderScopedQuery {
 
     private static final long serialVersionUID = 1L;
 

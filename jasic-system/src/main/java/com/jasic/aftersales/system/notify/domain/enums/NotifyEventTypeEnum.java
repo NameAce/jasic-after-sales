@@ -14,6 +14,13 @@ public enum NotifyEventTypeEnum {
     WORK_ORDER_ASSIGNED("WORK_ORDER_ASSIGNED", "Work order assigned"),
     WORK_ORDER_EVALUATION_INVITE("WORK_ORDER_EVALUATION_INVITE", "Work order evaluation invite");
 
+    /**
+     * ?? NotifyEventTypeEnum ?????
+     *
+     * @param code ??
+     * @param desc ??
+     * @return ????
+     */
     private final String code;
 
     private final String desc;
@@ -23,6 +30,12 @@ public enum NotifyEventTypeEnum {
         this.desc = desc;
     }
 
+    /**
+     * ??By Code?
+     *
+     * @param code ??
+     * @return ????
+     */
     public static NotifyEventTypeEnum getByCode(String code) {
         if (code == null) {
             return null;
@@ -39,6 +52,12 @@ public enum NotifyEventTypeEnum {
         return null;
     }
 
+    /**
+     * ?? fromCode ?????
+     *
+     * @param code ??
+     * @return ????
+     */
     @JsonCreator
     public static NotifyEventTypeEnum fromCode(String code) {
         NotifyEventTypeEnum value = getByCode(code);
@@ -48,11 +67,21 @@ public enum NotifyEventTypeEnum {
         return value;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @JsonValue
     public String getCode() {
         return code;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     public String getDesc() {
         return desc;
     }

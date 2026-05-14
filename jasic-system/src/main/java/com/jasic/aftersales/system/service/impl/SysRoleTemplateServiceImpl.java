@@ -54,6 +54,12 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
     @Resource
     private SysRoleMenuMapper sysRoleMenuMapper;
 
+    /**
+     * ???????
+     *
+     * @param typeCode ??????
+     * @return ????
+     */
     @Resource
     private SysCompanyMapper sysCompanyMapper;
 
@@ -73,6 +79,7 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
             wrapper.eq(SysRoleTemplate::getTypeCode, typeCode);
         }
         wrapper.orderByAsc(SysRoleTemplate::getOrderNum);
+        // ??????????????????????????
         List<SysRoleTemplate> list = sysRoleTemplateMapper.selectList(wrapper);
         if (list == null || list.isEmpty()) {
             return Collections.emptyList();
@@ -86,8 +93,15 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
         return voList;
     }
 
+    /**
+     * ??By Id?
+     *
+     * @param templateId ??ID
+     * @return ????
+     */
     @Override
     public SysRoleTemplateVO getById(Long templateId) {
+        // ??????????????????????????
         SysRoleTemplate template = sysRoleTemplateMapper.selectById(templateId);
         if (template == null) {
             throw new ServiceException("角色模板不存在");
@@ -97,12 +111,20 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
         return vo;
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     * @return ????
+     */
     @Override
     public Long save(SysRoleTemplateDTO dto) {
+        // ?????????????????????????????
         dataScopeRuleService.validateByTypeCode(dto.getTypeCode(), dto.getDataScope());
         LambdaQueryWrapper<SysRoleTemplate> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysRoleTemplate::getTypeCode, dto.getTypeCode())
                 .eq(SysRoleTemplate::getRoleKey, dto.getRoleKey());
+        // ??????????????????????????
         if (sysRoleTemplateMapper.selectCount(wrapper) > 0) {
             throw new ServiceException("该类型下角色标识已存在");
         }
@@ -115,6 +137,7 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
         if (template.getOrderNum() == null) {
             template.setOrderNum(0);
         }
+        // ???????????????????????
         sysRoleTemplateMapper.insert(template);
         if (dto.getMenuIds() != null && !dto.getMenuIds().isEmpty()) {
             batchInsertTemplateMenu(template.getId(), dto.getMenuIds());
@@ -122,19 +145,27 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
         return template.getId();
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     */
     @Override
     public void update(SysRoleTemplateDTO dto) {
         if (dto.getId() == null) {
             throw new ServiceException("模板ID不能为空");
         }
+        // ??????????????????????????
         SysRoleTemplate template = sysRoleTemplateMapper.selectById(dto.getId());
         if (template == null) {
             throw new ServiceException("角色模板不存在");
         }
         String typeCode = dto.getTypeCode() != null ? dto.getTypeCode() : template.getTypeCode();
+        // ?????????????????????????????
         validateAdminUnique(typeCode, dto.getIsAdmin(), dto.getId());
         dataScopeRuleService.validateByTypeCode(typeCode, dto.getDataScope());
         BeanUtil.copyProperties(dto, template);
+        // ???????????????????????
         sysRoleTemplateMapper.updateById(template);
         if (dto.getMenuIds() != null) {
             LambdaQueryWrapper<SysRoleTemplateMenu> delWrapper = new LambdaQueryWrapper<>();
@@ -146,22 +177,35 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
         }
     }
 
+    /**
+     * ?????
+     *
+     * @param templateId ??ID
+     */
     @Override
     public void remove(Long templateId) {
         LambdaQueryWrapper<SysRoleTemplateMenu> menuWrapper = new LambdaQueryWrapper<>();
         menuWrapper.eq(SysRoleTemplateMenu::getTemplateId, templateId);
+        // ???????????????????????
         sysRoleTemplateMenuMapper.delete(menuWrapper);
         sysRoleTemplateMapper.deleteById(templateId);
     }
 
+    /**
+     * ???????
+     *
+     * @param templateId ??ID
+     */
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void syncToCompanies(Long templateId) {
+        // ??????????????????????????
         SysRoleTemplate template = sysRoleTemplateMapper.selectById(templateId);
         if (template == null) {
             throw new ServiceException("角色模板不存在");
         }
         String typeCode = template.getTypeCode();
+        // ?????????????????????????????
         dataScopeRuleService.validateByTypeCode(typeCode, template.getDataScope());
         List<Long> templateMenuIds = loadMenuIdsByTemplateId(templateId);
         Set<Long> templateMenuIdSet = new HashSet<>(templateMenuIds);
@@ -200,11 +244,19 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
         kickAffectedUsers(updatedRoleIds);
     }
 
+    /**
+     * ????????
+     *
+     * @param companyId ??ID
+     * @param typeCode ??????
+     * @return ????
+     */
     @Override
     public Long initCompanyRoles(Long companyId, String typeCode) {
         LambdaQueryWrapper<SysRoleTemplate> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysRoleTemplate::getTypeCode, typeCode)
                 .orderByAsc(SysRoleTemplate::getOrderNum);
+        // ??????????????????????????
         List<SysRoleTemplate> templates = sysRoleTemplateMapper.selectList(wrapper);
         if (templates == null || templates.isEmpty()) {
             return null;
@@ -212,9 +264,11 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
 
         Long adminRoleId = null;
         for (SysRoleTemplate template : templates) {
+            // ?????????????????????????????
             dataScopeRuleService.validateByTypeCode(typeCode, template.getDataScope());
 
             SysRole role = buildSystemRole(companyId, template);
+            // ???????????????????????
             sysRoleMapper.insert(role);
 
             if (isAdminTemplate(template)) {
@@ -234,15 +288,28 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
         return adminRoleId;
     }
 
+    /**
+     * ???????
+     *
+     * @param template ??
+     * @return ????
+     */
     private SysRoleTemplateVO convertToVO(SysRoleTemplate template) {
         SysRoleTemplateVO vo = new SysRoleTemplateVO();
         BeanUtil.copyProperties(template, vo);
         return vo;
     }
 
+    /**
+     * ?????
+     *
+     * @param templateId ??ID
+     * @return ????
+     */
     private List<Long> loadMenuIdsByTemplateId(Long templateId) {
         LambdaQueryWrapper<SysRoleTemplateMenu> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysRoleTemplateMenu::getTemplateId, templateId);
+        // ??????????????????????????
         List<SysRoleTemplateMenu> list = sysRoleTemplateMenuMapper.selectList(wrapper);
         if (list == null || list.isEmpty()) {
             return Collections.emptyList();
@@ -252,29 +319,52 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * ?? batchInsertTemplateMenu ?????
+     *
+     * @param templateId ??ID
+     * @param menuIds ??ID??
+     */
     private void batchInsertTemplateMenu(Long templateId, List<Long> menuIds) {
         for (Long menuId : menuIds) {
             SysRoleTemplateMenu rm = new SysRoleTemplateMenu();
             rm.setTemplateId(templateId);
             rm.setMenuId(menuId);
+            // ???????????????????????
             sysRoleTemplateMenuMapper.insert(rm);
         }
     }
 
+    /**
+     * ?????
+     *
+     * @param company ??
+     * @param template ??
+     * @return ????
+     */
     private SysRole createMissingSystemRole(SysCompany company, SysRoleTemplate template) {
         LambdaQueryWrapper<SysRole> duplicateWrapper = new LambdaQueryWrapper<>();
         duplicateWrapper.eq(SysRole::getCompanyId, company.getId())
                 .eq(SysRole::getRoleKey, template.getRoleKey());
+        // ??????????????????????????
         if (sysRoleMapper.selectCount(duplicateWrapper) > 0) {
             throw new ServiceException("公司【" + company.getCompanyName()
                     + "】已存在相同角色标识（" + template.getRoleKey()
                     + "）的角色，无法按模板补建系统角色");
         }
         SysRole role = buildSystemRole(company.getId(), template);
+        // ???????????????????????
         sysRoleMapper.insert(role);
         return role;
     }
 
+    /**
+     * ???????
+     *
+     * @param role ??
+     * @param template ??
+     * @return true ??????
+     */
     private boolean syncRoleBaseInfo(SysRole role, SysRoleTemplate template) {
         boolean changed = false;
         Integer templateRoleType = isAdminTemplate(template) ? 1 : 2;
@@ -301,14 +391,24 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
             changed = true;
         }
         if (changed) {
+            // ???????????????????????
             sysRoleMapper.updateById(role);
         }
         return changed;
     }
 
+    /**
+     * ???????
+     *
+     * @param roleId ??ID
+     * @param templateMenuIds template Menu ID??
+     * @param templateMenuIdSet ??
+     * @return true ??????
+     */
     private boolean syncRoleMenus(Long roleId, List<Long> templateMenuIds, Set<Long> templateMenuIdSet) {
         LambdaQueryWrapper<SysRoleMenu> roleMenuWrapper = new LambdaQueryWrapper<>();
         roleMenuWrapper.eq(SysRoleMenu::getRoleId, roleId);
+        // ??????????????????????????
         List<SysRoleMenu> roleMenus = sysRoleMenuMapper.selectList(roleMenuWrapper);
         if (roleMenus == null) {
             roleMenus = Collections.emptyList();
@@ -323,6 +423,7 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
             }
         }
         for (Long rmId : toRemove) {
+            // ???????????????????????
             sysRoleMenuMapper.deleteById(rmId);
         }
 
@@ -339,6 +440,13 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
         return changed;
     }
 
+    /**
+     * ???????
+     *
+     * @param companyId ??ID
+     * @param template ??
+     * @return ????
+     */
     private SysRole buildSystemRole(Long companyId, SysRoleTemplate template) {
         SysRole role = new SysRole();
         role.setCompanyId(companyId);
@@ -353,10 +461,23 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
         return role;
     }
 
+    /**
+     * ????Admin Template?
+     *
+     * @param template ??
+     * @return true ??????
+     */
     private boolean isAdminTemplate(SysRoleTemplate template) {
         return template.getIsAdmin() != null && template.getIsAdmin() == 1;
     }
 
+    /**
+     * ???????
+     *
+     * @param typeCode ??????
+     * @param isAdmin ??
+     * @param excludeId exclude ID
+     */
     private void validateAdminUnique(String typeCode, Integer isAdmin, Long excludeId) {
         if (isAdmin == null || isAdmin != 1) {
             return;
@@ -367,17 +488,24 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
         if (excludeId != null) {
             wrapper.ne(SysRoleTemplate::getId, excludeId);
         }
+        // ??????????????????????????
         if (sysRoleTemplateMapper.selectCount(wrapper) > 0) {
             throw new ServiceException("该公司类型下已存在管理员角色模板，每种类型最多一个");
         }
     }
 
+    /**
+     * ?? kickAffectedUsers ?????
+     *
+     * @param roleIds ??ID??
+     */
     private void kickAffectedUsers(Set<Long> roleIds) {
         if (roleIds == null || roleIds.isEmpty()) {
             return;
         }
         LambdaQueryWrapper<SysUserRole> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(SysUserRole::getRoleId, roleIds);
+        // ??????????????????????????
         List<SysUserRole> userRoles = sysUserRoleMapper.selectList(wrapper);
         if (userRoles == null || userRoles.isEmpty()) {
             return;
@@ -387,6 +515,7 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
                 .distinct()
                 .collect(Collectors.toList());
         for (Long userId : userIds) {
+            // ??????????????????????
             sysPermissionService.clearAllPermsCache(userId);
             StpUtil.kickout(userId);
         }

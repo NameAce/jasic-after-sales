@@ -8,4 +8,3 @@ export * from './notify';
 export * from './log';
 export * from './company-address';
 export * from './system-manage';
-export * from './advanced';

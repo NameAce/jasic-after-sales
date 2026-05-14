@@ -19,7 +19,7 @@
           {{ item.originalName || item.fileName || `文件-${item.fileId}` }}
         </span>
         <span class="file-upload-field__meta">{{ formatFileSize(item.fileSize) }}</span>
-        <el-button type="text" size="mini" @click.stop="handlePreview(item)">预览</el-button>
+        <el-button v-if="item.previewUrl" type="text" size="mini" @click.stop="handlePreview(item)">预览</el-button>
         <el-button v-if="!disabled" type="text" size="mini" @click.stop="handleRemove(item.fileId)">移除</el-button>
       </div>
     </div>
@@ -27,7 +27,7 @@
 </template>
 
 <script>
-import { getFilePreviewUrl, uploadSystemFile } from '@/api/file'
+import { uploadSystemFile } from '@/api/file'
 
 export default {
   name: 'FileUploadField',
@@ -114,30 +114,10 @@ export default {
       })
     },
     handlePreview(item) {
-      if (!item || !item.fileId) {
+      if (!item || !item.fileId || !item.previewUrl) {
         return
       }
-      if (item.previewUrl) {
-        window.open(item.previewUrl, '_blank')
-        return
-      }
-      getFilePreviewUrl(item.fileId).then(res => {
-        const previewUrl = res && res.data ? res.data.previewUrl : ''
-        if (!previewUrl) {
-          return
-        }
-        const nextList = this.normalizedValue.map(fileItem => {
-          if (String(fileItem.fileId) !== String(item.fileId)) {
-            return fileItem
-          }
-          return {
-            ...fileItem,
-            previewUrl
-          }
-        })
-        this.$emit('input', nextList)
-        window.open(previewUrl, '_blank')
-      })
+      window.open(item.previewUrl, '_blank')
     },
     handleRemove(fileId) {
       this.$emit(

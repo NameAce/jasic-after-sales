@@ -21,11 +21,23 @@ import javax.sql.DataSource;
 @EnableConfigurationProperties(CrmDataSourceProperties.class)
 public class CrmJdbcTemplateConfig {
 
+    /**
+     * ?? jdbcTemplate ?????
+     *
+     * @param dataSource ??
+     * @return ????
+     */
     @Bean(name = "jdbcTemplate")
     public JdbcTemplate jdbcTemplate(DataSource dataSource) {
         return new JdbcTemplate(dataSource);
     }
 
+    /**
+     * ?? crmJdbcTemplate ?????
+     *
+     * @param properties ??
+     * @return ????
+     */
     @Bean(name = "crmJdbcTemplate")
     @ConditionalOnProperty(prefix = "jasic.crm.datasource", name = "url")
     public JdbcTemplate crmJdbcTemplate(CrmDataSourceProperties properties) {

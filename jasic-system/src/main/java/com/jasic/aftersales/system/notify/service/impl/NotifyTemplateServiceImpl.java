@@ -57,6 +57,9 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
     private static final int ROUTE_VALUE_MAX_LENGTH = 128;
     private static final String TEMPLATE_CACHE_KEY_PREFIX = "notify:template:";
 
+    /**
+     * ????????
+     */
     @Resource
     private SysNotifyTemplateMapper sysNotifyTemplateMapper;
 
@@ -71,8 +74,15 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         refreshCache();
     }
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @Override
     public PageResult<NotifyTemplateVO> listPage(NotifyTemplateQuery query) {
+        // ????????????????????????
         NotifyTemplateQuery actualQuery = query == null ? new NotifyTemplateQuery() : query;
         Page<SysNotifyTemplate> page = new Page<>(actualQuery.getPageNum(), actualQuery.getPageSize());
         LambdaQueryWrapper<SysNotifyTemplate> wrapper = new LambdaQueryWrapper<>();
@@ -96,14 +106,27 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         return PageResult.of(records, result.getTotal(), actualQuery.getPageNum(), actualQuery.getPageSize());
     }
 
+    /**
+     * ??By Id?
+     *
+     * @param id ??ID
+     * @return ????
+     */
     @Override
     public NotifyTemplateVO getById(Long id) {
         SysNotifyTemplate entity = sysNotifyTemplateMapper.selectById(id);
         return entity == null ? null : toVO(entity);
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     * @return ????
+     */
     @Override
     public Long saveCustom(NotifyTemplateDTO dto) {
+        // ????????????????????????
         NotifyTemplateCodeEnum templateCodeEnum = getRequiredTemplateCode(dto.getTemplateCode());
         SysNotifyTemplate builtInTemplate = getRequiredBuiltInTemplate(templateCodeEnum.getCode());
         if (getCustomTemplate(templateCodeEnum.getCode()) != null) {
@@ -115,11 +138,17 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         return entity.getId();
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     */
     @Override
     public void updateCustom(NotifyTemplateDTO dto) {
         if (dto.getId() == null) {
             throw new ServiceException("Template id cannot be null");
         }
+        // ????????????????????????
         SysNotifyTemplate existing = sysNotifyTemplateMapper.selectById(dto.getId());
         if (existing == null) {
             throw new ServiceException("Notify template not found");
@@ -139,8 +168,14 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         refreshTemplateCache(templateCodeEnum.getCode());
     }
 
+    /**
+     * ?????
+     *
+     * @param id ??ID
+     */
     @Override
     public void removeCustom(Long id) {
+        // ????????????????????????
         SysNotifyTemplate existing = sysNotifyTemplateMapper.selectById(id);
         if (existing == null) {
             throw new ServiceException("Notify template not found");
@@ -152,8 +187,15 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         refreshTemplateCache(existing.getTemplateCode());
     }
 
+    /**
+     * ?? preview ?????
+     *
+     * @param dto ????
+     * @return ????
+     */
     @Override
     public NotifyTemplatePreviewVO preview(NotifyTemplatePreviewDTO dto) {
+        // ????????????????????????
         NotifyTemplateCodeEnum templateCodeEnum = getRequiredTemplateCode(dto.getTemplateCode());
         SysNotifyTemplate builtInTemplate = getRequiredBuiltInTemplate(templateCodeEnum.getCode());
         Map<String, Object> variables = dto.getVariables() == null ? Collections.emptyMap() : dto.getVariables();
@@ -175,8 +217,16 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         return previewVO;
     }
 
+    /**
+     * ?? render ?????
+     *
+     * @param templateCode ??
+     * @param variables ??
+     * @return ????
+     */
     @Override
     public NotifyTemplateRenderResult render(String templateCode, Map<String, Object> variables) {
+        // ????????????????????????
         NotifyTemplateCodeEnum templateCodeEnum = getRequiredTemplateCode(templateCode);
         NotifyTemplateCacheValue cacheValue = getTemplateCache(templateCodeEnum.getCode());
         if (cacheValue.getBuiltInTemplate() == null) {
@@ -191,8 +241,15 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         );
     }
 
+    /**
+     * ????Notify Enabled?
+     *
+     * @param templateCode ??
+     * @return true ??????
+     */
     @Override
     public boolean isNotifyEnabled(String templateCode) {
+        // ????????????????????????
         NotifyTemplateCodeEnum templateCodeEnum = getRequiredTemplateCode(templateCode);
         NotifyTemplateCacheValue cacheValue = getTemplateCache(templateCodeEnum.getCode());
         if (cacheValue.getBuiltInTemplate() == null) {
@@ -202,8 +259,15 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         return customTemplate == null || !Objects.equals(customTemplate.getNotifyEnabled(), 0);
     }
 
+    /**
+     * ???????
+     *
+     * @param templateCode ??
+     * @return ????
+     */
     @Override
     public List<NotifyTemplateChannelVO> listChannelConfigs(String templateCode) {
+        // ????????????????????????
         NotifyTemplateCodeEnum templateCodeEnum = getRequiredTemplateCode(templateCode);
         LambdaQueryWrapper<SysNotifyTemplateChannel> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysNotifyTemplateChannel::getTemplateCode, templateCodeEnum.getCode())
@@ -213,10 +277,18 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * ?????
+     *
+     * @param templateCode ??
+     * @param channelConfigs ??
+     */
     @Override
     public void saveChannelConfigs(String templateCode, List<NotifyTemplateChannelDTO> channelConfigs) {
+        // ????????????????????????
         NotifyTemplateCodeEnum templateCodeEnum = getRequiredTemplateCode(templateCode);
         List<NotifyTemplateChannelDTO> actualConfigs = channelConfigs == null ? Collections.emptyList() : channelConfigs;
+        // ?????????????????????????????
         validateChannelConfigs(templateCodeEnum, actualConfigs);
 
         LambdaQueryWrapper<SysNotifyTemplateChannel> deleteWrapper = new LambdaQueryWrapper<>();
@@ -235,9 +307,13 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         }
     }
 
+    /**
+     * ?? refreshCache ?????
+     */
     @Override
     public void refreshCache() {
         clearAllCache();
+        // ????????????????????????
         List<SysNotifyTemplate> templates = sysNotifyTemplateMapper.selectList(new LambdaQueryWrapper<>());
         Map<String, NotifyTemplateCacheValue> grouped = buildCacheMap(templates);
         for (Map.Entry<String, NotifyTemplateCacheValue> entry : grouped.entrySet()) {
@@ -245,9 +321,20 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param dto ????
+     * @param templateCodeEnum ??
+     * @param builtInTemplate ??
+     * @param existing ??
+     * @return ????
+     */
     private SysNotifyTemplate buildCustomTemplate(NotifyTemplateDTO dto, NotifyTemplateCodeEnum templateCodeEnum,
                                                   SysNotifyTemplate builtInTemplate, SysNotifyTemplate existing) {
+        // ????????????????????????
         validateSwitch(dto.getNotifyEnabled(), "notifyEnabled");
+        // ?????????????????????????????
         validateSwitch(dto.getOverrideEnabled(), "overrideEnabled");
         SysNotifyTemplate entity = existing == null ? new SysNotifyTemplate() : existing;
         entity.setTemplateCode(templateCodeEnum.getCode());
@@ -268,8 +355,17 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         return entity;
     }
 
+    /**
+     * ???????
+     *
+     * @param dto ????
+     * @param templateCodeEnum ??
+     * @param builtInTemplate ??
+     * @return ????
+     */
     private SysNotifyTemplate buildPreviewCustomTemplate(NotifyTemplatePreviewDTO dto, NotifyTemplateCodeEnum templateCodeEnum,
                                                          SysNotifyTemplate builtInTemplate) {
+        // ????????????????????????
         SysNotifyTemplate entity = new SysNotifyTemplate();
         entity.setTemplateCode(templateCodeEnum.getCode());
         entity.setTemplateName(builtInTemplate.getTemplateName());
@@ -285,14 +381,26 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         entity.setRouteValueTemplate(normalizeField(dto.getRouteValueTemplate()));
         entity.setVariablesJson(buildVariablesJson(templateCodeEnum));
         validateSwitch(entity.getNotifyEnabled(), "notifyEnabled");
+        // ?????????????????????????????
         validateSwitch(entity.getOverrideEnabled(), "overrideEnabled");
         validateTemplatePayload(entity, templateCodeEnum);
         return entity;
     }
 
+    /**
+     * ?? renderWithResolvedTemplates ?????
+     *
+     * @param templateCode ??
+     * @param builtInTemplate ??
+     * @param customTemplate ??
+     * @param variables ??
+     * @param previewMode ??
+     * @return ????
+     */
     private NotifyTemplateRenderResult renderWithResolvedTemplates(String templateCode, SysNotifyTemplate builtInTemplate,
                                                                    SysNotifyTemplate customTemplate, Map<String, Object> variables,
                                                                    boolean previewMode) {
+        // ????????????????????????
         NotifyTemplateRenderResult result = new NotifyTemplateRenderResult();
         result.setTemplateCode(templateCode);
         if (customTemplate != null && isSwitchOff(customTemplate.getNotifyEnabled())) {
@@ -319,12 +427,21 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         }
     }
 
+    /**
+     * ?? applyRenderedTemplate ?????
+     *
+     * @param result ??
+     * @param template ??
+     * @param variables ??
+     * @param templateSource ??
+     */
     private void applyRenderedTemplate(NotifyTemplateRenderResult result, SysNotifyTemplate template,
                                        Map<String, Object> variables, String templateSource) {
         String title = renderContent(template.getTitleTemplate(), variables);
         String summary = renderContent(template.getSummaryTemplate(), variables);
         String routeType = normalizeField(template.getRouteType());
         String routeValue = renderContent(template.getRouteValueTemplate(), variables);
+        // ?????????????????????????????
         validateRenderedContent(title, summary, routeType, routeValue);
         result.setTemplateSource(templateSource);
         result.setTitle(title);
@@ -333,7 +450,15 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         result.setRouteValue(routeValue);
     }
 
+    /**
+     * ?? mergeTemplate ?????
+     *
+     * @param builtInTemplate ??
+     * @param customTemplate ??
+     * @return ????
+     */
     private SysNotifyTemplate mergeTemplate(SysNotifyTemplate builtInTemplate, SysNotifyTemplate customTemplate) {
+        // ????????????????????????
         SysNotifyTemplate merged = new SysNotifyTemplate();
         merged.setTemplateCode(customTemplate.getTemplateCode());
         merged.setTemplateName(customTemplate.getTemplateName());
@@ -350,6 +475,13 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         return merged;
     }
 
+    /**
+     * ?? renderContent ?????
+     *
+     * @param template ??
+     * @param variables ??
+     * @return ?????
+     */
     private String renderContent(String template, Map<String, Object> variables) {
         String actualTemplate = normalizeField(template);
         if (actualTemplate == null) {
@@ -366,6 +498,14 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         return buffer.toString().trim();
     }
 
+    /**
+     * ???????
+     *
+     * @param title ??
+     * @param summary ??
+     * @param routeType ??
+     * @param routeValue ??
+     */
     private void validateRenderedContent(String title, String summary, String routeType, String routeValue) {
         if (StrUtil.isBlank(title)) {
             throw new ServiceException("Rendered title cannot be blank");
@@ -373,6 +513,7 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         if (StrUtil.isBlank(summary)) {
             throw new ServiceException("Rendered summary cannot be blank");
         }
+        // ????????????????????????
         if (StrUtil.isBlank(routeType) || NotifyRouteTypeEnum.getByCode(routeType) == null) {
             throw new ServiceException("Rendered routeType is invalid");
         }
@@ -390,7 +531,14 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param template ??
+     * @param templateCodeEnum ??
+     */
     private void validateTemplatePayload(SysNotifyTemplate template, NotifyTemplateCodeEnum templateCodeEnum) {
+        // ?????????????????????????????
         validateRouteType(template.getRouteType());
         validateLength(template.getTitleTemplate(), TITLE_MAX_LENGTH, "titleTemplate");
         validateLength(template.getSummaryTemplate(), SUMMARY_MAX_LENGTH, "summaryTemplate");
@@ -400,8 +548,15 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         validatePlaceholders(template.getRouteValueTemplate(), getAllowedTemplateVariables(templateCodeEnum));
     }
 
+    /**
+     * ???????
+     *
+     * @param templateCodeEnum ??
+     * @param channelConfigs ??
+     */
     private void validateChannelConfigs(NotifyTemplateCodeEnum templateCodeEnum, List<NotifyTemplateChannelDTO> channelConfigs) {
         Set<String> uniqueKeys = new LinkedHashSet<>();
+        // ????????????????????????
         for (NotifyTemplateChannelDTO dto : channelConfigs) {
             if (dto == null) {
                 throw new ServiceException("Channel config cannot be null");
@@ -414,6 +569,7 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
             if (channelTypeEnum == null) {
                 throw new ServiceException("Unsupported channel type: " + dto.getChannelType());
             }
+            // ?????????????????????????????
             validateSwitch(dto.getChannelEnabled(), "channelEnabled");
             String channelScene = normalizeField(dto.getChannelScene());
             String uniqueKey = channelTypeEnum.getCode() + ":" + StrUtil.blankToDefault(channelScene, "");
@@ -426,6 +582,13 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param templateCodeEnum ??
+     * @param dto ????
+     * @param channelScene ??
+     */
     private void validateMiniProgramChannelConfig(NotifyTemplateCodeEnum templateCodeEnum,
                                                   NotifyTemplateChannelDTO dto, String channelScene) {
         if (StrUtil.isBlank(channelScene)) {
@@ -436,8 +599,10 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
             throw new ServiceException("Unsupported mini program channel scene: " + channelScene);
         }
         if (StrUtil.isNotBlank(dto.getPagePathTemplate())) {
+            // ?????????????????????????????
             validatePlaceholders(dto.getPagePathTemplate(), getAllowedChannelRouteVariables(templateCodeEnum));
         }
+        // ????????????????????????
         List<NotifyChannelFieldMappingDTO> fieldMapping = dto.getFieldMapping() == null
                 ? Collections.emptyList() : dto.getFieldMapping();
         for (NotifyChannelFieldMappingDTO item : fieldMapping) {
@@ -454,7 +619,15 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param templateCodeEnum ??
+     * @param dto ????
+     * @return ?????
+     */
     private String buildChannelConfigJson(NotifyTemplateCodeEnum templateCodeEnum, NotifyTemplateChannelDTO dto) {
+        // ????????????????????????
         NotifyChannelTypeEnum channelTypeEnum = NotifyChannelTypeEnum.getByCode(dto.getChannelType());
         if (NotifyChannelTypeEnum.MP_SUBSCRIBE != channelTypeEnum) {
             return StrUtil.blankToDefault(normalizeField(dto.getConfigJson()), "{}");
@@ -473,11 +646,19 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
             normalizedFieldMapping.add(copy);
         }
         config.setFieldMapping(normalizedFieldMapping);
+        // ?????????????????????????????
         validateMiniProgramChannelConfig(templateCodeEnum, dto, config.getScene());
         return JSONUtil.toJsonStr(config);
     }
 
+    /**
+     * ?? toChannelVO ?????
+     *
+     * @param entity ????
+     * @return ????
+     */
     private NotifyTemplateChannelVO toChannelVO(SysNotifyTemplateChannel entity) {
+        // ????????????????????????
         NotifyTemplateChannelVO vo = BeanUtil.copyProperties(entity, NotifyTemplateChannelVO.class);
         if (StrUtil.isBlank(entity.getConfigJson())) {
             return vo;
@@ -494,12 +675,25 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         return vo;
     }
 
+    /**
+     * ???????
+     *
+     * @param value ???
+     * @param maxLength ??
+     * @param fieldName ??
+     */
     private void validateLength(String value, int maxLength, String fieldName) {
         if (value != null && value.length() > maxLength) {
             throw new ServiceException(fieldName + " length cannot exceed " + maxLength);
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param template ??
+     * @param allowedVariables ??
+     */
     private void validatePlaceholders(String template, Set<String> allowedVariables) {
         if (StrUtil.isBlank(template)) {
             return;
@@ -513,30 +707,56 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param routeType ??
+     */
     private void validateRouteType(String routeType) {
         if (StrUtil.isBlank(routeType)) {
             return;
         }
+        // ????????????????????????
         if (NotifyRouteTypeEnum.getByCode(routeType) == null) {
             throw new ServiceException("Unsupported routeType: " + routeType);
         }
     }
 
+    /**
+     * ??Template Cache?
+     *
+     * @param templateCode ??
+     * @return ????
+     */
     private NotifyTemplateCacheValue getTemplateCache(String templateCode) {
         Object cached = redisTemplate.opsForValue().get(getCacheKey(templateCode));
         if (cached != null) {
+            // ????????????????????????
             return JSONUtil.toBean(String.valueOf(cached), NotifyTemplateCacheValue.class);
         }
         return refreshTemplateCache(templateCode);
     }
 
+    /**
+     * ?? refreshTemplateCache ?????
+     *
+     * @param templateCode ??
+     * @return ????
+     */
     private NotifyTemplateCacheValue refreshTemplateCache(String templateCode) {
         NotifyTemplateCacheValue value = buildCacheValue(listByTemplateCode(templateCode));
         redisTemplate.opsForValue().set(getCacheKey(templateCode), JSONUtil.toJsonStr(value));
         return value;
     }
 
+    /**
+     * ???????
+     *
+     * @param templateCode ??
+     * @return ????
+     */
     private List<SysNotifyTemplate> listByTemplateCode(String templateCode) {
+        // ????????????????????????
         LambdaQueryWrapper<SysNotifyTemplate> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysNotifyTemplate::getTemplateCode, templateCode)
                 .orderByAsc(SysNotifyTemplate::getTemplateSource)
@@ -544,7 +764,14 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         return sysNotifyTemplateMapper.selectList(wrapper);
     }
 
+    /**
+     * ??Required Built In Template?
+     *
+     * @param templateCode ??
+     * @return ????
+     */
     private SysNotifyTemplate getRequiredBuiltInTemplate(String templateCode) {
+        // ????????????????????????
         LambdaQueryWrapper<SysNotifyTemplate> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysNotifyTemplate::getTemplateCode, templateCode)
                 .eq(SysNotifyTemplate::getTemplateSource, NotifyTemplateSourceEnum.BUILT_IN.getCode())
@@ -556,7 +783,14 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         return template;
     }
 
+    /**
+     * ??Custom Template?
+     *
+     * @param templateCode ??
+     * @return ????
+     */
     private SysNotifyTemplate getCustomTemplate(String templateCode) {
+        // ????????????????????????
         LambdaQueryWrapper<SysNotifyTemplate> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysNotifyTemplate::getTemplateCode, templateCode)
                 .eq(SysNotifyTemplate::getTemplateSource, NotifyTemplateSourceEnum.CUSTOM.getCode())
@@ -564,7 +798,14 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         return sysNotifyTemplateMapper.selectOne(wrapper);
     }
 
+    /**
+     * ??Required Template Code?
+     *
+     * @param templateCode ??
+     * @return ????
+     */
     private NotifyTemplateCodeEnum getRequiredTemplateCode(String templateCode) {
+        // ????????????????????????
         NotifyTemplateCodeEnum value = NotifyTemplateCodeEnum.getByCode(templateCode);
         if (value == null) {
             throw new ServiceException("Unsupported templateCode: " + templateCode);
@@ -572,36 +813,81 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         return value;
     }
 
+    /**
+     * ???????
+     *
+     * @param value ???
+     * @param fieldName ??
+     */
     private void validateSwitch(Integer value, String fieldName) {
         if (!Objects.equals(value, 0) && !Objects.equals(value, 1)) {
             throw new ServiceException(fieldName + " must be 0 or 1");
         }
     }
 
+    /**
+     * ????Switch Off?
+     *
+     * @param value ???
+     * @return true ??????
+     */
     private boolean isSwitchOff(Integer value) {
         return Objects.equals(value, 0);
     }
 
+    /**
+     * ????????
+     *
+     * @param routeType ??
+     * @return ?????
+     */
     private String normalizeRouteType(String routeType) {
         return StrUtil.isBlank(routeType) ? null : routeType.trim();
     }
 
+    /**
+     * ????????
+     *
+     * @param value ???
+     * @return ?????
+     */
     private String normalizeField(String value) {
         return StrUtil.isBlank(value) ? null : value.trim();
     }
 
+    /**
+     * ????????
+     *
+     * @param remark ??
+     * @return ?????
+     */
     private String normalizeRemark(String remark) {
         return StrUtil.isBlank(remark) ? null : StrUtil.sub(remark.trim(), 0, 255);
     }
 
+    /**
+     * ?? toVO ?????
+     *
+     * @param entity ????
+     * @return ????
+     */
     private NotifyTemplateVO toVO(SysNotifyTemplate entity) {
         return BeanUtil.copyProperties(entity, NotifyTemplateVO.class);
     }
 
+    /**
+     * ??Cache Key?
+     *
+     * @param templateCode ??
+     * @return ?????
+     */
     private String getCacheKey(String templateCode) {
         return TEMPLATE_CACHE_KEY_PREFIX + templateCode;
     }
 
+    /**
+     * ?????
+     */
     private void clearAllCache() {
         Set<String> keys = redisTemplate.keys(TEMPLATE_CACHE_KEY_PREFIX + "*");
         if (keys != null && !keys.isEmpty()) {
@@ -609,10 +895,17 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param templates ??
+     * @return ????
+     */
     private Map<String, NotifyTemplateCacheValue> buildCacheMap(List<SysNotifyTemplate> templates) {
         if (templates == null || templates.isEmpty()) {
             return Collections.emptyMap();
         }
+        // ????????????????????????
         Map<String, List<SysNotifyTemplate>> grouped = templates.stream()
                 .collect(Collectors.groupingBy(SysNotifyTemplate::getTemplateCode));
         Map<String, NotifyTemplateCacheValue> result = new LinkedHashMap<>();
@@ -622,7 +915,14 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         return result;
     }
 
+    /**
+     * ???????
+     *
+     * @param templates ??
+     * @return ????
+     */
     private NotifyTemplateCacheValue buildCacheValue(List<SysNotifyTemplate> templates) {
+        // ????????????????????????
         NotifyTemplateCacheValue value = new NotifyTemplateCacheValue();
         for (SysNotifyTemplate template : templates) {
             if (NotifyTemplateSourceEnum.BUILT_IN.getCode().equals(template.getTemplateSource())) {
@@ -634,6 +934,12 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         return value;
     }
 
+    /**
+     * ???????
+     *
+     * @param templateCodeEnum ??
+     * @return ?????
+     */
     private String buildVariablesJson(NotifyTemplateCodeEnum templateCodeEnum) {
         List<Map<String, String>> items = new ArrayList<>();
         switch (templateCodeEnum) {
@@ -664,6 +970,12 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         return JSONUtil.toJsonStr(items);
     }
 
+    /**
+     * ??Allowed Template Variables?
+     *
+     * @param templateCodeEnum ??
+     * @return ????
+     */
     private Set<String> getAllowedTemplateVariables(NotifyTemplateCodeEnum templateCodeEnum) {
         switch (templateCodeEnum) {
             case WORK_ORDER_ASSIGNED:
@@ -681,20 +993,41 @@ public class NotifyTemplateServiceImpl implements NotifyTemplateService {
         }
     }
 
+    /**
+     * ??Allowed Channel Field Variables?
+     *
+     * @param templateCodeEnum ??
+     * @return ????
+     */
     private Set<String> getAllowedChannelFieldVariables(NotifyTemplateCodeEnum templateCodeEnum) {
+        // ????????????????????????
         if (NotifyTemplateCodeEnum.WORK_ORDER_EVALUATION_INVITE == templateCodeEnum) {
             return new LinkedHashSet<>(Arrays.asList("orderNo", "customerMobile", "companyName", "closedTime"));
         }
         return Collections.emptySet();
     }
 
+    /**
+     * ??Allowed Channel Route Variables?
+     *
+     * @param templateCodeEnum ??
+     * @return ????
+     */
     private Set<String> getAllowedChannelRouteVariables(NotifyTemplateCodeEnum templateCodeEnum) {
+        // ????????????????????????
         if (NotifyTemplateCodeEnum.WORK_ORDER_EVALUATION_INVITE == templateCodeEnum) {
             return Collections.singleton("workOrderId");
         }
         return Collections.emptySet();
     }
 
+    /**
+     * ?? variableMeta ?????
+     *
+     * @param name ??
+     * @param desc ??
+     * @return ????
+     */
     private Map<String, String> variableMeta(String name, String desc) {
         Map<String, String> item = new LinkedHashMap<>();
         item.put("name", name);

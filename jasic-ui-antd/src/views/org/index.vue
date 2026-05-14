@@ -36,7 +36,6 @@ import {
   typeCodeMenuTree,
   updateCompany,
   updateCompanyType,
-  updateFirstSecondRelation,
   updateHqFirstContract,
   updateRegion,
 } from "@/service/api";
@@ -104,6 +103,7 @@ const hqFirstQuery = reactive({
 const firstSecondQuery = reactive({
   pageNum: 1,
   pageSize: 10,
+  targetCompanyId: undefined as number | undefined,
   firstCompanyId: undefined as number | undefined,
 });
 // 外部公司列表查询
@@ -124,6 +124,7 @@ const crmHqQuery = reactive({
 const crmFsQuery = reactive({
   pageNum: 1,
   pageSize: 10,
+  targetCompanyId: undefined as number | undefined,
   firstCompanyId: undefined as number | undefined,
   secondCompanyId: undefined as number | undefined,
   firstCompanyCode: "",
@@ -229,7 +230,7 @@ const regionFormOpen = ref(false);
 // 区域表单数据
 const regionForm = reactive({
   id: undefined as number | undefined,
-  companyId: undefined as number | undefined,
+  targetCompanyId: undefined as number | undefined,
   regionCode: "",
   regionName: "",
   remark: "",
@@ -809,9 +810,15 @@ async function loadList() {
         break;
       }
       case "hqFirst": {
+        if (!hqFirstQuery.hqCompanyId) {
+          rows.value = [];
+          total.value = 0;
+          break;
+        }
         const { data } = await listHqFirstContract({
           pageNum: hqFirstQuery.pageNum,
           pageSize: hqFirstQuery.pageSize,
+          targetCompanyId: hqFirstQuery.hqCompanyId,
           hqCompanyId: hqFirstQuery.hqCompanyId,
         });
         rows.value = pickRows(data);
@@ -819,9 +826,15 @@ async function loadList() {
         break;
       }
       case "firstSecond": {
+        if (!firstSecondQuery.targetCompanyId) {
+          rows.value = [];
+          total.value = 0;
+          break;
+        }
         const { data } = await listFirstSecondRelation({
           pageNum: firstSecondQuery.pageNum,
           pageSize: firstSecondQuery.pageSize,
+          targetCompanyId: firstSecondQuery.targetCompanyId,
           firstCompanyId: firstSecondQuery.firstCompanyId,
         });
         rows.value = pickRows(data);
@@ -883,7 +896,7 @@ function openRegionForm(record?: RowData) {
     return;
   }
   regionForm.id = record?.id;
-  regionForm.companyId = Number(
+  regionForm.targetCompanyId = Number(
     record?.companyId ?? regionQueryCompanyId.value,
   );
   regionForm.regionCode = record?.regionCode ?? "";
@@ -902,7 +915,7 @@ async function submitRegionForm() {
   }
   const payload = {
     id: regionForm.id,
-    companyId: regionForm.companyId,
+    targetCompanyId: regionForm.targetCompanyId,
     regionCode: regionForm.regionCode.trim() || undefined,
     regionName: regionForm.regionName.trim(),
     remark: regionForm.remark,
@@ -919,7 +932,9 @@ async function submitRegionForm() {
  * @param record - 表格行
  */
 async function removeRegion(record: RowData) {
-  await deleteRegion(record.id);
+  await deleteRegion(record.id, {
+    targetCompanyId: Number(record?.companyId ?? regionQueryCompanyId.value),
+  });
   window.$message?.success?.("删除成功");
   await loadList();
 }
@@ -939,6 +954,7 @@ async function loadCrmHqRows() {
     const { data } = await listCrmHqFirstContractImport({
       pageNum: crmHqQuery.pageNum,
       pageSize: crmHqQuery.pageSize,
+      targetCompanyId: crmHqQuery.hqCompanyId,
       hqCompanyId: crmHqQuery.hqCompanyId,
       firstCompanyId: crmHqQuery.firstCompanyId,
       regionId: crmHqQuery.regionId,
@@ -957,11 +973,18 @@ async function loadCrmHqRows() {
  * 作用：加载一级二级 CRM 导入快照表格数据。
  */
 async function loadCrmFsRows() {
+  if (!crmFsQuery.targetCompanyId) {
+    rows.value = [];
+    total.value = 0;
+    selectedFsSnapshotIds.value = [];
+    return;
+  }
   loading.value = true;
   try {
     const { data } = await listCrmFirstSecondRelationImport({
       pageNum: crmFsQuery.pageNum,
       pageSize: crmFsQuery.pageSize,
+      targetCompanyId: crmFsQuery.targetCompanyId,
       firstCompanyId: crmFsQuery.firstCompanyId,
       secondCompanyId: crmFsQuery.secondCompanyId,
       firstCompanyCode: crmFsQuery.firstCompanyCode.trim() || undefined,
@@ -1048,6 +1071,10 @@ function resetHqCrmQuery() {
  * 作用：一级二级 CRM 导入表格查询。
  */
 function handleCrmFsSearch() {
+  if (!crmFsQuery.targetCompanyId) {
+    window.$message?.warning?.("请选择目标总部公司");
+    return;
+  }
   crmFsQuery.pageNum = 1;
   loadCrmFsRows();
 }
@@ -1056,6 +1083,7 @@ function handleCrmFsSearch() {
  * 作用：重置一级二级 CRM 导入筛选条件。
  */
 function resetFsCrmQuery() {
+  const targetCompanyId = crmFsQuery.targetCompanyId;
   crmFsQuery.firstCompanyId = undefined;
   crmFsQuery.secondCompanyId = undefined;
   crmFsQuery.firstCompanyCode = "";
@@ -1063,6 +1091,7 @@ function resetFsCrmQuery() {
   crmFsQuery.showAbnormal = false;
   crmFsQuery.pageNum = 1;
   crmFsQuery.pageSize = 10;
+  crmFsQuery.targetCompanyId = targetCompanyId;
   loadCrmFsRows();
 }
 
@@ -1241,7 +1270,7 @@ async function submitHqForm() {
     window.$message?.warning?.("请选择一级网点");
     return;
   }
-  const body = { ...hqForm };
+  const body = { ...hqForm, targetCompanyId: hqForm.hqCompanyId };
   if (hqForm.id) {
     await updateHqFirstContract(body);
     window.$message?.success?.("操作成功");
@@ -1258,7 +1287,7 @@ async function submitHqForm() {
  * @param id - 记录 ID
  */
 async function removeHq(id: number) {
-  await deleteHqFirstContract(id);
+  await deleteHqFirstContract(id, { targetCompanyId: hqFirstQuery.hqCompanyId });
   window.$message?.success?.("删除成功");
   loadList();
 }
@@ -1268,6 +1297,10 @@ async function removeHq(id: number) {
  * @param record - 编辑行（可选）
  */
 async function openFsForm(record?: RowData) {
+  if (!firstSecondQuery.targetCompanyId) {
+    window.$message?.warning?.("请先选择目标总部公司");
+    return;
+  }
   await loadCompanyOptionsForCrm();
   if (record) {
     fsForm.id = record.id;
@@ -1293,14 +1326,9 @@ async function submitFsForm() {
     window.$message?.warning?.("请选择二级网点");
     return;
   }
-  const body = { ...fsForm };
-  if (fsForm.id) {
-    await updateFirstSecondRelation(body);
-    window.$message?.success?.("操作成功");
-  } else {
-    await addFirstSecondRelation(body);
-    window.$message?.success?.("操作成功");
-  }
+  const body = { ...fsForm, targetCompanyId: firstSecondQuery.targetCompanyId };
+  await addFirstSecondRelation(body);
+  window.$message?.success?.("操作成功");
   fsFormOpen.value = false;
   loadList();
 }
@@ -1310,7 +1338,7 @@ async function submitFsForm() {
  * @param id - 记录 ID
  */
 async function removeFs(id: number) {
-  await deleteFirstSecondRelation(id);
+  await deleteFirstSecondRelation(id, { targetCompanyId: firstSecondQuery.targetCompanyId });
   window.$message?.success?.("删除成功");
   loadList();
 }
@@ -1328,6 +1356,7 @@ async function triggerCrmHqImport() {
     return;
   }
   const { data } = await importCrmHqFirstContract({
+    targetCompanyId: crmHqQuery.hqCompanyId,
     hqCompanyId: crmHqQuery.hqCompanyId,
     snapshotIds: selectedHqSnapshotIds.value,
   });
@@ -1344,11 +1373,16 @@ async function triggerCrmHqImport() {
  * 作用：执行一级二级 CRM 选中行导入。
  */
 async function triggerCrmFsImport() {
+  if (!crmFsQuery.targetCompanyId) {
+    window.$message?.warning?.("请选择目标总部公司");
+    return;
+  }
   if (!selectedFsSnapshotIds.value.length) {
     window.$message?.warning?.("请选择要导入的一级二级关系");
     return;
   }
   const { data } = await importCrmFirstSecondRelation({
+    targetCompanyId: crmFsQuery.targetCompanyId,
     snapshotIds: selectedFsSnapshotIds.value,
   });
   const d = (data || {}) as RowData;
@@ -2077,6 +2111,25 @@ onMounted(() => {
           <div class="page-search-toolbar__filters">
             <ARow :gutter="[16, 16]" wrap>
               <ACol :span="24" :md="12" :lg="6">
+                <AFormItem label="目标总部" class="m-0" required>
+                  <ASelect
+                    v-model:value="firstSecondQuery.targetCompanyId"
+                    allow-clear
+                    show-search
+                    option-filter-prop="label"
+                    placeholder="请选择总部"
+                    class="w-full"
+                    :options="
+                      hqCompanyOptions.map((c) => ({
+                        label: c.companyName,
+                        value: c.id,
+                      }))
+                    "
+                    @change="handleFirstSecondSearch"
+                  />
+                </AFormItem>
+              </ACol>
+              <ACol :span="24" :md="12" :lg="6">
                 <AFormItem label="一级网点" class="m-0">
                   <ASelect
                     v-model:value="firstSecondQuery.firstCompanyId"
@@ -2375,14 +2428,6 @@ onMounted(() => {
             v-else-if="column.key === 'actions' && activeTab === 'firstSecond'"
           >
             <ASpace>
-              <AButton
-                type="link"
-                size="small"
-                class="table-action-link--primary"
-                @click="openFsForm(record)"
-              >
-                编辑
-              </AButton>
               <APopconfirm
                 title="确认删除该关系？"
                 @confirm="removeFs(record.id)"

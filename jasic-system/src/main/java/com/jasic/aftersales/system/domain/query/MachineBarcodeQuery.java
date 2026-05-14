@@ -26,7 +26,10 @@ public class MachineBarcodeQuery extends PageQuery {
     private String deliverNumber;
 
     @ApiModelProperty(value = "归属总部ID")
-    private Long hqCompanyId;
+    private Long ownerHqId;
+
+    @ApiModelProperty(value = "平台目标总部ID")
+    private Long targetCompanyId;
 
     @ApiModelProperty(value = "CRM 公司ID")
     private String custId;

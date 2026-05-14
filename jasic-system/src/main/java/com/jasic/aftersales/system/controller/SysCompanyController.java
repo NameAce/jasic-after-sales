@@ -63,6 +63,12 @@ public class SysCompanyController extends BaseController {
         return Result.ok(page);
     }
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @ApiOperation(value = "分页查询 CRM 公司快照")
     @SaCheckPermission("org:company:add")
     @GetMapping("/external/list")
@@ -71,6 +77,12 @@ public class SysCompanyController extends BaseController {
         return Result.ok(crmBizCompanySnapshotService.listPage(query));
     }
 
+    /**
+     * ??External Company Import Preview?
+     *
+     * @param custId cust ID
+     * @return ??????
+     */
     @ApiOperation(value = "查询 CRM 公司导入预览")
     @SaCheckPermission("org:company:add")
     @GetMapping("/external/{custId}/import-preview")
@@ -137,6 +149,12 @@ public class SysCompanyController extends BaseController {
         return Result.ok();
     }
 
+    /**
+     * ???????
+     *
+     * @param company ??
+     * @return ????
+     */
     private SysCompanySaveResultVO buildSaveResult(SysCompany company) {
         SysCompanySaveResultVO vo = new SysCompanySaveResultVO();
         if (company != null) {

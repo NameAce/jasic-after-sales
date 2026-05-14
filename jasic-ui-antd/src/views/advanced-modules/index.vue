@@ -30,6 +30,7 @@ import {
   listFaultRepairConfig,
   listFaultRepairConfigCompanyOptions,
   listMachineBarcode,
+  listMachineBarcodeHqOptions,
   listNotifyTemplate,
   listNotifyTemplateChannels,
   listRegion,
@@ -103,6 +104,7 @@ const notifyQuery = reactive({
 
 // 机器条码档案筛选
 const barcodeQuery = reactive({
+  ownerHqId: undefined as number | undefined,
   barcode: '',
   deliverNumber: '',
   productCode: '',
@@ -140,6 +142,7 @@ const hqCompanyOptions = ref<RowData[]>([]);
 // 同步任务处理器下拉 / 故障配置归属公司下拉
 const handlerOptions = ref<RowData[]>([]);
 const faultCompanyOptions = ref<RowData[]>([]);
+const barcodeHqOptions = ref<RowData[]>([]);
 
 // 顶部 Tab 选项
 const tabOptions = [
@@ -266,6 +269,11 @@ type FaultRepairItem = {
   repairOptions: string[];
 };
 
+function buildFaultDetailParams(record?: RowData | null) {
+  const ownerHqId = Number(record?.companyId ?? faultQuery.companyId);
+  return Number.isFinite(ownerHqId) ? { ownerHqId } : undefined;
+}
+
 /**
  * 作用：解析分页列表字段 records。
  * @param data - 接口数据
@@ -319,6 +327,20 @@ async function ensureFaultCompanyOptions() {
     faultCompanyOptions.value = Array.isArray(data) ? data : pickRows(data);
   } catch {
     faultCompanyOptions.value = [];
+  }
+}
+
+/**
+ * 作用：懒加载条码档案可维护总部列表。
+ * @returns 无
+ */
+async function ensureBarcodeHqOptions() {
+  if (!barcodeHqOptions.value.length) {
+    const { data } = await listMachineBarcodeHqOptions();
+    barcodeHqOptions.value = Array.isArray(data) ? data : pickRows(data);
+  }
+  if (!barcodeQuery.ownerHqId && barcodeHqOptions.value.length) {
+    barcodeQuery.ownerHqId = Number(barcodeHqOptions.value[0].id ?? barcodeHqOptions.value[0].value);
   }
 }
 
@@ -393,6 +415,7 @@ function loadByModule() {
     case 'barcode':
       return listMachineBarcode({
         ...p,
+        ownerHqId: barcodeQuery.ownerHqId,
         barcode: barcodeQuery.barcode || undefined,
         deliverNumber: barcodeQuery.deliverNumber || undefined,
         productCode: barcodeQuery.productCode || undefined,
@@ -551,6 +574,9 @@ async function loadList() {
     if (activeKey.value === 'fault') {
       await ensureFaultCompanyOptions();
     }
+    if (activeKey.value === 'barcode') {
+      await ensureBarcodeHqOptions();
+    }
     if (activeKey.value === 'roleTemplate') {
       await loadTypeCodeLabels();
     }
@@ -616,6 +642,7 @@ function resetSearch() {
       notifyQuery.templateSource = undefined;
       break;
     case 'barcode':
+      barcodeQuery.ownerHqId = undefined;
       barcodeQuery.barcode = '';
       barcodeQuery.deliverNumber = '';
       barcodeQuery.productCode = '';
@@ -693,7 +720,7 @@ async function openForm(record?: RowData, title?: string) {
   if (activeKey.value === 'fault') {
     if (record?.id != null) {
       try {
-        const { data } = await getFaultRepairConfig(record.id);
+        const { data } = await getFaultRepairConfig(record.id, buildFaultDetailParams(record));
         Object.assign(formModel, normalizeFaultFormData((data as RowData) || record));
       } catch {
         Object.assign(formModel, normalizeFaultFormData(record));
@@ -1091,7 +1118,7 @@ async function removeRow(record: RowData) {
       await deleteRoleTemplate(record.id);
       break;
     case 'region':
-      await deleteRegion(record.id);
+      await deleteRegion(record.id, { targetCompanyId: Number(record?.companyId ?? regionHqId.value) });
       break;
     default:
       return;
@@ -1161,7 +1188,9 @@ async function onFullSyncBarcode() {
 async function openBarcodeDetail(record: RowData) {
   const id = record.id;
   if (id == null) return;
-  const { data } = await getMachineBarcode(id);
+  const ownerHqId = Number(record.hqCompanyId ?? barcodeQuery.ownerHqId);
+  const params = Number.isFinite(ownerHqId) ? { ownerHqId } : undefined;
+  const { data } = await getMachineBarcode(id, params);
   barcodeDetail.value = (data as RowData) || record;
   barcodeDetailOpen.value = true;
 }
@@ -1632,6 +1661,16 @@ function syncLogStatusTagColor(status: unknown) {
 }
 
 /**
+ * 作用：同步日志触发人展示，定时任务统一展示系统任务身份。
+ * @param record - 日志行
+ * @returns 展示文案
+ */
+function syncLogTriggerUserLabel(record: RowData) {
+  if (record.triggerType === 'SCHEDULED' || Number(record.triggerUserId) === 0) return '系统任务';
+  return record.triggerUserId || '-';
+}
+
+/**
  * 作用：打开角色模板菜单分配抽屉并加载菜单树。
  * @param record - 模板行
  * @returns 无
@@ -1691,8 +1730,10 @@ function openRegionForm(record?: RowData) {
   Object.keys(regionForm).forEach(k => delete regionForm[k]);
   if (record) {
     Object.assign(regionForm, JSON.parse(JSON.stringify(record)));
+    regionForm.targetCompanyId = Number(record.companyId ?? regionHqId.value);
+    delete regionForm.companyId;
   } else {
-    regionForm.companyId = regionHqId.value;
+    regionForm.targetCompanyId = regionHqId.value;
   }
   regionFormOpen.value = true;
 }
@@ -1718,7 +1759,7 @@ async function submitRegionForm() {
 async function openFaultDetail(record: RowData) {
   const id = record.id;
   if (id == null) return;
-  const { data } = await getFaultRepairConfig(id);
+  const { data } = await getFaultRepairConfig(id, buildFaultDetailParams(record));
   faultDetail.value = normalizeFaultFormData((data as RowData) || record);
   faultDetailOpen.value = true;
 }
@@ -1932,6 +1973,23 @@ onMounted(() => {
           <div class="page-search-toolbar">
             <div class="page-search-toolbar__filters">
               <ARow :gutter="[16, 16]" wrap>
+                <ACol :span="24" :md="12" :lg="6">
+                  <AFormItem label="归属总部" class="m-0">
+                    <ASelect
+                      v-model:value="barcodeQuery.ownerHqId"
+                      show-search
+                      option-filter-prop="label"
+                      placeholder="请选择总部"
+                      class="w-full"
+                      :options="
+                        barcodeHqOptions.map((c: RowData) => ({
+                          label: c.companyName ?? c.label,
+                          value: c.id ?? c.value
+                        }))
+                      "
+                    />
+                  </AFormItem>
+                </ACol>
                 <ACol :span="24" :md="12" :lg="6">
                   <AFormItem label="条码" class="m-0">
                     <AInput v-model:value="barcodeQuery.barcode" allow-clear placeholder="请输入条码" />
@@ -2868,6 +2926,8 @@ onMounted(() => {
       <ATable
         :columns="[
           { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
+          { title: '触发类型', dataIndex: 'triggerType', key: 'triggerType', width: 110 },
+          { title: '触发人', dataIndex: 'triggerUserId', key: 'triggerUserId', width: 110 },
           { title: '开始时间', dataIndex: 'startTime', key: 'startTime', width: 170 },
           { title: '结束时间', dataIndex: 'endTime', key: 'endTime', width: 170 },
           { title: '数据开始时间', dataIndex: 'dataStartTime', key: 'dataStartTime', width: 170 },
@@ -2890,6 +2950,12 @@ onMounted(() => {
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
             <ATag :color="syncLogStatusTagColor(record.status)">{{ record.status || '-' }}</ATag>
+          </template>
+          <template v-else-if="column.key === 'triggerType'">
+            <ATag :color="record.triggerType === 'MANUAL' ? 'warning' : 'blue'">{{ record.triggerType || '-' }}</ATag>
+          </template>
+          <template v-else-if="column.key === 'triggerUserId'">
+            {{ syncLogTriggerUserLabel(record) }}
           </template>
         </template>
       </ATable>

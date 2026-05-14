@@ -1,6 +1,5 @@
 package com.jasic.aftersales.system.mapper;
 
-import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.jasic.aftersales.system.domain.entity.WorkOrderUserParticipant;
 import org.apache.ibatis.annotations.Mapper;
@@ -12,7 +11,6 @@ import org.apache.ibatis.annotations.Mapper;
  * @date 2026/04/14
  */
 @Mapper
-@InterceptorIgnore(tenantLine = "true")
 public interface WorkOrderUserParticipantMapper extends BaseMapper<WorkOrderUserParticipant> {
 
 }

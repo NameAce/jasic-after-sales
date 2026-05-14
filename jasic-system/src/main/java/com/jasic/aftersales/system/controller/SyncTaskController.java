@@ -43,6 +43,12 @@ public class SyncTaskController extends BaseController {
     @Resource
     private ISyncTaskService syncTaskService;
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @ApiOperation(value = "分页查询同步任务")
     @SaCheckPermission("system:syncTask:list")
     @GetMapping("/list")
@@ -50,6 +56,12 @@ public class SyncTaskController extends BaseController {
         return Result.ok(syncTaskService.listPage(query));
     }
 
+    /**
+     * ??By Id?
+     *
+     * @param id ??ID
+     * @return ??????
+     */
     @ApiOperation(value = "查询同步任务详情")
     @SaCheckPermission("system:syncTask:list")
     @GetMapping("/{id}")
@@ -57,6 +69,11 @@ public class SyncTaskController extends BaseController {
         return Result.ok(syncTaskService.getById(id));
     }
 
+    /**
+     * ???????
+     *
+     * @return ????
+     */
     @ApiOperation(value = "查询同步任务处理器选项")
     @SaCheckPermission("system:syncTask:list")
     @GetMapping("/handler-options")
@@ -64,6 +81,12 @@ public class SyncTaskController extends BaseController {
         return Result.ok(syncTaskService.listHandlerOptions());
     }
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @ApiOperation(value = "分页查询同步任务执行日志")
     @SaCheckPermission("system:syncTask:log")
     @GetMapping("/log/list")
@@ -71,6 +94,12 @@ public class SyncTaskController extends BaseController {
         return Result.ok(syncTaskService.listLogPage(query));
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     * @return ??????
+     */
     @ApiOperation(value = "新增同步任务")
     @SaCheckPermission("system:syncTask:add")
     @OperLog(title = "同步任务管理", operType = OperTypeEnum.INSERT)
@@ -79,6 +108,12 @@ public class SyncTaskController extends BaseController {
         return Result.ok(syncTaskService.save(dto));
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     * @return ??????
+     */
     @ApiOperation(value = "修改同步任务")
     @SaCheckPermission("system:syncTask:update")
     @OperLog(title = "同步任务管理", operType = OperTypeEnum.UPDATE)
@@ -88,6 +123,12 @@ public class SyncTaskController extends BaseController {
         return Result.ok();
     }
 
+    /**
+     * ?????
+     *
+     * @param id ??ID
+     * @return ??????
+     */
     @ApiOperation(value = "立即执行同步任务")
     @SaCheckPermission("system:syncTask:execute")
     @OperLog(title = "同步任务管理", operType = OperTypeEnum.OTHER)

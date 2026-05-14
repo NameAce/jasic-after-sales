@@ -58,6 +58,12 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
     @Resource(name = "jdbcTemplate")
     private JdbcTemplate jdbcTemplate;
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @Resource(name = "crmJdbcTemplate")
     private JdbcTemplate crmJdbcTemplate;
 
@@ -85,10 +91,17 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
         }
         wrapper.orderByAsc(CrmBizCompanySnapshot::getSapCompanyCode)
                 .orderByAsc(CrmBizCompanySnapshot::getCustId);
+        // ??????????????????????????
         Page<CrmBizCompanySnapshot> result = crmBizCompanySnapshotMapper.selectPage(page, wrapper);
         return PageResult.of(buildSnapshotVOList(result.getRecords()), result.getTotal(), query.getPageNum(), query.getPageSize());
     }
 
+    /**
+     * ??Import Preview?
+     *
+     * @param custId cust ID
+     * @return ????
+     */
     @Override
     public CrmBizCompanyImportPreviewVO getImportPreview(Long custId) {
         if (custId == null) {
@@ -96,6 +109,7 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
         }
         LambdaQueryWrapper<CrmBizCompanySnapshot> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CrmBizCompanySnapshot::getCustId, custId).last("LIMIT 1");
+        // ??????????????????????????
         CrmBizCompanySnapshot snapshot = crmBizCompanySnapshotMapper.selectOne(wrapper);
         if (snapshot == null) {
             throw new ServiceException("CRM公司快照不存在，请先执行同步任务");
@@ -105,8 +119,14 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
         return buildImportPreview(snapshot, existingCompany);
     }
 
+    /**
+     * ??Earliest Change Time?
+     *
+     * @return ????
+     */
     @Override
     public LocalDateTime getEarliestChangeTime() {
+        // ?????????????????????????????
         JdbcTemplate crm = requireCrmJdbcTemplate();
         String sql = "SELECT MIN(t.change_time) FROM ("
                 + "SELECT b.add_date AS change_time FROM " + CRM_BIZ_COMPANY_TABLE + " b "
@@ -119,11 +139,19 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
         return timestamp == null ? null : timestamp.toLocalDateTime();
     }
 
+    /**
+     * ???????
+     *
+     * @param startInclusive ???????
+     * @param endExclusive ????????
+     * @return ????
+     */
     @Override
     public CrmBizCompanySyncSummaryVO syncByTimeRange(LocalDateTime startInclusive, LocalDateTime endExclusive) {
         if (startInclusive == null || endExclusive == null || !startInclusive.isBefore(endExclusive)) {
             throw new ServiceException("CRM公司同步时间范围不合法");
         }
+        // ?????????????????????????????
         JdbcTemplate crm = requireCrmJdbcTemplate();
         String sql = "SELECT b.cust_id, b.cust_name, u.contact_name AS juristic_cust_id, "
                 + "u.cellphone AS group_contact_phone, u.cellphone AS cellphone, "
@@ -182,6 +210,13 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
         return summary;
     }
 
+    /**
+     * ?? flushBatch ?????
+     *
+     * @param rows ??
+     * @param syncTime ??
+     * @param counter ??
+     */
     private void flushBatch(List<CrmBizCompanySnapshot> rows, LocalDateTime syncTime, SyncCounter counter) {
         List<Long> custIds = rows.stream()
                 .map(CrmBizCompanySnapshot::getCustId)
@@ -192,6 +227,7 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
         if (CollUtil.isNotEmpty(custIds)) {
             LambdaQueryWrapper<CrmBizCompanySnapshot> wrapper = new LambdaQueryWrapper<>();
             wrapper.in(CrmBizCompanySnapshot::getCustId, custIds);
+            // ??????????????????????????
             existingCustIds = crmBizCompanySnapshotMapper.selectList(wrapper).stream()
                     .map(CrmBizCompanySnapshot::getCustId)
                     .collect(Collectors.toCollection(LinkedHashSet::new));
@@ -220,6 +256,12 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
                 + "last_sync_time = VALUES(last_sync_time), "
                 + "update_time = NOW()";
         jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+            /**
+             * ??Values?
+             *
+             * @param ps ??
+             * @param i ??
+             */
             @Override
             public void setValues(PreparedStatement ps, int i) throws SQLException {
                 CrmBizCompanySnapshot row = rows.get(i);
@@ -241,6 +283,11 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
                 ps.setTimestamp(16, toTimestamp(syncTime));
             }
 
+            /**
+             * ??Batch Size?
+             *
+             * @return ????
+             */
             @Override
             public int getBatchSize() {
                 return rows.size();
@@ -256,6 +303,12 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param records ??
+     * @return ????
+     */
     private List<CrmBizCompanySnapshotVO> buildSnapshotVOList(List<CrmBizCompanySnapshot> records) {
         if (CollUtil.isEmpty(records)) {
             return Collections.emptyList();
@@ -269,6 +322,7 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
         if (CollUtil.isNotEmpty(companyCodes)) {
             LambdaQueryWrapper<SysCompany> wrapper = new LambdaQueryWrapper<>();
             wrapper.in(SysCompany::getCompanyCode, companyCodes);
+            // ??????????????????????????
             existingCompanyMap = sysCompanyMapper.selectList(wrapper).stream()
                     .collect(Collectors.toMap(SysCompany::getCompanyCode, item -> item, (a, b) -> a));
         }
@@ -308,6 +362,13 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
         return result;
     }
 
+    /**
+     * ???????
+     *
+     * @param snapshot ??
+     * @param existingCompany ??
+     * @return ????
+     */
     private CrmBizCompanyImportPreviewVO buildImportPreview(CrmBizCompanySnapshot snapshot, SysCompany existingCompany) {
         CrmBizCompanyImportPreviewVO vo = new CrmBizCompanyImportPreviewVO();
         ISysAreaService.AreaMatchResult areaMatchResult = sysAreaService.matchRegion(
@@ -345,6 +406,12 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
         return vo;
     }
 
+    /**
+     * ???????
+     *
+     * @param vo ??
+     * @param areaMatchResult ??
+     */
     private void fillMatchedArea(CrmBizCompanyImportPreviewVO vo, ISysAreaService.AreaMatchResult areaMatchResult) {
         if (areaMatchResult == null) {
             return;
@@ -366,6 +433,13 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param snapshot ??
+     * @param existingCompany ??
+     * @return ?????
+     */
     private String resolveImportDisabledReason(CrmBizCompanySnapshot snapshot, SysCompany existingCompany) {
         if (existingCompany != null) {
             return "本地公司已存在";
@@ -379,6 +453,12 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
         return null;
     }
 
+    /**
+     * ???????
+     *
+     * @param custRage ??
+     * @return ?????
+     */
     private String resolveTypeCode(Integer custRage) {
         if (Objects.equals(custRage, 0)) {
             return TYPE_CODE_SITE_FIRST;
@@ -389,15 +469,27 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
         return null;
     }
 
+    /**
+     * ?? findExistingCompanyByCode ?????
+     *
+     * @param companyCode ??
+     * @return ????
+     */
     private SysCompany findExistingCompanyByCode(String companyCode) {
         if (StrUtil.isBlank(companyCode)) {
             return null;
         }
         LambdaQueryWrapper<SysCompany> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysCompany::getCompanyCode, companyCode).last("LIMIT 1");
+        // ??????????????????????????
         return sysCompanyMapper.selectOne(wrapper);
     }
 
+    /**
+     * ??????????
+     *
+     * @return ????
+     */
     private JdbcTemplate requireCrmJdbcTemplate() {
         if (crmJdbcTemplate == null) {
             throw new ServiceException("当前未配置CRM数据源，请先完善 jasic.crm.datasource");
@@ -405,18 +497,42 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
         return crmJdbcTemplate;
     }
 
+    /**
+     * ???????
+     *
+     * @param snapshot ??
+     * @return ?????
+     */
     private String resolveContactPhone(CrmBizCompanySnapshot snapshot) {
         return StrUtil.blankToDefault(StrUtil.trim(snapshot.getGroupContactPhone()), StrUtil.trim(snapshot.getCellphone()));
     }
 
+    /**
+     * ???????
+     *
+     * @param custState ??
+     * @return ????
+     */
     private Integer resolveLocalStatus(Integer custState) {
         return Objects.equals(custState, 1) ? 1 : 0;
     }
 
+    /**
+     * ???????
+     *
+     * @param companyCode ??
+     * @return ?????
+     */
     private String resolveDefaultAdminUsername(String companyCode) {
         return StrUtil.trimToNull(companyCode);
     }
 
+    /**
+     * ???????
+     *
+     * @param custState ??
+     * @return ?????
+     */
     private String resolveCustStateLabel(Integer custState) {
         if (custState == null) {
             return "未知";
@@ -443,10 +559,23 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
         }
     }
 
+    /**
+     * ?? toTimestamp ?????
+     *
+     * @param value ???
+     * @return ????
+     */
     private Timestamp toTimestamp(LocalDateTime value) {
         return value == null ? null : Timestamp.valueOf(value);
     }
 
+    /**
+     * ?? toLocalDateTime ?????
+     *
+     * @param rs ??
+     * @param column ??
+     * @return ????
+     */
     private static LocalDateTime toLocalDateTime(ResultSet rs, String column) throws SQLException {
         Timestamp value = rs.getTimestamp(column);
         return value == null ? null : value.toLocalDateTime();

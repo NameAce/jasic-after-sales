@@ -6,7 +6,6 @@ import com.jasic.aftersales.common.core.controller.BaseController;
 import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.common.core.domain.Result;
 import com.jasic.aftersales.common.enums.OperTypeEnum;
-import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.dto.WorkOrderAssignDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderCloseDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderProxyCreateDTO;
@@ -68,9 +67,6 @@ public class WorkOrderController extends BaseController {
     @SaCheckPermission("workorder:list")
     @GetMapping("/list")
     public Result<PageResult<WorkOrderListVO>> list(WorkOrderQuery query) {
-        if (query.getCompanyId() == null) {
-            query.setCompanyId(SecurityContext.getCurrentCompanyId());
-        }
         return Result.ok(workOrderService.listPage(query));
     }
 
@@ -84,9 +80,6 @@ public class WorkOrderController extends BaseController {
     @SaCheckPermission("workorder:list")
     @GetMapping("/status-count")
     public Result<List<WorkOrderStatusCountVO>> statusCount(WorkOrderQuery query) {
-        if (query.getCompanyId() == null) {
-            query.setCompanyId(SecurityContext.getCurrentCompanyId());
-        }
         return Result.ok(workOrderService.countByStatus(query));
     }
 

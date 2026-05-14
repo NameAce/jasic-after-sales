@@ -32,10 +32,18 @@ public class AliyunOssObjectStorageService implements ObjectStorageService {
 
     private final Object lock = new Object();
 
+    /**
+     * ?????
+     *
+     * @param file ????
+     * @param objectKey ????Key
+     * @return ????
+     */
     private volatile OSS ossClient;
 
     @Override
     public ObjectStorageUploadResult upload(MultipartFile file, String objectKey) {
+        // ?????????????????????????????
         validateConfig();
         if (file == null || file.isEmpty()) {
             throw new ServiceException("上传文件不能为空");
@@ -57,8 +65,14 @@ public class AliyunOssObjectStorageService implements ObjectStorageService {
         return result;
     }
 
+    /**
+     * ?????
+     *
+     * @param objectKey ????Key
+     */
     @Override
     public void delete(String objectKey) {
+        // ?????????????????????????????
         validateConfig();
         String normalizedObjectKey = normalizeObjectKey(objectKey);
         try {
@@ -68,8 +82,16 @@ public class AliyunOssObjectStorageService implements ObjectStorageService {
         }
     }
 
+    /**
+     * ?? generatePresignedPreviewUrl ?????
+     *
+     * @param objectKey ????Key
+     * @param expireSeconds ??
+     * @return ?????
+     */
     @Override
     public String generatePresignedPreviewUrl(String objectKey, long expireSeconds) {
+        // ?????????????????????????????
         validateConfig();
         String normalizedObjectKey = normalizeObjectKey(objectKey);
         long normalizedExpireSeconds = expireSeconds > 0 ? expireSeconds : defaultPreviewExpireSeconds();
@@ -92,6 +114,12 @@ public class AliyunOssObjectStorageService implements ObjectStorageService {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param file ????
+     * @return ?????
+     */
     @Override
     public String calculateSha256(MultipartFile file) {
         if (file == null || file.isEmpty()) {
@@ -104,12 +132,20 @@ public class AliyunOssObjectStorageService implements ObjectStorageService {
         }
     }
 
+    /**
+     * ??Bucket?
+     *
+     * @return ?????
+     */
     @Override
     public String getBucket() {
         validateConfig();
         return ossProperties.getBucket().trim();
     }
 
+    /**
+     * ?? shutdown ?????
+     */
     @PreDestroy
     public void shutdown() {
         if (ossClient != null) {

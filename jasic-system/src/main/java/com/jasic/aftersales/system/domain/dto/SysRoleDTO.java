@@ -3,7 +3,6 @@ package com.jasic.aftersales.system.domain.dto;
 import lombok.Data;
 
 import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.util.List;
 import io.swagger.annotations.ApiModel;
@@ -24,6 +23,10 @@ public class SysRoleDTO implements Serializable {
     /** 角色ID（修改时必传） */
     @ApiModelProperty(value = "角色ID（修改时必传）")
     private Long id;
+
+    /** 目标公司ID */
+    @ApiModelProperty(value = "目标公司ID")
+    private Long targetCompanyId;
 
     /** 角色名称 */
     @ApiModelProperty(value = "角色名称", required = true)

@@ -15,6 +15,13 @@ public enum NotifyRouteTypeEnum {
     WORK_ORDER_DETAIL(NotifyConstants.ROUTE_TYPE_WORK_ORDER_DETAIL, "Work order detail"),
     WORK_ORDER_EVALUATE(NotifyConstants.ROUTE_TYPE_WORK_ORDER_EVALUATE, "Work order evaluate");
 
+    /**
+     * ?? NotifyRouteTypeEnum ?????
+     *
+     * @param code ??
+     * @param desc ??
+     * @return ????
+     */
     private final String code;
 
     private final String desc;
@@ -24,6 +31,12 @@ public enum NotifyRouteTypeEnum {
         this.desc = desc;
     }
 
+    /**
+     * ??By Code?
+     *
+     * @param code ??
+     * @return ????
+     */
     public static NotifyRouteTypeEnum getByCode(String code) {
         if (code == null) {
             return null;
@@ -40,6 +53,12 @@ public enum NotifyRouteTypeEnum {
         return null;
     }
 
+    /**
+     * ?? fromCode ?????
+     *
+     * @param code ??
+     * @return ????
+     */
     @JsonCreator
     public static NotifyRouteTypeEnum fromCode(String code) {
         NotifyRouteTypeEnum value = getByCode(code);
@@ -49,11 +68,21 @@ public enum NotifyRouteTypeEnum {
         return value;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @JsonValue
     public String getCode() {
         return code;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     public String getDesc() {
         return desc;
     }

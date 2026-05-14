@@ -28,6 +28,16 @@ public enum NotifyTemplateCodeEnum {
             NotifyConstants.MESSAGE_TYPE_EXTERNAL_NOTIFY
     );
 
+    /**
+     * ?? NotifyTemplateCodeEnum ?????
+     *
+     * @param code ??
+     * @param desc ??
+     * @param eventType ??
+     * @param bizType ????
+     * @param messageType ??
+     * @return ????
+     */
     private final String code;
 
     private final String desc;
@@ -46,6 +56,12 @@ public enum NotifyTemplateCodeEnum {
         this.messageType = messageType;
     }
 
+    /**
+     * ??By Code?
+     *
+     * @param code ??
+     * @return ????
+     */
     public static NotifyTemplateCodeEnum getByCode(String code) {
         if (code == null) {
             return null;
@@ -62,6 +78,12 @@ public enum NotifyTemplateCodeEnum {
         return null;
     }
 
+    /**
+     * ??By Event Type?
+     *
+     * @param eventType ??
+     * @return ????
+     */
     public static NotifyTemplateCodeEnum getByEventType(String eventType) {
         if (eventType == null) {
             return null;
@@ -78,6 +100,12 @@ public enum NotifyTemplateCodeEnum {
         return null;
     }
 
+    /**
+     * ?? fromCode ?????
+     *
+     * @param code ??
+     * @return ????
+     */
     @JsonCreator
     public static NotifyTemplateCodeEnum fromCode(String code) {
         NotifyTemplateCodeEnum value = getByCode(code);
@@ -87,23 +115,48 @@ public enum NotifyTemplateCodeEnum {
         return value;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @JsonValue
     public String getCode() {
         return code;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     public String getDesc() {
         return desc;
     }
 
+    /**
+     * ??Event Type?
+     *
+     * @return ?????
+     */
     public String getEventType() {
         return eventType;
     }
 
+    /**
+     * ??Biz Type?
+     *
+     * @return ?????
+     */
     public String getBizType() {
         return bizType;
     }
 
+    /**
+     * ??Message Type?
+     *
+     * @return ?????
+     */
     public String getMessageType() {
         return messageType;
     }

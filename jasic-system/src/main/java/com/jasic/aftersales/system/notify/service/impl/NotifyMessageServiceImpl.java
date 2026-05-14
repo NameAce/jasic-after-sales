@@ -8,6 +8,9 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.framework.security.SecurityContext;
+import com.jasic.aftersales.system.domain.entity.WorkOrder;
+import com.jasic.aftersales.system.mapper.WorkOrderMapper;
+import com.jasic.aftersales.system.service.WorkOrderPermissionService;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyReadByBizDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoCompleteDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoInvalidateDTO;
@@ -42,11 +45,23 @@ import java.util.stream.Collectors;
 @Service
 public class NotifyMessageServiceImpl implements NotifyMessageService {
 
+    /**
+     * ?????
+     *
+     * @param notifyMessage ??
+     * @return ????
+     */
     @Resource
     private SysNotifyMessageMapper sysNotifyMessageMapper;
 
     @Resource
     private NotifyMessageLogService notifyMessageLogService;
+
+    @Resource
+    private WorkOrderMapper workOrderMapper;
+
+    @Resource
+    private WorkOrderPermissionService workOrderPermissionService;
 
     @Override
     public Long createMessage(SysNotifyMessage notifyMessage) {
@@ -54,16 +69,29 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         return notifyMessage.getId();
     }
 
+    /**
+     * ??By Id?
+     *
+     * @param id ??ID
+     * @return ????
+     */
     @Override
     public SysNotifyMessage getById(Long id) {
         return sysNotifyMessageMapper.selectById(id);
     }
 
+    /**
+     * ??By Event Id?
+     *
+     * @param eventId event ID
+     * @return ????
+     */
     @Override
     public SysNotifyMessage getByEventId(Long eventId) {
         if (eventId == null) {
             return null;
         }
+        // ????????????????????????
         LambdaQueryWrapper<SysNotifyMessage> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysNotifyMessage::getEventId, eventId)
                 .orderByAsc(SysNotifyMessage::getId)
@@ -71,15 +99,27 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         return sysNotifyMessageMapper.selectOne(wrapper);
     }
 
+    /**
+     * ???????
+     *
+     * @param bizType ????
+     * @param bizId ??ID
+     * @param receiverId receiver ID
+     * @param receiverCompanyId receiver Company ID
+     * @return ????
+     */
     @Override
-    public List<SysNotifyMessage> listActiveTodoByBizAndReceiver(String bizType, Long bizId, Long receiverId) {
-        if (StrUtil.isBlank(bizType) || bizId == null || receiverId == null) {
+    public List<SysNotifyMessage> listActiveTodoByBizAndReceiver(String bizType, Long bizId, Long receiverId,
+                                                                 Long receiverCompanyId) {
+        if (StrUtil.isBlank(bizType) || bizId == null || receiverId == null || isInvalidId(receiverCompanyId)) {
             return Collections.emptyList();
         }
+        // ????????????????????????
         LambdaQueryWrapper<SysNotifyMessage> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysNotifyMessage::getBizType, bizType)
                 .eq(SysNotifyMessage::getBizId, bizId)
                 .eq(SysNotifyMessage::getReceiverId, receiverId)
+                .eq(SysNotifyMessage::getReceiverCompanyId, receiverCompanyId)
                 .in(SysNotifyMessage::getTodoStatus,
                         NotifyTodoStatusEnum.PENDING.getCode(),
                         NotifyTodoStatusEnum.READ.getCode())
@@ -87,11 +127,20 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         return sysNotifyMessageMapper.selectList(wrapper);
     }
 
+    /**
+     * ?? invalidateMessage ?????
+     *
+     * @param messageId message ID
+     * @param invalidReason ??
+     * @param invalidTime ??
+     * @return true ??????
+     */
     @Override
     public boolean invalidateMessage(Long messageId, String invalidReason, LocalDateTime invalidTime) {
         if (messageId == null) {
             return false;
         }
+        // ????????????????????????
         LambdaUpdateWrapper<SysNotifyMessage> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(SysNotifyMessage::getId, messageId)
                 .in(SysNotifyMessage::getTodoStatus,
@@ -103,19 +152,33 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         return sysNotifyMessageMapper.update(null, wrapper) > 0;
     }
 
+    /**
+     * ?? markRead ?????
+     *
+     * @param id ??ID
+     * @param receiverId receiver ID
+     * @param receiverCompanyId receiver Company ID
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void markRead(Long id, Long receiverId) {
+    public void markRead(Long id, Long receiverId, Long receiverCompanyId) {
         if (id == null) {
             throw new ServiceException("消息 ID 不能为空");
         }
         if (receiverId == null) {
             throw new ServiceException("当前登录用户不能为空");
         }
+        // ????????????????????????
         SysNotifyMessage message = getById(id);
-        if (message == null || !receiverId.equals(message.getReceiverId())) {
+        if (isInvalidId(receiverCompanyId)) {
+            throw new ServiceException("缺少公司数据访问上下文");
+        }
+        if (message == null || !receiverId.equals(message.getReceiverId())
+                || !receiverCompanyId.equals(message.getReceiverCompanyId())) {
             throw new ServiceException("消息不存在");
         }
+        // ?????????????????????????????
+        requireBizPermission(message.getBizType(), message.getBizId());
         if (!NotifyTodoStatusEnum.PENDING.getCode().equals(message.getTodoStatus())) {
             return;
         }
@@ -133,11 +196,24 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         ));
     }
 
+    /**
+     * ?? markReadByBiz ?????
+     *
+     * @param dto ????
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void markReadByBiz(NotifyReadByBizDTO dto) {
+        // ?????????????????????????????
         validateReadByBizDTO(dto);
-        List<SysNotifyMessage> messages = listPendingTodoByBizAndReceiver(dto.getBizType(), dto.getBizId(), dto.getReceiverId());
+        requireBizPermission(dto.getBizType(), dto.getBizId());
+        // ????????????????????????
+        List<SysNotifyMessage> messages = listPendingTodoByBizAndReceiver(
+                dto.getBizType(),
+                dto.getBizId(),
+                dto.getReceiverId(),
+                dto.getReceiverCompanyId()
+        );
         if (messages.isEmpty()) {
             return;
         }
@@ -157,11 +233,24 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         }
     }
 
+    /**
+     * ?? completeTodoByBizAndReceiver ?????
+     *
+     * @param dto ????
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void completeTodoByBizAndReceiver(NotifyTodoCompleteDTO dto) {
+        // ?????????????????????????????
         validateCompleteDTO(dto);
-        List<SysNotifyMessage> messages = listActiveTodoByBizAndReceiver(dto.getBizType(), dto.getBizId(), dto.getReceiverId());
+        requireBizPermission(dto.getBizType(), dto.getBizId());
+        // ????????????????????????
+        List<SysNotifyMessage> messages = listActiveTodoByBizAndReceiver(
+                dto.getBizType(),
+                dto.getBizId(),
+                dto.getReceiverId(),
+                dto.getReceiverCompanyId()
+        );
         if (messages.isEmpty()) {
             return;
         }
@@ -181,10 +270,18 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         }
     }
 
+    /**
+     * ?? invalidateTodoByBiz ?????
+     *
+     * @param dto ????
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void invalidateTodoByBiz(NotifyTodoInvalidateDTO dto) {
+        // ?????????????????????????????
         validateInvalidateDTO(dto);
+        requireBizPermission(dto.getBizType(), dto.getBizId());
+        // ????????????????????????
         List<SysNotifyMessage> messages = listActiveTodoByBiz(dto.getBizType(), dto.getBizId());
         if (messages.isEmpty()) {
             return;
@@ -207,6 +304,12 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @Override
     public PageResult<NotifyMessagePageVO> listPage(NotifyMessageQuery query) {
         if (query == null) {
@@ -215,10 +318,15 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         if (query.getReceiverId() == null) {
             throw new ServiceException("当前登录用户不能为空");
         }
+        if (isInvalidId(query.getReceiverCompanyId())) {
+            throw new ServiceException("缺少公司数据访问上下文");
+        }
         List<String> todoStatuses = resolveBoxStatuses(query.getBox());
+        // ????????????????????????
         Page<SysNotifyMessage> page = new Page<>(query.getPageNum(), query.getPageSize());
         LambdaQueryWrapper<SysNotifyMessage> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysNotifyMessage::getReceiverId, query.getReceiverId())
+                .eq(SysNotifyMessage::getReceiverCompanyId, query.getReceiverCompanyId())
                 .in(SysNotifyMessage::getTodoStatus, todoStatuses)
                 .orderByDesc(SysNotifyMessage::getCreateTime)
                 .orderByDesc(SysNotifyMessage::getId);
@@ -235,13 +343,25 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         return PageResult.of(rows, result.getTotal(), query.getPageNum(), query.getPageSize());
     }
 
+    /**
+     * ???????
+     *
+     * @param receiverId receiver ID
+     * @param receiverCompanyId receiver Company ID
+     * @return ????
+     */
     @Override
-    public Long countTodo(Long receiverId) {
+    public Long countTodo(Long receiverId, Long receiverCompanyId) {
         if (receiverId == null) {
             throw new ServiceException("当前登录用户不能为空");
         }
+        if (isInvalidId(receiverCompanyId)) {
+            throw new ServiceException("缺少公司数据访问上下文");
+        }
+        // ????????????????????????
         LambdaQueryWrapper<SysNotifyMessage> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysNotifyMessage::getReceiverId, receiverId)
+                .eq(SysNotifyMessage::getReceiverCompanyId, receiverCompanyId)
                 .in(SysNotifyMessage::getTodoStatus,
                         NotifyTodoStatusEnum.PENDING.getCode(),
                         NotifyTodoStatusEnum.READ.getCode());
@@ -249,23 +369,43 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         return count == null ? 0L : count;
     }
 
-    private List<SysNotifyMessage> listPendingTodoByBizAndReceiver(String bizType, Long bizId, Long receiverId) {
-        if (StrUtil.isBlank(bizType) || bizId == null || receiverId == null) {
+    /**
+     * ???????
+     *
+     * @param bizType ????
+     * @param bizId ??ID
+     * @param receiverId receiver ID
+     * @param receiverCompanyId receiver Company ID
+     * @return ????
+     */
+    private List<SysNotifyMessage> listPendingTodoByBizAndReceiver(String bizType, Long bizId,
+                                                                   Long receiverId, Long receiverCompanyId) {
+        if (StrUtil.isBlank(bizType) || bizId == null || receiverId == null || isInvalidId(receiverCompanyId)) {
             return Collections.emptyList();
         }
+        // ????????????????????????
         LambdaQueryWrapper<SysNotifyMessage> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysNotifyMessage::getBizType, bizType)
                 .eq(SysNotifyMessage::getBizId, bizId)
                 .eq(SysNotifyMessage::getReceiverId, receiverId)
+                .eq(SysNotifyMessage::getReceiverCompanyId, receiverCompanyId)
                 .eq(SysNotifyMessage::getTodoStatus, NotifyTodoStatusEnum.PENDING.getCode())
                 .orderByAsc(SysNotifyMessage::getId);
         return sysNotifyMessageMapper.selectList(wrapper);
     }
 
+    /**
+     * ???????
+     *
+     * @param bizType ????
+     * @param bizId ??ID
+     * @return ????
+     */
     private List<SysNotifyMessage> listActiveTodoByBiz(String bizType, Long bizId) {
         if (StrUtil.isBlank(bizType) || bizId == null) {
             return Collections.emptyList();
         }
+        // ????????????????????????
         LambdaQueryWrapper<SysNotifyMessage> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysNotifyMessage::getBizType, bizType)
                 .eq(SysNotifyMessage::getBizId, bizId)
@@ -276,10 +416,18 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         return sysNotifyMessageMapper.selectList(wrapper);
     }
 
+    /**
+     * ?? markReadMessage ?????
+     *
+     * @param messageId message ID
+     * @param readTime ??
+     * @return true ??????
+     */
     private boolean markReadMessage(Long messageId, LocalDateTime readTime) {
         if (messageId == null) {
             return false;
         }
+        // ????????????????????????
         LambdaUpdateWrapper<SysNotifyMessage> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(SysNotifyMessage::getId, messageId)
                 .eq(SysNotifyMessage::getTodoStatus, NotifyTodoStatusEnum.PENDING.getCode())
@@ -288,10 +436,18 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         return sysNotifyMessageMapper.update(null, wrapper) > 0;
     }
 
+    /**
+     * ?? completeMessage ?????
+     *
+     * @param messageId message ID
+     * @param doneTime ??
+     * @return true ??????
+     */
     private boolean completeMessage(Long messageId, LocalDateTime doneTime) {
         if (messageId == null) {
             return false;
         }
+        // ????????????????????????
         LambdaUpdateWrapper<SysNotifyMessage> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(SysNotifyMessage::getId, messageId)
                 .in(SysNotifyMessage::getTodoStatus,
@@ -302,7 +458,14 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         return sysNotifyMessageMapper.update(null, wrapper) > 0;
     }
 
+    /**
+     * ???????
+     *
+     * @param message ??
+     * @return ????
+     */
     private NotifyMessagePageVO buildPageVO(SysNotifyMessage message) {
+        // ????????????????????????
         NotifyMessagePageVO vo = new NotifyMessagePageVO();
         vo.setId(message.getId());
         vo.setTitle(message.getTitle());
@@ -318,8 +481,15 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         return vo;
     }
 
+    /**
+     * ???????
+     *
+     * @param box ??
+     * @return ????
+     */
     private List<String> resolveBoxStatuses(String box) {
         String normalizedBox = StrUtil.trimToEmpty(box).toUpperCase();
+        // ????????????????????????
         if (NotifyConstants.BOX_TODO.equals(normalizedBox)) {
             return Arrays.asList(
                     NotifyTodoStatusEnum.PENDING.getCode(),
@@ -335,7 +505,17 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         throw new ServiceException("消息盒子仅支持 TODO 或 HISTORY");
     }
 
+    /**
+     * ???????
+     *
+     * @param message ??
+     * @param actionType ??
+     * @param actionUserId action User ID
+     * @param remark ??
+     * @return ????
+     */
     private SysNotifyMessageLog buildMessageLog(SysNotifyMessage message, String actionType, Long actionUserId, String remark) {
+        // ????????????????????????
         SysNotifyMessageLog logEntity = new SysNotifyMessageLog();
         logEntity.setMessageId(message.getId());
         logEntity.setActionType(actionType);
@@ -345,55 +525,94 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         return logEntity;
     }
 
+    /**
+     * ???????
+     *
+     * @param invalidReason ??
+     * @return ?????
+     */
     private String buildInvalidateRemark(String invalidReason) {
         NotifyInvalidReasonEnum reasonEnum = NotifyInvalidReasonEnum.getByCode(invalidReason);
         return reasonEnum == null ? "业务状态变化，待办失效" : String.format("%s，待办失效", reasonEnum.getDesc());
     }
 
+    /**
+     * ???????
+     *
+     * @param dto ????
+     */
     private void validateReadByBizDTO(NotifyReadByBizDTO dto) {
         if (dto == null) {
             throw new ServiceException("已读参数不能为空");
         }
+        // ?????????????????????????????
         validateBiz(dto.getBizType(), dto.getBizId());
         if (dto.getReceiverId() == null) {
             throw new ServiceException("已读参数缺少接收人");
         }
+        if (isInvalidId(dto.getReceiverCompanyId())) {
+            throw new ServiceException("已读参数缺少接收公司");
+        }
     }
 
+    /**
+     * ???????
+     *
+     * @param dto ????
+     */
     private void validateCompleteDTO(NotifyTodoCompleteDTO dto) {
         if (dto == null) {
             throw new ServiceException("完成参数不能为空");
         }
+        // ?????????????????????????????
         validateBiz(dto.getBizType(), dto.getBizId());
         if (dto.getReceiverId() == null) {
             throw new ServiceException("完成参数缺少接收人");
         }
+        if (isInvalidId(dto.getReceiverCompanyId())) {
+            throw new ServiceException("完成参数缺少接收公司");
+        }
         if (StrUtil.isBlank(dto.getActionCode())) {
             throw new ServiceException("完成参数缺少业务动作编码");
         }
+        // ????????????????????????
         if (NotifyBizTypeEnum.WORK_ORDER.getCode().equals(dto.getBizType())
                 && !NotifyConstants.ACTION_TECH_ACCEPT.equals(dto.getActionCode())) {
             throw new ServiceException("当前阶段工单待办仅允许绑定 TECH_ACCEPT 完成");
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param dto ????
+     */
     private void validateInvalidateDTO(NotifyTodoInvalidateDTO dto) {
         if (dto == null) {
             throw new ServiceException("失效参数不能为空");
         }
+        // ?????????????????????????????
         validateBiz(dto.getBizType(), dto.getBizId());
         if (StrUtil.isBlank(dto.getInvalidReason())) {
             throw new ServiceException("失效参数缺少失效原因");
         }
+        // ????????????????????????
         if (NotifyInvalidReasonEnum.getByCode(dto.getInvalidReason()) == null) {
             throw new ServiceException("不支持的失效原因：" + dto.getInvalidReason());
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param bizType ????
+     * @param bizId ??ID
+     */
     private void validateBiz(String bizType, Long bizId) {
         if (StrUtil.isBlank(bizType)) {
             throw new ServiceException("业务类型不能为空");
         }
+        // ????????????????????????
         if (NotifyBizTypeEnum.getByCode(bizType) == null) {
             throw new ServiceException("不支持的业务类型：" + bizType);
         }
@@ -401,4 +620,35 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
             throw new ServiceException("业务ID不能为空");
         }
     }
+
+    /**
+     * ??????????
+     *
+     * @param bizType ????
+     * @param bizId ??ID
+     */
+    private void requireBizPermission(String bizType, Long bizId) {
+        // ?????????????????????????????
+        validateBiz(bizType, bizId);
+        // ????????????????????????
+        if (!NotifyBizTypeEnum.WORK_ORDER.getCode().equals(bizType)) {
+            throw new ServiceException("不支持的业务类型：" + bizType);
+        }
+        // ??????????????????????????
+        WorkOrder workOrder = workOrderMapper.selectById(bizId);
+        if (workOrder == null || !workOrderPermissionService.canView(workOrder)) {
+            throw new ServiceException("无权查看该工单");
+        }
+    }
+
+    /**
+     * ????Invalid Id?
+     *
+     * @param id ??ID
+     * @return true ??????
+     */
+    private boolean isInvalidId(Long id) {
+        return id == null || id <= 0;
+    }
+
 }

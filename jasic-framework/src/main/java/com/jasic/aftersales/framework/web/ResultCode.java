@@ -13,6 +13,9 @@ package com.jasic.aftersales.framework.web;
  */
 public class ResultCode {
 
+    /**
+     * ?? ResultCode ???
+     */
     private ResultCode() {
     }
 

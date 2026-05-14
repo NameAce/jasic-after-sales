@@ -7,6 +7,7 @@ import cn.dev33.satoken.context.model.SaRequest;
 import cn.dev33.satoken.context.model.SaResponse;
 import cn.dev33.satoken.context.model.SaStorage;
 import cn.dev33.satoken.stp.StpUtil;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
 import com.jasic.aftersales.common.core.domain.PageResult;
@@ -24,8 +25,10 @@ import com.jasic.aftersales.system.domain.dto.WorkOrderReviewDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTechAcceptDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTransferDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderUpdateProductModelDTO;
+import com.jasic.aftersales.system.domain.access.WorkOrderAccessContext;
 import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
 import com.jasic.aftersales.system.domain.entity.HqFirstContract;
+import com.jasic.aftersales.system.domain.entity.MachineBarcode;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
 import com.jasic.aftersales.system.domain.entity.SysCompanyType;
 import com.jasic.aftersales.system.domain.entity.SysUser;
@@ -37,6 +40,7 @@ import com.jasic.aftersales.system.domain.entity.WorkOrderFlow;
 import com.jasic.aftersales.system.domain.entity.WorkOrderQuote;
 import com.jasic.aftersales.system.domain.entity.WorkOrderRepair;
 import com.jasic.aftersales.system.domain.query.WorkOrderQuery;
+import com.jasic.aftersales.system.domain.query.WorkOrderScopedQuery;
 import com.jasic.aftersales.system.domain.vo.WorkOrderCreateBarcodeInfoVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderDetailVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderListVO;
@@ -44,6 +48,7 @@ import com.jasic.aftersales.system.domain.vo.WorkOrderRepairFaultOptionVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderUserOptionVO;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
 import com.jasic.aftersales.system.mapper.HqFirstContractMapper;
+import com.jasic.aftersales.system.mapper.MachineBarcodeMapper;
 import com.jasic.aftersales.system.mapper.SysCompanyMapper;
 import com.jasic.aftersales.system.mapper.SysCompanyTypeMapper;
 import com.jasic.aftersales.system.mapper.SysMenuMapper;
@@ -72,6 +77,8 @@ import com.jasic.aftersales.system.service.WorkOrderPermissionService;
 import com.jasic.aftersales.system.service.WorkOrderUserParticipantService;
 import org.junit.Assert;
 import org.junit.Test;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.apache.ibatis.session.Configuration;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
@@ -124,23 +131,36 @@ public class WorkOrderServiceImplTest {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createPagedWorkOrderMapperProxy(Collections.singletonList(record)));
         setField(service, "workOrderQuoteMapper", createQuoteMapperProxy(Arrays.asList(olderValidQuote, invalidQuote, latestValidQuote)));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
             @Override
-            public void fillQueryScope(WorkOrderQuery query) {
-                query.setCurrentUserId(101L);
-                query.setCompanyId(2002L);
-                query.setSubjectType("BRANCH");
-                query.setDataScope("ALL");
-                query.setRelatedCompanyIds(Collections.emptyList());
+            public WorkOrderScopedQuery buildScopedQuery(WorkOrderQuery query) {
+                WorkOrderScopedQuery scopedQuery = new WorkOrderScopedQuery();
+                scopedQuery.setPageNum(query.getPageNum());
+                scopedQuery.setPageSize(query.getPageSize());
+                scopedQuery.setViewScope(query.getViewScope());
+                scopedQuery.setAccessContext(resolveAccessContext());
+                return scopedQuery;
             }
 
             @Override
-            public List<String> listAvailableActions(WorkOrder workOrder) {
+            public WorkOrderAccessContext resolveAccessContext() {
+                WorkOrderAccessContext context = new WorkOrderAccessContext();
+                context.setCurrentUserId(101L);
+                context.setCurrentCompanyId(2002L);
+                context.setSubjectType("SERVICE");
+                context.setDataScope("ALL");
+                context.setRelatedCompanyIds(Collections.emptyList());
+                return context;
+            }
+
+            @Override
+            public List<String> listAvailableActions(WorkOrder workOrder, WorkOrderAccessContext context) {
                 return Collections.singletonList("ASSIGN");
             }
 
             @Override
-            public String getReadonlyReason(WorkOrder workOrder, List<String> availableActions) {
+            public String getReadonlyReason(WorkOrder workOrder, List<String> availableActions,
+                                            WorkOrderAccessContext context) {
                 return availableActions == null || availableActions.isEmpty() ? "当前待派单，请由负责人员处理" : null;
             }
         });
@@ -180,7 +200,7 @@ public class WorkOrderServiceImplTest {
 
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
             @Override
             public boolean canView(WorkOrder target) {
                 return true;
@@ -209,7 +229,7 @@ public class WorkOrderServiceImplTest {
 
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
             @Override
             public boolean canSaveRepair(WorkOrder target) {
                 return true;
@@ -255,7 +275,7 @@ public class WorkOrderServiceImplTest {
 
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
             @Override
             public boolean canAssign(WorkOrder target) {
                 return true;
@@ -285,7 +305,7 @@ public class WorkOrderServiceImplTest {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         RecordingWorkOrderNotifyFacade notifyFacade = new RecordingWorkOrderNotifyFacade();
         setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, new int[1]));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
             @Override
             public boolean canAssign(WorkOrder target) {
                 return true;
@@ -320,6 +340,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(workOrder.getOrderNo(), notifyFacade.publishedEvents.get(0).getOrderNo());
         Assert.assertNull(notifyFacade.publishedEvents.get(0).getOldAssignedUserId());
         Assert.assertEquals(Long.valueOf(101L), notifyFacade.publishedEvents.get(0).getNewAssignedUserId());
+        Assert.assertEquals(Long.valueOf(2002L), notifyFacade.publishedEvents.get(0).getReceiverCompanyId());
         Assert.assertEquals(Long.valueOf(101L), notifyFacade.publishedEvents.get(0).getOperatorId());
         Assert.assertNotNull(notifyFacade.publishedEvents.get(0).getOperationId());
     }
@@ -336,7 +357,7 @@ public class WorkOrderServiceImplTest {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         RecordingWorkOrderNotifyFacade notifyFacade = new RecordingWorkOrderNotifyFacade();
         setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, new int[1]));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
             @Override
             public boolean canAssign(WorkOrder target) {
                 return true;
@@ -368,6 +389,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(NotifyConstants.ASSIGN_TYPE_TRANSFER, notifyFacade.publishedEvents.get(0).getAssignType());
         Assert.assertEquals(Long.valueOf(100L), notifyFacade.publishedEvents.get(0).getOldAssignedUserId());
         Assert.assertEquals(Long.valueOf(101L), notifyFacade.publishedEvents.get(0).getNewAssignedUserId());
+        Assert.assertEquals(Long.valueOf(2002L), notifyFacade.publishedEvents.get(0).getReceiverCompanyId());
         Assert.assertEquals(Long.valueOf(102L), notifyFacade.publishedEvents.get(0).getOperatorId());
     }
 
@@ -391,7 +413,7 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderFaultPartMapper", createFaultPartMapperProxy(Collections.emptyList()));
         setField(service, "workOrderFlowMapper", createFlowMapperProxy(Collections.emptyList()));
         setField(service, "workOrderEvaluationMapper", createNoopProxy(WorkOrderEvaluationMapper.class, "never"));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
             @Override
             public boolean canView(WorkOrder target) {
                 return true;
@@ -408,6 +430,7 @@ public class WorkOrderServiceImplTest {
         runWithLoginContext(101L, new ThrowingRunnable() {
             @Override
             public void run() throws Exception {
+                com.jasic.aftersales.framework.security.SecurityContext.setCurrentCompanyId(workOrder.getCurrentAcceptCompanyId());
                 service.getById(workOrder.getId());
             }
         });
@@ -416,6 +439,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(NotifyBizTypeEnum.WORK_ORDER.getCode(), notifyFacade.readByBizRequests.get(0).getBizType());
         Assert.assertEquals(workOrder.getId(), notifyFacade.readByBizRequests.get(0).getBizId());
         Assert.assertEquals(Long.valueOf(101L), notifyFacade.readByBizRequests.get(0).getReceiverId());
+        Assert.assertEquals(workOrder.getCurrentAcceptCompanyId(), notifyFacade.readByBizRequests.get(0).getReceiverCompanyId());
     }
 
     @Test
@@ -435,7 +459,7 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, new int[1]));
         setField(service, "workOrderQuoteMapper", createMutableQuoteMapperProxy(quotes, insertedQuotes, new int[1]));
         setField(service, "workOrderFlowMapper", createFlowMapperProxy(insertedFlows));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
             @Override
             public boolean canTechAccept(WorkOrder target) {
                 return true;
@@ -451,6 +475,7 @@ public class WorkOrderServiceImplTest {
         runWithLoginContext(101L, new ThrowingRunnable() {
             @Override
             public void run() throws Exception {
+                com.jasic.aftersales.framework.security.SecurityContext.setCurrentCompanyId(workOrder.getCurrentAcceptCompanyId());
                 service.techAccept(dto);
             }
         });
@@ -470,6 +495,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(NotifyBizTypeEnum.WORK_ORDER.getCode(), notifyFacade.completedTodos.get(0).getBizType());
         Assert.assertEquals(workOrder.getId(), notifyFacade.completedTodos.get(0).getBizId());
         Assert.assertEquals(Long.valueOf(101L), notifyFacade.completedTodos.get(0).getReceiverId());
+        Assert.assertEquals(workOrder.getCurrentAcceptCompanyId(), notifyFacade.completedTodos.get(0).getReceiverCompanyId());
         Assert.assertEquals(NotifyConstants.ACTION_TECH_ACCEPT, notifyFacade.completedTodos.get(0).getActionCode());
     }
 
@@ -490,7 +516,7 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, new int[1]));
         setField(service, "workOrderQuoteMapper", createMutableQuoteMapperProxy(quotes, insertedQuotes, new int[1]));
         setField(service, "workOrderFlowMapper", createFlowMapperProxy(insertedFlows));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
             @Override
             public boolean canTechAccept(WorkOrder target) {
                 return true;
@@ -567,7 +593,7 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, new int[1]));
         setField(service, "workOrderQuoteMapper", createMutableQuoteMapperProxy(quotes, insertedQuotes, new int[1]));
         setField(service, "workOrderFlowMapper", createFlowMapperProxy(insertedFlows));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
             @Override
             public boolean canTechAccept(WorkOrder target) {
                 return true;
@@ -627,7 +653,8 @@ public class WorkOrderServiceImplTest {
         runWithLoginContext(101L, new ThrowingRunnable() {
             @Override
             public void run() {
-                com.jasic.aftersales.framework.security.SecurityContext.setCurrentCompanyId(2002L);
+                com.jasic.aftersales.framework.security.SecurityContext.setCurrentCompanyId(900L);
+                com.jasic.aftersales.framework.security.SecurityContext.setCurrentSubjectType("HQ");
                 holder[0] = service.getProxyCreateBarcodeInfo(null);
             }
         });
@@ -637,6 +664,30 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(Long.valueOf(900L), holder[0].getHqCompanyId());
         Assert.assertEquals("默认总部", holder[0].getHqCompanyName());
         Assert.assertEquals(Collections.emptyList(), holder[0].getFaultOptions());
+    }
+
+    @Test
+    public void shouldReadCreateBarcodeArchiveWithResolvedHqScope() throws Exception {
+        initMachineBarcodeTableInfo();
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        final boolean[] sawHqFilter = {false};
+        MachineBarcode archive = new MachineBarcode();
+        archive.setId(1L);
+        archive.setBarcode("JASIC-001");
+        archive.setHqCompanyId(900L);
+        archive.setStatus(1);
+        setField(service, "machineBarcodeMapper", createMachineBarcodeMapperProxy(archive, sawHqFilter));
+
+        MachineBarcode result = (MachineBarcode) invokePrivateMethod(
+                service,
+                "findCreateBarcodeArchiveInHqScope",
+                new Class<?>[]{String.class, List.class},
+                "JASIC-001",
+                Collections.singletonList(900L)
+        );
+
+        Assert.assertSame(archive, result);
+        Assert.assertTrue("条码档案业务读取必须显式带总部过滤", sawHqFilter[0]);
     }
 
     @Test
@@ -802,7 +853,7 @@ public class WorkOrderServiceImplTest {
 
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, updateCount));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
             @Override
             public boolean canTransfer(WorkOrder target) {
                 return true;
@@ -870,7 +921,7 @@ public class WorkOrderServiceImplTest {
 
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
             @Override
             public boolean canTransfer(WorkOrder target) {
                 return true;
@@ -924,7 +975,7 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderFlowMapper", createNoopProxy(WorkOrderFlowMapper.class, "insert"));
         setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(Collections.emptyList()));
         setField(service, "sysFileService", createNoopProxy(com.jasic.aftersales.system.service.SysFileService.class, "replaceBizFiles"));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
             @Override
             public boolean canSaveRepair(WorkOrder target) {
                 return true;
@@ -980,7 +1031,7 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderFlowMapper", createFlowMapperProxy(insertedFlows));
         setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(Collections.emptyList()));
         setField(service, "sysFileService", createNoopProxy(com.jasic.aftersales.system.service.SysFileService.class, "replaceBizFiles"));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
             @Override
             public boolean canSaveRepair(WorkOrder target) {
                 return true;
@@ -1026,7 +1077,7 @@ public class WorkOrderServiceImplTest {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         RecordingWorkOrderNotifyFacade notifyFacade = new RecordingWorkOrderNotifyFacade();
         setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, updateCount));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
             @Override
             public boolean canSaveRepair(WorkOrder target) {
                 return true;
@@ -1061,7 +1112,7 @@ public class WorkOrderServiceImplTest {
 
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
             @Override
             public boolean canSaveRepair(WorkOrder target) {
                 return true;
@@ -1091,7 +1142,7 @@ public class WorkOrderServiceImplTest {
 
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
             @Override
             public boolean canSaveRepair(WorkOrder target) {
                 return true;
@@ -1121,7 +1172,7 @@ public class WorkOrderServiceImplTest {
 
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
             @Override
             public boolean canReview(WorkOrder target) {
                 return true;
@@ -1151,7 +1202,7 @@ public class WorkOrderServiceImplTest {
 
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
             @Override
             public boolean canSaveRepair(WorkOrder target) {
                 return true;
@@ -1171,6 +1222,94 @@ public class WorkOrderServiceImplTest {
     }
 
     @Test
+    public void shouldLazyBindFaultRepairConfigWhenListingRepairFaultOptions() throws Exception {
+        initWorkOrderTableInfo();
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(22L);
+        workOrder.setBrandType(BrandTypeEnum.JASIC);
+        workOrder.setHqCompanyId(900L);
+        workOrder.setProductCode("P-200");
+        workOrder.setProductModel("M-200");
+
+        int[] updateCount = new int[1];
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, updateCount));
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService());
+        setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(
+                Collections.singletonList(buildRepairFaultOption("主板故障", Collections.singletonList("更换主板"))),
+                Collections.emptyList(),
+                88L
+        ));
+
+        List<WorkOrderRepairFaultOptionVO> options = service.listRepairFaultOptions(workOrder.getId());
+
+        Assert.assertEquals(1, updateCount[0]);
+        Assert.assertEquals(Long.valueOf(88L), workOrder.getFaultRepairConfigId());
+        Assert.assertEquals(1, options.size());
+        Assert.assertEquals("主板故障", options.get(0).getFaultDesc());
+    }
+
+    @Test
+    public void shouldLazyBindFaultRepairConfigBeforeRepairSubmission() throws Exception {
+        initWorkOrderTableInfo();
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(23L);
+        workOrder.setBrandType(BrandTypeEnum.JASIC);
+        workOrder.setHqCompanyId(900L);
+        workOrder.setProductCode("P-200");
+        workOrder.setProductModel("M-200");
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.IN_PROGRESS);
+        workOrder.setCurrentAcceptCompanyId(3L);
+        workOrder.setFaultDesc("客户反馈不开机");
+
+        List<WorkOrderFlow> insertedFlows = new ArrayList<>();
+        int[] updateCount = new int[1];
+        UserParticipantRecorder participantRecorder = new UserParticipantRecorder();
+        RecordingWorkOrderNotifyFacade notifyFacade = new RecordingWorkOrderNotifyFacade();
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, updateCount));
+        setField(service, "workOrderQuoteMapper", createQuoteMapperProxy(Collections.emptyList()));
+        setField(service, "workOrderRepairMapper", createNoopProxy(WorkOrderRepairMapper.class, "insert"));
+        setField(service, "workOrderFaultMapper", createNoopProxy(com.jasic.aftersales.system.mapper.WorkOrderFaultMapper.class, "insert"));
+        setField(service, "workOrderFaultPartMapper", createNoopProxy(WorkOrderFaultPartMapper.class, "insert"));
+        setField(service, "workOrderFlowMapper", createFlowMapperProxy(insertedFlows));
+        setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(
+                Collections.singletonList(buildRepairFaultOption("主板故障", Collections.singletonList("更换主板"))),
+                Collections.emptyList(),
+                88L
+        ));
+        setField(service, "sysFileService", createNoopProxy(com.jasic.aftersales.system.service.SysFileService.class, "replaceBizFiles"));
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            @Override
+            public boolean canSaveRepair(WorkOrder target) {
+                return true;
+            }
+        });
+        setField(service, "workOrderUserParticipantService", participantRecorder);
+        setField(service, "workOrderNotifyFacade", notifyFacade);
+
+        WorkOrderRepairDTO dto = new WorkOrderRepairDTO();
+        dto.setWorkOrderId(workOrder.getId());
+        dto.setFaultItems(Collections.singletonList("主板故障"));
+        dto.setRepairItems(Collections.singletonList("更换主板"));
+        fillRepairSubmission(dto, "更换主板", "主板", 1);
+
+        runWithLoginContext(101L, new ThrowingRunnable() {
+            @Override
+            public void run() throws Exception {
+                service.saveRepair(dto);
+            }
+        });
+
+        Assert.assertEquals(2, updateCount[0]);
+        Assert.assertEquals(Long.valueOf(88L), workOrder.getFaultRepairConfigId());
+        Assert.assertEquals(WorkOrderStatusConstants.MainStatus.COMPLETED, workOrder.getMainStatus());
+        Assert.assertEquals(1, insertedFlows.size());
+        Assert.assertEquals("REPAIR_FINISH", insertedFlows.get(0).getActionType());
+    }
+
+    @Test
     public void shouldRejectRepairQuoteRevisionWithoutCurrentQuote() throws Exception {
         WorkOrder workOrder = new WorkOrder();
         workOrder.setId(7L);
@@ -1181,7 +1320,7 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
         setField(service, "workOrderQuoteMapper", createQuoteMapperProxy(Collections.emptyList()));
         setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(Collections.emptyList()));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
             @Override
             public boolean canSaveRepair(WorkOrder target) {
                 return true;
@@ -1210,7 +1349,7 @@ public class WorkOrderServiceImplTest {
 
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
             @Override
             public boolean canClose(WorkOrder target) {
                 return true;
@@ -1253,7 +1392,7 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderFlowMapper", createNoopProxy(WorkOrderFlowMapper.class, "insert"));
         setField(service, "workOrderCustomerMapper", createWorkOrderCustomerMapperProxy(customer));
         setField(service, "sysCompanyMapper", createSysCompanyMapperProxy(Collections.singletonList(company)));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
             @Override
             public boolean canClose(WorkOrder target) {
                 return true;
@@ -1308,7 +1447,7 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, updateCount));
         setField(service, "workOrderQuoteMapper", createQuoteMapperProxy(Collections.singletonList(currentQuote)));
         setField(service, "workOrderFlowMapper", createNoopProxy(WorkOrderFlowMapper.class, "insert"));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
             @Override
             public boolean canClose(WorkOrder target) {
                 return true;
@@ -1364,7 +1503,7 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderFlowMapper", createNoopProxy(WorkOrderFlowMapper.class, "insert"));
         setField(service, "workOrderCustomerMapper", createWorkOrderCustomerMapperProxy(customer));
         setField(service, "sysCompanyMapper", createSysCompanyMapperProxy(Collections.singletonList(company)));
-        setField(service, "workOrderPermissionService", new WorkOrderPermissionService() {
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
             @Override
             public boolean canClose(WorkOrder target) {
                 return true;
@@ -1484,6 +1623,10 @@ public class WorkOrderServiceImplTest {
                     return workOrder;
                 }
                 if ("updateById".equals(method.getName())) {
+                    updateCount[0]++;
+                    return 1;
+                }
+                if ("update".equals(method.getName())) {
                     updateCount[0]++;
                     return 1;
                 }
@@ -1654,6 +1797,52 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    private MachineBarcodeMapper createMachineBarcodeMapperProxy(MachineBarcode archive, boolean[] sawHqFilter) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectOne".equals(method.getName())) {
+                    try {
+                        Method getSqlSegment = args[0].getClass().getMethod("getSqlSegment");
+                        String sqlSegment = String.valueOf(getSqlSegment.invoke(args[0]));
+                        sawHqFilter[0] = sqlSegment.contains("hq_company_id");
+                    } catch (ReflectiveOperationException ex) {
+                        throw new IllegalStateException(ex);
+                    }
+                    return archive;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (MachineBarcodeMapper) Proxy.newProxyInstance(
+                MachineBarcodeMapper.class.getClassLoader(),
+                new Class<?>[]{MachineBarcodeMapper.class},
+                handler
+        );
+    }
+
+    private void initMachineBarcodeTableInfo() {
+        if (TableInfoHelper.getTableInfo(MachineBarcode.class) != null) {
+            return;
+        }
+        Configuration configuration = new Configuration();
+        configuration.setMapUnderscoreToCamelCase(true);
+        MapperBuilderAssistant assistant = new MapperBuilderAssistant(configuration, "test");
+        assistant.setCurrentNamespace(MachineBarcodeMapper.class.getName());
+        TableInfoHelper.initTableInfo(assistant, MachineBarcode.class);
+    }
+
+    private void initWorkOrderTableInfo() {
+        if (TableInfoHelper.getTableInfo(WorkOrder.class) != null) {
+            return;
+        }
+        Configuration configuration = new Configuration();
+        configuration.setMapUnderscoreToCamelCase(true);
+        MapperBuilderAssistant assistant = new MapperBuilderAssistant(configuration, "test");
+        assistant.setCurrentNamespace(WorkOrderMapper.class.getName());
+        TableInfoHelper.initTableInfo(assistant, WorkOrder.class);
+    }
+
     private WorkOrderFlowMapper createFlowMapperProxy(List<WorkOrderFlow> insertedFlows) {
         InvocationHandler handler = new InvocationHandler() {
             @Override
@@ -1756,16 +1945,16 @@ public class WorkOrderServiceImplTest {
         InvocationHandler handler = new InvocationHandler() {
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
-                if ("listRepairFaultOptions".equals(method.getName())) {
+                if ("listRepairFaultOptionsForResolvedHq".equals(method.getName())) {
                     return options;
                 }
                 if ("listRepairFaultOptionsByConfigId".equals(method.getName())) {
                     return options;
                 }
-                if ("listEnabledProductModels".equals(method.getName())) {
+                if ("listEnabledProductModelsForResolvedHq".equals(method.getName())) {
                     return productModels;
                 }
-                if ("findEnabledConfigId".equals(method.getName())) {
+                if ("findEnabledConfigIdForResolvedHq".equals(method.getName())) {
                     return matchedConfigId;
                 }
                 return defaultValue(method.getReturnType());
@@ -2043,6 +2232,42 @@ public class WorkOrderServiceImplTest {
         void run() throws Exception;
     }
 
+    private static class AllowViewWorkOrderPermissionService extends WorkOrderPermissionService {
+
+        @Override
+        public WorkOrderAccessContext resolveAccessContext() {
+            WorkOrderAccessContext context = new WorkOrderAccessContext();
+            context.setCurrentUserId(101L);
+            context.setCurrentCompanyId(2002L);
+            context.setSubjectType("SERVICE");
+            context.setTypeCode("SITE_FIRST");
+            context.setDataScope("ALL");
+            context.setRelatedCompanyIds(Collections.emptyList());
+            return context;
+        }
+
+        @Override
+        public boolean canView(WorkOrder workOrder) {
+            return true;
+        }
+
+        @Override
+        public boolean canView(WorkOrder workOrder, WorkOrderAccessContext context) {
+            return true;
+        }
+
+        @Override
+        public List<String> listAvailableActions(WorkOrder workOrder, WorkOrderAccessContext context) {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public String getReadonlyReason(WorkOrder workOrder, List<String> availableActions,
+                                        WorkOrderAccessContext context) {
+            return null;
+        }
+    }
+
     private static class TransferParticipantRecorder extends WorkOrderParticipantService {
 
         private Long workOrderId;
@@ -2215,7 +2440,3 @@ public class WorkOrderServiceImplTest {
         }
     }
 }
-
-
-
-

@@ -935,7 +935,7 @@ public class CustomerWorkOrderServiceImplTest {
         InvocationHandler handler = new InvocationHandler() {
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
-                if ("listRepairFaultOptions".equals(method.getName())) {
+                if ("listRepairFaultOptionsForResolvedHq".equals(method.getName())) {
                     List<WorkOrderRepairFaultOptionVO> result = new ArrayList<>();
                     for (String faultDesc : faultDescs) {
                         WorkOrderRepairFaultOptionVO option = new WorkOrderRepairFaultOptionVO();
@@ -945,7 +945,7 @@ public class CustomerWorkOrderServiceImplTest {
                     }
                     return result;
                 }
-                if ("findEnabledConfigId".equals(method.getName())) {
+                if ("findEnabledConfigIdForResolvedHq".equals(method.getName())) {
                     return configId;
                 }
                 return defaultValue(method.getReturnType());

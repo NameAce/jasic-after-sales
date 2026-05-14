@@ -45,8 +45,12 @@ public class NotifyController {
     @ApiOperation(value = "获取当前登录用户有效待办数")
     @GetMapping("/todo/count")
     public Result<NotifyTodoCountVO> todoCount() {
+        // ????????????????????????
         NotifyTodoCountVO vo = new NotifyTodoCountVO();
-        vo.setCount(notifyMessageService.countTodo(SecurityContext.getCurrentUserId()));
+        vo.setCount(notifyMessageService.countTodo(
+                SecurityContext.getCurrentUserId(),
+                SecurityContext.getCurrentCompanyId()
+        ));
         return Result.ok(vo);
     }
 
@@ -60,6 +64,8 @@ public class NotifyController {
     @GetMapping("/todo/page")
     public Result<NotifyMessagePageResultVO> todoPage(NotifyMessageQuery query) {
         query.setReceiverId(SecurityContext.getCurrentUserId());
+        query.setReceiverCompanyId(SecurityContext.getCurrentCompanyId());
+        // ????????????????????????
         PageResult<NotifyMessagePageVO> pageResult = notifyMessageService.listPage(query);
         return Result.ok(NotifyMessagePageResultVO.of(pageResult.getTotal(), pageResult.getRecords()));
     }
@@ -73,7 +79,12 @@ public class NotifyController {
     @ApiOperation(value = "按消息 ID 标记已读")
     @PostMapping("/message/{id}/read")
     public Result<Void> read(@PathVariable Long id) {
-        notifyMessageService.markRead(id, SecurityContext.getCurrentUserId());
+        // ????????????????????????
+        notifyMessageService.markRead(
+                id,
+                SecurityContext.getCurrentUserId(),
+                SecurityContext.getCurrentCompanyId()
+        );
         return Result.ok();
     }
 
@@ -87,6 +98,8 @@ public class NotifyController {
     @PostMapping("/message/read-by-biz")
     public Result<Void> readByBiz(@Validated @RequestBody NotifyReadByBizDTO dto) {
         dto.setReceiverId(SecurityContext.getCurrentUserId());
+        dto.setReceiverCompanyId(SecurityContext.getCurrentCompanyId());
+        // ????????????????????????
         notifyMessageService.markReadByBiz(dto);
         return Result.ok();
     }

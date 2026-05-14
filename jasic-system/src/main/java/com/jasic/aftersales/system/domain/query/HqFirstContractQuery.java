@@ -23,6 +23,10 @@ public class HqFirstContractQuery extends PageQuery {
     @ApiModelProperty(value = "总部公司ID")
     private Long hqCompanyId;
 
+    /** 目标总部公司ID */
+    @ApiModelProperty(value = "目标总部公司ID", required = true)
+    private Long targetCompanyId;
+
     /** 一级网点公司ID */
     @ApiModelProperty(value = "一级网点公司ID")
     private Long firstCompanyId;

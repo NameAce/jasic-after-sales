@@ -45,6 +45,12 @@ public class SysRoleServiceImpl implements ISysRoleService {
     @Resource
     private SysUserRoleMapper sysUserRoleMapper;
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @Resource
     private SysPermissionService sysPermissionService;
 
@@ -61,8 +67,8 @@ public class SysRoleServiceImpl implements ISysRoleService {
     public PageResult<SysRoleVO> listPage(SysRoleQuery query) {
         Page<SysRole> page = new Page<>(query.getPageNum(), query.getPageSize());
         LambdaQueryWrapper<SysRole> wrapper = new LambdaQueryWrapper<>();
-        if (query.getCompanyId() != null) {
-            wrapper.eq(SysRole::getCompanyId, query.getCompanyId());
+        if (query.getTargetCompanyId() != null) {
+            wrapper.eq(SysRole::getCompanyId, query.getTargetCompanyId());
         }
         if (StrUtil.isNotBlank(query.getRoleName())) {
             wrapper.like(SysRole::getRoleName, query.getRoleName());
@@ -74,6 +80,7 @@ public class SysRoleServiceImpl implements ISysRoleService {
             wrapper.eq(SysRole::getStatus, query.getStatus());
         }
         wrapper.orderByAsc(SysRole::getOrderNum);
+        // ??????????????????????????
         Page<SysRole> result = sysRoleMapper.selectPage(page, wrapper);
         List<SysRoleVO> voList = result.getRecords().stream()
                 .map(this::convertToVO)
@@ -93,6 +100,7 @@ public class SysRoleServiceImpl implements ISysRoleService {
         wrapper.eq(SysRole::getCompanyId, companyId)
                 .eq(SysRole::getStatus, 1)
                 .orderByAsc(SysRole::getOrderNum);
+        // ??????????????????????????
         List<SysRole> list = sysRoleMapper.selectList(wrapper);
         return list.stream().map(this::convertToVO).collect(Collectors.toList());
     }
@@ -105,6 +113,7 @@ public class SysRoleServiceImpl implements ISysRoleService {
      */
     @Override
     public SysRoleVO getById(Long roleId) {
+        // ??????????????????????????
         SysRole role = sysRoleMapper.selectById(roleId);
         if (role == null) {
             throw new ServiceException("角色不存在");
@@ -128,6 +137,7 @@ public class SysRoleServiceImpl implements ISysRoleService {
      */
     @Override
     public Long save(Long companyId, SysRoleDTO dto) {
+        // ?????????????????????????????
         dataScopeRuleService.validateByCompanyId(companyId, dto.getDataScope());
         validateCustomRoleKey(dto.getRoleKey());
         validateRoleKeyUnique(companyId, dto.getRoleKey(), null);
@@ -139,6 +149,7 @@ public class SysRoleServiceImpl implements ISysRoleService {
         if (role.getOrderNum() == null) {
             role.setOrderNum(0);
         }
+        // ???????????????????????
         sysRoleMapper.insert(role);
         if (dto.getMenuIds() != null && !dto.getMenuIds().isEmpty()) {
             batchInsertRoleMenu(role.getId(), dto.getMenuIds());
@@ -156,10 +167,12 @@ public class SysRoleServiceImpl implements ISysRoleService {
         if (dto.getId() == null) {
             throw new ServiceException("角色ID不能为空");
         }
+        // ??????????????????????????
         SysRole role = sysRoleMapper.selectById(dto.getId());
         if (role == null) {
             throw new ServiceException("角色不存在");
         }
+        // ?????????????????????????????
         dataScopeRuleService.validateByCompanyId(role.getCompanyId(), dto.getDataScope());
         validateRoleKeyEditable(role, dto.getRoleKey());
         validateCustomRoleKey(role.getIsSystem(), dto.getRoleKey());
@@ -170,6 +183,7 @@ public class SysRoleServiceImpl implements ISysRoleService {
         if (dto.getMenuIds() != null) {
             LambdaQueryWrapper<SysRoleMenu> delWrapper = new LambdaQueryWrapper<>();
             delWrapper.eq(SysRoleMenu::getRoleId, role.getId());
+            // ???????????????????????
             sysRoleMenuMapper.delete(delWrapper);
             if (!dto.getMenuIds().isEmpty()) {
                 batchInsertRoleMenu(role.getId(), dto.getMenuIds());
@@ -185,6 +199,7 @@ public class SysRoleServiceImpl implements ISysRoleService {
      */
     @Override
     public void remove(Long roleId) {
+        // ??????????????????????????
         SysRole role = sysRoleMapper.selectById(roleId);
         if (role == null) {
             throw new ServiceException("角色不存在");
@@ -199,6 +214,7 @@ public class SysRoleServiceImpl implements ISysRoleService {
         }
         LambdaQueryWrapper<SysRoleMenu> menuWrapper = new LambdaQueryWrapper<>();
         menuWrapper.eq(SysRoleMenu::getRoleId, roleId);
+        // ???????????????????????
         sysRoleMenuMapper.delete(menuWrapper);
         sysRoleMapper.deleteById(roleId);
     }
@@ -211,8 +227,14 @@ public class SysRoleServiceImpl implements ISysRoleService {
      */
     @Override
     public void assignMenus(Long roleId, List<Long> menuIds) {
+        // ??????????????????????????
+        SysRole role = sysRoleMapper.selectById(roleId);
+        if (role == null) {
+            throw new ServiceException("角色不存在");
+        }
         LambdaQueryWrapper<SysRoleMenu> delWrapper = new LambdaQueryWrapper<>();
         delWrapper.eq(SysRoleMenu::getRoleId, roleId);
+        // ???????????????????????
         sysRoleMenuMapper.delete(delWrapper);
         if (menuIds != null && !menuIds.isEmpty()) {
             batchInsertRoleMenu(roleId, menuIds);
@@ -237,6 +259,7 @@ public class SysRoleServiceImpl implements ISysRoleService {
             SysRoleMenu rm = new SysRoleMenu();
             rm.setRoleId(roleId);
             rm.setMenuId(menuId);
+            // ???????????????????????
             sysRoleMenuMapper.insert(rm);
         }
     }
@@ -292,6 +315,7 @@ public class SysRoleServiceImpl implements ISysRoleService {
         if (excludeRoleId != null) {
             wrapper.ne(SysRole::getId, excludeRoleId);
         }
+        // ??????????????????????????
         if (sysRoleMapper.selectCount(wrapper) > 0) {
             throw new ServiceException("角色标识已存在");
         }
@@ -305,6 +329,7 @@ public class SysRoleServiceImpl implements ISysRoleService {
     private void kickAffectedUsers(Long roleId) {
         LambdaQueryWrapper<SysUserRole> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysUserRole::getRoleId, roleId);
+        // ??????????????????????????
         List<SysUserRole> userRoles = sysUserRoleMapper.selectList(wrapper);
         if (userRoles == null || userRoles.isEmpty()) {
             return;
@@ -314,6 +339,7 @@ public class SysRoleServiceImpl implements ISysRoleService {
                 .distinct()
                 .collect(Collectors.toList());
         for (Long userId : userIds) {
+            // ??????????????????????
             sysPermissionService.clearAllPermsCache(userId);
             StpUtil.kickout(userId);
         }

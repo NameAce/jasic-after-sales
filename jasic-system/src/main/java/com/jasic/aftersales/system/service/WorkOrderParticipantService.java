@@ -38,6 +38,7 @@ public class WorkOrderParticipantService {
         LocalDateTime now = LocalDateTime.now();
         boolean sameHandlerCompany = workOrder.getCreateCompanyId() != null
                 && workOrder.getCreateCompanyId().equals(workOrder.getCurrentAcceptCompanyId());
+        // ???????????????????????
         saveOrUpdateParticipant(workOrder.getId(), workOrder.getCreateCompanyId(),
                 createSubjectType, "CREATE", sameHandlerCompany ? 1 : 0, now);
         if (!sameHandlerCompany) {
@@ -66,6 +67,7 @@ public class WorkOrderParticipantService {
                                     Long toCompanyId, String toSubjectType) {
         LocalDateTime now = LocalDateTime.now();
         if (fromCompanyId != null) {
+            // ???????????????????????
             saveOrUpdateParticipant(workOrderId, fromCompanyId, fromSubjectType, "HISTORY", 0, now);
         }
         saveOrUpdateParticipant(workOrderId, toCompanyId, toSubjectType, "CURRENT", 1, now);
@@ -79,17 +81,29 @@ public class WorkOrderParticipantService {
      * @return 参与方列表
      */
     public List<WorkOrderParticipant> listByWorkOrderId(Long workOrderId) {
+        // ???????????????????????
         LambdaQueryWrapper<WorkOrderParticipant> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrderParticipant::getWorkOrderId, workOrderId)
                 .orderByAsc(WorkOrderParticipant::getFirstParticipateTime);
         return workOrderParticipantMapper.selectList(wrapper);
     }
 
+    /**
+     * ?????
+     *
+     * @param workOrderId ??ID
+     * @param companyId ??ID
+     * @param subjectType ????
+     * @param participateType ??
+     * @param isCurrentHandler ??
+     * @param now ??
+     */
     private void saveOrUpdateParticipant(Long workOrderId, Long companyId, String subjectType,
                                          String participateType, Integer isCurrentHandler, LocalDateTime now) {
         if (workOrderId == null || companyId == null) {
             return;
         }
+        // ???????????????????????
         LambdaQueryWrapper<WorkOrderParticipant> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrderParticipant::getWorkOrderId, workOrderId)
                 .eq(WorkOrderParticipant::getCompanyId, companyId);
@@ -111,7 +125,14 @@ public class WorkOrderParticipantService {
         }
     }
 
+    /**
+     * ?????
+     *
+     * @param workOrderId ??ID
+     * @param targetCompanyId ????ID
+     */
     private void clearOtherCurrentHandler(Long workOrderId, Long targetCompanyId) {
+        // ???????????????????????
         LambdaQueryWrapper<WorkOrderParticipant> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrderParticipant::getWorkOrderId, workOrderId)
                 .eq(WorkOrderParticipant::getIsCurrentHandler, 1);

@@ -20,6 +20,9 @@ public class SecurityContext {
     private static final String KEY_TYPE_CODE = "currentTypeCode";
     private static final String KEY_REGION_IDS = "currentRegionIds";
 
+    /**
+     * ?? SecurityContext ???
+     */
     private SecurityContext() {
     }
 

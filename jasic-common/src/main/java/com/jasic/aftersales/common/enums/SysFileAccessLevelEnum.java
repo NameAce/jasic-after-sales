@@ -14,6 +14,13 @@ public enum SysFileAccessLevelEnum {
     /** 私有文件 */
     PRIVATE("PRIVATE", "私有文件");
 
+    /**
+     * ?? SysFileAccessLevelEnum ?????
+     *
+     * @param code ??
+     * @param desc ??
+     * @return ????
+     */
     private final String code;
 
     private final String desc;
@@ -23,6 +30,12 @@ public enum SysFileAccessLevelEnum {
         this.desc = desc;
     }
 
+    /**
+     * ??By Code?
+     *
+     * @param code ??
+     * @return ????
+     */
     public static SysFileAccessLevelEnum getByCode(String code) {
         if (code == null) {
             return null;
@@ -39,6 +52,12 @@ public enum SysFileAccessLevelEnum {
         return null;
     }
 
+    /**
+     * ?? fromCode ?????
+     *
+     * @param code ??
+     * @return ????
+     */
     @JsonCreator
     public static SysFileAccessLevelEnum fromCode(String code) {
         SysFileAccessLevelEnum value = getByCode(code);
@@ -48,11 +67,21 @@ public enum SysFileAccessLevelEnum {
         return value;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @JsonValue
     public String getCode() {
         return code;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     public String getDesc() {
         return desc;
     }

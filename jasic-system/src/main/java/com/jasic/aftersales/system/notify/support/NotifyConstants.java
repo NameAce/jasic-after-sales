@@ -50,6 +50,9 @@ public final class NotifyConstants {
 
     public static final long DISPATCH_RETRY_DELAY_MINUTES = 5L;
 
+    /**
+     * ?? NotifyConstants ???
+     */
     private NotifyConstants() {
     }
 }

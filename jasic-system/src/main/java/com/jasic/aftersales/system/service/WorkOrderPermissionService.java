@@ -8,14 +8,11 @@ import com.jasic.aftersales.common.enums.WorkOrderRelationTagEnum;
 import com.jasic.aftersales.common.enums.WorkOrderRelationTypeEnum;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
-import com.jasic.aftersales.framework.security.SecurityContext;
-import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
-import com.jasic.aftersales.system.domain.entity.HqFirstContract;
+import com.jasic.aftersales.system.domain.access.WorkOrderAccessContext;
 import com.jasic.aftersales.system.domain.entity.WorkOrder;
 import com.jasic.aftersales.system.domain.entity.WorkOrderParticipant;
 import com.jasic.aftersales.system.domain.query.WorkOrderQuery;
-import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
-import com.jasic.aftersales.system.mapper.HqFirstContractMapper;
+import com.jasic.aftersales.system.domain.query.WorkOrderScopedQuery;
 import com.jasic.aftersales.system.mapper.WorkOrderParticipantMapper;
 import org.springframework.stereotype.Service;
 
@@ -24,10 +21,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * 工单权限判断服务。
@@ -58,11 +52,14 @@ public class WorkOrderPermissionService {
     @Resource
     private WorkOrderParticipantMapper workOrderParticipantMapper;
 
+    /**
+     * ??????View?
+     *
+     * @param workOrder ??
+     * @return true ??????
+     */
     @Resource
-    private HqFirstContractMapper hqFirstContractMapper;
-
-    @Resource
-    private FirstSecondRelationMapper firstSecondRelationMapper;
+    private WorkOrderAccessContextResolver accessContextResolver;
 
     @Resource
     private WorkOrderUserParticipantService workOrderUserParticipantService;
@@ -74,32 +71,41 @@ public class WorkOrderPermissionService {
      * @return true 表示允许查看
      */
     public boolean canView(WorkOrder workOrder) {
+        return canView(workOrder, resolveAccessContext());
+    }
+
+    /**
+     * ??????View?
+     *
+     * @param workOrder ??
+     * @param context ?????
+     * @return true ??????
+     */
+    public boolean canView(WorkOrder workOrder, WorkOrderAccessContext context) {
         if (workOrder == null) {
             return false;
         }
-        if (SecurityContext.isPlatformUser()) {
-            return true;
-        }
-        Long currentCompanyId = SecurityContext.getCurrentCompanyId();
+        Long currentCompanyId = context.getCurrentCompanyId();
         if (currentCompanyId == null) {
             return false;
         }
-        if ("HQ".equals(SecurityContext.getCurrentSubjectType())
+        if ("HQ".equals(context.getSubjectType())
                 && !currentCompanyId.equals(workOrder.getHqCompanyId())) {
             return false;
         }
-        List<Long> relatedCompanyIds = resolveRelatedCompanyIds();
+        List<Long> relatedCompanyIds = context.getRelatedCompanyIds();
         boolean matchRelatedCompanyScope = !relatedCompanyIds.isEmpty() && matchRelatedCompanyScope(workOrder, relatedCompanyIds);
-        boolean requiresRelatedCompanyLimit = requiresRelatedCompanyLimit();
+        boolean requiresRelatedCompanyLimit = requiresRelatedCompanyLimit(context);
         if (currentCompanyId.equals(workOrder.getCurrentAcceptCompanyId())) {
-            if (DataScopeEnum.SELF == resolveCurrentDataScope()) {
-                Long currentUserId = SecurityContext.getCurrentUserId();
+            if (DataScopeEnum.SELF == context.getDataScopeEnum()) {
+                Long currentUserId = context.getCurrentUserId();
                 if (currentUserId == null || !currentUserId.equals(workOrder.getAssignedUserId())) {
                     return false;
                 }
             }
             return !requiresRelatedCompanyLimit || matchRelatedCompanyScope;
         }
+        // ???????????????????????
         WorkOrderParticipant participant = getParticipant(workOrder.getId(), currentCompanyId);
         if (participant == null || Integer.valueOf(1).equals(participant.getIsCurrentHandler())) {
             return false;
@@ -107,29 +113,43 @@ public class WorkOrderPermissionService {
         if (requiresRelatedCompanyLimit && !matchRelatedCompanyScope) {
             return false;
         }
-        if (DataScopeEnum.SELF == resolveCurrentDataScope()) {
-            return hasHistoryUserParticipation(workOrder.getId(), currentCompanyId, SecurityContext.getCurrentUserId());
+        if (DataScopeEnum.SELF == context.getDataScopeEnum()) {
+            return hasHistoryUserParticipation(workOrder.getId(), currentCompanyId, context.getCurrentUserId());
         }
         return true;
     }
 
     /**
-     * 补齐工单查询需要的数据范围字段，供列表和统计查询复用。
+     * 构造携带服务端访问上下文的内部查询对象，供列表和统计查询复用。
      *
      * @param query 工单查询参数
+     * @return 内部查询对象
      */
-    public void fillQueryScope(WorkOrderQuery query) {
-        if (query == null) {
-            return;
+    public WorkOrderScopedQuery buildScopedQuery(WorkOrderQuery query) {
+        WorkOrderScopedQuery scopedQuery = new WorkOrderScopedQuery();
+        if (query != null) {
+            scopedQuery.setViewScope(query.getViewScope());
+            scopedQuery.setOrderNo(query.getOrderNo());
+            scopedQuery.setCustomerName(query.getCustomerName());
+            scopedQuery.setCustomerMobile(query.getCustomerMobile());
+            scopedQuery.setBarcode(query.getBarcode());
+            scopedQuery.setMainStatus(query.getMainStatus());
+            scopedQuery.setDisplayStatus(query.getDisplayStatus());
+            scopedQuery.setHasTransfer(query.getHasTransfer());
+            scopedQuery.setPageNum(query.getPageNum());
+            scopedQuery.setPageSize(query.getPageSize());
         }
-        Long currentCompanyId = SecurityContext.getCurrentCompanyId();
-        if (!SecurityContext.isPlatformUser() || query.getCompanyId() == null) {
-            query.setCompanyId(currentCompanyId);
-        }
-        query.setCurrentUserId(SecurityContext.getCurrentUserId());
-        query.setSubjectType(SecurityContext.getCurrentSubjectType());
-        query.setDataScope(resolveCurrentDataScope().getCode());
-        query.setRelatedCompanyIds(resolveRelatedCompanyIds());
+        scopedQuery.setAccessContext(resolveAccessContext());
+        return scopedQuery;
+    }
+
+    /**
+     * ???????
+     *
+     * @return ????
+     */
+    public WorkOrderAccessContext resolveAccessContext() {
+        return accessContextResolver.resolve();
     }
 
     /**
@@ -148,17 +168,23 @@ public class WorkOrderPermissionService {
      * @return 关系标签集合；未命中时返回空集合
      */
     public EnumSet<WorkOrderRelationTagEnum> resolveRelationTags(WorkOrder workOrder) {
+        return resolveRelationTags(workOrder, resolveAccessContext());
+    }
+
+    /**
+     * ???????
+     *
+     * @param workOrder ??
+     * @param context ?????
+     * @return ????
+     */
+    public EnumSet<WorkOrderRelationTagEnum> resolveRelationTags(WorkOrder workOrder, WorkOrderAccessContext context) {
         EnumSet<WorkOrderRelationTagEnum> relationTags = EnumSet.noneOf(WorkOrderRelationTagEnum.class);
         if (workOrder == null) {
             return relationTags;
         }
-        // 平台视角不依赖工单参与记录，直接保留平台管理员标签，供后续按需扩展特例。
-        if (SecurityContext.isPlatformUser()) {
-            relationTags.add(WorkOrderRelationTagEnum.PLATFORM_ADMIN);
-            return relationTags;
-        }
-        Long currentCompanyId = SecurityContext.getCurrentCompanyId();
-        Long currentUserId = SecurityContext.getCurrentUserId();
+        Long currentCompanyId = context.getCurrentCompanyId();
+        Long currentUserId = context.getCurrentUserId();
         if (currentCompanyId == null) {
             return relationTags;
         }
@@ -178,6 +204,7 @@ public class WorkOrderPermissionService {
         if (relationTags.contains(WorkOrderRelationTagEnum.CURRENT_ACCEPT_COMPANY)) {
             return relationTags;
         }
+        // ???????????????????????
         WorkOrderParticipant participant = getParticipant(workOrder.getId(), currentCompanyId);
         if (participant == null) {
             return relationTags;
@@ -193,82 +220,37 @@ public class WorkOrderPermissionService {
     }
 
     /**
-     * 解析当前登录人与工单之间的关系类型。
-     *
-     * <p>这里解析的是“工单内身份”，不是纯菜单权限。
-     * 但从本次重构开始，它主要承担“主身份展示”职责，不再作为动作放行的唯一依据。
-     * 同一个用户在一张工单上可能同时具备多个关系标签和多个动作权限，
-     * 因此真正的动作授权统一改由 `resolveRelationTags + canExecute` 负责。</p>
-     *
-     * <p>判定顺序如下：</p>
-     * <p>1. 平台账号直接归类为 {@link WorkOrderRelationTypeEnum#PLATFORM_ADMIN}。</p>
-     * <p>2. 当前公司等于工单当前受理公司时，再细分为当前维修员、当前受理方管理岗、当前受理方普通成员。</p>
-     * <p>3. 如果不是当前受理公司，则根据参与方记录识别为总部观察者或历史参与方只读。</p>
-     * <p>4. 全部不命中时返回 {@link WorkOrderRelationTypeEnum#NONE}。</p>
-     *
-     * <p>注意：因为 `relationType` 仍然是单值字段，一人多岗时只能选一个“主展示身份”。
-     * 当前优先级仍然保持“当前维修员优先于管理岗”，这样可以保证已被派单的技师在前端看到的主身份
-     * 仍然是“当前维修员”；如果需要展示更多兼岗信息，后续应直接补充返回关系标签集合。</p>
-     *
-     * @param workOrder 工单实体
-     * @return 关系类型枚举
-     */
-    /*public WorkOrderRelationTypeEnum resolveRelationType(WorkOrder workOrder) {
-        EnumSet<WorkOrderRelationTagEnum> relationTags = resolveRelationTags(workOrder);
-        if (relationTags.isEmpty()) {
-            return WorkOrderRelationTypeEnum.NONE;
-        }
-        if (relationTags.contains(WorkOrderRelationTagEnum.PLATFORM_ADMIN)) {
-            return WorkOrderRelationTypeEnum.PLATFORM_ADMIN;
-        }
-        if (relationTags.contains(WorkOrderRelationTagEnum.CURRENT_ACCEPT_COMPANY)) {
-            // 对外展示时，已被派到这张单上的维修员仍优先显示为当前维修员。
-            if (relationTags.contains(WorkOrderRelationTagEnum.ASSIGNEE)) {
-                return WorkOrderRelationTypeEnum.CURRENT_ASSIGNEE;
-            }
-            // “管理岗”在这里是展示语义：表示当前受理公司下具备任一管理动作基础权限的人员。
-            // 真正能否执行动作，仍以 canExecute 中的实例级规则为准。
-            if (hasAnyActionPermission(
-                    WorkOrderActionEnum.ASSIGN,
-                    WorkOrderActionEnum.TRANSFER,
-                    WorkOrderActionEnum.REVIEW,
-                    WorkOrderActionEnum.CLOSE
-            )) {
-                return WorkOrderRelationTypeEnum.CURRENT_OWNER_MANAGER;
-            }
-            return WorkOrderRelationTypeEnum.CURRENT_OWNER_MEMBER;
-        }
-        if (relationTags.contains(WorkOrderRelationTagEnum.HQ_OBSERVER)) {
-            return WorkOrderRelationTypeEnum.HQ_OBSERVER;
-        }
-        if (relationTags.contains(WorkOrderRelationTagEnum.HISTORY_PARTICIPANT)) {
-            return WorkOrderRelationTypeEnum.HISTORY_PARTICIPANT_READONLY;
-        }
-        return WorkOrderRelationTypeEnum.NONE;
-    }*/
-
-    /**
      * 根据当前关系和工单状态返回前端可执行的操作编码。
      *
-     * <p>该方法返回的是“这张工单当前真正允许做的动作”。从本次重构开始，
-     * 它不再直接依赖单一 `relationType` 做分支，而是统一复用 `canExecute`。</p>
+     * <p>该方法返回的是“这张工单当前真正允许做的动作”，统一复用 `canExecute`。</p>
      *
      * <p>这样做有两个目的：</p>
      * <p>1. 避免 `listAvailableActions`、`canTransfer`、`canClose` 等多个入口各写一套规则。</p>
      * <p>2. 支持一人多岗：当前维修员如果同时拥有转单权限，也可以在动作层被正确放行。</p>
      *
-     * <p>返回值面向前端按钮层，仍然使用字符串编码，避免接口契约发生变化。</p>
+     * <p>返回值面向前端按钮层，使用动作枚举中的字符串编码。</p>
      *
      * @param workOrder 工单实体
      * @return 可执行操作列表
      */
     public List<String> listAvailableActions(WorkOrder workOrder) {
+        return listAvailableActions(workOrder, resolveAccessContext());
+    }
+
+    /**
+     * ???????
+     *
+     * @param workOrder ??
+     * @param context ?????
+     * @return ????
+     */
+    public List<String> listAvailableActions(WorkOrder workOrder, WorkOrderAccessContext context) {
         if (workOrder == null) {
             return Collections.emptyList();
         }
         List<String> actions = new ArrayList<>();
         for (WorkOrderActionEnum action : DETAIL_ACTION_ORDER) {
-            if (canExecute(workOrder, action)) {
+            if (canExecute(workOrder, action, context)) {
                 addAction(actions, action);
             }
         }
@@ -282,7 +264,8 @@ public class WorkOrderPermissionService {
      * @return 只读原因；存在可执行动作时返回 null
      */
     public String getReadonlyReason(WorkOrder workOrder) {
-        return getReadonlyReason(workOrder, listAvailableActions(workOrder));
+        WorkOrderAccessContext context = resolveAccessContext();
+        return getReadonlyReason(workOrder, listAvailableActions(workOrder, context), context);
     }
 
     /**
@@ -293,13 +276,25 @@ public class WorkOrderPermissionService {
      * @return 只读原因；存在可执行动作时返回 null
      */
     public String getReadonlyReason(WorkOrder workOrder, List<String> availableActions) {
+        return getReadonlyReason(workOrder, availableActions, resolveAccessContext());
+    }
+
+    /**
+     * ??Readonly Reason?
+     *
+     * @param workOrder ??
+     * @param availableActions ??
+     * @param context ?????
+     * @return ?????
+     */
+    public String getReadonlyReason(WorkOrder workOrder, List<String> availableActions, WorkOrderAccessContext context) {
         if (workOrder == null) {
             return null;
         }
         if (availableActions != null && !availableActions.isEmpty()) {
             return null;
         }
-        EnumSet<WorkOrderRelationTagEnum> relationTags = resolveRelationTags(workOrder);
+        EnumSet<WorkOrderRelationTagEnum> relationTags = resolveRelationTags(workOrder, context);
         if (relationTags.contains(WorkOrderRelationTagEnum.HISTORY_PARTICIPANT)) {
             return "已转出，当前仅可查看";
         }
@@ -311,7 +306,7 @@ public class WorkOrderPermissionService {
             return "当前工单已关闭，仅可查看";
         }
         if (relationTags.contains(WorkOrderRelationTagEnum.CURRENT_ACCEPT_COMPANY)) {
-            Long currentUserId = SecurityContext.getCurrentUserId();
+            Long currentUserId = context.getCurrentUserId();
             boolean assignedToOther = workOrder.getAssignedUserId() != null
                     && (currentUserId == null || !workOrder.getAssignedUserId().equals(currentUserId));
             if (assignedToOther
@@ -338,8 +333,7 @@ public class WorkOrderPermissionService {
     /**
      * 判断当前登录人是否允许在指定工单上执行某个动作。
      *
-     * <p>这是工单动作授权的统一入口，专门用来替代过去依赖单一 `relationType`
-     * 做分支的写法。每个动作都会同时叠加三类条件：</p>
+     * <p>这是工单动作授权的统一入口。每个动作都会同时叠加三类条件：</p>
      *
      * <p>1. 当前人先要能看见这张工单。</p>
      * <p>2. 当前工单的事实关系标签要满足动作要求，例如维修员动作要求 `ASSIGNEE`。</p>
@@ -347,20 +341,32 @@ public class WorkOrderPermissionService {
      *
      * <p>这种写法可以天然支持一人多岗。比如同一个用户既是当前维修员，
      * 又拥有 `TRANSFER` 权限，那么只要他属于当前受理公司且状态允许，就可以转单，
-     * 不会再因为主展示身份被压成 `CURRENT_ASSIGNEE` 而失去管理动作。</p>
+     * 不会再因为单一展示身份而失去管理动作。</p>
      *
      * @param workOrder 工单实体
      * @param action    动作枚举
      * @return true 表示允许执行
      */
     public boolean canExecute(WorkOrder workOrder, WorkOrderActionEnum action) {
+        return canExecute(workOrder, action, resolveAccessContext());
+    }
+
+    /**
+     * ??????Execute?
+     *
+     * @param workOrder ??
+     * @param action ??
+     * @param context ?????
+     * @return true ??????
+     */
+    public boolean canExecute(WorkOrder workOrder, WorkOrderActionEnum action, WorkOrderAccessContext context) {
         if (workOrder == null || action == null) {
             return false;
         }
-        if (!canView(workOrder)) {
+        if (!canView(workOrder, context)) {
             return false;
         }
-        EnumSet<WorkOrderRelationTagEnum> relationTags = resolveRelationTags(workOrder);
+        EnumSet<WorkOrderRelationTagEnum> relationTags = resolveRelationTags(workOrder, context);
         String mainStatus = workOrder.getMainStatus();
         boolean inCurrentAcceptCompany = relationTags.contains(WorkOrderRelationTagEnum.CURRENT_ACCEPT_COMPANY);
         boolean isAssignee = relationTags.contains(WorkOrderRelationTagEnum.ASSIGNEE);
@@ -484,8 +490,8 @@ public class WorkOrderPermissionService {
      * <p>注意：维修员在接单时选择“无故障”后的自动闭单，不走本方法，
      * 而是由 `techAccept` 在接单事务内直接落 RETURN_METHOD/CLOSE 流转记录并收口为已关闭。</p>
      *
-     * <p>这里不再硬性要求单值 `relationType` 必须等于“管理岗”，
-     * 从而允许一人多岗场景下的兼岗人员在满足条件时执行关闭。</p>
+     * <p>关闭动作按可见性、当前受理公司、状态和基础权限点共同判断，
+     * 支持一人多岗场景下的兼岗人员在满足条件时执行关闭。</p>
      *
      * @param workOrder 工单实体
      * @return true 表示允许关闭
@@ -497,7 +503,7 @@ public class WorkOrderPermissionService {
     /**
      * 向动作列表中追加动作编码。
      *
-     * <p>对外接口仍使用字符串编码返回，便于兼容现有前端；内部则统一从动作枚举取码，
+     * <p>对外接口使用字符串编码返回；内部统一从动作枚举取码，
      * 避免直接在业务逻辑中硬编码动作字符串。</p>
      *
      * @param actions 动作列表
@@ -510,79 +516,39 @@ public class WorkOrderPermissionService {
         actions.add(action.getCode());
     }
 
+    /**
+     * ??Participant?
+     *
+     * @param workOrderId ??ID
+     * @param companyId ??ID
+     * @return ????
+     */
     private WorkOrderParticipant getParticipant(Long workOrderId, Long companyId) {
+        // ???????????????????????
         LambdaQueryWrapper<WorkOrderParticipant> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrderParticipant::getWorkOrderId, workOrderId)
                 .eq(WorkOrderParticipant::getCompanyId, companyId);
         return workOrderParticipantMapper.selectOne(wrapper);
     }
 
-    private DataScopeEnum resolveCurrentDataScope() {
-        return DataScopeEnum.normalize(SecurityContext.getEffectiveDataScope(), SecurityContext.getCurrentSubjectType());
+    /**
+     * ??????????
+     *
+     * @param context ?????
+     * @return true ??????
+     */
+    private boolean requiresRelatedCompanyLimit(WorkOrderAccessContext context) {
+        return "HQ".equals(context.getSubjectType())
+                && DataScopeEnum.REGION == context.getDataScopeEnum();
     }
 
-    private boolean requiresRelatedCompanyLimit() {
-        return "HQ".equals(SecurityContext.getCurrentSubjectType())
-                && DataScopeEnum.REGION == resolveCurrentDataScope();
-    }
-
-    private List<Long> resolveRelatedCompanyIds() {
-        Long currentCompanyId = SecurityContext.getCurrentCompanyId();
-        if (currentCompanyId == null) {
-            return Collections.emptyList();
-        }
-        if (requiresRelatedCompanyLimit()) {
-            return resolveRegionCompanyIds(currentCompanyId, SecurityContext.getCurrentRegionIds());
-        }
-        if ("SERVICE".equals(SecurityContext.getCurrentSubjectType())
-                && "SITE_FIRST".equals(SecurityContext.getCurrentTypeCode())
-                && DataScopeEnum.ALL == resolveCurrentDataScope()) {
-            return resolveFirstLevelCompanyScope(currentCompanyId);
-        }
-        return Collections.emptyList();
-    }
-
-    private List<Long> resolveRegionCompanyIds(Long currentCompanyId, List<Long> currentRegionIds) {
-        if (currentRegionIds == null || currentRegionIds.isEmpty()) {
-            return Collections.emptyList();
-        }
-        LambdaQueryWrapper<HqFirstContract> contractWrapper = new LambdaQueryWrapper<>();
-        contractWrapper.eq(HqFirstContract::getHqCompanyId, currentCompanyId)
-                .eq(HqFirstContract::getStatus, 1)
-                .in(HqFirstContract::getRegionId, currentRegionIds);
-        List<HqFirstContract> contracts = hqFirstContractMapper.selectList(contractWrapper);
-        if (contracts.isEmpty()) {
-            return Collections.emptyList();
-        }
-        Set<Long> relatedCompanyIds = contracts.stream()
-                .map(HqFirstContract::getFirstCompanyId)
-                .filter(id -> id != null)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
-        return appendSecondLevelCompanies(relatedCompanyIds);
-    }
-
-    private List<Long> resolveFirstLevelCompanyScope(Long currentCompanyId) {
-        Set<Long> relatedCompanyIds = new LinkedHashSet<>();
-        relatedCompanyIds.add(currentCompanyId);
-        return appendSecondLevelCompanies(relatedCompanyIds);
-    }
-
-    private List<Long> appendSecondLevelCompanies(Set<Long> relatedCompanyIds) {
-        if (relatedCompanyIds == null || relatedCompanyIds.isEmpty()) {
-            return Collections.emptyList();
-        }
-        LambdaQueryWrapper<FirstSecondRelation> relationWrapper = new LambdaQueryWrapper<>();
-        relationWrapper.eq(FirstSecondRelation::getStatus, 1)
-                .in(FirstSecondRelation::getFirstCompanyId, relatedCompanyIds);
-        List<FirstSecondRelation> relations = firstSecondRelationMapper.selectList(relationWrapper);
-        for (FirstSecondRelation relation : relations) {
-            if (relation.getSecondCompanyId() != null) {
-                relatedCompanyIds.add(relation.getSecondCompanyId());
-            }
-        }
-        return new ArrayList<>(relatedCompanyIds);
-    }
-
+    /**
+     * ?? matchRelatedCompanyScope ?????
+     *
+     * @param workOrder ??
+     * @param relatedCompanyIds related Company ID??
+     * @return true ??????
+     */
     private boolean matchRelatedCompanyScope(WorkOrder workOrder, List<Long> relatedCompanyIds) {
         if (workOrder == null || relatedCompanyIds == null || relatedCompanyIds.isEmpty()) {
             return false;
@@ -591,6 +557,7 @@ public class WorkOrderPermissionService {
                 || relatedCompanyIds.contains(workOrder.getCurrentAcceptCompanyId())) {
             return true;
         }
+        // ???????????????????????
         LambdaQueryWrapper<WorkOrderParticipant> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrderParticipant::getWorkOrderId, workOrder.getId())
                 .in(WorkOrderParticipant::getCompanyId, relatedCompanyIds);
@@ -642,21 +609,4 @@ public class WorkOrderPermissionService {
                 && workOrderUserParticipantService.hasParticipation(workOrderId, companyId, userId);
     }
 
-    /**
-     * 判断当前登录人是否具备任一动作对应的基础权限点。
-     *
-     * <p>该方法当前只用于推导单值 `relationType` 的展示身份，不参与真实动作放行。
-     * 这样即便未来管理动作继续扩展，也只需要在这里或动作枚举中集中维护。</p>
-     *
-     * @param actions 动作列表
-     * @return true 表示命中任一动作权限
-     */
-    private boolean hasAnyActionPermission(WorkOrderActionEnum... actions) {
-        for (WorkOrderActionEnum action : actions) {
-            if (hasActionPermission(action)) {
-                return true;
-            }
-        }
-        return false;
-    }
 }

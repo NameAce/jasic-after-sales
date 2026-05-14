@@ -4,7 +4,31 @@
 import { request } from '../request';
 
 type IdLike = string | number;
-type Query = Record<string, unknown>;
+type FileBizType =
+  | 'WORK_ORDER_FAULT_IMAGE'
+  | 'WORK_ORDER_FAULT_VIDEO'
+  | 'WORK_ORDER_FAULT_VOICE'
+  | 'WORK_ORDER_SENDER_VOUCHER'
+  | 'WORK_ORDER_RETURN_VOUCHER'
+  | 'WORK_ORDER_REPAIR_OLD_IMAGE'
+  | 'WORK_ORDER_REPAIR_NEW_IMAGE'
+  | 'WORK_ORDER_REPAIR_MACHINE_IMAGE'
+  | 'WORK_ORDER_REPAIR_BARCODE_IMAGE'
+  | 'WORK_ORDER_REPAIR_OTHER_IMAGE';
+
+interface FileBizParams {
+  bizType: FileBizType;
+  bizId: IdLike;
+}
+
+interface BindBizFilesParams extends FileBizParams {
+  fileIds: IdLike[];
+  remark?: string;
+}
+
+interface UnbindBizFileParams extends FileBizParams {
+  fileId: IdLike;
+}
 
 /**
  * 作用：上传系统文件（multipart）。
@@ -24,25 +48,12 @@ export function uploadSystemFile(file: Blob | File) {
   });
 }
 
-/** 作用：获取文件预览 URL。 */
-export function getFilePreviewUrl(fileId: IdLike) {
-  return request<string | Record<string, unknown>>({
-    url: `/system/file/${fileId}/preview-url`,
-    method: 'get'
-  });
-}
-
-/** 作用：分页/条件查询业务已绑定的文件列表。 */
-export function listBizFiles(params?: Query) {
-  return request<unknown>({ url: '/system/file/biz/list', method: 'get', params });
-}
-
 /** 作用：将文件绑定到业务实体。 */
-export function bindBizFiles(data: Record<string, unknown>) {
+export function bindBizFiles(data: BindBizFilesParams) {
   return request({ url: '/system/file/biz/bind', method: 'post', data });
 }
 
 /** 作用：解除业务与文件的绑定关系。 */
-export function unbindBizFile(data: Record<string, unknown>) {
+export function unbindBizFile(data: UnbindBizFileParams) {
   return request({ url: '/system/file/biz/unbind', method: 'post', data });
 }

@@ -22,6 +22,11 @@ import javax.annotation.Resource;
 @DisallowConcurrentExecution
 public class SyncTaskQuartzJob implements Job {
 
+    /**
+     * ?????
+     *
+     * @param context ?????
+     */
     @Resource
     private ISyncTaskExecutionService syncTaskExecutionService;
 

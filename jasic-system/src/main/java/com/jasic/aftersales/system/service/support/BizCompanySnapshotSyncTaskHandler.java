@@ -22,6 +22,11 @@ public class BizCompanySnapshotSyncTaskHandler implements SyncTaskHandler {
     public static final String HANDLER_CODE = "bizCompanySnapshotSync";
     private static final String HANDLER_NAME = "CRM公司快照同步";
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @Resource
     private ICrmBizCompanySnapshotService crmBizCompanySnapshotService;
 
@@ -30,11 +35,23 @@ public class BizCompanySnapshotSyncTaskHandler implements SyncTaskHandler {
         return HANDLER_CODE;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @Override
     public String getName() {
         return HANDLER_NAME;
     }
 
+    /**
+     * ?????
+     *
+     * @param task ????
+     * @param context ?????
+     * @return ????
+     */
     @Override
     public SyncTaskExecutionResult execute(SyncTask task, SyncTaskExecutionContext context) {
         LocalDateTime earliestChangeTime = crmBizCompanySnapshotService.getEarliestChangeTime();
@@ -74,6 +91,12 @@ public class BizCompanySnapshotSyncTaskHandler implements SyncTaskHandler {
                 .build();
     }
 
+    /**
+     * ??????
+     *
+     * @param value ???
+     * @return ????
+     */
     private int defaultInt(Integer value) {
         return value == null ? 0 : value;
     }

@@ -49,9 +49,11 @@ public interface NotifyMessageService {
      * @param bizType    业务类型
      * @param bizId      业务ID
      * @param receiverId 接收人ID
+     * @param receiverCompanyId 接收公司ID
      * @return 有效待办列表
      */
-    List<SysNotifyMessage> listActiveTodoByBizAndReceiver(String bizType, Long bizId, Long receiverId);
+    List<SysNotifyMessage> listActiveTodoByBizAndReceiver(String bizType, Long bizId, Long receiverId,
+                                                          Long receiverCompanyId);
 
     /**
      * 失效消息。
@@ -63,7 +65,7 @@ public interface NotifyMessageService {
      */
     boolean invalidateMessage(Long messageId, String invalidReason, LocalDateTime invalidTime);
 
-    void markRead(Long id, Long receiverId);
+    void markRead(Long id, Long receiverId, Long receiverCompanyId);
 
     /**
      * 按业务对象标记已读。
@@ -98,7 +100,8 @@ public interface NotifyMessageService {
      * 统计有效待办数量。
      *
      * @param receiverId 接收人ID
+     * @param receiverCompanyId 接收公司ID
      * @return 待办数量
      */
-    Long countTodo(Long receiverId);
+    Long countTodo(Long receiverId, Long receiverCompanyId);
 }

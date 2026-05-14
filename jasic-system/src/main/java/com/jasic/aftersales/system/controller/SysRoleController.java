@@ -6,11 +6,11 @@ import com.jasic.aftersales.common.core.controller.BaseController;
 import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.common.core.domain.Result;
 import com.jasic.aftersales.common.enums.OperTypeEnum;
-import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.dto.SysRoleDTO;
 import com.jasic.aftersales.system.domain.query.SysRoleQuery;
 import com.jasic.aftersales.system.domain.vo.DataScopeOptionVO;
 import com.jasic.aftersales.system.domain.vo.SysRoleVO;
+import com.jasic.aftersales.system.service.CompanyDataAccessService;
 import com.jasic.aftersales.system.service.ISysRoleService;
 import com.jasic.aftersales.system.service.SysDataScopeRuleService;
 import org.springframework.validation.annotation.Validated;
@@ -46,6 +46,9 @@ public class SysRoleController extends BaseController {
     @Resource
     private SysDataScopeRuleService dataScopeRuleService;
 
+    @Resource
+    private CompanyDataAccessService companyDataAccessService;
+
     /**
      * 分页查询角色列表
      *
@@ -56,11 +59,12 @@ public class SysRoleController extends BaseController {
     @SaCheckPermission("system:role:list")
     @GetMapping("/list")
     public Result<PageResult<SysRoleVO>> list(SysRoleQuery query) {
-        if (query.getCompanyId() == null) {
-            query.setCompanyId(SecurityContext.getCurrentCompanyId());
-        }
-        PageResult<SysRoleVO> page = roleService.listPage(query);
-        return Result.ok(page);
+        Long targetCompanyId = companyDataAccessService.resolveCurrentCompanyOwnedTarget(query.getTargetCompanyId());
+        query.setTargetCompanyId(targetCompanyId);
+        return Result.ok(companyDataAccessService.runWithCurrentCompanyOwnedTarget(
+                targetCompanyId,
+                () -> roleService.listPage(query)
+        ));
     }
 
     /**
@@ -70,10 +74,12 @@ public class SysRoleController extends BaseController {
      */
     @ApiOperation(value = "查询当前公司下的角色列表（不分页，用于下拉选择）")
     @GetMapping("/options")
-    public Result<List<SysRoleVO>> options() {
-        Long companyId = SecurityContext.getCurrentCompanyId();
-        List<SysRoleVO> list = roleService.listByCompanyId(companyId);
-        return Result.ok(list);
+    public Result<List<SysRoleVO>> options(@RequestParam(required = false) Long targetCompanyId) {
+        Long resolvedTargetCompanyId = companyDataAccessService.resolveCurrentCompanyOwnedTarget(targetCompanyId);
+        return Result.ok(companyDataAccessService.runWithCurrentCompanyOwnedTarget(
+                resolvedTargetCompanyId,
+                () -> roleService.listByCompanyId(resolvedTargetCompanyId)
+        ));
     }
 
     /**
@@ -84,9 +90,12 @@ public class SysRoleController extends BaseController {
     @ApiOperation(value = "查询当前公司的数据范围选项。")
     @SaCheckPermission("system:role:list")
     @GetMapping("/data-scope-options")
-    public Result<List<DataScopeOptionVO>> dataScopeOptions() {
-        Long companyId = SecurityContext.getCurrentCompanyId();
-        return Result.ok(dataScopeRuleService.listOptionsByCompanyId(companyId));
+    public Result<List<DataScopeOptionVO>> dataScopeOptions(@RequestParam(required = false) Long targetCompanyId) {
+        Long resolvedTargetCompanyId = companyDataAccessService.resolveCurrentCompanyOwnedTarget(targetCompanyId);
+        return Result.ok(companyDataAccessService.runWithCurrentCompanyOwnedTarget(
+                resolvedTargetCompanyId,
+                () -> dataScopeRuleService.listOptionsByCompanyId(resolvedTargetCompanyId)
+        ));
     }
 
     /**
@@ -98,9 +107,13 @@ public class SysRoleController extends BaseController {
     @ApiOperation(value = "查询角色详情")
     @SaCheckPermission("system:role:list")
     @GetMapping("/{roleId}")
-    public Result<SysRoleVO> getById(@PathVariable Long roleId) {
-        SysRoleVO vo = roleService.getById(roleId);
-        return Result.ok(vo);
+    public Result<SysRoleVO> getById(@PathVariable Long roleId,
+                                     @RequestParam(required = false) Long targetCompanyId) {
+        Long resolvedTargetCompanyId = companyDataAccessService.resolveCurrentCompanyOwnedTarget(targetCompanyId);
+        return Result.ok(companyDataAccessService.runWithCurrentCompanyOwnedTarget(
+                resolvedTargetCompanyId,
+                () -> roleService.getById(roleId)
+        ));
     }
 
     /**
@@ -114,9 +127,12 @@ public class SysRoleController extends BaseController {
     @OperLog(title = "角色管理", operType = OperTypeEnum.INSERT)
     @PostMapping
     public Result<Long> save(@Validated @RequestBody SysRoleDTO dto) {
-        Long companyId = SecurityContext.getCurrentCompanyId();
-        Long id = roleService.save(companyId, dto);
-        return Result.ok(id);
+        Long targetCompanyId = companyDataAccessService.resolveCurrentCompanyOwnedTarget(dto.getTargetCompanyId());
+        dto.setTargetCompanyId(targetCompanyId);
+        return Result.ok(companyDataAccessService.runWithCurrentCompanyOwnedTarget(
+                targetCompanyId,
+                () -> roleService.save(targetCompanyId, dto)
+        ));
     }
 
     /**
@@ -130,7 +146,9 @@ public class SysRoleController extends BaseController {
     @OperLog(title = "角色管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
     public Result<Void> update(@Validated @RequestBody SysRoleDTO dto) {
-        roleService.update(dto);
+        Long targetCompanyId = companyDataAccessService.resolveCurrentCompanyOwnedTarget(dto.getTargetCompanyId());
+        dto.setTargetCompanyId(targetCompanyId);
+        companyDataAccessService.runWithCurrentCompanyOwnedTarget(targetCompanyId, () -> roleService.update(dto));
         return Result.ok();
     }
 
@@ -144,8 +162,13 @@ public class SysRoleController extends BaseController {
     @SaCheckPermission("system:role:remove")
     @OperLog(title = "角色管理", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/{roleId}")
-    public Result<Void> remove(@PathVariable Long roleId) {
-        roleService.remove(roleId);
+    public Result<Void> remove(@PathVariable Long roleId,
+                               @RequestParam(required = false) Long targetCompanyId) {
+        Long resolvedTargetCompanyId = companyDataAccessService.resolveCurrentCompanyOwnedTarget(targetCompanyId);
+        companyDataAccessService.runWithCurrentCompanyOwnedTarget(
+                resolvedTargetCompanyId,
+                () -> roleService.remove(roleId)
+        );
         return Result.ok();
     }
 
@@ -160,8 +183,14 @@ public class SysRoleController extends BaseController {
     @SaCheckPermission("system:role:update")
     @OperLog(title = "角色管理", operType = OperTypeEnum.GRANT)
     @PutMapping("/{roleId}/menus")
-    public Result<Void> assignMenus(@PathVariable Long roleId, @RequestBody List<Long> menuIds) {
-        roleService.assignMenus(roleId, menuIds);
+    public Result<Void> assignMenus(@PathVariable Long roleId,
+                                    @RequestParam(required = false) Long targetCompanyId,
+                                    @RequestBody List<Long> menuIds) {
+        Long resolvedTargetCompanyId = companyDataAccessService.resolveCurrentCompanyOwnedTarget(targetCompanyId);
+        companyDataAccessService.runWithCurrentCompanyOwnedTarget(
+                resolvedTargetCompanyId,
+                () -> roleService.assignMenus(roleId, menuIds)
+        );
         return Result.ok();
     }
 }

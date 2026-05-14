@@ -61,6 +61,14 @@ public interface ISysAreaService {
      */
     class AreaMatchResult {
 
+        /**
+         * ?? AreaMatchResult ?????
+         *
+         * @param province ??
+         * @param city ??
+         * @param district ??
+         * @return ????
+         */
         private final SysArea province;
 
         private final SysArea city;
@@ -73,18 +81,38 @@ public interface ISysAreaService {
             this.district = district;
         }
 
+        /**
+         * ??Province?
+         *
+         * @return ????
+         */
         public SysArea getProvince() {
             return province;
         }
 
+        /**
+         * ??City?
+         *
+         * @return ????
+         */
         public SysArea getCity() {
             return city;
         }
 
+        /**
+         * ??District?
+         *
+         * @return ????
+         */
         public SysArea getDistrict() {
             return district;
         }
 
+        /**
+         * ????Matched?
+         *
+         * @return true ??????
+         */
         public boolean isMatched() {
             return province != null && city != null && district != null;
         }

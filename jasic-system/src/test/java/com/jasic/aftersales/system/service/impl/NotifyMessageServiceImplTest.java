@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jasic.aftersales.common.exception.ServiceException;
+import com.jasic.aftersales.system.domain.entity.WorkOrder;
+import com.jasic.aftersales.system.mapper.WorkOrderMapper;
 import com.jasic.aftersales.system.notify.domain.entity.SysNotifyMessage;
 import com.jasic.aftersales.system.notify.domain.entity.SysNotifyMessageLog;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyActionTypeEnum;
@@ -13,6 +15,7 @@ import com.jasic.aftersales.system.notify.domain.vo.NotifyMessagePageVO;
 import com.jasic.aftersales.system.notify.mapper.SysNotifyMessageMapper;
 import com.jasic.aftersales.system.notify.service.NotifyMessageLogService;
 import com.jasic.aftersales.system.notify.service.impl.NotifyMessageServiceImpl;
+import com.jasic.aftersales.system.service.WorkOrderPermissionService;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.apache.ibatis.session.Configuration;
 import org.junit.Assert;
@@ -72,6 +75,7 @@ public class NotifyMessageServiceImplTest {
 
         NotifyMessageQuery query = new NotifyMessageQuery();
         query.setReceiverId(200L);
+        query.setReceiverCompanyId(300L);
         query.setBox("TODO");
         query.setPageNum(1);
         query.setPageSize(10);
@@ -93,11 +97,12 @@ public class NotifyMessageServiceImplTest {
         setField(service, "notifyMessageLogService", new MemoryNotifyMessageLogService());
         initTableInfo();
 
-        Long count = service.countTodo(500L);
+        Long count = service.countTodo(500L, 600L);
 
         Assert.assertEquals(Long.valueOf(3L), count);
         Assert.assertNotNull(mapperState.countWrapper);
         Assert.assertTrue(mapperState.countWrapper.getSqlSegment().contains("todo_status"));
+        Assert.assertTrue(mapperState.countWrapper.getSqlSegment().contains("receiver_company_id"));
     }
 
     @Test
@@ -110,7 +115,7 @@ public class NotifyMessageServiceImplTest {
         setField(service, "notifyMessageLogService", logService);
 
         try {
-            service.markRead(1L, 100L);
+            service.markRead(1L, 100L, 300L);
             Assert.fail("expected permission isolation");
         } catch (ServiceException ex) {
             Assert.assertEquals("消息不存在", ex.getMessage());
@@ -128,15 +133,55 @@ public class NotifyMessageServiceImplTest {
         setField(service, "sysNotifyMessageMapper", createMapperProxy(mapperState));
         MemoryNotifyMessageLogService logService = new MemoryNotifyMessageLogService();
         setField(service, "notifyMessageLogService", logService);
+        setField(service, "workOrderMapper", createWorkOrderMapperProxy(true));
+        setField(service, "workOrderPermissionService", new TestWorkOrderPermissionService(true));
         initTableInfo();
 
-        service.markRead(2L, 100L);
+        service.markRead(2L, 100L, 300L);
 
         Assert.assertEquals(1, mapperState.updateCount);
         Assert.assertEquals(NotifyTodoStatusEnum.READ.getCode(), mapperState.messageStore.get(2L).getTodoStatus());
         Assert.assertNotNull(mapperState.messageStore.get(2L).getReadTime());
         Assert.assertEquals(1, logService.logs.size());
         Assert.assertEquals(NotifyActionTypeEnum.READ.getCode(), logService.logs.get(0).getActionType());
+    }
+
+    @Test
+    public void shouldRejectReadingMessageWhenReceiverCompanyMismatch() throws Exception {
+        NotifyMessageServiceImpl service = new NotifyMessageServiceImpl();
+        MessageMapperState mapperState = new MessageMapperState();
+        mapperState.messageStore.put(3L, buildMessage(3L, 100L, NotifyTodoStatusEnum.PENDING.getCode()));
+        setField(service, "sysNotifyMessageMapper", createMapperProxy(mapperState));
+        setField(service, "notifyMessageLogService", new MemoryNotifyMessageLogService());
+
+        try {
+            service.markRead(3L, 100L, 301L);
+            Assert.fail("expected receiver company isolation");
+        } catch (ServiceException ex) {
+            Assert.assertEquals("消息不存在", ex.getMessage());
+        }
+
+        Assert.assertEquals(0, mapperState.updateCount);
+    }
+
+    @Test
+    public void shouldRejectReadingMessageWhenWorkOrderIsNotViewable() throws Exception {
+        NotifyMessageServiceImpl service = new NotifyMessageServiceImpl();
+        MessageMapperState mapperState = new MessageMapperState();
+        mapperState.messageStore.put(4L, buildMessage(4L, 100L, NotifyTodoStatusEnum.PENDING.getCode()));
+        setField(service, "sysNotifyMessageMapper", createMapperProxy(mapperState));
+        setField(service, "notifyMessageLogService", new MemoryNotifyMessageLogService());
+        setField(service, "workOrderMapper", createWorkOrderMapperProxy(true));
+        setField(service, "workOrderPermissionService", new TestWorkOrderPermissionService(false));
+
+        try {
+            service.markRead(4L, 100L, 300L);
+            Assert.fail("expected business object permission check");
+        } catch (ServiceException ex) {
+            Assert.assertEquals("无权查看该工单", ex.getMessage());
+        }
+
+        Assert.assertEquals(0, mapperState.updateCount);
     }
 
     private void initTableInfo() {
@@ -200,6 +245,28 @@ public class NotifyMessageServiceImplTest {
         );
     }
 
+    private WorkOrderMapper createWorkOrderMapperProxy(boolean found) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectById".equals(method.getName())) {
+                    if (!found) {
+                        return null;
+                    }
+                    WorkOrder workOrder = new WorkOrder();
+                    workOrder.setId((Long) args[0]);
+                    return workOrder;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (WorkOrderMapper) Proxy.newProxyInstance(
+                WorkOrderMapper.class.getClassLoader(),
+                new Class[]{WorkOrderMapper.class},
+                handler
+        );
+    }
+
     private Object defaultValue(Class<?> type) {
         if (type == null || !type.isPrimitive()) {
             return null;
@@ -235,6 +302,7 @@ public class NotifyMessageServiceImplTest {
         SysNotifyMessage message = new SysNotifyMessage();
         message.setId(id);
         message.setReceiverId(receiverId);
+        message.setReceiverCompanyId(300L);
         message.setTodoStatus(todoStatus);
         message.setTitle("message-" + id);
         message.setSummary("summary-" + id);
@@ -245,6 +313,19 @@ public class NotifyMessageServiceImplTest {
         message.setRouteValue("88");
         message.setCreateTime(LocalDateTime.of(2026, 4, 18, 10, 20, 30));
         return message;
+    }
+
+    private static class TestWorkOrderPermissionService extends WorkOrderPermissionService {
+        private final boolean allowed;
+
+        private TestWorkOrderPermissionService(boolean allowed) {
+            this.allowed = allowed;
+        }
+
+        @Override
+        public boolean canView(WorkOrder workOrder) {
+            return allowed;
+        }
     }
 
     private void setField(Object target, String fieldName, Object value) throws Exception {

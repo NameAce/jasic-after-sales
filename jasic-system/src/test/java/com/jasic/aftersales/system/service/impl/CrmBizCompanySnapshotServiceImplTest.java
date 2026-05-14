@@ -4,6 +4,7 @@ import com.jasic.aftersales.system.domain.entity.CrmBizCompanySnapshot;
 import com.jasic.aftersales.system.domain.vo.CrmBizCompanyImportPreviewVO;
 import com.jasic.aftersales.system.mapper.CrmBizCompanySnapshotMapper;
 import com.jasic.aftersales.system.mapper.SysCompanyMapper;
+import com.jasic.aftersales.system.service.ISysAreaService;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -37,6 +38,7 @@ public class CrmBizCompanySnapshotServiceImplTest {
 
         setField(service, "crmBizCompanySnapshotMapper", createSnapshotMapper(snapshot));
         setField(service, "sysCompanyMapper", createCompanyMapper());
+        setField(service, "sysAreaService", createAreaService());
 
         CrmBizCompanyImportPreviewVO preview = service.getImportPreview(1001L);
 
@@ -64,6 +66,23 @@ public class CrmBizCompanySnapshotServiceImplTest {
         return (CrmBizCompanySnapshotMapper) Proxy.newProxyInstance(
                 CrmBizCompanySnapshotMapper.class.getClassLoader(),
                 new Class<?>[]{CrmBizCompanySnapshotMapper.class},
+                handler
+        );
+    }
+
+    private ISysAreaService createAreaService() {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("matchRegion".equals(method.getName())) {
+                    return new ISysAreaService.AreaMatchResult(null, null, null);
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (ISysAreaService) Proxy.newProxyInstance(
+                ISysAreaService.class.getClassLoader(),
+                new Class<?>[]{ISysAreaService.class},
                 handler
         );
     }

@@ -4,18 +4,12 @@ import com.baomidou.mybatisplus.annotation.DbType;
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.handler.TenantLineHandler;
-import com.baomidou.mybatisplus.extension.plugins.inner.DataPermissionInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.TenantLineInnerInterceptor;
-import com.jasic.aftersales.framework.datascope.CompanyIsolationRegistrar;
-import com.jasic.aftersales.framework.datascope.DataScopeAspect;
-import com.jasic.aftersales.framework.security.SecurityContext;
-import lombok.extern.slf4j.Slf4j;
+import com.jasic.aftersales.framework.datapermission.CompanyDataAccessContext;
+import com.jasic.aftersales.framework.datapermission.CompanyDataPolicyRegistry;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.LongValue;
-import net.sf.jsqlparser.expression.NullValue;
-import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
-import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import org.apache.ibatis.reflection.MetaObject;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.context.annotation.Bean;
@@ -25,12 +19,11 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import java.time.LocalDateTime;
 
 /**
- * MyBatis-Plus 配置（含分页插件、数据权限插件、自动填充）
+ * MyBatis-Plus 配置（含分页插件、TenantLine 公司隔离、自动填充）
  *
  * @author Zoro
  * @date 2026/03/18
  */
-@Slf4j
 @EnableAsync
 @Configuration
 @MapperScan({
@@ -42,72 +35,49 @@ public class MybatisPlusConfig implements MetaObjectHandler {
 
     /**
      * MyBatis-Plus 插件配置
-     * <p>
-     * 拦截器执行顺序：TenantLine（公司隔离） → DataPermission（业务数据权限） → Pagination（分页）
-     * </p>
      *
-     * @param registrar 公司隔离表注册器（自动探测含 company_id 的表）
+     * @param companyDataAccessContext 公司数据访问上下文
      * @return 插件拦截器
      */
     @Bean
-    public MybatisPlusInterceptor mybatisPlusInterceptor(CompanyIsolationRegistrar registrar) {
+    public MybatisPlusInterceptor mybatisPlusInterceptor(CompanyDataAccessContext companyDataAccessContext) {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
 
-        // ====== 第一层：公司级自动隔离 ======
+        // TenantLine 只作用于显式注册为 CURRENT_COMPANY 的表。
         TenantLineInnerInterceptor tenantInterceptor = new TenantLineInnerInterceptor(new TenantLineHandler() {
+            /**
+             * ??Tenant Id?
+             *
+             * @return ????
+             */
             @Override
             public Expression getTenantId() {
-                Long companyId = SecurityContext.getCurrentCompanyId();
-                return companyId != null ? new LongValue(companyId) : new NullValue();
+                return new LongValue(companyDataAccessContext.resolveCompanyId());
             }
 
+            /**
+             * ??Tenant Id Column?
+             *
+             * @return ?????
+             */
             @Override
             public String getTenantIdColumn() {
                 return "company_id";
             }
 
+            /**
+             * ?? ignoreTable ?????
+             *
+             * @param tableName ??
+             * @return true ??????
+             */
             @Override
             public boolean ignoreTable(String tableName) {
-                try {
-                    Long companyId = SecurityContext.getCurrentCompanyId();
-                    if (companyId == null) {
-                        return true;
-                    }
-                    if (SecurityContext.isPlatformUser()) {
-                        return true;
-                    }
-                } catch (Exception e) {
-                    return true;
-                }
-                if (DataScopeAspect.isDataScopeActive()) {
-                    return true;
-                }
-                return !registrar.shouldIsolate(tableName);
+                return !CompanyDataPolicyRegistry.useTenantLine(tableName);
             }
         });
         interceptor.addInnerInterceptor(tenantInterceptor);
 
-        // ====== 第二层：业务数据权限（@DataScope 触发） ======
-        DataPermissionInterceptor dataPermissionInterceptor = new DataPermissionInterceptor();
-        dataPermissionInterceptor.setDataPermissionHandler((where, mappedStatementId) -> {
-            String dataScopeSql = DataScopeAspect.getDataScopeSql();
-            if (dataScopeSql == null || dataScopeSql.isEmpty()) {
-                return where;
-            }
-            try {
-                Expression dataScopeExpression = CCJSqlParserUtil.parseCondExpression(dataScopeSql);
-                if (where == null) {
-                    return dataScopeExpression;
-                }
-                return new AndExpression(where, dataScopeExpression);
-            } catch (Exception e) {
-                log.error("解析数据权限SQL异常: {}", dataScopeSql, e);
-                return where;
-            }
-        });
-        interceptor.addInnerInterceptor(dataPermissionInterceptor);
-
-        // ====== 第三层：分页 ======
         interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
         return interceptor;
     }

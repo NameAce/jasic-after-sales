@@ -31,7 +31,7 @@ public class SysRoleQuery extends PageQuery {
     @ApiModelProperty(value = "状态")
     private Integer status;
 
-    /** 公司ID */
-    @ApiModelProperty(value = "公司ID")
-    private Long companyId;
+    /** 目标公司ID */
+    @ApiModelProperty(value = "目标公司ID")
+    private Long targetCompanyId;
 }

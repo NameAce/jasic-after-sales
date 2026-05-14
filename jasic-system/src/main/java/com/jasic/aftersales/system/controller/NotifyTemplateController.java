@@ -37,6 +37,12 @@ public class NotifyTemplateController extends BaseController {
     @Resource
     private NotifyTemplateService notifyTemplateService;
 
+    /**
+     * ???????
+     *
+     * @param query ????
+     * @return ????
+     */
     @ApiOperation(value = "分页查询通知模板")
     @SaCheckPermission("system:notifyTemplate:list")
     @GetMapping("/list")
@@ -44,6 +50,12 @@ public class NotifyTemplateController extends BaseController {
         return Result.ok(notifyTemplateService.listPage(query));
     }
 
+    /**
+     * ??By Id?
+     *
+     * @param id ??ID
+     * @return ??????
+     */
     @ApiOperation(value = "查询通知模板详情")
     @SaCheckPermission("system:notifyTemplate:view")
     @GetMapping("/{id}")
@@ -51,6 +63,12 @@ public class NotifyTemplateController extends BaseController {
         return Result.ok(notifyTemplateService.getById(id));
     }
 
+    /**
+     * ???????
+     *
+     * @param templateCode ??
+     * @return ????
+     */
     @ApiOperation(value = "查询通知模板渠道配置")
     @SaCheckPermission("system:notifyTemplate:view")
     @GetMapping("/{templateCode}/channels")
@@ -58,6 +76,12 @@ public class NotifyTemplateController extends BaseController {
         return Result.ok(notifyTemplateService.listChannelConfigs(templateCode));
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     * @return ??????
+     */
     @ApiOperation(value = "新增自定义通知模板")
     @SaCheckPermission("system:notifyTemplate:add")
     @OperLog(title = "通知模板", operType = OperTypeEnum.INSERT)
@@ -66,6 +90,12 @@ public class NotifyTemplateController extends BaseController {
         return Result.ok(notifyTemplateService.saveCustom(dto));
     }
 
+    /**
+     * ?????
+     *
+     * @param dto ????
+     * @return ??????
+     */
     @ApiOperation(value = "修改自定义通知模板")
     @SaCheckPermission("system:notifyTemplate:update")
     @OperLog(title = "通知模板", operType = OperTypeEnum.UPDATE)
@@ -75,6 +105,13 @@ public class NotifyTemplateController extends BaseController {
         return Result.ok();
     }
 
+    /**
+     * ?????
+     *
+     * @param templateCode ??
+     * @param channelConfigs ??
+     * @return ??????
+     */
     @ApiOperation(value = "保存通知模板渠道配置")
     @SaCheckPermission("system:notifyTemplate:update")
     @OperLog(title = "通知模板渠道配置", operType = OperTypeEnum.UPDATE)
@@ -85,6 +122,12 @@ public class NotifyTemplateController extends BaseController {
         return Result.ok();
     }
 
+    /**
+     * ?????
+     *
+     * @param id ??ID
+     * @return ??????
+     */
     @ApiOperation(value = "删除自定义通知模板")
     @SaCheckPermission("system:notifyTemplate:remove")
     @OperLog(title = "通知模板", operType = OperTypeEnum.DELETE)
@@ -94,6 +137,12 @@ public class NotifyTemplateController extends BaseController {
         return Result.ok();
     }
 
+    /**
+     * ?? preview ?????
+     *
+     * @param dto ????
+     * @return ??????
+     */
     @ApiOperation(value = "预览通知模板")
     @SaCheckPermission("system:notifyTemplate:preview")
     @PostMapping("/preview")
@@ -101,6 +150,11 @@ public class NotifyTemplateController extends BaseController {
         return Result.ok(notifyTemplateService.preview(dto));
     }
 
+    /**
+     * ?? refreshCache ?????
+     *
+     * @return ??????
+     */
     @ApiOperation(value = "刷新通知模板缓存")
     @SaCheckPermission("system:notifyTemplate:refresh")
     @OperLog(title = "通知模板", operType = OperTypeEnum.OTHER)

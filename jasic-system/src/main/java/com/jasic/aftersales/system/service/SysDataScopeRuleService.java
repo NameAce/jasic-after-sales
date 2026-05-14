@@ -26,6 +26,12 @@ import java.util.stream.Collectors;
 @Service
 public class SysDataScopeRuleService {
 
+    /**
+     * ???????
+     *
+     * @param companyId ??ID
+     * @return ????
+     */
     @Resource
     private SysCompanyMapper sysCompanyMapper;
 
@@ -39,6 +45,7 @@ public class SysDataScopeRuleService {
      * @return 数据范围选项
      */
     public List<DataScopeOptionVO> listOptionsByCompanyId(Long companyId) {
+        // ??????????????????????????
         SysCompany company = sysCompanyMapper.selectById(companyId);
         if (company == null) {
             throw new ServiceException("公司不存在");
@@ -65,6 +72,7 @@ public class SysDataScopeRuleService {
     public Map<String, List<DataScopeOptionVO>> listOptionMap() {
         LambdaQueryWrapper<SysCompanyType> wrapper = new LambdaQueryWrapper<>();
         wrapper.orderByAsc(SysCompanyType::getOrderNum);
+        // ??????????????????????????
         List<SysCompanyType> companyTypes = sysCompanyTypeMapper.selectList(wrapper);
         return companyTypes.stream().collect(Collectors.toMap(
                 SysCompanyType::getTypeCode,
@@ -81,10 +89,12 @@ public class SysDataScopeRuleService {
      * @param dataScope 数据范围
      */
     public void validateByCompanyId(Long companyId, String dataScope) {
+        // ??????????????????????????
         SysCompany company = sysCompanyMapper.selectById(companyId);
         if (company == null) {
             throw new ServiceException("公司不存在");
         }
+        // ?????????????????????????????
         validateByTypeCode(company.getTypeCode(), dataScope);
     }
 
@@ -120,9 +130,16 @@ public class SysDataScopeRuleService {
                 .orElse(DataScopeEnum.SELF.getCode());
     }
 
+    /**
+     * ??Company Type?
+     *
+     * @param typeCode ??????
+     * @return ????
+     */
     private SysCompanyType getCompanyType(String typeCode) {
         LambdaQueryWrapper<SysCompanyType> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysCompanyType::getTypeCode, typeCode);
+        // ??????????????????????????
         SysCompanyType companyType = sysCompanyTypeMapper.selectOne(wrapper);
         if (companyType == null) {
             throw new ServiceException("公司类型不存在");
@@ -130,6 +147,13 @@ public class SysDataScopeRuleService {
         return companyType;
     }
 
+    /**
+     * ???????
+     *
+     * @param subjectType ????
+     * @param typeCode ??????
+     * @return ????
+     */
     private List<DataScopeOptionVO> buildOptions(String subjectType, String typeCode) {
         SubjectTypeEnum subjectTypeEnum = SubjectTypeEnum.getByCode(subjectType);
         if (subjectTypeEnum == null) {
@@ -161,6 +185,14 @@ public class SysDataScopeRuleService {
         }
     }
 
+    /**
+     * ?? option ?????
+     *
+     * @param value ???
+     * @param label ??
+     * @param defaultOption ??
+     * @return ????
+     */
     private DataScopeOptionVO option(String value, String label, boolean defaultOption) {
         DataScopeOptionVO option = new DataScopeOptionVO();
         option.setValue(value);

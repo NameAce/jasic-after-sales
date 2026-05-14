@@ -22,6 +22,11 @@ import java.util.Map;
 @Component
 public class OperLogEventListener {
 
+    /**
+     * ?? onOperLogEvent ?????
+     *
+     * @param event ??
+     */
     @Resource
     private ISysOperLogService operLogService;
 

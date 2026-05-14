@@ -21,6 +21,13 @@ public enum NotifyDispatchResultCodeEnum {
     FAILED_CHANNEL_RESPONSE("FAILED_CHANNEL_RESPONSE", "Channel response invalid"),
     FAILED_RENDER_ERROR("FAILED_RENDER_ERROR", "Render failed");
 
+    /**
+     * ?? NotifyDispatchResultCodeEnum ?????
+     *
+     * @param code ??
+     * @param desc ??
+     * @return ????
+     */
     private final String code;
 
     private final String desc;
@@ -30,6 +37,12 @@ public enum NotifyDispatchResultCodeEnum {
         this.desc = desc;
     }
 
+    /**
+     * ??By Code?
+     *
+     * @param code ??
+     * @return ????
+     */
     public static NotifyDispatchResultCodeEnum getByCode(String code) {
         if (code == null) {
             return null;
@@ -46,6 +59,12 @@ public enum NotifyDispatchResultCodeEnum {
         return null;
     }
 
+    /**
+     * ?? fromCode ?????
+     *
+     * @param code ??
+     * @return ????
+     */
     @JsonCreator
     public static NotifyDispatchResultCodeEnum fromCode(String code) {
         NotifyDispatchResultCodeEnum value = getByCode(code);
@@ -55,11 +74,21 @@ public enum NotifyDispatchResultCodeEnum {
         return value;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @JsonValue
     public String getCode() {
         return code;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     public String getDesc() {
         return desc;
     }

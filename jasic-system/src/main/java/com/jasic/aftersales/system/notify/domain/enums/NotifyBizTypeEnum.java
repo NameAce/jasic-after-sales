@@ -14,6 +14,13 @@ public enum NotifyBizTypeEnum {
     /** 工单业务。 */
     WORK_ORDER("WORK_ORDER", "工单");
 
+    /**
+     * ?? NotifyBizTypeEnum ?????
+     *
+     * @param code ??
+     * @param desc ??
+     * @return ????
+     */
     private final String code;
 
     private final String desc;
@@ -23,6 +30,12 @@ public enum NotifyBizTypeEnum {
         this.desc = desc;
     }
 
+    /**
+     * ??By Code?
+     *
+     * @param code ??
+     * @return ????
+     */
     public static NotifyBizTypeEnum getByCode(String code) {
         if (code == null) {
             return null;
@@ -39,6 +52,12 @@ public enum NotifyBizTypeEnum {
         return null;
     }
 
+    /**
+     * ?? fromCode ?????
+     *
+     * @param code ??
+     * @return ????
+     */
     @JsonCreator
     public static NotifyBizTypeEnum fromCode(String code) {
         NotifyBizTypeEnum value = getByCode(code);
@@ -48,11 +67,21 @@ public enum NotifyBizTypeEnum {
         return value;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @JsonValue
     public String getCode() {
         return code;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     public String getDesc() {
         return desc;
     }

@@ -16,7 +16,6 @@ import com.jasic.aftersales.framework.storage.ObjectStorageUploadResult;
 import com.jasic.aftersales.system.domain.entity.SysFile;
 import com.jasic.aftersales.system.domain.entity.SysFileBiz;
 import com.jasic.aftersales.system.domain.vo.SysFileItemVO;
-import com.jasic.aftersales.system.domain.vo.SysFilePreviewVO;
 import com.jasic.aftersales.system.domain.vo.SysFileUploadVO;
 import com.jasic.aftersales.system.mapper.SysFileBizMapper;
 import com.jasic.aftersales.system.mapper.SysFileMapper;
@@ -75,10 +74,21 @@ public class SysFileServiceImpl implements SysFileService {
     @Resource
     private SysFileBizMapper sysFileBizMapper;
 
+    /**
+     * ?????
+     *
+     * @param file ????
+     * @param bizDir ??
+     * @param uploadUserId upload User ID
+     * @param uploadUserType ??
+     * @param uploadCompanyId upload Company ID
+     * @return ????
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public SysFileUploadVO upload(MultipartFile file, String bizDir, Long uploadUserId,
                                   SysFileUploadUserTypeEnum uploadUserType, Long uploadCompanyId) {
+        // ?????????????????????????????
         validateUploadFile(file);
         String fileExt = resolveFileExtension(file.getOriginalFilename());
         SysFileMediaTypeEnum mediaType = resolveMediaType(fileExt);
@@ -101,6 +111,7 @@ public class SysFileServiceImpl implements SysFileService {
         entity.setUploadUserType(uploadUserType);
         entity.setUploadCompanyId(uploadCompanyId);
         entity.setStatus(SysFileStatusEnum.ACTIVE);
+        // ???????????????????????
         sysFileMapper.insert(entity);
 
         SysFileUploadVO vo = new SysFileUploadVO();
@@ -114,24 +125,27 @@ public class SysFileServiceImpl implements SysFileService {
         return vo;
     }
 
-    @Override
-    public SysFilePreviewVO getPreviewUrl(Long fileId) {
-        SysFile sysFile = requireActiveFile(fileId);
-        SysFilePreviewVO vo = new SysFilePreviewVO();
-        vo.setFileId(fileId);
-        vo.setExpireSeconds(defaultPreviewExpireSeconds());
-        vo.setPreviewUrl(generatePreviewUrl(sysFile));
-        return vo;
-    }
-
+    /**
+     * ?? replaceBizFiles ?????
+     *
+     * @param bizType ????
+     * @param bizId ??ID
+     * @param fileIds file ID??
+     * @param companyId ??ID
+     * @param operatorUserId operator User ID
+     * @param operatorUserType ??
+     * @param remark ??
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void replaceBizFiles(SysFileBizTypeEnum bizType, Long bizId, List<Long> fileIds, Long companyId,
                                 Long operatorUserId, SysFileUploadUserTypeEnum operatorUserType, String remark) {
+        // ?????????????????????????????
         validateBizTarget(bizType, bizId);
         LambdaQueryWrapper<SysFileBiz> deleteWrapper = new LambdaQueryWrapper<>();
         deleteWrapper.eq(SysFileBiz::getBizType, bizType)
                 .eq(SysFileBiz::getBizId, bizId);
+        // ???????????????????????
         sysFileBizMapper.delete(deleteWrapper);
 
         List<Long> normalizedFileIds = normalizeFileIds(fileIds);
@@ -159,9 +173,17 @@ public class SysFileServiceImpl implements SysFileService {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param bizType ????
+     * @param bizId ??ID
+     * @param fileId ??ID
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void unbindBizFile(SysFileBizTypeEnum bizType, Long bizId, Long fileId) {
+        // ?????????????????????????????
         validateBizTarget(bizType, bizId);
         if (fileId == null) {
             throw new ServiceException("文件ID不能为空");
@@ -170,18 +192,31 @@ public class SysFileServiceImpl implements SysFileService {
         wrapper.eq(SysFileBiz::getBizType, bizType)
                 .eq(SysFileBiz::getBizId, bizId)
                 .eq(SysFileBiz::getFileId, fileId);
+        // ???????????????????????
         sysFileBizMapper.delete(wrapper);
     }
 
+    /**
+     * ???????
+     *
+     * @param bizType ????
+     * @param bizId ??ID
+     * @return ????
+     */
     @Override
     public List<SysFileItemVO> listBizFiles(SysFileBizTypeEnum bizType, Long bizId) {
-        if (bizType == null || bizId == null) {
-            return Collections.emptyList();
-        }
+        validateBizTarget(bizType, bizId);
         List<SysFileBiz> relations = sysFileBizMapper.selectVisibleBizRelations(bizType, bizId);
         return buildFileItems(relations);
     }
 
+    /**
+     * ???????
+     *
+     * @param bizTypes ??
+     * @param bizId ??ID
+     * @return ????
+     */
     @Override
     public Map<SysFileBizTypeEnum, List<SysFileItemVO>> listBizFileMap(List<SysFileBizTypeEnum> bizTypes, Long bizId) {
         if (bizTypes == null || bizTypes.isEmpty() || bizId == null) {
@@ -194,6 +229,7 @@ public class SysFileServiceImpl implements SysFileService {
         if (normalizedBizTypes.isEmpty()) {
             return Collections.emptyMap();
         }
+        // ??????????????????????????
         List<SysFileBiz> relations = sysFileBizMapper.selectVisibleBizRelationsByTypes(normalizedBizTypes, bizId);
         Map<SysFileBizTypeEnum, List<SysFileItemVO>> result = new EnumMap<>(SysFileBizTypeEnum.class);
         for (SysFileBizTypeEnum bizType : normalizedBizTypes) {
@@ -216,6 +252,12 @@ public class SysFileServiceImpl implements SysFileService {
         return result;
     }
 
+    /**
+     * ???????
+     *
+     * @param relations ??
+     * @return ????
+     */
     private List<SysFileItemVO> buildFileItems(List<SysFileBiz> relations) {
         if (relations == null || relations.isEmpty()) {
             return Collections.emptyList();
@@ -234,6 +276,13 @@ public class SysFileServiceImpl implements SysFileService {
         return result;
     }
 
+    /**
+     * ???????
+     *
+     * @param sysFile ??
+     * @param relation ??
+     * @return ????
+     */
     private SysFileItemVO buildFileItem(SysFile sysFile, SysFileBiz relation) {
         SysFileItemVO vo = new SysFileItemVO();
         vo.setFileId(sysFile.getId());
@@ -249,6 +298,12 @@ public class SysFileServiceImpl implements SysFileService {
         return vo;
     }
 
+    /**
+     * ?????
+     *
+     * @param fileIds file ID??
+     * @return ????
+     */
     private Map<Long, SysFile> loadActiveFileMap(List<Long> fileIds) {
         Map<Long, SysFile> fileMap = loadFileMap(fileIds);
         for (Long fileId : fileIds) {
@@ -260,11 +315,18 @@ public class SysFileServiceImpl implements SysFileService {
         return fileMap;
     }
 
+    /**
+     * ?????
+     *
+     * @param fileIds file ID??
+     * @return ????
+     */
     private Map<Long, SysFile> loadFileMap(List<Long> fileIds) {
         List<Long> normalizedFileIds = normalizeFileIds(fileIds);
         if (normalizedFileIds.isEmpty()) {
             return Collections.emptyMap();
         }
+        // ??????????????????????????
         List<SysFile> fileList = sysFileMapper.selectBatchIds(normalizedFileIds);
         Map<Long, SysFile> result = new LinkedHashMap<>();
         for (SysFile sysFile : fileList) {
@@ -275,10 +337,17 @@ public class SysFileServiceImpl implements SysFileService {
         return result;
     }
 
+    /**
+     * ??????????
+     *
+     * @param fileId ??ID
+     * @return ????
+     */
     private SysFile requireActiveFile(Long fileId) {
         if (fileId == null) {
             throw new ServiceException("文件ID不能为空");
         }
+        // ??????????????????????????
         SysFile sysFile = sysFileMapper.selectById(fileId);
         if (sysFile == null || sysFile.getStatus() != SysFileStatusEnum.ACTIVE) {
             throw new ServiceException("文件不存在或已失效");
@@ -286,6 +355,11 @@ public class SysFileServiceImpl implements SysFileService {
         return sysFile;
     }
 
+    /**
+     * ???????
+     *
+     * @param file ????
+     */
     private void validateUploadFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new ServiceException("上传文件不能为空");
@@ -294,6 +368,12 @@ public class SysFileServiceImpl implements SysFileService {
         resolveMediaType(fileExt);
     }
 
+    /**
+     * ???????
+     *
+     * @param fileSize ??
+     * @param mediaType ??
+     */
     private void validateFileSize(long fileSize, SysFileMediaTypeEnum mediaType) {
         if (fileSize <= 0) {
             throw new ServiceException("上传文件不能为空");
@@ -315,6 +395,12 @@ public class SysFileServiceImpl implements SysFileService {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param fileExt ??
+     * @return ????
+     */
     private SysFileMediaTypeEnum resolveMediaType(String fileExt) {
         if (IMAGE_EXTENSIONS.contains(fileExt)) {
             return SysFileMediaTypeEnum.IMAGE;
@@ -328,6 +414,12 @@ public class SysFileServiceImpl implements SysFileService {
         throw new ServiceException("不支持的文件类型");
     }
 
+    /**
+     * ???????
+     *
+     * @param originalName ??
+     * @return ?????
+     */
     private String resolveFileExtension(String originalName) {
         String normalized = StrUtil.trimToNull(originalName);
         if (normalized == null) {
@@ -340,12 +432,25 @@ public class SysFileServiceImpl implements SysFileService {
         return normalized.substring(index + 1).toLowerCase();
     }
 
+    /**
+     * ???????
+     *
+     * @param bizDir ??
+     * @param fileExt ??
+     * @return ?????
+     */
     private String buildObjectKey(String bizDir, String fileExt) {
         String normalizedDir = normalizeDir(bizDir);
         return normalizedDir + "/" + LocalDate.now().format(MONTH_FORMATTER) + "/"
                 + IdUtil.fastSimpleUUID() + "." + fileExt;
     }
 
+    /**
+     * ????????
+     *
+     * @param bizDir ??
+     * @return ?????
+     */
     private String normalizeDir(String bizDir) {
         String normalized = StrUtil.blankToDefault(StrUtil.trimToNull(bizDir), "misc");
         normalized = normalized.replace("\\", "/");
@@ -355,24 +460,54 @@ public class SysFileServiceImpl implements SysFileService {
         return normalized;
     }
 
+    /**
+     * ????????
+     *
+     * @param originalName ??
+     * @param fileExt ??
+     * @return ?????
+     */
     private String normalizeOriginalName(String originalName, String fileExt) {
         String normalized = StrUtil.trimToNull(originalName);
         return normalized == null ? "file." + fileExt : normalized;
     }
 
+    /**
+     * ???????
+     *
+     * @param contentType ??
+     * @return ?????
+     */
     private String resolveContentType(String contentType) {
         return StrUtil.blankToDefault(StrUtil.trimToNull(contentType), "application/octet-stream");
     }
 
+    /**
+     * ?? generatePreviewUrl ?????
+     *
+     * @param sysFile ??
+     * @return ?????
+     */
     private String generatePreviewUrl(SysFile sysFile) {
         return objectStorageService.generatePresignedPreviewUrl(sysFile.getObjectKey(), defaultPreviewExpireSeconds());
     }
 
+    /**
+     * ??????
+     *
+     * @return ????
+     */
     private long defaultPreviewExpireSeconds() {
         Long previewExpireSeconds = ossProperties.getPreviewExpireSeconds();
         return previewExpireSeconds == null || previewExpireSeconds <= 0 ? 1800L : previewExpireSeconds;
     }
 
+    /**
+     * ???????
+     *
+     * @param bizType ????
+     * @param bizId ??ID
+     */
     private void validateBizTarget(SysFileBizTypeEnum bizType, Long bizId) {
         if (bizType == null) {
             throw new ServiceException("业务类型不能为空");
@@ -382,6 +517,12 @@ public class SysFileServiceImpl implements SysFileService {
         }
     }
 
+    /**
+     * ????????
+     *
+     * @param fileIds file ID??
+     * @return ????
+     */
     private List<Long> normalizeFileIds(List<Long> fileIds) {
         if (fileIds == null || fileIds.isEmpty()) {
             return Collections.emptyList();
@@ -395,6 +536,12 @@ public class SysFileServiceImpl implements SysFileService {
         return new ArrayList<>(result);
     }
 
+    /**
+     * ????????
+     *
+     * @param value ???
+     * @return ?????
+     */
     private String normalizeNullableText(String value) {
         return StrUtil.trimToNull(value);
     }

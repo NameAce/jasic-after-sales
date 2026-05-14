@@ -6,11 +6,11 @@ import com.jasic.aftersales.common.core.controller.BaseController;
 import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.common.core.domain.Result;
 import com.jasic.aftersales.common.enums.OperTypeEnum;
-import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.dto.ResetPwdDTO;
 import com.jasic.aftersales.system.domain.dto.SysUserDTO;
 import com.jasic.aftersales.system.domain.query.SysUserQuery;
 import com.jasic.aftersales.system.domain.vo.SysUserVO;
+import com.jasic.aftersales.system.service.CompanyDataAccessService;
 import com.jasic.aftersales.system.service.ISysUserService;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
@@ -41,6 +42,9 @@ public class SysUserController extends BaseController {
     @Resource
     private ISysUserService userService;
 
+    @Resource
+    private CompanyDataAccessService companyDataAccessService;
+
     /**
      * 分页查询用户列表
      *
@@ -51,9 +55,8 @@ public class SysUserController extends BaseController {
     @SaCheckPermission("system:user:list")
     @GetMapping("/list")
     public Result<PageResult<SysUserVO>> list(SysUserQuery query) {
-        if (query.getCompanyId() == null) {
-            query.setCompanyId(SecurityContext.getCurrentCompanyId());
-        }
+        Long targetCompanyId = companyDataAccessService.resolveCurrentCompanyOwnedTarget(query.getTargetCompanyId());
+        query.setTargetCompanyId(targetCompanyId);
         PageResult<SysUserVO> page = userService.listPage(query);
         return Result.ok(page);
     }
@@ -67,8 +70,10 @@ public class SysUserController extends BaseController {
     @ApiOperation(value = "查询用户详情")
     @SaCheckPermission("system:user:list")
     @GetMapping("/{userId}")
-    public Result<SysUserVO> getById(@PathVariable Long userId) {
-        SysUserVO vo = userService.getById(userId);
+    public Result<SysUserVO> getById(@PathVariable Long userId,
+                                     @RequestParam(required = false) Long targetCompanyId) {
+        Long resolvedTargetCompanyId = companyDataAccessService.resolveCurrentCompanyOwnedTarget(targetCompanyId);
+        SysUserVO vo = userService.getById(userId, resolvedTargetCompanyId);
         return Result.ok(vo);
     }
 
@@ -83,6 +88,7 @@ public class SysUserController extends BaseController {
     @OperLog(title = "用户管理", operType = OperTypeEnum.INSERT)
     @PostMapping
     public Result<Long> save(@Validated @RequestBody SysUserDTO dto) {
+        dto.setTargetCompanyId(companyDataAccessService.resolveCurrentCompanyOwnedTarget(dto.getTargetCompanyId()));
         Long id = userService.save(dto);
         return Result.ok(id);
     }
@@ -98,6 +104,7 @@ public class SysUserController extends BaseController {
     @OperLog(title = "用户管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
     public Result<Void> update(@Validated @RequestBody SysUserDTO dto) {
+        dto.setTargetCompanyId(companyDataAccessService.resolveCurrentCompanyOwnedTarget(dto.getTargetCompanyId()));
         userService.update(dto);
         return Result.ok();
     }
@@ -112,8 +119,10 @@ public class SysUserController extends BaseController {
     @SaCheckPermission("system:user:remove")
     @OperLog(title = "用户管理", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/{userId}")
-    public Result<Void> remove(@PathVariable Long userId) {
-        userService.remove(userId);
+    public Result<Void> remove(@PathVariable Long userId,
+                               @RequestParam(required = false) Long targetCompanyId) {
+        Long resolvedTargetCompanyId = companyDataAccessService.resolveCurrentCompanyOwnedTarget(targetCompanyId);
+        userService.remove(userId, resolvedTargetCompanyId);
         return Result.ok();
     }
 
@@ -128,6 +137,7 @@ public class SysUserController extends BaseController {
     @OperLog(title = "用户管理", operType = OperTypeEnum.UPDATE)
     @PutMapping("/reset-pwd")
     public Result<Void> resetPwd(@Validated @RequestBody ResetPwdDTO dto) {
+        dto.setTargetCompanyId(companyDataAccessService.resolveCurrentCompanyOwnedTarget(dto.getTargetCompanyId()));
         userService.resetPwd(dto);
         return Result.ok();
     }
@@ -142,8 +152,10 @@ public class SysUserController extends BaseController {
     @SaCheckPermission("system:user:kickout")
     @OperLog(title = "用户管理", operType = OperTypeEnum.KICKOUT)
     @PostMapping("/{userId}/kickout")
-    public Result<Void> kickout(@PathVariable Long userId) {
-        userService.kickout(userId);
+    public Result<Void> kickout(@PathVariable Long userId,
+                                @RequestParam(required = false) Long targetCompanyId) {
+        Long resolvedTargetCompanyId = companyDataAccessService.resolveCurrentCompanyOwnedTarget(targetCompanyId);
+        userService.kickout(userId, resolvedTargetCompanyId);
         return Result.ok();
     }
 
@@ -158,8 +170,11 @@ public class SysUserController extends BaseController {
     @SaCheckPermission("system:user:update")
     @OperLog(title = "用户管理", operType = OperTypeEnum.GRANT)
     @PutMapping("/{userId}/roles")
-    public Result<Void> assignRoles(@PathVariable Long userId, @RequestBody List<Long> roleIds) {
-        userService.assignRoles(userId, roleIds);
+    public Result<Void> assignRoles(@PathVariable Long userId,
+                                    @RequestParam(required = false) Long targetCompanyId,
+                                    @RequestBody List<Long> roleIds) {
+        Long resolvedTargetCompanyId = companyDataAccessService.resolveCurrentCompanyOwnedTarget(targetCompanyId);
+        userService.assignRoles(userId, resolvedTargetCompanyId, roleIds);
         return Result.ok();
     }
 }

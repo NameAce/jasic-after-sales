@@ -160,7 +160,8 @@ INSERT INTO `sys_menu` (`id`, `subject_type`, `menu_name`, `parent_id`, `menu_ty
 (2041, 'PLATFORM', '大区查询', 204, 'F', NULL, NULL, 'system:region:list',   NULL, 1, 1, 1, NOW(), NOW()),
 (2042, 'PLATFORM', '大区新增', 204, 'F', NULL, NULL, 'system:region:add',    NULL, 2, 1, 1, NOW(), NOW()),
 (2043, 'PLATFORM', '大区修改', 204, 'F', NULL, NULL, 'system:region:update', NULL, 3, 1, 1, NOW(), NOW()),
-(2044, 'PLATFORM', '大区删除', 204, 'F', NULL, NULL, 'system:region:remove', NULL, 4, 1, 1, NOW(), NOW());
+(2044, 'PLATFORM', '大区删除', 204, 'F', NULL, NULL, 'system:region:remove', NULL, 4, 1, 1, NOW(), NOW()),
+(2045, 'PLATFORM', '大区授权', 204, 'F', NULL, NULL, 'system:region:assign', NULL, 5, 1, 1, NOW(), NOW());
 
 -- 三级按钮 - 操作日志
 INSERT INTO `sys_menu` (`id`, `subject_type`, `menu_name`, `parent_id`, `menu_type`, `path`, `component`, `perms`, `icon`, `order_num`, `is_visible`, `status`, `create_time`, `update_time`) VALUES

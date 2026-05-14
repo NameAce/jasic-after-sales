@@ -32,6 +32,13 @@ public class SysPermissionService {
     @Resource
     private SysUserRoleMapper sysUserRoleMapper;
 
+    /**
+     * ?????
+     *
+     * @param userId ??ID
+     * @param companyId ??ID
+     * @return ????
+     */
     @Resource
     private SysRoleMapper sysRoleMapper;
 
@@ -46,6 +53,7 @@ public class SysPermissionService {
      * @return 权限标识集合
      */
     public Set<String> loadPermsToCache(Long userId, Long companyId) {
+        // ??????????????????????????
         Set<String> perms = sysMenuMapper.selectPermsByUserIdAndCompanyId(userId, companyId);
         if (perms == null) {
             perms = Collections.emptySet();
@@ -111,6 +119,7 @@ public class SysPermissionService {
     public DataScopeEnum getEffectiveDataScope(Long userId, Long companyId, String subjectType) {
         LambdaQueryWrapper<SysUserRole> userRoleQuery = new LambdaQueryWrapper<>();
         userRoleQuery.eq(SysUserRole::getUserId, userId);
+        // ??????????????????????????
         List<SysUserRole> userRoles = sysUserRoleMapper.selectList(userRoleQuery);
         if (userRoles == null || userRoles.isEmpty()) {
             return DataScopeEnum.SELF;
@@ -135,6 +144,13 @@ public class SysPermissionService {
         return result == null ? DataScopeEnum.SELF : result;
     }
 
+    /**
+     * ???????
+     *
+     * @param scopeCode ??????
+     * @param subjectType ????
+     * @return ????
+     */
     private DataScopeEnum resolveRoleDataScope(String scopeCode, String subjectType) {
         if (subjectType == null) {
             return DataScopeEnum.getByCode(scopeCode);

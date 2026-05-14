@@ -28,7 +28,7 @@ public interface ISysUserService {
      * @param userId 用户ID
      * @return 用户详情
      */
-    SysUserVO getById(Long userId);
+    SysUserVO getById(Long userId, Long targetCompanyId);
 
     /**
      * 新增用户
@@ -50,7 +50,7 @@ public interface ISysUserService {
      *
      * @param userId 用户ID
      */
-    void remove(Long userId);
+    void remove(Long userId, Long targetCompanyId);
 
     /**
      * 重置密码
@@ -64,7 +64,7 @@ public interface ISysUserService {
      *
      * @param userId 用户ID
      */
-    void kickout(Long userId);
+    void kickout(Long userId, Long targetCompanyId);
 
     /**
      * 分配用户角色
@@ -72,5 +72,5 @@ public interface ISysUserService {
      * @param userId  用户ID
      * @param roleIds 角色ID列表
      */
-    void assignRoles(Long userId, java.util.List<Long> roleIds);
+    void assignRoles(Long userId, Long targetCompanyId, java.util.List<Long> roleIds);
 }

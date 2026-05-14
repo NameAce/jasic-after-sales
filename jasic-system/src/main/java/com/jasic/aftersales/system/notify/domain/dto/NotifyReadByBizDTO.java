@@ -29,4 +29,8 @@ public class NotifyReadByBizDTO implements Serializable {
     /** 当前用户ID */
     @ApiModelProperty(value = "当前用户ID")
     private Long receiverId;
+
+    /** 当前接收公司ID */
+    @ApiModelProperty(value = "当前接收公司ID")
+    private Long receiverCompanyId;
 }

@@ -34,6 +34,10 @@ public class NotifyAssignedEventDTO implements Serializable {
     @ApiModelProperty(value = "新接收人ID")
     private Long newAssignedUserId;
 
+    /** 接收公司ID */
+    @ApiModelProperty(value = "接收公司ID")
+    private Long receiverCompanyId;
+
     /** 操作人ID */
     @ApiModelProperty(value = "操作人ID")
     private Long operatorId;

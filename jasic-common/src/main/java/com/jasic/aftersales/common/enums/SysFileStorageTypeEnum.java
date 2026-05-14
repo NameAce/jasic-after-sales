@@ -14,6 +14,13 @@ public enum SysFileStorageTypeEnum {
     /** 阿里云 OSS */
     OSS("OSS", "阿里云OSS");
 
+    /**
+     * ?? SysFileStorageTypeEnum ?????
+     *
+     * @param code ??
+     * @param desc ??
+     * @return ????
+     */
     private final String code;
 
     private final String desc;
@@ -23,6 +30,12 @@ public enum SysFileStorageTypeEnum {
         this.desc = desc;
     }
 
+    /**
+     * ??By Code?
+     *
+     * @param code ??
+     * @return ????
+     */
     public static SysFileStorageTypeEnum getByCode(String code) {
         if (code == null) {
             return null;
@@ -39,6 +52,12 @@ public enum SysFileStorageTypeEnum {
         return null;
     }
 
+    /**
+     * ?? fromCode ?????
+     *
+     * @param code ??
+     * @return ????
+     */
     @JsonCreator
     public static SysFileStorageTypeEnum fromCode(String code) {
         SysFileStorageTypeEnum value = getByCode(code);
@@ -48,11 +67,21 @@ public enum SysFileStorageTypeEnum {
         return value;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     @JsonValue
     public String getCode() {
         return code;
     }
 
+    /**
+     * ?????
+     *
+     * @return ?????
+     */
     public String getDesc() {
         return desc;
     }

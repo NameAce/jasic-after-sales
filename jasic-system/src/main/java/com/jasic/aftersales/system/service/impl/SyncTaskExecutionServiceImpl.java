@@ -2,6 +2,7 @@ package com.jasic.aftersales.system.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import com.jasic.aftersales.common.exception.ServiceException;
+import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.entity.SyncTask;
 import com.jasic.aftersales.system.domain.entity.SyncTaskLog;
 import com.jasic.aftersales.system.mapper.SyncTaskLogMapper;
@@ -40,6 +41,9 @@ public class SyncTaskExecutionServiceImpl implements ISyncTaskExecutionService {
 
     private static final String LOG_STATUS_RUNNING = "RUNNING";
     private static final String LOG_STATUS_FAILED = "FAILED";
+    private static final String TRIGGER_TYPE_MANUAL = "MANUAL";
+    private static final String TRIGGER_TYPE_SCHEDULED = "SCHEDULED";
+    private static final Long SYSTEM_TASK_TRIGGER_USER_ID = 0L;
 
     @Resource
     private SyncTaskMapper syncTaskMapper;
@@ -47,6 +51,12 @@ public class SyncTaskExecutionServiceImpl implements ISyncTaskExecutionService {
     @Resource
     private SyncTaskLogMapper syncTaskLogMapper;
 
+    /**
+     * ?? submitManualExecution ?????
+     *
+     * @param taskId task ID
+     * @return ????
+     */
     @Resource
     private List<SyncTaskHandler> syncTaskHandlers;
 
@@ -67,7 +77,7 @@ public class SyncTaskExecutionServiceImpl implements ISyncTaskExecutionService {
         syncTaskRunningRegistry.lock(task.getId(), task.getTaskName());
         SyncTaskLog logEntity = null;
         try {
-            logEntity = createRunningLog(task.getId());
+            logEntity = createRunningLog(task.getId(), TRIGGER_TYPE_MANUAL, SecurityContext.getCurrentUserId());
             syncTaskAsyncExecutor.executeAsync(task.getId(), logEntity.getId());
         } catch (Exception ex) {
             syncTaskRunningRegistry.unlock(task.getId());
@@ -80,6 +90,11 @@ public class SyncTaskExecutionServiceImpl implements ISyncTaskExecutionService {
         return logEntity.getId();
     }
 
+    /**
+     * ?????
+     *
+     * @param taskId task ID
+     */
     @Override
     public void executeScheduled(Long taskId) {
         SyncTask task = getRequiredTask(taskId);
@@ -87,7 +102,7 @@ public class SyncTaskExecutionServiceImpl implements ISyncTaskExecutionService {
         syncTaskRunningRegistry.lock(task.getId(), task.getTaskName());
         SyncTaskLog logEntity = null;
         try {
-            logEntity = createRunningLog(task.getId());
+            logEntity = createRunningLog(task.getId(), TRIGGER_TYPE_SCHEDULED, SYSTEM_TASK_TRIGGER_USER_ID);
             syncTaskExecutionRunner.executeWithLog(task.getId(), logEntity.getId());
         } catch (Exception ex) {
             syncTaskRunningRegistry.unlock(task.getId());
@@ -106,6 +121,12 @@ public class SyncTaskExecutionServiceImpl implements ISyncTaskExecutionService {
         return task;
     }
 
+    /**
+     * ??Required Handler?
+     *
+     * @param handlerCode ??
+     * @return ????
+     */
     private SyncTaskHandler getRequiredHandler(String handlerCode) {
         SyncTaskHandler handler = buildHandlerMap().get(handlerCode);
         if (handler == null) {
@@ -114,6 +135,11 @@ public class SyncTaskExecutionServiceImpl implements ISyncTaskExecutionService {
         return handler;
     }
 
+    /**
+     * ???????
+     *
+     * @return ????
+     */
     private Map<String, SyncTaskHandler> buildHandlerMap() {
         Map<String, SyncTaskHandler> handlerMap = new LinkedHashMap<>();
         for (SyncTaskHandler handler : syncTaskHandlers) {
@@ -122,19 +148,37 @@ public class SyncTaskExecutionServiceImpl implements ISyncTaskExecutionService {
         return handlerMap;
     }
 
-    private SyncTaskLog createRunningLog(Long taskId) {
+    /**
+     * ?????
+     *
+     * @param taskId task ID
+     * @param triggerType ??
+     * @param triggerUserId trigger User ID
+     * @return ????
+     */
+    private SyncTaskLog createRunningLog(Long taskId, String triggerType, Long triggerUserId) {
         // 执行日志先落 RUNNING 状态，后续由执行运行器统一回填结果与时间窗口。
         SyncTaskLog logEntity = new SyncTaskLog();
         logEntity.setTaskId(taskId);
         logEntity.setStatus(LOG_STATUS_RUNNING);
+        logEntity.setTriggerType(triggerType);
+        logEntity.setTriggerUserId(triggerUserId);
         logEntity.setStartTime(LocalDateTime.now());
         logEntity.setMessage("任务执行中");
         logEntity.setCreateTime(LocalDateTime.now());
+        // ???????????????????????
         syncTaskLogMapper.insert(logEntity);
         return logEntity;
     }
 
+    /**
+     * ?? failLog ?????
+     *
+     * @param logId log ID
+     * @param message ??
+     */
     private void failLog(Long logId, String message) {
+        // ??????????????????????????
         SyncTaskLog logEntity = syncTaskLogMapper.selectById(logId);
         if (logEntity == null) {
             return;
@@ -143,6 +187,7 @@ public class SyncTaskExecutionServiceImpl implements ISyncTaskExecutionService {
         logEntity.setStatus(LOG_STATUS_FAILED);
         logEntity.setEndTime(LocalDateTime.now());
         logEntity.setMessage("执行失败：" + StrUtil.blankToDefault(StrUtil.trim(message), "未知错误"));
+        // ???????????????????????
         syncTaskLogMapper.updateById(logEntity);
     }
 }

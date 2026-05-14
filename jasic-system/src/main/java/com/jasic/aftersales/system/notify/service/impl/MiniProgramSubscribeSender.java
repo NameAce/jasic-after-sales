@@ -34,6 +34,12 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
 
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\$\\{([A-Za-z0-9_]+)}");
 
+    /**
+     * ?? supports ?????
+     *
+     * @param channelType ??
+     * @return true ??????
+     */
     @Resource
     private WechatMiniProgramService wechatMiniProgramService;
 
@@ -42,9 +48,16 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
         return NotifyChannelTypeEnum.MP_SUBSCRIBE.getCode().equals(channelType);
     }
 
+    /**
+     * ???????
+     *
+     * @param context ?????
+     * @return ????
+     */
     @Override
     public NotifyChannelSendResult send(NotifyChannelSendContext context) {
         if (context == null || context.getDispatch() == null || context.getPayload() == null) {
+            // ????????????????????????
             return NotifyChannelSendResult.failed(
                     NotifyDispatchResultCodeEnum.FAILED_RENDER_ERROR.getCode(),
                     "Mini program send context is incomplete"
@@ -143,6 +156,12 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
         }
     }
 
+    /**
+     * ???????
+     *
+     * @param sceneCode ??
+     * @return ????
+     */
     private WechatMiniProgramScene resolveScene(String sceneCode) {
         if (WechatMiniProgramScene.B.getCode().equals(sceneCode)) {
             return WechatMiniProgramScene.B;
@@ -153,8 +172,16 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
         return null;
     }
 
+    /**
+     * ???????
+     *
+     * @param fieldMapping ??
+     * @param variables ??
+     * @return ????
+     */
     private JSONObject buildData(List<NotifyChannelFieldMappingDTO> fieldMapping, Map<String, Object> variables) {
         JSONObject data = JSONUtil.createObj();
+        // ????????????????????????
         for (NotifyChannelFieldMappingDTO item : fieldMapping) {
             if (item == null || StrUtil.isBlank(item.getField()) || StrUtil.isBlank(item.getValue())) {
                 continue;
@@ -164,6 +191,13 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
         return data;
     }
 
+    /**
+     * ?? render ?????
+     *
+     * @param template ??
+     * @param variables ??
+     * @return ?????
+     */
     private String render(String template, Map<String, Object> variables) {
         if (template == null) {
             return null;
@@ -179,6 +213,12 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
         return buffer.toString().trim();
     }
 
+    /**
+     * ????User Not Subscribed?
+     *
+     * @param message ??
+     * @return true ??????
+     */
     private boolean isUserNotSubscribed(String message) {
         if (StrUtil.isBlank(message)) {
             return false;

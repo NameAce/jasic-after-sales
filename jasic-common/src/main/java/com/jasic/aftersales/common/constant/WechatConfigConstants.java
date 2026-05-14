@@ -8,6 +8,9 @@ package com.jasic.aftersales.common.constant;
  */
 public class WechatConfigConstants {
 
+    /**
+     * ?? WechatConfigConstants ???
+     */
     private WechatConfigConstants() {
     }
 

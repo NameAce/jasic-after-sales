@@ -158,8 +158,8 @@ export function updateHqFirstContract(data: Query) {
   return request({ url: '/org/contract/hq-first', method: 'put', data });
 }
 
-export function deleteHqFirstContract(id: IdLike) {
-  return request({ url: `/org/contract/hq-first/${id}`, method: 'delete' });
+export function deleteHqFirstContract(id: IdLike, params?: Query) {
+  return request({ url: `/org/contract/hq-first/${id}`, method: 'delete', params });
 }
 
 export function listCrmHqFirstContractImport(params?: Query) {
@@ -187,12 +187,8 @@ export function addFirstSecondRelation(data: Query) {
   return request({ url: '/org/contract/first-second', method: 'post', data });
 }
 
-export function updateFirstSecondRelation(data: Query) {
-  return request({ url: '/org/contract/first-second', method: 'put', data });
-}
-
-export function deleteFirstSecondRelation(id: IdLike) {
-  return request({ url: `/org/contract/first-second/${id}`, method: 'delete' });
+export function deleteFirstSecondRelation(id: IdLike, params?: Query) {
+  return request({ url: `/org/contract/first-second/${id}`, method: 'delete', params });
 }
 
 /** @deprecated 使用 listFirstSecondRelation */
