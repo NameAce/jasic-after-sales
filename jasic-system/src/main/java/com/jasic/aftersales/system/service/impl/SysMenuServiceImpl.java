@@ -282,6 +282,34 @@ public class SysMenuServiceImpl implements ISysMenuService {
     }
 
     /**
+     * 将类型已选菜单 ID 沿父链扩展为「含祖先」的集合，保证 buildMenuTree 时子节点不会因父节点未入选而丢失。
+     *
+     * @param seedMenuIds 公司类型在 sys_type_code_menu 中勾选的菜单 ID
+     * @return 种子 + 全部祖先菜单 ID
+     */
+    private Set<Long> expandMenuIdsWithAncestors(List<Long> seedMenuIds) {
+        if (seedMenuIds == null || seedMenuIds.isEmpty()) {
+            return Collections.emptySet();
+        }
+        Set<Long> closure = new LinkedHashSet<>(seedMenuIds);
+        boolean grew = true;
+        int guard = 0;
+        final int maxIter = 64;
+        while (grew && guard++ < maxIter) {
+            grew = false;
+            List<SysMenu> batch = sysMenuMapper.selectList(
+                    new LambdaQueryWrapper<SysMenu>().in(SysMenu::getId, closure));
+            for (SysMenu m : batch) {
+                Long pid = m.getParentId();
+                if (pid != null && pid > 0L && closure.add(pid)) {
+                    grew = true;
+                }
+            }
+        }
+        return closure;
+    }
+
+    /**
      * 根据公司类型编码查询已分配的菜单树（用于角色模板/角色分配菜单时展示可选范围）
      */
     @Override
@@ -291,8 +319,9 @@ public class SysMenuServiceImpl implements ISysMenuService {
         if (menuIds.isEmpty()) {
             return Collections.emptyList();
         }
+        Set<Long> queryIds = expandMenuIdsWithAncestors(menuIds);
         LambdaQueryWrapper<SysMenu> wrapper = new LambdaQueryWrapper<SysMenu>()
-                .in(SysMenu::getId, menuIds)
+                .in(SysMenu::getId, queryIds)
                 .eq(SysMenu::getStatus, 1)
                 // 调用orderByAsc方法，复用统一能力并保证业务规则一致。
                 .orderByAsc(SysMenu::getParentId, SysMenu::getOrderNum);

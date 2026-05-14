@@ -3,6 +3,7 @@
  * 系统管理 — 菜单：树表维护、发布、复制及与路由组件绑定（对接后端菜单接口）。
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue';
+import type { FormInstance } from 'ant-design-vue';
 import { tagColorEnabled, tagColorPositiveNeutral } from '@/constants/list-status-tag';
 import {
   addMenu,
@@ -17,10 +18,12 @@ import {
 import type { SysMenuDTO } from '@/service/api';
 import { getResponseMsg } from '@/service/request/shared';
 import { useAuth } from '@/hooks/business/auth';
+import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 import { useTableScroll } from '@/hooks/common/table';
 
 type RowData = Record<string, any>;
 const { hasAuth } = useAuth();
+const pageMenuTitle = useRouteMenuTitle();
 const { tableWrapperRef, scrollConfig } = useTableScroll(1200);
 
 const loading = ref(false);
@@ -43,6 +46,7 @@ const subjectTypeLabelMap: Record<'PLATFORM' | 'HQ' | 'SERVICE', string> = {
 const formOpen = ref(false);
 const formSubmitting = ref(false);
 const publishPrepLoading = ref(false);
+const menuEditFormRef = ref<FormInstance | null>(null);
 const formTitle = ref('新增菜单');
 const menuOptions = ref<RowData[]>([]);
 const formModel = reactive<RowData>({
@@ -62,6 +66,7 @@ const formModel = reactive<RowData>({
 const copyOpen = ref(false);
 const copySubmitting = ref(false);
 const copyTreeLoading = ref(false);
+const copyFormRef = ref<FormInstance | null>(null);
 const copySourceTree = ref<RowData[]>([]);
 const copyCheckedKeys = ref<Array<string | number>>([]);
 const copyForm = reactive({
@@ -69,9 +74,26 @@ const copyForm = reactive({
   targetSubjectType: 'HQ' as 'PLATFORM' | 'HQ' | 'SERVICE'
 });
 
+const copyFormRules = {
+  sourceSubjectType: [{ required: true, message: '请选择源主体类型', trigger: 'change' }],
+  targetSubjectType: [
+    { required: true, message: '请选择目标主体类型', trigger: 'change' },
+    {
+      validator: async () => {
+        if (copyForm.sourceSubjectType === copyForm.targetSubjectType) {
+          return Promise.reject(new Error('源主体与目标主体不能相同'));
+        }
+        return Promise.resolve();
+      },
+      trigger: 'change'
+    }
+  ]
+};
+
 const publishOpen = ref(false);
 const publishLoading = ref(false);
 const publishOptionsLoading = ref(false);
+const publishFormRef = ref<FormInstance | null>(null);
 const publishReturnToForm = ref(false);
 const publishDialogTitle = ref('菜单发布');
 const publishOptions = ref<{ typeOptions: RowData[]; templateOptions: RowData[] }>({
@@ -98,6 +120,12 @@ const columns = computed(() => [
   { title: '操作', key: 'actions', width: 220, fixed: 'right' as const }
 ]);
 
+const menuFormRules = {
+  menuName: [{ required: true, message: '请输入菜单名称', trigger: 'blur' }],
+  subjectType: [{ required: true, message: '请选择主体类型', trigger: 'change' }],
+  menuType: [{ required: true, message: '请选择类型', trigger: 'change' }]
+};
+
 // 发布弹窗中按所选公司类型分组后的角色模板列表
 const groupedPublishTemplates = computed(() => {
   const selectedTypeCodes = new Set(publishForm.targetTypeCodes);
@@ -121,6 +149,32 @@ const groupedPublishTemplates = computed(() => {
     }, {});
   return Object.values(groupMap);
 });
+
+const publishFormRules = computed(() => ({
+  targetTypeCodes: [
+    {
+      type: 'array',
+      min: 1,
+      required: true,
+      message: '请选择至少一个目标公司类型',
+      trigger: 'change'
+    }
+  ],
+  targetTemplateIds: [
+    {
+      validator: async () => {
+        const filteredTemplates = publishOptions.value.templateOptions.filter(item =>
+          publishForm.targetTypeCodes.includes(String(item.typeCode))
+        );
+        if (filteredTemplates.length > 0 && !publishForm.targetTemplateIds.length) {
+          return Promise.reject(new Error('请选择至少一个目标角色模板'));
+        }
+        return Promise.resolve();
+      },
+      trigger: 'change'
+    }
+  ]
+}));
 
 /**
  * 作用：将接口菜单树数据规范为数组（兼容 records 包装）。
@@ -227,8 +281,9 @@ async function loadCopySourceTree() {
  * @returns 返回 Promise，拷贝完成后结束
  */
 async function submitCopy() {
-  if (copyForm.sourceSubjectType === copyForm.targetSubjectType) {
-    window.$message?.warning('源主体与目标主体不能相同');
+  try {
+    await copyFormRef.value?.validate();
+  } catch {
     return;
   }
 
@@ -376,15 +431,9 @@ async function submitPublish() {
     window.$message?.warning('菜单信息为空');
     return;
   }
-  if (!publishForm.targetTypeCodes.length) {
-    window.$message?.warning('请选择至少一个目标公司类型');
-    return;
-  }
-  const filteredTemplates = publishOptions.value.templateOptions.filter(item =>
-    publishForm.targetTypeCodes.includes(String(item.typeCode))
-  );
-  if (filteredTemplates.length > 0 && !publishForm.targetTemplateIds.length) {
-    window.$message?.warning('请选择至少一个目标角色模板');
+  try {
+    await publishFormRef.value?.validate();
+  } catch {
     return;
   }
 
@@ -411,16 +460,9 @@ async function submitPublish() {
  * @returns 返回 Promise，发布弹窗打开后结束
  */
 async function handleSaveAndPublish() {
-  if (!String(formModel.menuName || '').trim()) {
-    window.$message?.warning('请输入菜单名称');
-    return;
-  }
-  if (!String(formModel.subjectType || '').trim()) {
-    window.$message?.warning('请选择主体类型');
-    return;
-  }
-  if (!String(formModel.menuType || '').trim()) {
-    window.$message?.warning('请选择类型');
+  try {
+    await menuEditFormRef.value?.validate();
+  } catch {
     return;
   }
 
@@ -440,16 +482,9 @@ async function handleSaveAndPublish() {
  * @returns 返回 Promise，保存后刷新树表
  */
 async function submitForm() {
-  if (!String(formModel.menuName || '').trim()) {
-    window.$message?.warning('请输入菜单名称');
-    return;
-  }
-  if (!String(formModel.subjectType || '').trim()) {
-    window.$message?.warning('请选择主体类型');
-    return;
-  }
-  if (!String(formModel.menuType || '').trim()) {
-    window.$message?.warning('请选择类型');
+  try {
+    await menuEditFormRef.value?.validate();
+  } catch {
     return;
   }
 
@@ -541,7 +576,7 @@ onMounted(() => {
       </AForm>
     </ACard>
     <ACard
-      title="系统管理-菜单"
+      :title="pageMenuTitle"
       :bordered="false"
       :body-style="{ flex: 1, overflow: 'hidden' }"
       class="flex-col-stretch card-wrapper sm:flex-1-hidden"
@@ -632,7 +667,7 @@ onMounted(() => {
     </ACard>
 
     <ADrawer v-model:open="formOpen" :title="formTitle" :width="960">
-      <AForm layout="vertical">
+      <AForm ref="menuEditFormRef" layout="vertical" :model="formModel" :rules="menuFormRules as any">
         <ARow :gutter="16">
           <ACol :span="12">
             <AFormItem label="上级菜单">
@@ -648,7 +683,7 @@ onMounted(() => {
             </AFormItem>
           </ACol>
           <ACol :span="12">
-            <AFormItem label="菜单类型" required>
+            <AFormItem label="菜单类型" name="menuType">
               <ARadioGroup v-model:value="formModel.menuType">
                 <ARadio value="M">目录</ARadio>
                 <ARadio value="C">菜单</ARadio>
@@ -657,12 +692,12 @@ onMounted(() => {
             </AFormItem>
           </ACol>
           <ACol :span="12">
-            <AFormItem label="主体类型" required>
+            <AFormItem label="主体类型" name="subjectType">
               <ASelect v-model:value="formModel.subjectType" :options="subjectTypeOptions" @change="loadMenuOptions" />
             </AFormItem>
           </ACol>
           <ACol :span="12">
-            <AFormItem label="菜单名称" required>
+            <AFormItem label="菜单名称" name="menuName">
               <AInput v-model:value="formModel.menuName" />
             </AFormItem>
           </ACol>
@@ -721,15 +756,15 @@ onMounted(() => {
     </ADrawer>
 
     <ADrawer v-model:open="copyOpen" title="菜单拷贝" :width="360">
-      <AForm layout="vertical">
-        <AFormItem label="源主体类型" required>
+      <AForm ref="copyFormRef" layout="vertical" :model="copyForm" :rules="copyFormRules as any">
+        <AFormItem label="源主体类型" name="sourceSubjectType">
           <ASelect
             v-model:value="copyForm.sourceSubjectType"
             :options="subjectTypeOptions"
             @change="loadCopySourceTree"
           />
         </AFormItem>
-        <AFormItem label="目标主体类型" required>
+        <AFormItem label="目标主体类型" name="targetSubjectType">
           <ASelect v-model:value="copyForm.targetSubjectType" :options="subjectTypeOptions" />
         </AFormItem>
         <AFormItem label="选择菜单（不选则拷贝全部）">
@@ -760,7 +795,7 @@ onMounted(() => {
           message="发布只做追加：会补充公司类型菜单上限、模板菜单，并可把本次菜单追加到已有公司的系统角色，不会回收公司已有额外菜单。"
           class="publish-alert"
         />
-        <AForm layout="vertical">
+        <AForm ref="publishFormRef" layout="vertical" :model="publishForm" :rules="publishFormRules as any">
           <AFormItem label="菜单名称">
             <span>{{ publishForm.menu?.menuName || '-' }}</span>
           </AFormItem>
@@ -769,7 +804,7 @@ onMounted(() => {
               {{ subjectTypeLabelMap[publishForm.menu?.subjectType as 'PLATFORM' | 'HQ' | 'SERVICE'] || '-' }}
             </span>
           </AFormItem>
-          <AFormItem label="目标公司类型" required>
+          <AFormItem label="目标公司类型" name="targetTypeCodes" required>
             <ACheckboxGroup v-model:value="publishForm.targetTypeCodes" @change="onPublishTypeCodesChange">
               <ASpace direction="vertical">
                 <ACheckbox
@@ -782,7 +817,7 @@ onMounted(() => {
               </ASpace>
             </ACheckboxGroup>
           </AFormItem>
-          <AFormItem label="目标角色模板" :required="groupedPublishTemplates.length > 0">
+          <AFormItem label="目标角色模板" name="targetTemplateIds" :required="groupedPublishTemplates.length > 0">
             <div v-if="groupedPublishTemplates.length === 0" class="publish-empty">
               当前所选主体下暂无角色模板，本次发布仅处理公司类型菜单上限。
             </div>

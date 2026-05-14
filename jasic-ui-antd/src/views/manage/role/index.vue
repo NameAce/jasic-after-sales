@@ -6,6 +6,7 @@ import { Button, Popconfirm, Tag } from 'ant-design-vue';
 import { tagColorEnabled } from '@/constants/list-status-tag';
 import { enableStatusRecord } from '@/constants/business';
 import { fetchGetRoleList } from '@/service/api';
+import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 import { useTable, useTableOperate, useTableScroll } from '@/hooks/common/table';
 import { $t } from '@/locales';
 import RoleOperateDrawer from './modules/role-operate-drawer.vue';
@@ -13,6 +14,7 @@ import RoleSearch from './modules/role-search.vue';
 
 // 表格滚动与 useTable（角色列与列表请求）
 const { tableWrapperRef, scrollConfig } = useTableScroll();
+const pageMenuTitle = useRouteMenuTitle();
 
 const {
   columns,
@@ -148,7 +150,7 @@ function edit(id: number) {
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
     <RoleSearch v-model:model="searchParams" @reset="resetSearchParams" @search="getDataByPage" />
     <ACard
-      :title="$t('page.manage.role.title')"
+      :title="pageMenuTitle"
       :bordered="false"
       :body-style="{ flex: 1, overflow: 'hidden' }"
       class="flex-col-stretch card-wrapper sm:flex-1-hidden"

@@ -2,8 +2,9 @@
 /**
  * 公司地址簿：当前公司下联系人地址列表、默认地址与增删改（对接 company-address 接口）。
  */
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { Cascader as ACascader } from 'ant-design-vue';
+import type { FormInstance } from 'ant-design-vue';
 import { tagColorPositiveNeutral } from '@/constants/list-status-tag';
 import {
   createCompanyAddress,
@@ -21,8 +22,11 @@ import {
   loadRegionCascaderData,
   splitFullAddressToRegionAndDetail
 } from '@/utils/china-region';
+import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 
 type RowData = Record<string, any>;
+
+const pageMenuTitle = useRouteMenuTitle();
 
 // 省市区级联选项（懒加载子节点）
 const regionOptions = ref<RegionCascaderOption[]>([]);
@@ -33,6 +37,8 @@ const loading = ref(false);
 const rows = ref<RowData[]>([]);
 // 新增/编辑抽屉是否打开
 const formOpen = ref(false);
+// 地址编辑表单实例（与建单抽屉一致：rules + validate）
+const addressFormRef = ref<FormInstance | null>(null);
 // 表单提交中
 const submitting = ref(false);
 // 抽屉标题
@@ -53,6 +59,33 @@ const formModel = reactive<{
   regionCodes: [],
   isDefault: 0
 });
+
+const mobileReg = /^1[3-9]\d{9}$/;
+
+const addressFormRules = computed(() => ({
+  contactName: [{ required: true, message: '请填写联系人', trigger: 'blur' }],
+  contactPhone: [
+    { required: true, message: '请填写联系电话', trigger: 'blur' },
+    {
+      pattern: mobileReg,
+      message: '请输入正确的手机号码',
+      trigger: 'blur'
+    }
+  ],
+  regionCodes: [
+    { required: true, message: '请选择完整的省、市、区', trigger: 'change' },
+    {
+      validator: async () => {
+        if (!isFullRegionSelection(formModel.regionCodes)) {
+          return Promise.reject(new Error('请选择完整的省、市、区'));
+        }
+        return Promise.resolve();
+      },
+      trigger: 'change'
+    }
+  ],
+  addressDetail: [{ required: true, message: '请填写详细地址', trigger: 'blur' }]
+}));
 
 // 表格列配置
 const columns = [
@@ -134,21 +167,13 @@ async function openEdit(record: RowData) {
  * 作用：校验并提交新增或编辑地址。
  */
 async function submitForm() {
-  if (!formModel.contactName.trim() || !formModel.contactPhone.trim()) {
-    window.$message?.warning('请填写联系人和联系电话');
+  try {
+    await addressFormRef.value?.validate();
+  } catch {
     return;
   }
 
   const detail = formModel.addressDetail.trim();
-  if (!isFullRegionSelection(formModel.regionCodes)) {
-    window.$message?.warning('请选择完整的省、市、区');
-    return;
-  }
-  if (!detail) {
-    window.$message?.warning('请填写详细地址');
-    return;
-  }
-
   const address = await composeAddressWithRegion(formModel.regionCodes, detail);
 
   submitting.value = true;
@@ -192,7 +217,7 @@ onMounted(async () => {
 
 <template>
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
-    <ACard title="公司地址管理" :bordered="false" class="flex-col-stretch card-wrapper sm:flex-1-hidden">
+    <ACard :title="pageMenuTitle" :bordered="false" class="flex-col-stretch card-wrapper sm:flex-1-hidden">
       <div class="mb-12px">
         <AButton type="primary" @click="openCreate">新增地址</AButton>
       </div>
@@ -221,14 +246,20 @@ onMounted(async () => {
     </ACard>
 
     <ADrawer v-model:open="formOpen" :title="formTitle" :width="400">
-      <AForm layout="vertical" class="mt-8px">
-        <AFormItem label="联系人" required>
+      <AForm
+        ref="addressFormRef"
+        class="mt-8px"
+        layout="vertical"
+        :model="formModel"
+        :rules="addressFormRules as any"
+      >
+        <AFormItem label="联系人" name="contactName" required>
           <AInput v-model:value="formModel.contactName" />
         </AFormItem>
-        <AFormItem label="联系电话" required>
+        <AFormItem label="联系电话" name="contactPhone" required>
           <AInput v-model:value="formModel.contactPhone" />
         </AFormItem>
-        <AFormItem label="省市区" required>
+        <AFormItem label="省市区" name="regionCodes" required>
           <ACascader
             v-model:value="formModel.regionCodes"
             class="w-full"
@@ -238,7 +269,7 @@ onMounted(async () => {
             allow-clear
           />
         </AFormItem>
-        <AFormItem label="详细地址" required>
+        <AFormItem label="详细地址" name="addressDetail" required>
           <ATextarea
             v-model:value="formModel.addressDetail"
             :rows="3"

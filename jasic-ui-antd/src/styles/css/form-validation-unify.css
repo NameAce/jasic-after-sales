@@ -1,0 +1,49 @@
+/**
+ * 与「建维修订单」等 AForm + rules 校验一致：错误时控件红框、提示在表单项下方。
+ * 覆盖部分全局样式下 Ant Design Vue 控件边框对比度不足的情况。
+ *
+ * 必填星号：根节点 `App.vue` 的 `ConfigProvider` 已设置 `:form="{ requiredMark: true }"`；
+ * 仅用 `validator`、无 `required: true` 的规则需在对应 `AFormItem` 上写 `required` / `:required`，
+ * 才会带上 `ant-form-item-required` 类。本文件强化必填标签前的红色 * 显示。
+ */
+
+.ant-form-item-label > label.ant-form-item-required::before {
+  display: inline-block !important;
+  margin-inline-end: var(--ant-margin-xxs, 4px);
+  /* 仅允许 var(--x, fallback) 两段式；多写第三段会导致整条 color 非法，星号继承为正文色（发黑） */
+  color: #ff4d4f !important;
+  color: var(--ant-color-error, rgb(var(--error-color))) !important;
+  font-size: inherit;
+  font-family: SimSun, sans-serif;
+  line-height: 1;
+  content: '*' !important;
+}
+
+.ant-form-item-has-error :deep(.ant-input),
+.ant-form-item-has-error :deep(.ant-input-affix-wrapper),
+.ant-form-item-has-error :deep(.ant-input-number),
+.ant-form-item-has-error :deep(.ant-input-number-affix-wrapper),
+.ant-form-item-has-error :deep(.ant-select:not(.ant-select-disabled) .ant-select-selector),
+.ant-form-item-has-error :deep(.ant-picker),
+.ant-form-item-has-error :deep(.ant-cascader-picker),
+.ant-form-item-has-error :deep(.ant-textarea) {
+  border-color: var(--ant-color-error, #ff4d4f) !important;
+}
+
+.ant-form-item-has-error :deep(.ant-input-affix-wrapper-focused),
+.ant-form-item-has-error :deep(.ant-input-focused),
+.ant-form-item-has-error :deep(.ant-select-focused:not(.ant-select-disabled) .ant-select-selector),
+.ant-form-item-has-error :deep(.ant-picker-focused),
+.ant-form-item-has-error :deep(.ant-cascader-picker-focused .ant-cascader-input) {
+  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.12);
+}
+
+.ant-form-item-explain-error {
+  color: var(--ant-color-error, #ff4d4f);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ant-form-item-vertical .ant-form-item-explain {
+  margin-top: 2px;
+}

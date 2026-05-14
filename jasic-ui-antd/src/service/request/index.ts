@@ -1,12 +1,17 @@
 /**
  * HTTP 请求实例：主后端 createFlatRequest、多 baseURL 的 createRequest，统一鉴权与业务错误码处理。
  */
+import { Modal } from 'ant-design-vue';
 import { BACKEND_ERROR_CODE, createFlatRequest, createRequest } from '@sa/axios';
 import { router } from '@/router';
 import { useAuthStore } from '@/store/modules/auth';
 import { localStg } from '@/utils/storage';
 import { getServiceBaseURL } from '@/utils/service';
-import { getAuthorization, showErrorMsg } from './shared';
+import { getAuthorization, getResponseMsg, showErrorMsg } from './shared';
+import {
+  shouldSkipSessionExpiredModalForUrl,
+  shouldSkipSessionExpiredModalOnLoginRoute
+} from './skip-session-expired-modal';
 import type { RequestInstanceState } from './type';
 
 /** 开发环境且开启代理时，请求将走 Vite 代理前缀 */
@@ -25,15 +30,22 @@ function parseCodeList(raw: string | undefined) {
 type ExceptionRouteName = '403' | '404' | '500';
 
 /**
- * 作用：跳转到统一异常页（403/404/500），避免与当前路由重复 push。
+ * 作用：跳转到统一异常页（403/404/500），携带接口返回的 msg；避免同文案重复 replace。
  * @param routeName 目标异常路由名
+ * @param msg 接口 msg/message，展示在异常页
  * @returns {void}
  */
-function redirectToExceptionPage(routeName: ExceptionRouteName) {
-  const currentRouteName = String(router.currentRoute.value.name || '');
-  if (currentRouteName === routeName) return;
+function redirectToExceptionPage(routeName: ExceptionRouteName, msg?: string) {
+  const current = router.currentRoute.value;
+  const currentName = String(current.name || '');
+  const trimmed = msg?.trim() || '';
+  const query = trimmed ? { msg: trimmed } : {};
 
-  router.push({ name: routeName }).catch(() => {});
+  if (currentName === routeName && String(current.query.msg || '') === trimmed) {
+    return;
+  }
+
+  router.push({ name: routeName, query, replace: true }).catch(() => {});
 }
 
 /**
@@ -84,14 +96,20 @@ export const request = createFlatRequest<App.Service.Response, RequestInstanceSt
       const responseMsg = responseData.msg || responseData.message || '操作失败';
 
       function handleLogout() {
-        authStore.resetStore();
+        void authStore.resetStore();
       }
 
-      function logoutAndCleanup() {
-        handleLogout();
+      async function logoutAndCleanup() {
         window.removeEventListener('beforeunload', handleLogout);
 
-        request.state.errMsgStack = request.state.errMsgStack.filter(code => code !== responseCode);
+        if (!request.state.modalLogoutShownCodes) {
+          request.state.modalLogoutShownCodes = [];
+        }
+        request.state.modalLogoutShownCodes = request.state.modalLogoutShownCodes.filter(
+          code => code !== responseCode
+        );
+
+        await authStore.resetStore();
       }
 
       const logoutCodes = parseCodeList(import.meta.env.VITE_SERVICE_LOGOUT_CODES);
@@ -101,10 +119,18 @@ export const request = createFlatRequest<App.Service.Response, RequestInstanceSt
       }
 
       const modalLogoutCodes = parseCodeList(import.meta.env.VITE_SERVICE_MODAL_LOGOUT_CODES);
-      if (modalLogoutCodes.includes(responseCode) && !request.state.errMsgStack?.includes(responseCode)) {
-        request.state.errMsgStack = [...(request.state.errMsgStack || []), responseCode];
+      const requestUrl = String(response.config?.url || '');
+      const skipSessionExpiredModal =
+        shouldSkipSessionExpiredModalForUrl(requestUrl) || shouldSkipSessionExpiredModalOnLoginRoute();
+
+      const shownCodes = request.state.modalLogoutShownCodes || [];
+      if (modalLogoutCodes.includes(responseCode) && !shownCodes.includes(responseCode) && !skipSessionExpiredModal) {
+        request.state.modalLogoutShownCodes = [...shownCodes, responseCode];
 
         window.addEventListener('beforeunload', handleLogout);
+
+        // 清理可能残留的确认框遮罩，避免多层 mask 导致整页无法点击
+        Modal.destroyAll();
 
         window.$modal?.error({
           title: '提示',
@@ -113,10 +139,10 @@ export const request = createFlatRequest<App.Service.Response, RequestInstanceSt
           cancelText: '取消',
           maskClosable: false,
           onOk() {
-            logoutAndCleanup();
+            return logoutAndCleanup();
           },
           onCancel() {
-            logoutAndCleanup();
+            return logoutAndCleanup();
           }
         });
 
@@ -131,13 +157,13 @@ export const request = createFlatRequest<App.Service.Response, RequestInstanceSt
           showErrorMsg(request.state, responseMsg || '没有操作权限');
           return null;
         }
-        redirectToExceptionPage('403');
+        redirectToExceptionPage('403', responseMsg);
         return null;
       }
 
       const serverErrorCodes = parseCodeList(import.meta.env.VITE_SERVICE_SERVER_ERROR_CODES ?? 'A0500');
       if (serverErrorCodes.includes(responseCode)) {
-        redirectToExceptionPage('500');
+        redirectToExceptionPage('500', responseMsg);
         return null;
       }
 
@@ -159,6 +185,8 @@ export const request = createFlatRequest<App.Service.Response, RequestInstanceSt
         backendErrorCode = String(errorData.code) || '';
       }
 
+      const httpBodyMsg = getResponseMsg(error.response, message);
+
       const modalLogoutCodes = parseCodeList(import.meta.env.VITE_SERVICE_MODAL_LOGOUT_CODES);
       if (modalLogoutCodes.includes(backendErrorCode)) {
         return;
@@ -171,23 +199,33 @@ export const request = createFlatRequest<App.Service.Response, RequestInstanceSt
           showErrorMsg(request.state, message || '没有操作权限');
           return;
         }
-        redirectToExceptionPage('403');
+        redirectToExceptionPage('403', message);
         return;
       }
 
       const serverErrorCodes = parseCodeList(import.meta.env.VITE_SERVICE_SERVER_ERROR_CODES ?? 'A0500');
       if (serverErrorCodes.includes(backendErrorCode)) {
-        redirectToExceptionPage('500');
+        redirectToExceptionPage('500', message);
+        return;
+      }
+
+      if (httpStatus === 403) {
+        const statusMsg = httpBodyMsg || message;
+        if (isOnHomeRoute()) {
+          showErrorMsg(request.state, statusMsg || '没有操作权限');
+          return;
+        }
+        redirectToExceptionPage('403', statusMsg);
         return;
       }
 
       if (httpStatus === 404) {
-        redirectToExceptionPage('404');
+        redirectToExceptionPage('404', httpBodyMsg || message);
         return;
       }
 
       if (typeof httpStatus === 'number' && httpStatus >= 500) {
-        redirectToExceptionPage('500');
+        redirectToExceptionPage('500', httpBodyMsg || message);
         return;
       }
 

@@ -5,11 +5,17 @@
 import { onMounted, reactive, ref } from 'vue';
 import { tagColorEnabled } from '@/constants/list-status-tag';
 import { type OperLogQuery, cleanOperLog, deleteOperLog, listOperLog } from '@/service/api';
+import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
+import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
+import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
 import { useTableScroll } from '@/hooks/common/table';
 
 type RowData = Record<string, any>;
 
 const { tableWrapperRef, scrollConfig } = useTableScroll(1200);
+const pageMenuTitle = useRouteMenuTitle();
+
+const logSearchFilter = usePageSearchFilterCollapse(5);
 
 // 列表请求加载态
 const loading = ref(false);
@@ -197,17 +203,32 @@ onMounted(loadList);
         <div class="page-search-toolbar">
           <div class="page-search-toolbar__filters">
             <ARow :gutter="[16, 16]" wrap>
-              <ACol :span="24" :md="12" :lg="6">
+              <ACol
+                :span="24"
+                :md="12"
+                :lg="6"
+                :class="{ 'page-search-toolbar__filter-col--collapsed': logSearchFilter.isSearchFilterHidden(0) }"
+              >
                 <AFormItem label="操作模块" class="m-0">
                   <AInput v-model:value="queryParams.title" allow-clear placeholder="请输入操作模块" />
                 </AFormItem>
               </ACol>
-              <ACol :span="24" :md="12" :lg="6">
+              <ACol
+                :span="24"
+                :md="12"
+                :lg="6"
+                :class="{ 'page-search-toolbar__filter-col--collapsed': logSearchFilter.isSearchFilterHidden(1) }"
+              >
                 <AFormItem label="操作人" class="m-0">
                   <AInput v-model:value="queryParams.operUserName" allow-clear placeholder="请输入操作人" />
                 </AFormItem>
               </ACol>
-              <ACol :span="24" :md="12" :lg="6">
+              <ACol
+                :span="24"
+                :md="12"
+                :lg="6"
+                :class="{ 'page-search-toolbar__filter-col--collapsed': logSearchFilter.isSearchFilterHidden(2) }"
+              >
                 <AFormItem label="操作类型" class="m-0">
                   <ASelect
                     v-model:value="queryParams.operType"
@@ -224,7 +245,12 @@ onMounted(loadList);
                   />
                 </AFormItem>
               </ACol>
-              <ACol :span="24" :md="12" :lg="6">
+              <ACol
+                :span="24"
+                :md="12"
+                :lg="6"
+                :class="{ 'page-search-toolbar__filter-col--collapsed': logSearchFilter.isSearchFilterHidden(3) }"
+              >
                 <AFormItem label="操作状态" class="m-0">
                   <ASelect
                     v-model:value="queryParams.status"
@@ -238,7 +264,12 @@ onMounted(loadList);
                   />
                 </AFormItem>
               </ACol>
-              <ACol :span="24" :md="12" :lg="12">
+              <ACol
+                :span="24"
+                :md="12"
+                :lg="12"
+                :class="{ 'page-search-toolbar__filter-col--collapsed': logSearchFilter.isSearchFilterHidden(4) }"
+              >
                 <AFormItem label="操作日期" class="m-0">
                   <ARangePicker
                     v-model:value="dateRange"
@@ -253,12 +284,17 @@ onMounted(loadList);
           <div class="page-search-toolbar__actions">
             <AButton type="primary" :loading="loading" @click="handleQuery">搜索</AButton>
             <AButton @click="resetQuery">重置</AButton>
+            <PageSearchExpandButton
+              v-if="logSearchFilter.showSearchFilterExpandToggle"
+              :expanded="logSearchFilter.searchFilterExpanded"
+              @click="logSearchFilter.toggleSearchFilterExpand"
+            />
           </div>
         </div>
       </AForm>
     </ACard>
     <ACard
-      title="操作日志"
+      :title="pageMenuTitle"
       :bordered="false"
       :body-style="{ flex: 1, overflow: 'hidden' }"
       class="flex-col-stretch card-wrapper sm:flex-1-hidden"

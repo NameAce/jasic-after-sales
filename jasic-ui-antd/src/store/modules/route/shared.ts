@@ -5,8 +5,9 @@ import type { RouteLocationNormalizedLoaded, RouteRecordRaw, _RouteRecordBase } 
 import type { ElegantConstRoute, LastLevelRouteKey, RouteKey, RouteMap } from '@elegant-router/types';
 import { MENU_ICON_OVERRIDES, resolveMenuIconFromApi } from '@/constants/menu-icon';
 import { useSvgIcon } from '@/hooks/common/icon';
-import { $t, getLocale } from '@/locales';
+import { $t } from '@/locales';
 import { getRoutePath } from '@/router/elegant/transform';
+import { getRouteMenuTitle } from '@/utils/route-menu-title';
 
 type RouteMetaLike = Partial<NonNullable<ElegantConstRoute['meta']>> & Record<string, unknown>;
 type BackendMenuRoute = Api.Route.BackendMenuRoute;
@@ -466,7 +467,7 @@ function getGlobalMenuByBaseRoute(route: RouteLocationNormalizedLoaded | Elegant
   const { SvgIconVNode } = useSvgIcon();
 
   const { name, path } = route;
-  const { title, i18nKey, icon: metaIcon, localIcon: metaLocalIcon, iconFontSize: metaIconFontSize } = route.meta ?? {};
+  const { i18nKey, icon: metaIcon, localIcon: metaLocalIcon, iconFontSize: metaIconFontSize } = route.meta ?? {};
   const override = name ? MENU_ICON_OVERRIDES[String(name)] : undefined;
 
   const localIcon = override?.localIcon ?? metaLocalIcon;
@@ -476,12 +477,7 @@ function getGlobalMenuByBaseRoute(route: RouteLocationNormalizedLoaded | Elegant
   const fallbackIcon = localIcon ? undefined : import.meta.env.VITE_MENU_ICON;
   const icon = override?.icon ?? fromApiIcon ?? fallbackIcon;
 
-  const fallbackLabel = (title || String(name)) as string;
-  let normalizedFallbackLabel = fallbackLabel;
-  if (String(name) === 'home' && fallbackLabel.trim().toLowerCase() === 'home') {
-    normalizedFallbackLabel = String(getLocale()).toLowerCase().startsWith('zh') ? '首页' : 'home';
-  }
-  const label = i18nKey && useBackendMenuI18n ? $t(i18nKey) : normalizedFallbackLabel;
+  const label = getRouteMenuTitle(route as RouteLocationNormalizedLoaded);
 
   const menu: App.Global.Menu = {
     key: name as string,

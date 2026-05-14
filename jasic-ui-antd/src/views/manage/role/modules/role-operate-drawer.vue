@@ -127,13 +127,13 @@ watch(visible, () => {
 <template>
   <ADrawer v-model:open="visible" :title="title" :width="360">
     <AForm ref="formRef" layout="vertical" :model="model" :rules="rules">
-      <AFormItem :label="$t('page.manage.role.roleName')" name="roleName">
+      <AFormItem :label="$t('page.manage.role.roleName')" name="roleName" required>
         <AInput v-model:value="model.roleName" :placeholder="$t('page.manage.role.form.roleName')" />
       </AFormItem>
-      <AFormItem :label="$t('page.manage.role.roleCode')" name="roleCode">
+      <AFormItem :label="$t('page.manage.role.roleCode')" name="roleCode" required>
         <AInput v-model:value="model.roleCode" :placeholder="$t('page.manage.role.form.roleCode')" />
       </AFormItem>
-      <AFormItem :label="$t('page.manage.role.roleStatus')" name="status">
+      <AFormItem :label="$t('page.manage.role.roleStatus')" name="status" required>
         <ARadioGroup v-model:value="model.status">
           <ARadio v-for="item in enableStatusOptions" :key="item.value" :value="item.value">
             {{ $t(item.label) }}

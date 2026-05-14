@@ -4,22 +4,10 @@
 import { h } from 'vue';
 import type { App } from 'vue';
 import { Button } from 'ant-design-vue';
-import { router } from '@/router';
 import { $t } from '@/locales';
 
 /**
- * 作用：若当前不在 500 页则跳转至 500，避免重复导航。
- * @returns {void}
- */
-function redirectTo500IfNeeded() {
-  const currentRouteName = String(router.currentRoute.value.name || '');
-  if (currentRouteName === '500') return;
-
-  router.push({ name: '500' }).catch(() => {});
-}
-
-/**
- * 作用：注册 Vue 全局 errorHandler，将运行时错误输出到控制台并视情况进入 500 页。
+ * 作用：注册 Vue 全局 errorHandler，仅记录运行时错误；异常页仅由接口错误跳转进入。
  * @param app Vue 应用实例
  * @returns {void}
  */
@@ -27,7 +15,6 @@ export function setupAppErrorHandle(app: App) {
   app.config.errorHandler = (err, vm, info) => {
     // eslint-disable-next-line no-console
     console.error(err, vm, info);
-    redirectTo500IfNeeded();
   };
 }
 

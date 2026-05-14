@@ -26,9 +26,7 @@ function logout() {
     content: $t('common.logoutConfirm'),
     okText: $t('common.confirm'),
     cancelText: $t('common.cancel'),
-    onOk: () => {
-      authStore.logout();
-    }
+    onOk: () => authStore.logout()
   });
 }
 </script>

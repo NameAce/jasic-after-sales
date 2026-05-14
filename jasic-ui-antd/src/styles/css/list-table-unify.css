@@ -14,6 +14,7 @@
  * | 标记已读 / 设为默认 | table-action-link--success      | 成功绿 |
  *
  * 列表「进详情」入口文字：.table-list-entry-link（主色 + 下划线），见文件末尾。
+ * 详情抽屉/弹窗内与上表同语义的 default 按钮浅色底：见文件末尾 .detail-mirror-table-action--*。
  */
 
 /* 提高优先级 + !important，覆盖 Ant Design 默认 .ant-btn-link 颜色 */
@@ -95,4 +96,138 @@
 .ant-table .table-list-entry-link:focus-visible {
   outline: 2px solid rgb(var(--primary-color));
   outline-offset: 2px;
+}
+
+/**
+ * 表格分页条留白：缩小分页自身 margin，并压低含表格的 Card body 默认下内边距（否则分页下仍有一大块白底）。
+ */
+.ant-table-wrapper .ant-table-pagination,
+.ant-table-wrapper .ant-pagination {
+  margin-block-end: 0 !important;
+  margin-block-start: 8px !important;
+}
+
+/* 列表页「表格卡」：去掉 body 底部内边距，分页贴卡片底边 */
+.ant-card .ant-card-body:has(.ant-table-wrapper) {
+  padding-bottom: 0 !important;
+}
+
+/**
+ * 详情抽屉 / 弹窗内：与列表操作列「table-action-link--*」语义一致的小按钮（浅色底 + 边框）
+ * 用于与列表同一套动作、但使用 default/danger 区域按钮的场景；在 AButton 上增加对应 class 即可。
+ * 主色类动作请优先使用 AButton type="primary"（与列表 table-action-link--primary 一致）。
+ *
+ * | 语义     | class |
+ * |----------|-------|
+ * | 警告类   | detail-mirror-table-action--warning |
+ * | 成功/协作绿（同列表 processing/success） | detail-mirror-table-action--processing 或 --success |
+ * | 信息/查看 | detail-mirror-table-action--info |
+ * | 删除危险（配合 danger） | detail-mirror-table-action--danger |
+ */
+.ant-drawer-body .ant-btn.detail-mirror-table-action--warning:not(.ant-btn-link):not(:disabled),
+.ant-modal-root .ant-btn.detail-mirror-table-action--warning:not(.ant-btn-link):not(:disabled) {
+  color: var(--ant-color-warning, rgb(var(--warning-color))) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--ant-color-warning, rgb(var(--warning-color))) 45%,
+    var(--ant-color-border, #d9d9d9)
+  ) !important;
+  background-color: color-mix(
+    in srgb,
+    var(--ant-color-warning, rgb(var(--warning-color))) 14%,
+    var(--ant-color-bg-container, #fff)
+  ) !important;
+}
+
+.ant-drawer-body .ant-btn.detail-mirror-table-action--warning:not(.ant-btn-link):not(:disabled):hover,
+.ant-modal-root .ant-btn.detail-mirror-table-action--warning:not(.ant-btn-link):not(:disabled):hover {
+  color: var(--ant-color-warning-hover, rgb(var(--warning-600-color))) !important;
+  border-color: var(--ant-color-warning, rgb(var(--warning-color))) !important;
+  background-color: color-mix(
+    in srgb,
+    var(--ant-color-warning, rgb(var(--warning-color))) 22%,
+    var(--ant-color-bg-container, #fff)
+  ) !important;
+}
+
+.ant-drawer-body .ant-btn.detail-mirror-table-action--processing:not(.ant-btn-link):not(:disabled),
+.ant-drawer-body .ant-btn.detail-mirror-table-action--success:not(.ant-btn-link):not(:disabled),
+.ant-modal-root .ant-btn.detail-mirror-table-action--processing:not(.ant-btn-link):not(:disabled),
+.ant-modal-root .ant-btn.detail-mirror-table-action--success:not(.ant-btn-link):not(:disabled) {
+  color: var(--ant-color-success, rgb(var(--success-color))) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--ant-color-success, rgb(var(--success-color))) 45%,
+    var(--ant-color-border, #d9d9d9)
+  ) !important;
+  background-color: color-mix(
+    in srgb,
+    var(--ant-color-success, rgb(var(--success-color))) 14%,
+    var(--ant-color-bg-container, #fff)
+  ) !important;
+}
+
+.ant-drawer-body .ant-btn.detail-mirror-table-action--processing:not(.ant-btn-link):not(:disabled):hover,
+.ant-drawer-body .ant-btn.detail-mirror-table-action--success:not(.ant-btn-link):not(:disabled):hover,
+.ant-modal-root .ant-btn.detail-mirror-table-action--processing:not(.ant-btn-link):not(:disabled):hover,
+.ant-modal-root .ant-btn.detail-mirror-table-action--success:not(.ant-btn-link):not(:disabled):hover {
+  color: var(--ant-color-success-hover, rgb(var(--success-600-color))) !important;
+  border-color: var(--ant-color-success, rgb(var(--success-color))) !important;
+  background-color: color-mix(
+    in srgb,
+    var(--ant-color-success, rgb(var(--success-color))) 22%,
+    var(--ant-color-bg-container, #fff)
+  ) !important;
+}
+
+.ant-drawer-body .ant-btn.detail-mirror-table-action--info:not(.ant-btn-link):not(:disabled),
+.ant-modal-root .ant-btn.detail-mirror-table-action--info:not(.ant-btn-link):not(:disabled) {
+  color: var(--ant-color-link, var(--ant-color-info, rgb(var(--info-color)))) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--ant-color-info, rgb(var(--info-color))) 45%,
+    var(--ant-color-border, #d9d9d9)
+  ) !important;
+  background-color: color-mix(
+    in srgb,
+    var(--ant-color-info, rgb(var(--info-color))) 14%,
+    var(--ant-color-bg-container, #fff)
+  ) !important;
+}
+
+.ant-drawer-body .ant-btn.detail-mirror-table-action--info:not(.ant-btn-link):not(:disabled):hover,
+.ant-modal-root .ant-btn.detail-mirror-table-action--info:not(.ant-btn-link):not(:disabled):hover {
+  color: var(--ant-color-link-hover, var(--ant-color-info-hover, rgb(var(--info-600-color)))) !important;
+  border-color: var(--ant-color-info, rgb(var(--info-color))) !important;
+  background-color: color-mix(
+    in srgb,
+    var(--ant-color-info, rgb(var(--info-color))) 22%,
+    var(--ant-color-bg-container, #fff)
+  ) !important;
+}
+
+.ant-drawer-body .ant-btn.detail-mirror-table-action--danger.ant-btn-dangerous:not(.ant-btn-link):not(:disabled),
+.ant-modal-root .ant-btn.detail-mirror-table-action--danger.ant-btn-dangerous:not(.ant-btn-link):not(:disabled) {
+  color: var(--ant-color-error, rgb(var(--error-color))) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--ant-color-error, rgb(var(--error-color))) 45%,
+    var(--ant-color-border, #d9d9d9)
+  ) !important;
+  background-color: color-mix(
+    in srgb,
+    var(--ant-color-error, rgb(var(--error-color))) 12%,
+    var(--ant-color-bg-container, #fff)
+  ) !important;
+}
+
+.ant-drawer-body .ant-btn.detail-mirror-table-action--danger.ant-btn-dangerous:not(.ant-btn-link):not(:disabled):hover,
+.ant-modal-root .ant-btn.detail-mirror-table-action--danger.ant-btn-dangerous:not(.ant-btn-link):not(:disabled):hover {
+  color: var(--ant-color-error-hover, rgb(var(--error-600-color))) !important;
+  border-color: var(--ant-color-error, rgb(var(--error-color))) !important;
+  background-color: color-mix(
+    in srgb,
+    var(--ant-color-error, rgb(var(--error-color))) 20%,
+    var(--ant-color-bg-container, #fff)
+  ) !important;
 }

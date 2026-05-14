@@ -4,6 +4,8 @@
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
+import type { FormInstance } from 'ant-design-vue';
+import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 import { tagColorEnabled, tagColorPositiveNeutral } from '@/constants/list-status-tag';
 import {
   addConfig,
@@ -57,6 +59,8 @@ import {
   updateSyncTask
 } from '@/service/api';
 import { useAuth } from '@/hooks/business/auth';
+import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
+import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
 import { useTableScroll } from '@/hooks/common/table';
 
 type RowData = Record<string, any>;
@@ -71,7 +75,15 @@ type ModuleKey = 'dict' | 'config' | 'notifyTemplate' | 'barcode' | 'syncTask' |
 // 表格滚动
 const { tableWrapperRef, scrollConfig } = useTableScroll(960);
 const route = useRoute();
+const pageMenuTitle = useRouteMenuTitle();
 const { hasAuth } = useAuth();
+
+const dictSearchFilter = usePageSearchFilterCollapse(3);
+const configSearchFilter = usePageSearchFilterCollapse(3);
+const notifySearchFilter = usePageSearchFilterCollapse(3);
+const barcodeSearchFilter = usePageSearchFilterCollapse(7);
+const syncTaskSearchFilter = usePageSearchFilterCollapse(4);
+const faultSearchFilter = usePageSearchFilterCollapse(5);
 
 // 主列表加载与 Tab
 const loading = ref(false);
@@ -171,6 +183,7 @@ const ROUTE_NAME_TO_MODULE_KEY: Record<string, ModuleKey> = {
 
 // 字典/参数配置等通用表单抽屉
 const formOpen = ref(false);
+const unifiedFormRef = ref<FormInstance | null>(null);
 const formModel = reactive<RowData>({});
 const formTitle = ref('');
 
@@ -209,6 +222,7 @@ const notifyFormOpen = ref(false);
 const notifyFormTitle = ref('');
 const notifyFormReadonly = ref(false);
 const notifyFormSubmitting = ref(false);
+const notifyFormRef = ref<FormInstance | null>(null);
 const notifyForm = reactive<RowData>({});
 const notifyPreviewOpen = ref(false);
 const notifyPreviewLoading = ref(false);
@@ -230,6 +244,7 @@ const channelsRows = ref<RowData[]>([]);
 // 同步任务编辑抽屉
 const syncFormOpen = ref(false);
 const syncFormTitle = ref('');
+const syncTaskFormRef = ref<FormInstance | null>(null);
 const syncFormModel = reactive<RowData>({});
 
 // 同步任务执行日志弹窗
@@ -260,6 +275,7 @@ const menuCheckedKeys = ref<Array<string | number>>([]);
 const regionFormOpen = ref(false);
 const regionFormTitle = ref('');
 const regionForm = reactive<RowData>({});
+const advRegionFormRef = ref<FormInstance | null>(null);
 
 // 故障配置只读详情弹窗
 const faultDetailOpen = ref(false);
@@ -940,54 +956,185 @@ function removeRepairOption(item: FaultRepairItem, index: number) {
 }
 
 /**
- * 作用：校验故障维修表单业务规则。
+ * 作用：校验故障描述 / 维修说明是否重复（单项必填由子表单项 rules 处理）。
  * @param data - 表单数据
- * @returns 是否通过
+ * @returns 首条错误文案或 null
  */
-function validateFaultForm(data: RowData) {
-  if (data.companyId == null || data.companyId === '') {
-    window.$message?.warning?.('请选择归属总部');
-    return false;
-  }
-  if (data.status == null || data.status === '') {
-    window.$message?.warning?.('请选择状态');
-    return false;
-  }
-  if (!String(data.productCode || '').trim() && !String(data.productModel || '').trim()) {
-    window.$message?.warning?.('物料编码和产品型号不能同时为空');
-    return false;
-  }
+function getFaultDuplicateError(data: RowData): string | null {
   const faults = Array.isArray(data.faults) ? data.faults : [];
-  if (!faults.length) {
-    window.$message?.warning?.('请至少添加一条故障信息');
-    return false;
-  }
   const descSet = new Set<string>();
   for (const item of faults) {
     const desc = String(item?.faultDesc || '').trim();
-    if (!desc) {
-      window.$message?.warning?.('故障描述不能为空');
-      return false;
+    if (desc && descSet.has(desc)) {
+      return '同一配置下故障描述不能重复';
     }
-    if (descSet.has(desc)) {
-      window.$message?.warning?.('同一配置下故障描述不能重复');
-      return false;
-    }
-    descSet.add(desc);
+    if (desc) descSet.add(desc);
     const options = (Array.isArray(item?.repairOptions) ? item.repairOptions : [])
       .map((x: unknown) => String(x || '').trim())
       .filter(Boolean);
-    if (!options.length) {
-      window.$message?.warning?.('维修说明不能为空');
-      return false;
-    }
     if (new Set(options).size !== options.length) {
-      window.$message?.warning?.('同一故障下维修说明不能重复');
-      return false;
+      return '同一故障下维修说明不能重复';
     }
   }
-  return true;
+  return null;
 }
+
+const unifiedFormRules = computed(() => {
+  const key = activeKey.value;
+  if (key === 'dict') {
+    return {
+      dictName: [{ required: true, message: '请输入字典名称', trigger: 'blur' }],
+      dictType: [{ required: true, message: '请输入字典类型', trigger: 'blur' }],
+      status: [
+        { required: true, message: '请选择状态', trigger: 'change' },
+        {
+          validator: async (_rule: unknown, v: unknown) => {
+            if (v === undefined || v === null || v === '') {
+              return Promise.reject(new Error('请选择状态'));
+            }
+            return Promise.resolve();
+          },
+          trigger: 'change'
+        }
+      ]
+    };
+  }
+  if (key === 'config') {
+    return {
+      configName: [{ required: true, message: '请输入参数名称', trigger: 'blur' }],
+      configKey: [{ required: true, message: '请输入参数键名', trigger: 'blur' }],
+      configValue: [{ required: true, message: '请输入参数键值', trigger: 'blur' }],
+      configType: [
+        { required: true, message: '请选择是否内置', trigger: 'change' },
+        {
+          validator: async (_rule: unknown, v: unknown) => {
+            if (v === undefined || v === null || v === '') {
+              return Promise.reject(new Error('请选择是否内置'));
+            }
+            return Promise.resolve();
+          },
+          trigger: 'change'
+        }
+      ]
+    };
+  }
+  if (key === 'notifyTemplate') {
+    return {
+      templateCode: [{ required: true, message: '请输入模板编码', trigger: 'blur' }],
+      templateName: [{ required: true, message: '请输入模板名称', trigger: 'blur' }]
+    };
+  }
+  if (key === 'roleTemplate') {
+    return {
+      roleName: [{ required: true, message: '请输入角色名称', trigger: 'blur' }],
+      roleKey: [{ required: true, message: '请输入角色标识', trigger: 'blur' }],
+      typeCode: [{ required: true, message: '请先选择类型编码', trigger: 'change' }],
+      dataScope: [
+        { required: true, message: '请先选择数据范围', trigger: 'change' },
+        {
+          validator: async () => {
+            const v = String(formModel.dataScope || '');
+            if (!v) {
+              return Promise.reject(new Error('请先选择数据范围'));
+            }
+            if (!roleTemplateScopeOptions.value.some(item => String(item.value) === String(formModel.dataScope))) {
+              return Promise.reject(new Error('请选择当前公司类型允许的数据范围'));
+            }
+            return Promise.resolve();
+          },
+          trigger: 'change'
+        }
+      ]
+    };
+  }
+  if (key === 'fault') {
+    return {
+      companyId: [{ required: true, message: '请选择归属总部', trigger: 'change' }],
+      status: [
+        { required: true, message: '请选择状态', trigger: 'change' },
+        {
+          validator: async (_rule: unknown, v: unknown) => {
+            if (v === undefined || v === null || v === '') {
+              return Promise.reject(new Error('请选择状态'));
+            }
+            return Promise.resolve();
+          },
+          trigger: 'change'
+        }
+      ],
+      productCode: [
+        {
+          validator: async () => {
+            const pc = String(formModel.productCode || '').trim();
+            const pm = String(formModel.productModel || '').trim();
+            if (!pc && !pm) {
+              return Promise.reject(new Error('物料编码和产品型号不能同时为空'));
+            }
+            return Promise.resolve();
+          },
+          trigger: 'blur'
+        }
+      ],
+      faults: [
+        {
+          type: 'array',
+          required: true,
+          min: 1,
+          message: '请至少添加一条故障信息',
+          trigger: 'change'
+        },
+        {
+          validator: async () => {
+            const msg = getFaultDuplicateError(formModel);
+            return msg ? Promise.reject(new Error(msg)) : Promise.resolve();
+          },
+          trigger: 'change'
+        }
+      ]
+    };
+  }
+  return {};
+});
+
+const notifyFormRules = {
+  templateCode: [{ required: true, message: '模板编码不能为空', trigger: 'blur' }],
+  notifyEnabled: [
+    { required: true, message: '请选择通知开关', trigger: 'change' },
+    {
+      validator: async (_rule: unknown, v: unknown) => {
+        if (v === undefined || v === null || v === '') {
+          return Promise.reject(new Error('请选择通知开关'));
+        }
+        return Promise.resolve();
+      },
+      trigger: 'change'
+    }
+  ],
+  overrideEnabled: [
+    { required: true, message: '请选择覆盖开关', trigger: 'change' },
+    {
+      validator: async (_rule: unknown, v: unknown) => {
+        if (v === undefined || v === null || v === '') {
+          return Promise.reject(new Error('请选择覆盖开关'));
+        }
+        return Promise.resolve();
+      },
+      trigger: 'change'
+    }
+  ]
+};
+
+const syncTaskFormRules = {
+  taskCode: [{ required: true, message: '请输入任务编码', trigger: 'blur' }],
+  taskName: [{ required: true, message: '请输入任务名称', trigger: 'blur' }],
+  handlerCode: [{ required: true, message: '请选择处理器', trigger: 'change' }],
+  cronExpression: [{ required: true, message: '请输入Cron表达式', trigger: 'blur' }]
+};
+
+const advRegionFormRules = {
+  regionCode: [{ required: true, message: '请输入大区编码', trigger: 'blur' }],
+  regionName: [{ required: true, message: '请输入大区名称', trigger: 'blur' }]
+};
 
 /**
  * 作用：组装故障维修提交给后端的 payload。
@@ -1016,41 +1163,18 @@ function buildFaultSubmitPayload(data: RowData) {
  * @returns 无
  */
 async function submitForm() {
+  try {
+    await unifiedFormRef.value?.validate();
+  } catch {
+    return;
+  }
   const data = { ...formModel };
   switch (activeKey.value) {
     case 'dict':
-      if (!String(data.dictName || '').trim()) {
-        window.$message?.warning?.('请输入字典名称');
-        return;
-      }
-      if (!String(data.dictType || '').trim()) {
-        window.$message?.warning?.('请输入字典类型');
-        return;
-      }
-      if (data.status === undefined || data.status === null || data.status === '') {
-        window.$message?.warning?.('请选择状态');
-        return;
-      }
       if (data.dictId ?? data.id) await updateDictType(data);
       else await addDictType(data);
       break;
     case 'config':
-      if (!String(data.configName || '').trim()) {
-        window.$message?.warning?.('请输入参数名称');
-        return;
-      }
-      if (!String(data.configKey || '').trim()) {
-        window.$message?.warning?.('请输入参数键名');
-        return;
-      }
-      if (!String(data.configValue || '').trim()) {
-        window.$message?.warning?.('请输入参数键值');
-        return;
-      }
-      if (data.configType === undefined || data.configType === null || data.configType === '') {
-        window.$message?.warning?.('请选择是否内置');
-        return;
-      }
       if (data.configId ?? data.id) await updateConfig(data);
       else await addConfig(data);
       break;
@@ -1059,31 +1183,10 @@ async function submitForm() {
       else await addNotifyTemplateCustom(data);
       break;
     case 'fault':
-      if (!validateFaultForm(data)) return;
       if (data.id) await updateFaultRepairConfig(buildFaultSubmitPayload(data));
       else await addFaultRepairConfig(buildFaultSubmitPayload(data));
       break;
     case 'roleTemplate':
-      if (!String(data.roleName || '').trim()) {
-        window.$message?.warning?.('请输入角色名称');
-        return;
-      }
-      if (!String(data.roleKey || '').trim()) {
-        window.$message?.warning?.('请输入角色标识');
-        return;
-      }
-      if (!data.typeCode) {
-        window.$message?.warning?.('请先选择类型编码');
-        return;
-      }
-      if (!data.dataScope) {
-        window.$message?.warning?.('请先选择数据范围');
-        return;
-      }
-      if (!roleTemplateScopeOptions.value.some(item => String(item.value) === String(data.dataScope))) {
-        window.$message?.warning?.('请选择当前公司类型允许的数据范围');
-        return;
-      }
       if (data.id) await updateRoleTemplate(data);
       else await addRoleTemplate(data);
       break;
@@ -1303,9 +1406,11 @@ async function openNotifyEdit(record: RowData) {
  * @returns 无
  */
 async function submitNotifyForm() {
-  if (!notifyForm.templateCode) return window.$message?.warning?.('模板编码不能为空');
-  if (notifyForm.notifyEnabled == null) return window.$message?.warning?.('请选择通知开关');
-  if (notifyForm.overrideEnabled == null) return window.$message?.warning?.('请选择覆盖开关');
+  try {
+    await notifyFormRef.value?.validate();
+  } catch {
+    return;
+  }
   notifyFormSubmitting.value = true;
   try {
     const payload = {
@@ -1571,6 +1676,11 @@ function openSyncForm(record?: RowData) {
  * @returns 无
  */
 async function submitSyncForm() {
+  try {
+    await syncTaskFormRef.value?.validate();
+  } catch {
+    return;
+  }
   const data = { ...syncFormModel };
   if (data.id) await updateSyncTask(data);
   else await addSyncTask(data);
@@ -1743,6 +1853,11 @@ function openRegionForm(record?: RowData) {
  * @returns 无
  */
 async function submitRegionForm() {
+  try {
+    await advRegionFormRef.value?.validate();
+  } catch {
+    return;
+  }
   const data = { ...regionForm };
   if (data.id) await updateRegion(data);
   else await addRegion(data);
@@ -1862,17 +1977,32 @@ onMounted(() => {
           <div class="page-search-toolbar">
             <div class="page-search-toolbar__filters">
               <ARow :gutter="[16, 16]" wrap>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': dictSearchFilter.isSearchFilterHidden(0) }"
+                >
                   <AFormItem label="字典名称" class="m-0">
                     <AInput v-model:value="dictQuery.dictName" allow-clear placeholder="请输入字典名称" />
                   </AFormItem>
                 </ACol>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': dictSearchFilter.isSearchFilterHidden(1) }"
+                >
                   <AFormItem label="字典类型" class="m-0">
                     <AInput v-model:value="dictQuery.dictType" allow-clear placeholder="请输入字典类型" />
                   </AFormItem>
                 </ACol>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': dictSearchFilter.isSearchFilterHidden(2) }"
+                >
                   <AFormItem label="状态" class="m-0">
                     <ASelect
                       v-model:value="dictQuery.status"
@@ -1891,6 +2021,11 @@ onMounted(() => {
             <div class="page-search-toolbar__actions">
               <AButton type="primary" @click="handleSearch">查询</AButton>
               <AButton @click="resetSearch">重置</AButton>
+              <PageSearchExpandButton
+                v-if="dictSearchFilter.showSearchFilterExpandToggle"
+                :expanded="dictSearchFilter.searchFilterExpanded"
+                @click="dictSearchFilter.toggleSearchFilterExpand"
+              />
             </div>
           </div>
         </AForm>
@@ -1899,17 +2034,32 @@ onMounted(() => {
           <div class="page-search-toolbar">
             <div class="page-search-toolbar__filters">
               <ARow :gutter="[16, 16]" wrap>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': configSearchFilter.isSearchFilterHidden(0) }"
+                >
                   <AFormItem label="参数名称" class="m-0">
                     <AInput v-model:value="configQuery.configName" allow-clear placeholder="请输入参数名称" />
                   </AFormItem>
                 </ACol>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': configSearchFilter.isSearchFilterHidden(1) }"
+                >
                   <AFormItem label="参数键名" class="m-0">
                     <AInput v-model:value="configQuery.configKey" allow-clear placeholder="请输入参数键名" />
                   </AFormItem>
                 </ACol>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': configSearchFilter.isSearchFilterHidden(2) }"
+                >
                   <AFormItem label="是否内置" class="m-0">
                     <ASelect
                       v-model:value="configQuery.configType"
@@ -1928,6 +2078,11 @@ onMounted(() => {
             <div class="page-search-toolbar__actions">
               <AButton type="primary" @click="handleSearch">查询</AButton>
               <AButton @click="resetSearch">重置</AButton>
+              <PageSearchExpandButton
+                v-if="configSearchFilter.showSearchFilterExpandToggle"
+                :expanded="configSearchFilter.searchFilterExpanded"
+                @click="configSearchFilter.toggleSearchFilterExpand"
+              />
             </div>
           </div>
         </AForm>
@@ -1936,17 +2091,32 @@ onMounted(() => {
           <div class="page-search-toolbar">
             <div class="page-search-toolbar__filters">
               <ARow :gutter="[16, 16]" wrap>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': notifySearchFilter.isSearchFilterHidden(0) }"
+                >
                   <AFormItem label="模板编码" class="m-0">
                     <AInput v-model:value="notifyQuery.templateCode" allow-clear placeholder="请输入模板编码" />
                   </AFormItem>
                 </ACol>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': notifySearchFilter.isSearchFilterHidden(1) }"
+                >
                   <AFormItem label="模板名称" class="m-0">
                     <AInput v-model:value="notifyQuery.templateName" allow-clear placeholder="请输入模板名称" />
                   </AFormItem>
                 </ACol>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': notifySearchFilter.isSearchFilterHidden(2) }"
+                >
                   <AFormItem label="模板来源" class="m-0">
                     <ASelect
                       v-model:value="notifyQuery.templateSource"
@@ -1965,6 +2135,11 @@ onMounted(() => {
             <div class="page-search-toolbar__actions">
               <AButton type="primary" @click="handleSearch">查询</AButton>
               <AButton @click="resetSearch">重置</AButton>
+              <PageSearchExpandButton
+                v-if="notifySearchFilter.showSearchFilterExpandToggle"
+                :expanded="notifySearchFilter.searchFilterExpanded"
+                @click="notifySearchFilter.toggleSearchFilterExpand"
+              />
             </div>
           </div>
         </AForm>
@@ -1973,7 +2148,12 @@ onMounted(() => {
           <div class="page-search-toolbar">
             <div class="page-search-toolbar__filters">
               <ARow :gutter="[16, 16]" wrap>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': barcodeSearchFilter.isSearchFilterHidden(0) }"
+                >
                   <AFormItem label="归属总部" class="m-0">
                     <ASelect
                       v-model:value="barcodeQuery.ownerHqId"
@@ -1990,32 +2170,62 @@ onMounted(() => {
                     />
                   </AFormItem>
                 </ACol>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': barcodeSearchFilter.isSearchFilterHidden(1) }"
+                >
                   <AFormItem label="条码" class="m-0">
                     <AInput v-model:value="barcodeQuery.barcode" allow-clear placeholder="请输入条码" />
                   </AFormItem>
                 </ACol>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': barcodeSearchFilter.isSearchFilterHidden(2) }"
+                >
                   <AFormItem label="发货单号" class="m-0">
                     <AInput v-model:value="barcodeQuery.deliverNumber" allow-clear placeholder="请输入发货单号" />
                   </AFormItem>
                 </ACol>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': barcodeSearchFilter.isSearchFilterHidden(3) }"
+                >
                   <AFormItem label="物料编码" class="m-0">
                     <AInput v-model:value="barcodeQuery.productCode" allow-clear placeholder="请输入物料编码" />
                   </AFormItem>
                 </ACol>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': barcodeSearchFilter.isSearchFilterHidden(4) }"
+                >
                   <AFormItem label="机器小号" class="m-0">
                     <AInput v-model:value="barcodeQuery.machineNo" allow-clear placeholder="请输入机器小号" />
                   </AFormItem>
                 </ACol>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': barcodeSearchFilter.isSearchFilterHidden(5) }"
+                >
                   <AFormItem label="产品型号" class="m-0">
                     <AInput v-model:value="barcodeQuery.productModel" allow-clear placeholder="请输入产品型号" />
                   </AFormItem>
                 </ACol>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': barcodeSearchFilter.isSearchFilterHidden(6) }"
+                >
                   <AFormItem label="状态" class="m-0">
                     <ASelect
                       v-model:value="barcodeQuery.status"
@@ -2034,6 +2244,11 @@ onMounted(() => {
             <div class="page-search-toolbar__actions">
               <AButton type="primary" @click="handleSearch">查询</AButton>
               <AButton @click="resetSearch">重置</AButton>
+              <PageSearchExpandButton
+                v-if="barcodeSearchFilter.showSearchFilterExpandToggle"
+                :expanded="barcodeSearchFilter.searchFilterExpanded"
+                @click="barcodeSearchFilter.toggleSearchFilterExpand"
+              />
             </div>
           </div>
         </AForm>
@@ -2042,17 +2257,32 @@ onMounted(() => {
           <div class="page-search-toolbar">
             <div class="page-search-toolbar__filters">
               <ARow :gutter="[16, 16]" wrap>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': syncTaskSearchFilter.isSearchFilterHidden(0) }"
+                >
                   <AFormItem label="任务编码" class="m-0">
                     <AInput v-model:value="syncTaskQuery.taskCode" allow-clear placeholder="请输入任务编码" />
                   </AFormItem>
                 </ACol>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': syncTaskSearchFilter.isSearchFilterHidden(1) }"
+                >
                   <AFormItem label="任务名称" class="m-0">
                     <AInput v-model:value="syncTaskQuery.taskName" allow-clear placeholder="请输入任务名称" />
                   </AFormItem>
                 </ACol>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': syncTaskSearchFilter.isSearchFilterHidden(2) }"
+                >
                   <AFormItem label="处理器" class="m-0">
                     <ASelect
                       v-model:value="syncTaskQuery.handlerCode"
@@ -2068,7 +2298,12 @@ onMounted(() => {
                     />
                   </AFormItem>
                 </ACol>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': syncTaskSearchFilter.isSearchFilterHidden(3) }"
+                >
                   <AFormItem label="状态" class="m-0">
                     <ASelect
                       v-model:value="syncTaskQuery.status"
@@ -2087,6 +2322,11 @@ onMounted(() => {
             <div class="page-search-toolbar__actions">
               <AButton type="primary" @click="handleSearch">查询</AButton>
               <AButton @click="resetSearch">重置</AButton>
+              <PageSearchExpandButton
+                v-if="syncTaskSearchFilter.showSearchFilterExpandToggle"
+                :expanded="syncTaskSearchFilter.searchFilterExpanded"
+                @click="syncTaskSearchFilter.toggleSearchFilterExpand"
+              />
             </div>
           </div>
         </AForm>
@@ -2095,7 +2335,12 @@ onMounted(() => {
           <div class="page-search-toolbar">
             <div class="page-search-toolbar__filters">
               <ARow :gutter="[16, 16]" wrap>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': faultSearchFilter.isSearchFilterHidden(0) }"
+                >
                   <AFormItem label="归属总部" class="m-0">
                     <ASelect
                       v-model:value="faultQuery.companyId"
@@ -2113,22 +2358,42 @@ onMounted(() => {
                     />
                   </AFormItem>
                 </ACol>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': faultSearchFilter.isSearchFilterHidden(1) }"
+                >
                   <AFormItem label="物料编码" class="m-0">
                     <AInput v-model:value="faultQuery.productCode" allow-clear placeholder="请输入物料编码" />
                   </AFormItem>
                 </ACol>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': faultSearchFilter.isSearchFilterHidden(2) }"
+                >
                   <AFormItem label="产品型号" class="m-0">
                     <AInput v-model:value="faultQuery.productModel" allow-clear placeholder="请输入产品型号" />
                   </AFormItem>
                 </ACol>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': faultSearchFilter.isSearchFilterHidden(3) }"
+                >
                   <AFormItem label="故障描述" class="m-0">
                     <AInput v-model:value="faultQuery.faultDesc" allow-clear placeholder="请输入故障描述" />
                   </AFormItem>
                 </ACol>
-                <ACol :span="24" :md="12" :lg="6">
+                <ACol
+                  :span="24"
+                  :md="12"
+                  :lg="6"
+                  :class="{ 'page-search-toolbar__filter-col--collapsed': faultSearchFilter.isSearchFilterHidden(4) }"
+                >
                   <AFormItem label="状态" class="m-0">
                     <ASelect
                       v-model:value="faultQuery.status"
@@ -2147,6 +2412,11 @@ onMounted(() => {
             <div class="page-search-toolbar__actions">
               <AButton type="primary" @click="handleSearch">查询</AButton>
               <AButton @click="resetSearch">重置</AButton>
+              <PageSearchExpandButton
+                v-if="faultSearchFilter.showSearchFilterExpandToggle"
+                :expanded="faultSearchFilter.searchFilterExpanded"
+                @click="faultSearchFilter.toggleSearchFilterExpand"
+              />
             </div>
           </div>
         </AForm>
@@ -2196,7 +2466,7 @@ onMounted(() => {
       </div>
     </ACard>
     <ACard
-      title="高级业务模块"
+      :title="pageMenuTitle"
       :bordered="false"
       :body-style="{ flex: 1, overflow: 'hidden' }"
       class="flex-col-stretch card-wrapper sm:flex-1-hidden"
@@ -2426,15 +2696,21 @@ onMounted(() => {
       :title="`${tabOptions.find(t => t.key === activeKey)?.label} — ${formTitle}`"
       :width="activeKey === 'fault' ? 600 : 420"
     >
-      <AForm layout="vertical" class="mt-8px">
+      <AForm
+        ref="unifiedFormRef"
+        layout="vertical"
+        class="mt-8px"
+        :model="formModel"
+        :rules="unifiedFormRules as any"
+      >
         <template v-if="activeKey === 'roleTemplate'">
-          <AFormItem label="角色名称" required>
+          <AFormItem label="角色名称" name="roleName">
             <AInput v-model:value="formModel.roleName" placeholder="如：管理员" />
           </AFormItem>
-          <AFormItem label="角色标识" required>
+          <AFormItem label="角色标识" name="roleKey">
             <AInput v-model:value="formModel.roleKey" placeholder="如：admin" />
           </AFormItem>
-          <AFormItem label="类型编码" required>
+          <AFormItem label="类型编码" name="typeCode">
             <ASelect
               v-model:value="formModel.typeCode"
               show-search
@@ -2443,7 +2719,7 @@ onMounted(() => {
               @change="() => onRoleTemplateDataScopeInit()"
             />
           </AFormItem>
-          <AFormItem label="数据范围" required>
+          <AFormItem label="数据范围" name="dataScope">
             <ASelect
               v-model:value="formModel.dataScope"
               :options="roleTemplateScopeOptions"
@@ -2468,7 +2744,7 @@ onMounted(() => {
         <template v-else-if="activeKey === 'fault'">
           <ARow :gutter="16">
             <ACol :span="12">
-              <AFormItem label="归属总部" required>
+              <AFormItem label="归属总部" name="companyId">
                 <ASelect
                   v-model:value="formModel.companyId"
                   show-search
@@ -2484,7 +2760,7 @@ onMounted(() => {
               </AFormItem>
             </ACol>
             <ACol :span="12">
-              <AFormItem label="状态" required>
+              <AFormItem label="状态" name="status">
                 <ARadioGroup v-model:value="formModel.status">
                   <ARadio :value="1">启用</ARadio>
                   <ARadio :value="0">停用</ARadio>
@@ -2495,7 +2771,7 @@ onMounted(() => {
 
           <ARow :gutter="16">
             <ACol :span="12">
-              <AFormItem label="物料编码">
+              <AFormItem label="物料编码" name="productCode">
                 <AInput v-model:value="formModel.productCode" placeholder="请输入物料编码" />
               </AFormItem>
             </ACol>
@@ -2535,7 +2811,11 @@ onMounted(() => {
                 删除
               </AButton>
             </div>
-            <AFormItem label="故障描述">
+            <AFormItem
+              label="故障描述"
+              :name="['faults', Number(index), 'faultDesc']"
+              :rules="[{ required: true, message: '故障描述不能为空', trigger: 'blur' }]"
+            >
               <AInput v-model:value="item.faultDesc" placeholder="请输入故障描述" />
             </AFormItem>
             <div class="mb-8px flex items-center justify-between font-500">
@@ -2547,7 +2827,13 @@ onMounted(() => {
               :key="`repair-${index}-${repairIndex}`"
               class="mb-8px flex"
             >
-              <AInput v-model:value="item.repairOptions[repairIndex]" placeholder="请输入维修说明" />
+              <AFormItem
+                class="mb-0 min-w-0 flex-1"
+                :name="['faults', Number(index), 'repairOptions', Number(repairIndex)]"
+                :rules="[{ required: true, message: '维修说明不能为空', trigger: 'blur' }]"
+              >
+                <AInput v-model:value="item.repairOptions[repairIndex]" placeholder="请输入维修说明" />
+              </AFormItem>
               <AButton
                 v-if="item.repairOptions.length > 1"
                 type="link"
@@ -2560,9 +2846,12 @@ onMounted(() => {
               </AButton>
             </div>
           </div>
+          <AFormItem name="faults" class="!mb-0 max-h-0 overflow-hidden p-0 opacity-0">
+            <span aria-hidden="true">.</span>
+          </AFormItem>
         </template>
         <template v-for="field in formFields()" v-else :key="field.key">
-          <AFormItem :label="field.label" :required="isFormFieldRequired(field.key)">
+          <AFormItem :label="field.label" :name="field.key" :required="isFormFieldRequired(field.key)">
             <ARadioGroup v-if="field.type === 'radio'" v-model:value="formModel[field.key]">
               <ARadio v-for="option in getFormRadioOptions(field.key)" :key="option.value" :value="option.value">
                 {{ option.label }}
@@ -2603,22 +2892,28 @@ onMounted(() => {
     </AModal>
 
     <ADrawer v-model:open="notifyFormOpen" :title="notifyFormTitle" :width="960">
-      <AForm layout="vertical" class="mt-8px">
+      <AForm
+        ref="notifyFormRef"
+        layout="vertical"
+        class="mt-8px"
+        :model="notifyForm"
+        :rules="notifyFormRules as any"
+      >
         <ARow :gutter="16">
           <ACol :span="12">
-            <AFormItem label="模板编码">
+            <AFormItem label="模板编码" name="templateCode">
               <AInput v-model:value="notifyForm.templateCode" disabled />
             </AFormItem>
           </ACol>
           <ACol :span="12">
-            <AFormItem label="模板名称">
+            <AFormItem label="模板名称" name="templateName">
               <AInput v-model:value="notifyForm.templateName" :disabled="notifyFormReadonly" />
             </AFormItem>
           </ACol>
         </ARow>
         <ARow :gutter="16">
           <ACol :span="12">
-            <AFormItem label="通知开关">
+            <AFormItem label="通知开关" name="notifyEnabled">
               <ARadioGroup v-model:value="notifyForm.notifyEnabled" :disabled="notifyFormReadonly">
                 <ARadio :value="1">开启</ARadio>
                 <ARadio :value="0">关闭</ARadio>
@@ -2626,7 +2921,7 @@ onMounted(() => {
             </AFormItem>
           </ACol>
           <ACol :span="12">
-            <AFormItem label="覆盖开关">
+            <AFormItem label="覆盖开关" name="overrideEnabled">
               <ARadioGroup v-model:value="notifyForm.overrideEnabled" :disabled="notifyFormReadonly">
                 <ARadio :value="1">启用覆盖</ARadio>
                 <ARadio :value="0">回退内置</ARadio>
@@ -2870,14 +3165,20 @@ onMounted(() => {
     </ADrawer>
 
     <ADrawer v-model:open="syncFormOpen" :title="syncFormTitle" :width="420">
-      <AForm layout="vertical" class="mt-8px">
-        <AFormItem label="任务编码" required>
+      <AForm
+        ref="syncTaskFormRef"
+        layout="vertical"
+        class="mt-8px"
+        :model="syncFormModel"
+        :rules="syncTaskFormRules as any"
+      >
+        <AFormItem label="任务编码" name="taskCode">
           <AInput v-model:value="syncFormModel.taskCode" :disabled="!!syncFormModel.id" placeholder="请输入任务编码" />
         </AFormItem>
-        <AFormItem label="任务名称" required>
+        <AFormItem label="任务名称" name="taskName">
           <AInput v-model:value="syncFormModel.taskName" placeholder="请输入任务名称" />
         </AFormItem>
-        <AFormItem label="处理器" required>
+        <AFormItem label="处理器" name="handlerCode">
           <ASelect
             v-model:value="syncFormModel.handlerCode"
             placeholder="请选择处理器"
@@ -2885,7 +3186,7 @@ onMounted(() => {
             :options="handlerOptions.map((h: RowData) => ({ label: h.handlerName, value: h.handlerCode }))"
           />
         </AFormItem>
-        <AFormItem label="Cron 表达式" required>
+        <AFormItem label="Cron 表达式" name="cronExpression">
           <AInput v-model:value="syncFormModel.cronExpression" placeholder="请输入Cron表达式，例如 0 0 2 * * ?" />
         </AFormItem>
         <AFormItem label="状态">
@@ -2983,11 +3284,17 @@ onMounted(() => {
     </ADrawer>
 
     <ADrawer v-model:open="regionFormOpen" :title="`大区 — ${regionFormTitle}`" :width="420">
-      <AForm layout="vertical" class="mt-8px">
-        <AFormItem label="大区编码" required>
+      <AForm
+        ref="advRegionFormRef"
+        layout="vertical"
+        class="mt-8px"
+        :model="regionForm"
+        :rules="advRegionFormRules as any"
+      >
+        <AFormItem label="大区编码" name="regionCode">
           <AInput v-model:value="regionForm.regionCode" />
         </AFormItem>
-        <AFormItem label="大区名称" required>
+        <AFormItem label="大区名称" name="regionName">
           <AInput v-model:value="regionForm.regionName" />
         </AFormItem>
         <AFormItem label="备注">

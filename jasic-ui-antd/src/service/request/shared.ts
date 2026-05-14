@@ -79,26 +79,22 @@ export async function handleExpiredRequest(state: RequestInstanceState) {
 
 /**
  * 作用：防抖式全局 error 消息提示，同一状态下相同文案不重复弹出。
- * @param state 请求实例状态（维护 errMsgStack）
+ * @param state 请求实例状态（维护 toastErrMsgStack）
  * @param message 展示给用户的消息
  * @returns {void}
  */
 export function showErrorMsg(state: RequestInstanceState, message: string) {
-  if (!state.errMsgStack?.length) {
-    state.errMsgStack = [];
+  if (!state.toastErrMsgStack?.length) {
+    state.toastErrMsgStack = [];
   }
 
-  const isExist = state.errMsgStack.includes(message);
+  const isExist = state.toastErrMsgStack.includes(message);
 
   if (!isExist) {
-    state.errMsgStack.push(message);
+    state.toastErrMsgStack.push(message);
 
     window.$message?.error(message, 1.5, () => {
-      state.errMsgStack = state.errMsgStack.filter(msg => msg !== message);
-
-      setTimeout(() => {
-        state.errMsgStack = [];
-      }, 5000);
+      state.toastErrMsgStack = state.toastErrMsgStack.filter(msg => msg !== message);
     });
   }
 }

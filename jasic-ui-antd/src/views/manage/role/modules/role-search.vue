@@ -2,6 +2,8 @@
 /**
  * 角色列表 — 搜索表单：角色名、状态等，emit reset/search。
  */
+import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
+import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
 import { enableStatusOptions } from '@/constants/business';
 import { $t } from '@/locales';
 
@@ -15,6 +17,8 @@ interface Emits {
 }
 
 const emit = defineEmits<Emits>();
+
+const manageRoleSearchFilter = usePageSearchFilterCollapse(3);
 
 // 查询表单双向绑定模型
 const model = defineModel<Api.SystemManage.RoleSearchParams>('model', { required: true });
@@ -44,17 +48,32 @@ function search() {
       <div class="page-search-toolbar">
         <div class="page-search-toolbar__filters">
           <ARow :gutter="[16, 16]" wrap>
-            <ACol :span="24" :md="12" :lg="6">
+            <ACol
+              :span="24"
+              :md="12"
+              :lg="6"
+              :class="{ 'page-search-toolbar__filter-col--collapsed': manageRoleSearchFilter.isSearchFilterHidden(0) }"
+            >
               <AFormItem :label="$t('page.manage.role.roleName')" name="roleName" class="m-0">
                 <AInput v-model:value="model.roleName" :placeholder="$t('page.manage.role.form.roleName')" />
               </AFormItem>
             </ACol>
-            <ACol :span="24" :md="12" :lg="6">
+            <ACol
+              :span="24"
+              :md="12"
+              :lg="6"
+              :class="{ 'page-search-toolbar__filter-col--collapsed': manageRoleSearchFilter.isSearchFilterHidden(1) }"
+            >
               <AFormItem :label="$t('page.manage.role.roleCode')" name="roleCode" class="m-0">
                 <AInput v-model:value="model.roleCode" :placeholder="$t('page.manage.role.form.roleCode')" />
               </AFormItem>
             </ACol>
-            <ACol :span="24" :md="12" :lg="6">
+            <ACol
+              :span="24"
+              :md="12"
+              :lg="6"
+              :class="{ 'page-search-toolbar__filter-col--collapsed': manageRoleSearchFilter.isSearchFilterHidden(2) }"
+            >
               <AFormItem :label="$t('page.manage.role.roleStatus')" name="status" class="m-0">
                 <ASelect v-model:value="model.status" :placeholder="$t('page.manage.role.form.roleStatus')" allow-clear>
                   <ASelectOption v-for="option in enableStatusOptions" :key="option.value" :value="option.value">
@@ -78,6 +97,11 @@ function search() {
             </template>
             <span class="ml-8px">{{ $t('common.reset') }}</span>
           </AButton>
+          <PageSearchExpandButton
+            v-if="manageRoleSearchFilter.showSearchFilterExpandToggle"
+            :expanded="manageRoleSearchFilter.searchFilterExpanded"
+            @click="manageRoleSearchFilter.toggleSearchFilterExpand"
+          />
         </div>
       </div>
     </AForm>

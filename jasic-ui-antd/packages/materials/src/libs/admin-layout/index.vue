@@ -24,7 +24,7 @@ const props = withDefaults(defineProps<AdminLayoutProps>(), {
   siderWidth: 220,
   siderCollapsedWidth: 64,
   footerVisible: true,
-  footerHeight: 48,
+  footerHeight: 40,
   rightFooter: false
 });
 

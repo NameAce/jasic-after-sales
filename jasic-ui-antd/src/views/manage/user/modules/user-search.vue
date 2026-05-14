@@ -3,6 +3,8 @@
  * 用户列表 — 搜索表单：状态、性别、关键词等，emit reset/search。
  */
 import { computed } from 'vue';
+import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
+import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
 import { enableStatusOptions, userGenderOptions } from '@/constants/business';
 import { useAntdForm, useFormRules } from '@/hooks/common/form';
 import { translateOptions } from '@/utils/common';
@@ -18,6 +20,8 @@ interface Emits {
 }
 
 const emit = defineEmits<Emits>();
+
+const manageUserSearchFilter = usePageSearchFilterCollapse(6);
 
 // 查询表单重置、搜索事件向父组件传递
 const { formRef, validate, resetFields } = useAntdForm();
@@ -72,12 +76,22 @@ async function search() {
       <div class="page-search-toolbar">
         <div class="page-search-toolbar__filters">
           <ARow :gutter="[16, 16]" wrap>
-            <ACol :span="24" :md="12" :lg="6">
+            <ACol
+              :span="24"
+              :md="12"
+              :lg="6"
+              :class="{ 'page-search-toolbar__filter-col--collapsed': manageUserSearchFilter.isSearchFilterHidden(0) }"
+            >
               <AFormItem :label="$t('page.manage.user.userName')" name="userName" class="m-0">
                 <AInput v-model:value="model.userName" :placeholder="$t('page.manage.user.form.userName')" />
               </AFormItem>
             </ACol>
-            <ACol :span="24" :md="12" :lg="6">
+            <ACol
+              :span="24"
+              :md="12"
+              :lg="6"
+              :class="{ 'page-search-toolbar__filter-col--collapsed': manageUserSearchFilter.isSearchFilterHidden(1) }"
+            >
               <AFormItem :label="$t('page.manage.user.userGender')" name="userGender" class="m-0">
                 <ASelect
                   v-model:value="model.userGender"
@@ -87,22 +101,42 @@ async function search() {
                 />
               </AFormItem>
             </ACol>
-            <ACol :span="24" :md="12" :lg="6">
+            <ACol
+              :span="24"
+              :md="12"
+              :lg="6"
+              :class="{ 'page-search-toolbar__filter-col--collapsed': manageUserSearchFilter.isSearchFilterHidden(2) }"
+            >
               <AFormItem :label="$t('page.manage.user.nickName')" name="nickName" class="m-0">
                 <AInput v-model:value="model.nickName" :placeholder="$t('page.manage.user.form.nickName')" />
               </AFormItem>
             </ACol>
-            <ACol :span="24" :md="12" :lg="6">
+            <ACol
+              :span="24"
+              :md="12"
+              :lg="6"
+              :class="{ 'page-search-toolbar__filter-col--collapsed': manageUserSearchFilter.isSearchFilterHidden(3) }"
+            >
               <AFormItem :label="$t('page.manage.user.userPhone')" name="userPhone" class="m-0">
                 <AInput v-model:value="model.userPhone" :placeholder="$t('page.manage.user.form.userPhone')" />
               </AFormItem>
             </ACol>
-            <ACol :span="24" :md="12" :lg="6">
+            <ACol
+              :span="24"
+              :md="12"
+              :lg="6"
+              :class="{ 'page-search-toolbar__filter-col--collapsed': manageUserSearchFilter.isSearchFilterHidden(4) }"
+            >
               <AFormItem :label="$t('page.manage.user.userEmail')" name="userEmail" class="m-0">
                 <AInput v-model:value="model.userEmail" :placeholder="$t('page.manage.user.form.userEmail')" />
               </AFormItem>
             </ACol>
-            <ACol :span="24" :md="12" :lg="6">
+            <ACol
+              :span="24"
+              :md="12"
+              :lg="6"
+              :class="{ 'page-search-toolbar__filter-col--collapsed': manageUserSearchFilter.isSearchFilterHidden(5) }"
+            >
               <AFormItem :label="$t('page.manage.user.userStatus')" name="userStatus" class="m-0">
                 <ASelect
                   v-model:value="model.status"
@@ -127,6 +161,11 @@ async function search() {
             </template>
             <span class="ml-8px">{{ $t('common.reset') }}</span>
           </AButton>
+          <PageSearchExpandButton
+            v-if="manageUserSearchFilter.showSearchFilterExpandToggle"
+            :expanded="manageUserSearchFilter.searchFilterExpanded"
+            @click="manageUserSearchFilter.toggleSearchFilterExpand"
+          />
         </div>
       </div>
     </AForm>

@@ -20,6 +20,11 @@
   width: 100%;
 }
 
+/** 折叠时隐藏「第 5 个及以后」的筛选项（与 `usePageSearchFilterCollapse` 配合） */
+.page-search-toolbar__filter-col--collapsed {
+  display: none !important;
+}
+
 .page-search-toolbar__actions {
   flex: 0 0 auto;
   display: inline-flex;

@@ -4,6 +4,8 @@
  */
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute } from "vue-router";
+import type { FormInstance } from "ant-design-vue";
+import { useRouteMenuTitle } from "@/hooks/common/route-menu-title";
 import {
   tagColorEnabled,
   tagColorPositiveNeutral,
@@ -41,6 +43,8 @@ import {
 } from "@/service/api";
 import type { SysCompanyDTO, SysCompanyQuery } from "@/service/api";
 import { getResponseMsg } from "@/service/request/shared";
+import PageSearchExpandButton from "@/components/custom/page-search-expand-button.vue";
+import { usePageSearchFilterCollapse } from "@/hooks/common/page-search-filter-collapse";
 import { useTableScroll } from "@/hooks/common/table";
 
 type RowData = Record<string, any>;
@@ -74,6 +78,11 @@ const rows = ref<RowData[]>([]);
 // 当前 Tab 分页总数（部分 Tab 为前端全长）
 const total = ref(0);
 const route = useRoute();
+const pageMenuTitle = useRouteMenuTitle();
+
+const companySearchFilter = usePageSearchFilterCollapse(3);
+const externalSearchFilter = usePageSearchFilterCollapse(1);
+const hqCrmImportSearchFilter = usePageSearchFilterCollapse(5);
 
 // 路由 name 与子 Tab 映射
 const ROUTE_NAME_TO_TAB_KEY: Record<string, TabKey> = {
@@ -187,6 +196,8 @@ const companyForm = reactive<Partial<SysCompanyDTO> & { id?: number }>({
   remark: "",
 });
 
+const companyFormRef = ref<FormInstance | null>(null);
+
 // 预览打开状态
 const previewOpen = ref(false);
 // 预览客户ID
@@ -236,6 +247,8 @@ const regionForm = reactive({
   remark: "",
 });
 
+const orgRegionFormRef = ref<FormInstance | null>(null);
+
 // 总部快照ID列表
 const selectedHqSnapshotIds = ref<Array<string | number>>([]);
 // 一级快照ID列表
@@ -255,6 +268,8 @@ const companyTypeForm = reactive({
   orderNum: 0,
   remark: "",
 });
+
+const companyTypeFormRef = ref<FormInstance | null>(null);
 // 公司类型菜单打开状态
 const companyTypeMenuOpen = ref(false);
 // 公司类型菜单加载状态
@@ -300,6 +315,63 @@ function getCompanySubjectType(typeCode?: string) {
 function isCompanyHqType(typeCode?: string) {
   return getCompanySubjectType(typeCode) === "HQ";
 }
+
+const companyFormRules = computed(() => ({
+  companyName: [{ required: true, message: "请输入公司名称", trigger: "blur" }],
+  typeCode: [{ required: true, message: "请选择公司类型", trigger: "change" }],
+  companyCode: [
+    {
+      validator: async () => {
+        if (isCompanyHqType(companyForm.typeCode)) return Promise.resolve();
+        if (!String(companyForm.companyCode || "").trim()) {
+          return Promise.reject(new Error("请输入公司编码"));
+        }
+        return Promise.resolve();
+      },
+      trigger: "blur",
+    },
+  ],
+  salesOrg: [
+    {
+      validator: async () => {
+        if (!isCompanyHqType(companyForm.typeCode)) return Promise.resolve();
+        if (!String(companyForm.salesOrg || "").trim()) {
+          return Promise.reject(new Error("请输入销售组织"));
+        }
+        return Promise.resolve();
+      },
+      trigger: "blur",
+    },
+  ],
+  contactName: [{ required: true, message: "请输入联系人", trigger: "blur" }],
+  contactPhone: [{ required: true, message: "请输入联系电话", trigger: "blur" }],
+  provinceCode: [{ required: true, message: "请选择省份", trigger: "change" }],
+  cityCode: [{ required: true, message: "请选择城市", trigger: "change" }],
+  districtCode: [{ required: true, message: "请选择区县", trigger: "change" }],
+  detailAddress: [{ required: true, message: "请输入详细地址", trigger: "blur" }],
+  adminUsername: [
+    {
+      validator: async () => {
+        if (companyForm.id) return Promise.resolve();
+        if (!String(companyForm.adminUsername || "").trim()) {
+          return Promise.reject(new Error("请输入管理员用户名"));
+        }
+        return Promise.resolve();
+      },
+      trigger: "blur",
+    },
+  ],
+}));
+
+const companyTypeFormRules = {
+  typeName: [{ required: true, message: "请输入类型名称", trigger: "blur" }],
+  typeCode: [{ required: true, message: "请输入类型编码", trigger: "blur" }],
+  subjectType: [{ required: true, message: "请选择主体类型", trigger: "change" }],
+};
+
+const orgRegionFormRules = {
+  regionName: [{ required: true, message: "请输入大区名称", trigger: "blur" }],
+};
 
 /**
  * 作用：根据类型编码解析类型显示名称。
@@ -909,8 +981,9 @@ function openRegionForm(record?: RowData) {
  * 作用：提交大区表单（新增或更新）。
  */
 async function submitRegionForm() {
-  if (!regionForm.regionName.trim()) {
-    window.$message?.warning?.("请输入大区名称");
+  try {
+    await orgRegionFormRef.value?.validate();
+  } catch {
     return;
   }
   const payload = {
@@ -1522,54 +1595,9 @@ function openCompanyForm(record?: RowData) {
  * 作用：校验并提交公司表单（新增或更新）。
  */
 async function submitCompanyForm() {
-  if (!String(companyForm.companyName || "").trim()) {
-    window.$message?.warning?.("请输入公司名称");
-    return;
-  }
-  if (!String(companyForm.typeCode || "").trim()) {
-    window.$message?.warning?.("请选择公司类型");
-    return;
-  }
-  if (
-    !isCompanyHqType(companyForm.typeCode) &&
-    !String(companyForm.companyCode || "").trim()
-  ) {
-    window.$message?.warning?.("请输入公司编码");
-    return;
-  }
-  if (
-    isCompanyHqType(companyForm.typeCode) &&
-    !String(companyForm.salesOrg || "").trim()
-  ) {
-    window.$message?.warning?.("请输入销售组织");
-    return;
-  }
-  if (!String(companyForm.contactName || "").trim()) {
-    window.$message?.warning?.("请输入联系人");
-    return;
-  }
-  if (!String(companyForm.contactPhone || "").trim()) {
-    window.$message?.warning?.("请输入联系电话");
-    return;
-  }
-  if (!String(companyForm.provinceCode || "").trim()) {
-    window.$message?.warning?.("请选择省份");
-    return;
-  }
-  if (!String(companyForm.cityCode || "").trim()) {
-    window.$message?.warning?.("请选择城市");
-    return;
-  }
-  if (!String(companyForm.districtCode || "").trim()) {
-    window.$message?.warning?.("请选择区县");
-    return;
-  }
-  if (!String(companyForm.detailAddress || "").trim()) {
-    window.$message?.warning?.("请输入详细地址");
-    return;
-  }
-  if (!companyForm.id && !String(companyForm.adminUsername || "").trim()) {
-    window.$message?.warning?.("请输入管理员用户名");
+  try {
+    await companyFormRef.value?.validate();
+  } catch {
     return;
   }
 
@@ -1627,6 +1655,11 @@ function openCompanyTypeForm(record?: RowData) {
  * 作用：提交公司类型表单。
  */
 async function submitCompanyTypeForm() {
+  try {
+    await companyTypeFormRef.value?.validate();
+  } catch {
+    return;
+  }
   const payload = {
     id: companyTypeForm.id,
     typeName: companyTypeForm.typeName,
@@ -2014,7 +2047,15 @@ onMounted(() => {
         <div class="page-search-toolbar">
           <div class="page-search-toolbar__filters">
             <ARow :gutter="[16, 16]" wrap>
-              <ACol :span="24" :md="12" :lg="6">
+              <ACol
+                :span="24"
+                :md="12"
+                :lg="6"
+                :class="{
+                  'page-search-toolbar__filter-col--collapsed':
+                    companySearchFilter.isSearchFilterHidden(0),
+                }"
+              >
                 <AFormItem label="公司名称" class="m-0">
                   <AInput
                     v-model:value="companyQuery.companyName"
@@ -2023,7 +2064,15 @@ onMounted(() => {
                   />
                 </AFormItem>
               </ACol>
-              <ACol :span="24" :md="12" :lg="6">
+              <ACol
+                :span="24"
+                :md="12"
+                :lg="6"
+                :class="{
+                  'page-search-toolbar__filter-col--collapsed':
+                    companySearchFilter.isSearchFilterHidden(1),
+                }"
+              >
                 <AFormItem label="公司类型" class="m-0">
                   <ASelect
                     v-model:value="companyQuery.typeCode"
@@ -2039,7 +2088,15 @@ onMounted(() => {
                   />
                 </AFormItem>
               </ACol>
-              <ACol :span="24" :md="12" :lg="6">
+              <ACol
+                :span="24"
+                :md="12"
+                :lg="6"
+                :class="{
+                  'page-search-toolbar__filter-col--collapsed':
+                    companySearchFilter.isSearchFilterHidden(2),
+                }"
+              >
                 <AFormItem label="状态" class="m-0">
                   <ASelect
                     v-model:value="companyQuery.status"
@@ -2065,6 +2122,11 @@ onMounted(() => {
             <AButton :loading="loading" @click="resetCompanyQuery"
               >重置</AButton
             >
+            <PageSearchExpandButton
+              v-if="companySearchFilter.showSearchFilterExpandToggle"
+              :expanded="companySearchFilter.searchFilterExpanded"
+              @click="companySearchFilter.toggleSearchFilterExpand"
+            />
           </div>
         </div>
       </AForm>
@@ -2162,7 +2224,15 @@ onMounted(() => {
         <div class="page-search-toolbar">
           <div class="page-search-toolbar__filters">
             <ARow :gutter="[16, 16]" wrap>
-              <ACol :span="24" :md="12" :lg="6">
+              <ACol
+                :span="24"
+                :md="12"
+                :lg="6"
+                :class="{
+                  'page-search-toolbar__filter-col--collapsed':
+                    externalSearchFilter.isSearchFilterHidden(0),
+                }"
+              >
                 <AFormItem label="名称" class="m-0">
                   <AInput
                     v-model:value="externalQuery.companyName"
@@ -2183,6 +2253,11 @@ onMounted(() => {
             <AButton :loading="loading" @click="resetExternalQuery"
               >重置</AButton
             >
+            <PageSearchExpandButton
+              v-if="externalSearchFilter.showSearchFilterExpandToggle"
+              :expanded="externalSearchFilter.searchFilterExpanded"
+              @click="externalSearchFilter.toggleSearchFilterExpand"
+            />
           </div>
         </div>
       </AForm>
@@ -2220,7 +2295,7 @@ onMounted(() => {
       </AForm>
     </ACard>
     <ACard
-      title="组织管理"
+      :title="pageMenuTitle"
       :bordered="false"
       :body-style="{ flex: 1, overflow: 'hidden' }"
       class="flex-col-stretch card-wrapper sm:flex-1-hidden"
@@ -2506,7 +2581,13 @@ onMounted(() => {
         layout="inline"
         class="page-search-toolbar--inline mb-12px"
       >
-        <AFormItem label="总部公司">
+        <AFormItem
+          label="总部公司"
+          :class="{
+            'page-search-toolbar__filter-col--collapsed':
+              hqCrmImportSearchFilter.isSearchFilterHidden(0),
+          }"
+        >
           <ASelect
             v-model:value="crmHqQuery.hqCompanyId"
             allow-clear
@@ -2523,7 +2604,13 @@ onMounted(() => {
             @change="onCrmHqCompanyChange"
           />
         </AFormItem>
-        <AFormItem label="一级公司">
+        <AFormItem
+          label="一级公司"
+          :class="{
+            'page-search-toolbar__filter-col--collapsed':
+              hqCrmImportSearchFilter.isSearchFilterHidden(1),
+          }"
+        >
           <ASelect
             v-model:value="crmHqQuery.firstCompanyId"
             allow-clear
@@ -2539,7 +2626,13 @@ onMounted(() => {
             "
           />
         </AFormItem>
-        <AFormItem label="大区">
+        <AFormItem
+          label="大区"
+          :class="{
+            'page-search-toolbar__filter-col--collapsed':
+              hqCrmImportSearchFilter.isSearchFilterHidden(2),
+          }"
+        >
           <ASelect
             v-model:value="crmHqQuery.regionId"
             allow-clear
@@ -2555,7 +2648,13 @@ onMounted(() => {
             "
           />
         </AFormItem>
-        <AFormItem label="客户编码">
+        <AFormItem
+          label="客户编码"
+          :class="{
+            'page-search-toolbar__filter-col--collapsed':
+              hqCrmImportSearchFilter.isSearchFilterHidden(3),
+          }"
+        >
           <AInput
             v-model:value="crmHqQuery.kunnr"
             allow-clear
@@ -2563,7 +2662,12 @@ onMounted(() => {
             @press-enter="handleCrmHqSearch"
           />
         </AFormItem>
-        <AFormItem>
+        <AFormItem
+          :class="{
+            'page-search-toolbar__filter-col--collapsed':
+              hqCrmImportSearchFilter.isSearchFilterHidden(4),
+          }"
+        >
           <ACheckbox v-model:checked="crmHqQuery.showAbnormal"
             >查看异常数据</ACheckbox
           >
@@ -2575,6 +2679,12 @@ onMounted(() => {
           <AButton class="ml-8px" :loading="loading" @click="resetHqCrmQuery"
             >重置</AButton
           >
+          <PageSearchExpandButton
+            v-if="hqCrmImportSearchFilter.showSearchFilterExpandToggle"
+            class="ml-8px"
+            :expanded="hqCrmImportSearchFilter.searchFilterExpanded"
+            @click="hqCrmImportSearchFilter.toggleSearchFilterExpand"
+          />
         </AFormItem>
       </AForm>
       <ATable
@@ -2748,10 +2858,16 @@ onMounted(() => {
     </ADrawer>
 
     <ADrawer v-model:open="companyFormOpen" title="公司信息" :width="980">
-      <AForm layout="vertical" class="mt-12px">
+      <AForm
+        ref="companyFormRef"
+        class="mt-12px"
+        layout="vertical"
+        :model="companyForm"
+        :rules="companyFormRules as any"
+      >
         <ARow :gutter="[16, 0]">
           <ACol :span="24" :md="12">
-            <AFormItem label="公司名称" required>
+            <AFormItem label="公司名称" name="companyName">
               <AInput
                 v-model:value="companyForm.companyName"
                 placeholder="请输入公司名称"
@@ -2767,7 +2883,7 @@ onMounted(() => {
             </AFormItem>
           </ACol>
           <ACol :span="24" :md="12">
-            <AFormItem label="公司编码">
+            <AFormItem label="公司编码" name="companyCode" :required="!isCompanyHqType(companyForm.typeCode)">
               <AInput
                 v-model:value="companyForm.companyCode"
                 :disabled="!!companyForm.id"
@@ -2776,7 +2892,7 @@ onMounted(() => {
             </AFormItem>
           </ACol>
           <ACol :span="24" :md="12">
-            <AFormItem label="类型编码" required>
+            <AFormItem label="类型编码" name="typeCode">
               <ASelect
                 v-model:value="companyForm.typeCode"
                 show-search
@@ -2793,7 +2909,7 @@ onMounted(() => {
             </AFormItem>
           </ACol>
           <ACol :span="24" :md="12">
-            <AFormItem label="联系人" required>
+            <AFormItem label="联系人" name="contactName">
               <AInput
                 v-model:value="companyForm.contactName"
                 placeholder="请输入联系人"
@@ -2801,7 +2917,7 @@ onMounted(() => {
             </AFormItem>
           </ACol>
           <ACol :span="24" :md="12">
-            <AFormItem label="联系电话" required>
+            <AFormItem label="联系电话" name="contactPhone">
               <AInput
                 v-model:value="companyForm.contactPhone"
                 placeholder="请输入联系电话"
@@ -2826,7 +2942,7 @@ onMounted(() => {
           <div class="company-address-block__title">地址信息</div>
           <ARow :gutter="16">
             <ACol :span="8">
-              <AFormItem label="省份" required>
+              <AFormItem label="省份" name="provinceCode">
                 <ASelect
                   v-model:value="companyForm.provinceCode"
                   show-search
@@ -2843,7 +2959,7 @@ onMounted(() => {
               </AFormItem>
             </ACol>
             <ACol :span="8">
-              <AFormItem label="城市" required>
+              <AFormItem label="城市" name="cityCode">
                 <ASelect
                   v-model:value="companyForm.cityCode"
                   show-search
@@ -2861,7 +2977,7 @@ onMounted(() => {
               </AFormItem>
             </ACol>
             <ACol :span="8">
-              <AFormItem label="区县" required>
+              <AFormItem label="区县" name="districtCode">
                 <ASelect
                   v-model:value="companyForm.districtCode"
                   show-search
@@ -2880,7 +2996,7 @@ onMounted(() => {
           </ARow>
           <AFormItem
             label="详细地址"
-            required
+            name="detailAddress"
             class="company-address-block__detail"
           >
             <AInput
@@ -2891,7 +3007,7 @@ onMounted(() => {
         </div>
         <ARow :gutter="[16, 0]">
           <ACol :span="24" :md="12">
-            <AFormItem v-if="!companyForm.id" label="管理员用户名">
+            <AFormItem v-if="!companyForm.id" label="管理员用户名" name="adminUsername" required>
               <AInput
                 v-model:value="companyForm.adminUsername"
                 placeholder="新增公司时必填，用于创建默认管理员账号"
@@ -2902,6 +3018,8 @@ onMounted(() => {
             <AFormItem
               v-if="isCompanyHqType(companyForm.typeCode)"
               label="销售组织"
+              name="salesOrg"
+              required
             >
               <AInput
                 v-model:value="companyForm.salesOrg"
@@ -2928,21 +3046,27 @@ onMounted(() => {
     </ADrawer>
 
     <ADrawer v-model:open="companyTypeFormOpen" title="公司类型" :width="420">
-      <AForm layout="vertical" class="mt-8px">
-        <AFormItem label="类型名称" required>
+      <AForm
+        ref="companyTypeFormRef"
+        layout="vertical"
+        class="mt-8px"
+        :model="companyTypeForm"
+        :rules="companyTypeFormRules as any"
+      >
+        <AFormItem label="类型名称" name="typeName">
           <AInput
             v-model:value="companyTypeForm.typeName"
             placeholder="如 总部A"
           />
         </AFormItem>
-        <AFormItem label="类型编码" required>
+        <AFormItem label="类型编码" name="typeCode">
           <AInput
             v-model:value="companyTypeForm.typeCode"
             placeholder="如 HQ_A、FIRST"
             :disabled="!!companyTypeForm.id"
           />
         </AFormItem>
-        <AFormItem label="主体类型" required>
+        <AFormItem label="主体类型" name="subjectType">
           <ASelect
             v-model:value="companyTypeForm.subjectType"
             placeholder="请选择"
@@ -3009,7 +3133,13 @@ onMounted(() => {
       :title="regionForm.id ? '编辑大区' : '新增大区'"
       :width="460"
     >
-      <AForm layout="vertical" class="mt-12px">
+      <AForm
+        ref="orgRegionFormRef"
+        layout="vertical"
+        class="mt-12px"
+        :model="regionForm"
+        :rules="orgRegionFormRules as any"
+      >
         <AFormItem label="大区编码">
           <AInput
             v-model:value="regionForm.regionCode"
@@ -3017,7 +3147,7 @@ onMounted(() => {
             :maxlength="32"
           />
         </AFormItem>
-        <AFormItem label="大区名称" required>
+        <AFormItem label="大区名称" name="regionName">
           <AInput
             v-model:value="regionForm.regionName"
             placeholder="如：华东大区"

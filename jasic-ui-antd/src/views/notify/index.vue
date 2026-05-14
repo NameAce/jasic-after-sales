@@ -4,6 +4,7 @@
  */
 import { onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 import { getNotifyTodoCount, getNotifyTodoPage, markNotifyMessageRead } from '@/service/api';
 
 type RowData = Record<string, any>;
@@ -22,6 +23,7 @@ const rows = ref<RowData[]>([]);
 const activeTab = ref<TabKey>('TODO');
 const router = useRouter();
 const route = useRoute();
+const pageMenuTitle = useRouteMenuTitle();
 
 /**
  * 作用：返回分页初始状态对象。
@@ -231,7 +233,7 @@ onMounted(() => {
 
 <template>
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
-    <ACard title="消息中心" :bordered="false" class="flex-col-stretch card-wrapper sm:flex-1-hidden">
+    <ACard :title="pageMenuTitle" :bordered="false" class="flex-col-stretch card-wrapper sm:flex-1-hidden">
       <div class="mb-12px">待办通知数：{{ todoCount }}</div>
       <ATabs :active-key="activeTab" size="small" class="mb-12px" @change="handleTabChange">
         <ATabPane key="TODO" tab="待处理" />

@@ -13,6 +13,7 @@ import { useAuthStore } from '@/store/modules/auth';
 import { useRouteStore } from '@/store/modules/route';
 import { localStg } from '@/utils/storage';
 import { getRouteName } from '@/router/elegant/transform';
+import { $t } from '@/locales';
 
 /**
  * 作用：注册全局前置守卫：初始化常量/鉴权路由、登录态与公司选择流程、meta.roles 与外链等。
@@ -34,8 +35,6 @@ export function createRouteGuard(router: Router) {
     const rootRoute: RouteKey = 'root';
     const loginRoute: RouteKey = 'login';
     const chooseCompanyRoute: RouteKey = 'choose-company';
-    const noAuthorizationRoute: RouteKey = '403';
-
     const isLogin = authStore.isLogin;
     const needLogin = !to.meta.constant;
     const routeRoles = to.meta.roles || [];
@@ -82,9 +81,14 @@ export function createRouteGuard(router: Router) {
       return;
     }
 
-    // if the user is logged in but does not have authorization, then switch to the root page first
+    // 路由级无权限：提示后回首页，不进入 403 异常页（403 页仅用于接口返回的无权限等场景）
     if (!hasAuth) {
-      next(getNoAuthFallbackLocation(to, noAuthorizationRoute));
+      window.$message?.warning($t('route.403'));
+      if (to.name !== rootRoute) {
+        next({ name: rootRoute, replace: true });
+      } else {
+        next(false);
+      }
       return;
     }
 
@@ -200,12 +204,10 @@ async function initRoute(to: RouteLocationNormalized): Promise<RouteLocationRaw 
 
   // it is captured by the "not-found" route, then check whether the route exists
   const exist = await routeStore.getIsAuthRouteExist(to.path as RoutePath);
-  const noPermissionRoute: RouteKey = '403';
 
   if (exist) {
-    const location: RouteLocationRaw = getNoAuthFallbackLocation(to, noPermissionRoute);
-
-    return location;
+    window.$message?.warning($t('route.403'));
+    return { name: 'root', replace: true };
   }
 
   return null;
@@ -254,18 +256,3 @@ function getRouteQueryOfLoginRoute(to: RouteLocationNormalized, routeHome: Route
   return query;
 }
 
-/**
- * 作用：无权限时返回重定向目标（非根回根，已在根则进 403）。
- * @param to 当前路由
- * @param noAuthorizationRoute 无权限页路由名
- * @returns {RouteLocationRaw} 重定向位置
- */
-function getNoAuthFallbackLocation(to: RouteLocationNormalized, noAuthorizationRoute: RouteKey): RouteLocationRaw {
-  const rootRoute: RouteKey = 'root';
-
-  if (to.name !== rootRoute) {
-    return { name: rootRoute, replace: true };
-  }
-
-  return { name: noAuthorizationRoute, replace: true };
-}

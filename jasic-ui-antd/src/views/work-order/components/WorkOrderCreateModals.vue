@@ -91,7 +91,8 @@ const companyAddressDialogVisible = ref(false);
 const companyAddressDialogMode = ref<'select' | 'manage'>('manage');
 // 地址编辑子弹窗是否显示
 const companyAddressFormVisible = ref(false);
-// 地址表单标题
+// 地址簿编辑表单
+const companyAddressFormRef = ref<FormInstance | null>(null);
 const companyAddressFormTitle = ref('新增地址');
 // 地址表单提交中
 const companyAddressSubmitting = ref(false);
@@ -104,6 +105,24 @@ const companyAddressForm = reactive({
   regionCodes: [] as string[],
   isDefault: 0 as 0 | 1
 });
+
+const companyAddressFormRules = computed(() => ({
+  contactName: [{ required: true, message: '请输入联系人', trigger: 'blur' }],
+  contactPhone: [{ required: true, message: '请输入联系电话', trigger: 'blur' }],
+  regionCodes: [
+    { required: true, message: '请选择完整的省、市、区', trigger: 'change' },
+    {
+      validator: async () => {
+        if (!isFullRegionSelection(companyAddressForm.regionCodes)) {
+          return Promise.reject(new Error('请选择完整的省、市、区'));
+        }
+        return Promise.resolve();
+      },
+      trigger: 'change'
+    }
+  ],
+  addressDetail: [{ required: true, message: '请输入详细地址', trigger: 'blur' }]
+}));
 
 // 当前用户可用的建单入口选项
 const createEntryOptions = computed(() => getCreateEntryOptions(authStore.userInfo.currentTypeCode));
@@ -223,21 +242,22 @@ const companyAddressColumns = computed(() => {
 
 // 建单表单校验规则（与 jasic-ui createRules 一致）
 const createFormRules = computed(() => ({
-  customerMobile: [
-    {
-      validator: async (_rule: unknown, value: string) => {
-        const m = normalizeText(value);
-        if (createForm.entryMode === CREATE_ENTRY_PROXY && !m) {
-          return Promise.reject(new Error('请输入客户手机号码'));
-        }
-        if (createForm.entryMode === CREATE_ENTRY_PROXY && m && !/^1[3-9]\d{9}$/.test(m)) {
-          return Promise.reject(new Error('请输入正确的手机号码'));
-        }
-        return Promise.resolve();
-      },
-      trigger: 'blur'
-    }
-  ],
+  customerMobile:
+    createForm.entryMode === CREATE_ENTRY_PROXY
+      ? [
+          { required: true, message: '请输入客户手机号码', trigger: 'blur' },
+          {
+            validator: async (_rule: unknown, value: string) => {
+              const m = normalizeText(value);
+              if (m && !/^1[3-9]\d{9}$/.test(m)) {
+                return Promise.reject(new Error('请输入正确的手机号码'));
+              }
+              return Promise.resolve();
+            },
+            trigger: 'blur'
+          }
+        ]
+      : [],
   serviceMode: [{ required: true, message: '请选择维修路径', trigger: 'change' }]
 }));
 
@@ -621,27 +641,16 @@ async function openCompanyAddressForm(address?: CompanyAddressVO | null) {
  * 作用：校验并提交地址簿表单（新增或更新）。
  */
 async function submitCompanyAddress() {
+  try {
+    await companyAddressFormRef.value?.validate();
+  } catch {
+    return;
+  }
+
   const isDef = (companyAddressForm.isDefault === 1 ? 1 : 0) as 0 | 1;
   const contactName = normalizeText(companyAddressForm.contactName);
   const contactPhone = normalizeText(companyAddressForm.contactPhone);
   const detail = normalizeText(companyAddressForm.addressDetail);
-
-  if (!contactName) {
-    window.$message?.error('请输入联系人');
-    return;
-  }
-  if (!contactPhone) {
-    window.$message?.error('请输入联系电话');
-    return;
-  }
-  if (!isFullRegionSelection(companyAddressForm.regionCodes)) {
-    window.$message?.error('请选择完整的省、市、区');
-    return;
-  }
-  if (!detail) {
-    window.$message?.error('请输入详细地址');
-    return;
-  }
 
   const address = await composeAddressWithRegion(companyAddressForm.regionCodes, detail);
 
@@ -1269,12 +1278,12 @@ defineExpose({
           </div>
           <ARow :gutter="[12, 0]">
             <ACol v-if="showCreateCustomerFields" :span="24" :md="12">
-              <AFormItem label="客户手机号码" name="customerMobile" class="mb-12px">
+              <AFormItem label="客户手机号码" name="customerMobile" class="mb-12px" required>
                 <AInput v-model:value="createForm.customerMobile" allow-clear placeholder="请输入客户手机号码" />
               </AFormItem>
             </ACol>
             <ACol v-if="showCreateTargetCompany" :span="24" :md="12">
-              <AFormItem :label="createTargetCompanyLabel" name="targetCompanyId" class="mb-12px">
+              <AFormItem :label="createTargetCompanyLabel" name="targetCompanyId" class="mb-12px" required>
                 <ASelect
                   v-model:value="createForm.targetCompanyId"
                   :placeholder="createTargetCompanySelectPlaceholder"
@@ -1287,7 +1296,7 @@ defineExpose({
               </AFormItem>
             </ACol>
             <ACol :span="24" :md="12">
-              <AFormItem label="选择维修路径" name="serviceMode" class="mb-12px">
+              <AFormItem label="选择维修路径" name="serviceMode" class="mb-12px" required>
                 <ASelect
                   v-model:value="createForm.serviceMode"
                   placeholder="请选择维修路径"
@@ -1296,7 +1305,7 @@ defineExpose({
               </AFormItem>
             </ACol>
             <ACol v-if="createBarcodeQueryHasFaultDescription" :span="24">
-              <AFormItem label="故障描述" name="faultItems" class="mb-12px">
+              <AFormItem label="故障描述" name="faultItems" class="mb-12px" :required="createBarcodeQueryHasFaultDescription">
                 <ASelect
                   v-model:value="createForm.faultItems"
                   mode="multiple"
@@ -1308,7 +1317,7 @@ defineExpose({
               </AFormItem>
             </ACol>
             <ACol v-if="showCreateFaultRemark" :span="24">
-              <AFormItem label="故障说明备注" name="faultRemark" class="mb-0">
+              <AFormItem label="故障说明备注" name="faultRemark" class="mb-0" :required="showCreateFaultRemark">
                 <ATextarea
                   v-model:value="createForm.faultRemark"
                   :rows="3"
@@ -1318,7 +1327,7 @@ defineExpose({
               </AFormItem>
             </ACol>
             <ACol v-if="isCreateMailMode" :span="24">
-              <AFormItem label="寄件信息" class="mb-0">
+              <AFormItem label="寄件信息" class="mb-0" :required="isCreateMailMode">
                 <ATextarea
                   :value="createShippingAddressSummary"
                   :rows="3"
@@ -1505,14 +1514,19 @@ defineExpose({
   </ADrawer>
 
   <ADrawer v-model:open="companyAddressFormVisible" :title="companyAddressFormTitle" :width="520">
-    <AForm layout="vertical">
-      <AFormItem label="联系人" required>
+    <AForm
+      ref="companyAddressFormRef"
+      layout="vertical"
+      :model="companyAddressForm"
+      :rules="companyAddressFormRules as any"
+    >
+      <AFormItem label="联系人" name="contactName" required>
         <AInput v-model:value="companyAddressForm.contactName" />
       </AFormItem>
-      <AFormItem label="联系电话" required>
+      <AFormItem label="联系电话" name="contactPhone" required>
         <AInput v-model:value="companyAddressForm.contactPhone" />
       </AFormItem>
-      <AFormItem label="省市区" required>
+      <AFormItem label="省市区" name="regionCodes" required>
         <ACascader
           v-model:value="companyAddressForm.regionCodes"
           class="w-full"
@@ -1522,7 +1536,7 @@ defineExpose({
           allow-clear
         />
       </AFormItem>
-      <AFormItem label="详细地址" required>
+      <AFormItem label="详细地址" name="addressDetail" required>
         <ATextarea
           v-model:value="companyAddressForm.addressDetail"
           :rows="3"

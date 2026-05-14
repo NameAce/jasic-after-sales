@@ -4,6 +4,7 @@
 import { computed, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { defineStore } from 'pinia';
+import { Modal } from 'ant-design-vue';
 import { useLoading } from '@sa/hooks';
 import { router } from '@/router';
 import {
@@ -195,6 +196,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
    */
   async function resetStore() {
     const authStore = useAuthStore();
+
+    // 清理可能残留的 Modal 遮罩，避免与路由跳转叠层导致整页无法点击
+    Modal.destroyAll();
 
     clearAuthStorage();
 

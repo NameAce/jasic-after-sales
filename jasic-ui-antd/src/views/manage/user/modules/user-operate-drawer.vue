@@ -152,7 +152,7 @@ watch(visible, () => {
 <template>
   <ADrawer v-model:open="visible" :title="title" :width="360">
     <AForm ref="formRef" layout="vertical" :model="model" :rules="rules">
-      <AFormItem :label="$t('page.manage.user.userName')" name="userName">
+      <AFormItem :label="$t('page.manage.user.userName')" name="userName" required>
         <AInput v-model:value="model.userName" :placeholder="$t('page.manage.user.form.userName')" />
       </AFormItem>
       <AFormItem :label="$t('page.manage.user.userGender')" name="userGender">
@@ -171,7 +171,7 @@ watch(visible, () => {
       <AFormItem :label="$t('page.manage.user.userEmail')" name="email">
         <AInput v-model:value="model.userEmail" :placeholder="$t('page.manage.user.form.userEmail')" />
       </AFormItem>
-      <AFormItem :label="$t('page.manage.user.userStatus')" name="status">
+      <AFormItem :label="$t('page.manage.user.userStatus')" name="status" required>
         <ARadioGroup v-model:value="model.status">
           <ARadio v-for="item in enableStatusOptions" :key="item.value" :value="item.value">
             {{ $t(item.label) }}
@@ -182,6 +182,7 @@ watch(visible, () => {
         <ASelect
           v-model:value="model.userRoles"
           multiple
+          max-tag-count="responsive"
           :options="roleOptions"
           :placeholder="$t('page.manage.user.form.userRole')"
         />

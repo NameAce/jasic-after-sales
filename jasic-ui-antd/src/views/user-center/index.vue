@@ -4,6 +4,7 @@
  */
 import { computed, onMounted, reactive, ref } from 'vue';
 import { Modal } from 'ant-design-vue';
+import type { FormInstance } from 'ant-design-vue';
 import {
   fetchChangePassword,
   fetchCreateWechatBindQrcode,
@@ -32,14 +33,19 @@ const authStore = useAuthStore();
 
 // 资料保存按钮加载态
 const profileLoading = ref(false);
+const profileFormRef = ref<FormInstance | null>(null);
 // 修改密码提交加载态
 const passwordLoading = ref(false);
+const passwordFormRef = ref<FormInstance | null>(null);
 // 微信绑定相关请求加载态
 const bindLoading = ref(false);
 // 绑定二维码图片（Base64 或 URL）
 const bindQrImage = ref('');
-// 解绑微信时输入的当前密码
-const unbindPassword = ref('');
+// 解绑微信验证表单
+const unbindFormRef = ref<FormInstance | null>(null);
+const unbindForm = reactive({
+  currentPassword: ''
+});
 
 // 个人资料表单模型
 const profileForm = reactive({
@@ -70,6 +76,38 @@ const bindStatus = reactive<WechatBindState>({
 const roleText = computed(() => {
   return authStore.roleKeys.length ? authStore.roleKeys.join('、') : '-';
 });
+
+const mobileReg = /^1[3-9]\d{9}$/;
+
+const profileFormRules = {
+  realName: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
+  phone: [
+    { required: true, message: '请输入手机号', trigger: 'blur' },
+    { pattern: mobileReg, message: '请输入正确的手机号', trigger: 'blur' }
+  ],
+  currentPassword: [{ required: true, message: '请输入当前密码以确认修改', trigger: 'blur' }]
+};
+
+const passwordFormRules = {
+  currentPassword: [{ required: true, message: '请输入当前密码', trigger: 'blur' }],
+  newPassword: [{ required: true, message: '请输入新密码', trigger: 'blur' }],
+  confirmPassword: [
+    { required: true, message: '请再次输入新密码', trigger: 'blur' },
+    {
+      validator: async () => {
+        if (passwordForm.confirmPassword.trim() !== passwordForm.newPassword.trim()) {
+          return Promise.reject(new Error('两次输入的新密码不一致'));
+        }
+        return Promise.resolve();
+      },
+      trigger: 'blur'
+    }
+  ]
+};
+
+const unbindFormRules = {
+  currentPassword: [{ required: true, message: '请输入当前密码', trigger: 'blur' }]
+};
 
 /**
  * 作用：将接口返回的微信绑定状态写入本地响应式对象。
@@ -127,16 +165,9 @@ function resetPasswordForm() {
  * @returns 返回 Promise，提交流程结束后结束
  */
 async function submitProfile() {
-  if (!profileForm.realName.trim()) {
-    window.$message?.warning('请输入姓名');
-    return;
-  }
-  if (!profileForm.phone.trim()) {
-    window.$message?.warning('请输入手机号');
-    return;
-  }
-  if (!profileForm.currentPassword.trim()) {
-    window.$message?.warning('请输入当前密码以确认修改');
+  try {
+    await profileFormRef.value?.validate();
+  } catch {
     return;
   }
 
@@ -165,16 +196,9 @@ async function submitProfile() {
  * @returns 返回 Promise，提交流程结束后结束
  */
 async function submitPassword() {
-  if (!passwordForm.currentPassword.trim()) {
-    window.$message?.warning('请输入当前密码');
-    return;
-  }
-  if (!passwordForm.newPassword.trim()) {
-    window.$message?.warning('请输入新密码');
-    return;
-  }
-  if (passwordForm.confirmPassword !== passwordForm.newPassword) {
-    window.$message?.warning('两次输入的新密码不一致');
+  try {
+    await passwordFormRef.value?.validate();
+  } catch {
     return;
   }
 
@@ -252,12 +276,13 @@ async function generateBindQrcode() {
  * @param 无
  * @returns {void} 无
  */
-function handleUnbindWechat() {
-  const currentPassword = unbindPassword.value.trim();
-  if (!currentPassword) {
-    window.$message?.warning('请输入当前密码');
+async function handleUnbindWechat() {
+  try {
+    await unbindFormRef.value?.validate();
+  } catch {
     return;
   }
+  const currentPassword = unbindForm.currentPassword.trim();
 
   Modal.confirm({
     title: '解绑微信',
@@ -270,6 +295,7 @@ function handleUnbindWechat() {
         const { error, response } = await fetchUnbindWechat({ currentPassword } as Api.Auth.UnbindWechatParams);
         if (error) return;
         window.$message?.success(getResponseMsg(response, '微信解绑成功，请重新登录'));
+        unbindForm.currentPassword = '';
         await authStore.resetStore();
       } finally {
         bindLoading.value = false;
@@ -293,14 +319,14 @@ onMounted(async () => {
     <ARow :gutter="[16, 16]">
       <ACol :xs="24" :lg="14">
         <ACard title="基本信息" :bordered="false">
-          <AForm layout="vertical">
+          <AForm ref="profileFormRef" layout="vertical" :model="profileForm" :rules="profileFormRules as any">
             <AFormItem label="用户名">
               <AInput v-model:value="profileForm.username" disabled />
             </AFormItem>
-            <AFormItem label="姓名" required>
+            <AFormItem label="姓名" name="realName" required>
               <AInput v-model:value="profileForm.realName" placeholder="请输入姓名" />
             </AFormItem>
-            <AFormItem label="手机号" required>
+            <AFormItem label="手机号" name="phone" required>
               <AInput v-model:value="profileForm.phone" placeholder="请输入手机号" />
             </AFormItem>
             <AFormItem label="邮箱">
@@ -312,7 +338,7 @@ onMounted(async () => {
             <AFormItem label="当前角色">
               <AInput :value="roleText" disabled />
             </AFormItem>
-            <AFormItem label="当前密码" required>
+            <AFormItem label="当前密码" name="currentPassword" required>
               <AInputPassword
                 v-model:value="profileForm.currentPassword"
                 placeholder="请输入当前密码以确认修改"
@@ -327,14 +353,14 @@ onMounted(async () => {
         </ACard>
 
         <ACard title="修改密码" :bordered="false" class="mt-16px">
-          <AForm layout="vertical">
-            <AFormItem label="当前密码" required>
+          <AForm ref="passwordFormRef" layout="vertical" :model="passwordForm" :rules="passwordFormRules as any">
+            <AFormItem label="当前密码" name="currentPassword" required>
               <AInputPassword v-model:value="passwordForm.currentPassword" placeholder="请输入当前密码" allow-clear />
             </AFormItem>
-            <AFormItem label="新密码" required>
+            <AFormItem label="新密码" name="newPassword" required>
               <AInputPassword v-model:value="passwordForm.newPassword" placeholder="请输入新密码" allow-clear />
             </AFormItem>
-            <AFormItem label="确认密码" required>
+            <AFormItem label="确认密码" name="confirmPassword" required>
               <AInputPassword v-model:value="passwordForm.confirmPassword" placeholder="请再次输入新密码" allow-clear />
             </AFormItem>
             <ASpace>
@@ -368,9 +394,15 @@ onMounted(async () => {
               <span class="w-90px flex-shrink-0 text-#909399">微信手机号</span>
               <span class="break-all">{{ bindStatus.wechatPhone || '-' }}</span>
             </div>
-            <AForm layout="vertical" class="mt-16px">
-              <AFormItem label="当前密码（解绑验证）" required>
-                <AInputPassword v-model:value="unbindPassword" placeholder="请输入当前密码" allow-clear />
+            <AForm
+              ref="unbindFormRef"
+              layout="vertical"
+              class="mt-16px"
+              :model="unbindForm"
+              :rules="unbindFormRules as any"
+            >
+              <AFormItem label="当前密码（解绑验证）" name="currentPassword" required>
+                <AInputPassword v-model:value="unbindForm.currentPassword" placeholder="请输入当前密码" allow-clear />
               </AFormItem>
               <AButton size="small" danger :loading="bindLoading" @click="handleUnbindWechat">解绑微信</AButton>
             </AForm>

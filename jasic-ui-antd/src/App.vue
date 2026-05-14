@@ -37,7 +37,7 @@ const watermarkProps = computed(() => {
 </script>
 
 <template>
-  <ConfigProvider :theme="themeStore.antdTheme" :locale="antdLocale">
+  <ConfigProvider :theme="themeStore.antdTheme" :locale="antdLocale" :form="{ requiredMark: true }">
     <AppProvider>
       <RouterView class="bg-layout" />
       <AWatermark

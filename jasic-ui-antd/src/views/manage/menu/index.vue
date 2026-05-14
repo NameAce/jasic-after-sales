@@ -10,6 +10,7 @@ import { tagColorEnabled } from '@/constants/list-status-tag';
 import { yesOrNoRecord } from '@/constants/common';
 import { enableStatusRecord, menuTypeRecord } from '@/constants/business';
 import { fetchGetAllPages, fetchGetMenuList } from '@/service/api';
+import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 import { useTable, useTableOperate, useTableScroll } from '@/hooks/common/table';
 import { $t } from '@/locales';
 import SvgIcon from '@/components/custom/svg-icon.vue';
@@ -18,6 +19,7 @@ import MenuOperateModal, { type OperateType } from './modules/menu-operate-modal
 // 菜单表格、弹窗显隐与路由页面选项
 const { bool: visible, setTrue: openModal } = useBoolean();
 const { tableWrapperRef, scrollConfig } = useTableScroll();
+const pageMenuTitle = useRouteMenuTitle();
 
 const { columns, columnChecks, data, loading, pagination, getData, getDataByPage } = useTable({
   apiFn: fetchGetMenuList,
@@ -261,7 +263,7 @@ init();
 <template>
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
     <ACard
-      :title="$t('page.manage.menu.title')"
+      :title="pageMenuTitle"
       :bordered="false"
       :body-style="{ flex: 1, overflow: 'hidden' }"
       class="flex-col-stretch card-wrapper sm:flex-1-hidden"

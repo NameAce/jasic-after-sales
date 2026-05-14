@@ -3,6 +3,7 @@
  * 系统管理 — 用户：分页列表、增删改、分配角色/区域、强退等（对接后端 system 域接口）。
  */
 import { computed, onMounted, reactive, ref } from 'vue';
+import type { FormInstance } from 'ant-design-vue';
 import { tagColorEnabled } from '@/constants/list-status-tag';
 import {
   addUser,
@@ -22,12 +23,16 @@ import type { SysUserQuery } from '@/service/api';
 import { getResponseMsg } from '@/service/request/shared';
 import { useAuthStore } from '@/store/modules/auth';
 import { useAuth } from '@/hooks/business/auth';
+import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
+import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
+import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
 import { useTableScroll } from '@/hooks/common/table';
 
 type RowData = Record<string, any>;
 
 // 表格区域滚动 Hook
 const { tableWrapperRef, scrollConfig } = useTableScroll(1250);
+const pageMenuTitle = useRouteMenuTitle();
 
 // 列表分页、表单与分配弹窗等业务状态（含大区/角色勾选）
 
@@ -39,6 +44,7 @@ const regionOpts = ref<Array<{ label: string; value: number }>>([]);
 
 const editOpen = ref(false);
 const editSubmitting = ref(false);
+const editFormRef = ref<FormInstance | null>(null);
 const editForm = reactive<RowData>({
   id: undefined,
   username: '',
@@ -56,6 +62,7 @@ const roleValues = ref<number[]>([]);
 
 const resetOpen = ref(false);
 const resetSubmitting = ref(false);
+const resetPwdFormRef = ref<FormInstance | null>(null);
 const resetForm = reactive({
   userId: undefined as number | undefined,
   password: ''
@@ -68,6 +75,8 @@ const regionValues = ref<number[]>([]);
 // 会话与 RBAC（列表按钮显隐）
 const authStore = useAuthStore();
 const { hasAuth } = useAuth();
+
+const systemUserSearchFilter = usePageSearchFilterCollapse(4);
 
 // Toolbar 分页与筛选字段
 const query = reactive({
@@ -85,6 +94,26 @@ const statusOptions = [
 ];
 // 中国大陆手机号正则（表单校验）
 const mobileReg = /^1[3-9]\d{9}$/;
+
+const editFormRules = computed(() => {
+  const isAdd = !editForm.id;
+  return {
+    username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+    password: isAdd
+      ? [{ required: true, message: '请输入密码', trigger: 'blur' }]
+      : [],
+    realName: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
+    phone: [
+      { required: true, message: '请输入手机号', trigger: 'blur' },
+      { pattern: mobileReg, message: '请输入正确的手机号', trigger: 'blur' }
+    ],
+    status: [{ required: true, message: '请选择状态', trigger: 'change' }]
+  };
+});
+
+const resetPwdRules = {
+  password: [{ required: true, message: '请输入新密码', trigger: 'blur' }]
+};
 
 // 用户管理表格列定义
 const columns = computed(() => [
@@ -290,28 +319,18 @@ async function openEdit(record: RowData) {
   editOpen.value = true;
 }
 
-function getUserEditValidationMessage(isAdd: boolean): string | null {
-  if (!editForm.username?.trim()) return '请输入用户名';
-  if (isAdd && !editForm.password?.trim()) return '请输入密码';
-  if (!editForm.realName?.trim()) return '请输入姓名';
-  if (!editForm.phone?.trim()) return '请输入手机号';
-  if (!mobileReg.test(editForm.phone.trim())) return '请输入正确的手机号';
-  if (!Number.isFinite(Number(editForm.status))) return '请选择状态';
-  return null;
-}
-
 /**
  * 作用：校验后提交新增或更新用户。
  * @param 无
  * @returns Promise，接口流程结束后结束
  */
 async function submitEdit() {
-  const isAdd = !editForm.id;
-  const msg = getUserEditValidationMessage(isAdd);
-  if (msg) {
-    window.$message?.warning(msg);
+  try {
+    await editFormRef.value?.validate();
+  } catch {
     return;
   }
+  const isAdd = !editForm.id;
   editSubmitting.value = true;
   try {
     if (editForm.id) {
@@ -411,10 +430,12 @@ function openResetPwd(record: RowData) {
  * @returns Promise，重置流程结束后结束
  */
 async function submitResetPwd() {
-  if (!resetForm.userId || !resetForm.password.trim()) {
-    window.$message?.warning('请输入新密码');
+  try {
+    await resetPwdFormRef.value?.validate();
+  } catch {
     return;
   }
+  if (!resetForm.userId) return;
   resetSubmitting.value = true;
   try {
     const { response } = await resetPwd({
@@ -500,22 +521,42 @@ onMounted(() => {
         <div class="page-search-toolbar">
           <div class="page-search-toolbar__filters">
             <ARow :gutter="[16, 16]" wrap>
-              <ACol :span="24" :md="12" :lg="6">
+              <ACol
+                :span="24"
+                :md="12"
+                :lg="6"
+                :class="{ 'page-search-toolbar__filter-col--collapsed': systemUserSearchFilter.isSearchFilterHidden(0) }"
+              >
                 <AFormItem label="用户名" class="m-0">
                   <AInput v-model:value="query.username" allow-clear placeholder="请输入用户名" />
                 </AFormItem>
               </ACol>
-              <ACol :span="24" :md="12" :lg="6">
+              <ACol
+                :span="24"
+                :md="12"
+                :lg="6"
+                :class="{ 'page-search-toolbar__filter-col--collapsed': systemUserSearchFilter.isSearchFilterHidden(1) }"
+              >
                 <AFormItem label="姓名" class="m-0">
                   <AInput v-model:value="query.realName" allow-clear placeholder="请输入姓名" />
                 </AFormItem>
               </ACol>
-              <ACol :span="24" :md="12" :lg="6">
+              <ACol
+                :span="24"
+                :md="12"
+                :lg="6"
+                :class="{ 'page-search-toolbar__filter-col--collapsed': systemUserSearchFilter.isSearchFilterHidden(2) }"
+              >
                 <AFormItem label="手机号" class="m-0">
                   <AInput v-model:value="query.phone" allow-clear placeholder="请输入手机号" />
                 </AFormItem>
               </ACol>
-              <ACol :span="24" :md="12" :lg="6">
+              <ACol
+                :span="24"
+                :md="12"
+                :lg="6"
+                :class="{ 'page-search-toolbar__filter-col--collapsed': systemUserSearchFilter.isSearchFilterHidden(3) }"
+              >
                 <AFormItem label="状态" class="m-0">
                   <ASelect
                     v-model:value="query.status"
@@ -531,12 +572,17 @@ onMounted(() => {
           <div class="page-search-toolbar__actions">
             <AButton type="primary" :loading="loading" @click="handleSearch">查询</AButton>
             <AButton :loading="loading" @click="resetQuery">重置</AButton>
+            <PageSearchExpandButton
+              v-if="systemUserSearchFilter.showSearchFilterExpandToggle"
+              :expanded="systemUserSearchFilter.searchFilterExpanded"
+              @click="systemUserSearchFilter.toggleSearchFilterExpand"
+            />
           </div>
         </div>
       </AForm>
     </ACard>
     <ACard
-      title="系统管理-用户"
+      :title="pageMenuTitle"
       :bordered="false"
       :body-style="{ flex: 1, overflow: 'hidden' }"
       class="flex-col-stretch card-wrapper sm:flex-1-hidden"
@@ -627,20 +673,20 @@ onMounted(() => {
     </ACard>
 
     <ADrawer v-model:open="editOpen" :title="editForm.id ? '编辑用户' : '新增用户'" :width="360">
-      <AForm layout="vertical">
-        <AFormItem label="用户名" required>
+      <AForm ref="editFormRef" layout="vertical" :model="editForm" :rules="editFormRules as any">
+        <AFormItem label="用户名" name="username" required>
           <AInput v-model:value="editForm.username" :disabled="!!editForm.id" />
         </AFormItem>
-        <AFormItem v-if="!editForm.id" label="初始密码" required>
+        <AFormItem v-if="!editForm.id" label="初始密码" name="password" required>
           <AInputPassword v-model:value="editForm.password" />
         </AFormItem>
-        <AFormItem label="姓名" required>
+        <AFormItem label="姓名" name="realName" required>
           <AInput v-model:value="editForm.realName" />
         </AFormItem>
-        <AFormItem label="手机号" required>
+        <AFormItem label="手机号" name="phone" required>
           <AInput v-model:value="editForm.phone" />
         </AFormItem>
-        <AFormItem label="状态" required>
+        <AFormItem label="状态" name="status" required>
           <ARadioGroup v-model:value="editForm.status">
             <ARadio v-for="item in statusOptions" :key="item.value" :value="item.value">
               {{ item.label }}
@@ -662,6 +708,7 @@ onMounted(() => {
           <ASelect
             v-model:value="roleValues"
             mode="multiple"
+            max-tag-count="responsive"
             show-search
             option-filter-prop="label"
             :options="roleOpts"
@@ -679,8 +726,8 @@ onMounted(() => {
     </ADrawer>
 
     <ADrawer v-model:open="resetOpen" title="重置密码" :width="360">
-      <AForm layout="vertical">
-        <AFormItem label="新密码" required>
+      <AForm ref="resetPwdFormRef" layout="vertical" :model="resetForm" :rules="resetPwdRules as any">
+        <AFormItem label="新密码" name="password" required>
           <AInputPassword v-model:value="resetForm.password" placeholder="请输入新密码" />
         </AFormItem>
       </AForm>
@@ -698,6 +745,7 @@ onMounted(() => {
           <ASelect
             v-model:value="regionValues"
             mode="multiple"
+            max-tag-count="responsive"
             show-search
             option-filter-prop="label"
             :options="regionOpts"

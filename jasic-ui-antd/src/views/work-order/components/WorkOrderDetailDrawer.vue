@@ -4,6 +4,7 @@
  * 工单详情抽屉：展示工单全量信息、附件预览，以及派单/接单/转单/维修登记/复检/寄件凭证/关闭等列表动作对应的子弹层。
  */
 import { computed, reactive, ref, watch } from 'vue';
+import type { FormInstance } from 'ant-design-vue';
 import type { UploadFile } from 'ant-design-vue/es/upload/interface';
 import type { UploadRequestOption } from 'ant-design-vue/es/vc-upload/interface';
 import {
@@ -62,7 +63,11 @@ const authStore = useAuthStore();
 // 派单子弹层
 const assignOpen = ref(false);
 const assignSubmitting = ref(false);
-const assignUserId = ref<number | undefined>(undefined);
+const assignFormRef = ref<FormInstance | null>(null);
+const assignForm = reactive({ assignUserId: undefined as number | undefined });
+const assignFormRules = {
+  assignUserId: [{ required: true, type: 'number', message: '请选择维修员', trigger: 'change' }]
+};
 const assignOptions = ref<Array<{ label: string; value: number }>>([]);
 // 接单故障判定选项文案
 const faultJudgeHasFault = '有故障';
@@ -75,13 +80,20 @@ const DEFAULT_OTHER_FAULT_LABEL = '其它故障';
 // 转单子弹层
 const transferOpen = ref(false);
 const transferSubmitting = ref(false);
-const transferCompanyId = ref<number | undefined>(undefined);
-const transferRemark = ref('');
+const transferFormRef = ref<FormInstance | null>(null);
+const transferForm = reactive({
+  companyId: undefined as number | undefined,
+  remark: ''
+});
+const transferFormRules = {
+  companyId: [{ required: true, type: 'number', message: '请选择目标公司', trigger: 'change' }]
+};
 const transferOptions = ref<Array<{ label: string; value: number }>>([]);
 
 // 维修登记子弹层与表单
 const repairOpen = ref(false);
 const repairSubmitting = ref(false);
+const repairFormRef = ref<FormInstance | null>(null);
 const repairForm = reactive({
   quoteAmount: undefined as number | undefined,
   quoteDesc: '',
@@ -101,6 +113,7 @@ const repairForm = reactive({
 // 复检登记子弹层与表单
 const reviewOpen = ref(false);
 const reviewSubmitting = ref(false);
+const reviewFormRef = ref<FormInstance | null>(null);
 const reviewForm = reactive({
   repairDesc: '',
   repairItems: [] as string[],
@@ -116,13 +129,26 @@ const reviewForm = reactive({
 // 上传寄件凭证子弹层
 const mailOpen = ref(false);
 const mailSubmitting = ref(false);
+const mailFormRef = ref<FormInstance | null>(null);
 const mailForm = reactive({
   senderVoucherFileIds: [] as number[]
 });
+const mailFormRules = {
+  senderVoucherFileIds: [
+    {
+      type: 'array' as const,
+      required: true,
+      min: 1,
+      message: '请上传寄件凭证',
+      trigger: 'change'
+    }
+  ]
+};
 
 // 关闭工单子弹层
 const closeOpen = ref(false);
 const closeSubmitting = ref(false);
+const closeFormRef = ref<FormInstance | null>(null);
 const closeForm = reactive({
   returnMethod: '自提',
   closeReason: '',
@@ -132,11 +158,15 @@ const closeForm = reactive({
 // 维修员接单（故障判定、报价）
 const techAcceptOpen = ref(false);
 const techAcceptSubmitting = ref(false);
+const techAcceptFormRef = ref<FormInstance | null>(null);
 const techAcceptForm = reactive({
   faultJudge: '',
   quoteAmount: undefined as number | undefined,
   quoteDesc: ''
 });
+const techAcceptFormRules = {
+  faultJudge: [{ required: true, message: '请选择故障判断', trigger: 'change' }]
+};
 // 维修/复检表单的故障-维修项配置（按工单拉取）
 const actionRepairFaultOptions = ref<Array<{ faultDesc: string; repairOptions: string[] }>>([]);
 // 无故障接单时暂存待与关闭工单合并提交的载荷
@@ -147,7 +177,11 @@ const repairProductModelSubmitting = ref(false);
 const repairProductModelOptionsLoading = ref(false);
 // 补录机型完成后要打开的列表动作码
 const repairProductModelPendingAction = ref<WorkOrderListActionCode | ''>('');
-const repairProductModel = ref('');
+const repairProductModelFormRef = ref<FormInstance | null>(null);
+const repairProductModelForm = reactive({ productModel: '' });
+const repairProductModelFormRules = {
+  productModel: [{ required: true, message: '请选择机型', trigger: 'change' }]
+};
 const repairProductModelOptions = ref<string[]>([]);
 
 /**
@@ -954,7 +988,7 @@ function handleReviewItemsChange() {
  */
 async function openAssign() {
   if (!id.value) return;
-  assignUserId.value = undefined;
+  assignForm.assignUserId = undefined;
   const { data } = await listAssignUserOptions(id.value);
   const rows = pickRows(data) as Record<string, unknown>[];
   const selfId = Number(authStore.userInfo.userId);
@@ -977,21 +1011,24 @@ async function openAssign() {
     })
     .filter(Boolean) as Array<{ label: string; value: number }>;
   assignOpen.value = true;
+  queueMicrotask(() => assignFormRef.value?.clearValidate());
 }
 
 /**
  * 提交派单；成功后提示、刷新详情并 emit success。
  *
- * @returns {Promise<void>} 校验失败时 reject；成功时 resolve
+ * @returns {Promise<void>} 校验失败时直接返回；成功时 resolve
  */
 async function submitAssign() {
-  if (!id.value || assignUserId.value === undefined || assignUserId.value === null) {
-    window.$message?.warning('请选择维修员');
-    return Promise.reject(new Error('validation'));
+  if (!id.value) return undefined;
+  try {
+    await assignFormRef.value?.validate();
+  } catch {
+    return undefined;
   }
   assignSubmitting.value = true;
   try {
-    const chosenId = assignUserId.value;
+    const chosenId = assignForm.assignUserId as number;
     const assignResult = await assignWorkOrder({ workOrderId: id.value, assignedUserId: chosenId });
     assignOpen.value = false;
     const selfId = Number(authStore.userInfo.userId);
@@ -1018,18 +1055,20 @@ function openAccept() {
   techAcceptForm.quoteAmount = undefined;
   techAcceptForm.quoteDesc = '';
   techAcceptOpen.value = true;
+  queueMicrotask(() => techAcceptFormRef.value?.clearValidate());
 }
 
 /**
  * 提交接单；选「无故障」时缓存载荷并打开关闭工单弹窗合并提交。
  *
- * @returns {Promise<void>} 校验失败时 reject
+ * @returns {Promise<void>} 校验失败时直接返回
  */
 async function submitAccept() {
   if (!id.value) return undefined;
-  if (!techAcceptForm.faultJudge) {
-    window.$message?.warning('请输入故障判定');
-    return Promise.reject(new Error('validation'));
+  try {
+    await techAcceptFormRef.value?.validate();
+  } catch {
+    return undefined;
   }
   techAcceptSubmitting.value = true;
   try {
@@ -1107,14 +1146,16 @@ async function loadRepairProductModelOptionList(keyword = '') {
  */
 async function prepareRepairProductModelDialog(action: WorkOrderListActionCode) {
   repairProductModelPendingAction.value = action;
-  repairProductModel.value = '';
+  repairProductModelForm.productModel = '';
   repairProductModelOpen.value = true;
   const options = await loadRepairProductModelOptionList('');
   if (!options.length) {
     window.$message?.error('当前归属总部未配置启用机型，请先维护故障与维修配置');
     repairProductModelOpen.value = false;
     repairProductModelPendingAction.value = '';
+    return;
   }
+  queueMicrotask(() => repairProductModelFormRef.value?.clearValidate());
 }
 
 /**
@@ -1123,13 +1164,18 @@ async function prepareRepairProductModelDialog(action: WorkOrderListActionCode) 
  * @returns {Promise<void>} 无返回值
  */
 async function submitRepairProductModel() {
-  if (!id.value || !normalizeText(repairProductModel.value)) {
-    window.$message?.warning('请选择机型');
+  if (!id.value) return;
+  try {
+    await repairProductModelFormRef.value?.validate();
+  } catch {
     return;
   }
   repairProductModelSubmitting.value = true;
   try {
-    await updateRepairProductModel({ workOrderId: id.value, productModel: normalizeText(repairProductModel.value) });
+    await updateRepairProductModel({
+      workOrderId: id.value,
+      productModel: normalizeText(repairProductModelForm.productModel)
+    });
     const nextAction = repairProductModelPendingAction.value;
     repairProductModelOpen.value = false;
     repairProductModelPendingAction.value = '';
@@ -1142,12 +1188,12 @@ async function submitRepairProductModel() {
 }
 
 /**
- * 校验配件明细至少一行有效，且名称、数量合法。
+ * 作用：校验配件明细，返回首条错误文案（与建单一致供 AForm rules 使用）。
  *
  * @param partList - 配件行数组
- * @returns {boolean} 是否通过校验
+ * @returns 错误文案或 null
  */
-function validatePartList(partList: Array<{ partName: string; partQty?: number }>) {
+function getPartListError(partList: Array<{ partName: string; partQty?: number }>): string | null {
   let hasValidPart = false;
   for (const item of partList || []) {
     const partName = String(item?.partName || '').trim();
@@ -1155,21 +1201,166 @@ function validatePartList(partList: Array<{ partName: string; partQty?: number }
     if (!partName && (partQty === undefined || partQty === null || partQty === ('' as unknown as number))) {
       // skip fully empty row
     } else if (!partName) {
-      window.$message?.warning('请输入配件名称');
-      return false;
+      return '请输入配件名称';
     } else if (!partQty || Number(partQty) <= 0) {
-      window.$message?.warning('请输入正确的配件数量');
-      return false;
+      return '请输入正确的配件数量';
     } else {
       hasValidPart = true;
     }
   }
   if (!hasValidPart) {
-    window.$message?.warning('请至少填写一条配件明细');
-    return false;
+    return '请至少填写一条配件明细';
   }
-  return true;
+  return null;
 }
+
+/** 维修登记表单校验规则（与建维修订单：vertical + 红框 + 下方提示） */
+const repairFormRules = computed(() => {
+  const rules: Record<string, unknown[]> = {
+    quoteAmount: [
+      {
+        validator: async () => {
+          if (repairForm.quoteAmount !== undefined && Number(repairForm.quoteAmount) < 0) {
+            return Promise.reject(new Error('报价金额不能小于 0'));
+          }
+          return Promise.resolve();
+        },
+        trigger: 'change'
+      }
+    ],
+    partList: [
+      {
+        required: true,
+        validator: async () => {
+          const err = getPartListError(repairForm.partList);
+          return err ? Promise.reject(new Error(err)) : Promise.resolve();
+        },
+        trigger: 'change'
+      }
+    ]
+  };
+
+  if (hasRepairFaultConfig.value) {
+    rules.faultItems = [
+      {
+        type: 'array',
+        min: 1,
+        required: true,
+        message: '请选择维修确认故障',
+        trigger: 'change'
+      }
+    ];
+    rules.repairItems = [
+      {
+        type: 'array',
+        min: 1,
+        required: true,
+        message: '请选择维修说明',
+        trigger: 'change'
+      }
+    ];
+    if (showRepairFaultRemarkInput.value) {
+      rules.faultRemark = [
+        {
+          required: true,
+          trigger: 'blur',
+          validator: async () => {
+            if (!normalizeText(repairForm.faultRemark)) {
+              return Promise.reject(new Error('选择其它故障时，必须填写其它故障说明'));
+            }
+            return Promise.resolve();
+          }
+        }
+      ];
+    }
+    rules.otherDesc = [
+      {
+        validator: async () => {
+          if (isOtherRepairSelected.value && !normalizeText(repairForm.otherDesc)) {
+            return Promise.reject(new Error('选择其它维修说明后，必须填写其他维修说明'));
+          }
+          return Promise.resolve();
+        },
+        trigger: 'blur'
+      }
+    ];
+  } else {
+    rules.repairDesc = [{ required: true, message: '请输入维修说明', trigger: 'blur' }];
+  }
+
+  return rules;
+});
+
+/** 复检登记表单校验规则（与维修登记一致） */
+const reviewFormRules = computed(() => {
+  const rules: Record<string, unknown[]> = {
+    partList: [
+      {
+        required: true,
+        validator: async () => {
+          const err = getPartListError(reviewForm.partList);
+          return err ? Promise.reject(new Error(err)) : Promise.resolve();
+        },
+        trigger: 'change'
+      }
+    ]
+  };
+
+  if (hasRepairFaultConfig.value) {
+    rules.repairItems = [
+      {
+        validator: async () => {
+          if (!reviewFaultItems.value.length) {
+            return Promise.reject(new Error('首次维修登记未记录故障描述，无法提交复检登记'));
+          }
+          return Promise.resolve();
+        },
+        trigger: 'change'
+      },
+      {
+        type: 'array',
+        min: 1,
+        required: true,
+        message: '请选择维修说明',
+        trigger: 'change'
+      }
+    ];
+    rules.otherDesc = [
+      {
+        validator: async () => {
+          if (isOtherReviewSelected.value && !normalizeText(reviewForm.otherDesc)) {
+            return Promise.reject(new Error('选择其它维修说明后，必须填写其他维修说明'));
+          }
+          return Promise.resolve();
+        },
+        trigger: 'blur'
+      }
+    ];
+  } else {
+    rules.repairDesc = [{ required: true, message: '请输入维修说明', trigger: 'blur' }];
+  }
+
+  return rules;
+});
+
+const closeFormRules = computed(() => {
+  const rules: Record<string, unknown[]> = {
+    returnMethod: [{ required: true, message: '请选择返回方式', trigger: 'change' }],
+    closeReason: [{ required: true, whitespace: true, message: '请填写关闭原因', trigger: 'blur' }]
+  };
+  if (closeForm.returnMethod === '回寄') {
+    rules.returnVoucherFileIds = [
+      {
+        type: 'array',
+        min: 1,
+        required: true,
+        message: '请上传回寄凭证',
+        trigger: 'change'
+      }
+    ];
+  }
+  return rules;
+});
 
 /**
  * 打开转单抽屉并加载目标公司选项。
@@ -1178,8 +1369,8 @@ function validatePartList(partList: Array<{ partName: string; partQty?: number }
  */
 async function openTransfer() {
   if (!id.value) return;
-  transferCompanyId.value = undefined;
-  transferRemark.value = '';
+  transferForm.companyId = undefined;
+  transferForm.remark = '';
   const { data } = await listTransferTargetOptions(id.value);
   const rows = pickRows(data) as Record<string, unknown>[];
   transferOptions.value = rows
@@ -1190,24 +1381,27 @@ async function openTransfer() {
     })
     .filter(Boolean) as Array<{ label: string; value: number }>;
   transferOpen.value = true;
+  queueMicrotask(() => transferFormRef.value?.clearValidate());
 }
 
 /**
  * 提交转单请求并刷新详情。
  *
- * @returns {Promise<void>} 校验失败时 reject
+ * @returns {Promise<void>} 校验失败时直接返回
  */
 async function submitTransfer() {
-  if (!id.value || transferCompanyId.value === undefined || transferCompanyId.value === null) {
-    window.$message?.warning('请选择目标公司');
-    return Promise.reject(new Error('validation'));
+  if (!id.value) return undefined;
+  try {
+    await transferFormRef.value?.validate();
+  } catch {
+    return undefined;
   }
   transferSubmitting.value = true;
   try {
     await transferWorkOrder({
       workOrderId: id.value,
-      targetCompanyId: transferCompanyId.value,
-      remark: transferRemark.value || undefined
+      targetCompanyId: transferForm.companyId as number,
+      remark: transferForm.remark || undefined
     });
     transferOpen.value = false;
     await loadDetail();
@@ -1240,43 +1434,21 @@ function openRepair() {
   repairForm.otherImageFileIds = [];
   loadRepairFaultConfig();
   repairOpen.value = true;
+  queueMicrotask(() => repairFormRef.value?.clearValidate());
 }
 
 /**
  * 校验并提交维修登记（含配置化故障分支与附件 id）。
  *
- * @returns {Promise<void>} 校验失败时 reject；成功关闭抽屉并刷新
+ * @returns {Promise<void>} 校验失败时直接返回；成功关闭抽屉并刷新
  */
 // eslint-disable-next-line complexity
 async function submitRepair() {
   if (!id.value) return undefined;
-  if (repairForm.quoteAmount !== undefined && Number(repairForm.quoteAmount) < 0) {
-    window.$message?.warning('报价金额不能小于 0');
-    return Promise.reject(new Error('validation'));
-  }
-  if (hasRepairFaultConfig.value) {
-    if (!normalizeFaultItems(repairForm.faultItems).length) {
-      window.$message?.warning('请选择维修确认故障');
-      return Promise.reject(new Error('validation'));
-    }
-    if (showRepairFaultRemarkInput.value && !normalizeText(repairForm.faultRemark)) {
-      window.$message?.warning('选择其它故障时，必须填写其它故障说明');
-      return Promise.reject(new Error('validation'));
-    }
-    if (!normalizeRepairItems(repairForm.repairItems).length) {
-      window.$message?.warning('请选择维修说明');
-      return Promise.reject(new Error('validation'));
-    }
-    if (isOtherRepairSelected.value && !normalizeText(repairForm.otherDesc)) {
-      window.$message?.warning('选择其它维修说明后，必须填写其他维修说明');
-      return Promise.reject(new Error('validation'));
-    }
-  } else if (!normalizeText(repairForm.repairDesc)) {
-    window.$message?.warning('请输入维修说明');
-    return Promise.reject(new Error('validation'));
-  }
-  if (!validatePartList(repairForm.partList)) {
-    return Promise.reject(new Error('validation'));
+  try {
+    await repairFormRef.value?.validate();
+  } catch {
+    return undefined;
   }
   repairSubmitting.value = true;
   try {
@@ -1324,35 +1496,21 @@ function openReview() {
   reviewForm.otherImageFileIds = [];
   loadRepairFaultConfig();
   reviewOpen.value = true;
+  queueMicrotask(() => reviewFormRef.value?.clearValidate());
 }
 
 /**
  * 校验并提交复检登记。
  *
- * @returns {Promise<void>} 校验失败时 reject
+ * @returns {Promise<void>} 校验失败时直接返回
  */
 // eslint-disable-next-line complexity
 async function submitReview() {
   if (!id.value) return undefined;
-  if (hasRepairFaultConfig.value) {
-    if (!reviewFaultItems.value.length) {
-      window.$message?.warning('首次维修登记未记录故障描述，无法提交复检登记');
-      return Promise.reject(new Error('validation'));
-    }
-    if (!normalizeRepairItems(reviewForm.repairItems).length) {
-      window.$message?.warning('请选择维修说明');
-      return Promise.reject(new Error('validation'));
-    }
-    if (isOtherReviewSelected.value && !normalizeText(reviewForm.otherDesc)) {
-      window.$message?.warning('选择其它维修说明后，必须填写其他维修说明');
-      return Promise.reject(new Error('validation'));
-    }
-  } else if (!normalizeText(reviewForm.repairDesc)) {
-    window.$message?.warning('请输入维修说明');
-    return Promise.reject(new Error('validation'));
-  }
-  if (!validatePartList(reviewForm.partList)) {
-    return Promise.reject(new Error('validation'));
+  try {
+    await reviewFormRef.value?.validate();
+  } catch {
+    return undefined;
   }
   reviewSubmitting.value = true;
   try {
@@ -1388,18 +1546,20 @@ async function submitReview() {
 function openMail() {
   mailForm.senderVoucherFileIds = [];
   mailOpen.value = true;
+  queueMicrotask(() => mailFormRef.value?.clearValidate());
 }
 
 /**
  * 提交寄件凭证并刷新详情。
  *
- * @returns {Promise<void>} 校验失败时 reject
+ * @returns {Promise<void>} 校验失败时直接返回
  */
 async function submitMail() {
   if (!id.value) return undefined;
-  if (!mailForm.senderVoucherFileIds.length) {
-    window.$message?.warning('请上传寄件凭证');
-    return Promise.reject(new Error('validation'));
+  try {
+    await mailFormRef.value?.validate();
+  } catch {
+    return undefined;
   }
   mailSubmitting.value = true;
   try {
@@ -1430,25 +1590,20 @@ function openClose(options: { fromNoFaultTechAccept?: boolean } = {}) {
   closeForm.closeReason = '';
   closeForm.returnVoucherFileIds = [];
   closeOpen.value = true;
+  queueMicrotask(() => closeFormRef.value?.clearValidate());
 }
 
 /**
  * 提交关闭工单；若存在 pending 接单载荷则与关闭字段合并调用接单接口。
  *
- * @returns {Promise<void>} 校验失败时 reject
+ * @returns {Promise<void>} 校验失败时直接返回
  */
 async function submitClose() {
-  if (!id.value || !closeForm.closeReason.trim()) {
-    window.$message?.warning('请填写关闭原因');
-    return Promise.reject(new Error('validation'));
-  }
-  if (!closeForm.returnMethod) {
-    window.$message?.warning('请选择返回方式');
-    return Promise.reject(new Error('validation'));
-  }
-  if (closeForm.returnMethod === '回寄' && !closeForm.returnVoucherFileIds.length) {
-    window.$message?.warning('请上传回寄凭证');
-    return Promise.reject(new Error('validation'));
+  if (!id.value) return undefined;
+  try {
+    await closeFormRef.value?.validate();
+  } catch {
+    return undefined;
   }
   closeSubmitting.value = true;
   try {
@@ -1732,11 +1887,33 @@ defineExpose({
         <ASpace wrap>
           <AButton v-if="showAssign" type="primary" size="small" @click="openAssign">派单</AButton>
           <AButton v-if="showAccept" type="primary" size="small" @click="openAccept">维修员接单</AButton>
-          <AButton v-if="showTransfer" size="small" @click="openTransfer">转单</AButton>
-          <AButton v-if="showRepair" size="small" @click="openRepair">维修登记</AButton>
-          <AButton v-if="showReview" size="small" @click="openReview">复检登记</AButton>
-          <AButton v-if="showMail" size="small" @click="openMail">上传寄件单号</AButton>
-          <AButton v-if="showClose" danger size="small" @click="() => openClose()">关闭工单</AButton>
+          <AButton
+            v-if="showTransfer"
+            size="small"
+            class="detail-mirror-table-action--warning"
+            @click="openTransfer"
+          >
+            转单
+          </AButton>
+          <AButton v-if="showRepair" type="primary" size="small" @click="openRepair">维修登记</AButton>
+          <AButton
+            v-if="showReview"
+            size="small"
+            class="detail-mirror-table-action--warning"
+            @click="openReview"
+          >
+            复检登记
+          </AButton>
+          <AButton v-if="showMail" type="primary" size="small" @click="openMail">上传寄件单号</AButton>
+          <AButton
+            v-if="showClose"
+            danger
+            size="small"
+            class="detail-mirror-table-action--danger"
+            @click="() => openClose()"
+          >
+            关闭工单
+          </AButton>
         </ASpace>
       </div>
 
@@ -2065,8 +2242,8 @@ defineExpose({
     </ASpin>
 
     <ADrawer v-model:open="techAcceptOpen" title="维修员接单" :width="420">
-      <AForm layout="vertical">
-        <AFormItem label="故障判断" required>
+      <AForm ref="techAcceptFormRef" layout="vertical" :model="techAcceptForm" :rules="techAcceptFormRules as any">
+        <AFormItem label="故障判断" name="faultJudge">
           <ASelect
             v-model:value="techAcceptForm.faultJudge"
             :options="[
@@ -2101,10 +2278,10 @@ defineExpose({
     </ADrawer>
 
     <ADrawer v-model:open="assignOpen" title="派单" :width="360">
-      <AForm layout="vertical">
-        <AFormItem label="维修员" required>
+      <AForm ref="assignFormRef" layout="vertical" :model="assignForm" :rules="assignFormRules as any">
+        <AFormItem label="维修员" name="assignUserId">
           <ASelect
-            v-model:value="assignUserId"
+            v-model:value="assignForm.assignUserId"
             show-search
             option-filter-prop="label"
             :options="assignOptions"
@@ -2121,10 +2298,10 @@ defineExpose({
     </ADrawer>
 
     <ADrawer v-model:open="transferOpen" title="转单" :width="360">
-      <AForm layout="vertical">
-        <AFormItem label="目标公司" required>
+      <AForm ref="transferFormRef" layout="vertical" :model="transferForm" :rules="transferFormRules as any">
+        <AFormItem label="目标公司" name="companyId">
           <ASelect
-            v-model:value="transferCompanyId"
+            v-model:value="transferForm.companyId"
             show-search
             option-filter-prop="label"
             :options="transferOptions"
@@ -2132,7 +2309,7 @@ defineExpose({
           />
         </AFormItem>
         <AFormItem label="转单备注">
-          <ATextarea v-model:value="transferRemark" :rows="3" allow-clear placeholder="请输入转单备注" />
+          <ATextarea v-model:value="transferForm.remark" :rows="3" allow-clear placeholder="请输入转单备注" />
         </AFormItem>
       </AForm>
       <template #footer>
@@ -2144,29 +2321,31 @@ defineExpose({
     </ADrawer>
 
     <ADrawer v-model:open="repairOpen" title="维修登记" :width="560">
-      <AForm layout="vertical">
-        <AFormItem label="报价金额">
+      <AForm ref="repairFormRef" layout="vertical" :model="repairForm" :rules="repairFormRules as any">
+        <AFormItem label="报价金额" name="quoteAmount">
           <AInputNumber v-model:value="repairForm.quoteAmount" class="w-full" :min="0" :precision="2" />
         </AFormItem>
         <AFormItem label="报价说明">
           <AInput v-model:value="repairForm.quoteDesc" allow-clear placeholder="请输入报价说明" />
         </AFormItem>
-        <AFormItem v-if="hasRepairFaultConfig" label="维修确认故障" required>
+        <AFormItem v-if="hasRepairFaultConfig" label="维修确认故障" name="faultItems" required>
           <ASelect
             v-model:value="repairForm.faultItems"
             mode="multiple"
+            max-tag-count="responsive"
             :options="repairFaultOptionsWithOther.map(item => ({ label: item, value: item }))"
             placeholder="请选择维修确认故障"
             @change="handleRepairFaultItemsChange"
           />
         </AFormItem>
-        <AFormItem v-if="showRepairFaultRemarkInput" label="其它故障说明" required>
+        <AFormItem v-if="showRepairFaultRemarkInput" label="其它故障说明" name="faultRemark">
           <ATextarea v-model:value="repairForm.faultRemark" :rows="2" allow-clear placeholder="请输入其它故障说明" />
         </AFormItem>
-        <AFormItem v-if="hasRepairFaultConfig" label="维修说明" required>
+        <AFormItem v-if="hasRepairFaultConfig" label="维修说明" name="repairItems" required>
           <ASelect
             v-model:value="repairForm.repairItems"
             mode="multiple"
+            max-tag-count="responsive"
             :options="[
               ...currentRepairOptions.map(item => ({ label: item, value: item })),
               { label: OTHER_REPAIR_OPTION, value: OTHER_REPAIR_OPTION }
@@ -2175,13 +2354,17 @@ defineExpose({
             @change="handleRepairItemsChange"
           />
         </AFormItem>
-        <AFormItem v-else label="维修说明" required>
+        <AFormItem v-else label="维修说明" name="repairDesc" required>
           <ATextarea v-model:value="repairForm.repairDesc" :rows="3" allow-clear placeholder="请输入维修说明" />
         </AFormItem>
-        <AFormItem v-if="isOtherRepairSelected || !hasRepairFaultConfig" label="其他维修说明">
+        <AFormItem
+          v-if="isOtherRepairSelected || !hasRepairFaultConfig"
+          label="其他维修说明"
+          name="otherDesc"
+        >
           <ATextarea v-model:value="repairForm.otherDesc" :rows="2" allow-clear placeholder="请输入其他维修说明" />
         </AFormItem>
-        <AFormItem label="更换配件" required>
+        <AFormItem label="更换配件" name="partList">
           <div
             v-for="(item, idx) in repairForm.partList"
             :key="`repair-part-${idx}`"
@@ -2308,7 +2491,7 @@ defineExpose({
     </ADrawer>
 
     <ADrawer v-model:open="reviewOpen" title="复检登记" :width="560">
-      <AForm layout="vertical">
+      <AForm ref="reviewFormRef" layout="vertical" :model="reviewForm" :rules="reviewFormRules as any">
         <AFormItem label="客户报修故障">
           <ATextarea :value="textValue(detail.faultDesc, '当前工单未记录故障描述')" :rows="2" disabled />
         </AFormItem>
@@ -2322,10 +2505,11 @@ defineExpose({
         <AFormItem v-if="showReviewFaultRemark" label="其它故障说明">
           <ATextarea :value="textValue(firstRepairConfirmedFaultRemark)" :rows="2" disabled />
         </AFormItem>
-        <AFormItem v-if="hasRepairFaultConfig" label="维修说明" required>
+        <AFormItem v-if="hasRepairFaultConfig" label="维修说明" name="repairItems" required>
           <ASelect
             v-model:value="reviewForm.repairItems"
             mode="multiple"
+            max-tag-count="responsive"
             :options="[
               ...reviewRepairOptions.map(item => ({ label: item, value: item })),
               { label: OTHER_REPAIR_OPTION, value: OTHER_REPAIR_OPTION }
@@ -2334,13 +2518,22 @@ defineExpose({
             @change="handleReviewItemsChange"
           />
         </AFormItem>
-        <AFormItem v-else label="复检说明" required>
-          <ATextarea v-model:value="reviewForm.repairDesc" :rows="3" allow-clear placeholder="请输入维修说明" />
+        <AFormItem v-else label="维修说明" name="repairDesc" required>
+          <ATextarea
+            v-model:value="reviewForm.repairDesc"
+            :rows="3"
+            allow-clear
+            placeholder="请输入维修说明"
+          />
         </AFormItem>
-        <AFormItem v-if="isOtherReviewSelected || !hasRepairFaultConfig" label="其他维修说明">
+        <AFormItem
+          v-if="isOtherReviewSelected || !hasRepairFaultConfig"
+          label="其他维修说明"
+          name="otherDesc"
+        >
           <ATextarea v-model:value="reviewForm.otherDesc" :rows="2" allow-clear placeholder="请输入其他维修说明" />
         </AFormItem>
-        <AFormItem label="更换配件" required>
+        <AFormItem label="更换配件" name="partList">
           <div
             v-for="(item, idx) in reviewForm.partList"
             :key="`review-part-${idx}`"
@@ -2467,8 +2660,8 @@ defineExpose({
     </ADrawer>
 
     <ADrawer v-model:open="mailOpen" title="上传寄件单号" :width="420">
-      <AForm layout="vertical">
-        <AFormItem label="寄件凭证" required>
+      <AForm ref="mailFormRef" layout="vertical" :model="mailForm" :rules="mailFormRules as any">
+        <AFormItem label="寄件凭证" name="senderVoucherFileIds" required>
           <AUpload
             class="create-upload-picture-card"
             list-type="picture-card"
@@ -2497,8 +2690,8 @@ defineExpose({
     </ADrawer>
 
     <ADrawer v-model:open="closeOpen" title="关闭工单" :width="420">
-      <AForm layout="vertical">
-        <AFormItem label="返回方式" required>
+      <AForm ref="closeFormRef" layout="vertical" :model="closeForm" :rules="closeFormRules as any">
+        <AFormItem label="返回方式" name="returnMethod">
           <ASelect
             v-model:value="closeForm.returnMethod"
             placeholder="请选择返回方式"
@@ -2508,7 +2701,7 @@ defineExpose({
             ]"
           />
         </AFormItem>
-        <AFormItem v-if="closeForm.returnMethod === '回寄'" label="回寄凭证" required>
+        <AFormItem v-if="closeForm.returnMethod === '回寄'" label="回寄凭证" name="returnVoucherFileIds">
           <AUpload
             class="create-upload-picture-card"
             list-type="picture-card"
@@ -2527,7 +2720,7 @@ defineExpose({
             </div>
           </AUpload>
         </AFormItem>
-        <AFormItem label="关闭原因" required>
+        <AFormItem label="关闭原因" name="closeReason">
           <ATextarea v-model:value="closeForm.closeReason" :rows="3" allow-clear placeholder="请输入关闭原因" />
         </AFormItem>
       </AForm>
@@ -2540,7 +2733,12 @@ defineExpose({
     </ADrawer>
 
     <ADrawer v-model:open="repairProductModelOpen" title="补录机型" :width="560">
-      <AForm layout="vertical">
+      <AForm
+        ref="repairProductModelFormRef"
+        layout="vertical"
+        :model="repairProductModelForm"
+        :rules="repairProductModelFormRules as any"
+      >
         <AAlert
           type="warning"
           show-icon
@@ -2548,9 +2746,9 @@ defineExpose({
           :closable="false"
           message="佳士品牌工单在维修登记或复检前必须先补录机器型号，补录后不可再次修改。"
         />
-        <AFormItem label="机器型号" required>
+        <AFormItem label="机器型号" name="productModel" required>
           <ASelect
-            v-model:value="repairProductModel"
+            v-model:value="repairProductModelForm.productModel"
             show-search
             allow-clear
             :filter-option="false"
