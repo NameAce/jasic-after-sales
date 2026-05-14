@@ -9,7 +9,7 @@ package com.jasic.aftersales.common.constant;
 public class WorkOrderConfigConstants {
 
     /**
-     * ?? WorkOrderConfigConstants ???
+     * 禁止实例化工单配置常量类。
      */
     private WorkOrderConfigConstants() {
     }

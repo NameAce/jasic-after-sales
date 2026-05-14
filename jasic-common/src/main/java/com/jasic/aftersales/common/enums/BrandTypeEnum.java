@@ -23,6 +23,12 @@ public enum BrandTypeEnum {
     /** 展示名称 */
     private final String label;
 
+    /**
+     * 构造品牌类型实例。
+     *
+     * @param code 参数
+     * @param label 参数
+     */
     BrandTypeEnum(String code, String label) {
         this.code = code;
         this.label = label;
@@ -38,6 +44,7 @@ public enum BrandTypeEnum {
         if (code == null) {
             return null;
         }
+        // 调用trim方法，复用统一能力并保证业务规则一致。
         String normalizedCode = code.trim();
         if (normalizedCode.isEmpty()) {
             return null;
@@ -61,6 +68,7 @@ public enum BrandTypeEnum {
         if (code == null) {
             return null;
         }
+        // 调用getByCode方法，复用统一能力并保证业务规则一致。
         BrandTypeEnum brandType = getByCode(code);
         if (brandType == null) {
             throw new IllegalArgumentException("不支持的品牌类型编码：" + code);
@@ -96,12 +104,16 @@ public enum BrandTypeEnum {
     }
 
     /**
-     * ?????
+     * 获取品牌类型编码。
      *
-     * @return ?????
+     * @return 处理结果
      */
     @JsonValue
     public String getCode() {
         return code;
     }
 }
+
+
+
+

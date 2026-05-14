@@ -44,3 +44,5 @@ public class WorkOrderCloseDTO implements Serializable {
     @NotBlank(message = "关闭原因不能为空")
     private String closeReason;
 }
+
+

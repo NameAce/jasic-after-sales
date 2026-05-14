@@ -9,7 +9,7 @@ package com.jasic.aftersales.common.constant;
 public class WorkOrderReportSubjectConstants {
 
     /**
-     * ?? WorkOrderReportSubjectConstants ???
+     * 禁止实例化报修主体常量类。
      */
     private WorkOrderReportSubjectConstants() {
     }

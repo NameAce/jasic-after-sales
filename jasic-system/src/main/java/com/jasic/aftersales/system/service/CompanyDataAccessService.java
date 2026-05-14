@@ -27,10 +27,9 @@ public class CompanyDataAccessService {
     private static final Integer STATUS_ENABLED = 1;
 
     /**
-     * ???????
+     * 公司数据Access上下文字段。
      *
-     * @param targetCompanyId ????ID
-     * @return ????
+     * @return 处理结果
      */
     @Resource
     private CompanyDataAccessContext companyDataAccessContext;
@@ -41,15 +40,23 @@ public class CompanyDataAccessService {
     @Resource
     private ISysCompanyTypeService companyTypeService;
 
+    /**
+     * 处理resolveCurrentCompanyTarget业务逻辑。
+     *
+     * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
+     * @param targetCompanyId 参数
+     * @return 处理结果
+     */
     public Long resolveCurrentCompanyTarget(Long targetCompanyId) {
         if (SecurityContext.isPlatformUser()) {
             if (targetCompanyId == null) {
                 throw new ServiceException("缺少目标公司上下文");
             }
-            // ?????????????????????????????
+            // 说明：执行该步骤以保证业务流程正确。
             validateEnabledCompany(targetCompanyId, "目标公司不存在", "目标公司已停用");
             return targetCompanyId;
         }
+        // 调用getCurrentCompanyId方法，复用统一能力并保证业务规则一致。
         Long currentCompanyId = SecurityContext.getCurrentCompanyId();
         if (currentCompanyId == null) {
             throw new ServiceException("缺少公司数据访问上下文");
@@ -70,6 +77,7 @@ public class CompanyDataAccessService {
      * @return 当前公司ID
      */
     public Long resolveCurrentCompanyOwnedTarget(Long targetCompanyId) {
+        // 调用getCurrentCompanyId方法，复用统一能力并保证业务规则一致。
         Long currentCompanyId = SecurityContext.getCurrentCompanyId();
         if (currentCompanyId == null) {
             throw new ServiceException("缺少公司数据访问上下文");
@@ -81,37 +89,38 @@ public class CompanyDataAccessService {
     }
 
     /**
-     * ???????
+     * 解析Owner总部Target。
      *
-     * @param ownerHqId ????ID
-     * @return ????
+     * @return 处理结果
      */
     public Long resolveOwnerHqTarget(Long ownerHqId) {
+        // 调用resolveCurrentCompanyTarget方法，复用统一能力并保证业务规则一致。
         Long targetCompanyId = resolveCurrentCompanyTarget(ownerHqId);
+        // 调用validateEnabledHqCompany方法，复用统一能力并保证业务规则一致。
         validateEnabledHqCompany(targetCompanyId);
         return targetCompanyId;
     }
 
     /**
-     * ?? runWithCurrentCompanyTarget ?????
+     * runWithCurrent公司Target。
      *
-     * @param targetCompanyId ????ID
-     * @param supplier ????
-     * @return ????
+     * @param supplier 参数
+     * @return 处理结果
      */
     public <T> T runWithCurrentCompanyTarget(Long targetCompanyId, Supplier<T> supplier) {
+        // 调用resolveCurrentCompanyTarget方法，复用统一能力并保证业务规则一致。
         Long resolvedTargetCompanyId = resolveCurrentCompanyTarget(targetCompanyId);
         return companyDataAccessContext.runWithTargetCompany(resolvedTargetCompanyId, supplier);
     }
 
     /**
-     * ?? runWithCurrentCompanyTarget ?????
+     * runWithCurrent公司Target。
      *
-     * @param targetCompanyId ????ID
-     * @param runnable ????
+     * @param runnable 参数
      */
     public void runWithCurrentCompanyTarget(Long targetCompanyId, Runnable runnable) {
         runWithCurrentCompanyTarget(targetCompanyId, () -> {
+            // 调用run方法，复用统一能力并保证业务规则一致。
             runnable.run();
             return null;
         });
@@ -125,6 +134,7 @@ public class CompanyDataAccessService {
      * @return 业务结果
      */
     public <T> T runWithCurrentCompanyOwnedTarget(Long targetCompanyId, Supplier<T> supplier) {
+        // 调用resolveCurrentCompanyOwnedTarget方法，复用统一能力并保证业务规则一致。
         Long resolvedTargetCompanyId = resolveCurrentCompanyOwnedTarget(targetCompanyId);
         return companyDataAccessContext.runWithTargetCompany(resolvedTargetCompanyId, supplier);
     }
@@ -137,45 +147,45 @@ public class CompanyDataAccessService {
      */
     public void runWithCurrentCompanyOwnedTarget(Long targetCompanyId, Runnable runnable) {
         runWithCurrentCompanyOwnedTarget(targetCompanyId, () -> {
+            // 调用run方法，复用统一能力并保证业务规则一致。
             runnable.run();
             return null;
         });
     }
 
     /**
-     * ?? runWithOwnerHqTarget ?????
+     * runWithOwner总部Target。
      *
-     * @param ownerHqId ????ID
-     * @param supplier ????
-     * @return ????
+     * @param supplier 参数
+     * @return 处理结果
      */
     public <T> T runWithOwnerHqTarget(Long ownerHqId, Supplier<T> supplier) {
+        // 调用resolveOwnerHqTarget方法，复用统一能力并保证业务规则一致。
         Long resolvedOwnerHqId = resolveOwnerHqTarget(ownerHqId);
         return companyDataAccessContext.runWithTargetCompany(resolvedOwnerHqId, supplier);
     }
 
     /**
-     * ?? runWithOwnerHqTarget ?????
+     * runWithOwner总部Target。
      *
-     * @param ownerHqId ????ID
-     * @param runnable ????
+     * @param runnable 参数
      */
     public void runWithOwnerHqTarget(Long ownerHqId, Runnable runnable) {
         runWithOwnerHqTarget(ownerHqId, () -> {
+            // 调用run方法，复用统一能力并保证业务规则一致。
             runnable.run();
             return null;
         });
     }
 
     /**
-     * ???????
+     * 校验Enabled公司。
      *
-     * @param companyId ??ID
-     * @param missingMessage ??
-     * @param disabledMessage ??
+     * @param missingMessage 参数
+     * @param disabledMessage 参数
      */
     private void validateEnabledCompany(Long companyId, String missingMessage, String disabledMessage) {
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         SysCompany company = sysCompanyMapper.selectById(companyId);
         if (company == null) {
             throw new ServiceException(missingMessage);
@@ -186,12 +196,10 @@ public class CompanyDataAccessService {
     }
 
     /**
-     * ???????
-     *
-     * @param companyId ??ID
+     * 校验Enabled总部公司。
      */
     private void validateEnabledHqCompany(Long companyId) {
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         SysCompany company = sysCompanyMapper.selectById(companyId);
         if (company == null) {
             throw new ServiceException("目标总部不存在");
@@ -200,9 +208,12 @@ public class CompanyDataAccessService {
             throw new ServiceException("目标总部已停用");
         }
         Map<String, String> subjectTypeMap = companyTypeService.listAll().stream()
+                // 调用toMap方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toMap(SysCompanyType::getTypeCode, SysCompanyType::getSubjectType, (a, b) -> a));
         if (!SubjectTypeEnum.HQ.getCode().equals(subjectTypeMap.get(company.getTypeCode()))) {
             throw new ServiceException("目标公司不是总部类型");
         }
     }
 }
+
+

@@ -23,22 +23,28 @@ public class BizCompanySnapshotSyncTaskHandler implements SyncTaskHandler {
     private static final String HANDLER_NAME = "CRM公司快照同步";
 
     /**
-     * ?????
+     * CRM业务公司快照服务服务依赖。
      *
-     * @return ?????
+     * @return 处理结果
      */
     @Resource
     private ICrmBizCompanySnapshotService crmBizCompanySnapshotService;
 
+    /**
+     * 获取Code相关数据。
+     *
+     * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
+     * @return 处理结果
+     */
     @Override
     public String getCode() {
         return HANDLER_CODE;
     }
 
     /**
-     * ?????
+     * 获取业务公司快照同步任务名称。
      *
-     * @return ?????
+     * @return 处理结果
      */
     @Override
     public String getName() {
@@ -46,27 +52,31 @@ public class BizCompanySnapshotSyncTaskHandler implements SyncTaskHandler {
     }
 
     /**
-     * ?????
+     * execute。
      *
-     * @param task ????
-     * @param context ?????
-     * @return ????
+     * @param task 参数
+     * @param context 参数
+     * @return 处理结果
      */
     @Override
     public SyncTaskExecutionResult execute(SyncTask task, SyncTaskExecutionContext context) {
+        // 调用getEarliestChangeTime方法，复用统一能力并保证业务规则一致。
         LocalDateTime earliestChangeTime = crmBizCompanySnapshotService.getEarliestChangeTime();
         if (earliestChangeTime == null) {
             return SyncTaskExecutionResult.builder()
                     .dataStartTime(null)
                     .dataEndTime(context.getExecutionTime())
                     .message("未查询到可同步的 CRM 公司数据")
+                    // 调用build方法，复用统一能力并保证业务规则一致。
                     .build();
         }
 
+        // 调用getExecutionTime方法，复用统一能力并保证业务规则一致。
         LocalDateTime dataEndTime = context.getExecutionTime();
         // 为降低边界漏数风险，非首次同步时向前回退 1 天做重叠窗口，再由快照层 upsert 去重。
         LocalDateTime dataStartTime = context.getLastSuccessEndTime() == null
                 ? earliestChangeTime
+                // 调用minusDays方法，复用统一能力并保证业务规则一致。
                 : context.getLastSuccessEndTime().minusDays(1);
         if (dataStartTime.isBefore(earliestChangeTime)) {
             dataStartTime = earliestChangeTime;
@@ -76,9 +86,11 @@ public class BizCompanySnapshotSyncTaskHandler implements SyncTaskHandler {
                     .dataStartTime(dataStartTime)
                     .dataEndTime(dataEndTime)
                     .message("本次无需同步")
+                    // 调用build方法，复用统一能力并保证业务规则一致。
                     .build();
         }
 
+        // 调用syncByTimeRange方法，复用统一能力并保证业务规则一致。
         CrmBizCompanySyncSummaryVO summary = crmBizCompanySnapshotService.syncByTimeRange(dataStartTime, dataEndTime);
         return SyncTaskExecutionResult.builder()
                 .dataStartTime(dataStartTime)
@@ -88,16 +100,19 @@ public class BizCompanySnapshotSyncTaskHandler implements SyncTaskHandler {
                         defaultInt(summary.getProcessedCount()),
                         defaultInt(summary.getInsertedCount()),
                         defaultInt(summary.getUpdatedCount())))
+                // 调用build方法，复用统一能力并保证业务规则一致。
                 .build();
     }
 
     /**
-     * ??????
+     * defaultInt。
      *
-     * @param value ???
-     * @return ????
+     * @param value 参数
+     * @return 处理结果
      */
     private int defaultInt(Integer value) {
         return value == null ? 0 : value;
     }
 }
+
+

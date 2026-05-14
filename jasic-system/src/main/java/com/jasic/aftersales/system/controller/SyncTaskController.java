@@ -44,10 +44,10 @@ public class SyncTaskController extends BaseController {
     private ISyncTaskService syncTaskService;
 
     /**
-     * ???????
+     * 分页查询同步任务列表。
      *
-     * @param query ????
-     * @return ????
+     * @param query 参数
+     * @return 处理结果
      */
     @ApiOperation(value = "分页查询同步任务")
     @SaCheckPermission("system:syncTask:list")
@@ -57,10 +57,9 @@ public class SyncTaskController extends BaseController {
     }
 
     /**
-     * ??By Id?
+     * 根据ID查询同步任务详情。
      *
-     * @param id ??ID
-     * @return ??????
+     * @return 处理结果
      */
     @ApiOperation(value = "查询同步任务详情")
     @SaCheckPermission("system:syncTask:list")
@@ -70,9 +69,9 @@ public class SyncTaskController extends BaseController {
     }
 
     /**
-     * ???????
+     * 分页查询处理Options列表。
      *
-     * @return ????
+     * @return 处理结果
      */
     @ApiOperation(value = "查询同步任务处理器选项")
     @SaCheckPermission("system:syncTask:list")
@@ -82,10 +81,10 @@ public class SyncTaskController extends BaseController {
     }
 
     /**
-     * ???????
+     * 分页查询Logs列表。
      *
-     * @param query ????
-     * @return ????
+     * @param query 参数
+     * @return 处理结果
      */
     @ApiOperation(value = "分页查询同步任务执行日志")
     @SaCheckPermission("system:syncTask:log")
@@ -95,10 +94,10 @@ public class SyncTaskController extends BaseController {
     }
 
     /**
-     * ?????
+     * 新增同步任务。
      *
-     * @param dto ????
-     * @return ??????
+     * @param dto 参数
+     * @return 处理结果
      */
     @ApiOperation(value = "新增同步任务")
     @SaCheckPermission("system:syncTask:add")
@@ -109,25 +108,25 @@ public class SyncTaskController extends BaseController {
     }
 
     /**
-     * ?????
+     * 更新同步任务。
      *
-     * @param dto ????
-     * @return ??????
+     * @param dto 参数
+     * @return 处理结果
      */
     @ApiOperation(value = "修改同步任务")
     @SaCheckPermission("system:syncTask:update")
     @OperLog(title = "同步任务管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
     public Result<Void> update(@Validated @RequestBody SyncTaskDTO dto) {
+        // 调用update方法，复用统一能力并保证业务规则一致。
         syncTaskService.update(dto);
         return Result.ok();
     }
 
     /**
-     * ?????
+     * execute。
      *
-     * @param id ??ID
-     * @return ??????
+     * @return 处理结果
      */
     @ApiOperation(value = "立即执行同步任务")
     @SaCheckPermission("system:syncTask:execute")
@@ -138,3 +137,5 @@ public class SyncTaskController extends BaseController {
         return Result.ok(syncTaskService.execute(id));
     }
 }
+
+

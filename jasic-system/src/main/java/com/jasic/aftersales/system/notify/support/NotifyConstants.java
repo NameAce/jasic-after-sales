@@ -51,7 +51,7 @@ public final class NotifyConstants {
     public static final long DISPATCH_RETRY_DELAY_MINUTES = 5L;
 
     /**
-     * ?? NotifyConstants ???
+     * 禁止实例化通知常量类。
      */
     private NotifyConstants() {
     }

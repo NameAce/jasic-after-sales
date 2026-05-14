@@ -23,6 +23,12 @@ public enum ServiceModeEnum {
     /** 展示名称 */
     private final String label;
 
+    /**
+     * 构造服务模式实例。
+     *
+     * @param code 参数
+     * @param label 参数
+     */
     ServiceModeEnum(String code, String label) {
         this.code = code;
         this.label = label;
@@ -38,6 +44,7 @@ public enum ServiceModeEnum {
         if (code == null) {
             return null;
         }
+        // 调用trim方法，复用统一能力并保证业务规则一致。
         String normalizedCode = code.trim();
         if (normalizedCode.isEmpty()) {
             return null;
@@ -61,6 +68,7 @@ public enum ServiceModeEnum {
         if (code == null) {
             return null;
         }
+        // 调用getByCode方法，复用统一能力并保证业务规则一致。
         ServiceModeEnum serviceMode = getByCode(code);
         if (serviceMode == null) {
             throw new IllegalArgumentException("不支持的服务方式编码：" + code);
@@ -95,6 +103,7 @@ public enum ServiceModeEnum {
      * @return 展示名称；无法识别时返回原值
      */
     public static String resolveLabel(String code) {
+        // 调用getByCode方法，复用统一能力并保证业务规则一致。
         ServiceModeEnum serviceMode = getByCode(code);
         return serviceMode == null ? code : serviceMode.getLabel();
     }
@@ -109,12 +118,16 @@ public enum ServiceModeEnum {
     }
 
     /**
-     * ?????
+     * 获取服务模式编码。
      *
-     * @return ?????
+     * @return 处理结果
      */
     @JsonValue
     public String getCode() {
         return code;
     }
 }
+
+
+
+

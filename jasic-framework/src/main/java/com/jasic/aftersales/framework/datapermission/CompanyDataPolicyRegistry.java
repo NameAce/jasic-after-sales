@@ -94,47 +94,47 @@ public final class CompanyDataPolicyRegistry {
     }
 
     /**
-     * ?? CompanyDataPolicyRegistry ???
+     * 构造公司数据策略实例。
      */
     private CompanyDataPolicyRegistry() {
     }
 
     /**
-     * ?? allPolicies ?????
+     * allPolicies。
      *
-     * @return ????
+     * @return 处理结果
      */
     public static Map<String, CompanyDataPolicyType> allPolicies() {
         return POLICIES;
     }
 
     /**
-     * ?? contains ?????
+     * contains。
      *
-     * @param tableName ??
-     * @return true ??????
+     * @param tableName 参数
      */
     public static boolean contains(String tableName) {
         return POLICIES.containsKey(normalize(tableName));
     }
 
     /**
-     * ??Policy?
+     * 获取策略。
      *
-     * @param tableName ??
-     * @return ????
+     * @param tableName 参数
+     * @return 处理结果
      */
     public static CompanyDataPolicyType getPolicy(String tableName) {
         return POLICIES.get(normalize(tableName));
     }
 
     /**
-     * ??????????
+     * require策略。
      *
-     * @param tableName ??
-     * @return ????
+     * @param tableName 参数
+     * @return 处理结果
      */
     public static CompanyDataPolicyType requirePolicy(String tableName) {
+        // 调用getPolicy方法，复用统一能力并保证业务规则一致。
         CompanyDataPolicyType policyType = getPolicy(tableName);
         if (policyType == null) {
             throw new ServiceException("未知数据权限表策略：" + tableName);
@@ -143,46 +143,49 @@ public final class CompanyDataPolicyRegistry {
     }
 
     /**
-     * ?? useTenantLine ?????
+     * useTenantLine。
      *
-     * @param tableName ??
-     * @return true ??????
+     * @param tableName 参数
      */
     public static boolean useTenantLine(String tableName) {
         return requirePolicy(tableName) == CompanyDataPolicyType.CURRENT_COMPANY;
     }
 
     /**
-     * ????????
+     * 规范化公司数据策略。
      *
-     * @param tableName ??
-     * @return ?????
+     * @param tableName 参数
+     * @return 处理结果
      */
     public static String normalize(String tableName) {
         if (tableName == null) {
             return null;
         }
+        // 调用trim方法，复用统一能力并保证业务规则一致。
         String normalized = tableName.trim();
         if (normalized.startsWith("`") && normalized.endsWith("`") && normalized.length() > 1) {
+            // 调用length方法，复用统一能力并保证业务规则一致。
             normalized = normalized.substring(1, normalized.length() - 1);
         }
         return normalized.toLowerCase(Locale.ROOT);
     }
 
     /**
-     * ?? register ?????
+     * register。
      *
-     * @param policies ??
-     * @param policyType ??
-     * @param tableNames ??
+     * @param policies 参数
+     * @param policyType 参数
+     * @param tableNames 参数
      */
     private static void register(Map<String, CompanyDataPolicyType> policies, CompanyDataPolicyType policyType,
                                  String... tableNames) {
         for (String tableName : tableNames) {
+            // 调用normalize方法，复用统一能力并保证业务规则一致。
             String normalized = normalize(tableName);
             if (normalized == null || normalized.length() == 0) {
                 throw new IllegalStateException("数据权限表名不能为空");
             }
+            // 调用putIfAbsent方法，复用统一能力并保证业务规则一致。
             CompanyDataPolicyType exists = policies.putIfAbsent(normalized, policyType);
             if (exists != null) {
                 throw new IllegalStateException("重复注册数据权限表策略：" + normalized);
@@ -190,3 +193,5 @@ public final class CompanyDataPolicyRegistry {
         }
     }
 }
+
+

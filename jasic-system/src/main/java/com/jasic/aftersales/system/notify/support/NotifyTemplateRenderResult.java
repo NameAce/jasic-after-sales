@@ -34,13 +34,16 @@ public class NotifyTemplateRenderResult implements Serializable {
     private final List<String> errors = new ArrayList<>();
 
     /**
-     * ?? addError ?????
+     * 新增Error。
      *
-     * @param error ??
+     * @param error 参数
      */
     public void addError(String error) {
         if (error != null && !error.trim().isEmpty()) {
+            // 调用add方法，复用统一能力并保证业务规则一致。
             errors.add(error);
         }
     }
 }
+
+

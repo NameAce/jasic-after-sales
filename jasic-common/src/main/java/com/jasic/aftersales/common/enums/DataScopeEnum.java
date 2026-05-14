@@ -30,8 +30,11 @@ public enum DataScopeEnum {
     private final String desc;
 
     /** 权重，值越大表示范围越大 */
-    private final int weight;
+        private final int weight;
 
+    /**
+     * 构造数据范围实例。
+     */
     DataScopeEnum(String code, String desc, int weight) {
         this.code = code;
         this.desc = desc;
@@ -71,6 +74,7 @@ public enum DataScopeEnum {
      * @return 合法化后的数据范围
      */
     public DataScopeEnum normalizeForSubject(String subjectType) {
+        // 调用getByCode方法，复用统一能力并保证业务规则一致。
         SubjectTypeEnum subjectTypeEnum = SubjectTypeEnum.getByCode(subjectType);
         if (subjectTypeEnum == null) {
             return SELF;
@@ -100,3 +104,8 @@ public enum DataScopeEnum {
         return this.weight >= other.weight ? this : other;
     }
 }
+
+
+
+
+

@@ -67,3 +67,5 @@ public class SysFile extends BaseEntity {
     /** 文件状态 */
     private SysFileStatusEnum status;
 }
+
+

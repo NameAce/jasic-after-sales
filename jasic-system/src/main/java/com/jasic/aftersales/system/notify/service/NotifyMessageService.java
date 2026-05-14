@@ -65,6 +65,13 @@ public interface NotifyMessageService {
      */
     boolean invalidateMessage(Long messageId, String invalidReason, LocalDateTime invalidTime);
 
+    /**
+     * 标记读取。
+     *
+     * @param id 参数
+     * @param receiverId 参数
+     * @param receiverCompanyId 参数
+     */
     void markRead(Long id, Long receiverId, Long receiverCompanyId);
 
     /**
@@ -105,3 +112,7 @@ public interface NotifyMessageService {
      */
     Long countTodo(Long receiverId, Long receiverCompanyId);
 }
+
+
+
+

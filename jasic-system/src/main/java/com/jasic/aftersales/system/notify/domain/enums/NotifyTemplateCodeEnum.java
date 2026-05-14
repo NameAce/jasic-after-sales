@@ -29,14 +29,14 @@ public enum NotifyTemplateCodeEnum {
     );
 
     /**
-     * ?? NotifyTemplateCodeEnum ?????
+     * 通知模板编码编码。
      *
-     * @param code ??
-     * @param desc ??
-     * @param eventType ??
-     * @param bizType ????
-     * @param messageType ??
-     * @return ????
+     * @param code 参数
+     * @param desc 参数
+     * @param eventType 参数
+     * @param bizType 参数
+     * @param messageType 参数
+     * @return 处理结果
      */
     private final String code;
 
@@ -48,6 +48,15 @@ public enum NotifyTemplateCodeEnum {
 
     private final String messageType;
 
+    /**
+     * 构造通知模板编码实例。
+     *
+     * @param code 参数
+     * @param desc 参数
+     * @param eventType 参数
+     * @param bizType 参数
+     * @param messageType 参数
+     */
     NotifyTemplateCodeEnum(String code, String desc, String eventType, String bizType, String messageType) {
         this.code = code;
         this.desc = desc;
@@ -57,15 +66,16 @@ public enum NotifyTemplateCodeEnum {
     }
 
     /**
-     * ??By Code?
+     * 根据编码查询通知模板编码。
      *
-     * @param code ??
-     * @return ????
+     * @param code 参数
+     * @return 处理结果
      */
     public static NotifyTemplateCodeEnum getByCode(String code) {
         if (code == null) {
             return null;
         }
+        // 调用trim方法，复用统一能力并保证业务规则一致。
         String normalizedCode = code.trim();
         if (normalizedCode.isEmpty()) {
             return null;
@@ -79,15 +89,16 @@ public enum NotifyTemplateCodeEnum {
     }
 
     /**
-     * ??By Event Type?
+     * 获取By事件类型。
      *
-     * @param eventType ??
-     * @return ????
+     * @param eventType 参数
+     * @return 处理结果
      */
     public static NotifyTemplateCodeEnum getByEventType(String eventType) {
         if (eventType == null) {
             return null;
         }
+        // 调用trim方法，复用统一能力并保证业务规则一致。
         String normalizedEventType = eventType.trim();
         if (normalizedEventType.isEmpty()) {
             return null;
@@ -101,13 +112,14 @@ public enum NotifyTemplateCodeEnum {
     }
 
     /**
-     * ?? fromCode ?????
+     * 根据编码解析通知模板编码。
      *
-     * @param code ??
-     * @return ????
+     * @param code 参数
+     * @return 处理结果
      */
     @JsonCreator
     public static NotifyTemplateCodeEnum fromCode(String code) {
+        // 调用getByCode方法，复用统一能力并保证业务规则一致。
         NotifyTemplateCodeEnum value = getByCode(code);
         if (value == null && code != null) {
             throw new IllegalArgumentException("Unsupported notify template code: " + code);
@@ -116,9 +128,9 @@ public enum NotifyTemplateCodeEnum {
     }
 
     /**
-     * ?????
+     * 获取通知模板编码编码。
      *
-     * @return ?????
+     * @return 处理结果
      */
     @JsonValue
     public String getCode() {
@@ -126,38 +138,42 @@ public enum NotifyTemplateCodeEnum {
     }
 
     /**
-     * ?????
+     * 获取通知模板编码描述。
      *
-     * @return ?????
+     * @return 处理结果
      */
     public String getDesc() {
         return desc;
     }
 
     /**
-     * ??Event Type?
+     * 获取事件类型。
      *
-     * @return ?????
+     * @return 处理结果
      */
     public String getEventType() {
         return eventType;
     }
 
     /**
-     * ??Biz Type?
+     * 获取业务类型。
      *
-     * @return ?????
+     * @return 处理结果
      */
     public String getBizType() {
         return bizType;
     }
 
     /**
-     * ??Message Type?
+     * 获取消息类型。
      *
-     * @return ?????
+     * @return 处理结果
      */
     public String getMessageType() {
         return messageType;
     }
 }
+
+
+
+

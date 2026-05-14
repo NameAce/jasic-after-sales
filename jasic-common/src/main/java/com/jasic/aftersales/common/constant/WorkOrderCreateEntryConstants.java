@@ -9,7 +9,7 @@ package com.jasic.aftersales.common.constant;
 public class WorkOrderCreateEntryConstants {
 
     /**
-     * ?? WorkOrderCreateEntryConstants ???
+     * 禁止实例化建单入口常量类。
      */
     private WorkOrderCreateEntryConstants() {
     }

@@ -39,10 +39,10 @@ public class SysConfigController extends BaseController {
     private ISysConfigService configService;
 
     /**
-     * ???????
+     * 分页查询配置列表。
      *
-     * @param query ????
-     * @return ????
+     * @param query 参数
+     * @return 处理结果
      */
     @SaCheckPermission("system:config:list")
     @GetMapping("/list")
@@ -51,10 +51,9 @@ public class SysConfigController extends BaseController {
     }
 
     /**
-     * ??By Id?
+     * 根据ID查询配置详情。
      *
-     * @param id ??ID
-     * @return ??????
+     * @return 处理结果
      */
     @SaCheckPermission("system:config:list")
     @GetMapping("/{id}")
@@ -63,10 +62,10 @@ public class SysConfigController extends BaseController {
     }
 
     /**
-     * ??Value By Key?
+     * 获取值ByKey。
      *
-     * @param configKey ??
-     * @return ??????
+     * @param configKey 参数
+     * @return 处理结果
      */
     @GetMapping("/key/{configKey}")
     public Result<String> getValueByKey(@PathVariable String configKey) {
@@ -74,10 +73,10 @@ public class SysConfigController extends BaseController {
     }
 
     /**
-     * ?????
+     * 新增配置。
      *
-     * @param dto ????
-     * @return ??????
+     * @param dto 参数
+     * @return 处理结果
      */
     @SaCheckPermission("system:config:add")
     @OperLog(title = "参数设置", operType = OperTypeEnum.INSERT)
@@ -87,43 +86,47 @@ public class SysConfigController extends BaseController {
     }
 
     /**
-     * ?????
+     * 更新配置。
      *
-     * @param dto ????
-     * @return ??????
+     * @param dto 参数
+     * @return 处理结果
      */
     @SaCheckPermission("system:config:update")
     @OperLog(title = "参数设置", operType = OperTypeEnum.UPDATE)
     @PutMapping
     public Result<Void> update(@Validated @RequestBody SysConfigDTO dto) {
+        // 调用update方法，复用统一能力并保证业务规则一致。
         configService.update(dto);
         return Result.ok();
     }
 
     /**
-     * ?????
+     * 删除配置。
      *
-     * @param id ??ID
-     * @return ??????
+     * @return 处理结果
      */
     @SaCheckPermission("system:config:remove")
     @OperLog(title = "参数设置", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/{id}")
     public Result<Void> remove(@PathVariable Long id) {
+        // 调用remove方法，复用统一能力并保证业务规则一致。
         configService.remove(id);
         return Result.ok();
     }
 
     /**
-     * ?? refreshCache ?????
+     * 刷新配置缓存。
      *
-     * @return ??????
+     * @return 处理结果
      */
     @SaCheckPermission("system:config:refresh")
     @OperLog(title = "参数设置", operType = OperTypeEnum.OTHER)
     @DeleteMapping("/refresh-cache")
     public Result<Void> refreshCache() {
+        // 调用refreshCache方法，复用统一能力并保证业务规则一致。
         configService.refreshCache();
         return Result.ok();
     }
 }
+
+

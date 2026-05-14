@@ -15,31 +15,38 @@ public enum NotifyReceiverTypeEnum {
     SYS_USER("SYS_USER", "绯荤粺鐢ㄦ埛");
 
     /**
-     * ?? NotifyReceiverTypeEnum ?????
+     * 通知接收人类型编码。
      *
-     * @param code ??
-     * @param desc ??
-     * @return ????
+     * @param code 参数
+     * @param desc 参数
+     * @return 处理结果
      */
     private final String code;
 
     private final String desc;
 
+    /**
+     * 构造通知接收人类型实例。
+     *
+     * @param code 参数
+     * @param desc 参数
+     */
     NotifyReceiverTypeEnum(String code, String desc) {
         this.code = code;
         this.desc = desc;
     }
 
     /**
-     * ??By Code?
+     * 根据编码查询通知接收人类型。
      *
-     * @param code ??
-     * @return ????
+     * @param code 参数
+     * @return 处理结果
      */
     public static NotifyReceiverTypeEnum getByCode(String code) {
         if (code == null) {
             return null;
         }
+        // 调用trim方法，复用统一能力并保证业务规则一致。
         String normalizedCode = code.trim();
         if (normalizedCode.isEmpty()) {
             return null;
@@ -53,13 +60,14 @@ public enum NotifyReceiverTypeEnum {
     }
 
     /**
-     * ?? fromCode ?????
+     * 根据编码解析通知接收人类型。
      *
-     * @param code ??
-     * @return ????
+     * @param code 参数
+     * @return 处理结果
      */
     @JsonCreator
     public static NotifyReceiverTypeEnum fromCode(String code) {
+        // 调用getByCode方法，复用统一能力并保证业务规则一致。
         NotifyReceiverTypeEnum value = getByCode(code);
         if (value == null && code != null) {
             throw new IllegalArgumentException("Unsupported notify receiver type: " + code);
@@ -68,9 +76,9 @@ public enum NotifyReceiverTypeEnum {
     }
 
     /**
-     * ?????
+     * 获取通知接收人类型编码。
      *
-     * @return ?????
+     * @return 处理结果
      */
     @JsonValue
     public String getCode() {
@@ -78,11 +86,15 @@ public enum NotifyReceiverTypeEnum {
     }
 
     /**
-     * ?????
+     * 获取通知接收人类型描述。
      *
-     * @return ?????
+     * @return 处理结果
      */
     public String getDesc() {
         return desc;
     }
 }
+
+
+
+

@@ -61,6 +61,7 @@ public class SysAuthController {
     @OperLog(title = "用户登录", operType = OperTypeEnum.LOGIN)
     @PostMapping("/login")
     public Result<LoginVO> login(@Validated @RequestBody LoginDTO dto) {
+        // 调用login方法，复用统一能力并保证业务规则一致。
         LoginVO vo = authService.login(dto);
         return Result.ok(vo);
     }
@@ -75,6 +76,7 @@ public class SysAuthController {
     @SaIgnore
     @PostMapping("/mp-login")
     public Result<MpLoginVO> mpLogin(@Validated @RequestBody MpLoginDTO dto) {
+        // 调用mpLogin方法，复用统一能力并保证业务规则一致。
         MpLoginVO vo = authService.mpLogin(dto);
         return Result.ok(vo);
     }
@@ -102,6 +104,7 @@ public class SysAuthController {
     @OperLog(title = "切换公司", operType = OperTypeEnum.OTHER)
     @PostMapping("/choose-company")
     public Result<SysUserVO> chooseCompany(@Validated @RequestBody ChooseCompanyDTO dto) {
+        // 调用getCompanyId方法，复用统一能力并保证业务规则一致。
         SysUserVO vo = authService.chooseCompany(dto.getCompanyId());
         return Result.ok(vo);
     }
@@ -114,6 +117,7 @@ public class SysAuthController {
     @ApiOperation(value = "获取当前用户信息")
     @GetMapping("/user-info")
     public Result<SysUserVO> getUserInfo() {
+        // 调用getUserInfo方法，复用统一能力并保证业务规则一致。
         SysUserVO vo = authService.getUserInfo();
         return Result.ok(vo);
     }
@@ -141,6 +145,7 @@ public class SysAuthController {
     @OperLog(title = "账号中心", operType = OperTypeEnum.UPDATE)
     @PutMapping("/change-password")
     public Result<Void> changePassword(@Validated @RequestBody ChangePasswordDTO dto) {
+        // 调用changePassword方法，复用统一能力并保证业务规则一致。
         authService.changePassword(dto);
         return Result.ok();
     }
@@ -177,6 +182,7 @@ public class SysAuthController {
     @OperLog(title = "账号中心", operType = OperTypeEnum.UPDATE)
     @PostMapping("/wechat-bind/unbind")
     public Result<Void> unbindWechat(@Validated @RequestBody WechatBindUnbindDTO dto) {
+        // 调用unbindWechat方法，复用统一能力并保证业务规则一致。
         authService.unbindWechat(dto);
         return Result.ok();
     }
@@ -202,8 +208,11 @@ public class SysAuthController {
     @ApiOperation(value = "获取当前用户菜单树（动态路由）")
     @GetMapping("/menus")
     public Result<List<SysMenuVO>> getMenus() {
+        // 调用getCurrentUserId方法，复用统一能力并保证业务规则一致。
         Long userId = SecurityContext.getCurrentUserId();
+        // 调用getCurrentCompanyId方法，复用统一能力并保证业务规则一致。
         Long companyId = SecurityContext.getCurrentCompanyId();
+        // 调用listMenuTreeByUser方法，复用统一能力并保证业务规则一致。
         List<SysMenuVO> menus = menuService.listMenuTreeByUser(userId, companyId);
         return Result.ok(menus);
     }
@@ -217,7 +226,10 @@ public class SysAuthController {
     @OperLog(title = "用户登出", operType = OperTypeEnum.LOGOUT)
     @PostMapping("/logout")
     public Result<Void> logout() {
+        // 调用logout方法，复用统一能力并保证业务规则一致。
         authService.logout();
         return Result.ok();
     }
 }
+
+

@@ -20,24 +20,26 @@ public class CompanyDataAccessContext {
     private static final ThreadLocal<Long> TARGET_COMPANY_ID = new ThreadLocal<>();
 
     /**
-     * ??Target Company Id?
+     * 获取Target公司ID。
      *
-     * @return ????
+     * @return 处理结果
      */
     public Long getTargetCompanyId() {
         return TARGET_COMPANY_ID.get();
     }
 
     /**
-     * ???????
+     * 解析公司ID。
      *
-     * @return ????
+     * @return 处理结果
      */
     public Long resolveCompanyId() {
+        // 调用getTargetCompanyId方法，复用统一能力并保证业务规则一致。
         Long targetCompanyId = getTargetCompanyId();
         if (targetCompanyId != null) {
             return targetCompanyId;
         }
+        // 调用getCurrentCompanyId方法，复用统一能力并保证业务规则一致。
         Long currentCompanyId = SecurityContext.getCurrentCompanyId();
         if (currentCompanyId == null) {
             throw new ServiceException("缺少公司数据访问上下文");
@@ -46,55 +48,62 @@ public class CompanyDataAccessContext {
     }
 
     /**
-     * ?? runWithTargetCompany ?????
+     * runWithTarget公司。
      *
-     * @param targetCompanyId ????ID
-     * @param supplier ????
-     * @return ????
+     * @param supplier 参数
+     * @return 处理结果
      */
     public <T> T runWithTargetCompany(Long targetCompanyId, Supplier<T> supplier) {
         if (targetCompanyId == null) {
             throw new ServiceException("缺少目标公司上下文");
         }
+        // 调用get方法，复用统一能力并保证业务规则一致。
         Long previous = TARGET_COMPANY_ID.get();
+        // 调用set方法，复用统一能力并保证业务规则一致。
         TARGET_COMPANY_ID.set(targetCompanyId);
         try {
             return supplier.get();
         } finally {
+            // 调用restore方法，复用统一能力并保证业务规则一致。
             restore(previous);
         }
     }
 
     /**
-     * ?? runWithTargetCompany ?????
+     * runWithTarget公司。
      *
-     * @param targetCompanyId ????ID
-     * @param runnable ????
+     * @param runnable 参数
      */
     public void runWithTargetCompany(Long targetCompanyId, Runnable runnable) {
         runWithTargetCompany(targetCompanyId, () -> {
+            // 调用run方法，复用统一能力并保证业务规则一致。
             runnable.run();
             return null;
         });
     }
 
     /**
-     * ?????
+     * clear。
      */
     public void clear() {
+        // 调用remove方法，复用统一能力并保证业务规则一致。
         TARGET_COMPANY_ID.remove();
     }
 
     /**
-     * ?? restore ?????
+     * restore。
      *
-     * @param previous ??
+     * @param previous 参数
      */
     private void restore(Long previous) {
         if (previous == null) {
+            // 调用remove方法，复用统一能力并保证业务规则一致。
             TARGET_COMPANY_ID.remove();
         } else {
+            // 调用set方法，复用统一能力并保证业务规则一致。
             TARGET_COMPANY_ID.set(previous);
         }
     }
 }
+
+

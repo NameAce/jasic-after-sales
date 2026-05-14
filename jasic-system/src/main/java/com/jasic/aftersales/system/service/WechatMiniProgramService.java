@@ -53,3 +53,5 @@ public interface WechatMiniProgramService {
     void sendSubscribeMessage(WechatMiniProgramScene scene, String openid, String templateId, String pagePath,
                               JSONObject data);
 }
+
+

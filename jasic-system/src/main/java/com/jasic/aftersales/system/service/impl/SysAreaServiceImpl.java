@@ -35,16 +35,24 @@ public class SysAreaServiceImpl implements ISysAreaService {
     };
 
     /**
-     * ???????
+     * 系统AreaMapper数据访问接口。
      *
-     * @param parentCode ??
-     * @return ????
+     * @param parentCode 参数
+     * @return 处理结果
      */
     @Resource
     private SysAreaMapper sysAreaMapper;
 
+    /**
+     * 查询listOptionsByParentCode相关业务数据。
+     *
+     * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
+     * @param parentCode 参数
+     * @return 处理结果
+     */
     @Override
     public List<SysAreaOptionVO> listOptionsByParentCode(String parentCode) {
+        // 调用trim方法，复用统一能力并保证业务规则一致。
         List<SysArea> children = listEnabledChildren(StrUtil.blankToDefault(StrUtil.trim(parentCode), ROOT_PARENT_CODE));
         if (children.isEmpty()) {
             return Collections.emptyList();
@@ -53,17 +61,17 @@ public class SysAreaServiceImpl implements ISysAreaService {
     }
 
     /**
-     * ??By Area Code?
+     * 获取ByArea编码。
      *
-     * @param areaCode ??
-     * @return ????
+     * @param areaCode 参数
+     * @return 处理结果
      */
     @Override
     public SysArea getByAreaCode(String areaCode) {
         if (StrUtil.isBlank(areaCode)) {
             return null;
         }
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         SysArea area = sysAreaMapper.selectById(StrUtil.trim(areaCode));
         if (area == null || !Objects.equals(area.getStatus(), STATUS_ENABLED)) {
             return null;
@@ -72,10 +80,10 @@ public class SysAreaServiceImpl implements ISysAreaService {
     }
 
     /**
-     * ??By Area Codes?
+     * 获取ByAreaCodes。
      *
-     * @param areaCodes ??
-     * @return ????
+     * @param areaCodes 参数
+     * @return 处理结果
      */
     @Override
     public Map<String, SysArea> getByAreaCodes(Collection<String> areaCodes) {
@@ -85,14 +93,16 @@ public class SysAreaServiceImpl implements ISysAreaService {
         Set<String> normalizedCodes = areaCodes.stream()
                 .map(StrUtil::trim)
                 .filter(StrUtil::isNotBlank)
+                // 调用toCollection方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         if (normalizedCodes.isEmpty()) {
             return Collections.emptyMap();
         }
         LambdaQueryWrapper<SysArea> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(SysArea::getAreaCode, normalizedCodes)
+                // 调用eq方法，复用统一能力并保证业务规则一致。
                 .eq(SysArea::getStatus, STATUS_ENABLED);
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         List<SysArea> areas = sysAreaMapper.selectList(wrapper);
         if (areas.isEmpty()) {
             return Collections.emptyMap();
@@ -101,32 +111,39 @@ public class SysAreaServiceImpl implements ISysAreaService {
     }
 
     /**
-     * ?? matchRegion ?????
+     * match地区。
      *
-     * @param provinceName ??
-     * @param cityName ??
-     * @param districtName ??
-     * @param detailAddress ??
-     * @return ????
+     * @param provinceName 参数
+     * @param cityName 参数
+     * @param districtName 参数
+     * @param detailAddress 参数
+     * @return 处理结果
      */
     @Override
     public AreaMatchResult matchRegion(String provinceName, String cityName, String districtName, String detailAddress) {
+        // 调用listEnabledChildren方法，复用统一能力并保证业务规则一致。
         SysArea province = findBestMatch(listEnabledChildren(ROOT_PARENT_CODE), provinceName, null);
         if (province == null) {
             return new AreaMatchResult(null, null, null);
         }
 
+        // 调用getAreaCode方法，复用统一能力并保证业务规则一致。
         List<SysArea> cityAreas = listEnabledChildren(province.getAreaCode());
+        // 调用findBestMatch方法，复用统一能力并保证业务规则一致。
         SysArea city = findBestMatch(cityAreas, cityName, null);
         SysArea district = null;
         if (city != null) {
+            // 调用resolveDistrict方法，复用统一能力并保证业务规则一致。
             district = resolveDistrict(city, districtName, detailAddress);
         }
 
         if (city == null || district == null) {
+            // 调用resolvePairByCityLikeDistrict方法，复用统一能力并保证业务规则一致。
             AreaPair pair = resolvePairByCityLikeDistrict(province, cityName, districtName, detailAddress);
             if (pair != null) {
+                // 调用getCity方法，复用统一能力并保证业务规则一致。
                 city = pair.getCity();
+                // 调用getDistrict方法，复用统一能力并保证业务规则一致。
                 district = pair.getDistrict();
             }
         }
@@ -135,34 +152,42 @@ public class SysAreaServiceImpl implements ISysAreaService {
     }
 
     /**
-     * ???????
+     * 构建Option。
      *
-     * @param area ??
-     * @return ????
+     * @param area 参数
+     * @return 处理结果
      */
     private SysAreaOptionVO buildOption(SysArea area) {
+        // 调用SysAreaOptionVO方法，复用统一能力并保证业务规则一致。
         SysAreaOptionVO option = new SysAreaOptionVO();
+        // 调用getAreaCode方法，复用统一能力并保证业务规则一致。
         option.setAreaCode(area.getAreaCode());
+        // 调用getAreaName方法，复用统一能力并保证业务规则一致。
         option.setAreaName(area.getAreaName());
+        // 调用getParentCode方法，复用统一能力并保证业务规则一致。
         option.setParentCode(area.getParentCode());
+        // 调用getAreaLevel方法，复用统一能力并保证业务规则一致。
         option.setAreaLevel(area.getAreaLevel());
+        // 调用getAreaLevel方法，复用统一能力并保证业务规则一致。
         option.setLeaf(LEVEL_DISTRICT.equals(area.getAreaLevel()));
         return option;
     }
 
     /**
-     * ???????
+     * 解析District。
      *
-     * @param city ??
-     * @param districtName ??
-     * @param detailAddress ??
-     * @return ????
+     * @param city 参数
+     * @param districtName 参数
+     * @param detailAddress 参数
+     * @return 处理结果
      */
     private SysArea resolveDistrict(SysArea city, String districtName, String detailAddress) {
+        // 调用getAreaCode方法，复用统一能力并保证业务规则一致。
         List<SysArea> districts = listEnabledChildren(city.getAreaCode());
         if (districts.isEmpty()) {
             return null;
         }
+        // 调用findBestMatch方法，复用统一能力并保证业务规则一致。
         SysArea district = findBestMatch(districts, districtName, null);
         if (district != null) {
             return district;
@@ -171,23 +196,26 @@ public class SysAreaServiceImpl implements ISysAreaService {
     }
 
     /**
-     * ???????
+     * 解析PairByCityLikeDistrict。
      *
-     * @param province ??
-     * @param cityName ??
-     * @param districtName ??
-     * @param detailAddress ??
-     * @return ????
+     * @param province 参数
+     * @param cityName 参数
+     * @param districtName 参数
+     * @param detailAddress 参数
+     * @return 处理结果
      */
     private AreaPair resolvePairByCityLikeDistrict(SysArea province, String cityName, String districtName, String detailAddress) {
+        // 调用getAreaCode方法，复用统一能力并保证业务规则一致。
         List<SysArea> cities = listEnabledChildren(province.getAreaCode());
         if (cities.isEmpty()) {
             return null;
         }
+        // 调用firstNonBlank方法，复用统一能力并保证业务规则一致。
         String districtLikeName = firstNonBlank(cityName, districtName);
         if (districtLikeName == null && detailAddress == null) {
             return null;
         }
+        // 调用findUniquePairByDistrict方法，复用统一能力并保证业务规则一致。
         AreaPair matchedByDistrictName = findUniquePairByDistrict(cities, districtLikeName, null);
         if (matchedByDistrictName != null) {
             return matchedByDistrictName;
@@ -196,12 +224,12 @@ public class SysAreaServiceImpl implements ISysAreaService {
     }
 
     /**
-     * ?? findUniquePairByDistrict ?????
+     * findUniquePairByDistrict。
      *
-     * @param cities ??
-     * @param candidateName ??
-     * @param addressText ??
-     * @return ????
+     * @param cities 参数
+     * @param candidateName 参数
+     * @param addressText 参数
+     * @return 处理结果
      */
     private AreaPair findUniquePairByDistrict(List<SysArea> cities, String candidateName, String addressText) {
         if (StrUtil.isBlank(candidateName) && StrUtil.isBlank(addressText)) {
@@ -209,7 +237,9 @@ public class SysAreaServiceImpl implements ISysAreaService {
         }
         AreaPair matched = null;
         for (SysArea city : cities) {
+            // 调用getAreaCode方法，复用统一能力并保证业务规则一致。
             List<SysArea> districts = listEnabledChildren(city.getAreaCode());
+            // 调用findBestMatch方法，复用统一能力并保证业务规则一致。
             SysArea district = findBestMatch(districts, candidateName, addressText);
             if (district == null) {
                 continue;
@@ -217,31 +247,36 @@ public class SysAreaServiceImpl implements ISysAreaService {
             if (matched != null) {
                 return null;
             }
+            // 调用AreaPair方法，复用统一能力并保证业务规则一致。
             matched = new AreaPair(city, district);
         }
         return matched;
     }
 
     /**
-     * ?? findBestMatch ?????
+     * findBestMatch。
      *
-     * @param candidates ??
-     * @param preferredName ??
-     * @param fuzzyAddressText ??
-     * @return ????
+     * @param candidates 参数
+     * @param preferredName 参数
+     * @param fuzzyAddressText 参数
+     * @return 处理结果
      */
     private SysArea findBestMatch(List<SysArea> candidates, String preferredName, String fuzzyAddressText) {
         if (candidates == null || candidates.isEmpty()) {
             return null;
         }
+        // 调用normalizeAreaAlias方法，复用统一能力并保证业务规则一致。
         String normalizedPreferredName = normalizeAreaAlias(preferredName);
+        // 调用normalizeAreaAlias方法，复用统一能力并保证业务规则一致。
         String normalizedAddressText = normalizeAreaAlias(fuzzyAddressText);
 
+        // 调用findExactNameMatch方法，复用统一能力并保证业务规则一致。
         SysArea exact = findExactNameMatch(candidates, preferredName);
         if (exact != null) {
             return exact;
         }
 
+        // 调用findUniqueAliasMatch方法，复用统一能力并保证业务规则一致。
         SysArea aliasMatch = findUniqueAliasMatch(candidates, normalizedPreferredName);
         if (aliasMatch != null) {
             return aliasMatch;
@@ -254,13 +289,14 @@ public class SysAreaServiceImpl implements ISysAreaService {
     }
 
     /**
-     * ?? findExactNameMatch ?????
+     * findExact名称Match。
      *
-     * @param candidates ??
-     * @param targetName ??
-     * @return ????
+     * @param candidates 参数
+     * @param targetName 参数
+     * @return 处理结果
      */
     private SysArea findExactNameMatch(List<SysArea> candidates, String targetName) {
+        // 调用normalizeText方法，复用统一能力并保证业务规则一致。
         String normalizedTargetName = normalizeText(targetName);
         if (normalizedTargetName == null) {
             return null;
@@ -279,11 +315,11 @@ public class SysAreaServiceImpl implements ISysAreaService {
     }
 
     /**
-     * ?? findUniqueAliasMatch ?????
+     * findUniqueAliasMatch。
      *
-     * @param candidates ??
-     * @param alias ??
-     * @return ????
+     * @param candidates 参数
+     * @param alias 参数
+     * @return 处理结果
      */
     private SysArea findUniqueAliasMatch(List<SysArea> candidates, String alias) {
         if (alias == null) {
@@ -303,19 +339,23 @@ public class SysAreaServiceImpl implements ISysAreaService {
     }
 
     /**
-     * ?? findUniqueAddressMatch ?????
+     * findUniqueAddressMatch。
      *
-     * @param candidates ??
-     * @param normalizedAddressText ??
-     * @return ????
+     * @param candidates 参数
+     * @param normalizedAddressText 参数
+     * @return 处理结果
      */
     private SysArea findUniqueAddressMatch(List<SysArea> candidates, String normalizedAddressText) {
         SysArea matched = null;
         for (SysArea candidate : candidates) {
+            // 调用getAreaName方法，复用统一能力并保证业务规则一致。
             String areaName = normalizeText(candidate.getAreaName());
+            // 调用getAreaName方法，复用统一能力并保证业务规则一致。
             String areaAlias = normalizeAreaAlias(candidate.getAreaName());
+            // 调用normalizeAreaAlias方法，复用统一能力并保证业务规则一致。
             boolean contains = StrUtil.isNotBlank(areaName) && normalizedAddressText.contains(normalizeAreaAlias(areaName));
             if (!contains && StrUtil.isNotBlank(areaAlias)) {
+                // 调用contains方法，复用统一能力并保证业务规则一致。
                 contains = normalizedAddressText.contains(areaAlias);
             }
             if (!contains) {
@@ -330,38 +370,42 @@ public class SysAreaServiceImpl implements ISysAreaService {
     }
 
     /**
-     * ???????
+     * 分页查询EnabledChildren列表。
      *
-     * @param parentCode ??
-     * @return ????
+     * @param parentCode 参数
+     * @return 处理结果
      */
     private List<SysArea> listEnabledChildren(String parentCode) {
         LambdaQueryWrapper<SysArea> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysArea::getParentCode, parentCode)
                 .eq(SysArea::getStatus, STATUS_ENABLED)
                 .orderByAsc(SysArea::getSortNum)
+                // 调用orderByAsc方法，复用统一能力并保证业务规则一致。
                 .orderByAsc(SysArea::getAreaCode);
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         return sysAreaMapper.selectList(wrapper);
     }
 
     /**
-     * ????????
+     * 规范化AreaAlias。
      *
-     * @param value ???
-     * @return ?????
+     * @param value 参数
+     * @return 处理结果
      */
     private String normalizeAreaAlias(String value) {
+        // 调用normalizeText方法，复用统一能力并保证业务规则一致。
         String normalized = normalizeText(value);
         if (normalized == null) {
             return null;
         }
+        // 调用replace方法，复用统一能力并保证业务规则一致。
         normalized = normalized.replace(" ", "");
         boolean changed = true;
         while (changed) {
             changed = false;
             for (String suffix : AREA_ALIAS_SUFFIXES) {
                 if (normalized.endsWith(suffix) && normalized.length() > suffix.length()) {
+                    // 调用length方法，复用统一能力并保证业务规则一致。
                     normalized = normalized.substring(0, normalized.length() - suffix.length());
                     changed = true;
                     break;
@@ -372,24 +416,26 @@ public class SysAreaServiceImpl implements ISysAreaService {
     }
 
     /**
-     * ????????
+     * 规范化Text。
      *
-     * @param value ???
-     * @return ?????
+     * @param value 参数
+     * @return 处理结果
      */
     private String normalizeText(String value) {
+        // 调用trim方法，复用统一能力并保证业务规则一致。
         String normalized = StrUtil.trim(value);
         return StrUtil.isBlank(normalized) ? null : normalized;
     }
 
     /**
-     * ?? firstNonBlank ?????
+     * firstNonBlank。
      *
-     * @param first ??
-     * @param second ??
-     * @return ?????
+     * @param first 参数
+     * @param second 参数
+     * @return 处理结果
      */
     private String firstNonBlank(String first, String second) {
+        // 调用normalizeText方法，复用统一能力并保证业务规则一致。
         String normalizedFirst = normalizeText(first);
         if (normalizedFirst != null) {
             return normalizedFirst;
@@ -400,37 +446,48 @@ public class SysAreaServiceImpl implements ISysAreaService {
     private static final class AreaPair {
 
         /**
-         * ?? AreaPair ?????
-         *
-         * @param city ??
-         * @param district ??
-         * @return ????
+     * 系统Area字段。
+     *
+     * @param city 参数
+     * @param district 参数
+     * @return 处理结果
          */
         private final SysArea city;
 
         private final SysArea district;
 
+        /**
+     * 构造系统Area实例。
+     *
+     * @param city 参数
+     * @param district 参数
+     * @return 处理结果
+         */
         private AreaPair(SysArea city, SysArea district) {
             this.city = city;
             this.district = district;
         }
 
         /**
-         * ??City?
-         *
-         * @return ????
+     * 获取City。
+     *
+     * @return 处理结果
          */
         private SysArea getCity() {
             return city;
         }
 
         /**
-         * ??District?
-         *
-         * @return ????
+     * 获取District。
+     *
+     * @return 处理结果
          */
         private SysArea getDistrict() {
             return district;
         }
     }
 }
+
+
+
+

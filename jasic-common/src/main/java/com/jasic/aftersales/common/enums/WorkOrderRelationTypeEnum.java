@@ -43,8 +43,11 @@ public enum WorkOrderRelationTypeEnum {
     private final String code;
 
     /** 说明 */
-    private final String desc;
+        private final String desc;
 
+    /**
+     * 构造工单关系类型实例。
+     */
     WorkOrderRelationTypeEnum(String code, String desc) {
         this.code = code;
         this.desc = desc;
@@ -95,3 +98,8 @@ public enum WorkOrderRelationTypeEnum {
         return this != NONE;
     }
 }
+
+
+
+
+

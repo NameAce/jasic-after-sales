@@ -71,3 +71,5 @@ public interface SysFileService {
      */
     Map<SysFileBizTypeEnum, List<SysFileItemVO>> listBizFileMap(List<SysFileBizTypeEnum> bizTypes, Long bizId);
 }
+
+

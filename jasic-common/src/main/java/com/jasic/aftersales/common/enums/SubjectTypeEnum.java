@@ -24,8 +24,11 @@ public enum SubjectTypeEnum {
     private final String code;
 
     /** 描述 */
-    private final String desc;
+        private final String desc;
 
+    /**
+     * 构造主体类型实例。
+     */
     SubjectTypeEnum(String code, String desc) {
         this.code = code;
         this.desc = desc;
@@ -46,3 +49,8 @@ public enum SubjectTypeEnum {
         return null;
     }
 }
+
+
+
+
+

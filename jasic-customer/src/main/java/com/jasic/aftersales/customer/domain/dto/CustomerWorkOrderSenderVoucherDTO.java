@@ -31,3 +31,5 @@ public class CustomerWorkOrderSenderVoucherDTO implements Serializable {
     @NotEmpty(message = "寄件凭证不能为空")
     private List<Long> senderVoucherFileIds;
 }
+
+

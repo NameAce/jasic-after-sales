@@ -42,31 +42,38 @@ public enum SysFileBizTypeEnum {
     WORK_ORDER_REPAIR_OTHER_IMAGE("WORK_ORDER_REPAIR_OTHER_IMAGE", "维修登记其他图片");
 
     /**
-     * ?? SysFileBizTypeEnum ?????
+     * 系统文件业务类型编码。
      *
-     * @param code ??
-     * @param desc ??
-     * @return ????
+     * @param code 参数
+     * @param desc 参数
+     * @return 处理结果
      */
     private final String code;
 
     private final String desc;
 
+    /**
+     * 构造系统文件业务类型实例。
+     *
+     * @param code 参数
+     * @param desc 参数
+     */
     SysFileBizTypeEnum(String code, String desc) {
         this.code = code;
         this.desc = desc;
     }
 
     /**
-     * ??By Code?
+     * 根据编码查询文件业务类型。
      *
-     * @param code ??
-     * @return ????
+     * @param code 参数
+     * @return 处理结果
      */
     public static SysFileBizTypeEnum getByCode(String code) {
         if (code == null) {
             return null;
         }
+        // 调用trim方法，复用统一能力并保证业务规则一致。
         String normalizedCode = code.trim();
         if (normalizedCode.isEmpty()) {
             return null;
@@ -80,13 +87,14 @@ public enum SysFileBizTypeEnum {
     }
 
     /**
-     * ?? fromCode ?????
+     * 根据编码解析文件业务类型。
      *
-     * @param code ??
-     * @return ????
+     * @param code 参数
+     * @return 处理结果
      */
     @JsonCreator
     public static SysFileBizTypeEnum fromCode(String code) {
+        // 调用getByCode方法，复用统一能力并保证业务规则一致。
         SysFileBizTypeEnum value = getByCode(code);
         if (value == null && code != null) {
             throw new IllegalArgumentException("不支持的文件业务类型编码：" + code);
@@ -95,9 +103,9 @@ public enum SysFileBizTypeEnum {
     }
 
     /**
-     * ?????
+     * 获取文件业务类型编码。
      *
-     * @return ?????
+     * @return 处理结果
      */
     @JsonValue
     public String getCode() {
@@ -105,11 +113,15 @@ public enum SysFileBizTypeEnum {
     }
 
     /**
-     * ?????
+     * 获取文件业务类型描述。
      *
-     * @return ?????
+     * @return 处理结果
      */
     public String getDesc() {
         return desc;
     }
 }
+
+
+
+

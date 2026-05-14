@@ -37,9 +37,9 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
     private static final int DETAIL_ADDRESS_MAX_LENGTH = 255;
 
     /**
-     * ???????
+     * 客户AddressMapper数据访问接口。
      *
-     * @return ????
+     * @return 处理结果
      */
     @Resource
     private CustomerAddressMapper customerAddressMapper;
@@ -54,6 +54,7 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
      */
     @Override
     public List<CustomerAddressVO> list() {
+        // 调用requireCurrentCustomerId方法，复用统一能力并保证业务规则一致。
         Long customerId = requireCurrentCustomerId();
         return listEntities(customerId).stream().map(this::buildAddressVO).collect(Collectors.toList());
     }
@@ -78,24 +79,31 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long create(CustomerAddressCreateDTO dto) {
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         Long customerId = requireCurrentCustomerId();
+        // 调用listEntities方法，复用统一能力并保证业务规则一致。
         List<CustomerAddress> currentAddresses = listEntities(customerId);
         if (currentAddresses.size() >= MAX_ADDRESS_COUNT) {
             throw new ServiceException("最多只能保存20条地址，请先删除一条后再新增");
         }
 
+        // 调用CustomerAddress方法，复用统一能力并保证业务规则一致。
         CustomerAddress entity = new CustomerAddress();
+        // 调用setCustomerId方法，复用统一能力并保证业务规则一致。
         entity.setCustomerId(customerId);
         fillAddress(entity, dto.getContactName(), dto.getContactMobile(), dto.getProvince(), dto.getCity(),
+                // 调用getDetailAddress方法，复用统一能力并保证业务规则一致。
                 dto.getCounty(), dto.getDetailAddress());
 
+        // 调用getIsDefault方法，复用统一能力并保证业务规则一致。
         boolean shouldSetDefault = currentAddresses.isEmpty() || isDefaultFlag(dto.getIsDefault());
+        // 调用setIsDefault方法，复用统一能力并保证业务规则一致。
         entity.setIsDefault(shouldSetDefault ? 1 : 0);
         if (shouldSetDefault) {
+            // 调用clearDefault方法，复用统一能力并保证业务规则一致。
             clearDefault(customerId, null);
         }
-        // ???????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         customerAddressMapper.insert(entity);
         return entity.getId();
     }
@@ -108,12 +116,14 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void update(CustomerAddressUpdateDTO dto) {
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         Long customerId = requireCurrentCustomerId();
+        // 调用getId方法，复用统一能力并保证业务规则一致。
         CustomerAddress entity = requireOwnedAddress(dto.getId(), customerId);
         fillAddress(entity, dto.getContactName(), dto.getContactMobile(), dto.getProvince(), dto.getCity(),
+                // 调用getDetailAddress方法，复用统一能力并保证业务规则一致。
                 dto.getCounty(), dto.getDetailAddress());
-        // ???????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         customerAddressMapper.updateById(entity);
     }
 
@@ -125,18 +135,21 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long addressId) {
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         Long customerId = requireCurrentCustomerId();
+        // 调用requireOwnedAddress方法，复用统一能力并保证业务规则一致。
         CustomerAddress entity = requireOwnedAddress(addressId, customerId);
-        // ???????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         customerAddressMapper.deleteById(entity.getId());
         if (!isDefaultFlag(entity.getIsDefault())) {
             return;
         }
+        // 调用listEntities方法，复用统一能力并保证业务规则一致。
         List<CustomerAddress> remaining = listEntities(customerId);
         if (remaining.isEmpty()) {
             return;
         }
+        // 调用getId方法，复用统一能力并保证业务规则一致。
         setDefaultInternal(customerId, remaining.get(0).getId());
     }
 
@@ -148,12 +161,14 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void setDefault(Long addressId) {
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         Long customerId = requireCurrentCustomerId();
+        // 调用requireOwnedAddress方法，复用统一能力并保证业务规则一致。
         CustomerAddress entity = requireOwnedAddress(addressId, customerId);
         if (isDefaultFlag(entity.getIsDefault())) {
             return;
         }
+        // 调用getId方法，复用统一能力并保证业务规则一致。
         setDefaultInternal(customerId, entity.getId());
     }
 
@@ -163,6 +178,7 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
      * @return 客户ID
      */
     private Long requireCurrentCustomerId() {
+        // 调用getCurrentUser方法，复用统一能力并保证业务规则一致。
         CUser user = cUserService.getCurrentUser();
         return user.getId();
     }
@@ -175,7 +191,7 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
      * @return 地址实体
      */
     private CustomerAddress requireOwnedAddress(Long addressId, Long customerId) {
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         CustomerAddress entity = customerAddressMapper.selectById(addressId);
         if (entity == null) {
             throw new ServiceException("地址不存在");
@@ -193,7 +209,7 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
      * @return 地址列表
      */
     private List<CustomerAddress> listEntities(Long customerId) {
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         List<CustomerAddress> entities = customerAddressMapper.selectList(
                 new LambdaQueryWrapper<CustomerAddress>().eq(CustomerAddress::getCustomerId, customerId)
         );
@@ -203,6 +219,7 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
         return entities.stream()
                 .filter(item -> customerId.equals(item.getCustomerId()))
                 .sorted(this::compareAddress)
+                // 调用toList方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toList());
     }
 
@@ -213,6 +230,7 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
      * @param keepId 保留为默认的地址ID
      */
     private void clearDefault(Long customerId, Long keepId) {
+        // 调用listEntities方法，复用统一能力并保证业务规则一致。
         List<CustomerAddress> entities = listEntities(customerId);
         for (CustomerAddress item : entities) {
             if (!isDefaultFlag(item.getIsDefault())) {
@@ -221,8 +239,9 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
             if (keepId != null && keepId.equals(item.getId())) {
                 continue;
             }
+            // 调用setIsDefault方法，复用统一能力并保证业务规则一致。
             item.setIsDefault(0);
-            // ???????????????????????
+            // 说明：执行该步骤以保证业务流程正确。
             customerAddressMapper.updateById(item);
         }
     }
@@ -234,11 +253,13 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
      * @param addressId 地址ID
      */
     private void setDefaultInternal(Long customerId, Long addressId) {
+        // 调用clearDefault方法，复用统一能力并保证业务规则一致。
         clearDefault(customerId, addressId);
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         CustomerAddress entity = requireOwnedAddress(addressId, customerId);
+        // 调用setIsDefault方法，复用统一能力并保证业务规则一致。
         entity.setIsDefault(1);
-        // ???????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         customerAddressMapper.updateById(entity);
     }
 
@@ -257,9 +278,13 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
                              String city, String county, String detailAddress) {
         entity.setContactName(normalizeTextWithLength(contactName, "联系人不能为空", CONTACT_NAME_MAX_LENGTH,
                 "联系人长度不能超过64个字符"));
+        // 调用normalizeMobile方法，复用统一能力并保证业务规则一致。
         entity.setContactMobile(normalizeMobile(contactMobile));
+        // 调用normalizeTextWithLength方法，复用统一能力并保证业务规则一致。
         entity.setProvince(normalizeTextWithLength(province, "省不能为空", REGION_MAX_LENGTH, "省长度不能超过64个字符"));
+        // 调用normalizeTextWithLength方法，复用统一能力并保证业务规则一致。
         entity.setCity(normalizeTextWithLength(city, "市不能为空", REGION_MAX_LENGTH, "市长度不能超过64个字符"));
+        // 调用normalizeOptionalText方法，复用统一能力并保证业务规则一致。
         entity.setCounty(normalizeOptionalText(county, REGION_MAX_LENGTH, "区县长度不能超过64个字符"));
         entity.setDetailAddress(normalizeTextWithLength(detailAddress, "详细地址不能为空", DETAIL_ADDRESS_MAX_LENGTH,
                 "详细地址长度不能超过255个字符"));
@@ -272,15 +297,25 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
      * @return 地址视图
      */
     private CustomerAddressVO buildAddressVO(CustomerAddress entity) {
+        // 调用CustomerAddressVO方法，复用统一能力并保证业务规则一致。
         CustomerAddressVO vo = new CustomerAddressVO();
+        // 调用getId方法，复用统一能力并保证业务规则一致。
         vo.setId(entity.getId());
+        // 调用getContactName方法，复用统一能力并保证业务规则一致。
         vo.setContactName(entity.getContactName());
+        // 调用getContactMobile方法，复用统一能力并保证业务规则一致。
         vo.setContactMobile(entity.getContactMobile());
+        // 调用getProvince方法，复用统一能力并保证业务规则一致。
         vo.setProvince(entity.getProvince());
+        // 调用getCity方法，复用统一能力并保证业务规则一致。
         vo.setCity(entity.getCity());
+        // 调用getCounty方法，复用统一能力并保证业务规则一致。
         vo.setCounty(entity.getCounty());
+        // 调用getDetailAddress方法，复用统一能力并保证业务规则一致。
         vo.setDetailAddress(entity.getDetailAddress());
+        // 调用getIsDefault方法，复用统一能力并保证业务规则一致。
         vo.setIsDefault(entity.getIsDefault());
+        // 调用buildFullAddress方法，复用统一能力并保证业务规则一致。
         vo.setFullAddress(buildFullAddress(entity));
         return vo;
     }
@@ -292,10 +327,15 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
      * @return 完整地址
      */
     private String buildFullAddress(CustomerAddress entity) {
+        // 调用StringBuilder方法，复用统一能力并保证业务规则一致。
         StringBuilder builder = new StringBuilder();
+        // 调用getProvince方法，复用统一能力并保证业务规则一致。
         appendIfHasText(builder, entity.getProvince());
+        // 调用getCity方法，复用统一能力并保证业务规则一致。
         appendIfHasText(builder, entity.getCity());
+        // 调用getCounty方法，复用统一能力并保证业务规则一致。
         appendIfHasText(builder, entity.getCounty());
+        // 调用getDetailAddress方法，复用统一能力并保证业务规则一致。
         appendIfHasText(builder, entity.getDetailAddress());
         return builder.toString();
     }
@@ -308,6 +348,7 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
      */
     private void appendIfHasText(StringBuilder builder, String value) {
         if (StringUtils.hasText(value)) {
+            // 调用trim方法，复用统一能力并保证业务规则一致。
             builder.append(value.trim());
         }
     }
@@ -322,6 +363,7 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
      * @return 清洗后的文本
      */
     private String normalizeTextWithLength(String value, String requiredMessage, int maxLength, String tooLongMessage) {
+        // 调用normalizeRequiredText方法，复用统一能力并保证业务规则一致。
         String normalized = normalizeRequiredText(value, requiredMessage);
         if (normalized.length() > maxLength) {
             throw new ServiceException(tooLongMessage);
@@ -338,6 +380,7 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
      * @return 清洗后的文本
      */
     private String normalizeOptionalText(String value, int maxLength, String tooLongMessage) {
+        // 调用normalizeText方法，复用统一能力并保证业务规则一致。
         String normalized = normalizeText(value);
         if (normalized != null && normalized.length() > maxLength) {
             throw new ServiceException(tooLongMessage);
@@ -353,6 +396,7 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
      * @return 清洗后的文本
      */
     private String normalizeRequiredText(String value, String message) {
+        // 调用normalizeText方法，复用统一能力并保证业务规则一致。
         String normalized = normalizeText(value);
         if (normalized == null) {
             throw new ServiceException(message);
@@ -367,6 +411,7 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
      * @return 清洗后的手机号
      */
     private String normalizeMobile(String mobile) {
+        // 调用normalizeRequiredText方法，复用统一能力并保证业务规则一致。
         String normalized = normalizeRequiredText(mobile, "联系手机号不能为空");
         if (!MOBILE_PATTERN.matcher(normalized).matches()) {
             throw new ServiceException("请输入正确的手机号");
@@ -402,10 +447,12 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
      * @return 比较结果
      */
     private int compareAddress(CustomerAddress left, CustomerAddress right) {
+        // 调用defaultSortValue方法，复用统一能力并保证业务规则一致。
         int defaultCompare = Integer.compare(defaultSortValue(right), defaultSortValue(left));
         if (defaultCompare != 0) {
             return defaultCompare;
         }
+        // 调用getUpdateTime方法，复用统一能力并保证业务规则一致。
         int updateCompare = compareDateTimeDesc(left.getUpdateTime(), right.getUpdateTime());
         if (updateCompare != 0) {
             return updateCompare;
@@ -453,3 +500,5 @@ public class CustomerAddressServiceImpl implements ICustomerAddressService {
         return id == null ? 0L : id;
     }
 }
+
+

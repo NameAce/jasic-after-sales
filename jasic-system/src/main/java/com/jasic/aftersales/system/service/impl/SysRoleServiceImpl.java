@@ -46,10 +46,10 @@ public class SysRoleServiceImpl implements ISysRoleService {
     private SysUserRoleMapper sysUserRoleMapper;
 
     /**
-     * ???????
+     * 系统权限服务服务依赖。
      *
-     * @param query ????
-     * @return ????
+     * @param query 参数
+     * @return 处理结果
      */
     @Resource
     private SysPermissionService sysPermissionService;
@@ -65,25 +65,32 @@ public class SysRoleServiceImpl implements ISysRoleService {
      */
     @Override
     public PageResult<SysRoleVO> listPage(SysRoleQuery query) {
+        // 调用getPageSize方法，复用统一能力并保证业务规则一致。
         Page<SysRole> page = new Page<>(query.getPageNum(), query.getPageSize());
         LambdaQueryWrapper<SysRole> wrapper = new LambdaQueryWrapper<>();
         if (query.getTargetCompanyId() != null) {
+            // 调用getTargetCompanyId方法，复用统一能力并保证业务规则一致。
             wrapper.eq(SysRole::getCompanyId, query.getTargetCompanyId());
         }
         if (StrUtil.isNotBlank(query.getRoleName())) {
+            // 调用getRoleName方法，复用统一能力并保证业务规则一致。
             wrapper.like(SysRole::getRoleName, query.getRoleName());
         }
         if (StrUtil.isNotBlank(query.getRoleKey())) {
+            // 调用getRoleKey方法，复用统一能力并保证业务规则一致。
             wrapper.like(SysRole::getRoleKey, query.getRoleKey());
         }
         if (query.getStatus() != null) {
+            // 调用getStatus方法，复用统一能力并保证业务规则一致。
             wrapper.eq(SysRole::getStatus, query.getStatus());
         }
+        // 调用orderByAsc方法，复用统一能力并保证业务规则一致。
         wrapper.orderByAsc(SysRole::getOrderNum);
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         Page<SysRole> result = sysRoleMapper.selectPage(page, wrapper);
         List<SysRoleVO> voList = result.getRecords().stream()
                 .map(this::convertToVO)
+                // 调用toList方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toList());
         return PageResult.of(voList, result.getTotal(), query.getPageNum(), query.getPageSize());
     }
@@ -99,8 +106,9 @@ public class SysRoleServiceImpl implements ISysRoleService {
         LambdaQueryWrapper<SysRole> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysRole::getCompanyId, companyId)
                 .eq(SysRole::getStatus, 1)
+                // 调用orderByAsc方法，复用统一能力并保证业务规则一致。
                 .orderByAsc(SysRole::getOrderNum);
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         List<SysRole> list = sysRoleMapper.selectList(wrapper);
         return list.stream().map(this::convertToVO).collect(Collectors.toList());
     }
@@ -113,17 +121,22 @@ public class SysRoleServiceImpl implements ISysRoleService {
      */
     @Override
     public SysRoleVO getById(Long roleId) {
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         SysRole role = sysRoleMapper.selectById(roleId);
         if (role == null) {
             throw new ServiceException("角色不存在");
         }
+        // 调用convertToVO方法，复用统一能力并保证业务规则一致。
         SysRoleVO vo = convertToVO(role);
         LambdaQueryWrapper<SysRoleMenu> menuWrapper = new LambdaQueryWrapper<>();
+        // 调用eq方法，复用统一能力并保证业务规则一致。
         menuWrapper.eq(SysRoleMenu::getRoleId, roleId);
+        // 调用selectList方法，复用统一能力并保证业务规则一致。
         List<SysRoleMenu> roleMenus = sysRoleMenuMapper.selectList(menuWrapper);
         List<Long> menuIds = roleMenus == null ? Collections.emptyList()
+                // 调用toList方法，复用统一能力并保证业务规则一致。
                 : roleMenus.stream().map(SysRoleMenu::getMenuId).collect(Collectors.toList());
+        // 调用setMenuIds方法，复用统一能力并保证业务规则一致。
         vo.setMenuIds(menuIds);
         return vo;
     }
@@ -137,21 +150,30 @@ public class SysRoleServiceImpl implements ISysRoleService {
      */
     @Override
     public Long save(Long companyId, SysRoleDTO dto) {
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         dataScopeRuleService.validateByCompanyId(companyId, dto.getDataScope());
+        // 调用getRoleKey方法，复用统一能力并保证业务规则一致。
         validateCustomRoleKey(dto.getRoleKey());
+        // 调用getRoleKey方法，复用统一能力并保证业务规则一致。
         validateRoleKeyUnique(companyId, dto.getRoleKey(), null);
+        // 调用SysRole方法，复用统一能力并保证业务规则一致。
         SysRole role = new SysRole();
+        // 调用copyProperties方法，复用统一能力并保证业务规则一致。
         BeanUtil.copyProperties(dto, role);
+        // 调用setCompanyId方法，复用统一能力并保证业务规则一致。
         role.setCompanyId(companyId);
+        // 调用setIsSystem方法，复用统一能力并保证业务规则一致。
         role.setIsSystem(0);
+        // 调用setStatus方法，复用统一能力并保证业务规则一致。
         role.setStatus(1);
         if (role.getOrderNum() == null) {
+            // 调用setOrderNum方法，复用统一能力并保证业务规则一致。
             role.setOrderNum(0);
         }
-        // ???????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         sysRoleMapper.insert(role);
         if (dto.getMenuIds() != null && !dto.getMenuIds().isEmpty()) {
+            // 调用getMenuIds方法，复用统一能力并保证业务规则一致。
             batchInsertRoleMenu(role.getId(), dto.getMenuIds());
         }
         return role.getId();
@@ -167,28 +189,35 @@ public class SysRoleServiceImpl implements ISysRoleService {
         if (dto.getId() == null) {
             throw new ServiceException("角色ID不能为空");
         }
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         SysRole role = sysRoleMapper.selectById(dto.getId());
         if (role == null) {
             throw new ServiceException("角色不存在");
         }
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         dataScopeRuleService.validateByCompanyId(role.getCompanyId(), dto.getDataScope());
+        // 调用getRoleKey方法，复用统一能力并保证业务规则一致。
         validateRoleKeyEditable(role, dto.getRoleKey());
+        // 调用getRoleKey方法，复用统一能力并保证业务规则一致。
         validateCustomRoleKey(role.getIsSystem(), dto.getRoleKey());
+        // 调用getId方法，复用统一能力并保证业务规则一致。
         validateRoleKeyUnique(role.getCompanyId(), dto.getRoleKey(), role.getId());
+        // 调用copyProperties方法，复用统一能力并保证业务规则一致。
         BeanUtil.copyProperties(dto, role);
         // 保持 companyId、isSystem 不变（DTO 无此字段，copyProperties 不会覆盖）
         sysRoleMapper.updateById(role);
         if (dto.getMenuIds() != null) {
             LambdaQueryWrapper<SysRoleMenu> delWrapper = new LambdaQueryWrapper<>();
+            // 调用getId方法，复用统一能力并保证业务规则一致。
             delWrapper.eq(SysRoleMenu::getRoleId, role.getId());
-            // ???????????????????????
+            // 说明：执行该步骤以保证业务流程正确。
             sysRoleMenuMapper.delete(delWrapper);
             if (!dto.getMenuIds().isEmpty()) {
+                // 调用getMenuIds方法，复用统一能力并保证业务规则一致。
                 batchInsertRoleMenu(role.getId(), dto.getMenuIds());
             }
         }
+        // 调用getId方法，复用统一能力并保证业务规则一致。
         kickAffectedUsers(role.getId());
     }
 
@@ -199,7 +228,7 @@ public class SysRoleServiceImpl implements ISysRoleService {
      */
     @Override
     public void remove(Long roleId) {
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         SysRole role = sysRoleMapper.selectById(roleId);
         if (role == null) {
             throw new ServiceException("角色不存在");
@@ -208,14 +237,17 @@ public class SysRoleServiceImpl implements ISysRoleService {
             throw new ServiceException("系统角色不允许删除");
         }
         LambdaQueryWrapper<SysUserRole> userRoleWrapper = new LambdaQueryWrapper<>();
+        // 调用eq方法，复用统一能力并保证业务规则一致。
         userRoleWrapper.eq(SysUserRole::getRoleId, roleId);
         if (sysUserRoleMapper.selectCount(userRoleWrapper) > 0) {
             throw new ServiceException("角色已分配给用户，请先取消分配");
         }
         LambdaQueryWrapper<SysRoleMenu> menuWrapper = new LambdaQueryWrapper<>();
+        // 调用eq方法，复用统一能力并保证业务规则一致。
         menuWrapper.eq(SysRoleMenu::getRoleId, roleId);
-        // ???????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         sysRoleMenuMapper.delete(menuWrapper);
+        // 调用deleteById方法，复用统一能力并保证业务规则一致。
         sysRoleMapper.deleteById(roleId);
     }
 
@@ -227,18 +259,21 @@ public class SysRoleServiceImpl implements ISysRoleService {
      */
     @Override
     public void assignMenus(Long roleId, List<Long> menuIds) {
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         SysRole role = sysRoleMapper.selectById(roleId);
         if (role == null) {
             throw new ServiceException("角色不存在");
         }
         LambdaQueryWrapper<SysRoleMenu> delWrapper = new LambdaQueryWrapper<>();
+        // 调用eq方法，复用统一能力并保证业务规则一致。
         delWrapper.eq(SysRoleMenu::getRoleId, roleId);
-        // ???????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         sysRoleMenuMapper.delete(delWrapper);
         if (menuIds != null && !menuIds.isEmpty()) {
+            // 调用batchInsertRoleMenu方法，复用统一能力并保证业务规则一致。
             batchInsertRoleMenu(roleId, menuIds);
         }
+        // 调用kickAffectedUsers方法，复用统一能力并保证业务规则一致。
         kickAffectedUsers(roleId);
     }
 
@@ -246,7 +281,9 @@ public class SysRoleServiceImpl implements ISysRoleService {
      * 实体转VO（不含menuIds）
      */
     private SysRoleVO convertToVO(SysRole role) {
+        // 调用SysRoleVO方法，复用统一能力并保证业务规则一致。
         SysRoleVO vo = new SysRoleVO();
+        // 调用copyProperties方法，复用统一能力并保证业务规则一致。
         BeanUtil.copyProperties(role, vo);
         return vo;
     }
@@ -256,10 +293,13 @@ public class SysRoleServiceImpl implements ISysRoleService {
      */
     private void batchInsertRoleMenu(Long roleId, List<Long> menuIds) {
         for (Long menuId : menuIds) {
+            // 调用SysRoleMenu方法，复用统一能力并保证业务规则一致。
             SysRoleMenu rm = new SysRoleMenu();
+            // 调用setRoleId方法，复用统一能力并保证业务规则一致。
             rm.setRoleId(roleId);
+            // 调用setMenuId方法，复用统一能力并保证业务规则一致。
             rm.setMenuId(menuId);
-            // ???????????????????????
+            // 说明：执行该步骤以保证业务流程正确。
             sysRoleMenuMapper.insert(rm);
         }
     }
@@ -283,6 +323,7 @@ public class SysRoleServiceImpl implements ISysRoleService {
      * @param roleKey 角色标识
      */
     private void validateCustomRoleKey(String roleKey) {
+        // 调用validateCustomRoleKey方法，复用统一能力并保证业务规则一致。
         validateCustomRoleKey(0, roleKey);
     }
 
@@ -311,11 +352,13 @@ public class SysRoleServiceImpl implements ISysRoleService {
     private void validateRoleKeyUnique(Long companyId, String roleKey, Long excludeRoleId) {
         LambdaQueryWrapper<SysRole> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysRole::getCompanyId, companyId)
+                // 调用eq方法，复用统一能力并保证业务规则一致。
                 .eq(SysRole::getRoleKey, roleKey);
         if (excludeRoleId != null) {
+            // 调用ne方法，复用统一能力并保证业务规则一致。
             wrapper.ne(SysRole::getId, excludeRoleId);
         }
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         if (sysRoleMapper.selectCount(wrapper) > 0) {
             throw new ServiceException("角色标识已存在");
         }
@@ -328,8 +371,9 @@ public class SysRoleServiceImpl implements ISysRoleService {
      */
     private void kickAffectedUsers(Long roleId) {
         LambdaQueryWrapper<SysUserRole> wrapper = new LambdaQueryWrapper<>();
+        // 调用eq方法，复用统一能力并保证业务规则一致。
         wrapper.eq(SysUserRole::getRoleId, roleId);
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         List<SysUserRole> userRoles = sysUserRoleMapper.selectList(wrapper);
         if (userRoles == null || userRoles.isEmpty()) {
             return;
@@ -337,11 +381,15 @@ public class SysRoleServiceImpl implements ISysRoleService {
         List<Long> userIds = userRoles.stream()
                 .map(SysUserRole::getUserId)
                 .distinct()
+                // 调用toList方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toList());
         for (Long userId : userIds) {
-            // ??????????????????????
+            // 说明：执行该步骤以保证业务流程正确。
             sysPermissionService.clearAllPermsCache(userId);
+            // 调用kickout方法，复用统一能力并保证业务规则一致。
             StpUtil.kickout(userId);
         }
     }
 }
+
+

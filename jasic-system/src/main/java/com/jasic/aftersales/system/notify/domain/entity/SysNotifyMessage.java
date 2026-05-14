@@ -87,3 +87,5 @@ public class SysNotifyMessage extends BaseEntity {
     /** 扩展信息 */
     private String extJson;
 }
+
+

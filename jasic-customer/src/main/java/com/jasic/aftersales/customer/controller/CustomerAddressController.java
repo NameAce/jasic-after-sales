@@ -78,6 +78,7 @@ public class CustomerAddressController {
     @ApiOperation(value = "修改地址")
     @PutMapping
     public Result<Void> update(@Validated @RequestBody CustomerAddressUpdateDTO dto) {
+        // 调用update方法，复用统一能力并保证业务规则一致。
         customerAddressService.update(dto);
         return Result.ok();
     }
@@ -91,6 +92,7 @@ public class CustomerAddressController {
     @ApiOperation(value = "删除地址")
     @DeleteMapping("/{addressId}")
     public Result<Void> delete(@PathVariable Long addressId) {
+        // 调用delete方法，复用统一能力并保证业务规则一致。
         customerAddressService.delete(addressId);
         return Result.ok();
     }
@@ -104,6 +106,7 @@ public class CustomerAddressController {
     @ApiOperation(value = "设为默认地址")
     @PutMapping("/{addressId}/default")
     public Result<Void> setDefault(@PathVariable Long addressId) {
+        // 调用setDefault方法，复用统一能力并保证业务规则一致。
         customerAddressService.setDefault(addressId);
         return Result.ok();
     }

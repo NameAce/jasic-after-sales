@@ -197,3 +197,5 @@ public class WorkOrderDetailVO extends WorkOrderListVO {
     @ApiModelProperty(value = "当前可执行动作；返回按钮动作编码列表，如 ASSIGN、REPAIR_FINISH、CLOSE")
     private List<String> availableActions;
 }
+
+

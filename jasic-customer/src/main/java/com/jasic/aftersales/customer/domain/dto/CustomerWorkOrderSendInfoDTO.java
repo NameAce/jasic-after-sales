@@ -49,3 +49,5 @@ public class CustomerWorkOrderSendInfoDTO implements Serializable {
     @ApiModelProperty(value = "寄件凭证文件ID")
     private List<Long> senderVoucherFileIds;
 }
+
+

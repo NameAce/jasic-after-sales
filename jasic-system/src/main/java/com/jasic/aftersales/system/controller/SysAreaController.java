@@ -31,10 +31,10 @@ public class SysAreaController extends BaseController {
     private ISysAreaService sysAreaService;
 
     /**
-     * ???????
+     * 按父级编码查询下级行政区划选项。
      *
-     * @param parentCode ??
-     * @return ????
+     * @param parentCode 父级编码
+     * @return 行政区划选项列表
      */
     @ApiOperation(value = "查询指定父级下的行政区划选项（基础参考数据，仅需登录即可访问）")
     @GetMapping("/options")
@@ -43,10 +43,10 @@ public class SysAreaController extends BaseController {
     }
 
     /**
-     * ??By Area Code?
+     * 按行政区划编码查询详情。
      *
-     * @param areaCode ??
-     * @return ??????
+     * @param areaCode 行政区划编码
+     * @return 行政区划详情
      */
     @ApiOperation(value = "按编码查询行政区划（基础参考数据，仅需登录即可访问）")
     @GetMapping("/{areaCode}")

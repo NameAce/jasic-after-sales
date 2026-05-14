@@ -51,7 +51,7 @@ public class SysFileController {
     @OperLog(title = "文件中心", operType = OperTypeEnum.INSERT)
     @PostMapping("/upload")
     public Result<SysFileUploadVO> upload(@RequestParam("file") MultipartFile file) {
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         return Result.ok(sysFileService.upload(
                 file,
                 "system/work-order",
@@ -71,9 +71,9 @@ public class SysFileController {
     @OperLog(title = "文件中心", operType = OperTypeEnum.UPDATE)
     @PostMapping("/biz/bind")
     public Result<Void> bindBizFiles(@Validated @RequestBody SysFileBizBindDTO dto) {
-        // ??????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         sysFileBizPermissionService.requireExecute(dto.getBizType(), dto.getBizId());
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         sysFileService.replaceBizFiles(
                 dto.getBizType(),
                 dto.getBizId(),
@@ -96,9 +96,14 @@ public class SysFileController {
     @OperLog(title = "文件中心", operType = OperTypeEnum.UPDATE)
     @PostMapping("/biz/unbind")
     public Result<Void> unbindBizFile(@Validated @RequestBody SysFileBizUnbindDTO dto) {
+        // 调用getBizId方法，复用统一能力并保证业务规则一致。
         sysFileBizPermissionService.requireExecute(dto.getBizType(), dto.getBizId());
+        // 调用getFileId方法，复用统一能力并保证业务规则一致。
         sysFileService.unbindBizFile(dto.getBizType(), dto.getBizId(), dto.getFileId());
         return Result.ok();
     }
 
 }
+
+
+

@@ -21,7 +21,7 @@ public class StpCustomerUtil {
     private static final StpLogic STP_LOGIC = new StpLogic(TYPE);
 
     /**
-     * ?? StpCustomerUtil ???
+     * 构造Stp客户实例。
      */
     private StpCustomerUtil() {
     }
@@ -41,6 +41,7 @@ public class StpCustomerUtil {
      * @param id 客户ID
      */
     public static void login(Object id) {
+        // 调用login方法，复用统一能力并保证业务规则一致。
         STP_LOGIC.login(id);
     }
 
@@ -48,6 +49,7 @@ public class StpCustomerUtil {
      * C端用户登出
      */
     public static void logout() {
+        // 调用logout方法，复用统一能力并保证业务规则一致。
         STP_LOGIC.logout();
     }
 
@@ -55,6 +57,7 @@ public class StpCustomerUtil {
      * 检查C端用户是否已登录
      */
     public static void checkLogin() {
+        // 调用checkLogin方法，复用统一能力并保证业务规则一致。
         STP_LOGIC.checkLogin();
     }
 
@@ -82,6 +85,9 @@ public class StpCustomerUtil {
      * @param id 客户ID
      */
     public static void kickout(Object id) {
+        // 调用kickout方法，复用统一能力并保证业务规则一致。
         STP_LOGIC.kickout(id);
     }
 }
+
+

@@ -38,6 +38,7 @@ public class SyncTaskRunningRegistry {
      * @param taskId 任务ID
      */
     public void unlock(Long taskId) {
+        // 调用remove方法，复用统一能力并保证业务规则一致。
         runningTaskIds.remove(taskId);
     }
 }

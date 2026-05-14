@@ -80,8 +80,18 @@ public enum WorkOrderRelationTagEnum {
     /** 说明 */
     private final String desc;
 
+    /**
+     * 构造工单关系标签实例。
+     *
+     * @param code 参数
+     * @param desc 参数
+     */
     WorkOrderRelationTagEnum(String code, String desc) {
         this.code = code;
         this.desc = desc;
     }
 }
+
+
+
+

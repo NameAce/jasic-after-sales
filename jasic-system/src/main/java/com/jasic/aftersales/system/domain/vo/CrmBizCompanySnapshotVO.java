@@ -82,3 +82,5 @@ public class CrmBizCompanySnapshotVO implements Serializable {
     @ApiModelProperty(value = "不可导入原因")
     private String importDisabledReason;
 }
+
+

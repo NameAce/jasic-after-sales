@@ -16,31 +16,38 @@ public enum NotifyTemplateSourceEnum {
     CUSTOM(NotifyConstants.TEMPLATE_SOURCE_CUSTOM, "自定义模板");
 
     /**
-     * ?? NotifyTemplateSourceEnum ?????
+     * 通知模板来源编码。
      *
-     * @param code ??
-     * @param desc ??
-     * @return ????
+     * @param code 参数
+     * @param desc 参数
+     * @return 处理结果
      */
     private final String code;
 
     private final String desc;
 
+    /**
+     * 构造通知模板来源实例。
+     *
+     * @param code 参数
+     * @param desc 参数
+     */
     NotifyTemplateSourceEnum(String code, String desc) {
         this.code = code;
         this.desc = desc;
     }
 
     /**
-     * ??By Code?
+     * 根据编码查询通知模板来源。
      *
-     * @param code ??
-     * @return ????
+     * @param code 参数
+     * @return 处理结果
      */
     public static NotifyTemplateSourceEnum getByCode(String code) {
         if (code == null) {
             return null;
         }
+        // 调用trim方法，复用统一能力并保证业务规则一致。
         String normalizedCode = code.trim();
         if (normalizedCode.isEmpty()) {
             return null;
@@ -54,13 +61,14 @@ public enum NotifyTemplateSourceEnum {
     }
 
     /**
-     * ?? fromCode ?????
+     * 根据编码解析通知模板来源。
      *
-     * @param code ??
-     * @return ????
+     * @param code 参数
+     * @return 处理结果
      */
     @JsonCreator
     public static NotifyTemplateSourceEnum fromCode(String code) {
+        // 调用getByCode方法，复用统一能力并保证业务规则一致。
         NotifyTemplateSourceEnum value = getByCode(code);
         if (value == null && code != null) {
             throw new IllegalArgumentException("Unsupported notify template source: " + code);
@@ -69,9 +77,9 @@ public enum NotifyTemplateSourceEnum {
     }
 
     /**
-     * ?????
+     * 获取通知模板来源编码。
      *
-     * @return ?????
+     * @return 处理结果
      */
     @JsonValue
     public String getCode() {
@@ -79,11 +87,15 @@ public enum NotifyTemplateSourceEnum {
     }
 
     /**
-     * ?????
+     * 获取通知模板来源描述。
      *
-     * @return ?????
+     * @return 处理结果
      */
     public String getDesc() {
         return desc;
     }
 }
+
+
+
+

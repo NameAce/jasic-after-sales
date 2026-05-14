@@ -90,6 +90,7 @@ public class SysRegionController extends BaseController {
     @OperLog(title = "大区管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
     public Result<Void> update(@Validated @RequestBody SysRegionDTO dto) {
+        // 调用update方法，复用统一能力并保证业务规则一致。
         regionService.update(dto);
         return Result.ok();
     }

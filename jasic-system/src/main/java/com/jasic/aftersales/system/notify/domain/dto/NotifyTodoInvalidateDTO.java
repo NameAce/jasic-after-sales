@@ -30,3 +30,5 @@ public class NotifyTodoInvalidateDTO implements Serializable {
     @ApiModelProperty(value = "失效原因")
     private String invalidReason;
 }
+
+

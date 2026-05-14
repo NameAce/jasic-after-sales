@@ -34,6 +34,7 @@ public class SaTokenConfig implements WebMvcConfigurer {
                             "/v2/api-docs/**",
                             "/favicon.ico"
                     )
+                    // 调用checkLogin方法，复用统一能力并保证业务规则一致。
                     .check(r -> StpCustomerUtil.checkLogin());
 
             SaRouter.match("/**")
@@ -50,7 +51,9 @@ public class SaTokenConfig implements WebMvcConfigurer {
                             "/v2/api-docs/**",
                             "/favicon.ico"
                     )
+                    // 调用checkLogin方法，复用统一能力并保证业务规则一致。
                     .check(r -> StpUtil.checkLogin());
+        // 调用addPathPatterns方法，复用统一能力并保证业务规则一致。
         })).addPathPatterns("/**");
     }
 }

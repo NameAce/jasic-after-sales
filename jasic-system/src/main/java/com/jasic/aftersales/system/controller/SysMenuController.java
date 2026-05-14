@@ -53,6 +53,7 @@ public class SysMenuController extends BaseController {
     @SaCheckPermission("system:menu:list")
     @GetMapping("/tree")
     public Result<List<SysMenuVO>> tree(@RequestParam String subjectType) {
+        // 调用listMenuTreeBySubjectType方法，复用统一能力并保证业务规则一致。
         List<SysMenuVO> tree = menuService.listMenuTreeBySubjectType(subjectType);
         return Result.ok(tree);
     }
@@ -67,6 +68,7 @@ public class SysMenuController extends BaseController {
     @SaCheckPermission("system:menu:list")
     @GetMapping("/list")
     public Result<List<SysMenu>> list(@RequestParam String subjectType) {
+        // 调用listBySubjectType方法，复用统一能力并保证业务规则一致。
         List<SysMenu> list = menuService.listBySubjectType(subjectType);
         return Result.ok(list);
     }
@@ -81,6 +83,7 @@ public class SysMenuController extends BaseController {
     @SaCheckPermission("system:menu:list")
     @GetMapping("/{menuId}")
     public Result<SysMenu> getById(@PathVariable Long menuId) {
+        // 调用getById方法，复用统一能力并保证业务规则一致。
         SysMenu menu = menuService.getById(menuId);
         return Result.ok(menu);
     }
@@ -96,6 +99,7 @@ public class SysMenuController extends BaseController {
     @OperLog(title = "菜单管理", operType = OperTypeEnum.INSERT)
     @PostMapping
     public Result<Long> save(@Validated @RequestBody SysMenuDTO dto) {
+        // 调用save方法，复用统一能力并保证业务规则一致。
         Long id = menuService.save(dto);
         return Result.ok(id);
     }
@@ -111,6 +115,7 @@ public class SysMenuController extends BaseController {
     @OperLog(title = "菜单管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
     public Result<Void> update(@Validated @RequestBody SysMenuDTO dto) {
+        // 调用update方法，复用统一能力并保证业务规则一致。
         menuService.update(dto);
         return Result.ok();
     }
@@ -126,6 +131,7 @@ public class SysMenuController extends BaseController {
     @OperLog(title = "菜单管理", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/{menuId}")
     public Result<Void> remove(@PathVariable Long menuId) {
+        // 调用remove方法，复用统一能力并保证业务规则一致。
         menuService.remove(menuId);
         return Result.ok();
     }
@@ -140,6 +146,7 @@ public class SysMenuController extends BaseController {
     @SaCheckPermission("system:menu:list")
     @GetMapping("/type-code-tree")
     public Result<List<SysMenuVO>> typeCodeTree(@RequestParam String typeCode) {
+        // 调用listMenuTreeByTypeCode方法，复用统一能力并保证业务规则一致。
         List<SysMenuVO> tree = menuService.listMenuTreeByTypeCode(typeCode);
         return Result.ok(tree);
     }
@@ -154,6 +161,7 @@ public class SysMenuController extends BaseController {
     @SaCheckPermission("system:menu:list")
     @GetMapping("/type-code-menu-ids")
     public Result<List<Long>> typeCodeMenuIds(@RequestParam String typeCode) {
+        // 调用listTypeCodeMenuIds方法，复用统一能力并保证业务规则一致。
         List<Long> menuIds = menuService.listTypeCodeMenuIds(typeCode);
         return Result.ok(menuIds);
     }
@@ -171,6 +179,7 @@ public class SysMenuController extends BaseController {
     @PutMapping("/assign-type-code-menus")
     public Result<Void> assignTypeCodeMenus(@RequestParam String typeCode,
                                             @RequestBody List<Long> menuIds) {
+        // 调用assignTypeCodeMenus方法，复用统一能力并保证业务规则一致。
         menuService.assignTypeCodeMenus(typeCode, menuIds);
         return Result.ok();
     }
@@ -213,6 +222,7 @@ public class SysMenuController extends BaseController {
     @OperLog(title = "菜单拷贝", operType = OperTypeEnum.INSERT)
     @PostMapping("/copy")
     public Result<Integer> copyMenus(@Validated @RequestBody SysMenuCopyDTO dto) {
+        // 调用getMenuIds方法，复用统一能力并保证业务规则一致。
         int count = menuService.copyMenus(dto.getSourceSubjectType(), dto.getTargetSubjectType(), dto.getMenuIds());
         return Result.ok(count);
     }

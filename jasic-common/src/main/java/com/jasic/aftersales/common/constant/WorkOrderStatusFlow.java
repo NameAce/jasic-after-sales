@@ -9,7 +9,7 @@ package com.jasic.aftersales.common.constant;
 public class WorkOrderStatusFlow {
 
     /**
-     * ?? WorkOrderStatusFlow ???
+     * 禁止实例化状态流转常量类。
      */
     private WorkOrderStatusFlow() {
     }
@@ -87,10 +87,10 @@ public class WorkOrderStatusFlow {
     }
 
     /**
-     * ?? afterCloseEvaluateStatus ?????
+     * 按是否可评价计算关单后的评价状态。
      *
-     * @param canEvaluate ??
-     * @return ?????
+     * @param canEvaluate 是否可评价
+     * @return 评价状态编码
      */
     public static String afterCloseEvaluateStatus(boolean canEvaluate) {
         return canEvaluate

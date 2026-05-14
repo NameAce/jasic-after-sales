@@ -19,44 +19,56 @@ import java.util.Set;
 public final class TableNameEntityScanner {
 
     /**
-     * ?? TableNameEntityScanner ???
+     * 构造表名称实体实例。
      */
     private TableNameEntityScanner() {
     }
 
     /**
-     * ?? scanTableEntities ?????
+     * scan表Entities。
      *
-     * @param basePackage ??
-     * @return ????
+     * @param basePackage 参数
+     * @return 处理结果
      */
     public static Map<String, Set<String>> scanTableEntities(String basePackage) {
         ClassPathScanningCandidateComponentProvider scanner =
+                /**
+                 * ClassPathScanningCandidateComponentProvider。
+                 *
+                 * @param false 参数
+                 * @return 处理结果
+                 */
                 new ClassPathScanningCandidateComponentProvider(false);
+        // 调用AnnotationTypeFilter方法，复用统一能力并保证业务规则一致。
         scanner.addIncludeFilter(new AnnotationTypeFilter(TableName.class));
 
         Map<String, Set<String>> result = new LinkedHashMap<>();
         for (BeanDefinition definition : scanner.findCandidateComponents(basePackage)) {
+            // 调用getBeanClassName方法，复用统一能力并保证业务规则一致。
             String className = definition.getBeanClassName();
             if (className == null) {
                 continue;
             }
+            // 调用loadClass方法，复用统一能力并保证业务规则一致。
             Class<?> entityClass = loadClass(className);
+            // 调用getAnnotation方法，复用统一能力并保证业务规则一致。
             TableName tableName = entityClass.getAnnotation(TableName.class);
             if (tableName == null) {
                 continue;
             }
+            // 调用value方法，复用统一能力并保证业务规则一致。
             String normalized = CompanyDataPolicyRegistry.normalize(tableName.value());
+            // 调用getName方法，复用统一能力并保证业务规则一致。
             result.computeIfAbsent(normalized, key -> new LinkedHashSet<>()).add(entityClass.getName());
         }
         return result;
     }
 
     /**
-     * ?????
+     * loadClass。
      *
-     * @param className ??
-     * @return ????
+     * @param className 参数
+     * @return 处理结果
      */
     private static Class<?> loadClass(String className) {
         try {
@@ -66,3 +78,7 @@ public final class TableNameEntityScanner {
         }
     }
 }
+
+
+
+

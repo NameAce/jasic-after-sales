@@ -41,30 +41,37 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
     private List<NotifyChannelSender> notifyChannelSenders = Collections.emptyList();
 
     /**
-     * ?????
+     * Transaction模板模板依赖。
      *
-     * @param dispatch ??
-     * @return ????
+     * @param dispatch 参数
+     * @return 处理结果
      */
     @Resource
     private TransactionTemplate transactionTemplate;
 
+    /**
+     * 执行createDispatch相关新增业务。
+     *
+     * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
+     * @param dispatch 参数
+     * @return 处理结果
+     */
     @Override
     public Long createDispatch(SysNotifyDispatch dispatch) {
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         SysNotifyDispatch existing = getExistingDispatch(dispatch);
         if (existing != null) {
             return existing.getId();
         }
+        // 调用insert方法，复用统一能力并保证业务规则一致。
         sysNotifyDispatchMapper.insert(dispatch);
         return dispatch.getId();
     }
 
     /**
-     * ??By Id?
+     * 根据ID查询通知分发详情。
      *
-     * @param id ??ID
-     * @return ????
+     * @return 处理结果
      */
     @Override
     public SysNotifyDispatch getById(Long id) {
@@ -72,16 +79,17 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
     }
 
     /**
-     * ???????
+     * 分页查询SendableDispatches列表。
      *
-     * @param now ??
-     * @param limit ??
-     * @return ????
+     * @param now 参数
+     * @param limit 参数
+     * @return 处理结果
      */
     @Override
     public List<SysNotifyDispatch> listSendableDispatches(LocalDateTime now, Integer limit) {
+        // 调用now方法，复用统一能力并保证业务规则一致。
         LocalDateTime targetTime = now == null ? LocalDateTime.now() : now;
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         LambdaQueryWrapper<SysNotifyDispatch> wrapper = new LambdaQueryWrapper<>();
         wrapper.and(condition -> condition
                         .eq(SysNotifyDispatch::getDispatchStatus, NotifyDispatchStatusEnum.PENDING.getCode())
@@ -90,22 +98,23 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
                                 .and(next -> next.isNull(SysNotifyDispatch::getNextRetryTime)
                                         .or()
                                         .le(SysNotifyDispatch::getNextRetryTime, targetTime))))
+                // 调用orderByAsc方法，复用统一能力并保证业务规则一致。
                 .orderByAsc(SysNotifyDispatch::getId);
         if (limit != null && limit > 0) {
+            // 调用last方法，复用统一能力并保证业务规则一致。
             wrapper.last("limit " + limit);
         }
         return sysNotifyDispatchMapper.selectList(wrapper);
     }
 
     /**
-     * ?? markProcessing ?????
+     * markProcessing。
      *
      * @param dispatchId dispatch ID
-     * @return true ??????
      */
     @Override
     public boolean markProcessing(Long dispatchId) {
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         LambdaUpdateWrapper<SysNotifyDispatch> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(SysNotifyDispatch::getId, dispatchId)
                 .and(condition -> condition
@@ -113,21 +122,22 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
                         .or(retry -> retry.eq(SysNotifyDispatch::getDispatchStatus, NotifyDispatchStatusEnum.FAILED.getCode())
                                 .lt(SysNotifyDispatch::getRetryCount, NotifyConstants.DISPATCH_RETRY_MAX_COUNT)))
                 .set(SysNotifyDispatch::getDispatchStatus, NotifyDispatchStatusEnum.PROCESSING.getCode())
+                // 调用set方法，复用统一能力并保证业务规则一致。
                 .set(SysNotifyDispatch::getNextRetryTime, null);
         return sysNotifyDispatchMapper.update(null, wrapper) > 0;
     }
 
     /**
-     * ?? markSuccess ?????
+     * markSuccess。
      *
      * @param dispatchId dispatch ID
-     * @param resultCode ??
-     * @param resultMessage ??
-     * @param channelResponseJson ??
+     * @param resultCode 参数
+     * @param resultMessage 参数
+     * @param channelResponseJson 参数
      */
     @Override
     public void markSuccess(Long dispatchId, String resultCode, String resultMessage, String channelResponseJson) {
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         LambdaUpdateWrapper<SysNotifyDispatch> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(SysNotifyDispatch::getId, dispatchId)
                 .set(SysNotifyDispatch::getDispatchStatus, NotifyDispatchStatusEnum.SUCCESS.getCode())
@@ -135,24 +145,26 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
                 .set(SysNotifyDispatch::getResultMessage, trimValue(resultMessage, 500))
                 .set(SysNotifyDispatch::getChannelResponseJson, trimText(channelResponseJson))
                 .set(SysNotifyDispatch::getNextRetryTime, null)
+                // 调用now方法，复用统一能力并保证业务规则一致。
                 .set(SysNotifyDispatch::getSentTime, LocalDateTime.now());
+        // 调用update方法，复用统一能力并保证业务规则一致。
         sysNotifyDispatchMapper.update(null, wrapper);
     }
 
     /**
-     * ?? markFailed ?????
+     * markFailed。
      *
      * @param dispatchId dispatch ID
-     * @param retryCount ??
-     * @param nextRetryTime ??
-     * @param resultCode ??
-     * @param resultMessage ??
-     * @param channelResponseJson ??
+     * @param retryCount 参数
+     * @param nextRetryTime 参数
+     * @param resultCode 参数
+     * @param resultMessage 参数
+     * @param channelResponseJson 参数
      */
     @Override
     public void markFailed(Long dispatchId, Integer retryCount, LocalDateTime nextRetryTime,
                            String resultCode, String resultMessage, String channelResponseJson) {
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         LambdaUpdateWrapper<SysNotifyDispatch> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(SysNotifyDispatch::getId, dispatchId)
                 .set(SysNotifyDispatch::getDispatchStatus, NotifyDispatchStatusEnum.FAILED.getCode())
@@ -160,39 +172,43 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
                 .set(SysNotifyDispatch::getNextRetryTime, nextRetryTime)
                 .set(SysNotifyDispatch::getResultCode, trimValue(resultCode, 64))
                 .set(SysNotifyDispatch::getResultMessage, trimValue(resultMessage, 500))
+                // 调用trimText方法，复用统一能力并保证业务规则一致。
                 .set(SysNotifyDispatch::getChannelResponseJson, trimText(channelResponseJson));
+        // 调用update方法，复用统一能力并保证业务规则一致。
         sysNotifyDispatchMapper.update(null, wrapper);
     }
 
     /**
-     * ?? markSkipped ?????
+     * markSkipped。
      *
      * @param dispatchId dispatch ID
-     * @param resultCode ??
-     * @param resultMessage ??
-     * @param channelResponseJson ??
+     * @param resultCode 参数
+     * @param resultMessage 参数
+     * @param channelResponseJson 参数
      */
     @Override
     public void markSkipped(Long dispatchId, String resultCode, String resultMessage, String channelResponseJson) {
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         LambdaUpdateWrapper<SysNotifyDispatch> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(SysNotifyDispatch::getId, dispatchId)
                 .set(SysNotifyDispatch::getDispatchStatus, NotifyDispatchStatusEnum.SKIPPED.getCode())
                 .set(SysNotifyDispatch::getResultCode, trimValue(resultCode, 64))
                 .set(SysNotifyDispatch::getResultMessage, trimValue(resultMessage, 500))
                 .set(SysNotifyDispatch::getChannelResponseJson, trimText(channelResponseJson))
+                // 调用set方法，复用统一能力并保证业务规则一致。
                 .set(SysNotifyDispatch::getNextRetryTime, null);
+        // 调用update方法，复用统一能力并保证业务规则一致。
         sysNotifyDispatchMapper.update(null, wrapper);
     }
 
     /**
-     * ?? consumePendingDispatches ?????
+     * 消费PendingDispatches。
      *
-     * @return ????
+     * @return 处理结果
      */
     @Override
     public int consumePendingDispatches() {
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         List<SysNotifyDispatch> dispatches = listSendableDispatches(LocalDateTime.now(), NotifyConstants.DISPATCH_SEND_BATCH_SIZE);
         int successCount = 0;
         for (SysNotifyDispatch dispatch : dispatches) {
@@ -201,12 +217,15 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
             }
             try {
                 transactionTemplate.execute(status -> {
+                    // 调用getId方法，复用统一能力并保证业务规则一致。
                     consumeSingleDispatch(dispatch.getId());
                     return null;
                 });
                 successCount++;
             } catch (Exception ex) {
+                // 调用getId方法，复用统一能力并保证业务规则一致。
                 log.error("Consume notify dispatch failed. dispatchId={}", dispatch.getId(), ex);
+                // 调用getId方法，复用统一能力并保证业务规则一致。
                 markDispatchFailed(dispatch.getId(), ex);
             }
         }
@@ -214,30 +233,37 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
     }
 
     /**
-     * ?? consumeSingleDispatch ?????
+     * 消费Single分发。
      *
      * @param dispatchId dispatch ID
      */
     private void consumeSingleDispatch(Long dispatchId) {
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         SysNotifyDispatch dispatch = getRequiredProcessingDispatch(dispatchId);
+        // 调用parsePayload方法，复用统一能力并保证业务规则一致。
         NotifyDispatchPayload payload = parsePayload(dispatch);
+        // 调用getChannelType方法，复用统一能力并保证业务规则一致。
         NotifyChannelSender sender = resolveSender(dispatch.getChannelType());
+        // 调用NotifyChannelSendContext方法，复用统一能力并保证业务规则一致。
         NotifyChannelSendContext context = new NotifyChannelSendContext();
+        // 调用setDispatch方法，复用统一能力并保证业务规则一致。
         context.setDispatch(dispatch);
+        // 调用setPayload方法，复用统一能力并保证业务规则一致。
         context.setPayload(payload);
+        // 调用send方法，复用统一能力并保证业务规则一致。
         NotifyChannelSendResult sendResult = sender.send(context);
+        // 调用applySendResult方法，复用统一能力并保证业务规则一致。
         applySendResult(dispatch, sendResult);
     }
 
     /**
-     * ??Required Processing Dispatch?
+     * 获取RequiredProcessing分发。
      *
      * @param dispatchId dispatch ID
-     * @return ????
+     * @return 处理结果
      */
     private SysNotifyDispatch getRequiredProcessingDispatch(Long dispatchId) {
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         SysNotifyDispatch dispatch = sysNotifyDispatchMapper.selectById(dispatchId);
         if (dispatch == null) {
             throw new ServiceException("Notify dispatch not found");
@@ -249,17 +275,18 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
     }
 
     /**
-     * ?? parsePayload ?????
+     * parsePayload。
      *
-     * @param dispatch ??
-     * @return ????
+     * @param dispatch 参数
+     * @return 处理结果
      */
     private NotifyDispatchPayload parsePayload(SysNotifyDispatch dispatch) {
         if (StrUtil.isBlank(dispatch.getPayloadJson())) {
-            // ????????????????????????
+            // 说明：执行该步骤以保证业务流程正确。
             throw new ServiceException("Notify dispatch payload cannot be blank");
         }
         try {
+            // 调用getPayloadJson方法，复用统一能力并保证业务规则一致。
             NotifyDispatchPayload payload = JSONUtil.toBean(dispatch.getPayloadJson(), NotifyDispatchPayload.class);
             if (payload == null) {
                 throw new ServiceException("Notify dispatch payload parse result is null");
@@ -273,13 +300,13 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
     }
 
     /**
-     * ???????
+     * 解析发送人。
      *
-     * @param channelType ??
-     * @return ????
+     * @param channelType 参数
+     * @return 处理结果
      */
     private NotifyChannelSender resolveSender(String channelType) {
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         for (NotifyChannelSender sender : notifyChannelSenders) {
             if (sender.supports(channelType)) {
                 return sender;
@@ -289,50 +316,58 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
     }
 
     /**
-     * ?? applySendResult ?????
+     * apply发送结果。
      *
-     * @param dispatch ??
-     * @param sendResult ??
+     * @param dispatch 参数
+     * @param sendResult 参数
      */
     private void applySendResult(SysNotifyDispatch dispatch, NotifyChannelSendResult sendResult) {
         if (sendResult == null) {
-            // ????????????????????????
+            // 说明：执行该步骤以保证业务流程正确。
             throw new ServiceException("Notify channel sender returned null result");
         }
+        // 调用getDispatchStatus方法，复用统一能力并保证业务规则一致。
         String status = sendResult.getDispatchStatus();
         if (NotifyDispatchStatusEnum.SUCCESS.getCode().equals(status)) {
             markSuccess(dispatch.getId(), sendResult.getResultCode(), sendResult.getResultMessage(),
+                    // 调用getChannelResponseJson方法，复用统一能力并保证业务规则一致。
                     sendResult.getChannelResponseJson());
             return;
         }
         if (NotifyDispatchStatusEnum.SKIPPED.getCode().equals(status)) {
             markSkipped(dispatch.getId(), sendResult.getResultCode(), sendResult.getResultMessage(),
+                    // 调用getChannelResponseJson方法，复用统一能力并保证业务规则一致。
                     sendResult.getChannelResponseJson());
             return;
         }
         if (!NotifyDispatchStatusEnum.FAILED.getCode().equals(status)) {
             throw new ServiceException("Unsupported dispatch status returned by sender: " + status);
         }
+        // 调用getRetryCount方法，复用统一能力并保证业务规则一致。
         int nextRetryCount = dispatch.getRetryCount() == null ? 1 : dispatch.getRetryCount() + 1;
         LocalDateTime nextRetryTime = nextRetryCount >= NotifyConstants.DISPATCH_RETRY_MAX_COUNT
                 ? null
+                // 调用plusMinutes方法，复用统一能力并保证业务规则一致。
                 : LocalDateTime.now().plusMinutes(NotifyConstants.DISPATCH_RETRY_DELAY_MINUTES);
         markFailed(dispatch.getId(), nextRetryCount, nextRetryTime,
+                // 调用getChannelResponseJson方法，复用统一能力并保证业务规则一致。
                 sendResult.getResultCode(), sendResult.getResultMessage(), sendResult.getChannelResponseJson());
     }
 
     /**
-     * ?? markDispatchFailed ?????
+     * mark分发Failed。
      *
      * @param dispatchId dispatch ID
-     * @param ex ??
+     * @param ex 参数
      */
     private void markDispatchFailed(Long dispatchId, Exception ex) {
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         SysNotifyDispatch current = sysNotifyDispatchMapper.selectById(dispatchId);
+        // 调用getRetryCount方法，复用统一能力并保证业务规则一致。
         int nextRetryCount = current == null || current.getRetryCount() == null ? 1 : current.getRetryCount() + 1;
         LocalDateTime nextRetryTime = nextRetryCount >= NotifyConstants.DISPATCH_RETRY_MAX_COUNT
                 ? null
+                // 调用plusMinutes方法，复用统一能力并保证业务规则一致。
                 : LocalDateTime.now().plusMinutes(NotifyConstants.DISPATCH_RETRY_DELAY_MINUTES);
         markFailed(
                 dispatchId,
@@ -345,53 +380,60 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
     }
 
     /**
-     * ??Existing Dispatch?
+     * 获取Existing分发。
      *
-     * @param dispatch ??
-     * @return ????
+     * @param dispatch 参数
+     * @return 处理结果
      */
     private SysNotifyDispatch getExistingDispatch(SysNotifyDispatch dispatch) {
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         LambdaQueryWrapper<SysNotifyDispatch> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysNotifyDispatch::getBizType, dispatch.getBizType())
                 .eq(SysNotifyDispatch::getBizId, dispatch.getBizId())
                 .eq(SysNotifyDispatch::getTemplateCode, dispatch.getTemplateCode())
                 .eq(SysNotifyDispatch::getChannelType, dispatch.getChannelType())
+                // 调用getReceiverType方法，复用统一能力并保证业务规则一致。
                 .eq(SysNotifyDispatch::getReceiverType, dispatch.getReceiverType());
         if (dispatch.getReceiverId() != null) {
+            // 调用getReceiverId方法，复用统一能力并保证业务规则一致。
             wrapper.eq(SysNotifyDispatch::getReceiverId, dispatch.getReceiverId());
         } else {
+            // 调用isNull方法，复用统一能力并保证业务规则一致。
             wrapper.isNull(SysNotifyDispatch::getReceiverId);
         }
+        // 调用last方法，复用统一能力并保证业务规则一致。
         wrapper.last("limit 1");
         return sysNotifyDispatchMapper.selectOne(wrapper);
     }
 
     /**
-     * ???????
+     * 构建Error消息。
      *
-     * @param ex ??
-     * @return ?????
+     * @param ex 参数
+     * @return 处理结果
      */
     private String buildErrorMessage(Exception ex) {
+        // 调用getMessage方法，复用统一能力并保证业务规则一致。
         String message = ex == null ? null : StrUtil.trim(ex.getMessage());
         if (StrUtil.isBlank(message) && ex != null) {
+            // 调用getSimpleName方法，复用统一能力并保证业务规则一致。
             message = ex.getClass().getSimpleName();
         }
         return trimValue(message, 500);
     }
 
     /**
-     * ?? trimValue ?????
+     * trim值。
      *
-     * @param value ???
-     * @param maxLength ??
-     * @return ?????
+     * @param value 参数
+     * @param maxLength 参数
+     * @return 处理结果
      */
     private String trimValue(String value, int maxLength) {
         if (value == null) {
             return null;
         }
+        // 调用trim方法，复用统一能力并保证业务规则一致。
         String actual = value.trim();
         if (actual.length() <= maxLength) {
             return actual;
@@ -400,16 +442,19 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
     }
 
     /**
-     * ?? trimText ?????
+     * trimText。
      *
-     * @param value ???
-     * @return ?????
+     * @param value 参数
+     * @return 处理结果
      */
     private String trimText(String value) {
         if (value == null) {
             return null;
         }
+        // 调用trim方法，复用统一能力并保证业务规则一致。
         String actual = value.trim();
         return actual.isEmpty() ? null : actual;
     }
 }
+
+

@@ -30,16 +30,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * CRM 閿€鍞嚭搴撴壂鐮佸悓姝ユ湇鍔″疄鐜般€?
- *
- * <p>瀹炵幇鎷嗕负涓や釜闃舵锛?/p>
- * <ul>
- *     <li>鍏堟寜婧愯〃涓婚敭澧為噺钀藉湴閿€鍞嚭搴撴壂鐮佹槑缁嗗揩鐓э紱</li>
- *     <li>鍐嶅熀浜庢湰鍦板揩鐓ф寜鏉＄爜鑱氬悎鏈€鏃╂壂鐮佹椂闂达紝瑕嗙洊鍥炲啓鏈湴閿€鍞渶鍚庡嚭搴撴棩鏈熴€?/li>
- * </ul>
- *
- * @author Codex
- * @date 2026/04/12
+     * CRM仓库扫描出库同步服务实现。
+     *
+     * <ul>
+     * <li>步骤说明。</li>
+     * <li>步骤说明。</li>
+     * </ul>
+     * @author Codex
+     * @date 2026/04/12
  */
 @Service
 public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseScanOutstorageSyncService {
@@ -51,9 +49,9 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
     private JdbcTemplate jdbcTemplate;
 
     /**
-     * ???????
+     * JDBC模板模板依赖。
      *
-     * @return ????
+     * @return 处理结果
      */
     @Resource(name = "crmJdbcTemplate")
     private JdbcTemplate crmJdbcTemplate;
@@ -61,35 +59,51 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
     @Resource
     private MachineBarcodeMapper machineBarcodeMapper;
 
+    /**
+     * 处理syncIncremental业务逻辑。
+     *
+     * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
+     * @return 处理结果
+     */
     @Override
     public CrmWarehouseScanOutstorageSyncSummaryVO syncIncremental() {
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         JdbcTemplate crm = requireCrmJdbcTemplate();
+        // 调用getLocalMaxSourceId方法，复用统一能力并保证业务规则一致。
         Long lastSourceId = getLocalMaxSourceId();
-        // 褰撳墠婧愯〃鎸?scan_outstorage_id 閫掑杩藉姞锛屾晠浣跨敤涓婚敭娓告爣鎷夊彇澧為噺鏄庣粏銆?
+        // 说明：执行该步骤以保证业务流程正确。
         String sql = "SELECT scan_outstorage_id, ware_id, warehouse_id, scan_code, scan_date, cust_id, product_numeric "
                 + "FROM " + CRM_OUTSTORAGE_TABLE + " "
                 + "WHERE scan_outstorage_id > ? "
                 + "ORDER BY scan_outstorage_id ASC";
 
         List<CrmWarehouseScanOutstorageSnapshot> batch = new ArrayList<>(DEFAULT_BATCH_SIZE);
+        // 调用SyncCounter方法，复用统一能力并保证业务规则一致。
         SyncCounter counter = new SyncCounter();
+        // 调用now方法，复用统一能力并保证业务规则一致。
         LocalDateTime syncTime = LocalDateTime.now();
         crm.query(connection -> {
+            // 调用prepareStatement方法，复用统一能力并保证业务规则一致。
             PreparedStatement ps = connection.prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+            // 调用setFetchSize方法，复用统一能力并保证业务规则一致。
             ps.setFetchSize(Integer.MIN_VALUE);
+            // 调用setLong方法，复用统一能力并保证业务规则一致。
             ps.setLong(1, lastSourceId == null ? 0L : lastSourceId);
             return ps;
         }, rs -> {
             while (rs.next()) {
+                // 调用getRow方法，复用统一能力并保证业务规则一致。
                 CrmWarehouseScanOutstorageSnapshot row = CRM_OUTSTORAGE_ROW_MAPPER.mapRow(rs, rs.getRow());
                 if (row == null || row.getSourceId() == null) {
                     continue;
                 }
+                // 调用add方法，复用统一能力并保证业务规则一致。
                 batch.add(row);
                 counter.syncedDetailCount++;
                 if (batch.size() >= DEFAULT_BATCH_SIZE) {
+                    // 调用flushBatch方法，复用统一能力并保证业务规则一致。
                     flushBatch(batch, syncTime, counter);
+                    // 调用clear方法，复用统一能力并保证业务规则一致。
                     batch.clear();
                 }
             }
@@ -97,32 +111,39 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
         });
 
         if (CollUtil.isNotEmpty(batch)) {
+            // 调用flushBatch方法，复用统一能力并保证业务规则一致。
             flushBatch(batch, syncTime, counter);
         }
 
         if (CollUtil.isNotEmpty(counter.changedBarcodes)) {
-            // 浠呴噸绠楁湰杞秹鍙婄殑鏉＄爜锛岄伩鍏嶆瘡娆″叏琛ㄨ仛鍚堛€?
+            // 说明：执行该步骤以保证业务流程正确。
             projectLastOutDate(counter.changedBarcodes, counter);
         }
 
+        // 调用CrmWarehouseScanOutstorageSyncSummaryVO方法，复用统一能力并保证业务规则一致。
         CrmWarehouseScanOutstorageSyncSummaryVO summary = new CrmWarehouseScanOutstorageSyncSummaryVO();
+        // 调用setSyncedDetailCount方法，复用统一能力并保证业务规则一致。
         summary.setSyncedDetailCount(counter.syncedDetailCount);
+        // 调用size方法，复用统一能力并保证业务规则一致。
         summary.setAffectedBarcodeCount(counter.changedBarcodes.size());
+        // 调用setUpdatedMachineBarcodeCount方法，复用统一能力并保证业务规则一致。
         summary.setUpdatedMachineBarcodeCount(counter.updatedMachineBarcodeCount);
+        // 调用setUnmatchedBarcodeCount方法，复用统一能力并保证业务规则一致。
         summary.setUnmatchedBarcodeCount(counter.unmatchedBarcodeCount);
+        // 调用setLatestSourceId方法，复用统一能力并保证业务规则一致。
         summary.setLatestSourceId(counter.latestSourceId);
         return summary;
     }
 
     /**
-     * ?? flushBatch ?????
+     * flushBatch。
      *
-     * @param rows ??
-     * @param syncTime ??
-     * @param counter ??
+     * @param rows 参数
+     * @param syncTime 参数
+     * @param counter 参数
      */
     private void flushBatch(List<CrmWarehouseScanOutstorageSnapshot> rows, LocalDateTime syncTime, SyncCounter counter) {
-        // 鏄庣粏蹇収淇濈暀 CRM 鍘熷璁板綍锛岄噰鐢?source_id 骞傜瓑鏇存柊锛屽吋瀹归噸澶嶆墽琛屻€?
+        // 说明：执行该步骤以保证业务流程正确。
         String sql = "INSERT INTO crm_warehouse_scan_outstorage_snapshot ("
                 + "source_id, ware_id, warehouse_id, scan_code, scan_date, cust_id, product_numeric, last_sync_time, create_time, update_time"
                 + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW()) "
@@ -134,31 +155,41 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
                 + "cust_id = VALUES(cust_id), "
                 + "product_numeric = VALUES(product_numeric), "
                 + "last_sync_time = VALUES(last_sync_time), "
+                // 调用NOW方法，复用统一能力并保证业务规则一致。
                 + "update_time = NOW()";
         jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
             /**
-             * ??Values?
-             *
-             * @param ps ??
-             * @param i ??
+     * setValues。
+     *
+     * @param ps 参数
+     * @param i 参数
              */
             @Override
             public void setValues(PreparedStatement ps, int i) throws SQLException {
+                // 调用get方法，复用统一能力并保证业务规则一致。
                 CrmWarehouseScanOutstorageSnapshot row = rows.get(i);
+                // 调用getSourceId方法，复用统一能力并保证业务规则一致。
                 ps.setObject(1, row.getSourceId());
+                // 调用getWareId方法，复用统一能力并保证业务规则一致。
                 ps.setObject(2, row.getWareId());
+                // 调用getWarehouseId方法，复用统一能力并保证业务规则一致。
                 ps.setObject(3, row.getWarehouseId());
+                // 调用getScanCode方法，复用统一能力并保证业务规则一致。
                 ps.setString(4, row.getScanCode());
+                // 调用getScanDate方法，复用统一能力并保证业务规则一致。
                 ps.setTimestamp(5, toTimestamp(row.getScanDate()));
+                // 调用getCustId方法，复用统一能力并保证业务规则一致。
                 ps.setObject(6, row.getCustId());
+                // 调用getProductNumeric方法，复用统一能力并保证业务规则一致。
                 ps.setString(7, row.getProductNumeric());
+                // 调用toTimestamp方法，复用统一能力并保证业务规则一致。
                 ps.setTimestamp(8, toTimestamp(syncTime));
             }
 
             /**
-             * ??Batch Size?
-             *
-             * @return ????
+     * 获取BatchSize。
+     *
+     * @return 处理结果
              */
             @Override
             public int getBatchSize() {
@@ -168,34 +199,40 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
 
         for (CrmWarehouseScanOutstorageSnapshot row : rows) {
             if (StrUtil.isNotBlank(row.getScanCode())) {
+                // 调用getScanCode方法，复用统一能力并保证业务规则一致。
                 counter.changedBarcodes.add(row.getScanCode());
             }
-            // 鎵规鎸?source_id 鍗囧簭澶勭悊锛屾渶鍚庝竴涓€煎嵆褰撳墠鍚屾娓告爣涓婄晫銆?
+            // 说明：执行该步骤以保证业务流程正确。
             counter.latestSourceId = row.getSourceId();
         }
     }
 
     /**
-     * ?? projectLastOutDate ?????
+     * projectLastOutDate。
      *
-     * @param barcodeSet ??
-     * @param counter ??
+     * @param barcodeSet 参数
+     * @param counter 参数
      */
     private void projectLastOutDate(Set<String> barcodeSet, SyncCounter counter) {
         List<String> barcodes = new ArrayList<>(barcodeSet);
         int batchSize = 500;
         for (int index = 0; index < barcodes.size(); index += batchSize) {
+            // 调用size方法，复用统一能力并保证业务规则一致。
             List<String> slice = barcodes.subList(index, Math.min(index + batchSize, barcodes.size()));
+            // 调用queryMinScanDateMap方法，复用统一能力并保证业务规则一致。
             Map<String, LocalDateTime> minScanDateMap = queryMinScanDateMap(slice);
-            // 鍙洿鏂版湰鍦板凡瀛樺湪鐨勬潯鐮佹。妗堬紱鏈尮閰嶆潯鐮佷粎鍋氳鏁帮紝涓嶈嚜鍔ㄥ缓妗ｃ€?
+            // 说明：执行该步骤以保证业务流程正确。
             LambdaQueryWrapper<MachineBarcode> wrapper = new LambdaQueryWrapper<>();
+            // 调用in方法，复用统一能力并保证业务规则一致。
             wrapper.in(MachineBarcode::getBarcode, slice);
-            // ??????????????????????????
+            // 说明：执行该步骤以保证业务流程正确。
             List<MachineBarcode> existingBarcodes = machineBarcodeMapper.selectList(wrapper);
             Set<String> existingBarcodeSet = existingBarcodes.stream()
                     .map(MachineBarcode::getBarcode)
                     .filter(StrUtil::isNotBlank)
+                    // 调用toCollection方法，复用统一能力并保证业务规则一致。
                     .collect(Collectors.toCollection(LinkedHashSet::new));
+            // 调用size方法，复用统一能力并保证业务规则一致。
             counter.unmatchedBarcodeCount += slice.size() - existingBarcodeSet.size();
             if (existingBarcodeSet.isEmpty()) {
                 continue;
@@ -207,59 +244,66 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
                             minScanDateMap.getOrDefault(item.getBarcode(), item.getScanDate())
                     ))
                     .filter(item -> StrUtil.isNotBlank(item.getKey()) && item.getValue() != null)
+                    // 调用toList方法，复用统一能力并保证业务规则一致。
                     .collect(Collectors.toList());
             if (updates.isEmpty()) {
                 continue;
             }
-            // dealer_out_date 鍏佽瑕嗙洊宸叉湁鍊硷紝鍥犳杩欓噷鐩存帴鎸夋渶鏂拌仛鍚堢粨鏋滃洖鍐欍€?
+            // 说明：执行该步骤以保证业务流程正确。
             String updateSql = "UPDATE machine_barcode SET last_out_date = ?, last_sync_time = NOW(), update_time = NOW() "
                     + "WHERE barcode = ?";
             jdbcTemplate.batchUpdate(updateSql, new BatchPreparedStatementSetter() {
                 /**
-                 * ??Values?
-                 *
-                 * @param ps ??
-                 * @param i ??
+     * setValues。
+     *
+     * @param ps 参数
+     * @param i 参数
                  */
                 @Override
                 public void setValues(PreparedStatement ps, int i) throws SQLException {
+                    // 调用get方法，复用统一能力并保证业务规则一致。
                     Map.Entry<String, LocalDateTime> item = updates.get(i);
+                    // 调用getValue方法，复用统一能力并保证业务规则一致。
                     ps.setTimestamp(1, toTimestamp(item.getValue()));
+                    // 调用getKey方法，复用统一能力并保证业务规则一致。
                     ps.setString(2, item.getKey());
                 }
 
                 /**
-                 * ??Batch Size?
-                 *
-                 * @return ????
+     * 获取BatchSize。
+     *
+     * @return 处理结果
                  */
                 @Override
                 public int getBatchSize() {
                     return updates.size();
                 }
             });
+            // 调用size方法，复用统一能力并保证业务规则一致。
             counter.updatedMachineBarcodeCount += updates.size();
         }
     }
 
     /**
-     * ?????
+     * 查询Min扫描DateMap。
      *
-     * @param barcodes ??
-     * @return ????
+     * @param barcodes 参数
+     * @return 处理结果
      */
     private Map<String, LocalDateTime> queryMinScanDateMap(List<String> barcodes) {
         if (CollUtil.isEmpty(barcodes)) {
             return Collections.emptyMap();
         }
+        // 调用joining方法，复用统一能力并保证业务规则一致。
         String placeholders = barcodes.stream().map(item -> "?").collect(Collectors.joining(","));
-        // 涓氬姟鍙ｅ緞鏄庣‘鍙栧悓鏉＄爜鏈€鏃╂壂鐮佹椂闂达紝浣滀负閿€鍞渶鍚庡嚭搴撴棩鏈熷啓鍥炴湰鍦版潯鐮佹。妗堛€?
+        // 说明：执行该步骤以保证业务流程正确。
         String sql = "SELECT scan_code, MIN(scan_date) AS last_out_date "
                 + "FROM crm_warehouse_scan_outstorage_snapshot "
                 + "WHERE scan_code IN (" + placeholders + ") AND scan_date IS NOT NULL "
                 + "GROUP BY scan_code";
         List<Map.Entry<String, LocalDateTime>> rows = jdbcTemplate.query(sql, ps -> {
             for (int i = 0; i < barcodes.size(); i++) {
+                // 调用get方法，复用统一能力并保证业务规则一致。
                 ps.setString(i + 1, barcodes.get(i));
             }
         }, (rs, rowNum) -> new java.util.AbstractMap.SimpleEntry<>(
@@ -269,6 +313,7 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
         Map<String, LocalDateTime> result = new LinkedHashMap<>();
         for (Map.Entry<String, LocalDateTime> row : rows) {
             if (StrUtil.isNotBlank(row.getKey()) && row.getValue() != null) {
+                // 调用getValue方法，复用统一能力并保证业务规则一致。
                 result.put(row.getKey(), row.getValue());
             }
         }
@@ -276,47 +321,49 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
     }
 
     /**
-     * ??Local Max Source Id?
+     * 获取LocalMax来源ID。
      *
-     * @return ????
+     * @return 处理结果
      */
     private Long getLocalMaxSourceId() {
-        // 蹇収琛ㄤ繚瀛樿繃鐨勬渶澶?source_id 鍗冲綋鍓嶅閲忓悓姝ユ父鏍囥€?
+        // 说明：执行该步骤以保证业务流程正确。
         String sql = "SELECT MAX(source_id) FROM crm_warehouse_scan_outstorage_snapshot";
+        // 调用queryForObject方法，复用统一能力并保证业务规则一致。
         Long value = jdbcTemplate.queryForObject(sql, Long.class);
         return value == null ? 0L : value;
     }
 
     /**
-     * ??????????
+     * requireCRMJDBC模板。
      *
-     * @return ????
+     * @return 处理结果
      */
     private JdbcTemplate requireCrmJdbcTemplate() {
         if (crmJdbcTemplate == null) {
-            throw new ServiceException("褰撳墠鏈厤缃鎴峰叧绯荤鐞嗭紙CRM锛夋暟鎹簮锛岃鍏堝畬鍠?jasic.crm.datasource");
+            throw new ServiceException("当前未配置客户关系管理（CRM）数据源，请先完善 jasic.crm.datasource");
         }
         return crmJdbcTemplate;
     }
 
     /**
-     * ?? toTimestamp ?????
+     * toTimestamp。
      *
-     * @param value ???
-     * @return ????
+     * @param value 参数
+     * @return 处理结果
      */
     private Timestamp toTimestamp(LocalDateTime value) {
         return value == null ? null : Timestamp.valueOf(value);
     }
 
     /**
-     * ?? toLocalDateTime ?????
+     * toLocalDateTime。
      *
-     * @param rs ??
-     * @param column ??
-     * @return ????
+     * @param rs 参数
+     * @param column 参数
+     * @return 处理结果
      */
     private static LocalDateTime toLocalDateTime(ResultSet rs, String column) throws SQLException {
+        // 调用getTimestamp方法，复用统一能力并保证业务规则一致。
         Timestamp value = rs.getTimestamp(column);
         return value == null ? null : value.toLocalDateTime();
     }
@@ -345,3 +392,6 @@ public class CrmWarehouseScanOutstorageSyncServiceImpl implements ICrmWarehouseS
         private Long latestSourceId;
     }
 }
+
+
+

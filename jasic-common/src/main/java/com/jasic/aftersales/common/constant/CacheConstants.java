@@ -9,7 +9,7 @@ package com.jasic.aftersales.common.constant;
 public class CacheConstants {
 
     /**
-     * ?? CacheConstants ???
+     * 禁止实例化缓存常量类。
      */
     private CacheConstants() {
     }

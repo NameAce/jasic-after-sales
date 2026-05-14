@@ -42,10 +42,18 @@ public enum OperTypeEnum {
     private final int code;
 
     /** 描述 */
-    private final String desc;
+        private final String desc;
 
+    /**
+     * 构造操作类型实例。
+     */
     OperTypeEnum(int code, String desc) {
         this.code = code;
         this.desc = desc;
     }
 }
+
+
+
+
+

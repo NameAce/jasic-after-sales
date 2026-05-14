@@ -17,17 +17,19 @@ public enum WechatMiniProgramScene {
     C("C", WechatConfigConstants.C_APP_ID, WechatConfigConstants.C_APP_SECRET);
 
     /**
-     * ?? WechatMiniProgramScene ?????
-     *
-     * @param code ??
-     * @param appIdKey ??
-     * @param secretKey ??
-     * @return ????
+     * 微信小程序程序场景编码。
      */
     private final String code;
     private final String appIdKey;
     private final String secretKey;
 
+    /**
+     * 构造微信小程序程序场景实例。
+     *
+     * @param code 参数
+     * @param appIdKey 参数
+     * @param secretKey 参数
+     */
     WechatMiniProgramScene(String code, String appIdKey, String secretKey) {
         this.code = code;
         this.appIdKey = appIdKey;
@@ -35,29 +37,33 @@ public enum WechatMiniProgramScene {
     }
 
     /**
-     * ?????
+     * 获取微信小程序程序场景编码。
      *
-     * @return ?????
+     * @return 处理结果
      */
     public String getCode() {
         return code;
     }
 
     /**
-     * ??App Id Key?
+     * 获取AppIDKey。
      *
-     * @return ?????
+     * @return 处理结果
      */
     public String getAppIdKey() {
         return appIdKey;
     }
 
     /**
-     * ??Secret Key?
+     * 获取SecretKey。
      *
-     * @return ?????
+     * @return 处理结果
      */
     public String getSecretKey() {
         return secretKey;
     }
 }
+
+
+
+

@@ -93,6 +93,7 @@ public class SysRoleTemplateController extends BaseController {
     @SaCheckPermission("system:roleTemplate:list")
     @GetMapping("/{templateId}")
     public Result<SysRoleTemplateVO> getById(@PathVariable Long templateId) {
+        // 调用getById方法，复用统一能力并保证业务规则一致。
         SysRoleTemplateVO vo = roleTemplateService.getById(templateId);
         return Result.ok(vo);
     }
@@ -108,6 +109,7 @@ public class SysRoleTemplateController extends BaseController {
     @OperLog(title = "角色模板管理", operType = OperTypeEnum.INSERT)
     @PostMapping
     public Result<Long> save(@Validated @RequestBody SysRoleTemplateDTO dto) {
+        // 调用save方法，复用统一能力并保证业务规则一致。
         Long id = roleTemplateService.save(dto);
         return Result.ok(id);
     }
@@ -123,6 +125,7 @@ public class SysRoleTemplateController extends BaseController {
     @OperLog(title = "角色模板管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
     public Result<Void> update(@Validated @RequestBody SysRoleTemplateDTO dto) {
+        // 调用update方法，复用统一能力并保证业务规则一致。
         roleTemplateService.update(dto);
         return Result.ok();
     }
@@ -138,6 +141,7 @@ public class SysRoleTemplateController extends BaseController {
     @OperLog(title = "角色模板管理", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/{templateId}")
     public Result<Void> remove(@PathVariable Long templateId) {
+        // 调用remove方法，复用统一能力并保证业务规则一致。
         roleTemplateService.remove(templateId);
         return Result.ok();
     }
@@ -153,6 +157,7 @@ public class SysRoleTemplateController extends BaseController {
     @OperLog(title = "角色模板管理", operType = OperTypeEnum.UPDATE)
     @PostMapping("/{templateId}/sync")
     public Result<Void> sync(@PathVariable Long templateId) {
+        // 调用syncToCompanies方法，复用统一能力并保证业务规则一致。
         roleTemplateService.syncToCompanies(templateId);
         return Result.ok();
     }

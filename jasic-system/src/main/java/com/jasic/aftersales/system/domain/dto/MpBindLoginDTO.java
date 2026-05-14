@@ -38,3 +38,5 @@ public class MpBindLoginDTO implements Serializable {
     @ApiModelProperty(value = "微信手机号凭证")
     private String phoneCode;
 }
+
+

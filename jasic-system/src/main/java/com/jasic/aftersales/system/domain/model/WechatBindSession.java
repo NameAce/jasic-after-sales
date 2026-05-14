@@ -25,3 +25,5 @@ public class WechatBindSession implements Serializable {
     /** 过期时间 */
     private LocalDateTime expireAt;
 }
+
+

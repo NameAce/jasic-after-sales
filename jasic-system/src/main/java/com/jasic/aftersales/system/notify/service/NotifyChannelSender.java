@@ -11,7 +11,23 @@ import com.jasic.aftersales.system.notify.support.NotifyChannelSendResult;
  */
 public interface NotifyChannelSender {
 
+    /**
+     * supports。
+     *
+     * @param channelType 参数
+     * @return 处理结果
+     */
     boolean supports(String channelType);
 
+    /**
+     * 发送通知渠道发送。
+     *
+     * @param context 参数
+     * @return 处理结果
+     */
     NotifyChannelSendResult send(NotifyChannelSendContext context);
 }
+
+
+
+

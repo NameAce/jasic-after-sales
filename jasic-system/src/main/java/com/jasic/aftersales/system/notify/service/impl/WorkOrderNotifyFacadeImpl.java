@@ -31,9 +31,9 @@ import javax.annotation.Resource;
 public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
 
     /**
-     * ?? publishAssignedEvent ?????
+     * 通知消息服务服务依赖。
      *
-     * @param dto ????
+     * @param dto 参数
      */
     @Resource
     private NotifyMessageService notifyMessageService;
@@ -41,15 +41,22 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
     @Resource
     private NotifyEventService notifyEventService;
 
+    /**
+     * 处理publishAssignedEvent业务逻辑。
+     *
+     * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
+     * @param dto 参数
+     */
     @Override
     public void publishAssignedEvent(NotifyAssignedEventDTO dto) {
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         validateAssignedEvent(dto);
         if (dto.getOldAssignedUserId() != null && dto.getOldAssignedUserId().equals(dto.getNewAssignedUserId())) {
             return;
         }
+        // 调用buildAssignedEventKey方法，复用统一能力并保证业务规则一致。
         String eventKey = buildAssignedEventKey(dto);
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         if (notifyEventService.getByEventKey(eventKey) != null) {
             return;
         }
@@ -62,20 +69,22 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
                 dto.getNewAssignedUserId(),
                 JSONUtil.toJsonStr(dto)
         );
+        // 调用createEventSafely方法，复用统一能力并保证业务规则一致。
         createEventSafely(notifyEvent);
     }
 
     /**
-     * ?? publishEvaluationInviteEvent ?????
+     * publish评价Invite事件。
      *
-     * @param dto ????
+     * @param dto 参数
      */
     @Override
     public void publishEvaluationInviteEvent(NotifyEvaluationInviteEventDTO dto) {
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         validateEvaluationInviteEvent(dto);
+        // 调用buildEvaluationInviteEventKey方法，复用统一能力并保证业务规则一致。
         String eventKey = buildEvaluationInviteEventKey(dto);
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         if (notifyEventService.getByEventKey(eventKey) != null) {
             return;
         }
@@ -88,76 +97,89 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
                 dto.getCustomerId(),
                 JSONUtil.toJsonStr(dto)
         );
+        // 调用createEventSafely方法，复用统一能力并保证业务规则一致。
         createEventSafely(notifyEvent);
     }
 
     /**
-     * ?? markReadByBiz ?????
+     * mark读取By业务。
      *
-     * @param dto ????
+     * @param dto 参数
      */
     @Override
     public void markReadByBiz(NotifyReadByBizDTO dto) {
+        // 调用markReadByBiz方法，复用统一能力并保证业务规则一致。
         notifyMessageService.markReadByBiz(dto);
     }
 
     /**
-     * ?? completeTodoByBizAndReceiver ?????
+     * 完成待办By业务And接收人。
      *
-     * @param dto ????
+     * @param dto 参数
      */
     @Override
     public void completeTodoByBizAndReceiver(NotifyTodoCompleteDTO dto) {
+        // 调用completeTodoByBizAndReceiver方法，复用统一能力并保证业务规则一致。
         notifyMessageService.completeTodoByBizAndReceiver(dto);
     }
 
     /**
-     * ?? invalidateTodoByBiz ?????
+     * 作废待办By业务。
      *
-     * @param dto ????
+     * @param dto 参数
      */
     @Override
     public void invalidateTodoByBiz(NotifyTodoInvalidateDTO dto) {
+        // 调用invalidateTodoByBiz方法，复用统一能力并保证业务规则一致。
         notifyMessageService.invalidateTodoByBiz(dto);
     }
 
     /**
-     * ???????
+     * 构建事件。
      *
-     * @param eventKey ??
-     * @param eventType ??
-     * @param bizId ??ID
-     * @param bizNo ??
+     * @param eventKey 参数
+     * @param eventType 参数
+     * @param bizNo 参数
      * @param operatorId operator ID
      * @param receiverId receiver ID
-     * @param payloadJson ??
-     * @return ????
+     * @param payloadJson 参数
+     * @return 处理结果
      */
     private SysNotifyEvent buildEvent(String eventKey, String eventType, Long bizId, String bizNo,
                                       Long operatorId, Long receiverId, String payloadJson) {
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         SysNotifyEvent notifyEvent = new SysNotifyEvent();
+        // 调用setEventKey方法，复用统一能力并保证业务规则一致。
         notifyEvent.setEventKey(eventKey);
+        // 调用setEventType方法，复用统一能力并保证业务规则一致。
         notifyEvent.setEventType(eventType);
+        // 调用getCode方法，复用统一能力并保证业务规则一致。
         notifyEvent.setBizType(NotifyBizTypeEnum.WORK_ORDER.getCode());
+        // 调用setBizId方法，复用统一能力并保证业务规则一致。
         notifyEvent.setBizId(bizId);
+        // 调用setBizNo方法，复用统一能力并保证业务规则一致。
         notifyEvent.setBizNo(bizNo);
+        // 调用setOperatorId方法，复用统一能力并保证业务规则一致。
         notifyEvent.setOperatorId(operatorId);
+        // 调用setReceiverId方法，复用统一能力并保证业务规则一致。
         notifyEvent.setReceiverId(receiverId);
+        // 调用setPayloadJson方法，复用统一能力并保证业务规则一致。
         notifyEvent.setPayloadJson(payloadJson);
+        // 调用getCode方法，复用统一能力并保证业务规则一致。
         notifyEvent.setStatus(NotifyEventStatusEnum.NEW.getCode());
+        // 调用setRetryCount方法，复用统一能力并保证业务规则一致。
         notifyEvent.setRetryCount(0);
         return notifyEvent;
     }
 
     /**
-     * ?????
+     * 创建事件Safely。
      *
-     * @param notifyEvent ??
+     * @param notifyEvent 参数
      */
     private void createEventSafely(SysNotifyEvent notifyEvent) {
         try {
-            // ????????????????????????
+            // 说明：执行该步骤以保证业务流程正确。
             notifyEventService.createEvent(notifyEvent);
         } catch (DuplicateKeyException ignored) {
             // Ignore duplicate inserts for the same event_key.
@@ -165,9 +187,9 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
     }
 
     /**
-     * ???????
+     * 校验Assigned事件。
      *
-     * @param dto ????
+     * @param dto 参数
      */
     private void validateAssignedEvent(NotifyAssignedEventDTO dto) {
         if (dto == null) {
@@ -194,9 +216,9 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
     }
 
     /**
-     * ???????
+     * 校验评价Invite事件。
      *
-     * @param dto ????
+     * @param dto 参数
      */
     private void validateEvaluationInviteEvent(NotifyEvaluationInviteEventDTO dto) {
         if (dto == null) {
@@ -214,10 +236,10 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
     }
 
     /**
-     * ???????
+     * 构建Assigned事件Key。
      *
-     * @param dto ????
-     * @return ?????
+     * @param dto 参数
+     * @return 处理结果
      */
     private String buildAssignedEventKey(NotifyAssignedEventDTO dto) {
         return String.format("%s:%s:%s:%s",
@@ -229,10 +251,10 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
     }
 
     /**
-     * ???????
+     * 构建评价Invite事件Key。
      *
-     * @param dto ????
-     * @return ?????
+     * @param dto 参数
+     * @return 处理结果
      */
     private String buildEvaluationInviteEventKey(NotifyEvaluationInviteEventDTO dto) {
         return String.format("%s:%s",
@@ -241,3 +263,5 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
         );
     }
 }
+
+

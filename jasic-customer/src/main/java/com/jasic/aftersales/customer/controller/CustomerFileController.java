@@ -44,9 +44,9 @@ public class CustomerFileController {
     @ApiOperation(value = "上传客户侧文件")
     @PostMapping("/upload")
     public Result<SysFileUploadVO> upload(@RequestParam("file") MultipartFile file) {
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         Long customerId = requireCustomerId();
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         return Result.ok(sysFileService.upload(
                 file,
                 "customer/work-order",
@@ -65,9 +65,9 @@ public class CustomerFileController {
     @ApiOperation(value = "按业务整组绑定文件")
     @PostMapping("/biz/bind")
     public Result<Void> bindBizFiles(@Validated @RequestBody SysFileBizBindDTO dto) {
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         Long customerId = requireCustomerId();
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         sysFileService.replaceBizFiles(
                 dto.getBizType(),
                 dto.getBizId(),
@@ -89,18 +89,25 @@ public class CustomerFileController {
     @ApiOperation(value = "解绑单个业务文件")
     @PostMapping("/biz/unbind")
     public Result<Void> unbindBizFile(@Validated @RequestBody SysFileBizUnbindDTO dto) {
+        // 调用requireCustomerId方法，复用统一能力并保证业务规则一致。
         requireCustomerId();
+        // 调用getFileId方法，复用统一能力并保证业务规则一致。
         sysFileService.unbindBizFile(dto.getBizType(), dto.getBizId(), dto.getFileId());
         return Result.ok();
     }
 
     /**
-     * ??????????
+     * require客户ID。
      *
-     * @return ????
+     * @return 处理结果
      */
     private Long requireCustomerId() {
+        // 调用checkLogin方法，复用统一能力并保证业务规则一致。
         StpCustomerUtil.checkLogin();
         return StpCustomerUtil.getLoginIdAsLong();
     }
 }
+
+
+
+

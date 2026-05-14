@@ -43,6 +43,7 @@ public class SysCompanyTypeController extends BaseController {
     @ApiOperation(value = "查询所有公司类型（基础参考数据，仅需登录即可访问）")
     @GetMapping("/list")
     public Result<List<SysCompanyType>> list() {
+        // 调用listAll方法，复用统一能力并保证业务规则一致。
         List<SysCompanyType> list = companyTypeService.listAll();
         return Result.ok(list);
     }
@@ -56,6 +57,7 @@ public class SysCompanyTypeController extends BaseController {
     @ApiOperation(value = "根据ID查询公司类型")
     @GetMapping("/{id}")
     public Result<SysCompanyType> getById(@PathVariable Long id) {
+        // 调用getById方法，复用统一能力并保证业务规则一致。
         SysCompanyType entity = companyTypeService.getById(id);
         return Result.ok(entity);
     }
@@ -71,6 +73,7 @@ public class SysCompanyTypeController extends BaseController {
     @OperLog(title = "公司类型管理", operType = OperTypeEnum.INSERT)
     @PostMapping
     public Result<Long> save(@RequestBody SysCompanyType entity) {
+        // 调用save方法，复用统一能力并保证业务规则一致。
         Long id = companyTypeService.save(entity);
         return Result.ok(id);
     }
@@ -86,6 +89,7 @@ public class SysCompanyTypeController extends BaseController {
     @OperLog(title = "公司类型管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
     public Result<Void> update(@RequestBody SysCompanyType entity) {
+        // 调用update方法，复用统一能力并保证业务规则一致。
         companyTypeService.update(entity);
         return Result.ok();
     }
@@ -101,6 +105,7 @@ public class SysCompanyTypeController extends BaseController {
     @OperLog(title = "公司类型管理", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/{id}")
     public Result<Void> remove(@PathVariable Long id) {
+        // 调用remove方法，复用统一能力并保证业务规则一致。
         companyTypeService.remove(id);
         return Result.ok();
     }

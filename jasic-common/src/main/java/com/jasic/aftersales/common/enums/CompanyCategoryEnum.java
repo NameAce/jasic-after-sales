@@ -38,8 +38,11 @@ public enum CompanyCategoryEnum {
     private static final List<String> FIRST_LEVEL_TYPE_CODES = Arrays.asList("SITE_FIRST");
 
     /** 二级网点对应的 typeCode 列表（兼容历史编码） */
-    private static final List<String> SECOND_LEVEL_TYPE_CODES = Arrays.asList("SITE_SECOND");
+        private static final List<String> SECOND_LEVEL_TYPE_CODES = Arrays.asList("SITE_SECOND");
 
+    /**
+     * 构造公司业务分类实例。
+     */
     CompanyCategoryEnum(String code, String desc) {
         this.code = code;
         this.desc = desc;
@@ -74,3 +77,8 @@ public enum CompanyCategoryEnum {
         return Collections.unmodifiableList(SECOND_LEVEL_TYPE_CODES);
     }
 }
+
+
+
+
+

@@ -33,23 +33,25 @@ public class QuartzConfig {
     private static final String NOTIFY_DISPATCH_TRIGGER_NAME = "notify-dispatch-send-trigger";
 
     /**
-     * ?? schedulerFactoryBeanCustomizer ?????
+     * schedulerFactoryBeanCustomizer。
      *
-     * @param beanFactory ??
-     * @return ????
+     * @param beanFactory 参数
+     * @return 处理结果
      */
     @Bean
     public SchedulerFactoryBeanCustomizer schedulerFactoryBeanCustomizer(AutowireCapableBeanFactory beanFactory) {
         return schedulerFactoryBean -> schedulerFactoryBean.setJobFactory(new SpringBeanJobFactory() {
             /**
-             * ?????
-             *
-             * @param bundle ??
-             * @return ????
+     * 创建任务Instance。
+     *
+     * @param bundle 参数
+     * @return 处理结果
              */
             @Override
             protected Object createJobInstance(TriggerFiredBundle bundle) throws Exception {
+                // 调用createJobInstance方法，复用统一能力并保证业务规则一致。
                 Object job = super.createJobInstance(bundle);
+                // 调用autowireBean方法，复用统一能力并保证业务规则一致。
                 beanFactory.autowireBean(job);
                 return job;
             }
@@ -57,24 +59,25 @@ public class QuartzConfig {
     }
 
     /**
-     * ?? notifyEventConsumeJobDetail ?????
+     * notify事件消费任务详情。
      *
-     * @return ????
+     * @return 处理结果
      */
     @Bean
     public JobDetail notifyEventConsumeJobDetail() {
         return JobBuilder.newJob(NotifyEventConsumeJob.class)
                 .withIdentity(NOTIFY_EVENT_JOB_NAME, NOTIFY_EVENT_JOB_GROUP)
                 .storeDurably()
+                // 调用build方法，复用统一能力并保证业务规则一致。
                 .build();
     }
 
     /**
-     * ?? notifyEventConsumeTrigger ?????
+     * notify事件消费Trigger。
      *
-     * @param jobDetail ??
-     * @param intervalSeconds ??
-     * @return ????
+     * @param jobDetail 参数
+     * @param intervalSeconds 参数
+     * @return 处理结果
      */
     @Bean
     public Trigger notifyEventConsumeTrigger(
@@ -84,24 +87,25 @@ public class QuartzConfig {
     }
 
     /**
-     * ?? notifyDispatchSendJobDetail ?????
+     * notify分发发送任务详情。
      *
-     * @return ????
+     * @return 处理结果
      */
     @Bean
     public JobDetail notifyDispatchSendJobDetail() {
         return JobBuilder.newJob(NotifyDispatchSendJob.class)
                 .withIdentity(NOTIFY_DISPATCH_JOB_NAME, NOTIFY_DISPATCH_JOB_GROUP)
                 .storeDurably()
+                // 调用build方法，复用统一能力并保证业务规则一致。
                 .build();
     }
 
     /**
-     * ?? notifyDispatchSendTrigger ?????
+     * notify分发发送Trigger。
      *
-     * @param jobDetail ??
-     * @param intervalSeconds ??
-     * @return ????
+     * @param jobDetail 参数
+     * @param intervalSeconds 参数
+     * @return 处理结果
      */
     @Bean
     public Trigger notifyDispatchSendTrigger(
@@ -111,15 +115,16 @@ public class QuartzConfig {
     }
 
     /**
-     * ???????
+     * 构建SimpleTrigger。
      *
-     * @param jobDetail ??
-     * @param triggerName ??
-     * @param triggerGroup ??
-     * @param intervalSeconds ??
-     * @return ????
+     * @param jobDetail 参数
+     * @param triggerName 参数
+     * @param triggerGroup 参数
+     * @param intervalSeconds 参数
+     * @return 处理结果
      */
     private Trigger buildSimpleTrigger(JobDetail jobDetail, String triggerName, String triggerGroup, int intervalSeconds) {
+        // 调用max方法，复用统一能力并保证业务规则一致。
         int safeIntervalSeconds = Math.max(intervalSeconds, 1);
         return TriggerBuilder.newTrigger()
                 .withIdentity(triggerName, triggerGroup)
@@ -129,6 +134,9 @@ public class QuartzConfig {
                         .withIntervalInSeconds(safeIntervalSeconds)
                         .repeatForever()
                         .withMisfireHandlingInstructionNextWithRemainingCount())
+                // 调用build方法，复用统一能力并保证业务规则一致。
                 .build();
     }
 }
+
+

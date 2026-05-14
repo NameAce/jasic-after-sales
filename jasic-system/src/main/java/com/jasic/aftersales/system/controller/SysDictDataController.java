@@ -40,10 +40,10 @@ public class SysDictDataController extends BaseController {
     private ISysDictDataService dictDataService;
 
     /**
-     * ???????
+     * 分页查询字典数据列表。
      *
-     * @param query ????
-     * @return ????
+     * @param query 参数
+     * @return 处理结果
      */
     @SaCheckPermission("system:dictData:list")
     @GetMapping("/list")
@@ -52,10 +52,9 @@ public class SysDictDataController extends BaseController {
     }
 
     /**
-     * ??By Id?
+     * 根据ID查询字典数据详情。
      *
-     * @param id ??ID
-     * @return ??????
+     * @return 处理结果
      */
     @SaCheckPermission("system:dictData:list")
     @GetMapping("/{id}")
@@ -64,10 +63,10 @@ public class SysDictDataController extends BaseController {
     }
 
     /**
-     * ???????
+     * 分页查询By类型列表。
      *
-     * @param dictType ??
-     * @return ????
+     * @param dictType 参数
+     * @return 处理结果
      */
     @GetMapping("/type/{dictType}")
     public Result<List<SysDictDataVO>> listByType(@PathVariable String dictType) {
@@ -75,10 +74,10 @@ public class SysDictDataController extends BaseController {
     }
 
     /**
-     * ?????
+     * 新增字典数据。
      *
-     * @param dto ????
-     * @return ??????
+     * @param dto 参数
+     * @return 处理结果
      */
     @SaCheckPermission("system:dictData:add")
     @OperLog(title = "字典数据管理", operType = OperTypeEnum.INSERT)
@@ -88,30 +87,33 @@ public class SysDictDataController extends BaseController {
     }
 
     /**
-     * ?????
+     * 更新字典数据。
      *
-     * @param dto ????
-     * @return ??????
+     * @param dto 参数
+     * @return 处理结果
      */
     @SaCheckPermission("system:dictData:update")
     @OperLog(title = "字典数据管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
     public Result<Void> update(@Validated @RequestBody SysDictDataDTO dto) {
+        // 调用update方法，复用统一能力并保证业务规则一致。
         dictDataService.update(dto);
         return Result.ok();
     }
 
     /**
-     * ?????
+     * 删除字典数据。
      *
-     * @param id ??ID
-     * @return ??????
+     * @return 处理结果
      */
     @SaCheckPermission("system:dictData:remove")
     @OperLog(title = "字典数据管理", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/{id}")
     public Result<Void> remove(@PathVariable Long id) {
+        // 调用remove方法，复用统一能力并保证业务规则一致。
         dictDataService.remove(id);
         return Result.ok();
     }
 }
+
+

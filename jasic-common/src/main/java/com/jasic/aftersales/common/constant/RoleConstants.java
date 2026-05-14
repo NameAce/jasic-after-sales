@@ -14,7 +14,7 @@ import java.util.Set;
 public class RoleConstants {
 
     /**
-     * ?? RoleConstants ???
+     * 禁止实例化角色常量类。
      */
     private RoleConstants() {
     }

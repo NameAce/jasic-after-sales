@@ -21,11 +21,11 @@ import java.util.Set;
 public class StpInterfaceImpl implements StpInterface {
 
     /**
-     * ??Permission List?
+     * 对象模板依赖。
      *
      * @param loginId login ID
-     * @param loginType ??
-     * @return ????
+     * @param loginType 参数
+     * @return 处理结果
      */
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
@@ -39,17 +39,21 @@ public class StpInterfaceImpl implements StpInterface {
      */
     @Override
     public List<String> getPermissionList(Object loginId, String loginType) {
+        // 调用getCurrentCompanyId方法，复用统一能力并保证业务规则一致。
         Long companyId = SecurityContext.getCurrentCompanyId();
         if (companyId == null) {
             return Collections.emptyList();
         }
         String key = CacheConstants.USER_PERMS_KEY + loginId + ":" + companyId;
+        // 调用members方法，复用统一能力并保证业务规则一致。
         Set<Object> perms = redisTemplate.opsForSet().members(key);
         if (perms == null || perms.isEmpty()) {
             return Collections.emptyList();
         }
+        // 调用size方法，复用统一能力并保证业务规则一致。
         List<String> permList = new ArrayList<>(perms.size());
         for (Object perm : perms) {
+            // 调用toString方法，复用统一能力并保证业务规则一致。
             permList.add(perm.toString());
         }
         return permList;
@@ -67,3 +71,5 @@ public class StpInterfaceImpl implements StpInterface {
         return Collections.emptyList();
     }
 }
+
+

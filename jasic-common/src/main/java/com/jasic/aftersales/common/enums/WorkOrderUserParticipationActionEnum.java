@@ -24,18 +24,24 @@ public enum WorkOrderUserParticipationActionEnum {
     REVIEW("REVIEW", "复检");
 
     /**
-     * ?? WorkOrderUserParticipationActionEnum ?????
-     *
-     * @param code ??
-     * @param label ??
-     * @return ????
+     * 工单用户参与动作编码。
      */
     private final String code;
 
     private final String label;
 
+    /**
+     * 构造工单用户参与动作实例。
+     *
+     * @param code 参数
+     * @param label 参数
+     */
     WorkOrderUserParticipationActionEnum(String code, String label) {
         this.code = code;
         this.label = label;
     }
 }
+
+
+
+

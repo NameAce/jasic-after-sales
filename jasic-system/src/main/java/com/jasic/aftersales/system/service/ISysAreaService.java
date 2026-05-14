@@ -62,12 +62,12 @@ public interface ISysAreaService {
     class AreaMatchResult {
 
         /**
-         * ?? AreaMatchResult ?????
-         *
-         * @param province ??
-         * @param city ??
-         * @param district ??
-         * @return ????
+     * 系统Area字段。
+     *
+     * @param province 参数
+     * @param city 参数
+     * @param district 参数
+     * @return 处理结果
          */
         private final SysArea province;
 
@@ -75,6 +75,14 @@ public interface ISysAreaService {
 
         private final SysArea district;
 
+        /**
+     * 构造系统Area实例。
+     *
+     * @param province 参数
+     * @param city 参数
+     * @param district 参数
+     * @return 处理结果
+         */
         public AreaMatchResult(SysArea province, SysArea city, SysArea district) {
             this.province = province;
             this.city = city;
@@ -82,39 +90,39 @@ public interface ISysAreaService {
         }
 
         /**
-         * ??Province?
-         *
-         * @return ????
+     * 获取Province。
+     *
+     * @return 处理结果
          */
         public SysArea getProvince() {
             return province;
         }
 
         /**
-         * ??City?
-         *
-         * @return ????
+     * 获取City。
+     *
+     * @return 处理结果
          */
         public SysArea getCity() {
             return city;
         }
 
         /**
-         * ??District?
-         *
-         * @return ????
+     * 获取District。
+     *
+     * @return 处理结果
          */
         public SysArea getDistrict() {
             return district;
         }
 
         /**
-         * ????Matched?
-         *
-         * @return true ??????
+     * 判断是否Matched。
          */
         public boolean isMatched() {
             return province != null && city != null && district != null;
         }
     }
 }
+
+

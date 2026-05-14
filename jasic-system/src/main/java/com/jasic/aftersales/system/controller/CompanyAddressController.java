@@ -51,7 +51,7 @@ public class CompanyAddressController {
     @GetMapping("/list")
     @SaCheckPermission("companyAddress:list")
     public Result<List<CompanyAddressVO>> list(@RequestParam(required = false) Long targetCompanyId) {
-        // ????????????????????????
+        // 调用公司上下文执行器，确保在目标公司数据范围内查询地址列表。
         return Result.ok(companyDataAccessService.runWithCurrentCompanyTarget(
                 targetCompanyId,
                 () -> companyAddressService.list()
@@ -69,7 +69,7 @@ public class CompanyAddressController {
     @SaCheckPermission("companyAddress:list")
     public Result<CompanyAddressVO> getById(@PathVariable Long addressId,
                                             @RequestParam(required = false) Long targetCompanyId) {
-        // ????????????????????????
+        // 调用公司上下文执行器，确保在目标公司数据范围内查询地址详情。
         return Result.ok(companyDataAccessService.runWithCurrentCompanyTarget(
                 targetCompanyId,
                 () -> companyAddressService.getById(addressId)
@@ -87,7 +87,7 @@ public class CompanyAddressController {
     @OperLog(title = "公司地址簿", operType = OperTypeEnum.INSERT)
     @PostMapping
     public Result<Long> create(@Validated @RequestBody CompanyAddressCreateDTO dto) {
-        // ????????????????????????
+        // 调用公司上下文执行器，确保在目标公司数据范围内创建地址数据。
         return Result.ok(companyDataAccessService.runWithCurrentCompanyTarget(
                 dto.getTargetCompanyId(),
                 () -> companyAddressService.create(dto)

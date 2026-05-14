@@ -56,3 +56,5 @@ public class WorkOrderTechAcceptDTO implements Serializable {
     @ApiModelProperty(value = "关闭原因")
     private String closeReason;
 }
+
+

@@ -45,7 +45,7 @@ public class NotifyController {
     @ApiOperation(value = "获取当前登录用户有效待办数")
     @GetMapping("/todo/count")
     public Result<NotifyTodoCountVO> todoCount() {
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         NotifyTodoCountVO vo = new NotifyTodoCountVO();
         vo.setCount(notifyMessageService.countTodo(
                 SecurityContext.getCurrentUserId(),
@@ -63,9 +63,11 @@ public class NotifyController {
     @ApiOperation(value = "分页查询当前登录用户消息")
     @GetMapping("/todo/page")
     public Result<NotifyMessagePageResultVO> todoPage(NotifyMessageQuery query) {
+        // 调用getCurrentUserId方法，复用统一能力并保证业务规则一致。
         query.setReceiverId(SecurityContext.getCurrentUserId());
+        // 调用getCurrentCompanyId方法，复用统一能力并保证业务规则一致。
         query.setReceiverCompanyId(SecurityContext.getCurrentCompanyId());
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         PageResult<NotifyMessagePageVO> pageResult = notifyMessageService.listPage(query);
         return Result.ok(NotifyMessagePageResultVO.of(pageResult.getTotal(), pageResult.getRecords()));
     }
@@ -79,7 +81,7 @@ public class NotifyController {
     @ApiOperation(value = "按消息 ID 标记已读")
     @PostMapping("/message/{id}/read")
     public Result<Void> read(@PathVariable Long id) {
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         notifyMessageService.markRead(
                 id,
                 SecurityContext.getCurrentUserId(),
@@ -97,10 +99,13 @@ public class NotifyController {
     @ApiOperation(value = "按业务对象标记已读")
     @PostMapping("/message/read-by-biz")
     public Result<Void> readByBiz(@Validated @RequestBody NotifyReadByBizDTO dto) {
+        // 调用getCurrentUserId方法，复用统一能力并保证业务规则一致。
         dto.setReceiverId(SecurityContext.getCurrentUserId());
+        // 调用getCurrentCompanyId方法，复用统一能力并保证业务规则一致。
         dto.setReceiverCompanyId(SecurityContext.getCurrentCompanyId());
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         notifyMessageService.markReadByBiz(dto);
         return Result.ok();
     }
 }
+

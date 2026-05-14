@@ -19,11 +19,11 @@ import javax.annotation.Resource;
 public class SysUserIdentityValidator {
 
     /**
-     * ???????
+     * 系统用户Mapper数据访问接口。
      *
      * @param excludeUserId exclude User ID
-     * @param username ???
-     * @param phone ???
+     * @param username 参数
+     * @param phone 参数
      */
     @Resource
     private SysUserMapper sysUserMapper;
@@ -36,7 +36,9 @@ public class SysUserIdentityValidator {
      * @param phone         手机号
      */
     public void validateLoginIdentityUnique(Long excludeUserId, String username, String phone) {
+        // 调用trim方法，复用统一能力并保证业务规则一致。
         String normalizedUsername = StrUtil.trim(username);
+        // 调用trim方法，复用统一能力并保证业务规则一致。
         String normalizedPhone = StrUtil.trim(phone);
         if (StrUtil.isBlank(normalizedUsername)) {
             throw new ServiceException("用户名不能为空");
@@ -59,70 +61,76 @@ public class SysUserIdentityValidator {
     }
 
     /**
-     * ?? existsByUsername ?????
+     * existsByUsername。
      *
      * @param excludeUserId exclude User ID
-     * @param username ???
-     * @return true ??????
+     * @param username 参数
      */
     private boolean existsByUsername(Long excludeUserId, String username) {
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
+        // 调用eq方法，复用统一能力并保证业务规则一致。
         wrapper.eq(SysUser::getUsername, username);
         if (excludeUserId != null) {
+            // 调用ne方法，复用统一能力并保证业务规则一致。
             wrapper.ne(SysUser::getId, excludeUserId);
         }
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         return sysUserMapper.selectCount(wrapper) > 0;
     }
 
     /**
-     * ?? existsByPhone ?????
+     * existsByPhone。
      *
      * @param excludeUserId exclude User ID
-     * @param phone ???
-     * @return true ??????
+     * @param phone 参数
      */
     private boolean existsByPhone(Long excludeUserId, String phone) {
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
+        // 调用eq方法，复用统一能力并保证业务规则一致。
         wrapper.eq(SysUser::getPhone, phone);
         if (excludeUserId != null) {
+            // 调用ne方法，复用统一能力并保证业务规则一致。
             wrapper.ne(SysUser::getId, excludeUserId);
         }
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         return sysUserMapper.selectCount(wrapper) > 0;
     }
 
     /**
-     * ?? existsOtherUserPhone ?????
+     * existsOther用户Phone。
      *
      * @param excludeUserId exclude User ID
-     * @param phone ???
-     * @return true ??????
+     * @param phone 参数
      */
     private boolean existsOtherUserPhone(Long excludeUserId, String phone) {
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
+        // 调用eq方法，复用统一能力并保证业务规则一致。
         wrapper.eq(SysUser::getPhone, phone);
         if (excludeUserId != null) {
+            // 调用ne方法，复用统一能力并保证业务规则一致。
             wrapper.ne(SysUser::getId, excludeUserId);
         }
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         return sysUserMapper.selectCount(wrapper) > 0;
     }
 
     /**
-     * ?? existsOtherUserUsername ?????
+     * existsOther用户Username。
      *
      * @param excludeUserId exclude User ID
-     * @param username ???
-     * @return true ??????
+     * @param username 参数
      */
     private boolean existsOtherUserUsername(Long excludeUserId, String username) {
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
+        // 调用eq方法，复用统一能力并保证业务规则一致。
         wrapper.eq(SysUser::getUsername, username);
         if (excludeUserId != null) {
+            // 调用ne方法，复用统一能力并保证业务规则一致。
             wrapper.ne(SysUser::getId, excludeUserId);
         }
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         return sysUserMapper.selectCount(wrapper) > 0;
     }
 }
+
+

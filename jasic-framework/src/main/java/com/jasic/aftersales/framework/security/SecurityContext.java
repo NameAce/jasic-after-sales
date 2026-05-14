@@ -21,7 +21,7 @@ public class SecurityContext {
     private static final String KEY_REGION_IDS = "currentRegionIds";
 
     /**
-     * ?? SecurityContext ???
+     * 构造安全实例。
      */
     private SecurityContext() {
     }
@@ -50,6 +50,7 @@ public class SecurityContext {
      * @param companyId 公司ID
      */
     public static void setCurrentCompanyId(Long companyId) {
+        // 调用set方法，复用统一能力并保证业务规则一致。
         getSession().set(KEY_COMPANY_ID, companyId);
     }
 
@@ -68,6 +69,7 @@ public class SecurityContext {
      * @param subjectType 主体类型编码
      */
     public static void setCurrentSubjectType(String subjectType) {
+        // 调用set方法，复用统一能力并保证业务规则一致。
         getSession().set(KEY_SUBJECT_TYPE, subjectType);
     }
 
@@ -86,6 +88,7 @@ public class SecurityContext {
      * @param typeCode 类型编码
      */
     public static void setCurrentTypeCode(String typeCode) {
+        // 调用set方法，复用统一能力并保证业务规则一致。
         getSession().set(KEY_TYPE_CODE, typeCode);
     }
 
@@ -96,6 +99,7 @@ public class SecurityContext {
      */
     @SuppressWarnings("unchecked")
     public static List<Long> getCurrentRegionIds() {
+        // 调用get方法，复用统一能力并保证业务规则一致。
         Object regionIds = getSession().get(KEY_REGION_IDS);
         if (regionIds instanceof List) {
             return (List<Long>) regionIds;
@@ -109,6 +113,7 @@ public class SecurityContext {
      * @param regionIds 大区ID列表
      */
     public static void setCurrentRegionIds(List<Long> regionIds) {
+        // 调用set方法，复用统一能力并保证业务规则一致。
         getSession().set(KEY_REGION_IDS, regionIds);
     }
 
@@ -127,6 +132,7 @@ public class SecurityContext {
      * @param dataScope 数据范围编码
      */
     public static void setEffectiveDataScope(String dataScope) {
+        // 调用set方法，复用统一能力并保证业务规则一致。
         getSession().set("effectiveDataScope", dataScope);
     }
 
@@ -148,3 +154,5 @@ public class SecurityContext {
         return StpUtil.getSession();
     }
 }
+
+

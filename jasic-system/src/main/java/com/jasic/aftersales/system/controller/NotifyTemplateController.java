@@ -29,6 +29,11 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.annotation.Resource;
 import java.util.List;
 
+/**
+ * NotifyTemplateController。
+ *
+ * <p>控制层组件，负责接收请求并编排业务调用。</p>
+ */
 @Api(tags = "通知模板")
 @RestController
 @RequestMapping("/system/notify/template")
@@ -38,10 +43,10 @@ public class NotifyTemplateController extends BaseController {
     private NotifyTemplateService notifyTemplateService;
 
     /**
-     * ???????
+     * 分页查询通知模板列表。
      *
-     * @param query ????
-     * @return ????
+     * @param query 参数
+     * @return 处理结果
      */
     @ApiOperation(value = "分页查询通知模板")
     @SaCheckPermission("system:notifyTemplate:list")
@@ -51,10 +56,9 @@ public class NotifyTemplateController extends BaseController {
     }
 
     /**
-     * ??By Id?
+     * 根据ID查询通知模板详情。
      *
-     * @param id ??ID
-     * @return ??????
+     * @return 处理结果
      */
     @ApiOperation(value = "查询通知模板详情")
     @SaCheckPermission("system:notifyTemplate:view")
@@ -64,10 +68,10 @@ public class NotifyTemplateController extends BaseController {
     }
 
     /**
-     * ???????
+     * 分页查询Channels列表。
      *
-     * @param templateCode ??
-     * @return ????
+     * @param templateCode 参数
+     * @return 处理结果
      */
     @ApiOperation(value = "查询通知模板渠道配置")
     @SaCheckPermission("system:notifyTemplate:view")
@@ -77,10 +81,10 @@ public class NotifyTemplateController extends BaseController {
     }
 
     /**
-     * ?????
+     * 新增自定义。
      *
-     * @param dto ????
-     * @return ??????
+     * @param dto 参数
+     * @return 处理结果
      */
     @ApiOperation(value = "新增自定义通知模板")
     @SaCheckPermission("system:notifyTemplate:add")
@@ -91,26 +95,27 @@ public class NotifyTemplateController extends BaseController {
     }
 
     /**
-     * ?????
+     * 更新自定义。
      *
-     * @param dto ????
-     * @return ??????
+     * @param dto 参数
+     * @return 处理结果
      */
     @ApiOperation(value = "修改自定义通知模板")
     @SaCheckPermission("system:notifyTemplate:update")
     @OperLog(title = "通知模板", operType = OperTypeEnum.UPDATE)
     @PutMapping("/custom")
     public Result<Void> updateCustom(@Validated @RequestBody NotifyTemplateDTO dto) {
+        // 调用updateCustom方法，复用统一能力并保证业务规则一致。
         notifyTemplateService.updateCustom(dto);
         return Result.ok();
     }
 
     /**
-     * ?????
+     * 新增Channels。
      *
-     * @param templateCode ??
-     * @param channelConfigs ??
-     * @return ??????
+     * @param templateCode 参数
+     * @param channelConfigs 参数
+     * @return 处理结果
      */
     @ApiOperation(value = "保存通知模板渠道配置")
     @SaCheckPermission("system:notifyTemplate:update")
@@ -118,30 +123,31 @@ public class NotifyTemplateController extends BaseController {
     @PutMapping("/{templateCode}/channels")
     public Result<Void> saveChannels(@PathVariable String templateCode,
                                      @RequestBody List<NotifyTemplateChannelDTO> channelConfigs) {
+        // 调用saveChannelConfigs方法，复用统一能力并保证业务规则一致。
         notifyTemplateService.saveChannelConfigs(templateCode, channelConfigs);
         return Result.ok();
     }
 
     /**
-     * ?????
+     * 删除自定义。
      *
-     * @param id ??ID
-     * @return ??????
+     * @return 处理结果
      */
     @ApiOperation(value = "删除自定义通知模板")
     @SaCheckPermission("system:notifyTemplate:remove")
     @OperLog(title = "通知模板", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/custom/{id}")
     public Result<Void> removeCustom(@PathVariable Long id) {
+        // 调用removeCustom方法，复用统一能力并保证业务规则一致。
         notifyTemplateService.removeCustom(id);
         return Result.ok();
     }
 
     /**
-     * ?? preview ?????
+     * 预览通知模板内容。
      *
-     * @param dto ????
-     * @return ??????
+     * @param dto 参数
+     * @return 处理结果
      */
     @ApiOperation(value = "预览通知模板")
     @SaCheckPermission("system:notifyTemplate:preview")
@@ -151,16 +157,19 @@ public class NotifyTemplateController extends BaseController {
     }
 
     /**
-     * ?? refreshCache ?????
+     * 刷新通知模板缓存。
      *
-     * @return ??????
+     * @return 处理结果
      */
     @ApiOperation(value = "刷新通知模板缓存")
     @SaCheckPermission("system:notifyTemplate:refresh")
     @OperLog(title = "通知模板", operType = OperTypeEnum.OTHER)
     @PostMapping("/refresh-cache")
     public Result<Void> refreshCache() {
+        // 调用refreshCache方法，复用统一能力并保证业务规则一致。
         notifyTemplateService.refreshCache();
         return Result.ok();
     }
 }
+
+

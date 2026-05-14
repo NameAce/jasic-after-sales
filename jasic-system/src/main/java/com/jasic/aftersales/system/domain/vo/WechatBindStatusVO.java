@@ -45,3 +45,5 @@ public class WechatBindStatusVO implements Serializable {
     @ApiModelProperty(value = "绑定二维码 base64")
     private String qrImageBase64;
 }
+
+

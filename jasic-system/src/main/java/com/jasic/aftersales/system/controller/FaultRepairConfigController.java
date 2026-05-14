@@ -41,10 +41,10 @@ public class FaultRepairConfigController extends BaseController {
     private IFaultRepairConfigService faultRepairConfigService;
 
     /**
-     * ???????
+     * 分页查询故障维修配置列表。
      *
-     * @param query ????
-     * @return ????
+     * @param query 参数
+     * @return 处理结果
      */
     @SaCheckPermission("system:faultRepairConfig:list")
     @GetMapping("/list")
@@ -53,11 +53,9 @@ public class FaultRepairConfigController extends BaseController {
     }
 
     /**
-     * ??By Id?
+     * 根据ID查询故障维修配置详情。
      *
-     * @param id ??ID
-     * @param ownerHqId ????ID
-     * @return ??????
+     * @return 处理结果
      */
     @SaCheckPermission("system:faultRepairConfig:list")
     @GetMapping("/{id}")
@@ -67,9 +65,9 @@ public class FaultRepairConfigController extends BaseController {
     }
 
     /**
-     * ???????
+     * 分页查询公司Options列表。
      *
-     * @return ????
+     * @return 处理结果
      */
     @SaCheckPermission("system:faultRepairConfig:list")
     @GetMapping("/company-options")
@@ -78,10 +76,10 @@ public class FaultRepairConfigController extends BaseController {
     }
 
     /**
-     * ?????
+     * 新增故障维修配置。
      *
-     * @param dto ????
-     * @return ??????
+     * @param dto 参数
+     * @return 处理结果
      */
     @SaCheckPermission("system:faultRepairConfig:add")
     @OperLog(title = "故障与维修配置", operType = OperTypeEnum.INSERT)
@@ -91,16 +89,19 @@ public class FaultRepairConfigController extends BaseController {
     }
 
     /**
-     * ?????
+     * 更新故障维修配置。
      *
-     * @param dto ????
-     * @return ??????
+     * @param dto 参数
+     * @return 处理结果
      */
     @SaCheckPermission("system:faultRepairConfig:update")
     @OperLog(title = "故障与维修配置", operType = OperTypeEnum.UPDATE)
     @PutMapping
     public Result<Void> update(@Validated @RequestBody FaultRepairConfigDTO dto) {
+        // 调用update方法，复用统一能力并保证业务规则一致。
         faultRepairConfigService.update(dto);
         return Result.ok();
     }
 }
+
+

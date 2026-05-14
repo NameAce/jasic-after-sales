@@ -197,77 +197,125 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long create(CustomerWorkOrderCreateDTO dto) {
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         Long customerId = requireCustomerId();
+        // 调用requireCustomer方法，复用统一能力并保证业务规则一致。
         CUser customer = requireCustomer(customerId);
+        // 调用getBrandType方法，复用统一能力并保证业务规则一致。
         BrandTypeEnum brandType = dto == null ? null : dto.getBrandType();
+        // 调用getBarcode方法，复用统一能力并保证业务规则一致。
         boolean hasBarcode = normalizeText(dto == null ? null : dto.getBarcode()) != null;
+        // 调用isJasic方法，复用统一能力并保证业务规则一致。
         boolean jasicBarcodeCreate = brandType != null && brandType.isJasic() && hasBarcode;
+        // 调用validateCreateRequest方法，复用统一能力并保证业务规则一致。
         validateCreateRequest(dto, brandType, hasBarcode);
+        // 调用getServiceCompanyId方法，复用统一能力并保证业务规则一致。
         SysCompany serviceCompany = requireServiceCompany(dto.getServiceCompanyId());
+        // 调用getBarcode方法，复用统一能力并保证业务规则一致。
         String barcode = jasicBarcodeCreate ? normalizeRequiredText(dto.getBarcode(), "机器条码不能为空") : null;
+        // 调用findActiveMachineBarcode方法，复用统一能力并保证业务规则一致。
         MachineBarcode barcodeArchive = jasicBarcodeCreate ? findActiveMachineBarcode(barcode) : null;
+        // 调用resolveCreateHqCompanyId方法，复用统一能力并保证业务规则一致。
         Long hqCompanyId = resolveCreateHqCompanyId(brandType, hasBarcode, serviceCompany, barcodeArchive);
         String productCode = jasicBarcodeCreate
                 ? resolveArchiveText(barcodeArchive == null ? null : barcodeArchive.getProductCode(), dto.getProductCode())
                 : null;
         String productModel = jasicBarcodeCreate
                 ? resolveArchiveText(barcodeArchive == null ? null : barcodeArchive.getProductModel(), dto.getProductModel())
+                // 调用getProductModel方法，复用统一能力并保证业务规则一致。
                 : normalizeText(dto.getProductModel());
+        // 调用resolveCustomerFaultSelection方法，复用统一能力并保证业务规则一致。
         CustomerFaultSelection faultSelection = resolveCustomerFaultSelection(dto, brandType, hasBarcode, hqCompanyId, productCode, productModel);
 
+        // 调用WorkOrder方法，复用统一能力并保证业务规则一致。
         WorkOrder workOrder = new WorkOrder();
+        // 调用nextOrderNo方法，复用统一能力并保证业务规则一致。
         workOrder.setOrderNo(workOrderNoGenerator.nextOrderNo());
+        // 调用setCustomerId方法，复用统一能力并保证业务规则一致。
         workOrder.setCustomerId(customerId);
+        // 调用resolveCustomerName方法，复用统一能力并保证业务规则一致。
         workOrder.setCustomerName(resolveCustomerName(customer));
+        // 调用getPhone方法，复用统一能力并保证业务规则一致。
         workOrder.setCustomerMobile(normalizeRequiredText(customer.getPhone(), "当前客户手机号不能为空"));
+        // 调用setReportSubjectType方法，复用统一能力并保证业务规则一致。
         workOrder.setReportSubjectType(WorkOrderReportSubjectConstants.CUSTOMER);
+        // 调用setReportCompanyId方法，复用统一能力并保证业务规则一致。
         workOrder.setReportCompanyId(null);
+        // 调用setBarcode方法，复用统一能力并保证业务规则一致。
         workOrder.setBarcode(barcode);
+        // 调用setProductCode方法，复用统一能力并保证业务规则一致。
         workOrder.setProductCode(productCode);
+        // 调用getProductName方法，复用统一能力并保证业务规则一致。
         workOrder.setProductName(jasicBarcodeCreate ? normalizeText(barcodeArchive == null ? null : barcodeArchive.getProductName()) : null);
+        // 调用setProductModel方法，复用统一能力并保证业务规则一致。
         workOrder.setProductModel(productModel);
+        // 调用getMachineNo方法，复用统一能力并保证业务规则一致。
         workOrder.setMachineNo(jasicBarcodeCreate ? normalizeText(barcodeArchive == null ? null : barcodeArchive.getMachineNo()) : null);
+        // 调用setBrandType方法，复用统一能力并保证业务规则一致。
         workOrder.setBrandType(brandType);
+        // 调用resolveCreateBrandCode方法，复用统一能力并保证业务规则一致。
         workOrder.setBrandCode(resolveCreateBrandCode(brandType, jasicBarcodeCreate, barcodeArchive, dto));
+        // 调用resolveCreateBrandName方法，复用统一能力并保证业务规则一致。
         workOrder.setBrandName(resolveCreateBrandName(brandType, dto));
+        // 调用getServiceMode方法，复用统一能力并保证业务规则一致。
         String serviceMode = normalizeServiceMode(dto.getServiceMode());
+        // 调用setServiceMode方法，复用统一能力并保证业务规则一致。
         workOrder.setServiceMode(serviceMode);
+        // 调用resolveBarcodeLastOutDate方法，复用统一能力并保证业务规则一致。
         workOrder.setLastOutDate(jasicBarcodeCreate ? resolveBarcodeLastOutDate(barcodeArchive) : null);
         workOrder.setWarrantyStatus(jasicBarcodeCreate
                 ? resolveBarcodeWarrantyStatus(barcodeArchive, dto.getWarrantyStatus())
+                // 调用getWarrantyStatus方法，复用统一能力并保证业务规则一致。
                 : normalizeText(dto.getWarrantyStatus()));
+        // 调用getFaultDesc方法，复用统一能力并保证业务规则一致。
         workOrder.setFaultDesc(faultSelection.getFaultDesc());
+        // 调用getFaultRemark方法，复用统一能力并保证业务规则一致。
         workOrder.setFaultRemark(faultSelection.getFaultRemark());
+        // 调用getSenderName方法，复用统一能力并保证业务规则一致。
         workOrder.setSenderName(resolveSendField(serviceMode, dto.getSenderName()));
+        // 调用getSenderMobile方法，复用统一能力并保证业务规则一致。
         workOrder.setSenderMobile(resolveSendField(serviceMode, dto.getSenderMobile()));
+        // 调用getSenderAddress方法，复用统一能力并保证业务规则一致。
         workOrder.setSenderAddress(resolveSendField(serviceMode, dto.getSenderAddress()));
+        // 调用getSendExpressNo方法，复用统一能力并保证业务规则一致。
         workOrder.setSendExpressNo(resolveSendField(serviceMode, dto.getSendExpressNo()));
+        // 调用afterCreate方法，复用统一能力并保证业务规则一致。
         workOrder.setMainStatus(WorkOrderStatusFlow.afterCreate());
+        // 调用afterCreateEvaluateStatus方法，复用统一能力并保证业务规则一致。
         workOrder.setEvaluateStatus(WorkOrderStatusFlow.afterCreateEvaluateStatus());
+        // 调用setCurrentAcceptSubjectType方法，复用统一能力并保证业务规则一致。
         workOrder.setCurrentAcceptSubjectType("SERVICE");
+        // 调用getId方法，复用统一能力并保证业务规则一致。
         workOrder.setCurrentAcceptCompanyId(serviceCompany.getId());
+        // 调用getId方法，复用统一能力并保证业务规则一致。
         workOrder.setCreateCompanyId(serviceCompany.getId());
+        // 调用setHqCompanyId方法，复用统一能力并保证业务规则一致。
         workOrder.setHqCompanyId(hqCompanyId);
+        // 调用resolveCreateFaultRepairConfigId方法，复用统一能力并保证业务规则一致。
         workOrder.setFaultRepairConfigId(resolveCreateFaultRepairConfigId(barcodeArchive, hqCompanyId));
+        // 调用setHasTransfer方法，复用统一能力并保证业务规则一致。
         workOrder.setHasTransfer(0);
+        // 调用setTransferCount方法，复用统一能力并保证业务规则一致。
         workOrder.setTransferCount(0);
-        // ???????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         workOrderMapper.insert(workOrder);
         replaceWorkOrderCreateFiles(workOrder.getId(), dto.getFaultImageFileIds(), dto.getFaultVideoFileIds(),
+                // 调用getSenderVoucherFileIds方法，复用统一能力并保证业务规则一致。
                 dto.getFaultVoiceFileIds(), dto.getSenderVoucherFileIds(), customerId);
 
+        // 调用getMainStatus方法，复用统一能力并保证业务规则一致。
         saveCreateFlow(workOrder.getId(), customerId, serviceCompany.getId(), workOrder.getMainStatus());
+        // 调用initParticipants方法，复用统一能力并保证业务规则一致。
         workOrderParticipantService.initParticipants(workOrder, "SERVICE");
         return workOrder.getId();
     }
 
     /**
-     * ???????
+     * 解析创建故障维修配置ID。
      *
-     * @param barcodeArchive ??
+     * @param barcodeArchive 参数
      * @param hqCompanyId hq Company ID
-     * @return ????
+     * @return 处理结果
      */
     private Long resolveCreateFaultRepairConfigId(MachineBarcode barcodeArchive, Long hqCompanyId) {
         if (barcodeArchive == null || hqCompanyId == null || faultRepairConfigService == null) {
@@ -288,7 +336,9 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     @Override
     public List<CustomerServiceCompanyOptionVO> listServiceCompanyOptions() {
         Set<String> typeCodes = new LinkedHashSet<>();
+        // 调用getFirstLevelTypeCodes方法，复用统一能力并保证业务规则一致。
         typeCodes.addAll(CompanyCategoryEnum.getFirstLevelTypeCodes());
+        // 调用getSecondLevelTypeCodes方法，复用统一能力并保证业务规则一致。
         typeCodes.addAll(CompanyCategoryEnum.getSecondLevelTypeCodes());
         if (typeCodes.isEmpty()) {
             return Collections.emptyList();
@@ -297,14 +347,17 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         wrapper.in(SysCompany::getTypeCode, typeCodes)
                 .eq(SysCompany::getStatus, 1)
                 .orderByAsc(SysCompany::getCompanyName)
+                // 调用orderByAsc方法，复用统一能力并保证业务规则一致。
                 .orderByAsc(SysCompany::getId);
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         List<SysCompany> companies = sysCompanyMapper.selectList(wrapper);
         if (companies.isEmpty()) {
             return Collections.emptyList();
         }
+        // 调用size方法，复用统一能力并保证业务规则一致。
         List<CustomerServiceCompanyOptionVO> result = new ArrayList<>(companies.size());
         for (SysCompany company : companies) {
+            // 调用buildServiceCompanyOption方法，复用统一能力并保证业务规则一致。
             result.add(buildServiceCompanyOption(company));
         }
         return result;
@@ -321,20 +374,25 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     @Override
     public List<CustomerNearbyServiceCompanyVO> listNearbyServiceCompanyOptions(BigDecimal longitude, BigDecimal latitude,
                                                                                 Integer limit) {
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         validateCoordinate(longitude, latitude);
+        // 调用requireCustomerId方法，复用统一能力并保证业务规则一致。
         Long customerId = requireCustomerId();
+        // 调用normalizeNearbyLimit方法，复用统一能力并保证业务规则一致。
         int normalizedLimit = normalizeNearbyLimit(limit);
+        // 调用listNearbyEnabledServiceCompanies方法，复用统一能力并保证业务规则一致。
         List<SysCompany> companies = listNearbyEnabledServiceCompanies();
         if (companies.isEmpty()) {
             return Collections.emptyList();
         }
+        // 调用buildRepairHistoryMap方法，复用统一能力并保证业务规则一致。
         Map<Long, RepairHistorySummary> repairHistoryMap = buildRepairHistoryMap(customerId, companies);
         List<CustomerNearbyServiceCompanyVO> options = companies.stream()
                 .map(company -> buildNearbyServiceCompanyOption(company, longitude, latitude))
                 .peek(option -> option.setHasRepairHistory(repairHistoryMap.containsKey(option.getId())))
                 .sorted((left, right) -> compareNearbyServiceCompany(left, right, repairHistoryMap))
                 .limit(normalizedLimit)
+                // 调用toList方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toList());
         return options;
     }
@@ -347,26 +405,40 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      */
     @Override
     public CustomerBarcodeInfoVO getBarcodeInfo(String barcode) {
+        // 调用normalizeRequiredText方法，复用统一能力并保证业务规则一致。
         String normalizedBarcode = normalizeRequiredText(barcode, "机器条码不能为空");
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         MachineBarcode barcodeArchive = requireActiveMachineBarcode(normalizedBarcode);
+        // 调用getHqCompanyId方法，复用统一能力并保证业务规则一致。
         SysCompany hqCompany = requireHqCompany(barcodeArchive.getHqCompanyId());
+        // 调用CustomerBarcodeInfoVO方法，复用统一能力并保证业务规则一致。
         CustomerBarcodeInfoVO vo = new CustomerBarcodeInfoVO();
+        // 调用getBarcode方法，复用统一能力并保证业务规则一致。
         vo.setBarcode(barcodeArchive.getBarcode());
+        // 调用getProductCode方法，复用统一能力并保证业务规则一致。
         vo.setProductCode(normalizeText(barcodeArchive.getProductCode()));
+        // 调用getProductName方法，复用统一能力并保证业务规则一致。
         vo.setProductName(normalizeText(barcodeArchive.getProductName()));
+        // 调用getProductModel方法，复用统一能力并保证业务规则一致。
         vo.setProductModel(normalizeText(barcodeArchive.getProductModel()));
+        // 调用getMachineNo方法，复用统一能力并保证业务规则一致。
         vo.setMachineNo(normalizeText(barcodeArchive.getMachineNo()));
+        // 调用getBrandCode方法，复用统一能力并保证业务规则一致。
         vo.setBrandCode(resolveBrandCode(barcodeArchive.getBrandCode()));
+        // 调用resolveBarcodeLastOutDate方法，复用统一能力并保证业务规则一致。
         vo.setLastOutDate(resolveBarcodeLastOutDate(barcodeArchive));
+        // 调用resolveBarcodeWarrantyStatus方法，复用统一能力并保证业务规则一致。
         vo.setWarrantyStatus(resolveBarcodeWarrantyStatus(barcodeArchive, null));
+        // 调用getId方法，复用统一能力并保证业务规则一致。
         vo.setHqCompanyId(hqCompany.getId());
+        // 调用getCompanyName方法，复用统一能力并保证业务规则一致。
         vo.setHqCompanyName(hqCompany.getCompanyName());
         vo.setFaultOptions(buildCustomerFaultOptions(
                 hqCompany.getId(),
                 barcodeArchive.getProductCode(),
                 barcodeArchive.getProductModel()
         ));
+        // 调用setOtherFaultLabel方法，复用统一能力并保证业务规则一致。
         vo.setOtherFaultLabel(OTHER_FAULT_LABEL);
         return vo;
     }
@@ -379,15 +451,19 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      */
     @Override
     public PageResult<CustomerWorkOrderListVO> listPage(CustomerWorkOrderQuery query) {
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         Long customerId = requireCustomerId();
+        // 调用getPageSize方法，复用统一能力并保证业务规则一致。
         Page<WorkOrder> page = new Page<>(query.getPageNum(), query.getPageSize());
         LambdaQueryWrapper<WorkOrder> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrder::getCustomerId, customerId)
+                // 调用orderByDesc方法，复用统一能力并保证业务规则一致。
                 .orderByDesc(WorkOrder::getCreateTime);
+        // 调用getTabStatus方法，复用统一能力并保证业务规则一致。
         applyTabStatusFilter(wrapper, query.getTabStatus());
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         Page<WorkOrder> result = workOrderMapper.selectPage(page, wrapper);
+        // 调用getRecords方法，复用统一能力并保证业务规则一致。
         List<WorkOrder> records = result.getRecords();
         if (records.isEmpty()) {
             return PageResult.of(Collections.emptyList(), result.getTotal(), query.getPageNum(), query.getPageSize());
@@ -407,6 +483,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         List<CustomerWorkOrderListVO> list = records.stream()
                 .map(workOrder -> buildListVo(workOrder, companyMap, userNameMap,
                         senderVoucherWorkOrderIds, currentQuoteAmountMap))
+                // 调用toList方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toList());
         return PageResult.of(list, result.getTotal(), query.getPageNum(), query.getPageSize());
     }
@@ -419,10 +496,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      */
     @Override
     public CustomerWorkOrderLatestSummaryVO getLatestSummary() {
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         Long customerId = requireCustomerId();
+        // 调用findLatestUnclosedWorkOrder方法，复用统一能力并保证业务规则一致。
         WorkOrder workOrder = findLatestUnclosedWorkOrder(customerId);
         if (workOrder == null) {
+            // 调用findLatestWorkOrder方法，复用统一能力并保证业务规则一致。
             workOrder = findLatestWorkOrder(customerId);
         }
         return workOrder == null ? null : buildLatestSummaryVo(workOrder);
@@ -435,15 +514,20 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      */
     @Override
     public CustomerWorkOrderStatusCountVO getStatusCount() {
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         Long customerId = requireCustomerId();
+        // 调用CustomerWorkOrderStatusCountVO方法，复用统一能力并保证业务规则一致。
         CustomerWorkOrderStatusCountVO vo = new CustomerWorkOrderStatusCountVO();
+        // 调用countByStatuses方法，复用统一能力并保证业务规则一致。
         vo.setAllCount(countByStatuses(customerId));
         vo.setWaitAcceptCount(countByStatuses(customerId,
                 WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN,
                 WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT));
+        // 调用countByStatuses方法，复用统一能力并保证业务规则一致。
         vo.setInProgressCount(countByStatuses(customerId, WorkOrderStatusConstants.MainStatus.IN_PROGRESS));
+        // 调用countByStatuses方法，复用统一能力并保证业务规则一致。
         vo.setCompletedCount(countByStatuses(customerId, WorkOrderStatusConstants.MainStatus.COMPLETED));
+        // 调用countByStatuses方法，复用统一能力并保证业务规则一致。
         vo.setClosedCount(countByStatuses(customerId, WorkOrderStatusConstants.MainStatus.CLOSED));
         return vo;
     }
@@ -456,57 +540,106 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      */
     @Override
     public CustomerWorkOrderDetailVO getById(Long workOrderId) {
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         Long customerId = requireCustomerId();
+        // 调用requireCustomerWorkOrder方法，复用统一能力并保证业务规则一致。
         WorkOrder workOrder = requireCustomerWorkOrder(workOrderId, customerId);
+        // 调用CustomerWorkOrderDetailVO方法，复用统一能力并保证业务规则一致。
         CustomerWorkOrderDetailVO detail = new CustomerWorkOrderDetailVO();
+        // 调用getId方法，复用统一能力并保证业务规则一致。
         detail.setId(workOrder.getId());
+        // 调用getOrderNo方法，复用统一能力并保证业务规则一致。
         detail.setOrderNo(workOrder.getOrderNo());
+        // 调用getCustomerId方法，复用统一能力并保证业务规则一致。
         detail.setCustomerId(workOrder.getCustomerId());
+        // 调用getCustomerName方法，复用统一能力并保证业务规则一致。
         detail.setCustomerName(workOrder.getCustomerName());
+        // 调用getCustomerMobile方法，复用统一能力并保证业务规则一致。
         detail.setCustomerMobile(workOrder.getCustomerMobile());
+        // 调用getBarcode方法，复用统一能力并保证业务规则一致。
         detail.setBarcode(workOrder.getBarcode());
+        // 调用getProductCode方法，复用统一能力并保证业务规则一致。
         detail.setProductCode(workOrder.getProductCode());
+        // 调用getProductName方法，复用统一能力并保证业务规则一致。
         detail.setProductName(workOrder.getProductName());
+        // 调用getProductModel方法，复用统一能力并保证业务规则一致。
         detail.setProductModel(workOrder.getProductModel());
+        // 调用getMachineNo方法，复用统一能力并保证业务规则一致。
         detail.setMachineNo(workOrder.getMachineNo());
+        // 调用getBrandType方法，复用统一能力并保证业务规则一致。
         detail.setBrandType(workOrder.getBrandType());
+        // 调用getLabel方法，复用统一能力并保证业务规则一致。
         detail.setBrandTypeLabel(workOrder.getBrandType() == null ? null : workOrder.getBrandType().getLabel());
+        // 调用getBrandCode方法，复用统一能力并保证业务规则一致。
         detail.setBrandCode(workOrder.getBrandCode());
+        // 调用getBrandName方法，复用统一能力并保证业务规则一致。
         detail.setBrandName(workOrder.getBrandName());
+        // 调用getServiceMode方法，复用统一能力并保证业务规则一致。
         detail.setServiceMode(workOrder.getServiceMode());
+        // 调用getServiceMode方法，复用统一能力并保证业务规则一致。
         detail.setServiceModeLabel(ServiceModeEnum.resolveLabel(workOrder.getServiceMode()));
+        // 调用getLastOutDate方法，复用统一能力并保证业务规则一致。
         detail.setLastOutDate(workOrder.getLastOutDate());
+        // 调用getWarrantyStatus方法，复用统一能力并保证业务规则一致。
         detail.setWarrantyStatus(workOrder.getWarrantyStatus());
+        // 调用getFaultDesc方法，复用统一能力并保证业务规则一致。
         detail.setFaultDesc(workOrder.getFaultDesc());
+        // 调用getFaultRemark方法，复用统一能力并保证业务规则一致。
         detail.setFaultRemark(workOrder.getFaultRemark());
+        // 调用getSenderName方法，复用统一能力并保证业务规则一致。
         detail.setSenderName(workOrder.getSenderName());
+        // 调用getSenderMobile方法，复用统一能力并保证业务规则一致。
         detail.setSenderMobile(workOrder.getSenderMobile());
+        // 调用getSenderAddress方法，复用统一能力并保证业务规则一致。
         detail.setSenderAddress(workOrder.getSenderAddress());
+        // 调用getSendExpressNo方法，复用统一能力并保证业务规则一致。
         detail.setSendExpressNo(workOrder.getSendExpressNo());
+        // 调用getMainStatus方法，复用统一能力并保证业务规则一致。
         detail.setMainStatus(workOrder.getMainStatus());
+        // 调用getMainStatus方法，复用统一能力并保证业务规则一致。
         detail.setDisplayStatus(resolveCustomerDisplayStatus(workOrder.getMainStatus()));
+        // 调用getEvaluateStatus方法，复用统一能力并保证业务规则一致。
         detail.setEvaluateStatus(workOrder.getEvaluateStatus());
+        // 调用getEvaluateStatus方法，复用统一能力并保证业务规则一致。
         detail.setEvaluateStatusLabel(WorkOrderStatusConstants.resolveEvaluateStatusLabel(workOrder.getEvaluateStatus()));
+        // 调用getHqCompanyId方法，复用统一能力并保证业务规则一致。
         detail.setHqCompanyId(workOrder.getHqCompanyId());
+        // 调用getReturnMethod方法，复用统一能力并保证业务规则一致。
         detail.setReturnMethod(workOrder.getReturnMethod());
+        // 调用getReturnExpressNo方法，复用统一能力并保证业务规则一致。
         detail.setReturnExpressNo(workOrder.getReturnExpressNo());
+        // 调用getCloseReason方法，复用统一能力并保证业务规则一致。
         detail.setCloseReason(workOrder.getCloseReason());
+        // 调用canEvaluate方法，复用统一能力并保证业务规则一致。
         detail.setCanEvaluate(canEvaluate(workOrder));
+        // 调用canEditSendInfo方法，复用统一能力并保证业务规则一致。
         detail.setCanEditSendInfo(canEditSendInfo(workOrder));
+        // 调用getCompletedTime方法，复用统一能力并保证业务规则一致。
         detail.setCompletedTime(workOrder.getCompletedTime());
+        // 调用getClosedTime方法，复用统一能力并保证业务规则一致。
         detail.setClosedTime(workOrder.getClosedTime());
+        // 调用getCreateTime方法，复用统一能力并保证业务规则一致。
         detail.setCreateTime(workOrder.getCreateTime());
+        // 调用buildWorkOrderFileMap方法，复用统一能力并保证业务规则一致。
         fillAttachmentDetail(detail, buildWorkOrderFileMap(workOrderId));
 
+        // 调用getCurrentAcceptCompanyId方法，复用统一能力并保证业务规则一致。
         Map<Long, SysCompany> companyMap = buildCompanyMap(Collections.singleton(workOrder.getCurrentAcceptCompanyId()));
+        // 调用getAssignedUserId方法，复用统一能力并保证业务规则一致。
         Map<Long, String> userNameMap = buildUserNameMap(Collections.singleton(workOrder.getAssignedUserId()));
+        // 调用getCurrentAcceptCompanyId方法，复用统一能力并保证业务规则一致。
         SysCompany currentAcceptCompany = companyMap.get(workOrder.getCurrentAcceptCompanyId());
+        // 调用getCompanyName方法，复用统一能力并保证业务规则一致。
         detail.setCurrentAcceptCompanyName(currentAcceptCompany == null ? null : currentAcceptCompany.getCompanyName());
+        // 调用getContactPhone方法，复用统一能力并保证业务规则一致。
         detail.setCurrentAcceptCompanyPhone(currentAcceptCompany == null ? null : currentAcceptCompany.getContactPhone());
+        // 调用getAssignedUserId方法，复用统一能力并保证业务规则一致。
         detail.setAssignedUserName(userNameMap.get(workOrder.getAssignedUserId()));
+        // 调用listQuoteVos方法，复用统一能力并保证业务规则一致。
         detail.setQuotes(listQuoteVos(workOrderId));
+        // 调用listRepairVos方法，复用统一能力并保证业务规则一致。
         detail.setRepairs(listRepairVos(workOrderId));
+        // 调用getEvaluationVo方法，复用统一能力并保证业务规则一致。
         detail.setEvaluation(getEvaluationVo(workOrderId));
         return detail;
     }
@@ -519,19 +652,24 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateSendInfo(CustomerWorkOrderSendInfoDTO dto) {
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         Long customerId = requireCustomerId();
+        // 调用getWorkOrderId方法，复用统一能力并保证业务规则一致。
         WorkOrder workOrder = requireCustomerWorkOrder(dto.getWorkOrderId(), customerId);
         if (!canEditSendInfo(workOrder)) {
             throw new ServiceException("当前工单不允许修改寄修信息");
         }
+        // 调用getSenderName方法，复用统一能力并保证业务规则一致。
         workOrder.setSenderName(normalizeText(dto.getSenderName()));
+        // 调用getSenderMobile方法，复用统一能力并保证业务规则一致。
         workOrder.setSenderMobile(normalizeText(dto.getSenderMobile()));
+        // 调用getSenderAddress方法，复用统一能力并保证业务规则一致。
         workOrder.setSenderAddress(normalizeText(dto.getSenderAddress()));
+        // 调用getSendExpressNo方法，复用统一能力并保证业务规则一致。
         workOrder.setSendExpressNo(normalizeText(dto.getSendExpressNo()));
-        // ???????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         workOrderMapper.updateById(workOrder);
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         sysFileService.replaceBizFiles(
                 SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER,
                 workOrder.getId(),
@@ -551,8 +689,9 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateSenderVoucher(CustomerWorkOrderSenderVoucherDTO dto) {
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         Long customerId = requireCustomerId();
+        // 调用getWorkOrderId方法，复用统一能力并保证业务规则一致。
         WorkOrder workOrder = requireCustomerWorkOrder(dto.getWorkOrderId(), customerId);
         if (!canEditSendInfo(workOrder)) {
             throw new ServiceException("当前工单不允许上传寄件凭证");
@@ -560,7 +699,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         if (hasSenderVoucher(workOrder.getId())) {
             throw new ServiceException("当前工单已上传寄件凭证");
         }
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         sysFileService.replaceBizFiles(
                 SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER,
                 workOrder.getId(),
@@ -580,8 +719,9 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void evaluate(CustomerWorkOrderEvaluateDTO dto) {
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         Long customerId = requireCustomerId();
+        // 调用getWorkOrderId方法，复用统一能力并保证业务规则一致。
         WorkOrder workOrder = requireCustomerWorkOrder(dto.getWorkOrderId(), customerId);
         if (!WorkOrderStatusConstants.MainStatus.CLOSED.equals(workOrder.getMainStatus())) {
             throw new ServiceException("当前工单未关闭，不能评价");
@@ -593,37 +733,60 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
             throw new ServiceException("当前工单无故障，不能评价");
         }
         LambdaQueryWrapper<WorkOrderEvaluation> wrapper = new LambdaQueryWrapper<>();
+        // 调用getId方法，复用统一能力并保证业务规则一致。
         wrapper.eq(WorkOrderEvaluation::getWorkOrderId, workOrder.getId());
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         if (workOrderEvaluationMapper.selectCount(wrapper) > 0) {
             throw new ServiceException("当前工单已完成评价");
         }
 
+        // 调用WorkOrderEvaluation方法，复用统一能力并保证业务规则一致。
         WorkOrderEvaluation evaluation = new WorkOrderEvaluation();
+        // 调用getId方法，复用统一能力并保证业务规则一致。
         evaluation.setWorkOrderId(workOrder.getId());
+        // 调用setCustomerId方法，复用统一能力并保证业务规则一致。
         evaluation.setCustomerId(customerId);
+        // 调用getCurrentAcceptCompanyId方法，复用统一能力并保证业务规则一致。
         evaluation.setCompanyId(workOrder.getCurrentAcceptCompanyId());
+        // 调用getTimelinessScore方法，复用统一能力并保证业务规则一致。
         evaluation.setTimelinessScore(dto.getTimelinessScore());
+        // 调用getQualityScore方法，复用统一能力并保证业务规则一致。
         evaluation.setQualityScore(dto.getQualityScore());
+        // 调用getSatisfactionScore方法，复用统一能力并保证业务规则一致。
         evaluation.setSatisfactionScore(dto.getSatisfactionScore());
+        // 调用getTags方法，复用统一能力并保证业务规则一致。
         evaluation.setTags(dto.getTags());
+        // 调用getContent方法，复用统一能力并保证业务规则一致。
         evaluation.setContent(dto.getContent());
-        // ???????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         workOrderEvaluationMapper.insert(evaluation);
 
+        // 调用afterEvaluate方法，复用统一能力并保证业务规则一致。
         workOrder.setEvaluateStatus(WorkOrderStatusFlow.afterEvaluate());
+        // 调用updateById方法，复用统一能力并保证业务规则一致。
         workOrderMapper.updateById(workOrder);
 
+        // 调用WorkOrderFlow方法，复用统一能力并保证业务规则一致。
         WorkOrderFlow flow = new WorkOrderFlow();
+        // 调用getId方法，复用统一能力并保证业务规则一致。
         flow.setWorkOrderId(workOrder.getId());
+        // 调用setActionType方法，复用统一能力并保证业务规则一致。
         flow.setActionType("EVALUATE");
+        // 调用getMainStatus方法，复用统一能力并保证业务规则一致。
         flow.setBeforeStatus(workOrder.getMainStatus());
+        // 调用getMainStatus方法，复用统一能力并保证业务规则一致。
         flow.setAfterStatus(workOrder.getMainStatus());
+        // 调用getCurrentAcceptCompanyId方法，复用统一能力并保证业务规则一致。
         flow.setFromCompanyId(workOrder.getCurrentAcceptCompanyId());
+        // 调用getCurrentAcceptCompanyId方法，复用统一能力并保证业务规则一致。
         flow.setToCompanyId(workOrder.getCurrentAcceptCompanyId());
+        // 调用getCurrentAcceptCompanyId方法，复用统一能力并保证业务规则一致。
         flow.setOperatorCompanyId(workOrder.getCurrentAcceptCompanyId());
+        // 调用setOperatorUserId方法，复用统一能力并保证业务规则一致。
         flow.setOperatorUserId(customerId);
+        // 调用getContent方法，复用统一能力并保证业务规则一致。
         flow.setRemark(dto.getContent());
+        // 调用insert方法，复用统一能力并保证业务规则一致。
         workOrderFlowMapper.insert(flow);
 
     }
@@ -638,76 +801,83 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         if (workOrderId == null) {
             return Collections.emptyMap();
         }
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         return sysFileService.listBizFileMap(WORK_ORDER_FILE_BIZ_TYPES, workOrderId);
     }
 
     /**
-     * ???????
+     * 构建维修文件Map。
      *
      * @param repairId repair ID
-     * @return ????
+     * @return 处理结果
      */
     private Map<SysFileBizTypeEnum, List<SysFileItemVO>> buildRepairFileMap(Long repairId) {
         if (repairId == null) {
             return Collections.emptyMap();
         }
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         return sysFileService.listBizFileMap(WORK_ORDER_REPAIR_FILE_BIZ_TYPES, repairId);
     }
 
     /**
-     * ???????
+     * fillAttachment详情。
      *
-     * @param detail ??
-     * @param fileMap ??
+     * @param detail 参数
+     * @param fileMap 参数
      */
     private void fillAttachmentDetail(CustomerWorkOrderDetailVO detail,
                                       Map<SysFileBizTypeEnum, List<SysFileItemVO>> fileMap) {
         if (detail == null) {
             return;
         }
+        // 调用emptyMap方法，复用统一能力并保证业务规则一致。
         Map<SysFileBizTypeEnum, List<SysFileItemVO>> safeFileMap = fileMap == null ? Collections.emptyMap() : fileMap;
+        // 调用emptyList方法，复用统一能力并保证业务规则一致。
         detail.setFaultImageFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_FAULT_IMAGE, Collections.emptyList()));
+        // 调用emptyList方法，复用统一能力并保证业务规则一致。
         detail.setFaultVideoFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_FAULT_VIDEO, Collections.emptyList()));
+        // 调用emptyList方法，复用统一能力并保证业务规则一致。
         detail.setFaultVoiceFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_FAULT_VOICE, Collections.emptyList()));
+        // 调用emptyList方法，复用统一能力并保证业务规则一致。
         detail.setSenderVoucherFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER, Collections.emptyList()));
+        // 调用emptyList方法，复用统一能力并保证业务规则一致。
         detail.setReturnVoucherFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_RETURN_VOUCHER, Collections.emptyList()));
     }
 
     /**
-     * ???????
+     * fill维修Attachment详情。
      *
-     * @param repair ??
-     * @param fileMap ??
+     * @param repair 参数
+     * @param fileMap 参数
      */
     private void fillRepairAttachmentDetail(WorkOrderRepairVO repair,
                                             Map<SysFileBizTypeEnum, List<SysFileItemVO>> fileMap) {
         if (repair == null) {
             return;
         }
+        // 调用emptyMap方法，复用统一能力并保证业务规则一致。
         Map<SysFileBizTypeEnum, List<SysFileItemVO>> safeFileMap = fileMap == null ? Collections.emptyMap() : fileMap;
+        // 调用emptyList方法，复用统一能力并保证业务规则一致。
         repair.setFaultOldImageFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_REPAIR_OLD_IMAGE, Collections.emptyList()));
+        // 调用emptyList方法，复用统一能力并保证业务规则一致。
         repair.setFaultNewImageFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_REPAIR_NEW_IMAGE, Collections.emptyList()));
+        // 调用emptyList方法，复用统一能力并保证业务规则一致。
         repair.setMachineImageFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_REPAIR_MACHINE_IMAGE, Collections.emptyList()));
+        // 调用emptyList方法，复用统一能力并保证业务规则一致。
         repair.setMachineBarcodeImageFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_REPAIR_BARCODE_IMAGE, Collections.emptyList()));
+        // 调用emptyList方法，复用统一能力并保证业务规则一致。
         repair.setOtherImageFiles(safeFileMap.getOrDefault(SysFileBizTypeEnum.WORK_ORDER_REPAIR_OTHER_IMAGE, Collections.emptyList()));
     }
 
     /**
-     * ?? replaceWorkOrderCreateFiles ?????
+     * 替换工单创建文件。
      *
-     * @param workOrderId ??ID
-     * @param faultImageFileIds fault Image File ID??
-     * @param faultVideoFileIds fault Video File ID??
-     * @param faultVoiceFileIds fault Voice File ID??
-     * @param senderVoucherFileIds sender Voucher File ID??
      * @param customerId customer ID
      */
     private void replaceWorkOrderCreateFiles(Long workOrderId, List<Long> faultImageFileIds, List<Long> faultVideoFileIds,
                                              List<Long> faultVoiceFileIds, List<Long> senderVoucherFileIds,
                                              Long customerId) {
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         sysFileService.replaceBizFiles(
                 SysFileBizTypeEnum.WORK_ORDER_FAULT_IMAGE,
                 workOrderId,
@@ -752,6 +922,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      * @return 当前客户ID
      */
     private Long requireCustomerId() {
+        // 调用checkLogin方法，复用统一能力并保证业务规则一致。
         StpCustomerUtil.checkLogin();
         return StpCustomerUtil.getLoginIdAsLong();
     }
@@ -764,7 +935,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      * @return 工单实体
      */
     private WorkOrder requireCustomerWorkOrder(Long workOrderId, Long customerId) {
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         WorkOrder workOrder = workOrderMapper.selectById(workOrderId);
         if (workOrder == null) {
             throw new ServiceException("工单不存在");
@@ -782,7 +953,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      * @return 客户实体
      */
     private CUser requireCustomer(Long customerId) {
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         CUser customer = cUserMapper.selectById(customerId);
         if (customer == null) {
             throw new ServiceException("客户不存在");
@@ -807,14 +978,16 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         if (brandType == null) {
             throw new ServiceException("品牌类型不支持");
         }
+        // 调用getServiceMode方法，复用统一能力并保证业务规则一致。
         normalizeServiceMode(dto.getServiceMode());
         if (brandType.isJasic() && hasBarcode) {
+            // 调用getBarcode方法，复用统一能力并保证业务规则一致。
             normalizeRequiredText(dto.getBarcode(), "机器条码不能为空");
         }
         if (brandType.isNonJasic() && hasBarcode) {
             throw new ServiceException("非佳士报修不支持填写机器条码");
         }
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         validateSendInfo(dto);
     }
 
@@ -845,7 +1018,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      * @return 服务网点实体
      */
     private SysCompany requireServiceCompany(Long serviceCompanyId) {
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         SysCompany company = sysCompanyMapper.selectById(serviceCompanyId);
         if (company == null) {
             throw new ServiceException("服务网点不存在");
@@ -866,7 +1039,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      * @return 总部实体
      */
     private SysCompany requireHqCompany(Long hqCompanyId) {
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         SysCompany company = sysCompanyMapper.selectById(hqCompanyId);
         if (company == null) {
             throw new ServiceException("归属总部不存在");
@@ -917,18 +1090,20 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     private Long resolveDefaultHqCompanyId() {
         String configValue = normalizeText(sysConfigService == null
                 ? null
+                // 调用getValueByKey方法，复用统一能力并保证业务规则一致。
                 : sysConfigService.getValueByKey(WorkOrderConfigConstants.DEFAULT_HQ_COMPANY_ID));
         if (configValue == null) {
             throw new ServiceException("默认归属总部未配置");
         }
         Long hqCompanyId;
         try {
+            // 调用valueOf方法，复用统一能力并保证业务规则一致。
             hqCompanyId = Long.valueOf(configValue);
         } catch (NumberFormatException ex) {
             throw new ServiceException("默认归属总部配置不正确");
         }
         try {
-            // ?????????????????????????????
+            // 说明：执行该步骤以保证业务流程正确。
             return requireHqCompany(hqCompanyId).getId();
         } catch (ServiceException ex) {
             throw new ServiceException("默认归属总部配置不正确");
@@ -944,14 +1119,17 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      * @return 归属总部ID
      */
     private Long resolveCreateHqCompanyId(SysCompany serviceCompany, MachineBarcode barcodeArchive) {
+        // 调用resolveBarcodeArchiveHqCompanyId方法，复用统一能力并保证业务规则一致。
         Long archiveHqCompanyId = resolveBarcodeArchiveHqCompanyId(barcodeArchive);
         if (archiveHqCompanyId != null) {
             return archiveHqCompanyId;
         }
+        // 调用resolveFirstCompanyIds方法，复用统一能力并保证业务规则一致。
         List<Long> firstCompanyIds = resolveFirstCompanyIds(serviceCompany);
         if (firstCompanyIds.isEmpty()) {
             throw new ServiceException("当前服务网点暂未关联可用总部，无法提交报修单");
         }
+        // 调用resolveActiveHqCompanyIds方法，复用统一能力并保证业务规则一致。
         List<Long> hqCompanyIds = resolveActiveHqCompanyIds(firstCompanyIds);
         if (hqCompanyIds.isEmpty()) {
             throw new ServiceException("当前机器条码归属总部暂无法自动识别，请联系管理员完善条码归属配置");
@@ -972,7 +1150,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         if (barcodeArchive == null || barcodeArchive.getHqCompanyId() == null) {
             return null;
         }
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         return requireHqCompany(barcodeArchive.getHqCompanyId()).getId();
     }
 
@@ -983,6 +1161,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      * @return 条码档案
      */
     private MachineBarcode requireActiveMachineBarcode(String barcode) {
+        // 调用findActiveMachineBarcode方法，复用统一能力并保证业务规则一致。
         MachineBarcode barcodeArchive = findActiveMachineBarcode(barcode);
         if (barcodeArchive == null) {
             throw new ServiceException("当前条码未维护档案信息");
@@ -991,12 +1170,13 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     }
 
     /**
-     * ?? findActiveMachineBarcode ?????
+     * findActive机器条码。
      *
-     * @param barcode ??
-     * @return ????
+     * @param barcode 参数
+     * @return 处理结果
      */
     private MachineBarcode findActiveMachineBarcode(String barcode) {
+        // 调用normalizeText方法，复用统一能力并保证业务规则一致。
         String normalizedBarcode = normalizeText(barcode);
         if (normalizedBarcode == null) {
             return null;
@@ -1004,17 +1184,18 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         LambdaQueryWrapper<MachineBarcode> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(MachineBarcode::getBarcode, normalizedBarcode)
                 .eq(MachineBarcode::getStatus, 1)
+                // 调用last方法，复用统一能力并保证业务规则一致。
                 .last("LIMIT 1");
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         return machineBarcodeMapper.selectOne(wrapper);
     }
 
     /**
-     * ???????
+     * 解析条码保修状态。
      *
-     * @param barcodeArchive ??
-     * @param fallbackStatus ??
-     * @return ?????
+     * @param barcodeArchive 参数
+     * @param fallbackStatus 参数
+     * @return 处理结果
      */
     private String resolveBarcodeWarrantyStatus(MachineBarcode barcodeArchive, String fallbackStatus) {
         return MachineBarcodeWarrantyResolver.resolveWarrantyStatus(
@@ -1026,20 +1207,20 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     }
 
     /**
-     * ???????
+     * 解析条码LastOutDate。
      *
-     * @param barcodeArchive ??
-     * @return ????
+     * @param barcodeArchive 参数
+     * @return 处理结果
      */
     private LocalDateTime resolveBarcodeLastOutDate(MachineBarcode barcodeArchive) {
         return MachineBarcodeWarrantyResolver.resolveLastOutDate(barcodeArchive);
     }
 
     /**
-     * ???????
+     * 解析一级公司Ids。
      *
-     * @param serviceCompany ??
-     * @return ????
+     * @param serviceCompany 参数
+     * @return 处理结果
      */
     private List<Long> resolveFirstCompanyIds(SysCompany serviceCompany) {
         if ("SITE_FIRST".equals(serviceCompany.getTypeCode())) {
@@ -1047,8 +1228,9 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         }
         LambdaQueryWrapper<FirstSecondRelation> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(FirstSecondRelation::getSecondCompanyId, serviceCompany.getId())
+                // 调用eq方法，复用统一能力并保证业务规则一致。
                 .eq(FirstSecondRelation::getStatus, 1);
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         List<FirstSecondRelation> relations = firstSecondRelationMapper.selectList(wrapper);
         if (relations.isEmpty()) {
             return Collections.emptyList();
@@ -1057,14 +1239,14 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
                 .map(FirstSecondRelation::getFirstCompanyId)
                 .filter(id -> id != null)
                 .distinct()
+                // 调用toList方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toList());
     }
 
     /**
-     * ???????
+     * 解析Active总部公司Ids。
      *
-     * @param firstCompanyIds first Company ID??
-     * @return ????
+     * @return 处理结果
      */
     private List<Long> resolveActiveHqCompanyIds(List<Long> firstCompanyIds) {
         if (firstCompanyIds == null || firstCompanyIds.isEmpty()) {
@@ -1072,8 +1254,9 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         }
         LambdaQueryWrapper<HqFirstContract> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(HqFirstContract::getFirstCompanyId, firstCompanyIds)
+                // 调用eq方法，复用统一能力并保证业务规则一致。
                 .eq(HqFirstContract::getStatus, 1);
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         List<HqFirstContract> contracts = hqFirstContractMapper.selectList(wrapper);
         if (contracts.isEmpty()) {
             return Collections.emptyList();
@@ -1084,17 +1267,20 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
                 .distinct()
                 .map(this::requireHqCompany)
                 .map(SysCompany::getId)
+                // 调用toList方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toList());
     }
 
     /**
-     * ???????
+     * 分页查询Active服务Companies列表。
      *
-     * @return ????
+     * @return 处理结果
      */
     private List<SysCompany> listActiveServiceCompanies() {
         Set<String> typeCodes = new LinkedHashSet<>();
+        // 调用getFirstLevelTypeCodes方法，复用统一能力并保证业务规则一致。
         typeCodes.addAll(CompanyCategoryEnum.getFirstLevelTypeCodes());
+        // 调用getSecondLevelTypeCodes方法，复用统一能力并保证业务规则一致。
         typeCodes.addAll(CompanyCategoryEnum.getSecondLevelTypeCodes());
         if (typeCodes.isEmpty()) {
             return Collections.emptyList();
@@ -1103,19 +1289,22 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         wrapper.in(SysCompany::getTypeCode, typeCodes)
                 .eq(SysCompany::getStatus, 1)
                 .orderByAsc(SysCompany::getCompanyName)
+                // 调用orderByAsc方法，复用统一能力并保证业务规则一致。
                 .orderByAsc(SysCompany::getId);
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         return sysCompanyMapper.selectList(wrapper);
     }
 
     /**
-     * ???????
+     * 分页查询NearbyEnabled服务Companies列表。
      *
-     * @return ????
+     * @return 处理结果
      */
     private List<SysCompany> listNearbyEnabledServiceCompanies() {
         Set<String> typeCodes = new LinkedHashSet<>();
+        // 调用getFirstLevelTypeCodes方法，复用统一能力并保证业务规则一致。
         typeCodes.addAll(CompanyCategoryEnum.getFirstLevelTypeCodes());
+        // 调用getSecondLevelTypeCodes方法，复用统一能力并保证业务规则一致。
         typeCodes.addAll(CompanyCategoryEnum.getSecondLevelTypeCodes());
         if (typeCodes.isEmpty()) {
             return Collections.emptyList();
@@ -1127,8 +1316,9 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
                 .isNotNull(SysCompany::getLongitude)
                 .isNotNull(SysCompany::getLatitude)
                 .orderByAsc(SysCompany::getCompanyName)
+                // 调用orderByAsc方法，复用统一能力并保证业务规则一致。
                 .orderByAsc(SysCompany::getId);
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         return sysCompanyMapper.selectList(wrapper);
     }
 
@@ -1155,17 +1345,27 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      * @param afterStatus 建单后的工单状态
      */
     private void saveCreateFlow(Long workOrderId, Long customerId, Long serviceCompanyId, String afterStatus) {
+        // 调用WorkOrderFlow方法，复用统一能力并保证业务规则一致。
         WorkOrderFlow flow = new WorkOrderFlow();
+        // 调用setWorkOrderId方法，复用统一能力并保证业务规则一致。
         flow.setWorkOrderId(workOrderId);
+        // 调用setActionType方法，复用统一能力并保证业务规则一致。
         flow.setActionType("CREATE");
+        // 调用setBeforeStatus方法，复用统一能力并保证业务规则一致。
         flow.setBeforeStatus(null);
+        // 调用setAfterStatus方法，复用统一能力并保证业务规则一致。
         flow.setAfterStatus(afterStatus);
+        // 调用setFromCompanyId方法，复用统一能力并保证业务规则一致。
         flow.setFromCompanyId(null);
+        // 调用setToCompanyId方法，复用统一能力并保证业务规则一致。
         flow.setToCompanyId(serviceCompanyId);
+        // 调用setOperatorCompanyId方法，复用统一能力并保证业务规则一致。
         flow.setOperatorCompanyId(serviceCompanyId);
+        // 调用setOperatorUserId方法，复用统一能力并保证业务规则一致。
         flow.setOperatorUserId(customerId);
+        // 调用setRemark方法，复用统一能力并保证业务规则一致。
         flow.setRemark("客户提交报修");
-        // ???????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         workOrderFlowMapper.insert(flow);
     }
 
@@ -1186,83 +1386,111 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
             return;
         }
         if (WorkOrderStatusConstants.DisplayStatus.IN_PROGRESS.equals(tabStatus)) {
+            // 调用eq方法，复用统一能力并保证业务规则一致。
             wrapper.eq(WorkOrder::getMainStatus, WorkOrderStatusConstants.MainStatus.IN_PROGRESS);
             return;
         }
         if (WorkOrderStatusConstants.DisplayStatus.COMPLETED.equals(tabStatus)) {
+            // 调用eq方法，复用统一能力并保证业务规则一致。
             wrapper.eq(WorkOrder::getMainStatus, WorkOrderStatusConstants.MainStatus.COMPLETED);
             return;
         }
         if (WorkOrderStatusConstants.DisplayStatus.CLOSED.equals(tabStatus)) {
+            // 调用eq方法，复用统一能力并保证业务规则一致。
             wrapper.eq(WorkOrder::getMainStatus, WorkOrderStatusConstants.MainStatus.CLOSED);
         }
     }
 
     /**
-     * ???????
+     * countByStatuses。
      *
      * @param customerId customer ID
-     * @param statuses ??
-     * @return ????
+     * @param statuses 参数
+     * @return 处理结果
      */
     private Long countByStatuses(Long customerId, String... statuses) {
         LambdaQueryWrapper<WorkOrder> wrapper = new LambdaQueryWrapper<>();
+        // 调用eq方法，复用统一能力并保证业务规则一致。
         wrapper.eq(WorkOrder::getCustomerId, customerId);
         if (statuses != null && statuses.length > 0) {
+            // 调用in方法，复用统一能力并保证业务规则一致。
             wrapper.in(WorkOrder::getMainStatus, (Object[]) statuses);
         }
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         return workOrderMapper.selectCount(wrapper);
     }
 
     /**
-     * ???????
+     * 构建列表Vo。
      *
-     * @param workOrder ??
-     * @param companyMap ??
-     * @param userNameMap ??
-     * @param senderVoucherWorkOrderIds sender Voucher Work Order ID??
-     * @param currentQuoteAmountMap ??
-     * @return ????
+     * @param workOrder 参数
+     * @param companyMap 参数
+     * @param userNameMap 参数
+     * @param currentQuoteAmountMap 参数
+     * @return 处理结果
      */
     private CustomerWorkOrderListVO buildListVo(WorkOrder workOrder, Map<Long, SysCompany> companyMap,
                                                 Map<Long, String> userNameMap,
                                                 Set<Long> senderVoucherWorkOrderIds,
                                                 Map<Long, BigDecimal> currentQuoteAmountMap) {
+        // 调用CustomerWorkOrderListVO方法，复用统一能力并保证业务规则一致。
         CustomerWorkOrderListVO vo = new CustomerWorkOrderListVO();
+        // 调用getId方法，复用统一能力并保证业务规则一致。
         vo.setId(workOrder.getId());
+        // 调用getOrderNo方法，复用统一能力并保证业务规则一致。
         vo.setOrderNo(workOrder.getOrderNo());
+        // 调用getCustomerName方法，复用统一能力并保证业务规则一致。
         vo.setCustomerName(workOrder.getCustomerName());
+        // 调用getCustomerMobile方法，复用统一能力并保证业务规则一致。
         vo.setCustomerMobile(workOrder.getCustomerMobile());
+        // 调用getBarcode方法，复用统一能力并保证业务规则一致。
         vo.setBarcode(workOrder.getBarcode());
+        // 调用getProductModel方法，复用统一能力并保证业务规则一致。
         vo.setProductModel(workOrder.getProductModel());
+        // 调用getBrandType方法，复用统一能力并保证业务规则一致。
         vo.setBrandType(workOrder.getBrandType());
+        // 调用getLabel方法，复用统一能力并保证业务规则一致。
         vo.setBrandTypeLabel(workOrder.getBrandType() == null ? null : workOrder.getBrandType().getLabel());
+        // 调用getServiceMode方法，复用统一能力并保证业务规则一致。
         vo.setServiceMode(workOrder.getServiceMode());
+        // 调用getServiceMode方法，复用统一能力并保证业务规则一致。
         vo.setServiceModeLabel(ServiceModeEnum.resolveLabel(workOrder.getServiceMode()));
+        // 调用getMainStatus方法，复用统一能力并保证业务规则一致。
         vo.setMainStatus(workOrder.getMainStatus());
+        // 调用getMainStatus方法，复用统一能力并保证业务规则一致。
         vo.setDisplayStatus(resolveCustomerDisplayStatus(workOrder.getMainStatus()));
+        // 调用getEvaluateStatus方法，复用统一能力并保证业务规则一致。
         vo.setEvaluateStatus(workOrder.getEvaluateStatus());
+        // 调用getEvaluateStatus方法，复用统一能力并保证业务规则一致。
         vo.setEvaluateStatusLabel(WorkOrderStatusConstants.resolveEvaluateStatusLabel(workOrder.getEvaluateStatus()));
+        // 调用getCurrentAcceptCompanyId方法，复用统一能力并保证业务规则一致。
         SysCompany currentAcceptCompany = companyMap == null ? null : companyMap.get(workOrder.getCurrentAcceptCompanyId());
+        // 调用getCompanyName方法，复用统一能力并保证业务规则一致。
         vo.setCurrentAcceptCompanyName(currentAcceptCompany == null ? null : currentAcceptCompany.getCompanyName());
+        // 调用getContactPhone方法，复用统一能力并保证业务规则一致。
         vo.setCurrentAcceptCompanyPhone(currentAcceptCompany == null ? null : currentAcceptCompany.getContactPhone());
+        // 调用getAssignedUserId方法，复用统一能力并保证业务规则一致。
         vo.setAssignedUserName(userNameMap.get(workOrder.getAssignedUserId()));
+        // 调用getHasTransfer方法，复用统一能力并保证业务规则一致。
         vo.setHasTransfer(workOrder.getHasTransfer());
+        // 调用canEvaluate方法，复用统一能力并保证业务规则一致。
         vo.setCanEvaluate(canEvaluate(workOrder));
         vo.setCanUploadSendExpress(canUploadSendExpress(workOrder,
+                // 调用getId方法，复用统一能力并保证业务规则一致。
                 senderVoucherWorkOrderIds != null && senderVoucherWorkOrderIds.contains(workOrder.getId())));
+        // 调用getId方法，复用统一能力并保证业务规则一致。
         vo.setQuoteAmount(currentQuoteAmountMap == null ? null : currentQuoteAmountMap.get(workOrder.getId()));
+        // 调用getCreateTime方法，复用统一能力并保证业务规则一致。
         vo.setCreateTime(workOrder.getCreateTime());
+        // 调用getClosedTime方法，复用统一能力并保证业务规则一致。
         vo.setClosedTime(workOrder.getClosedTime());
         return vo;
     }
 
     /**
-     * ???????
+     * 构建CurrentValidQuoteAmountMap。
      *
-     * @param workOrderIds work Order ID??
-     * @return ????
+     * @return 处理结果
      */
     private Map<Long, BigDecimal> buildCurrentValidQuoteAmountMap(List<Long> workOrderIds) {
         if (workOrderIds == null || workOrderIds.isEmpty()) {
@@ -1271,6 +1499,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         List<Long> validIds = workOrderIds.stream()
                 .filter(id -> id != null && id > 0)
                 .distinct()
+                // 调用toList方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toList());
         if (validIds.isEmpty()) {
             return Collections.emptyMap();
@@ -1279,14 +1508,16 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         wrapper.in(WorkOrderQuote::getWorkOrderId, validIds)
                 .eq(WorkOrderQuote::getIsCurrentValid, 1)
                 .orderByDesc(WorkOrderQuote::getCreateTime)
+                // 调用orderByDesc方法，复用统一能力并保证业务规则一致。
                 .orderByDesc(WorkOrderQuote::getId);
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         List<WorkOrderQuote> quotes = workOrderQuoteMapper.selectList(wrapper);
         if (quotes == null || quotes.isEmpty()) {
             return Collections.emptyMap();
         }
         quotes.sort(Comparator
                 .comparing(WorkOrderQuote::getCreateTime, Comparator.nullsLast(Comparator.reverseOrder()))
+                // 调用reverseOrder方法，复用统一能力并保证业务规则一致。
                 .thenComparing(WorkOrderQuote::getId, Comparator.nullsLast(Comparator.reverseOrder())));
         Map<Long, BigDecimal> result = new HashMap<>();
         for (WorkOrderQuote quote : quotes) {
@@ -1296,62 +1527,77 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
                     || result.containsKey(quote.getWorkOrderId())) {
                 continue;
             }
+            // 调用getQuoteAmount方法，复用统一能力并保证业务规则一致。
             result.put(quote.getWorkOrderId(), quote.getQuoteAmount());
         }
         return result;
     }
 
     /**
-     * ???????
+     * 构建LatestSummaryVo。
      *
-     * @param workOrder ??
-     * @return ????
+     * @param workOrder 参数
+     * @return 处理结果
      */
     private CustomerWorkOrderLatestSummaryVO buildLatestSummaryVo(WorkOrder workOrder) {
+        // 调用CustomerWorkOrderLatestSummaryVO方法，复用统一能力并保证业务规则一致。
         CustomerWorkOrderLatestSummaryVO vo = new CustomerWorkOrderLatestSummaryVO();
+        // 调用getId方法，复用统一能力并保证业务规则一致。
         vo.setId(workOrder.getId());
+        // 调用getOrderNo方法，复用统一能力并保证业务规则一致。
         vo.setOrderNo(workOrder.getOrderNo());
+        // 调用getProductName方法，复用统一能力并保证业务规则一致。
         vo.setProductName(workOrder.getProductName());
+        // 调用getProductModel方法，复用统一能力并保证业务规则一致。
         vo.setProductModel(workOrder.getProductModel());
+        // 调用getFaultDesc方法，复用统一能力并保证业务规则一致。
         vo.setFaultDesc(workOrder.getFaultDesc());
+        // 调用getBrandType方法，复用统一能力并保证业务规则一致。
         vo.setBrandType(workOrder.getBrandType());
+        // 调用getLabel方法，复用统一能力并保证业务规则一致。
         vo.setBrandTypeLabel(workOrder.getBrandType() == null ? null : workOrder.getBrandType().getLabel());
+        // 调用getServiceMode方法，复用统一能力并保证业务规则一致。
         vo.setServiceMode(workOrder.getServiceMode());
+        // 调用getServiceMode方法，复用统一能力并保证业务规则一致。
         vo.setServiceModeLabel(ServiceModeEnum.resolveLabel(workOrder.getServiceMode()));
+        // 调用getMainStatus方法，复用统一能力并保证业务规则一致。
         vo.setDisplayStatus(resolveCustomerDisplayStatus(workOrder.getMainStatus()));
+        // 调用getCreateTime方法，复用统一能力并保证业务规则一致。
         vo.setCreateTime(workOrder.getCreateTime());
         return vo;
     }
 
     /**
-     * ?? findLatestUnclosedWorkOrder ?????
+     * 查询最新未关闭工单。
      *
      * @param customerId customer ID
-     * @return ????
+     * @return 处理结果
      */
     private WorkOrder findLatestUnclosedWorkOrder(Long customerId) {
         LambdaQueryWrapper<WorkOrder> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrder::getCustomerId, customerId)
                 .ne(WorkOrder::getMainStatus, WorkOrderStatusConstants.MainStatus.CLOSED)
                 .orderByDesc(WorkOrder::getCreateTime)
+                // 调用last方法，复用统一能力并保证业务规则一致。
                 .last("limit 1");
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         List<WorkOrder> records = workOrderMapper.selectList(wrapper);
         return records == null || records.isEmpty() ? null : records.get(0);
     }
 
     /**
-     * ?? findLatestWorkOrder ?????
+     * 查询最新工单。
      *
      * @param customerId customer ID
-     * @return ????
+     * @return 处理结果
      */
     private WorkOrder findLatestWorkOrder(Long customerId) {
         LambdaQueryWrapper<WorkOrder> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrder::getCustomerId, customerId)
                 .orderByDesc(WorkOrder::getCreateTime)
+                // 调用last方法，复用统一能力并保证业务规则一致。
                 .last("limit 1");
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         List<WorkOrder> records = workOrderMapper.selectList(wrapper);
         return records == null || records.isEmpty() ? null : records.get(0);
     }
@@ -1366,6 +1612,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return workOrder != null
                 && WorkOrderStatusConstants.MainStatus.CLOSED.equals(workOrder.getMainStatus())
                 && WorkOrderStatusConstants.EvaluateStatus.PENDING_EVALUATE.equals(workOrder.getEvaluateStatus())
+                // 调用getId方法，复用统一能力并保证业务规则一致。
                 && hasFaultForEvaluation(workOrder.getId());
     }
 
@@ -1378,6 +1625,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     private boolean canEditSendInfo(WorkOrder workOrder) {
         return workOrder != null
                 && ServiceModeEnum.isMail(workOrder.getServiceMode())
+                // 调用getMainStatus方法，复用统一能力并保证业务规则一致。
                 && WorkOrderStatusConstants.isWaitAcceptMainStatus(workOrder.getMainStatus());
     }
 
@@ -1393,24 +1641,20 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     }
 
     /**
-     * ??????Sender Voucher?
-     *
-     * @param workOrderId ??ID
-     * @return true ??????
+     * 判断是否存在发送凭证。
      */
     private boolean hasSenderVoucher(Long workOrderId) {
         if (workOrderId == null) {
             return false;
         }
-        // ????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         return !sysFileService.listBizFiles(SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER, workOrderId).isEmpty();
     }
 
     /**
-     * ???????
+     * 构建发送凭证工单IDSet。
      *
-     * @param workOrderIds work Order ID??
-     * @return ????
+     * @return 处理结果
      */
     private Set<Long> buildSenderVoucherWorkOrderIdSet(Set<Long> workOrderIds) {
         if (workOrderIds == null || workOrderIds.isEmpty()) {
@@ -1418,14 +1662,16 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         }
         List<Long> validWorkOrderIds = workOrderIds.stream()
                 .filter(id -> id != null)
+                // 调用toList方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toList());
         if (validWorkOrderIds.isEmpty()) {
             return Collections.emptySet();
         }
         LambdaQueryWrapper<SysFileBiz> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysFileBiz::getBizType, SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER)
+                // 调用in方法，复用统一能力并保证业务规则一致。
                 .in(SysFileBiz::getBizId, validWorkOrderIds);
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         List<SysFileBiz> relations = sysFileBizMapper.selectList(wrapper);
         if (relations == null || relations.isEmpty()) {
             return Collections.emptySet();
@@ -1437,6 +1683,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
                 .stream()
                 .filter(file -> file != null && SysFileStatusEnum.ACTIVE == file.getStatus())
                 .map(SysFile::getId)
+                // 调用toSet方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toSet());
         if (activeFileIds.isEmpty()) {
             return Collections.emptySet();
@@ -1444,6 +1691,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         Set<Long> result = new HashSet<>();
         for (SysFileBiz relation : relations) {
             if (relation != null && relation.getBizId() != null && activeFileIds.contains(relation.getFileId())) {
+                // 调用getBizId方法，复用统一能力并保证业务规则一致。
                 result.add(relation.getBizId());
             }
         }
@@ -1451,34 +1699,36 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     }
 
     /**
-     * ???????
+     * 解析客户展示状态。
      *
-     * @param mainStatus ??
-     * @return ?????
+     * @param mainStatus 参数
+     * @return 处理结果
      */
     private String resolveCustomerDisplayStatus(String mainStatus) {
         return WorkOrderStatusConstants.resolveDisplayStatusLabel(mainStatus);
     }
 
     /**
-     * ???????
+     * 构建公司Map。
      *
-     * @param companyIds ??ID??
-     * @return ????
+     * @return 处理结果
      */
     private Map<Long, SysCompany> buildCompanyMap(Set<Long> companyIds) {
         if (companyIds == null || companyIds.isEmpty()) {
             return Collections.emptyMap();
         }
+        // 调用toList方法，复用统一能力并保证业务规则一致。
         List<Long> validCompanyIds = companyIds.stream().filter(id -> id != null).collect(Collectors.toList());
         if (validCompanyIds.isEmpty()) {
             return Collections.emptyMap();
         }
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         List<SysCompany> companies = sysCompanyMapper.selectBatchIds(validCompanyIds);
+        // 调用size方法，复用统一能力并保证业务规则一致。
         Map<Long, SysCompany> map = new HashMap<>(companies.size());
         for (SysCompany company : companies) {
             if (company != null) {
+                // 调用getId方法，复用统一能力并保证业务规则一致。
                 map.put(company.getId(), company);
             }
         }
@@ -1486,20 +1736,23 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     }
 
     /**
-     * ???????
+     * 构建公司名称Map。
      *
-     * @param companyIds ??ID??
-     * @return ????
+     * @return 处理结果
      */
     private Map<Long, String> buildCompanyNameMap(Set<Long> companyIds) {
+        // 调用buildCompanyMap方法，复用统一能力并保证业务规则一致。
         Map<Long, SysCompany> companyMap = buildCompanyMap(companyIds);
         if (companyMap.isEmpty()) {
             return Collections.emptyMap();
         }
+        // 调用size方法，复用统一能力并保证业务规则一致。
         Map<Long, String> map = new HashMap<>(companyMap.size());
         for (Map.Entry<Long, SysCompany> entry : companyMap.entrySet()) {
+            // 调用getValue方法，复用统一能力并保证业务规则一致。
             SysCompany company = entry.getValue();
             if (company != null) {
+                // 调用getCompanyName方法，复用统一能力并保证业务规则一致。
                 map.put(entry.getKey(), company.getCompanyName());
             }
         }
@@ -1507,55 +1760,76 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     }
 
     /**
-     * ???????
+     * 构建Nearby服务公司Option。
      *
-     * @param company ??
-     * @param longitude ??
-     * @param latitude ??
-     * @return ????
+     * @param company 参数
+     * @param longitude 参数
+     * @param latitude 参数
+     * @return 处理结果
      */
     private CustomerNearbyServiceCompanyVO buildNearbyServiceCompanyOption(SysCompany company, BigDecimal longitude,
                                                                            BigDecimal latitude) {
+        // 调用CustomerNearbyServiceCompanyVO方法，复用统一能力并保证业务规则一致。
         CustomerNearbyServiceCompanyVO vo = new CustomerNearbyServiceCompanyVO();
+        // 调用getId方法，复用统一能力并保证业务规则一致。
         vo.setId(company.getId());
+        // 调用getCompanyName方法，复用统一能力并保证业务规则一致。
         vo.setCompanyName(company.getCompanyName());
+        // 调用getCompanyCode方法，复用统一能力并保证业务规则一致。
         vo.setCompanyCode(company.getCompanyCode());
+        // 调用getTypeCode方法，复用统一能力并保证业务规则一致。
         vo.setTypeCode(company.getTypeCode());
+        // 调用getTypeCode方法，复用统一能力并保证业务规则一致。
         vo.setTypeName(resolveServiceCompanyTypeName(company.getTypeCode()));
+        // 调用getContactPhone方法，复用统一能力并保证业务规则一致。
         vo.setContactPhone(company.getContactPhone());
+        // 调用resolveCompanyAddress方法，复用统一能力并保证业务规则一致。
         vo.setAddress(resolveCompanyAddress(company));
+        // 调用getLongitude方法，复用统一能力并保证业务规则一致。
         vo.setLongitude(company.getLongitude());
+        // 调用getLatitude方法，复用统一能力并保证业务规则一致。
         vo.setLatitude(company.getLatitude());
+        // 调用getLatitude方法，复用统一能力并保证业务规则一致。
         vo.setDistanceKm(calculateDistanceKm(longitude, latitude, company.getLongitude(), company.getLatitude()));
+        // 调用setHasRepairHistory方法，复用统一能力并保证业务规则一致。
         vo.setHasRepairHistory(Boolean.FALSE);
         return vo;
     }
 
     /**
-     * ???????
+     * 构建服务公司Option。
      *
-     * @param company ??
-     * @return ????
+     * @param company 参数
+     * @return 处理结果
      */
     private CustomerServiceCompanyOptionVO buildServiceCompanyOption(SysCompany company) {
+        // 调用CustomerServiceCompanyOptionVO方法，复用统一能力并保证业务规则一致。
         CustomerServiceCompanyOptionVO vo = new CustomerServiceCompanyOptionVO();
+        // 调用getId方法，复用统一能力并保证业务规则一致。
         vo.setId(company.getId());
+        // 调用getCompanyName方法，复用统一能力并保证业务规则一致。
         vo.setCompanyName(company.getCompanyName());
+        // 调用getCompanyCode方法，复用统一能力并保证业务规则一致。
         vo.setCompanyCode(company.getCompanyCode());
+        // 调用getTypeCode方法，复用统一能力并保证业务规则一致。
         vo.setTypeCode(company.getTypeCode());
+        // 调用getTypeCode方法，复用统一能力并保证业务规则一致。
         vo.setTypeName(resolveServiceCompanyTypeName(company.getTypeCode()));
+        // 调用getContactPhone方法，复用统一能力并保证业务规则一致。
         vo.setContactPhone(company.getContactPhone());
+        // 调用resolveCompanyAddress方法，复用统一能力并保证业务规则一致。
         vo.setAddress(resolveCompanyAddress(company));
         return vo;
     }
 
     /**
-     * ???????
+     * 解析公司Address。
      *
-     * @param company ??
-     * @return ?????
+     * @param company 参数
+     * @return 处理结果
      */
     private String resolveCompanyAddress(SysCompany company) {
+        // 调用getFullAddress方法，复用统一能力并保证业务规则一致。
         String fullAddress = normalizeText(company.getFullAddress());
         if (fullAddress != null) {
             return fullAddress;
@@ -1564,10 +1838,10 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     }
 
     /**
-     * ???????
+     * 解析服务公司类型名称。
      *
-     * @param typeCode ??????
-     * @return ?????
+     * @param typeCode 参数
+     * @return 处理结果
      */
     private String resolveServiceCompanyTypeName(String typeCode) {
         if (CompanyCategoryEnum.getFirstLevelTypeCodes().contains(typeCode)) {
@@ -1580,27 +1854,29 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     }
 
     /**
-     * ???????
+     * 解析ArchiveText。
      *
-     * @param archiveValue ??
-     * @param requestValue ??
-     * @return ?????
+     * @param archiveValue 参数
+     * @param requestValue 参数
+     * @return 处理结果
      */
     private String resolveArchiveText(String archiveValue, String requestValue) {
+        // 调用normalizeText方法，复用统一能力并保证业务规则一致。
         String normalizedArchiveValue = normalizeText(archiveValue);
         return normalizedArchiveValue != null ? normalizedArchiveValue : normalizeText(requestValue);
     }
 
     /**
-     * ???????
+     * 解析客户名称。
      *
-     * @param customer ??
-     * @return ?????
+     * @param customer 参数
+     * @return 处理结果
      */
     private String resolveCustomerName(CUser customer) {
         if (customer == null) {
             throw new ServiceException("当前客户不存在");
         }
+        // 调用getNickname方法，复用统一能力并保证业务规则一致。
         String nickname = normalizeText(customer.getNickname());
         if (nickname != null) {
             return nickname;
@@ -1609,13 +1885,13 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     }
 
     /**
-     * ???????
+     * 解析客户故障Selection。
      *
-     * @param dto ????
+     * @param dto 参数
      * @param hqCompanyId hq Company ID
-     * @param productCode ??
-     * @param productModel ??
-     * @return ????
+     * @param productCode 参数
+     * @param productModel 参数
+     * @return 处理结果
      */
     private CustomerFaultSelection resolveCustomerFaultSelection(CustomerWorkOrderCreateDTO dto, Long hqCompanyId,
                                                                  String productCode, String productModel) {
@@ -1623,15 +1899,15 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     }
 
     /**
-     * ???????
+     * 解析客户故障Selection。
      *
-     * @param dto ????
-     * @param brandType ??
-     * @param hasBarcode ??
+     * @param dto 参数
+     * @param brandType 参数
+     * @param hasBarcode 参数
      * @param hqCompanyId hq Company ID
-     * @param productCode ??
-     * @param productModel ??
-     * @return ????
+     * @param productCode 参数
+     * @param productModel 参数
+     * @return 处理结果
      */
     private CustomerFaultSelection resolveCustomerFaultSelection(CustomerWorkOrderCreateDTO dto, BrandTypeEnum brandType,
                                                                  boolean hasBarcode, Long hqCompanyId,
@@ -1639,33 +1915,44 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         if (brandType == null || !hasBarcode) {
             return resolveOtherOnlyFaultSelection(dto);
         }
+        // 调用listConfiguredFaultOptions方法，复用统一能力并保证业务规则一致。
         List<String> configuredFaultOptions = listConfiguredFaultOptions(hqCompanyId, productCode, productModel);
+        // 调用getFaultItems方法，复用统一能力并保证业务规则一致。
         List<String> faultItems = normalizeFaultItems(dto == null ? null : dto.getFaultItems());
+        // 调用getFaultRemark方法，复用统一能力并保证业务规则一致。
         String faultRemark = normalizeText(dto == null ? null : dto.getFaultRemark());
+        // 调用getFaultDesc方法，复用统一能力并保证业务规则一致。
         String legacyFaultDesc = normalizeText(dto == null ? null : dto.getFaultDesc());
         boolean useLegacyFaultDesc = false;
         if (faultItems.isEmpty() && legacyFaultDesc != null) {
+            // 调用singletonList方法，复用统一能力并保证业务规则一致。
             faultItems = new ArrayList<>(Collections.singletonList(legacyFaultDesc));
             useLegacyFaultDesc = true;
         }
 
         if (configuredFaultOptions.isEmpty()) {
             if (faultItems.isEmpty()) {
+                // 调用singletonList方法，复用统一能力并保证业务规则一致。
                 faultItems = new ArrayList<>(Collections.singletonList(OTHER_FAULT_LABEL));
             } else if (useLegacyFaultDesc && faultItems.size() == 1 && !OTHER_FAULT_LABEL.equals(faultItems.get(0))) {
+                // 调用get方法，复用统一能力并保证业务规则一致。
                 faultRemark = faultRemark != null ? faultRemark : faultItems.get(0);
+                // 调用singletonList方法，复用统一能力并保证业务规则一致。
                 faultItems = new ArrayList<>(Collections.singletonList(OTHER_FAULT_LABEL));
             } else if (faultItems.size() != 1 || !OTHER_FAULT_LABEL.equals(faultItems.get(0))) {
                 throw new ServiceException("当前产品暂未配置故障项，请选择其它故障");
             }
         } else {
             LinkedHashSet<String> allowedFaultOptions = new LinkedHashSet<>(configuredFaultOptions);
+            // 调用add方法，复用统一能力并保证业务规则一致。
             allowedFaultOptions.add(OTHER_FAULT_LABEL);
             if (faultItems.isEmpty()) {
                 throw new ServiceException("请选择故障描述");
             }
             if (useLegacyFaultDesc && faultItems.size() == 1 && !allowedFaultOptions.contains(faultItems.get(0))) {
+                // 调用get方法，复用统一能力并保证业务规则一致。
                 faultRemark = faultRemark != null ? faultRemark : faultItems.get(0);
+                // 调用singletonList方法，复用统一能力并保证业务规则一致。
                 faultItems = new ArrayList<>(Collections.singletonList(OTHER_FAULT_LABEL));
             }
             for (String faultItem : faultItems) {
@@ -1682,16 +1969,20 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     }
 
     /**
-     * ???????
+     * 解析OtherOnly故障Selection。
      *
-     * @param dto ????
-     * @return ????
+     * @param dto 参数
+     * @return 处理结果
      */
     private CustomerFaultSelection resolveOtherOnlyFaultSelection(CustomerWorkOrderCreateDTO dto) {
+        // 调用getFaultItems方法，复用统一能力并保证业务规则一致。
         List<String> faultItems = normalizeFaultItems(dto == null ? null : dto.getFaultItems());
+        // 调用getFaultRemark方法，复用统一能力并保证业务规则一致。
         String faultRemark = normalizeText(dto == null ? null : dto.getFaultRemark());
+        // 调用getFaultDesc方法，复用统一能力并保证业务规则一致。
         String legacyFaultDesc = normalizeText(dto == null ? null : dto.getFaultDesc());
         if (faultItems.isEmpty()) {
+            // 调用singletonList方法，复用统一能力并保证业务规则一致。
             faultItems = new ArrayList<>(Collections.singletonList(OTHER_FAULT_LABEL));
         }
         if (faultItems.size() != 1 || !OTHER_FAULT_LABEL.equals(faultItems.get(0))) {
@@ -1715,30 +2006,35 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      * @return 故障描述选项
      */
     private List<String> buildCustomerFaultOptions(Long hqCompanyId, String productCode, String productModel) {
+        // 调用listConfiguredFaultOptions方法，复用统一能力并保证业务规则一致。
         LinkedHashSet<String> faultOptions = new LinkedHashSet<>(listConfiguredFaultOptions(hqCompanyId, productCode, productModel));
+        // 调用add方法，复用统一能力并保证业务规则一致。
         faultOptions.add(OTHER_FAULT_LABEL);
         return new ArrayList<>(faultOptions);
     }
 
     /**
-     * ???????
+     * 分页查询Configured故障Options列表。
      *
      * @param hqCompanyId hq Company ID
-     * @param productCode ??
-     * @param productModel ??
-     * @return ????
+     * @param productCode 参数
+     * @param productModel 参数
+     * @return 处理结果
      */
     private List<String> listConfiguredFaultOptions(Long hqCompanyId, String productCode, String productModel) {
         List<WorkOrderRepairFaultOptionVO> repairFaultOptions = faultRepairConfigService == null
                 ? Collections.emptyList()
+                // 调用listRepairFaultOptionsForResolvedHq方法，复用统一能力并保证业务规则一致。
                 : faultRepairConfigService.listRepairFaultOptionsForResolvedHq(hqCompanyId, productCode, productModel);
         if (repairFaultOptions == null || repairFaultOptions.isEmpty()) {
             return Collections.emptyList();
         }
         LinkedHashSet<String> result = new LinkedHashSet<>();
         for (WorkOrderRepairFaultOptionVO repairFaultOption : repairFaultOptions) {
+            // 调用getFaultDesc方法，复用统一能力并保证业务规则一致。
             String faultDesc = normalizeText(repairFaultOption.getFaultDesc());
             if (faultDesc != null) {
+                // 调用add方法，复用统一能力并保证业务规则一致。
                 result.add(faultDesc);
             }
         }
@@ -1746,10 +2042,10 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     }
 
     /**
-     * ????????
+     * 规范化故障Items。
      *
-     * @param faultItems ??
-     * @return ????
+     * @param faultItems 参数
+     * @return 处理结果
      */
     private List<String> normalizeFaultItems(List<String> faultItems) {
         if (faultItems == null || faultItems.isEmpty()) {
@@ -1757,8 +2053,10 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         }
         LinkedHashSet<String> result = new LinkedHashSet<>();
         for (String faultItem : faultItems) {
+            // 调用normalizeText方法，复用统一能力并保证业务规则一致。
             String normalized = normalizeText(faultItem);
             if (normalized != null) {
+                // 调用add方法，复用统一能力并保证业务规则一致。
                 result.add(normalized);
             }
         }
@@ -1800,41 +2098,47 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     }
 
     /**
-     * ???????
+     * calculateDistanceKm。
      *
-     * @param sourceLongitude ??
-     * @param sourceLatitude ??
-     * @param targetLongitude ??
-     * @param targetLatitude ??
-     * @return ????
+     * @param sourceLongitude 参数
+     * @param sourceLatitude 参数
+     * @param targetLongitude 参数
+     * @param targetLatitude 参数
+     * @return 处理结果
      */
     private BigDecimal calculateDistanceKm(BigDecimal sourceLongitude, BigDecimal sourceLatitude,
                                            BigDecimal targetLongitude, BigDecimal targetLatitude) {
         if (targetLongitude == null || targetLatitude == null) {
             return null;
         }
+        // 调用doubleValue方法，复用统一能力并保证业务规则一致。
         double lat1 = Math.toRadians(sourceLatitude.doubleValue());
+        // 调用doubleValue方法，复用统一能力并保证业务规则一致。
         double lng1 = Math.toRadians(sourceLongitude.doubleValue());
+        // 调用doubleValue方法，复用统一能力并保证业务规则一致。
         double lat2 = Math.toRadians(targetLatitude.doubleValue());
+        // 调用doubleValue方法，复用统一能力并保证业务规则一致。
         double lng2 = Math.toRadians(targetLongitude.doubleValue());
         double deltaLat = lat2 - lat1;
         double deltaLng = lng2 - lng1;
         double haversine = Math.pow(Math.sin(deltaLat / 2), 2)
+                // 调用sin方法，复用统一能力并保证业务规则一致。
                 + Math.cos(lat1) * Math.cos(lat2) * Math.pow(Math.sin(deltaLng / 2), 2);
+        // 调用sqrt方法，复用统一能力并保证业务规则一致。
         double distance = 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(haversine));
         return BigDecimal.valueOf(distance).setScale(2, RoundingMode.HALF_UP);
     }
 
     /**
-     * ???????
+     * compareDistance。
      *
-     * @param leftDistance ??
-     * @param rightDistance ??
-     * @param leftName ??
-     * @param rightName ??
+     * @param leftDistance 参数
+     * @param rightDistance 参数
+     * @param leftName 参数
+     * @param rightName 参数
      * @param leftId left ID
      * @param rightId right ID
-     * @return ????
+     * @return 处理结果
      */
     private int compareDistance(BigDecimal leftDistance, BigDecimal rightDistance,
                                 String leftName, String rightName, Long leftId, Long rightId) {
@@ -1847,6 +2151,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         if (rightDistance == null) {
             return -1;
         }
+        // 调用compareTo方法，复用统一能力并保证业务规则一致。
         int compareResult = leftDistance.compareTo(rightDistance);
         if (compareResult != 0) {
             return compareResult;
@@ -1855,11 +2160,11 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     }
 
     /**
-     * ???????
+     * 构建维修HistoryMap。
      *
      * @param customerId customer ID
-     * @param companies ??
-     * @return ????
+     * @param companies 参数
+     * @return 处理结果
      */
     private Map<Long, RepairHistorySummary> buildRepairHistoryMap(Long customerId, List<SysCompany> companies) {
         if (customerId == null || companies == null || companies.isEmpty() || workOrderFlowMapper == null) {
@@ -1868,16 +2173,18 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         Set<Long> companyIds = companies.stream()
                 .map(SysCompany::getId)
                 .filter(Objects::nonNull)
+                // 调用toSet方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toSet());
         if (companyIds.isEmpty()) {
             return Collections.emptyMap();
         }
         List<WorkOrderCompanyRepairHistoryStatVO> stats =
-                // ??????????????????????????
+                // 说明：执行该步骤以保证业务流程正确。
                 workOrderFlowMapper.selectCustomerCreateCompanyRepairHistory(customerId, companyIds);
         if (stats == null || stats.isEmpty()) {
             return Collections.emptyMap();
         }
+        // 调用size方法，复用统一能力并保证业务规则一致。
         Map<Long, RepairHistorySummary> result = new HashMap<>(stats.size());
         for (WorkOrderCompanyRepairHistoryStatVO stat : stats) {
             if (stat == null || stat.getCompanyId() == null) {
@@ -1892,17 +2199,19 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     }
 
     /**
-     * ???????
+     * compareNearby服务公司。
      *
-     * @param left ????
-     * @param right ????
-     * @param repairHistoryMap ??
-     * @return ????
+     * @param left 参数
+     * @param right 参数
+     * @param repairHistoryMap 参数
+     * @return 处理结果
      */
     private int compareNearbyServiceCompany(CustomerNearbyServiceCompanyVO left,
                                             CustomerNearbyServiceCompanyVO right,
                                             Map<Long, RepairHistorySummary> repairHistoryMap) {
+        // 调用getId方法，复用统一能力并保证业务规则一致。
         RepairHistorySummary leftHistory = repairHistoryMap.get(left.getId());
+        // 调用getId方法，复用统一能力并保证业务规则一致。
         RepairHistorySummary rightHistory = repairHistoryMap.get(right.getId());
         boolean leftHasHistory = leftHistory != null;
         boolean rightHasHistory = rightHistory != null;
@@ -1910,26 +2219,29 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
             return leftHasHistory ? -1 : 1;
         }
         if (leftHasHistory) {
+            // 调用getRepairCount方法，复用统一能力并保证业务规则一致。
             int compareCount = Long.compare(rightHistory.getRepairCount(), leftHistory.getRepairCount());
             if (compareCount != 0) {
                 return compareCount;
             }
             int compareTime = compareLastRepairTimeDesc(leftHistory.getLastRepairTime(),
+                    // 调用getLastRepairTime方法，复用统一能力并保证业务规则一致。
                     rightHistory.getLastRepairTime());
             if (compareTime != 0) {
                 return compareTime;
             }
         }
         return compareDistance(left.getDistanceKm(), right.getDistanceKm(),
+                // 调用getId方法，复用统一能力并保证业务规则一致。
                 left.getCompanyName(), right.getCompanyName(), left.getId(), right.getId());
     }
 
     /**
-     * ???????
+     * compareLast维修Time描述。
      *
-     * @param leftTime ??
-     * @param rightTime ??
-     * @return ????
+     * @param leftTime 参数
+     * @param rightTime 参数
+     * @return 处理结果
      */
     private int compareLastRepairTimeDesc(LocalDateTime leftTime, LocalDateTime rightTime) {
         if (leftTime == null && rightTime == null) {
@@ -1947,11 +2259,11 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     private static class RepairHistorySummary {
 
         /**
-         * ?? RepairHistorySummary ?????
-         *
-         * @param repairCount ??
-         * @param lastRepairTime ??
-         * @return ????
+     * Long字段。
+     *
+     * @param repairCount 参数
+     * @param lastRepairTime 参数
+     * @return 处理结果
          */
         private final Long repairCount;
 
@@ -1962,27 +2274,38 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
             this.lastRepairTime = lastRepairTime;
         }
 
+        /**
+         * 获取维修Count。
+         *
+         * @return 处理结果
+         */
         Long getRepairCount() {
             return repairCount;
         }
 
+        /**
+         * 获取Last维修Time。
+         *
+         * @return 处理结果
+         */
         LocalDateTime getLastRepairTime() {
             return lastRepairTime;
         }
     }
 
     /**
-     * ???????
+     * compare公司身份。
      *
-     * @param leftName ??
-     * @param rightName ??
+     * @param leftName 参数
+     * @param rightName 参数
      * @param leftId left ID
      * @param rightId right ID
-     * @return ????
+     * @return 处理结果
      */
     private int compareCompanyIdentity(String leftName, String rightName, Long leftId, Long rightId) {
         String safeLeftName = leftName == null ? "" : leftName;
         String safeRightName = rightName == null ? "" : rightName;
+        // 调用compareTo方法，复用统一能力并保证业务规则一致。
         int compareResult = safeLeftName.compareTo(safeRightName);
         if (compareResult != 0) {
             return compareResult;
@@ -1993,24 +2316,26 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     }
 
     /**
-     * ???????
+     * 构建用户名称Map。
      *
-     * @param userIds ??ID??
-     * @return ????
+     * @return 处理结果
      */
     private Map<Long, String> buildUserNameMap(Set<Long> userIds) {
         if (userIds == null || userIds.isEmpty()) {
             return Collections.emptyMap();
         }
+        // 调用toList方法，复用统一能力并保证业务规则一致。
         List<Long> validUserIds = userIds.stream().filter(id -> id != null).collect(Collectors.toList());
         if (validUserIds.isEmpty()) {
             return Collections.emptyMap();
         }
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         List<SysUser> users = sysUserMapper.selectBatchIds(validUserIds);
+        // 调用size方法，复用统一能力并保证业务规则一致。
         Map<Long, String> map = new HashMap<>(users.size());
         for (SysUser user : users) {
             if (user != null) {
+                // 调用getRealName方法，复用统一能力并保证业务规则一致。
                 map.put(user.getId(), user.getRealName());
             }
         }
@@ -2018,16 +2343,16 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     }
 
     /**
-     * ???????
+     * 分页查询QuoteVos列表。
      *
-     * @param workOrderId ??ID
-     * @return ????
+     * @return 处理结果
      */
     private List<WorkOrderQuoteVO> listQuoteVos(Long workOrderId) {
         LambdaQueryWrapper<WorkOrderQuote> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrderQuote::getWorkOrderId, workOrderId)
+                // 调用orderByDesc方法，复用统一能力并保证业务规则一致。
                 .orderByDesc(WorkOrderQuote::getCreateTime);
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         List<WorkOrderQuote> quotes = workOrderQuoteMapper.selectList(wrapper);
         if (quotes.isEmpty()) {
             return Collections.emptyList();
@@ -2040,33 +2365,45 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         );
         List<WorkOrderQuoteVO> result = new ArrayList<>();
         for (WorkOrderQuote quote : quotes) {
+            // 调用WorkOrderQuoteVO方法，复用统一能力并保证业务规则一致。
             WorkOrderQuoteVO vo = new WorkOrderQuoteVO();
+            // 调用getId方法，复用统一能力并保证业务规则一致。
             vo.setId(quote.getId());
+            // 调用getCompanyId方法，复用统一能力并保证业务规则一致。
             vo.setCompanyId(quote.getCompanyId());
+            // 调用getCompanyId方法，复用统一能力并保证业务规则一致。
             vo.setCompanyName(companyNameMap.get(quote.getCompanyId()));
+            // 调用getQuotedBy方法，复用统一能力并保证业务规则一致。
             vo.setQuotedBy(quote.getQuotedBy());
+            // 调用getQuotedBy方法，复用统一能力并保证业务规则一致。
             vo.setQuotedByName(userNameMap.get(quote.getQuotedBy()));
+            // 调用getFaultJudge方法，复用统一能力并保证业务规则一致。
             vo.setFaultJudge(quote.getFaultJudge());
+            // 调用getQuoteAmount方法，复用统一能力并保证业务规则一致。
             vo.setQuoteAmount(quote.getQuoteAmount());
+            // 调用getQuoteDesc方法，复用统一能力并保证业务规则一致。
             vo.setQuoteDesc(quote.getQuoteDesc());
+            // 调用getIsCurrentValid方法，复用统一能力并保证业务规则一致。
             vo.setIsCurrentValid(quote.getIsCurrentValid());
+            // 调用getCreateTime方法，复用统一能力并保证业务规则一致。
             vo.setCreateTime(quote.getCreateTime());
+            // 调用add方法，复用统一能力并保证业务规则一致。
             result.add(vo);
         }
         return result;
     }
 
     /**
-     * ???????
+     * 分页查询维修Vos列表。
      *
-     * @param workOrderId ??ID
-     * @return ????
+     * @return 处理结果
      */
     private List<WorkOrderRepairVO> listRepairVos(Long workOrderId) {
         LambdaQueryWrapper<WorkOrderRepair> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrderRepair::getWorkOrderId, workOrderId)
+                // 调用orderByDesc方法，复用统一能力并保证业务规则一致。
                 .orderByDesc(WorkOrderRepair::getCreateTime);
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         List<WorkOrderRepair> repairs = workOrderRepairMapper.selectList(wrapper);
         if (repairs.isEmpty()) {
             return Collections.emptyList();
@@ -2077,34 +2414,48 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         Map<Long, String> userNameMap = buildUserNameMap(
                 repairs.stream().map(WorkOrderRepair::getRepairUserId).collect(Collectors.toSet())
         );
+        // 调用toSet方法，复用统一能力并保证业务规则一致。
         Set<Long> repairIds = repairs.stream().map(WorkOrderRepair::getId).collect(Collectors.toSet());
+        // 调用buildFaultMap方法，复用统一能力并保证业务规则一致。
         Map<Long, List<WorkOrderFaultVO>> faultMap = buildFaultMap(workOrderId, repairIds);
         List<WorkOrderRepairVO> result = new ArrayList<>();
         for (WorkOrderRepair repair : repairs) {
+            // 调用WorkOrderRepairVO方法，复用统一能力并保证业务规则一致。
             WorkOrderRepairVO vo = new WorkOrderRepairVO();
+            // 调用getId方法，复用统一能力并保证业务规则一致。
             vo.setId(repair.getId());
+            // 调用getCompanyId方法，复用统一能力并保证业务规则一致。
             vo.setCompanyId(repair.getCompanyId());
+            // 调用getCompanyId方法，复用统一能力并保证业务规则一致。
             vo.setCompanyName(companyNameMap.get(repair.getCompanyId()));
+            // 调用getRepairUserId方法，复用统一能力并保证业务规则一致。
             vo.setRepairUserId(repair.getRepairUserId());
+            // 调用getRepairUserId方法，复用统一能力并保证业务规则一致。
             vo.setRepairUserName(userNameMap.get(repair.getRepairUserId()));
+            // 调用getRegisterStage方法，复用统一能力并保证业务规则一致。
             vo.setRegisterStage(repair.getRegisterStage());
+            // 调用getRegisterStage方法，复用统一能力并保证业务规则一致。
             vo.setRegisterStageLabel(REGISTER_STAGE_RECHECK.equals(repair.getRegisterStage()) ? "复检登记" : "维修登记");
+            // 调用getIsFinished方法，复用统一能力并保证业务规则一致。
             vo.setIsFinished(repair.getIsFinished());
+            // 调用getFinishedTime方法，复用统一能力并保证业务规则一致。
             vo.setFinishedTime(repair.getFinishedTime());
+            // 调用getCreateTime方法，复用统一能力并保证业务规则一致。
             vo.setCreateTime(repair.getCreateTime());
+            // 调用emptyList方法，复用统一能力并保证业务规则一致。
             vo.setFaults(faultMap.getOrDefault(repair.getId(), Collections.emptyList()));
+            // 调用getId方法，复用统一能力并保证业务规则一致。
             fillRepairAttachmentDetail(vo, buildRepairFileMap(repair.getId()));
+            // 调用add方法，复用统一能力并保证业务规则一致。
             result.add(vo);
         }
         return result;
     }
 
     /**
-     * ???????
+     * 构建故障Map。
      *
-     * @param workOrderId ??ID
-     * @param repairIds repair ID??
-     * @return ????
+     * @return 处理结果
      */
     private Map<Long, List<WorkOrderFaultVO>> buildFaultMap(Long workOrderId, Set<Long> repairIds) {
         if (repairIds == null || repairIds.isEmpty()) {
@@ -2114,8 +2465,9 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         wrapper.eq(WorkOrderFault::getWorkOrderId, workOrderId)
                 .in(WorkOrderFault::getRepairId, repairIds)
                 .orderByAsc(WorkOrderFault::getSortNum)
+                // 调用orderByAsc方法，复用统一能力并保证业务规则一致。
                 .orderByAsc(WorkOrderFault::getId);
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         List<WorkOrderFault> faults = workOrderFaultMapper.selectList(wrapper);
         if (faults.isEmpty()) {
             return Collections.emptyMap();
@@ -2128,27 +2480,38 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         );
         Map<Long, List<WorkOrderFaultVO>> result = new HashMap<>();
         for (WorkOrderFault fault : faults) {
+            // 调用WorkOrderFaultVO方法，复用统一能力并保证业务规则一致。
             WorkOrderFaultVO vo = new WorkOrderFaultVO();
+            // 调用getId方法，复用统一能力并保证业务规则一致。
             vo.setId(fault.getId());
+            // 调用getCompanyId方法，复用统一能力并保证业务规则一致。
             vo.setCompanyId(fault.getCompanyId());
+            // 调用getFaultDesc方法，复用统一能力并保证业务规则一致。
             vo.setFaultDesc(fault.getFaultDesc());
+            // 调用getRepairDesc方法，复用统一能力并保证业务规则一致。
             vo.setRepairDesc(fault.getRepairDesc());
+            // 调用getOtherDesc方法，复用统一能力并保证业务规则一致。
             vo.setOtherDesc(fault.getOtherDesc());
+            // 调用emptyList方法，复用统一能力并保证业务规则一致。
             vo.setPartList(partMap.getOrDefault(fault.getId(), Collections.emptyList()));
+            // 调用getSortNum方法，复用统一能力并保证业务规则一致。
             vo.setSortNum(fault.getSortNum());
+            // 调用getCreatedBy方法，复用统一能力并保证业务规则一致。
             vo.setCreatedBy(fault.getCreatedBy());
+            // 调用getCreatedBy方法，复用统一能力并保证业务规则一致。
             vo.setCreatedByName(userNameMap.get(fault.getCreatedBy()));
+            // 调用getCreateTime方法，复用统一能力并保证业务规则一致。
             vo.setCreateTime(fault.getCreateTime());
+            // 调用add方法，复用统一能力并保证业务规则一致。
             result.computeIfAbsent(fault.getRepairId(), key -> new ArrayList<>()).add(vo);
         }
         return result;
     }
 
     /**
-     * ???????
+     * 构建故障PartMap。
      *
-     * @param faultIds fault ID??
-     * @return ????
+     * @return 处理结果
      */
     private Map<Long, List<WorkOrderFaultPartVO>> buildFaultPartMap(Set<Long> faultIds) {
         if (faultIds == null || faultIds.isEmpty()) {
@@ -2157,56 +2520,70 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         LambdaQueryWrapper<WorkOrderFaultPart> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(WorkOrderFaultPart::getFaultId, faultIds)
                 .orderByAsc(WorkOrderFaultPart::getSortNum)
+                // 调用orderByAsc方法，复用统一能力并保证业务规则一致。
                 .orderByAsc(WorkOrderFaultPart::getId);
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         List<WorkOrderFaultPart> faultParts = workOrderFaultPartMapper.selectList(wrapper);
         if (faultParts.isEmpty()) {
             return Collections.emptyMap();
         }
         Map<Long, List<WorkOrderFaultPartVO>> result = new HashMap<>();
         for (WorkOrderFaultPart faultPart : faultParts) {
+            // 调用WorkOrderFaultPartVO方法，复用统一能力并保证业务规则一致。
             WorkOrderFaultPartVO vo = new WorkOrderFaultPartVO();
+            // 调用getId方法，复用统一能力并保证业务规则一致。
             vo.setId(faultPart.getId());
+            // 调用getPartName方法，复用统一能力并保证业务规则一致。
             vo.setPartName(faultPart.getPartName());
+            // 调用getPartQty方法，复用统一能力并保证业务规则一致。
             vo.setPartQty(faultPart.getPartQty());
+            // 调用getSortNum方法，复用统一能力并保证业务规则一致。
             vo.setSortNum(faultPart.getSortNum());
+            // 调用add方法，复用统一能力并保证业务规则一致。
             result.computeIfAbsent(faultPart.getFaultId(), key -> new ArrayList<>()).add(vo);
         }
         return result;
     }
 
     /**
-     * ??Evaluation Vo?
+     * 获取评价Vo。
      *
-     * @param workOrderId ??ID
-     * @return ????
+     * @return 处理结果
      */
     private WorkOrderEvaluationVO getEvaluationVo(Long workOrderId) {
         LambdaQueryWrapper<WorkOrderEvaluation> wrapper = new LambdaQueryWrapper<>();
+        // 调用eq方法，复用统一能力并保证业务规则一致。
         wrapper.eq(WorkOrderEvaluation::getWorkOrderId, workOrderId);
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         WorkOrderEvaluation evaluation = workOrderEvaluationMapper.selectOne(wrapper);
         if (evaluation == null) {
             return null;
         }
+        // 调用WorkOrderEvaluationVO方法，复用统一能力并保证业务规则一致。
         WorkOrderEvaluationVO vo = new WorkOrderEvaluationVO();
+        // 调用getId方法，复用统一能力并保证业务规则一致。
         vo.setId(evaluation.getId());
+        // 调用getCustomerId方法，复用统一能力并保证业务规则一致。
         vo.setCustomerId(evaluation.getCustomerId());
+        // 调用getCompanyId方法，复用统一能力并保证业务规则一致。
         vo.setCompanyId(evaluation.getCompanyId());
+        // 调用getTimelinessScore方法，复用统一能力并保证业务规则一致。
         vo.setTimelinessScore(evaluation.getTimelinessScore());
+        // 调用getQualityScore方法，复用统一能力并保证业务规则一致。
         vo.setQualityScore(evaluation.getQualityScore());
+        // 调用getSatisfactionScore方法，复用统一能力并保证业务规则一致。
         vo.setSatisfactionScore(evaluation.getSatisfactionScore());
+        // 调用getTags方法，复用统一能力并保证业务规则一致。
         vo.setTags(evaluation.getTags());
+        // 调用getContent方法，复用统一能力并保证业务规则一致。
         vo.setContent(evaluation.getContent());
+        // 调用getCreateTime方法，复用统一能力并保证业务规则一致。
         vo.setCreateTime(evaluation.getCreateTime());
         return vo;
     }
 
     /**
-     * ??????Fault For Evaluation?
-     *
-     * @param workOrderId ??ID
-     * @return true ??????
+     * 判断是否存在故障For评价。
      */
     private boolean hasFaultForEvaluation(Long workOrderId) {
         if (workOrderId == null) {
@@ -2215,8 +2592,9 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         LambdaQueryWrapper<WorkOrderQuote> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrderQuote::getWorkOrderId, workOrderId)
                 .eq(WorkOrderQuote::getIsCurrentValid, 1)
+                // 调用orderByDesc方法，复用统一能力并保证业务规则一致。
                 .orderByDesc(WorkOrderQuote::getCreateTime);
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         List<WorkOrderQuote> quotes = workOrderQuoteMapper.selectList(wrapper);
         if (quotes == null || quotes.isEmpty()) {
             return false;
@@ -2227,34 +2605,41 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     private static final class CustomerFaultSelection {
 
         /**
-         * ?? CustomerFaultSelection ?????
-         *
-         * @param faultDesc ??
-         * @param faultRemark ??
-         * @return ????
+     * String字段。
+     *
+     * @param faultDesc 参数
+     * @param faultRemark 参数
+     * @return 处理结果
          */
         private final String faultDesc;
 
         private final String faultRemark;
 
+        /**
+         * 构造客户故障Selection实例。
+         *
+         * @param faultDesc 参数
+         * @param faultRemark 参数
+         * @return 处理结果
+         */
         private CustomerFaultSelection(String faultDesc, String faultRemark) {
             this.faultDesc = faultDesc;
             this.faultRemark = faultRemark;
         }
 
         /**
-         * ??Fault Desc?
-         *
-         * @return ?????
+     * 获取故障描述。
+     *
+     * @return 处理结果
          */
         private String getFaultDesc() {
             return faultDesc;
         }
 
         /**
-         * ??Fault Remark?
-         *
-         * @return ?????
+     * 获取故障Remark。
+     *
+     * @return 处理结果
          */
         private String getFaultRemark() {
             return faultRemark;
@@ -2308,6 +2693,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      * @return 规范化后的品牌编码
      */
     private String resolveBrandCode(String brandCode) {
+        // 调用normalizeText方法，复用统一能力并保证业务规则一致。
         String value = normalizeText(brandCode);
         return value == null ? "JASIC" : value;
     }
@@ -2320,6 +2706,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      * @return 规范化后的文本
      */
     private String normalizeRequiredText(String value, String message) {
+        // 调用normalizeText方法，复用统一能力并保证业务规则一致。
         String text = normalizeText(value);
         if (text == null) {
             throw new ServiceException(message);
@@ -2334,6 +2721,7 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      * @return 规范化后的服务方式编码
      */
     private String normalizeServiceMode(String serviceMode) {
+        // 调用normalizeRequiredText方法，复用统一能力并保证业务规则一致。
         String normalized = normalizeRequiredText(serviceMode, "服务方式不能为空");
         if (ServiceModeEnum.getByCode(normalized) != null) {
             return normalized;
@@ -2351,7 +2739,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         if (value == null) {
             return null;
         }
+        // 调用trim方法，复用统一能力并保证业务规则一致。
         String text = value.trim();
         return text.isEmpty() ? null : text;
     }
 }
+
+
+
+

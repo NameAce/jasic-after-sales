@@ -143,3 +143,5 @@ public class WorkOrder extends BaseEntity {
     /** 关闭时间 */
     private LocalDateTime closedTime;
 }
+
+

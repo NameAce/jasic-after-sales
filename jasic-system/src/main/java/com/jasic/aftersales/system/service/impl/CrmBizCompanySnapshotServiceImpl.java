@@ -59,10 +59,10 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
     private JdbcTemplate jdbcTemplate;
 
     /**
-     * ???????
+     * JDBC模板模板依赖。
      *
-     * @param query ????
-     * @return ????
+     * @param query 参数
+     * @return 处理结果
      */
     @Resource(name = "crmJdbcTemplate")
     private JdbcTemplate crmJdbcTemplate;
@@ -76,31 +76,43 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
     @Resource
     private ISysAreaService sysAreaService;
 
+    /**
+     * 查询listPage相关业务数据。
+     *
+     * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
+     * @param query 参数
+     * @return 处理结果
+     */
     @Override
     public PageResult<CrmBizCompanySnapshotVO> listPage(CrmBizCompanySnapshotQuery query) {
+        // 调用getPageSize方法，复用统一能力并保证业务规则一致。
         Page<CrmBizCompanySnapshot> page = new Page<>(query.getPageNum(), query.getPageSize());
         LambdaQueryWrapper<CrmBizCompanySnapshot> wrapper = new LambdaQueryWrapper<>();
         if (StrUtil.isNotBlank(query.getCompanyCode())) {
+            // 调用trim方法，复用统一能力并保证业务规则一致。
             wrapper.eq(CrmBizCompanySnapshot::getSapCompanyCode, query.getCompanyCode().trim());
         }
         if (StrUtil.isNotBlank(query.getCompanyName())) {
+            // 调用trim方法，复用统一能力并保证业务规则一致。
             wrapper.like(CrmBizCompanySnapshot::getCustName, query.getCompanyName().trim());
         }
         if (query.getCustState() != null) {
+            // 调用getCustState方法，复用统一能力并保证业务规则一致。
             wrapper.eq(CrmBizCompanySnapshot::getCustState, query.getCustState());
         }
         wrapper.orderByAsc(CrmBizCompanySnapshot::getSapCompanyCode)
+                // 调用orderByAsc方法，复用统一能力并保证业务规则一致。
                 .orderByAsc(CrmBizCompanySnapshot::getCustId);
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         Page<CrmBizCompanySnapshot> result = crmBizCompanySnapshotMapper.selectPage(page, wrapper);
         return PageResult.of(buildSnapshotVOList(result.getRecords()), result.getTotal(), query.getPageNum(), query.getPageSize());
     }
 
     /**
-     * ??Import Preview?
+     * 获取Import预览。
      *
      * @param custId cust ID
-     * @return ????
+     * @return 处理结果
      */
     @Override
     public CrmBizCompanyImportPreviewVO getImportPreview(Long custId) {
@@ -108,25 +120,27 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
             throw new ServiceException("CRM客户ID不能为空");
         }
         LambdaQueryWrapper<CrmBizCompanySnapshot> wrapper = new LambdaQueryWrapper<>();
+        // 调用last方法，复用统一能力并保证业务规则一致。
         wrapper.eq(CrmBizCompanySnapshot::getCustId, custId).last("LIMIT 1");
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         CrmBizCompanySnapshot snapshot = crmBizCompanySnapshotMapper.selectOne(wrapper);
         if (snapshot == null) {
             throw new ServiceException("CRM公司快照不存在，请先执行同步任务");
         }
 
+        // 调用getSapCompanyCode方法，复用统一能力并保证业务规则一致。
         SysCompany existingCompany = findExistingCompanyByCode(snapshot.getSapCompanyCode());
         return buildImportPreview(snapshot, existingCompany);
     }
 
     /**
-     * ??Earliest Change Time?
+     * 获取EarliestChangeTime。
      *
-     * @return ????
+     * @return 处理结果
      */
     @Override
     public LocalDateTime getEarliestChangeTime() {
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         JdbcTemplate crm = requireCrmJdbcTemplate();
         String sql = "SELECT MIN(t.change_time) FROM ("
                 + "SELECT b.add_date AS change_time FROM " + CRM_BIZ_COMPANY_TABLE + " b "
@@ -135,23 +149,24 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
                 + "SELECT b.oper_time AS change_time FROM " + CRM_BIZ_COMPANY_TABLE + " b "
                 + "WHERE b.cust_rage IN (0, 3) AND b.oper_time IS NOT NULL"
                 + ") t";
+        // 调用queryForObject方法，复用统一能力并保证业务规则一致。
         Timestamp timestamp = crm.queryForObject(sql, Timestamp.class);
         return timestamp == null ? null : timestamp.toLocalDateTime();
     }
 
     /**
-     * ???????
+     * 同步ByTimeRange。
      *
-     * @param startInclusive ???????
-     * @param endExclusive ????????
-     * @return ????
+     * @param startInclusive 参数
+     * @param endExclusive 参数
+     * @return 处理结果
      */
     @Override
     public CrmBizCompanySyncSummaryVO syncByTimeRange(LocalDateTime startInclusive, LocalDateTime endExclusive) {
         if (startInclusive == null || endExclusive == null || !startInclusive.isBefore(endExclusive)) {
             throw new ServiceException("CRM公司同步时间范围不合法");
         }
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         JdbcTemplate crm = requireCrmJdbcTemplate();
         String sql = "SELECT b.cust_id, b.cust_name, u.contact_name AS juristic_cust_id, "
                 + "u.cellphone AS group_contact_phone, u.cellphone AS cellphone, "
@@ -171,26 +186,38 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
                 + "ORDER BY b.cust_id ASC";
 
         List<CrmBizCompanySnapshot> batch = new ArrayList<>(DEFAULT_BATCH_SIZE);
+        // 调用SyncCounter方法，复用统一能力并保证业务规则一致。
         SyncCounter counter = new SyncCounter();
+        // 调用now方法，复用统一能力并保证业务规则一致。
         LocalDateTime syncTime = LocalDateTime.now();
         crm.query(connection -> {
+            // 调用prepareStatement方法，复用统一能力并保证业务规则一致。
             PreparedStatement ps = connection.prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+            // 调用setFetchSize方法，复用统一能力并保证业务规则一致。
             ps.setFetchSize(Integer.MIN_VALUE);
+            // 调用toTimestamp方法，复用统一能力并保证业务规则一致。
             ps.setTimestamp(1, toTimestamp(startInclusive));
+            // 调用toTimestamp方法，复用统一能力并保证业务规则一致。
             ps.setTimestamp(2, toTimestamp(endExclusive));
+            // 调用toTimestamp方法，复用统一能力并保证业务规则一致。
             ps.setTimestamp(3, toTimestamp(startInclusive));
+            // 调用toTimestamp方法，复用统一能力并保证业务规则一致。
             ps.setTimestamp(4, toTimestamp(endExclusive));
             return ps;
         }, rs -> {
             while (rs.next()) {
+                // 调用getRow方法，复用统一能力并保证业务规则一致。
                 CrmBizCompanySnapshot row = CRM_BIZ_COMPANY_ROW_MAPPER.mapRow(rs, rs.getRow());
                 if (row == null || row.getCustId() == null) {
                     continue;
                 }
+                // 调用add方法，复用统一能力并保证业务规则一致。
                 batch.add(row);
                 counter.processedCount++;
                 if (batch.size() >= DEFAULT_BATCH_SIZE) {
+                    // 调用flushBatch方法，复用统一能力并保证业务规则一致。
                     flushBatch(batch, syncTime, counter);
+                    // 调用clear方法，复用统一能力并保证业务规则一致。
                     batch.clear();
                 }
             }
@@ -198,38 +225,49 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
         });
 
         if (CollUtil.isNotEmpty(batch)) {
+            // 调用flushBatch方法，复用统一能力并保证业务规则一致。
             flushBatch(batch, syncTime, counter);
         }
 
+        // 调用CrmBizCompanySyncSummaryVO方法，复用统一能力并保证业务规则一致。
         CrmBizCompanySyncSummaryVO summary = new CrmBizCompanySyncSummaryVO();
+        // 调用setDataStartTime方法，复用统一能力并保证业务规则一致。
         summary.setDataStartTime(startInclusive);
+        // 调用setDataEndTime方法，复用统一能力并保证业务规则一致。
         summary.setDataEndTime(endExclusive);
+        // 调用setProcessedCount方法，复用统一能力并保证业务规则一致。
         summary.setProcessedCount(counter.processedCount);
+        // 调用setInsertedCount方法，复用统一能力并保证业务规则一致。
         summary.setInsertedCount(counter.insertedCount);
+        // 调用setUpdatedCount方法，复用统一能力并保证业务规则一致。
         summary.setUpdatedCount(counter.updatedCount);
         return summary;
     }
 
     /**
-     * ?? flushBatch ?????
+     * flushBatch。
      *
-     * @param rows ??
-     * @param syncTime ??
-     * @param counter ??
+     * @param rows 参数
+     * @param syncTime 参数
+     * @param counter 参数
      */
     private void flushBatch(List<CrmBizCompanySnapshot> rows, LocalDateTime syncTime, SyncCounter counter) {
         List<Long> custIds = rows.stream()
                 .map(CrmBizCompanySnapshot::getCustId)
                 .filter(Objects::nonNull)
                 .distinct()
+                // 调用toList方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toList());
+        // 调用emptySet方法，复用统一能力并保证业务规则一致。
         Set<Long> existingCustIds = Collections.emptySet();
         if (CollUtil.isNotEmpty(custIds)) {
             LambdaQueryWrapper<CrmBizCompanySnapshot> wrapper = new LambdaQueryWrapper<>();
+            // 调用in方法，复用统一能力并保证业务规则一致。
             wrapper.in(CrmBizCompanySnapshot::getCustId, custIds);
-            // ??????????????????????????
+            // 说明：执行该步骤以保证业务流程正确。
             existingCustIds = crmBizCompanySnapshotMapper.selectList(wrapper).stream()
                     .map(CrmBizCompanySnapshot::getCustId)
+                    // 调用toCollection方法，复用统一能力并保证业务规则一致。
                     .collect(Collectors.toCollection(LinkedHashSet::new));
         }
 
@@ -254,39 +292,58 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
                 + "add_date = VALUES(add_date), "
                 + "oper_time = VALUES(oper_time), "
                 + "last_sync_time = VALUES(last_sync_time), "
+                // 调用NOW方法，复用统一能力并保证业务规则一致。
                 + "update_time = NOW()";
         jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
             /**
-             * ??Values?
-             *
-             * @param ps ??
-             * @param i ??
+     * setValues。
+     *
+     * @param ps 参数
+     * @param i 参数
              */
             @Override
             public void setValues(PreparedStatement ps, int i) throws SQLException {
+                // 调用get方法，复用统一能力并保证业务规则一致。
                 CrmBizCompanySnapshot row = rows.get(i);
+                // 调用getCustId方法，复用统一能力并保证业务规则一致。
                 ps.setObject(1, row.getCustId());
+                // 调用getCustName方法，复用统一能力并保证业务规则一致。
                 ps.setString(2, row.getCustName());
+                // 调用getJuristicCustId方法，复用统一能力并保证业务规则一致。
                 ps.setString(3, row.getJuristicCustId());
+                // 调用getGroupContactPhone方法，复用统一能力并保证业务规则一致。
                 ps.setString(4, row.getGroupContactPhone());
+                // 调用getCellphone方法，复用统一能力并保证业务规则一致。
                 ps.setString(5, row.getCellphone());
+                // 调用getCompanyAddress方法，复用统一能力并保证业务规则一致。
                 ps.setString(6, row.getCompanyAddress());
+                // 调用getSapCompanyCode方法，复用统一能力并保证业务规则一致。
                 ps.setString(7, row.getSapCompanyCode());
+                // 调用getCustRage方法，复用统一能力并保证业务规则一致。
+                // 调用getCustRage方法，复用统一能力并保证业务规则一致。
                 ps.setObject(8, row.getCustRage());
+                // 调用getCompanyShortName方法，复用统一能力并保证业务规则一致。
                 ps.setString(9, row.getCompanyShortName());
+                // 调用getProvinceName方法，复用统一能力并保证业务规则一致。
                 ps.setString(10, row.getProvinceName());
+                // 调用getCityName方法，复用统一能力并保证业务规则一致。
                 ps.setString(11, row.getCityName());
+                // 调用getDistrictName方法，复用统一能力并保证业务规则一致。
                 ps.setString(12, row.getDistrictName());
+                // 调用getCustState方法，复用统一能力并保证业务规则一致。
                 ps.setObject(13, row.getCustState());
+                // 调用getAddDate方法，复用统一能力并保证业务规则一致。
                 ps.setTimestamp(14, toTimestamp(row.getAddDate()));
+                // 调用getOperTime方法，复用统一能力并保证业务规则一致。
                 ps.setTimestamp(15, toTimestamp(row.getOperTime()));
+                // 调用toTimestamp方法，复用统一能力并保证业务规则一致。
                 ps.setTimestamp(16, toTimestamp(syncTime));
             }
 
             /**
-             * ??Batch Size?
-             *
-             * @return ????
+     * 获取BatchSize。
+     *
+     * @return 处理结果
              */
             @Override
             public int getBatchSize() {
@@ -304,10 +361,10 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
     }
 
     /**
-     * ???????
+     * 构建快照视图列表。
      *
-     * @param records ??
-     * @return ????
+     * @param records 参数
+     * @return 处理结果
      */
     private List<CrmBizCompanySnapshotVO> buildSnapshotVOList(List<CrmBizCompanySnapshot> records) {
         if (CollUtil.isEmpty(records)) {
@@ -317,59 +374,89 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
                 .map(CrmBizCompanySnapshot::getSapCompanyCode)
                 .filter(StrUtil::isNotBlank)
                 .distinct()
+                // 调用toList方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toList());
         Map<String, SysCompany> existingCompanyMap = new HashMap<>();
         if (CollUtil.isNotEmpty(companyCodes)) {
             LambdaQueryWrapper<SysCompany> wrapper = new LambdaQueryWrapper<>();
+            // 调用in方法，复用统一能力并保证业务规则一致。
             wrapper.in(SysCompany::getCompanyCode, companyCodes);
-            // ??????????????????????????
+            // 说明：执行该步骤以保证业务流程正确。
             existingCompanyMap = sysCompanyMapper.selectList(wrapper).stream()
+                    // 调用toMap方法，复用统一能力并保证业务规则一致。
                     .collect(Collectors.toMap(SysCompany::getCompanyCode, item -> item, (a, b) -> a));
         }
 
+        // 调用size方法，复用统一能力并保证业务规则一致。
         List<CrmBizCompanySnapshotVO> result = new ArrayList<>(records.size());
         for (CrmBizCompanySnapshot record : records) {
+            // 调用CrmBizCompanySnapshotVO方法，复用统一能力并保证业务规则一致。
             CrmBizCompanySnapshotVO vo = new CrmBizCompanySnapshotVO();
+            // 调用getCustId方法，复用统一能力并保证业务规则一致。
             vo.setCustId(record.getCustId());
+            // 调用getSapCompanyCode方法，复用统一能力并保证业务规则一致。
             vo.setCompanyCode(record.getSapCompanyCode());
+            // 调用getCompanyShortName方法，复用统一能力并保证业务规则一致。
             vo.setCompanyShortName(record.getCompanyShortName());
+            // 调用getCustName方法，复用统一能力并保证业务规则一致。
             vo.setCompanyName(record.getCustName());
+            // 调用getJuristicCustId方法，复用统一能力并保证业务规则一致。
             vo.setContactName(record.getJuristicCustId());
+            // 调用resolveContactPhone方法，复用统一能力并保证业务规则一致。
             vo.setContactPhone(resolveContactPhone(record));
+            // 调用getCompanyAddress方法，复用统一能力并保证业务规则一致。
             vo.setAddress(record.getCompanyAddress());
+            // 调用getProvinceName方法，复用统一能力并保证业务规则一致。
             vo.setProvinceName(record.getProvinceName());
+            // 调用getCityName方法，复用统一能力并保证业务规则一致。
             vo.setCityName(record.getCityName());
+            // 调用getDistrictName方法，复用统一能力并保证业务规则一致。
             vo.setDistrictName(record.getDistrictName());
+            // 调用getCustRage方法，复用统一能力并保证业务规则一致。
             vo.setCustRage(record.getCustRage());
+            // 调用getCustRage方法，复用统一能力并保证业务规则一致。
             vo.setTypeCode(resolveTypeCode(record.getCustRage()));
+            // 调用getCustState方法，复用统一能力并保证业务规则一致。
             vo.setCustState(record.getCustState());
+            // 调用getCustState方法，复用统一能力并保证业务规则一致。
             vo.setCustStateLabel(resolveCustStateLabel(record.getCustState()));
+            // 调用getAddDate方法，复用统一能力并保证业务规则一致。
             vo.setAddDate(record.getAddDate());
+            // 调用getOperTime方法，复用统一能力并保证业务规则一致。
             vo.setOperTime(record.getOperTime());
+            // 调用getLastSyncTime方法，复用统一能力并保证业务规则一致。
             vo.setLastSyncTime(record.getLastSyncTime());
 
+            // 调用getCompanyCode方法，复用统一能力并保证业务规则一致。
             SysCompany existingCompany = existingCompanyMap.get(vo.getCompanyCode());
             if (existingCompany != null) {
+                // 调用getId方法，复用统一能力并保证业务规则一致。
                 vo.setExistingCompanyId(existingCompany.getId());
+                // 调用getCompanyName方法，复用统一能力并保证业务规则一致。
                 vo.setExistingCompanyName(existingCompany.getCompanyName());
             }
 
+            // 调用resolveImportDisabledReason方法，复用统一能力并保证业务规则一致。
             String disabledReason = resolveImportDisabledReason(record, existingCompany);
+            // 调用setCanImport方法，复用统一能力并保证业务规则一致。
             vo.setCanImport(disabledReason == null);
+            // 调用setImportDisabledReason方法，复用统一能力并保证业务规则一致。
             vo.setImportDisabledReason(disabledReason);
+            // 调用add方法，复用统一能力并保证业务规则一致。
             result.add(vo);
         }
         return result;
     }
 
     /**
-     * ???????
+     * 构建Import预览。
      *
-     * @param snapshot ??
-     * @param existingCompany ??
-     * @return ????
+     * @param snapshot 参数
+     * @param existingCompany 参数
+     * @return 处理结果
      */
     private CrmBizCompanyImportPreviewVO buildImportPreview(CrmBizCompanySnapshot snapshot, SysCompany existingCompany) {
+        // 调用CrmBizCompanyImportPreviewVO方法，复用统一能力并保证业务规则一致。
         CrmBizCompanyImportPreviewVO vo = new CrmBizCompanyImportPreviewVO();
         ISysAreaService.AreaMatchResult areaMatchResult = sysAreaService.matchRegion(
                 snapshot.getProvinceName(),
@@ -377,68 +464,101 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
                 snapshot.getDistrictName(),
                 snapshot.getCompanyAddress()
         );
+        // 调用getCustId方法，复用统一能力并保证业务规则一致。
         vo.setCustId(snapshot.getCustId());
+        // 调用getCustName方法，复用统一能力并保证业务规则一致。
         vo.setCompanyName(snapshot.getCustName());
+        // 调用getCompanyShortName方法，复用统一能力并保证业务规则一致。
         vo.setCompanyShortName(snapshot.getCompanyShortName());
+        // 调用getSapCompanyCode方法，复用统一能力并保证业务规则一致。
         vo.setCompanyCode(snapshot.getSapCompanyCode());
+        // 调用getSapCompanyCode方法，复用统一能力并保证业务规则一致。
         vo.setAdminUsername(resolveDefaultAdminUsername(snapshot.getSapCompanyCode()));
+        // 调用getCustRage方法，复用统一能力并保证业务规则一致。
         vo.setTypeCode(resolveTypeCode(snapshot.getCustRage()));
+        // 调用getJuristicCustId方法，复用统一能力并保证业务规则一致。
         vo.setContactName(snapshot.getJuristicCustId());
+        // 调用resolveContactPhone方法，复用统一能力并保证业务规则一致。
         vo.setContactPhone(resolveContactPhone(snapshot));
+        // 调用getCompanyAddress方法，复用统一能力并保证业务规则一致。
         vo.setDetailAddress(snapshot.getCompanyAddress());
+        // 调用fillMatchedArea方法，复用统一能力并保证业务规则一致。
         fillMatchedArea(vo, areaMatchResult);
+        // 调用getProvinceName方法，复用统一能力并保证业务规则一致。
         vo.setCrmProvinceName(snapshot.getProvinceName());
+        // 调用getCityName方法，复用统一能力并保证业务规则一致。
         vo.setCrmCityName(snapshot.getCityName());
+        // 调用getDistrictName方法，复用统一能力并保证业务规则一致。
         vo.setCrmDistrictName(snapshot.getDistrictName());
+        // 调用isMatched方法，复用统一能力并保证业务规则一致。
         vo.setAreaMatched(areaMatchResult.isMatched());
+        // 调用setServicePhone方法，复用统一能力并保证业务规则一致。
         vo.setServicePhone(null);
+        // 调用setSourceType方法，复用统一能力并保证业务规则一致。
         vo.setSourceType(SOURCE_TYPE_CRM);
+        // 调用getCustState方法，复用统一能力并保证业务规则一致。
         vo.setStatus(resolveLocalStatus(snapshot.getCustState()));
+        // 调用getCustState方法，复用统一能力并保证业务规则一致。
         vo.setCustState(snapshot.getCustState());
+        // 调用getCustState方法，复用统一能力并保证业务规则一致。
         vo.setCustStateLabel(resolveCustStateLabel(snapshot.getCustState()));
         if (existingCompany != null) {
+            // 调用getId方法，复用统一能力并保证业务规则一致。
             vo.setExistingCompanyId(existingCompany.getId());
+            // 调用getCompanyName方法，复用统一能力并保证业务规则一致。
             vo.setExistingCompanyName(existingCompany.getCompanyName());
         }
+        // 调用resolveImportDisabledReason方法，复用统一能力并保证业务规则一致。
         String disabledReason = resolveImportDisabledReason(snapshot, existingCompany);
+        // 调用setCanImport方法，复用统一能力并保证业务规则一致。
         vo.setCanImport(disabledReason == null);
+        // 调用setImportDisabledReason方法，复用统一能力并保证业务规则一致。
         vo.setImportDisabledReason(disabledReason);
         return vo;
     }
 
     /**
-     * ???????
+     * fillMatchedArea。
      *
-     * @param vo ??
-     * @param areaMatchResult ??
+     * @param vo 参数
+     * @param areaMatchResult 参数
      */
     private void fillMatchedArea(CrmBizCompanyImportPreviewVO vo, ISysAreaService.AreaMatchResult areaMatchResult) {
         if (areaMatchResult == null) {
             return;
         }
+        // 调用getProvince方法，复用统一能力并保证业务规则一致。
         SysArea province = areaMatchResult.getProvince();
+        // 调用getCity方法，复用统一能力并保证业务规则一致。
         SysArea city = areaMatchResult.getCity();
+        // 调用getDistrict方法，复用统一能力并保证业务规则一致。
         SysArea district = areaMatchResult.getDistrict();
         if (province != null) {
+            // 调用getAreaCode方法，复用统一能力并保证业务规则一致。
             vo.setProvinceCode(province.getAreaCode());
+            // 调用getAreaName方法，复用统一能力并保证业务规则一致。
             vo.setProvinceName(province.getAreaName());
         }
         if (city != null) {
+            // 调用getAreaCode方法，复用统一能力并保证业务规则一致。
             vo.setCityCode(city.getAreaCode());
+            // 调用getAreaName方法，复用统一能力并保证业务规则一致。
             vo.setCityName(city.getAreaName());
         }
         if (district != null) {
+            // 调用getAreaCode方法，复用统一能力并保证业务规则一致。
             vo.setDistrictCode(district.getAreaCode());
+            // 调用getAreaName方法，复用统一能力并保证业务规则一致。
             vo.setDistrictName(district.getAreaName());
         }
     }
 
     /**
-     * ???????
+     * 解析ImportDisabled原因。
      *
-     * @param snapshot ??
-     * @param existingCompany ??
-     * @return ?????
+     * @param snapshot 参数
+     * @param existingCompany 参数
+     * @return 处理结果
      */
     private String resolveImportDisabledReason(CrmBizCompanySnapshot snapshot, SysCompany existingCompany) {
         if (existingCompany != null) {
@@ -454,10 +574,10 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
     }
 
     /**
-     * ???????
+     * 解析类型编码。
      *
-     * @param custRage ??
-     * @return ?????
+     * @param custRage 参数
+     * @return 处理结果
      */
     private String resolveTypeCode(Integer custRage) {
         if (Objects.equals(custRage, 0)) {
@@ -470,25 +590,26 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
     }
 
     /**
-     * ?? findExistingCompanyByCode ?????
+     * findExisting公司By编码。
      *
-     * @param companyCode ??
-     * @return ????
+     * @param companyCode 参数
+     * @return 处理结果
      */
     private SysCompany findExistingCompanyByCode(String companyCode) {
         if (StrUtil.isBlank(companyCode)) {
             return null;
         }
         LambdaQueryWrapper<SysCompany> wrapper = new LambdaQueryWrapper<>();
+        // 调用last方法，复用统一能力并保证业务规则一致。
         wrapper.eq(SysCompany::getCompanyCode, companyCode).last("LIMIT 1");
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         return sysCompanyMapper.selectOne(wrapper);
     }
 
     /**
-     * ??????????
+     * requireCRMJDBC模板。
      *
-     * @return ????
+     * @return 处理结果
      */
     private JdbcTemplate requireCrmJdbcTemplate() {
         if (crmJdbcTemplate == null) {
@@ -498,40 +619,40 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
     }
 
     /**
-     * ???????
+     * 解析ContactPhone。
      *
-     * @param snapshot ??
-     * @return ?????
+     * @param snapshot 参数
+     * @return 处理结果
      */
     private String resolveContactPhone(CrmBizCompanySnapshot snapshot) {
         return StrUtil.blankToDefault(StrUtil.trim(snapshot.getGroupContactPhone()), StrUtil.trim(snapshot.getCellphone()));
     }
 
     /**
-     * ???????
+     * 解析本地状态。
      *
-     * @param custState ??
-     * @return ????
+     * @param custState 参数
+     * @return 处理结果
      */
     private Integer resolveLocalStatus(Integer custState) {
         return Objects.equals(custState, 1) ? 1 : 0;
     }
 
     /**
-     * ???????
+     * 解析DefaultAdminUsername。
      *
-     * @param companyCode ??
-     * @return ?????
+     * @param companyCode 参数
+     * @return 处理结果
      */
     private String resolveDefaultAdminUsername(String companyCode) {
         return StrUtil.trimToNull(companyCode);
     }
 
     /**
-     * ???????
+     * 解析CustState标签。
      *
-     * @param custState ??
-     * @return ?????
+     * @param custState 参数
+     * @return 处理结果
      */
     private String resolveCustStateLabel(Integer custState) {
         if (custState == null) {
@@ -560,23 +681,24 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
     }
 
     /**
-     * ?? toTimestamp ?????
+     * toTimestamp。
      *
-     * @param value ???
-     * @return ????
+     * @param value 参数
+     * @return 处理结果
      */
     private Timestamp toTimestamp(LocalDateTime value) {
         return value == null ? null : Timestamp.valueOf(value);
     }
 
     /**
-     * ?? toLocalDateTime ?????
+     * toLocalDateTime。
      *
-     * @param rs ??
-     * @param column ??
-     * @return ????
+     * @param rs 参数
+     * @param column 参数
+     * @return 处理结果
      */
     private static LocalDateTime toLocalDateTime(ResultSet rs, String column) throws SQLException {
+        // 调用getTimestamp方法，复用统一能力并保证业务规则一致。
         Timestamp value = rs.getTimestamp(column);
         return value == null ? null : value.toLocalDateTime();
     }
@@ -610,3 +732,7 @@ public class CrmBizCompanySnapshotServiceImpl implements ICrmBizCompanySnapshotS
         private int updatedCount;
     }
 }
+
+
+
+

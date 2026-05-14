@@ -169,3 +169,5 @@ public class CustomerWorkOrderDetailVO implements Serializable {
     @ApiModelProperty(value = "客户评价")
     private WorkOrderEvaluationVO evaluation;
 }
+
+

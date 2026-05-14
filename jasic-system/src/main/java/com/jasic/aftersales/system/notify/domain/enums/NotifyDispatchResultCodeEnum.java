@@ -22,31 +22,38 @@ public enum NotifyDispatchResultCodeEnum {
     FAILED_RENDER_ERROR("FAILED_RENDER_ERROR", "Render failed");
 
     /**
-     * ?? NotifyDispatchResultCodeEnum ?????
+     * 通知分发结果编码编码。
      *
-     * @param code ??
-     * @param desc ??
-     * @return ????
+     * @param code 参数
+     * @param desc 参数
+     * @return 处理结果
      */
     private final String code;
 
     private final String desc;
 
+    /**
+     * 构造通知分发结果编码实例。
+     *
+     * @param code 参数
+     * @param desc 参数
+     */
     NotifyDispatchResultCodeEnum(String code, String desc) {
         this.code = code;
         this.desc = desc;
     }
 
     /**
-     * ??By Code?
+     * 根据编码查询通知分发结果编码。
      *
-     * @param code ??
-     * @return ????
+     * @param code 参数
+     * @return 处理结果
      */
     public static NotifyDispatchResultCodeEnum getByCode(String code) {
         if (code == null) {
             return null;
         }
+        // 调用trim方法，复用统一能力并保证业务规则一致。
         String normalizedCode = code.trim();
         if (normalizedCode.isEmpty()) {
             return null;
@@ -60,13 +67,14 @@ public enum NotifyDispatchResultCodeEnum {
     }
 
     /**
-     * ?? fromCode ?????
+     * 根据编码解析通知分发结果编码。
      *
-     * @param code ??
-     * @return ????
+     * @param code 参数
+     * @return 处理结果
      */
     @JsonCreator
     public static NotifyDispatchResultCodeEnum fromCode(String code) {
+        // 调用getByCode方法，复用统一能力并保证业务规则一致。
         NotifyDispatchResultCodeEnum value = getByCode(code);
         if (value == null && code != null) {
             throw new IllegalArgumentException("Unsupported notify dispatch result code: " + code);
@@ -75,9 +83,9 @@ public enum NotifyDispatchResultCodeEnum {
     }
 
     /**
-     * ?????
+     * 获取通知分发结果编码编码。
      *
-     * @return ?????
+     * @return 处理结果
      */
     @JsonValue
     public String getCode() {
@@ -85,11 +93,15 @@ public enum NotifyDispatchResultCodeEnum {
     }
 
     /**
-     * ?????
+     * 获取通知分发结果编码描述。
      *
-     * @return ?????
+     * @return 处理结果
      */
     public String getDesc() {
         return desc;
     }
 }
+
+
+
+

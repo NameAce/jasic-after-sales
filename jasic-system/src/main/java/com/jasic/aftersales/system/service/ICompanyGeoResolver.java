@@ -24,37 +24,46 @@ public interface ICompanyGeoResolver {
     class GeoLocation {
 
         /**
-         * ?? GeoLocation ?????
-         *
-         * @param longitude ??
-         * @param latitude ??
-         * @return ????
+     * BigDecimal字段。
+     *
+     * @param longitude 参数
+     * @param latitude 参数
+     * @return 处理结果
          */
         private final BigDecimal longitude;
 
         private final BigDecimal latitude;
 
+        /**
+     * 构造公司地理实例。
+     *
+     * @param longitude 参数
+     * @param latitude 参数
+     * @return 处理结果
+         */
         public GeoLocation(BigDecimal longitude, BigDecimal latitude) {
             this.longitude = longitude;
             this.latitude = latitude;
         }
 
         /**
-         * ??Longitude?
-         *
-         * @return ????
+     * 获取Longitude。
+     *
+     * @return 处理结果
          */
         public BigDecimal getLongitude() {
             return longitude;
         }
 
         /**
-         * ??Latitude?
-         *
-         * @return ????
+     * 获取Latitude。
+     *
+     * @return 处理结果
          */
         public BigDecimal getLatitude() {
             return latitude;
         }
     }
 }
+
+

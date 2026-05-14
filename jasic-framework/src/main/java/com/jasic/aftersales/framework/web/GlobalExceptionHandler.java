@@ -34,6 +34,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(NotLoginException.class)
     public Result<Void> handleNotLoginException(NotLoginException e, HttpServletRequest request) {
+        // 调用getMessage方法，复用统一能力并保证业务规则一致。
         log.warn("请求地址 [{}]，未登录：{}", request.getRequestURI(), e.getMessage());
         return Result.fail(ResultCode.NOT_LOGIN, "未登录或登录已过期，请重新登录");
     }
@@ -47,6 +48,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(NotPermissionException.class)
     public Result<Void> handleNotPermissionException(NotPermissionException e, HttpServletRequest request) {
+        // 调用getMessage方法，复用统一能力并保证业务规则一致。
         log.warn("请求地址 [{}]，权限不足：{}", request.getRequestURI(), e.getMessage());
         return Result.fail(ResultCode.NOT_PERMISSION, "没有操作权限");
     }
@@ -60,6 +62,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(ServiceException.class)
     public Result<Void> handleServiceException(ServiceException e, HttpServletRequest request) {
+        // 调用getMessage方法，复用统一能力并保证业务规则一致。
         log.warn("请求地址 [{}]，业务异常：{}", request.getRequestURI(), e.getMessage());
         return Result.fail(e.getCode(), e.getMessage());
     }
@@ -72,8 +75,11 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public Result<Void> handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {
+        // 调用getFieldError方法，复用统一能力并保证业务规则一致。
         FieldError fieldError = e.getBindingResult().getFieldError();
+        // 调用getDefaultMessage方法，复用统一能力并保证业务规则一致。
         String message = fieldError != null ? fieldError.getDefaultMessage() : "参数校验失败";
+        // 调用warn方法，复用统一能力并保证业务规则一致。
         log.warn("参数校验失败：{}", message);
         return Result.fail(ResultCode.PARAM_ERROR, message);
     }
@@ -86,8 +92,11 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(BindException.class)
     public Result<Void> handleBindException(BindException e) {
+        // 调用getFieldError方法，复用统一能力并保证业务规则一致。
         FieldError fieldError = e.getBindingResult().getFieldError();
+        // 调用getDefaultMessage方法，复用统一能力并保证业务规则一致。
         String message = fieldError != null ? fieldError.getDefaultMessage() : "参数校验失败";
+        // 调用warn方法，复用统一能力并保证业务规则一致。
         log.warn("参数绑定失败：{}", message);
         return Result.fail(ResultCode.PARAM_ERROR, message);
     }
@@ -102,6 +111,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public Result<Void> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException e,
                                                              HttpServletRequest request) {
+        // 调用getMessage方法，复用统一能力并保证业务规则一致。
         log.warn("请求地址 [{}]，上传文件超限：{}", request.getRequestURI(), e.getMessage());
         return Result.fail(ResultCode.PARAM_ERROR, "上传文件不能超过50MB");
     }
@@ -115,6 +125,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public Result<Void> handleHttpRequestMethodNotSupportedException(HttpRequestMethodNotSupportedException e, HttpServletRequest request) {
+        // 调用getMethod方法，复用统一能力并保证业务规则一致。
         log.warn("请求地址 [{}]，不支持 [{}] 请求", request.getRequestURI(), e.getMethod());
         return Result.fail(ResultCode.USER_ERROR, "不支持" + e.getMethod() + "请求");
     }
@@ -128,7 +139,10 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public Result<Void> handleException(Exception e, HttpServletRequest request) {
+        // 调用getRequestURI方法，复用统一能力并保证业务规则一致。
         log.error("请求地址 [{}]，系统异常", request.getRequestURI(), e);
         return Result.fail(ResultCode.SYSTEM_ERROR, "系统内部错误，请联系管理员");
     }
 }
+
+

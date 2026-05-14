@@ -9,7 +9,7 @@ package com.jasic.aftersales.common.constant;
 public class WechatConfigConstants {
 
     /**
-     * ?? WechatConfigConstants ???
+     * 禁止实例化微信配置常量类。
      */
     private WechatConfigConstants() {
     }

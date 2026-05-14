@@ -47,9 +47,13 @@ public class PageResult<T> implements Serializable {
      */
     public static <T> PageResult<T> of(List<T> records, Long total, Integer pageNum, Integer pageSize) {
         PageResult<T> result = new PageResult<>();
+        // 调用setRecords方法，复用统一能力并保证业务规则一致。
         result.setRecords(records);
+        // 调用setTotal方法，复用统一能力并保证业务规则一致。
         result.setTotal(total);
+        // 调用setPageNum方法，复用统一能力并保证业务规则一致。
         result.setPageNum(pageNum);
+        // 调用setPageSize方法，复用统一能力并保证业务规则一致。
         result.setPageSize(pageSize);
         return result;
     }

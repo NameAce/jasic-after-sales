@@ -17,9 +17,9 @@ public class NotifyChannelSendResult implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /**
-     * ?? success ?????
+     * String字段。
      *
-     * @return ????
+     * @return 处理结果
      */
     private String dispatchStatus;
 
@@ -29,39 +29,68 @@ public class NotifyChannelSendResult implements Serializable {
 
     private String channelResponseJson;
 
+    /**
+     * 处理success业务逻辑。
+     *
+     * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
+     * @return 处理结果
+     */
     public static NotifyChannelSendResult success() {
+        // 调用NotifyChannelSendResult方法，复用统一能力并保证业务规则一致。
+        /**
+         * 通知渠道发送结果。
+         */
         NotifyChannelSendResult result = new NotifyChannelSendResult();
+        // 调用getCode方法，复用统一能力并保证业务规则一致。
         result.setDispatchStatus(NotifyDispatchStatusEnum.SUCCESS.getCode());
         return result;
     }
 
     /**
-     * ?? skipped ?????
+     * skipped。
      *
-     * @param resultCode ??
-     * @param resultMessage ??
-     * @return ????
+     * @param resultCode 参数
+     * @param resultMessage 参数
+     * @return 处理结果
      */
     public static NotifyChannelSendResult skipped(String resultCode, String resultMessage) {
+        // 调用NotifyChannelSendResult方法，复用统一能力并保证业务规则一致。
+        /**
+         * 通知渠道发送结果。
+         */
         NotifyChannelSendResult result = new NotifyChannelSendResult();
+        // 调用getCode方法，复用统一能力并保证业务规则一致。
         result.setDispatchStatus(NotifyDispatchStatusEnum.SKIPPED.getCode());
+        // 调用setResultCode方法，复用统一能力并保证业务规则一致。
         result.setResultCode(resultCode);
+        // 调用setResultMessage方法，复用统一能力并保证业务规则一致。
         result.setResultMessage(resultMessage);
         return result;
     }
 
     /**
-     * ?? failed ?????
+     * failed。
      *
-     * @param resultCode ??
-     * @param resultMessage ??
-     * @return ????
+     * @param resultCode 参数
+     * @param resultMessage 参数
+     * @return 处理结果
      */
     public static NotifyChannelSendResult failed(String resultCode, String resultMessage) {
+        // 调用NotifyChannelSendResult方法，复用统一能力并保证业务规则一致。
+        /**
+         * 通知渠道发送结果。
+         */
         NotifyChannelSendResult result = new NotifyChannelSendResult();
+        // 调用getCode方法，复用统一能力并保证业务规则一致。
         result.setDispatchStatus(NotifyDispatchStatusEnum.FAILED.getCode());
+        // 调用setResultCode方法，复用统一能力并保证业务规则一致。
         result.setResultCode(resultCode);
+        // 调用setResultMessage方法，复用统一能力并保证业务规则一致。
         result.setResultMessage(resultMessage);
         return result;
     }
 }
+
+
+
+

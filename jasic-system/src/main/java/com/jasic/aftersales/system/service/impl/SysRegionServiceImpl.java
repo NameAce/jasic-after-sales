@@ -43,10 +43,9 @@ public class SysRegionServiceImpl implements ISysRegionService {
     private SysUserCompanyMapper sysUserCompanyMapper;
 
     /**
-     * ???????
+     * 总部一级合同Mapper数据访问接口。
      *
-     * @param targetCompanyId ????ID
-     * @return ????
+     * @return 处理结果
      */
     @Resource
     private HqFirstContractMapper hqFirstContractMapper;
@@ -60,14 +59,23 @@ public class SysRegionServiceImpl implements ISysRegionService {
     @Resource
     private CompanyDataAccessService companyDataAccessService;
 
+    /**
+     * 查询listByTargetCompanyId相关业务数据。
+     *
+     * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
+     * @param targetCompanyId 参数
+     * @return 处理结果
+     */
     @Override
     public List<SysRegion> listByTargetCompanyId(Long targetCompanyId) {
+        // 调用resolveOwnerHqTarget方法，复用统一能力并保证业务规则一致。
         Long companyId = companyDataAccessService.resolveOwnerHqTarget(targetCompanyId);
         return companyDataAccessService.runWithOwnerHqTarget(companyId, () -> {
             LambdaQueryWrapper<SysRegion> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(SysRegion::getCompanyId, companyId)
+                    // 调用orderByAsc方法，复用统一能力并保证业务规则一致。
                     .orderByAsc(SysRegion::getId);
-            // ??????????????????????????
+            // 说明：执行该步骤以保证业务流程正确。
             return sysRegionMapper.selectList(wrapper);
         });
     }
@@ -80,6 +88,7 @@ public class SysRegionServiceImpl implements ISysRegionService {
      */
     @Override
     public SysRegion getById(Long id, Long targetCompanyId) {
+        // 调用resolveOwnerHqTarget方法，复用统一能力并保证业务规则一致。
         Long companyId = companyDataAccessService.resolveOwnerHqTarget(targetCompanyId);
         return companyDataAccessService.runWithOwnerHqTarget(companyId, () -> sysRegionMapper.selectById(id));
     }
@@ -92,12 +101,16 @@ public class SysRegionServiceImpl implements ISysRegionService {
      */
     @Override
     public Long save(SysRegionDTO dto) {
+        // 调用getTargetCompanyId方法，复用统一能力并保证业务规则一致。
         Long companyId = companyDataAccessService.resolveOwnerHqTarget(dto.getTargetCompanyId());
         return companyDataAccessService.runWithOwnerHqTarget(companyId, () -> {
+            // 调用SysRegion方法，复用统一能力并保证业务规则一致。
             SysRegion entity = new SysRegion();
+            // 调用copyProperties方法，复用统一能力并保证业务规则一致。
             BeanUtil.copyProperties(dto, entity);
+            // 调用setCompanyId方法，复用统一能力并保证业务规则一致。
             entity.setCompanyId(companyId);
-            // ???????????????????????
+            // 说明：执行该步骤以保证业务流程正确。
             sysRegionMapper.insert(entity);
             return entity.getId();
         });
@@ -113,16 +126,19 @@ public class SysRegionServiceImpl implements ISysRegionService {
         if (dto.getId() == null) {
             throw new ServiceException("大区ID不能为空");
         }
+        // 调用getTargetCompanyId方法，复用统一能力并保证业务规则一致。
         Long companyId = companyDataAccessService.resolveOwnerHqTarget(dto.getTargetCompanyId());
         companyDataAccessService.runWithOwnerHqTarget(companyId, () -> {
-            // ??????????????????????????
+            // 说明：执行该步骤以保证业务流程正确。
             SysRegion entity = sysRegionMapper.selectById(dto.getId());
             if (entity == null) {
                 throw new ServiceException("大区不存在");
             }
+            // 调用copyProperties方法，复用统一能力并保证业务规则一致。
             BeanUtil.copyProperties(dto, entity);
+            // 调用setCompanyId方法，复用统一能力并保证业务规则一致。
             entity.setCompanyId(companyId);
-            // ???????????????????????
+            // 说明：执行该步骤以保证业务流程正确。
             sysRegionMapper.updateById(entity);
         });
     }
@@ -134,19 +150,21 @@ public class SysRegionServiceImpl implements ISysRegionService {
      */
     @Override
     public void remove(Long id, Long targetCompanyId) {
+        // 调用resolveOwnerHqTarget方法，复用统一能力并保证业务规则一致。
         Long companyId = companyDataAccessService.resolveOwnerHqTarget(targetCompanyId);
         companyDataAccessService.runWithOwnerHqTarget(companyId, () -> {
-            // ??????????????????????????
+            // 说明：执行该步骤以保证业务流程正确。
             SysRegion entity = sysRegionMapper.selectById(id);
             if (entity == null) {
                 throw new ServiceException("大区不存在");
             }
             LambdaQueryWrapper<HqFirstContract> wrapper = new LambdaQueryWrapper<>();
+            // 调用eq方法，复用统一能力并保证业务规则一致。
             wrapper.eq(HqFirstContract::getRegionId, id);
             if (hqFirstContractMapper.selectCount(wrapper) > 0) {
                 throw new ServiceException("该大区已被签约关系引用，不允许删除");
             }
-            // ???????????????????????
+            // 说明：执行该步骤以保证业务流程正确。
             sysRegionMapper.deleteById(id);
         });
     }
@@ -160,40 +178,49 @@ public class SysRegionServiceImpl implements ISysRegionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void assignUserRegions(Long userId, Long targetCompanyId, List<Long> regionIds) {
+        // 调用resolveOwnerHqTarget方法，复用统一能力并保证业务规则一致。
         Long companyId = companyDataAccessService.resolveOwnerHqTarget(targetCompanyId);
-        // ?????????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         validateUserInTargetCompany(userId, companyId);
 
+        // 调用normalizeRegionIds方法，复用统一能力并保证业务规则一致。
         List<Long> targetRegionIds = normalizeRegionIds(regionIds);
+        // 调用validateRegionsBelongToCompany方法，复用统一能力并保证业务规则一致。
         validateRegionsBelongToCompany(companyId, targetRegionIds);
 
+        // 调用listRegionIdsByUserIdAndCompanyId方法，复用统一能力并保证业务规则一致。
         List<Long> currentCompanyRegionIds = listRegionIdsByUserIdAndCompanyId(userId, companyId);
         if (!currentCompanyRegionIds.isEmpty()) {
             LambdaQueryWrapper<SysUserRegion> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(SysUserRegion::getUserId, userId)
+                    // 调用in方法，复用统一能力并保证业务规则一致。
                     .in(SysUserRegion::getRegionId, currentCompanyRegionIds);
-            // ???????????????????????
+            // 说明：执行该步骤以保证业务流程正确。
             sysUserRegionMapper.delete(wrapper);
         }
 
         for (Long regionId : targetRegionIds) {
+            // 调用SysUserRegion方法，复用统一能力并保证业务规则一致。
             SysUserRegion userRegion = new SysUserRegion();
+            // 调用setUserId方法，复用统一能力并保证业务规则一致。
             userRegion.setUserId(userId);
+            // 调用setRegionId方法，复用统一能力并保证业务规则一致。
             userRegion.setRegionId(regionId);
+            // 调用insert方法，复用统一能力并保证业务规则一致。
             sysUserRegionMapper.insert(userRegion);
         }
     }
 
     /**
-     * ???????
+     * 分页查询用户地区IdsByTarget公司ID列表。
      *
-     * @param userId ??ID
-     * @param targetCompanyId ????ID
-     * @return ????
+     * @return 处理结果
      */
     @Override
     public List<Long> listUserRegionIdsByTargetCompanyId(Long userId, Long targetCompanyId) {
+        // 调用resolveOwnerHqTarget方法，复用统一能力并保证业务规则一致。
         Long companyId = companyDataAccessService.resolveOwnerHqTarget(targetCompanyId);
+        // 调用validateUserInTargetCompany方法，复用统一能力并保证业务规则一致。
         validateUserInTargetCompany(userId, companyId);
         return listRegionIdsByUserIdAndCompanyId(userId, companyId);
     }
@@ -210,8 +237,9 @@ public class SysRegionServiceImpl implements ISysRegionService {
             return Collections.emptyList();
         }
         LambdaQueryWrapper<SysUserRegion> wrapper = new LambdaQueryWrapper<>();
+        // 调用eq方法，复用统一能力并保证业务规则一致。
         wrapper.eq(SysUserRegion::getUserId, userId);
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         List<SysUserRegion> list = sysUserRegionMapper.selectList(wrapper);
         return list.stream().map(SysUserRegion::getRegionId).collect(Collectors.toList());
     }
@@ -228,6 +256,7 @@ public class SysRegionServiceImpl implements ISysRegionService {
         if (userId == null || companyId == null) {
             return Collections.emptyList();
         }
+        // 调用listRegionIdsByUserId方法，复用统一能力并保证业务规则一致。
         List<Long> regionIds = listRegionIdsByUserId(userId);
         if (regionIds.isEmpty()) {
             return Collections.emptyList();
@@ -235,17 +264,15 @@ public class SysRegionServiceImpl implements ISysRegionService {
         LambdaQueryWrapper<SysRegion> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysRegion::getCompanyId, companyId)
                 .in(SysRegion::getId, regionIds)
+                // 调用orderByAsc方法，复用统一能力并保证业务规则一致。
                 .orderByAsc(SysRegion::getId);
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         List<SysRegion> regions = sysRegionMapper.selectList(wrapper);
         return regions.stream().map(SysRegion::getId).collect(Collectors.toList());
     }
 
     /**
-     * ???????
-     *
-     * @param userId ??ID
-     * @param companyId ??ID
+     * 校验用户InTarget公司。
      */
     private void validateUserInTargetCompany(Long userId, Long companyId) {
         if (userId == null) {
@@ -253,18 +280,18 @@ public class SysRegionServiceImpl implements ISysRegionService {
         }
         LambdaQueryWrapper<SysUserCompany> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysUserCompany::getUserId, userId)
+                // 调用eq方法，复用统一能力并保证业务规则一致。
                 .eq(SysUserCompany::getCompanyId, companyId);
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         if (sysUserCompanyMapper.selectCount(wrapper) == 0) {
             throw new ServiceException("用户未关联当前公司");
         }
     }
 
     /**
-     * ????????
+     * 规范化地区Ids。
      *
-     * @param regionIds region ID??
-     * @return ????
+     * @return 处理结果
      */
     private List<Long> normalizeRegionIds(List<Long> regionIds) {
         if (regionIds == null || regionIds.isEmpty()) {
@@ -273,6 +300,7 @@ public class SysRegionServiceImpl implements ISysRegionService {
         Set<Long> distinctIds = new LinkedHashSet<>();
         for (Long regionId : regionIds) {
             if (regionId != null) {
+                // 调用add方法，复用统一能力并保证业务规则一致。
                 distinctIds.add(regionId);
             }
         }
@@ -280,10 +308,7 @@ public class SysRegionServiceImpl implements ISysRegionService {
     }
 
     /**
-     * ???????
-     *
-     * @param companyId ??ID
-     * @param regionIds region ID??
+     * 校验RegionsBelongTo公司。
      */
     private void validateRegionsBelongToCompany(Long companyId, List<Long> regionIds) {
         if (regionIds == null || regionIds.isEmpty()) {
@@ -291,8 +316,9 @@ public class SysRegionServiceImpl implements ISysRegionService {
         }
         LambdaQueryWrapper<SysRegion> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysRegion::getCompanyId, companyId)
+                // 调用in方法，复用统一能力并保证业务规则一致。
                 .in(SysRegion::getId, regionIds);
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         Long matchedCount = sysRegionMapper.selectCount(wrapper);
         if (matchedCount == null || matchedCount.intValue() != regionIds.size()) {
             throw new ServiceException("存在不属于当前总部的大区");
@@ -300,3 +326,5 @@ public class SysRegionServiceImpl implements ISysRegionService {
     }
 
 }
+
+

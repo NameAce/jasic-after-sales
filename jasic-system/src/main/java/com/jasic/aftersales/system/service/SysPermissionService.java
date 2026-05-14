@@ -33,11 +33,9 @@ public class SysPermissionService {
     private SysUserRoleMapper sysUserRoleMapper;
 
     /**
-     * ?????
+     * 系统角色Mapper数据访问接口。
      *
-     * @param userId ??ID
-     * @param companyId ??ID
-     * @return ????
+     * @return 处理结果
      */
     @Resource
     private SysRoleMapper sysRoleMapper;
@@ -53,14 +51,17 @@ public class SysPermissionService {
      * @return 权限标识集合
      */
     public Set<String> loadPermsToCache(Long userId, Long companyId) {
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         Set<String> perms = sysMenuMapper.selectPermsByUserIdAndCompanyId(userId, companyId);
         if (perms == null) {
+            // 调用emptySet方法，复用统一能力并保证业务规则一致。
             perms = Collections.emptySet();
         }
         String key = CacheConstants.USER_PERMS_KEY + userId + ":" + companyId;
+        // 调用delete方法，复用统一能力并保证业务规则一致。
         redisTemplate.delete(key);
         if (!perms.isEmpty()) {
+            // 调用toArray方法，复用统一能力并保证业务规则一致。
             redisTemplate.opsForSet().add(key, perms.toArray(new Object[0]));
         }
         return perms;
@@ -75,7 +76,9 @@ public class SysPermissionService {
     public void clearPermsCache(Long userId, Long companyId) {
         String permsKey = CacheConstants.USER_PERMS_KEY + userId + ":" + companyId;
         String menusKey = CacheConstants.USER_MENUS_KEY + userId + ":" + companyId;
+        // 调用delete方法，复用统一能力并保证业务规则一致。
         redisTemplate.delete(permsKey);
+        // 调用delete方法，复用统一能力并保证业务规则一致。
         redisTemplate.delete(menusKey);
     }
 
@@ -87,12 +90,16 @@ public class SysPermissionService {
     public void clearAllPermsCache(Long userId) {
         String permsPattern = CacheConstants.USER_PERMS_KEY + userId + ":*";
         String menusPattern = CacheConstants.USER_MENUS_KEY + userId + ":*";
+        // 调用keys方法，复用统一能力并保证业务规则一致。
         Set<String> permsKeys = redisTemplate.keys(permsPattern);
+        // 调用keys方法，复用统一能力并保证业务规则一致。
         Set<String> menusKeys = redisTemplate.keys(menusPattern);
         if (permsKeys != null && !permsKeys.isEmpty()) {
+            // 调用delete方法，复用统一能力并保证业务规则一致。
             redisTemplate.delete(permsKeys);
         }
         if (menusKeys != null && !menusKeys.isEmpty()) {
+            // 调用delete方法，复用统一能力并保证业务规则一致。
             redisTemplate.delete(menusKeys);
         }
     }
@@ -118,8 +125,9 @@ public class SysPermissionService {
      */
     public DataScopeEnum getEffectiveDataScope(Long userId, Long companyId, String subjectType) {
         LambdaQueryWrapper<SysUserRole> userRoleQuery = new LambdaQueryWrapper<>();
+        // 调用eq方法，复用统一能力并保证业务规则一致。
         userRoleQuery.eq(SysUserRole::getUserId, userId);
-        // ??????????????????????????
+        // 说明：执行该步骤以保证业务流程正确。
         List<SysUserRole> userRoles = sysUserRoleMapper.selectList(userRoleQuery);
         if (userRoles == null || userRoles.isEmpty()) {
             return DataScopeEnum.SELF;
@@ -127,10 +135,13 @@ public class SysPermissionService {
 
         List<Long> roleIds = userRoles.stream()
                 .map(SysUserRole::getRoleId)
+                // 调用toList方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toList());
         LambdaQueryWrapper<SysRole> roleQuery = new LambdaQueryWrapper<>();
         roleQuery.in(SysRole::getId, roleIds)
+                // 调用eq方法，复用统一能力并保证业务规则一致。
                 .eq(SysRole::getCompanyId, companyId);
+        // 调用selectList方法，复用统一能力并保证业务规则一致。
         List<SysRole> roles = sysRoleMapper.selectList(roleQuery);
         if (roles == null || roles.isEmpty()) {
             return DataScopeEnum.SELF;
@@ -138,18 +149,20 @@ public class SysPermissionService {
 
         DataScopeEnum result = null;
         for (SysRole role : roles) {
+            // 调用getDataScope方法，复用统一能力并保证业务规则一致。
             DataScopeEnum scope = resolveRoleDataScope(role.getDataScope(), subjectType);
+            // 调用max方法，复用统一能力并保证业务规则一致。
             result = result == null ? scope : result.max(scope);
         }
         return result == null ? DataScopeEnum.SELF : result;
     }
 
     /**
-     * ???????
+     * 解析角色数据范围。
      *
-     * @param scopeCode ??????
-     * @param subjectType ????
-     * @return ????
+     * @param scopeCode 参数
+     * @param subjectType 参数
+     * @return 处理结果
      */
     private DataScopeEnum resolveRoleDataScope(String scopeCode, String subjectType) {
         if (subjectType == null) {
@@ -158,3 +171,5 @@ public class SysPermissionService {
         return DataScopeEnum.normalize(scopeCode, subjectType);
     }
 }
+
+

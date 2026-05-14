@@ -17,7 +17,7 @@ import java.util.Set;
 public class WorkOrderStatusConstants {
 
     /**
-     * ?? WorkOrderStatusConstants ???
+     * 构造工单状态实例。
      */
     private WorkOrderStatusConstants() {
     }
@@ -55,9 +55,9 @@ public class WorkOrderStatusConstants {
         );
 
         /**
-         * ?? MainStatus ?????
+         * 构造主状态实例。
          *
-         * @return ????
+         * @return 处理结果
          */
         private MainStatus() {
         }
@@ -87,9 +87,9 @@ public class WorkOrderStatusConstants {
         );
 
         /**
-         * ?? DisplayStatus ?????
+         * 构造展示状态实例。
          *
-         * @return ????
+         * @return 处理结果
          */
         private DisplayStatus() {
         }
@@ -108,16 +108,14 @@ public class WorkOrderStatusConstants {
         public static final String EVALUATED = "EVALUATED";
 
         /** 评价状态中文映射。 */
-        public static final Map<String, String> LABELS = unmodifiableMap(
-                entry(NOT_OPEN, "未开启评价"),
-                entry(PENDING_EVALUATE, "待评价"),
-                entry(EVALUATED, "已评价")
-        );
+                public static final Map<String, String> LABELS = unmodifiableMap(
+                        entry(NOT_OPEN, "未开启评价"),
+                        entry(PENDING_EVALUATE, "待评价"),
+                        entry(EVALUATED, "已评价")
+                );
 
         /**
-         * ?? EvaluateStatus ?????
-         *
-         * @return ????
+         * 构造评价状态实例。
          */
         private EvaluateStatus() {
         }
@@ -187,43 +185,50 @@ public class WorkOrderStatusConstants {
     }
 
     /**
-     * ???????
+     * 解析标签。
      *
-     * @param labelMap ??
-     * @param code ??
-     * @return ?????
+     * @param labelMap 参数
+     * @param code 参数
+     * @return 处理结果
      */
     private static String resolveLabel(Map<String, String> labelMap, String code) {
         if (code == null || code.trim().isEmpty()) {
             return code;
         }
+        // 调用get方法，复用统一能力并保证业务规则一致。
         String label = labelMap.get(code);
         return label == null ? code : label;
     }
 
     /**
-     * ?? unmodifiableMap ?????
+     * unmodifiableMap。
      *
-     * @param entries ??
-     * @return ????
+     * @param entries 参数
+     * @return 处理结果
      */
     @SafeVarargs
     private static Map<String, String> unmodifiableMap(Map.Entry<String, String>... entries) {
         Map<String, String> map = new LinkedHashMap<>();
         for (Map.Entry<String, String> entry : entries) {
+            // 调用getValue方法，复用统一能力并保证业务规则一致。
             map.put(entry.getKey(), entry.getValue());
         }
         return Collections.unmodifiableMap(map);
     }
 
     /**
-     * ?? entry ?????
+     * entry。
      *
-     * @param key ??
-     * @param value ???
-     * @return ????
+     * @param key 参数
+     * @param value 参数
+     * @return 处理结果
      */
     private static Map.Entry<String, String> entry(String key, String value) {
         return new AbstractMap.SimpleEntry<>(key, value);
     }
 }
+
+
+
+
+

@@ -14,7 +14,7 @@ package com.jasic.aftersales.framework.web;
 public class ResultCode {
 
     /**
-     * ?? ResultCode ???
+     * 禁止实例化工具常量类。
      */
     private ResultCode() {
     }

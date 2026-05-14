@@ -67,6 +67,13 @@ public enum WorkOrderActionEnum {
      */
     private final String permissionCode;
 
+    /**
+     * 构造工单动作实例。
+     *
+     * @param code 参数
+     * @param label 参数
+     * @param permissionCode 参数
+     */
     WorkOrderActionEnum(String code, String label, String permissionCode) {
         this.code = code;
         this.label = label;
@@ -104,7 +111,12 @@ public enum WorkOrderActionEnum {
      * @return 展示名称；未命中时返回原值
      */
     public static String resolveLabel(String code) {
+        // 调用getByCode方法，复用统一能力并保证业务规则一致。
         WorkOrderActionEnum action = getByCode(code);
         return action == null ? code : action.getLabel();
     }
 }
+
+
+
+

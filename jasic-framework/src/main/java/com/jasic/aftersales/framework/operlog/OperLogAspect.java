@@ -50,6 +50,7 @@ public class OperLogAspect {
      */
     @Before("@annotation(operLog)")
     public void doBefore(JoinPoint joinPoint, OperLog operLog) {
+        // 调用currentTimeMillis方法，复用统一能力并保证业务规则一致。
         START_TIME.set(System.currentTimeMillis());
     }
 
@@ -62,6 +63,7 @@ public class OperLogAspect {
      */
     @AfterReturning(pointcut = "@annotation(operLog)", returning = "result")
     public void doAfterReturning(JoinPoint joinPoint, OperLog operLog, Object result) {
+        // 调用handleLog方法，复用统一能力并保证业务规则一致。
         handleLog(joinPoint, operLog, null, result);
     }
 
@@ -74,6 +76,7 @@ public class OperLogAspect {
      */
     @AfterThrowing(pointcut = "@annotation(operLog)", throwing = "e")
     public void doAfterThrowing(JoinPoint joinPoint, OperLog operLog, Exception e) {
+        // 调用handleLog方法，复用统一能力并保证业务规则一致。
         handleLog(joinPoint, operLog, e, null);
     }
 
@@ -87,55 +90,83 @@ public class OperLogAspect {
      */
     private void handleLog(JoinPoint joinPoint, OperLog operLog, Exception e, Object result) {
         try {
+            // 调用get方法，复用统一能力并保证业务规则一致。
             long costTime = System.currentTimeMillis() - START_TIME.get();
+            // 调用getSignature方法，复用统一能力并保证业务规则一致。
             MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+            // 调用getMethod方法，复用统一能力并保证业务规则一致。
             Method method = signature.getMethod();
+            // 调用getName方法，复用统一能力并保证业务规则一致。
             String className = joinPoint.getTarget().getClass().getName();
+            // 调用getName方法，复用统一能力并保证业务规则一致。
             String methodName = method.getName();
 
             Map<String, Object> logData = new HashMap<>(16);
+            // 调用title方法，复用统一能力并保证业务规则一致。
             logData.put("title", operLog.title());
+            // 调用getCode方法，复用统一能力并保证业务规则一致。
             logData.put("operType", operLog.operType().getCode());
+            // 调用put方法，复用统一能力并保证业务规则一致。
             logData.put("method", className + "." + methodName);
+            // 调用put方法，复用统一能力并保证业务规则一致。
             logData.put("costTime", costTime);
+            // 调用now方法，复用统一能力并保证业务规则一致。
             logData.put("operTime", LocalDateTime.now());
+            // 调用put方法，复用统一能力并保证业务规则一致。
             logData.put("status", e == null ? 1 : 0);
 
             if (e != null) {
+                // 调用getMessage方法，复用统一能力并保证业务规则一致。
                 String errorMsg = e.getMessage();
+                // 调用substring方法，复用统一能力并保证业务规则一致。
                 logData.put("errorMsg", errorMsg != null && errorMsg.length() > 2000 ? errorMsg.substring(0, 2000) : errorMsg);
             }
 
             if (operLog.isSaveRequestData()) {
+                // 调用getArgs方法，复用统一能力并保证业务规则一致。
                 Object[] args = joinPoint.getArgs();
+                // 调用toJsonStr方法，复用统一能力并保证业务规则一致。
                 String requestParam = JSONUtil.toJsonStr(args);
+                // 调用substring方法，复用统一能力并保证业务规则一致。
                 logData.put("requestParam", requestParam.length() > 2000 ? requestParam.substring(0, 2000) : requestParam);
             }
 
             if (operLog.isSaveResponseData() && result != null) {
+                // 调用toJsonStr方法，复用统一能力并保证业务规则一致。
                 String responseResult = JSONUtil.toJsonStr(result);
+                // 调用substring方法，复用统一能力并保证业务规则一致。
                 logData.put("responseResult", responseResult.length() > 2000 ? responseResult.substring(0, 2000) : responseResult);
             }
 
+            // 调用getRequestAttributes方法，复用统一能力并保证业务规则一致。
             ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
             if (attributes != null) {
+                // 调用getRequest方法，复用统一能力并保证业务规则一致。
                 HttpServletRequest request = attributes.getRequest();
+                // 调用getRequestURI方法，复用统一能力并保证业务规则一致。
                 logData.put("requestUrl", request.getRequestURI());
+                // 调用getMethod方法，复用统一能力并保证业务规则一致。
                 logData.put("requestMethod", request.getMethod());
+                // 调用getIpAddress方法，复用统一能力并保证业务规则一致。
                 logData.put("ip", getIpAddress(request));
             }
 
             try {
+                // 调用getCurrentUserId方法，复用统一能力并保证业务规则一致。
                 logData.put("userId", SecurityContext.getCurrentUserId());
+                // 调用getCurrentCompanyId方法，复用统一能力并保证业务规则一致。
                 logData.put("companyId", SecurityContext.getCurrentCompanyId());
             } catch (Exception ignored) {
                 // 未登录场景（如登录接口本身）
             }
 
+            // 调用OperLogEvent方法，复用统一能力并保证业务规则一致。
             eventPublisher.publishEvent(new OperLogEvent(this, logData));
         } catch (Exception ex) {
+            // 调用error方法，复用统一能力并保证业务规则一致。
             log.error("记录操作日志异常", ex);
         } finally {
+            // 调用remove方法，复用统一能力并保证业务规则一致。
             START_TIME.remove();
         }
     }
@@ -147,14 +178,18 @@ public class OperLogAspect {
      * @return IP地址
      */
     private String getIpAddress(HttpServletRequest request) {
+        // 调用getHeader方法，复用统一能力并保证业务规则一致。
         String ip = request.getHeader("X-Forwarded-For");
         if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            // 调用getHeader方法，复用统一能力并保证业务规则一致。
             ip = request.getHeader("X-Real-IP");
         }
         if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            // 调用getRemoteAddr方法，复用统一能力并保证业务规则一致。
             ip = request.getRemoteAddr();
         }
         if (ip != null && ip.contains(",")) {
+            // 调用trim方法，复用统一能力并保证业务规则一致。
             ip = ip.split(",")[0].trim();
         }
         return ip;

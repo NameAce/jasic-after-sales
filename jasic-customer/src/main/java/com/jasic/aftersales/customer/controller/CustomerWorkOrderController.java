@@ -152,6 +152,7 @@ public class CustomerWorkOrderController {
     @ApiOperation(value = "更新寄修信息")
     @PutMapping("/send-info")
     public Result<Void> updateSendInfo(@Validated @RequestBody CustomerWorkOrderSendInfoDTO dto) {
+        // 调用updateSendInfo方法，复用统一能力并保证业务规则一致。
         customerWorkOrderService.updateSendInfo(dto);
         return Result.ok();
     }
@@ -165,6 +166,7 @@ public class CustomerWorkOrderController {
     @ApiOperation(value = "上传寄件凭证")
     @PutMapping("/sender-voucher")
     public Result<Void> updateSenderVoucher(@Validated @RequestBody CustomerWorkOrderSenderVoucherDTO dto) {
+        // 调用updateSenderVoucher方法，复用统一能力并保证业务规则一致。
         customerWorkOrderService.updateSenderVoucher(dto);
         return Result.ok();
     }
@@ -178,7 +180,10 @@ public class CustomerWorkOrderController {
     @ApiOperation(value = "提交工单评价")
     @PostMapping("/evaluate")
     public Result<Void> evaluate(@Validated @RequestBody CustomerWorkOrderEvaluateDTO dto) {
+        // 调用evaluate方法，复用统一能力并保证业务规则一致。
         customerWorkOrderService.evaluate(dto);
         return Result.ok();
     }
 }
+
+

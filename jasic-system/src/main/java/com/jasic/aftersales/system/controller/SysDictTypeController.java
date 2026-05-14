@@ -39,10 +39,10 @@ public class SysDictTypeController extends BaseController {
     private ISysDictTypeService dictTypeService;
 
     /**
-     * ???????
+     * 分页查询字典类型列表。
      *
-     * @param query ????
-     * @return ????
+     * @param query 参数
+     * @return 处理结果
      */
     @SaCheckPermission("system:dictType:list")
     @GetMapping("/list")
@@ -51,10 +51,9 @@ public class SysDictTypeController extends BaseController {
     }
 
     /**
-     * ??By Id?
+     * 根据ID查询字典类型详情。
      *
-     * @param id ??ID
-     * @return ??????
+     * @return 处理结果
      */
     @SaCheckPermission("system:dictType:list")
     @GetMapping("/{id}")
@@ -63,10 +62,10 @@ public class SysDictTypeController extends BaseController {
     }
 
     /**
-     * ?????
+     * 新增字典类型。
      *
-     * @param dto ????
-     * @return ??????
+     * @param dto 参数
+     * @return 处理结果
      */
     @SaCheckPermission("system:dictType:add")
     @OperLog(title = "字典类型管理", operType = OperTypeEnum.INSERT)
@@ -76,43 +75,47 @@ public class SysDictTypeController extends BaseController {
     }
 
     /**
-     * ?????
+     * 更新字典类型。
      *
-     * @param dto ????
-     * @return ??????
+     * @param dto 参数
+     * @return 处理结果
      */
     @SaCheckPermission("system:dictType:update")
     @OperLog(title = "字典类型管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
     public Result<Void> update(@Validated @RequestBody SysDictTypeDTO dto) {
+        // 调用update方法，复用统一能力并保证业务规则一致。
         dictTypeService.update(dto);
         return Result.ok();
     }
 
     /**
-     * ?????
+     * 删除字典类型。
      *
-     * @param id ??ID
-     * @return ??????
+     * @return 处理结果
      */
     @SaCheckPermission("system:dictType:remove")
     @OperLog(title = "字典类型管理", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/{id}")
     public Result<Void> remove(@PathVariable Long id) {
+        // 调用remove方法，复用统一能力并保证业务规则一致。
         dictTypeService.remove(id);
         return Result.ok();
     }
 
     /**
-     * ?? refreshCache ?????
+     * 刷新字典类型缓存。
      *
-     * @return ??????
+     * @return 处理结果
      */
     @SaCheckPermission("system:dictType:refresh")
     @OperLog(title = "字典类型管理", operType = OperTypeEnum.OTHER)
     @DeleteMapping("/refresh-cache")
     public Result<Void> refreshCache() {
+        // 调用refreshCache方法，复用统一能力并保证业务规则一致。
         dictTypeService.refreshCache();
         return Result.ok();
     }
 }
+
+

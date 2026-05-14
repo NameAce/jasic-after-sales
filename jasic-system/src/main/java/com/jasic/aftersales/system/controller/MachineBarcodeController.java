@@ -40,10 +40,10 @@ public class MachineBarcodeController extends BaseController {
     private ISyncTaskService syncTaskService;
 
     /**
-     * ???????
+     * 分页查询条码档案列表。
      *
-     * @param query ????
-     * @return ????
+     * @param query 查询条件
+     * @return 分页结果
      */
     @SaCheckPermission("system:machineBarcode:list")
     @GetMapping("/list")
@@ -52,12 +52,12 @@ public class MachineBarcodeController extends BaseController {
     }
 
     /**
-     * ??By Id?
+     * 按主键查询条码档案详情。
      *
-     * @param id ??ID
-     * @param ownerHqId ????ID
-     * @param targetCompanyId ????ID
-     * @return ??????
+     * @param id 条码档案ID
+     * @param ownerHqId 总部公司ID
+     * @param targetCompanyId 目标公司ID
+     * @return 条码档案详情
      */
     @SaCheckPermission("system:machineBarcode:list")
     @GetMapping("/{id}")
@@ -68,9 +68,9 @@ public class MachineBarcodeController extends BaseController {
     }
 
     /**
-     * ???????
+     * 查询可选总部公司列表。
      *
-     * @return ????
+     * @return 总部公司选项
      */
     @SaCheckPermission("system:machineBarcode:list")
     @GetMapping("/hq-options")
@@ -79,9 +79,9 @@ public class MachineBarcodeController extends BaseController {
     }
 
     /**
-     * ?? fullSync ?????
+     * 触发条码档案全量同步任务。
      *
-     * @return ??????
+     * @return 同步任务ID
      */
     @SaCheckPermission("system:machineBarcode:sync")
     @OperLog(title = "条码档案同步任务", operType = OperTypeEnum.OTHER)

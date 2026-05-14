@@ -22,22 +22,28 @@ public class WarehouseScanOutstorageSyncTaskHandler implements SyncTaskHandler {
     private static final String HANDLER_NAME = "销售出库扫码同步";
 
     /**
-     * ?????
+     * CRM仓库扫描出库同步服务服务依赖。
      *
-     * @return ?????
+     * @return 处理结果
      */
     @Resource
     private ICrmWarehouseScanOutstorageSyncService crmWarehouseScanOutstorageSyncService;
 
+    /**
+     * 获取Code相关数据。
+     *
+     * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
+     * @return 处理结果
+     */
     @Override
     public String getCode() {
         return HANDLER_CODE;
     }
 
     /**
-     * ?????
+     * 获取仓库扫描出库同步任务名称。
      *
-     * @return ?????
+     * @return 处理结果
      */
     @Override
     public String getName() {
@@ -45,14 +51,15 @@ public class WarehouseScanOutstorageSyncTaskHandler implements SyncTaskHandler {
     }
 
     /**
-     * ?????
+     * execute。
      *
-     * @param task ????
-     * @param context ?????
-     * @return ????
+     * @param task 参数
+     * @param context 参数
+     * @return 处理结果
      */
     @Override
     public SyncTaskExecutionResult execute(SyncTask task, SyncTaskExecutionContext context) {
+        // 调用syncIncremental方法，复用统一能力并保证业务规则一致。
         CrmWarehouseScanOutstorageSyncSummaryVO summary = crmWarehouseScanOutstorageSyncService.syncIncremental();
         return SyncTaskExecutionResult.builder()
                 .dataStartTime(context.getLastSuccessEndTime())
@@ -62,16 +69,19 @@ public class WarehouseScanOutstorageSyncTaskHandler implements SyncTaskHandler {
                         defaultInt(summary.getAffectedBarcodeCount()),
                         defaultInt(summary.getUpdatedMachineBarcodeCount()),
                         defaultInt(summary.getUnmatchedBarcodeCount())))
+                // 调用build方法，复用统一能力并保证业务规则一致。
                 .build();
     }
 
     /**
-     * ??????
+     * defaultInt。
      *
-     * @param value ???
-     * @return ????
+     * @param value 参数
+     * @return 处理结果
      */
     private int defaultInt(Integer value) {
         return value == null ? 0 : value;
     }
 }
+
+
