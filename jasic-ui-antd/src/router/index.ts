@@ -1,5 +1,7 @@
 /**
  * 路由入口：按环境变量选择 history 模式，创建仅含内置路由的 router，再由守卫与 store 注入动态路由。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 import type { App } from 'vue';
 import {
@@ -21,7 +23,10 @@ const historyCreatorMap: Record<Env.RouterHistoryMode, (base?: string) => Router
   memory: createMemoryHistory
 };
 
-/** 全局 Vue Router 单例（初始仅内置路由，权限路由由 store 动态注入） */
+/** 全局 Vue Router 单例（初始仅内置路由，权限路由由 store 动态注入）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
 export const router = createRouter({
   history: historyCreatorMap[VITE_ROUTER_HISTORY_MODE](VITE_BASE_URL),
   routes: createBuiltinVueRoutes()
@@ -32,6 +37,8 @@ export const router = createRouter({
  *
  * @param app - Vue 应用实例
  * @returns {Promise<void>} 无返回值
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export async function setupRouter(app: App) {
   app.use(router);

@@ -13,7 +13,7 @@ import {
   setDefaultCompanyAddress,
   updateCompanyAddress
 } from '@/service/api';
-import { getResponseMsg } from '@/service/request/shared';
+import { notifyOnceSuccessFromFlatResult } from '@/service/request/shared';
 import {
   type RegionCascaderOption,
   composeAddressWithRegion,
@@ -23,8 +23,20 @@ import {
   splitFullAddressToRegionAndDetail
 } from '@/utils/china-region';
 import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
+import {
+  createAntTableListLocale,
+  useListRequestTableMsgs
+} from '@/utils/list-table-empty-state';
+import { estimateAntTableActionColWidth } from '@/utils/table-action-width';
 
 type RowData = Record<string, any>;
+
+/** 操作列：编辑 / 设为默认 / 删除 同一行最多时横排估算 */
+const COMPANY_ADDRESS_ACTION_COL_WIDTH = estimateAntTableActionColWidth([
+  '编辑',
+  '设为默认',
+  '删除'
+]);
 
 const pageMenuTitle = useRouteMenuTitle();
 
@@ -35,6 +47,17 @@ const regionOptions = ref<RegionCascaderOption[]>([]);
 const loading = ref(false);
 // 地址表格数据
 const rows = ref<RowData[]>([]);
+
+const {
+  listFetchErrorMsg,
+  listEmptyBackendMsg,
+  clearListMsgs,
+  consumeFlatError,
+  refreshEmptySuccessMsg,
+  setMsgFromCatch
+} = useListRequestTableMsgs();
+const tableListLocale = createAntTableListLocale(listFetchErrorMsg, listEmptyBackendMsg, rows);
+
 // 新增/编辑抽屉是否打开
 const formOpen = ref(false);
 // 地址编辑表单实例（与建单抽屉一致：rules + validate）
@@ -94,7 +117,7 @@ const columns = [
   { title: '是否默认', dataIndex: 'isDefault', key: 'isDefault', width: 120 },
   { title: '联系人', dataIndex: 'contactName', key: 'contactName', width: 140 },
   { title: '联系电话', dataIndex: 'contactPhone', key: 'contactPhone', width: 160 },
-  { title: '操作', dataIndex: 'actions', key: 'actions', width: 220 }
+  { title: '操作', dataIndex: 'actions', key: 'actions', width: COMPANY_ADDRESS_ACTION_COL_WIDTH, fixed: 'right' as const }
 ];
 
 /**
@@ -112,10 +135,23 @@ function pickRows(data: any) {
  * 作用：加载公司地址列表。
  */
 async function loadList() {
+  clearListMsgs();
   loading.value = true;
-  const { data } = await listCompanyAddress();
-  rows.value = pickRows(data);
-  loading.value = false;
+  try {
+    const flat = await listCompanyAddress();
+    if (consumeFlatError(flat)) {
+      rows.value = [];
+      return;
+    }
+    const data = (flat as { data?: unknown }).data;
+    rows.value = pickRows(data);
+    refreshEmptySuccessMsg(flat, rows.value.length);
+  } catch (e: unknown) {
+    rows.value = [];
+    setMsgFromCatch(e);
+  } finally {
+    loading.value = false;
+  }
 }
 
 /**
@@ -185,11 +221,11 @@ async function submitForm() {
       isDefault: formModel.isDefault
     };
     if (formModel.id) {
-      const { response } = await updateCompanyAddress({ id: formModel.id, ...payload });
-      window.$message?.success(getResponseMsg(response, '已保存'));
+      const res = await updateCompanyAddress({ id: formModel.id, ...payload });
+      if (!notifyOnceSuccessFromFlatResult(res, '已保存')) return;
     } else {
-      const { response } = await createCompanyAddress(payload);
-      window.$message?.success(getResponseMsg(response, '已保存'));
+      const res = await createCompanyAddress(payload);
+      if (!notifyOnceSuccessFromFlatResult(res, '已保存')) return;
     }
     formOpen.value = false;
     await loadList();
@@ -205,8 +241,8 @@ async function submitForm() {
 async function removeAddress(record: RowData) {
   const id = Number(record.id ?? record.addressId);
   if (!Number.isFinite(id) || id <= 0) return;
-  const { response } = await deleteCompanyAddress(id);
-  window.$message?.success(getResponseMsg(response, '已删除'));
+  const res = await deleteCompanyAddress(id);
+  if (!notifyOnceSuccessFromFlatResult(res, '已删除')) return;
   await loadList();
 }
 
@@ -221,7 +257,15 @@ onMounted(async () => {
       <div class="mb-12px">
         <AButton type="primary" @click="openCreate">新增地址</AButton>
       </div>
-      <ATable :columns="columns" :data-source="rows" :loading="loading" row-key="id" size="small">
+      <ATable
+        :columns="columns"
+        :data-source="rows"
+        :loading="loading"
+        :locale="tableListLocale"
+        row-key="id"
+        size="small"
+        :scroll="{ x: 'max-content' }"
+      >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'isDefault'">
             <ATag :color="tagColorPositiveNeutral(Number(record.isDefault) === 1)">
@@ -229,13 +273,16 @@ onMounted(async () => {
             </ATag>
           </template>
           <template v-if="column.key === 'actions'">
-            <ASpace>
+            <ASpace :size="2" :wrap="false">
               <AButton type="link" size="small" class="table-action-link--primary" @click="openEdit(record)">
                 编辑
               </AButton>
-              <AButton type="link" size="small" class="table-action-link--success" @click="setDefault(record)">
-                设为默认
-              </AButton>
+              <APopconfirm
+                :title="`确认将「${record.contactName || '该'}」设为默认地址？`"
+                @confirm="setDefault(record)"
+              >
+                <AButton type="link" size="small" class="table-action-link--success">设为默认</AButton>
+              </APopconfirm>
               <APopconfirm title="确认删除该地址？" @confirm="removeAddress(record)">
                 <AButton type="link" size="small" danger>删除</AButton>
               </APopconfirm>

@@ -20,18 +20,34 @@ import {
   updateUser
 } from '@/service/api';
 import type { SysUserQuery } from '@/service/api';
-import { getResponseMsg } from '@/service/request/shared';
+import { notifyOnceSuccessFromFlatResult } from '@/service/request/shared';
 import { useAuthStore } from '@/store/modules/auth';
 import { useAuth } from '@/hooks/business/auth';
 import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
 import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
 import { useTableScroll } from '@/hooks/common/table';
+import { estimateAntTableActionColWidth } from '@/utils/table-action-width';
+import {
+  createAntTableListLocale,
+  useListRequestTableMsgs
+} from '@/utils/list-table-empty-state';
 
 type RowData = Record<string, any>;
 
+/** 操作列：权限全开时一行最多 6 个 link 按钮横排估算 */
+const USER_LIST_ACTION_COL_WIDTH = estimateAntTableActionColWidth([
+  '编辑',
+  '分配角色',
+  '绑定大区',
+  '重置密码',
+  '强制下线',
+  '删除'
+]);
+
+const userListTableScrollMinX = computed(() => 1040 + USER_LIST_ACTION_COL_WIDTH);
 // 表格区域滚动 Hook
-const { tableWrapperRef, scrollConfig } = useTableScroll(1250);
+const { tableWrapperRef, scrollConfig } = useTableScroll(userListTableScrollMinX);
 const pageMenuTitle = useRouteMenuTitle();
 
 // 列表分页、表单与分配弹窗等业务状态（含大区/角色勾选）
@@ -39,6 +55,17 @@ const pageMenuTitle = useRouteMenuTitle();
 const loading = ref(false);
 const rows = ref<RowData[]>([]);
 const total = ref(0);
+
+const {
+  listFetchErrorMsg,
+  listEmptyBackendMsg,
+  clearListMsgs,
+  consumeFlatError,
+  refreshEmptySuccessMsg,
+  setMsgFromCatch
+} = useListRequestTableMsgs();
+const tableListLocale = createAntTableListLocale(listFetchErrorMsg, listEmptyBackendMsg, rows);
+
 const roleOpts = ref<Array<{ label: string; value: number }>>([]);
 const regionOpts = ref<Array<{ label: string; value: number }>>([]);
 
@@ -124,7 +151,7 @@ const columns = computed(() => [
   { title: '邮箱', dataIndex: 'email', key: 'email', width: 220, ellipsis: true },
   { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
   { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 180 },
-  { title: '操作', key: 'actions', width: 360, fixed: 'right' as const }
+  { title: '操作', key: 'actions', width: USER_LIST_ACTION_COL_WIDTH, fixed: 'right' as const }
 ]);
 
 /**
@@ -161,11 +188,23 @@ function buildListParams(): SysUserQuery {
  * @returns Promise，列表加载结束后结束
  */
 async function loadData() {
+  clearListMsgs();
   loading.value = true;
   try {
-    const { data } = await listUser(buildListParams());
+    const flat = await listUser(buildListParams());
+    if (consumeFlatError(flat)) {
+      rows.value = [];
+      total.value = 0;
+      return;
+    }
+    const data = (flat as { data?: unknown }).data;
     rows.value = pickRows(data);
-    total.value = Number(data?.total) || rows.value.length;
+    total.value = Number((data as { total?: unknown })?.total) || rows.value.length;
+    refreshEmptySuccessMsg(flat, rows.value.length);
+  } catch (e: unknown) {
+    rows.value = [];
+    total.value = 0;
+    setMsgFromCatch(e);
   } finally {
     loading.value = false;
   }
@@ -334,7 +373,7 @@ async function submitEdit() {
   editSubmitting.value = true;
   try {
     if (editForm.id) {
-      const { response } = await updateUser({
+      const res = await updateUser({
         ...editForm,
         ...currentTargetCompanyParams(),
         username: editForm.username.trim(),
@@ -342,9 +381,9 @@ async function submitEdit() {
         phone: editForm.phone.trim(),
         email: editForm.email?.trim()
       });
-      window.$message?.success(getResponseMsg(response, '操作成功'));
+      if (!notifyOnceSuccessFromFlatResult(res, '操作成功')) return;
     } else {
-      const { response } = await addUser({
+      const res = await addUser({
         ...editForm,
         ...currentTargetCompanyParams(),
         username: editForm.username.trim(),
@@ -353,7 +392,7 @@ async function submitEdit() {
         phone: editForm.phone.trim(),
         email: editForm.email?.trim()
       });
-      window.$message?.success(getResponseMsg(response, '操作成功'));
+      if (!notifyOnceSuccessFromFlatResult(res, '操作成功')) return;
     }
     editOpen.value = false;
     await loadData();
@@ -368,8 +407,8 @@ async function submitEdit() {
  * @returns Promise，删除完成后结束
  */
 async function removeRow(record: RowData) {
-  const { response } = await deleteUser(record.id, currentTargetCompanyParams());
-  window.$message?.success(getResponseMsg(response, '删除成功'));
+  const res = await deleteUser(record.id, currentTargetCompanyParams());
+  if (!notifyOnceSuccessFromFlatResult(res, '删除成功')) return;
   await loadData();
 }
 
@@ -404,9 +443,9 @@ async function submitAssignRoles() {
   if (!roleUserId.value) return;
   roleSubmitting.value = true;
   try {
-    const { response } = await assignUserRoles(roleUserId.value, roleValues.value, currentTargetCompanyParams());
+    const res = await assignUserRoles(roleUserId.value, roleValues.value, currentTargetCompanyParams());
+    if (!notifyOnceSuccessFromFlatResult(res, '分配成功')) return;
     roleOpen.value = false;
-    window.$message?.success(getResponseMsg(response, '分配成功'));
     await loadData();
   } finally {
     roleSubmitting.value = false;
@@ -438,13 +477,13 @@ async function submitResetPwd() {
   if (!resetForm.userId) return;
   resetSubmitting.value = true;
   try {
-    const { response } = await resetPwd({
+    const res = await resetPwd({
       userId: resetForm.userId,
       newPassword: resetForm.password.trim(),
       ...currentTargetCompanyParams()
     });
+    if (!notifyOnceSuccessFromFlatResult(res, '重置成功')) return;
     resetOpen.value = false;
-    window.$message?.success(getResponseMsg(response, '重置成功'));
   } finally {
     resetSubmitting.value = false;
   }
@@ -456,8 +495,8 @@ async function submitResetPwd() {
  * @returns Promise，接口返回后结束
  */
 async function forceKickout(record: RowData) {
-  const { response } = await kickoutUser(record.id, currentTargetCompanyParams());
-  window.$message?.success(getResponseMsg(response, '操作成功'));
+  const res = await kickoutUser(record.id, currentTargetCompanyParams());
+  notifyOnceSuccessFromFlatResult(res, '操作成功');
 }
 
 /**
@@ -496,9 +535,9 @@ async function submitAssignRegions() {
   if (!regionUserId.value) return;
   regionSubmitting.value = true;
   try {
-    const { response } = await assignUserRegions(regionUserId.value, regionValues.value, currentTargetCompanyParams());
+    const res = await assignUserRegions(regionUserId.value, regionValues.value, currentTargetCompanyParams());
+    if (!notifyOnceSuccessFromFlatResult(res, '绑定成功')) return;
     regionOpen.value = false;
-    window.$message?.success(getResponseMsg(response, '绑定成功'));
   } finally {
     regionSubmitting.value = false;
   }
@@ -595,6 +634,7 @@ onMounted(() => {
         :columns="columns"
         :data-source="rows"
         :loading="loading"
+        :locale="tableListLocale"
         :pagination="{
           current: query.pageNum,
           pageSize: query.pageSize,
@@ -615,7 +655,7 @@ onMounted(() => {
             </ATag>
           </template>
           <template v-else-if="column.key === 'actions'">
-            <ASpace :size="2" wrap>
+            <ASpace :size="2" :wrap="false">
               <AButton
                 v-if="hasAuth('system:user:update')"
                 type="link"

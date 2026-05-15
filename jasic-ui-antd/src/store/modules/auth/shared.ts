@@ -1,11 +1,15 @@
 /**
  * 鉴权 store 共享：token 读取与登出时清理本地凭证。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 import { localStg } from '@/utils/storage';
 
 /**
  * 作用：读取当前登录 token 字符串（无则空串）。
  * @returns {string}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function getToken() {
   return localStg.get('token') || '';
@@ -14,6 +18,8 @@ export function getToken() {
 /**
  * 作用：清除本地 token 与 refreshToken，与登出流程对齐。
  * @returns {void}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function clearAuthStorage() {
   localStg.remove('token');

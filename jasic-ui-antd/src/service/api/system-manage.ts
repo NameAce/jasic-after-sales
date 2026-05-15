@@ -1,9 +1,14 @@
 /**
  * 系统管理（Mock/旧路径）：角色等演示或兼容接口。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 import { request } from '../request';
 
-/** 作用：Mock/旧版系统管理：分页角色列表。 */
+/** 作用：Mock/旧版系统管理：分页角色列表。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
 export function fetchGetRoleList(params?: Api.SystemManage.RoleSearchParams) {
   return request<Api.SystemManage.RoleList>({
     url: '/systemManage/getRoleList',
@@ -15,6 +20,8 @@ export function fetchGetRoleList(params?: Api.SystemManage.RoleSearchParams) {
 /**
  * 作用：获取全部已启用角色。
  * @returns {Promise}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function fetchGetAllRoles() {
   return request<Api.SystemManage.AllRole[]>({
@@ -23,7 +30,10 @@ export function fetchGetAllRoles() {
   });
 }
 
-/** 作用：分页用户列表。 */
+/** 作用：分页用户列表。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
 export function fetchGetUserList(params?: Api.SystemManage.UserSearchParams) {
   return request<Api.SystemManage.UserList>({
     url: '/systemManage/getUserList',
@@ -32,7 +42,10 @@ export function fetchGetUserList(params?: Api.SystemManage.UserSearchParams) {
   });
 }
 
-/** 作用：菜单扁平列表。 */
+/** 作用：菜单扁平列表。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
 export function fetchGetMenuList() {
   return request<Api.SystemManage.MenuList>({
     url: '/systemManage/getMenuList/v2',
@@ -40,7 +53,10 @@ export function fetchGetMenuList() {
   });
 }
 
-/** 作用：全部页面路径集合。 */
+/** 作用：全部页面路径集合。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
 export function fetchGetAllPages() {
   return request<string[]>({
     url: '/systemManage/getAllPages',
@@ -48,7 +64,10 @@ export function fetchGetAllPages() {
   });
 }
 
-/** 作用：菜单树。 */
+/** 作用：菜单树。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
 export function fetchGetMenuTree() {
   return request<Api.SystemManage.MenuTree[]>({
     url: '/systemManage/getMenuTree',

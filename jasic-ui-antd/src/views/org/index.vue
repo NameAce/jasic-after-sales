@@ -2,10 +2,11 @@
 /**
  * 组织与客商：公司/类型、区域、合同、客户导入等多 Tab 业务聚合页（对接 org 域接口）。
  */
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import type { FormInstance } from "ant-design-vue";
 import { useRouteMenuTitle } from "@/hooks/common/route-menu-title";
+import { computeExpandedKeysForCheckedMenuTree } from "@/utils/tree-expand-keys";
 import {
   tagColorEnabled,
   tagColorPositiveNeutral,
@@ -42,10 +43,16 @@ import {
   updateRegion,
 } from "@/service/api";
 import type { SysCompanyDTO, SysCompanyQuery } from "@/service/api";
-import { getResponseMsg } from "@/service/request/shared";
+import { notifyOnceSuccessFromFlatResult } from "@/service/request/shared";
+import { adaptiveModalWidth } from "@/hooks/common/modal-form-layout";
 import PageSearchExpandButton from "@/components/custom/page-search-expand-button.vue";
 import { usePageSearchFilterCollapse } from "@/hooks/common/page-search-filter-collapse";
 import { useTableScroll } from "@/hooks/common/table";
+import { estimateAntTableActionColWidth } from "@/utils/table-action-width";
+import {
+  createAntTableListLocale,
+  useListRequestTableMsgs,
+} from "@/utils/list-table-empty-state";
 
 type RowData = Record<string, any>;
 type HqFormModel = {
@@ -77,6 +84,21 @@ const activeTab = ref<TabKey>("companyType");
 const rows = ref<RowData[]>([]);
 // 当前 Tab 分页总数（部分 Tab 为前端全长）
 const total = ref(0);
+
+const {
+  listFetchErrorMsg,
+  listEmptyBackendMsg,
+  clearListMsgs,
+  consumeFlatError,
+  refreshEmptySuccessMsg,
+  setMsgFromCatch,
+} = useListRequestTableMsgs();
+const tableListLocale = createAntTableListLocale(
+  listFetchErrorMsg,
+  listEmptyBackendMsg,
+  rows,
+);
+
 const route = useRoute();
 const pageMenuTitle = useRouteMenuTitle();
 
@@ -214,6 +236,14 @@ const companyCrmImportLoading = ref(false);
 const companyCrmImportRows = ref<RowData[]>([]);
 // 公司CRM导入总条数
 const companyCrmImportTotal = ref(0);
+
+const companyCrmListMsgs = useListRequestTableMsgs();
+const companyCrmTableLocale = createAntTableListLocale(
+  companyCrmListMsgs.listFetchErrorMsg,
+  companyCrmListMsgs.listEmptyBackendMsg,
+  companyCrmImportRows,
+);
+
 // 公司CRM导入查询参数
 const companyCrmImportQuery = reactive({
   pageNum: 1,
@@ -282,6 +312,8 @@ const companyTypeMenuTitle = ref("");
 const companyTypeMenuTreeData = ref<any[]>([]);
 // 公司类型菜单选中键
 const companyTypeMenuCheckedKeys = ref<Array<string | number>>([]);
+// 公司类型菜单展开键（分配菜单时展开到已勾选路径）
+const companyTypeMenuExpandedKeys = ref<Array<string | number>>([]);
 // 公司类型菜单类型编码
 const companyTypeMenuTypeCode = ref("");
 
@@ -363,6 +395,21 @@ const companyFormRules = computed(() => ({
   ],
 }));
 
+/** 公司信息抽屉内表单项计数（与模板 AFormItem 一致；地址块 4+1，基础信息 8 项，另含状态与条件项） */
+const companyFormFieldCount = computed(() => {
+  let n = 8; // 公司名、简称、编码、类型、联系人、电话、客服电话、来源
+  n += 4; // 省、市、区
+  n += 1; // 详细地址
+  n += 1; // 状态
+  if (!companyForm.id) n += 1; // 新增时管理员用户名
+  if (isCompanyHqType(companyForm.typeCode)) n += 1; // 销售组织
+  return n;
+});
+
+const companyFormDrawerWidth = computed(() =>
+  adaptiveModalWidth(980, companyFormFieldCount.value)
+);
+
 const companyTypeFormRules = {
   typeName: [{ required: true, message: "请输入类型名称", trigger: "blur" }],
   typeCode: [{ required: true, message: "请输入类型编码", trigger: "blur" }],
@@ -403,6 +450,19 @@ function formatCompanyRegion(record: RowData) {
 const isContractPageTab = computed(
   () => activeTab.value === "hqFirst" || activeTab.value === "firstSecond",
 );
+
+// 各 Tab 列表操作列宽度：按「该行最多操作按钮」文案横排估算
+const ORG_LIST_ACTION_COL_WIDTH = {
+  company: estimateAntTableActionColWidth(["编辑", "删除"]),
+  hqFirst: estimateAntTableActionColWidth(["编辑", "删除"]),
+  firstSecond: estimateAntTableActionColWidth(["删除"]),
+  external: estimateAntTableActionColWidth(["导入预览"]),
+  area: estimateAntTableActionColWidth(["编辑", "删除"]),
+  companyType: estimateAntTableActionColWidth(["编辑", "分配菜单", "删除"]),
+} as const;
+
+/** CRM 导入建议列表：单行仅「选择」 */
+const COMPANY_CRM_IMPORT_LIST_ACTION_COL_WIDTH = estimateAntTableActionColWidth(["选择"]);
 
 // 按当前 Tab 切换表格列定义
 const columns = computed(() => {
@@ -495,7 +555,7 @@ const columns = computed(() => {
           title: "操作",
           dataIndex: "actions",
           key: "actions",
-          width: 160,
+          width: ORG_LIST_ACTION_COL_WIDTH.company,
           fixed: "right" as const,
         },
       ];
@@ -537,7 +597,7 @@ const columns = computed(() => {
           title: "操作",
           dataIndex: "actions",
           key: "actions",
-          width: 160,
+          width: ORG_LIST_ACTION_COL_WIDTH.hqFirst,
           fixed: "right" as const,
         },
       ];
@@ -566,7 +626,7 @@ const columns = computed(() => {
           title: "操作",
           dataIndex: "actions",
           key: "actions",
-          width: 120,
+          width: ORG_LIST_ACTION_COL_WIDTH.firstSecond,
           fixed: "right" as const,
         },
       ];
@@ -601,7 +661,7 @@ const columns = computed(() => {
           title: "操作",
           dataIndex: "actions",
           key: "actions",
-          width: 100,
+          width: ORG_LIST_ACTION_COL_WIDTH.external,
           fixed: "right" as const,
         },
       ];
@@ -631,7 +691,7 @@ const columns = computed(() => {
           title: "操作",
           dataIndex: "actions",
           key: "actions",
-          width: 160,
+          width: ORG_LIST_ACTION_COL_WIDTH.area,
           fixed: "right" as const,
         },
       ];
@@ -660,7 +720,7 @@ const columns = computed(() => {
           title: "操作",
           dataIndex: "actions",
           key: "actions",
-          width: 220,
+          width: ORG_LIST_ACTION_COL_WIDTH.companyType,
           fixed: "right" as const,
         },
       ];
@@ -781,8 +841,22 @@ const displayColumns = computed(() => columns.value);
 
 // 主表格横向滚动宽度估计值
 const crmTableScrollX = computed(() => {
-  if (activeTab.value === "company") return 900;
-  return 1100;
+  switch (activeTab.value) {
+    case "company":
+      return 2252;
+    case "hqFirst":
+      return 1152;
+    case "firstSecond":
+      return 676;
+    case "external":
+      return 824;
+    case "area":
+      return 852;
+    case "companyType":
+      return 846;
+    default:
+      return 1100;
+  }
 });
 
 // 表格容器与滚动配置（依赖横向宽度 computed）
@@ -867,18 +941,26 @@ async function ensureCompanyTypeOptions() {
  * @returns 返回 Promise，当前 Tab 列表更新后结束
  */
 async function loadList() {
+  clearListMsgs();
   loading.value = true;
   try {
     switch (activeTab.value) {
       case "company": {
-        const { data } = await listCompany({
+        const flat = await listCompany({
           ...companyQuery,
           companyName: companyQuery.companyName || undefined,
           typeCode: companyQuery.typeCode || undefined,
           status: companyQuery.status,
         });
+        if (consumeFlatError(flat)) {
+          rows.value = [];
+          total.value = 0;
+          break;
+        }
+        const data = (flat as { data?: unknown }).data;
         rows.value = pickRows(data);
         total.value = pickTotal(data);
+        refreshEmptySuccessMsg(flat, rows.value.length);
         break;
       }
       case "hqFirst": {
@@ -887,14 +969,21 @@ async function loadList() {
           total.value = 0;
           break;
         }
-        const { data } = await listHqFirstContract({
+        const flat = await listHqFirstContract({
           pageNum: hqFirstQuery.pageNum,
           pageSize: hqFirstQuery.pageSize,
           targetCompanyId: hqFirstQuery.hqCompanyId,
           hqCompanyId: hqFirstQuery.hqCompanyId,
         });
+        if (consumeFlatError(flat)) {
+          rows.value = [];
+          total.value = 0;
+          break;
+        }
+        const data = (flat as { data?: unknown }).data;
         rows.value = pickRows(data);
         total.value = pickTotal(data);
+        refreshEmptySuccessMsg(flat, rows.value.length);
         break;
       }
       case "firstSecond": {
@@ -903,24 +992,38 @@ async function loadList() {
           total.value = 0;
           break;
         }
-        const { data } = await listFirstSecondRelation({
+        const flat = await listFirstSecondRelation({
           pageNum: firstSecondQuery.pageNum,
           pageSize: firstSecondQuery.pageSize,
           targetCompanyId: firstSecondQuery.targetCompanyId,
           firstCompanyId: firstSecondQuery.firstCompanyId,
         });
+        if (consumeFlatError(flat)) {
+          rows.value = [];
+          total.value = 0;
+          break;
+        }
+        const data = (flat as { data?: unknown }).data;
         rows.value = pickRows(data);
         total.value = pickTotal(data);
+        refreshEmptySuccessMsg(flat, rows.value.length);
         break;
       }
       case "external": {
-        const { data } = await listExternalCompany({
+        const flat = await listExternalCompany({
           pageNum: externalQuery.pageNum,
           pageSize: externalQuery.pageSize,
           companyName: externalQuery.companyName.trim() || undefined,
         });
+        if (consumeFlatError(flat)) {
+          rows.value = [];
+          total.value = 0;
+          break;
+        }
+        const data = (flat as { data?: unknown }).data;
         rows.value = pickRows(data);
         total.value = pickTotal(data);
+        refreshEmptySuccessMsg(flat, rows.value.length);
         break;
       }
       case "area": {
@@ -929,21 +1032,33 @@ async function loadList() {
           total.value = 0;
           break;
         }
-        const { data } = await listRegion(regionQueryCompanyId.value);
+        const flat = await listRegion(regionQueryCompanyId.value);
+        if (consumeFlatError(flat)) {
+          rows.value = [];
+          total.value = 0;
+          break;
+        }
+        const data = (flat as { data?: unknown }).data;
         const list = Array.isArray(data) ? data : pickRows(data);
         rows.value = list;
         total.value = list.length;
+        refreshEmptySuccessMsg(flat, rows.value.length);
         break;
       }
       case "companyType": {
         await ensureCompanyTypeOptions();
         rows.value = companyTypeOptions.value;
         total.value = rows.value.length;
+        refreshEmptySuccessMsg({}, rows.value.length);
         break;
       }
       default:
         break;
     }
+  } catch (e: unknown) {
+    rows.value = [];
+    total.value = 0;
+    setMsgFromCatch(e);
   } finally {
     loading.value = false;
   }
@@ -993,9 +1108,13 @@ async function submitRegionForm() {
     regionName: regionForm.regionName.trim(),
     remark: regionForm.remark,
   };
-  if (payload.id) await updateRegion(payload);
-  else await addRegion(payload);
-  window.$message?.success?.("操作成功");
+  if (payload.id) {
+    const r = await updateRegion(payload);
+    if (!notifyOnceSuccessFromFlatResult(r, "操作成功")) return;
+  } else {
+    const r = await addRegion(payload);
+    if (!notifyOnceSuccessFromFlatResult(r, "操作成功")) return;
+  }
   regionFormOpen.value = false;
   await loadList();
 }
@@ -1005,10 +1124,10 @@ async function submitRegionForm() {
  * @param record - 表格行
  */
 async function removeRegion(record: RowData) {
-  await deleteRegion(record.id, {
+  const r = await deleteRegion(record.id, {
     targetCompanyId: Number(record?.companyId ?? regionQueryCompanyId.value),
   });
-  window.$message?.success?.("删除成功");
+  if (!notifyOnceSuccessFromFlatResult(r, "删除成功")) return;
   await loadList();
 }
 
@@ -1022,9 +1141,10 @@ async function loadCrmHqRows() {
     selectedHqSnapshotIds.value = [];
     return;
   }
+  clearListMsgs();
   loading.value = true;
   try {
-    const { data } = await listCrmHqFirstContractImport({
+    const flat = await listCrmHqFirstContractImport({
       pageNum: crmHqQuery.pageNum,
       pageSize: crmHqQuery.pageSize,
       targetCompanyId: crmHqQuery.hqCompanyId,
@@ -1034,9 +1154,22 @@ async function loadCrmHqRows() {
       kunnr: crmHqQuery.kunnr.trim() || undefined,
       showAbnormal: crmHqQuery.showAbnormal,
     });
+    if (consumeFlatError(flat)) {
+      rows.value = [];
+      total.value = 0;
+      selectedHqSnapshotIds.value = [];
+      return;
+    }
+    const data = (flat as { data?: unknown }).data;
     rows.value = pickRows(data);
     total.value = pickTotal(data);
     selectedHqSnapshotIds.value = [];
+    refreshEmptySuccessMsg(flat, rows.value.length);
+  } catch (e: unknown) {
+    rows.value = [];
+    total.value = 0;
+    selectedHqSnapshotIds.value = [];
+    setMsgFromCatch(e);
   } finally {
     loading.value = false;
   }
@@ -1052,9 +1185,10 @@ async function loadCrmFsRows() {
     selectedFsSnapshotIds.value = [];
     return;
   }
+  clearListMsgs();
   loading.value = true;
   try {
-    const { data } = await listCrmFirstSecondRelationImport({
+    const flat = await listCrmFirstSecondRelationImport({
       pageNum: crmFsQuery.pageNum,
       pageSize: crmFsQuery.pageSize,
       targetCompanyId: crmFsQuery.targetCompanyId,
@@ -1064,9 +1198,22 @@ async function loadCrmFsRows() {
       secondCompanyCode: crmFsQuery.secondCompanyCode.trim() || undefined,
       showAbnormal: crmFsQuery.showAbnormal,
     });
+    if (consumeFlatError(flat)) {
+      rows.value = [];
+      total.value = 0;
+      selectedFsSnapshotIds.value = [];
+      return;
+    }
+    const data = (flat as { data?: unknown }).data;
     rows.value = pickRows(data);
     total.value = pickTotal(data);
     selectedFsSnapshotIds.value = [];
+    refreshEmptySuccessMsg(flat, rows.value.length);
+  } catch (e: unknown) {
+    rows.value = [];
+    total.value = 0;
+    selectedFsSnapshotIds.value = [];
+    setMsgFromCatch(e);
   } finally {
     loading.value = false;
   }
@@ -1188,13 +1335,17 @@ function tableRowKey(record: RowData) {
  */
 function applyActiveTabByRoute(tab: TabKey) {
   activeTab.value = tab;
+  let skipImmediateLoadList = false;
   if (tab === "company") {
     companyQuery.pageNum = 1;
   }
   if (tab === "hqFirst" || tab === "firstSecond") {
     hqFirstQuery.pageNum = 1;
     firstSecondQuery.pageNum = 1;
-    loadCompanyOptionsForCrm();
+    skipImmediateLoadList = true;
+    loadCompanyOptionsForCrm().then(() => {
+      loadList();
+    });
   }
   if (tab === "external") {
     externalQuery.pageNum = 1;
@@ -1207,7 +1358,9 @@ function applyActiveTabByRoute(tab: TabKey) {
       }
     });
   }
-  loadList();
+  if (!skipImmediateLoadList) {
+    loadList();
+  }
 }
 
 /**
@@ -1288,6 +1441,26 @@ async function onHqFormHqCompanyChange(value: any) {
 }
 
 /**
+ * 作用：将后端 LocalDateTime / ISO 等串转为 `ADatePicker` `value-format="YYYY-MM-DD"` 所需的纯日期串；
+ * 与 jasic-ui `el-date-picker` `yyyy-MM-dd` 一致，避免带时分秒时控件不回显。
+ */
+function toContractDatePickerValue(v: unknown): string {
+  if (v == null || v === "") return "";
+  const s = String(v).trim();
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : s;
+}
+
+/**
+ * 作用：下拉与表单 v-model 统一为有限 number，避免接口 number|string 与选项 value 类型不一致导致 ASelect 不回显。
+ */
+function toOptionalFiniteId(v: unknown): number | undefined {
+  if (v == null || v === "") return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+/**
  * 作用：根据路由 name 切换组织 Tab；若已是当前 Tab 则返回 false。
  * @param routeName - 路由 name
  * @returns 是否发生了 Tab 切换
@@ -1307,15 +1480,15 @@ function syncActiveTabByRouteName(routeName: unknown) {
 async function openHqForm(record?: RowData) {
   await loadCompanyOptionsForCrm();
   if (record) {
-    hqForm.id = record.id;
-    hqForm.hqCompanyId = record.hqCompanyId;
-    hqForm.firstCompanyId = record.firstCompanyId;
-    hqForm.regionId = record.regionId;
-    hqForm.contractTime = record.contractTime ?? "";
-    hqForm.status = record.status ?? 1;
+    hqForm.id = toOptionalFiniteId(record.id);
+    hqForm.hqCompanyId = toOptionalFiniteId(record.hqCompanyId);
+    hqForm.firstCompanyId = toOptionalFiniteId(record.firstCompanyId);
+    hqForm.regionId = toOptionalFiniteId(record.regionId);
+    hqForm.contractTime = toContractDatePickerValue(record.contractTime);
+    hqForm.status = Number(record.status ?? 1) || 1;
   } else {
     hqForm.id = undefined;
-    hqForm.hqCompanyId = undefined;
+    hqForm.hqCompanyId = toOptionalFiniteId(hqFirstQuery.hqCompanyId);
     hqForm.firstCompanyId = undefined;
     hqForm.regionId = undefined;
     hqForm.contractTime = "";
@@ -1345,11 +1518,11 @@ async function submitHqForm() {
   }
   const body = { ...hqForm, targetCompanyId: hqForm.hqCompanyId };
   if (hqForm.id) {
-    await updateHqFirstContract(body);
-    window.$message?.success?.("操作成功");
+    const r = await updateHqFirstContract(body);
+    if (!notifyOnceSuccessFromFlatResult(r, "操作成功")) return;
   } else {
-    await addHqFirstContract(body);
-    window.$message?.success?.("操作成功");
+    const r = await addHqFirstContract(body);
+    if (!notifyOnceSuccessFromFlatResult(r, "操作成功")) return;
   }
   hqFormOpen.value = false;
   loadList();
@@ -1360,8 +1533,14 @@ async function submitHqForm() {
  * @param id - 记录 ID
  */
 async function removeHq(id: number) {
-  await deleteHqFirstContract(id, { targetCompanyId: hqFirstQuery.hqCompanyId });
-  window.$message?.success?.("删除成功");
+  if (!hqFirstQuery.hqCompanyId) {
+    window.$message?.warning?.("请先选择总部公司");
+    return;
+  }
+  const r = await deleteHqFirstContract(id, {
+    targetCompanyId: hqFirstQuery.hqCompanyId,
+  });
+  if (!notifyOnceSuccessFromFlatResult(r, "删除成功")) return;
   loadList();
 }
 
@@ -1399,9 +1578,14 @@ async function submitFsForm() {
     window.$message?.warning?.("请选择二级网点");
     return;
   }
-  const body = { ...fsForm, targetCompanyId: firstSecondQuery.targetCompanyId };
-  await addFirstSecondRelation(body);
-  window.$message?.success?.("操作成功");
+  const tid = firstSecondQuery.targetCompanyId;
+  if (!tid) {
+    window.$message?.warning?.("请先选择目标总部公司");
+    return;
+  }
+  const body = { ...fsForm, targetCompanyId: tid };
+  const r = await addFirstSecondRelation(body);
+  if (!notifyOnceSuccessFromFlatResult(r, "操作成功")) return;
   fsFormOpen.value = false;
   loadList();
 }
@@ -1411,8 +1595,14 @@ async function submitFsForm() {
  * @param id - 记录 ID
  */
 async function removeFs(id: number) {
-  await deleteFirstSecondRelation(id, { targetCompanyId: firstSecondQuery.targetCompanyId });
-  window.$message?.success?.("删除成功");
+  if (!firstSecondQuery.targetCompanyId) {
+    window.$message?.warning?.("请先选择目标总部公司");
+    return;
+  }
+  const r = await deleteFirstSecondRelation(id, {
+    targetCompanyId: firstSecondQuery.targetCompanyId,
+  });
+  if (!notifyOnceSuccessFromFlatResult(r, "删除成功")) return;
   loadList();
 }
 
@@ -1428,15 +1618,14 @@ async function triggerCrmHqImport() {
     window.$message?.warning?.("请选择要导入的CRM签约关系");
     return;
   }
-  const { data } = await importCrmHqFirstContract({
+  const res = await importCrmHqFirstContract({
     targetCompanyId: crmHqQuery.hqCompanyId,
     hqCompanyId: crmHqQuery.hqCompanyId,
     snapshotIds: selectedHqSnapshotIds.value,
   });
-  const d = (data || {}) as RowData;
-  window.$message?.success?.(
-    `选中 ${d.selectedCount ?? 0} 条，成功 ${d.successCount ?? 0} 条，已存在 ${d.existedCount ?? 0} 条，失败 ${d.failedCount ?? 0} 条`,
-  );
+  const d = (res.data || {}) as RowData;
+  const detail = `选中 ${d.selectedCount ?? 0} 条，成功 ${d.successCount ?? 0} 条，已存在 ${d.existedCount ?? 0} 条，失败 ${d.failedCount ?? 0} 条`;
+  if (!notifyOnceSuccessFromFlatResult(res, detail)) return;
   selectedHqSnapshotIds.value = [];
   hqCrmImportOpen.value = false;
   await loadList();
@@ -1454,14 +1643,13 @@ async function triggerCrmFsImport() {
     window.$message?.warning?.("请选择要导入的一级二级关系");
     return;
   }
-  const { data } = await importCrmFirstSecondRelation({
+  const res = await importCrmFirstSecondRelation({
     targetCompanyId: crmFsQuery.targetCompanyId,
     snapshotIds: selectedFsSnapshotIds.value,
   });
-  const d = (data || {}) as RowData;
-  window.$message?.success?.(
-    `选中 ${d.selectedCount ?? 0} 条，成功 ${d.successCount ?? 0} 条，已存在 ${d.existedCount ?? 0} 条，冲突 ${d.conflictCount ?? 0} 条，失败 ${d.failedCount ?? 0} 条`,
-  );
+  const d = (res.data || {}) as RowData;
+  const detail = `选中 ${d.selectedCount ?? 0} 条，成功 ${d.successCount ?? 0} 条，已存在 ${d.existedCount ?? 0} 条，冲突 ${d.conflictCount ?? 0} 条，失败 ${d.failedCount ?? 0} 条`;
+  if (!notifyOnceSuccessFromFlatResult(res, detail)) return;
   selectedFsSnapshotIds.value = [];
   await loadList();
 }
@@ -1615,14 +1803,12 @@ async function submitCompanyForm() {
   body.cityName = city?.areaName;
   body.districtName = district?.areaName;
 
-  // 接口失败时 request 侧会统一弹出错误信息，这里只处理成功时的接口返回 msg。
+  // 接口失败时 request 侧会统一弹出错误信息；成功时优先展示接口 msg。
   const result = companyForm.id
     ? await updateCompany(body)
     : await addCompany(body);
-  if (!result) return;
+  if (!notifyOnceSuccessFromFlatResult(result, "操作成功")) return;
 
-  const response = (result as unknown as { response?: unknown }).response;
-  window.$message?.success?.(getResponseMsg(response, "操作成功"));
   companyFormOpen.value = false;
   await loadList();
 }
@@ -1632,8 +1818,8 @@ async function submitCompanyForm() {
  * @param id - 公司 ID
  */
 async function removeCompany(id: number) {
-  await deleteCompany(id);
-  window.$message?.success?.("删除成功");
+  const r = await deleteCompany(id);
+  if (!notifyOnceSuccessFromFlatResult(r, "删除成功")) return;
   loadList();
 }
 
@@ -1668,10 +1854,14 @@ async function submitCompanyTypeForm() {
     orderNum: Number(companyTypeForm.orderNum ?? 0),
     remark: companyTypeForm.remark,
   };
-  if (payload.id) await updateCompanyType(payload);
-  else await addCompanyType(payload);
+  if (payload.id) {
+    const r = await updateCompanyType(payload);
+    if (!notifyOnceSuccessFromFlatResult(r, "操作成功")) return;
+  } else {
+    const r = await addCompanyType(payload);
+    if (!notifyOnceSuccessFromFlatResult(r, "操作成功")) return;
+  }
   companyTypeFormOpen.value = false;
-  window.$message?.success?.("操作成功");
   await loadList();
 }
 
@@ -1680,8 +1870,8 @@ async function submitCompanyTypeForm() {
  * @param id - 类型 ID
  */
 async function removeCompanyType(id: number) {
-  await deleteCompanyType(id);
-  window.$message?.success?.("删除成功");
+  const r = await deleteCompanyType(id);
+  if (!notifyOnceSuccessFromFlatResult(r, "删除成功")) return;
   await loadList();
 }
 
@@ -1698,6 +1888,7 @@ async function openCompanyTypeMenuAssign(record: RowData) {
   companyTypeMenuTypeCode.value = typeCode;
   companyTypeMenuTitle.value = `分配菜单 - ${record.typeName || ""}（${typeCode}）`;
   companyTypeMenuCheckedKeys.value = [];
+  companyTypeMenuExpandedKeys.value = [];
   companyTypeMenuTreeData.value = [];
   companyTypeMenuOpen.value = true;
   companyTypeMenuLoading.value = true;
@@ -1708,8 +1899,15 @@ async function openCompanyTypeMenuAssign(record: RowData) {
     ]);
     companyTypeMenuTreeData.value = pickRows(treeRes.data);
     companyTypeMenuCheckedKeys.value = Array.isArray(idsRes.data)
-      ? idsRes.data
+      ? (idsRes.data as unknown[])
+          .map((x) => Number(x))
+          .filter((id) => !Number.isNaN(id))
       : [];
+    companyTypeMenuExpandedKeys.value = computeExpandedKeysForCheckedMenuTree(
+      companyTypeMenuTreeData.value,
+      companyTypeMenuCheckedKeys.value,
+    );
+    await nextTick();
   } finally {
     companyTypeMenuLoading.value = false;
   }
@@ -1722,12 +1920,12 @@ async function submitCompanyTypeMenuAssign() {
   if (!companyTypeMenuTypeCode.value) return;
   companyTypeMenuSubmitting.value = true;
   try {
-    await assignTypeCodeMenus(
+    const r = await assignTypeCodeMenus(
       companyTypeMenuTypeCode.value,
       companyTypeMenuCheckedKeys.value,
     );
+    if (!notifyOnceSuccessFromFlatResult(r, "菜单分配保存成功")) return;
     companyTypeMenuOpen.value = false;
-    window.$message?.success?.("菜单分配保存成功");
   } finally {
     companyTypeMenuSubmitting.value = false;
   }
@@ -1809,17 +2007,29 @@ async function prefillCompanyByCrm() {
  * 作用：按 CRM 导入查询条件加载可选外部公司列表。
  */
 async function loadCompanyCrmImportList() {
+  companyCrmListMsgs.clearListMsgs();
   companyCrmImportLoading.value = true;
   try {
-    const { data } = await listExternalCompany({
+    const flat = await listExternalCompany({
       pageNum: companyCrmImportQuery.pageNum,
       pageSize: companyCrmImportQuery.pageSize,
       companyCode: companyCrmImportQuery.companyCode.trim() || undefined,
       companyName: companyCrmImportQuery.companyName.trim() || undefined,
       custState: companyCrmImportQuery.custState,
     });
+    if (companyCrmListMsgs.consumeFlatError(flat)) {
+      companyCrmImportRows.value = [];
+      companyCrmImportTotal.value = 0;
+      return;
+    }
+    const data = (flat as { data?: unknown }).data;
     companyCrmImportRows.value = pickRows(data);
     companyCrmImportTotal.value = pickTotal(data);
+    companyCrmListMsgs.refreshEmptySuccessMsg(flat, companyCrmImportRows.value.length);
+  } catch (e: unknown) {
+    companyCrmImportRows.value = [];
+    companyCrmImportTotal.value = 0;
+    companyCrmListMsgs.setMsgFromCatch(e);
   } finally {
     companyCrmImportLoading.value = false;
   }
@@ -2152,10 +2362,11 @@ onMounted(() => {
                     :options="
                       hqCompanyOptions.map((c) => ({
                         label: c.companyName,
-                        value: c.id,
+                        value: Number(c.id),
                       }))
                     "
                     @change="handleHqFirstSearch"
+                    @clear="handleHqFirstSearch"
                   />
                 </AFormItem>
               </ACol>
@@ -2184,10 +2395,11 @@ onMounted(() => {
                     :options="
                       hqCompanyOptions.map((c) => ({
                         label: c.companyName,
-                        value: c.id,
+                        value: Number(c.id),
                       }))
                     "
                     @change="handleFirstSecondSearch"
+                    @clear="handleFirstSecondSearch"
                   />
                 </AFormItem>
               </ACol>
@@ -2357,6 +2569,7 @@ onMounted(() => {
         :columns="displayColumns"
         :data-source="rows"
         :loading="loading"
+        :locale="tableListLocale"
         class="h-full"
         :pagination="tablePagination()"
         :row-key="tableRowKey"
@@ -2462,7 +2675,7 @@ onMounted(() => {
           <template
             v-else-if="column.key === 'actions' && activeTab === 'company'"
           >
-            <ASpace>
+            <ASpace :wrap="false">
               <AButton
                 type="link"
                 size="small"
@@ -2482,7 +2695,7 @@ onMounted(() => {
           <template
             v-else-if="column.key === 'actions' && activeTab === 'hqFirst'"
           >
-            <ASpace>
+            <ASpace :wrap="false">
               <AButton
                 type="link"
                 size="small"
@@ -2502,7 +2715,7 @@ onMounted(() => {
           <template
             v-else-if="column.key === 'actions' && activeTab === 'firstSecond'"
           >
-            <ASpace>
+            <ASpace :wrap="false">
               <APopconfirm
                 title="确认删除该关系？"
                 @confirm="removeFs(record.id)"
@@ -2526,7 +2739,7 @@ onMounted(() => {
           <template
             v-else-if="column.key === 'actions' && activeTab === 'area'"
           >
-            <ASpace>
+            <ASpace :wrap="false">
               <AButton
                 type="link"
                 size="small"
@@ -2546,7 +2759,7 @@ onMounted(() => {
           <template
             v-else-if="column.key === 'actions' && activeTab === 'companyType'"
           >
-            <ASpace>
+            <ASpace :wrap="false">
               <AButton
                 type="link"
                 size="small"
@@ -2689,6 +2902,7 @@ onMounted(() => {
       </AForm>
       <ATable
         :loading="loading"
+        :locale="tableListLocale"
         :columns="crmHqImportColumns"
         :data-source="rows"
         row-key="id"
@@ -2756,7 +2970,7 @@ onMounted(() => {
             :options="
               hqCompanyOptions.map((c) => ({
                 label: c.companyName,
-                value: c.id,
+                value: Number(c.id),
               }))
             "
             @change="onHqFormHqCompanyChange"
@@ -2772,7 +2986,7 @@ onMounted(() => {
             :options="
               firstCompanyOptions.map((c) => ({
                 label: c.companyName,
-                value: c.id,
+                value: Number(c.id),
               }))
             "
           />
@@ -2788,7 +3002,7 @@ onMounted(() => {
             :options="
               hqFormRegionOptions.map((r) => ({
                 label: r.regionName,
-                value: r.id,
+                value: Number(r.id),
               }))
             "
           />
@@ -2857,7 +3071,7 @@ onMounted(() => {
       </template>
     </ADrawer>
 
-    <ADrawer v-model:open="companyFormOpen" title="公司信息" :width="980">
+    <ADrawer v-model:open="companyFormOpen" title="公司信息" :width="companyFormDrawerWidth">
       <AForm
         ref="companyFormRef"
         class="mt-12px"
@@ -2867,7 +3081,7 @@ onMounted(() => {
       >
         <ARow :gutter="[16, 0]">
           <ACol :span="24" :md="12">
-            <AFormItem label="公司名称" name="companyName">
+            <AFormItem label="公司名称" name="companyName" required>
               <AInput
                 v-model:value="companyForm.companyName"
                 placeholder="请输入公司名称"
@@ -2892,7 +3106,7 @@ onMounted(() => {
             </AFormItem>
           </ACol>
           <ACol :span="24" :md="12">
-            <AFormItem label="类型编码" name="typeCode">
+            <AFormItem label="类型编码" name="typeCode" required>
               <ASelect
                 v-model:value="companyForm.typeCode"
                 show-search
@@ -2909,7 +3123,7 @@ onMounted(() => {
             </AFormItem>
           </ACol>
           <ACol :span="24" :md="12">
-            <AFormItem label="联系人" name="contactName">
+            <AFormItem label="联系人" name="contactName" required>
               <AInput
                 v-model:value="companyForm.contactName"
                 placeholder="请输入联系人"
@@ -2917,7 +3131,7 @@ onMounted(() => {
             </AFormItem>
           </ACol>
           <ACol :span="24" :md="12">
-            <AFormItem label="联系电话" name="contactPhone">
+            <AFormItem label="联系电话" name="contactPhone" required>
               <AInput
                 v-model:value="companyForm.contactPhone"
                 placeholder="请输入联系电话"
@@ -2942,7 +3156,7 @@ onMounted(() => {
           <div class="company-address-block__title">地址信息</div>
           <ARow :gutter="16">
             <ACol :span="8">
-              <AFormItem label="省份" name="provinceCode">
+              <AFormItem label="省份" name="provinceCode" required>
                 <ASelect
                   v-model:value="companyForm.provinceCode"
                   show-search
@@ -2959,7 +3173,7 @@ onMounted(() => {
               </AFormItem>
             </ACol>
             <ACol :span="8">
-              <AFormItem label="城市" name="cityCode">
+              <AFormItem label="城市" name="cityCode" required>
                 <ASelect
                   v-model:value="companyForm.cityCode"
                   show-search
@@ -2977,7 +3191,7 @@ onMounted(() => {
               </AFormItem>
             </ACol>
             <ACol :span="8">
-              <AFormItem label="区县" name="districtCode">
+              <AFormItem label="区县" name="districtCode" required>
                 <ASelect
                   v-model:value="companyForm.districtCode"
                   show-search
@@ -2997,6 +3211,7 @@ onMounted(() => {
           <AFormItem
             label="详细地址"
             name="detailAddress"
+            required
             class="company-address-block__detail"
           >
             <AInput
@@ -3053,20 +3268,20 @@ onMounted(() => {
         :model="companyTypeForm"
         :rules="companyTypeFormRules as any"
       >
-        <AFormItem label="类型名称" name="typeName">
+        <AFormItem label="类型名称" name="typeName" required>
           <AInput
             v-model:value="companyTypeForm.typeName"
             placeholder="如 总部A"
           />
         </AFormItem>
-        <AFormItem label="类型编码" name="typeCode">
+        <AFormItem label="类型编码" name="typeCode" required>
           <AInput
             v-model:value="companyTypeForm.typeCode"
             placeholder="如 HQ_A、FIRST"
             :disabled="!!companyTypeForm.id"
           />
         </AFormItem>
-        <AFormItem label="主体类型" name="subjectType">
+        <AFormItem label="主体类型" name="subjectType" required>
           <ASelect
             v-model:value="companyTypeForm.subjectType"
             placeholder="请选择"
@@ -3108,10 +3323,11 @@ onMounted(() => {
       <ASpin :spinning="companyTypeMenuLoading">
         <ATree
           v-model:checked-keys="companyTypeMenuCheckedKeys"
+          v-model:expanded-keys="companyTypeMenuExpandedKeys"
           checkable
           :tree-data="companyTypeMenuTreeData"
           :field-names="{ title: 'menuName', key: 'id', children: 'children' }"
-          class="max-h-420px overflow-auto"
+          class="overflow-auto"
         />
       </ASpin>
       <template #footer>
@@ -3140,14 +3356,14 @@ onMounted(() => {
         :model="regionForm"
         :rules="orgRegionFormRules as any"
       >
-        <AFormItem label="大区编码">
+        <AFormItem label="大区编码" name="regionCode" required>
           <AInput
             v-model:value="regionForm.regionCode"
             placeholder="如：HD"
             :maxlength="32"
           />
         </AFormItem>
-        <AFormItem label="大区名称" name="regionName">
+        <AFormItem label="大区名称" name="regionName" required>
           <AInput
             v-model:value="regionForm.regionName"
             placeholder="如：华东大区"
@@ -3240,6 +3456,7 @@ onMounted(() => {
       </AForm>
       <ATable
         :loading="companyCrmImportLoading"
+        :locale="companyCrmTableLocale"
         :data-source="companyCrmImportRows"
         row-key="id"
         size="small"
@@ -3297,7 +3514,7 @@ onMounted(() => {
             key: 'address',
             ellipsis: true,
           },
-          { title: '操作', key: 'actions', width: 90, fixed: 'right' },
+          { title: '操作', key: 'actions', width: COMPANY_CRM_IMPORT_LIST_ACTION_COL_WIDTH, fixed: 'right' },
         ]"
       >
         <template #bodyCell="{ column, record }">

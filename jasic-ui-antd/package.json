@@ -21,6 +21,7 @@
   "scripts": {
     "build": "vite build --mode prod",
     "build:test": "vite build --mode test",
+    "doc:inject-meta": "node scripts/inject-doc-meta.mjs",
     "cleanup": "sa cleanup",
     "commit": "sa git-commit",
     "commit:zh": "sa git-commit -l=zh-cn",

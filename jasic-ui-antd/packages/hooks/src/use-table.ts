@@ -50,8 +50,9 @@ export type TableConfig<A extends ApiFn, T, C> = {
    * callback when response fetched
    *
    * @param transformed transformed data
+   * @param response 原始接口返回值（扁平请求时含 error/response/data，便于取成功时的 msg）
    */
-  onFetched?: (transformed: TransformedData<T>) => MaybePromise<void>;
+  onFetched?: (transformed: TransformedData<T>, response: Awaited<ReturnType<A>>) => MaybePromise<void>;
   /**
    * whether to get data immediately
    *
@@ -102,7 +103,7 @@ export default function useHookTable<A extends ApiFn, T, C>(config: TableConfig<
 
     setEmpty(transformed.data.length === 0);
 
-    await config.onFetched?.(transformed);
+    await config.onFetched?.(transformed, response as Awaited<ReturnType<A>>);
 
     endLoading();
   }

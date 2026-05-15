@@ -28,6 +28,8 @@ import {
   getUpstreamHqCreateBarcodeInfo,
   listUpstreamFirstCreateTargetOptions
 } from '@/service/api';
+import { getFlatResponseMsg } from '@/service/request/shared';
+import { adaptiveModalWidth } from '@/hooks/common/modal-form-layout';
 import { useAuthStore } from '@/store/modules/auth';
 import {
   type RegionCascaderOption,
@@ -37,6 +39,7 @@ import {
   loadRegionCascaderData,
   splitFullAddressToRegionAndDetail
 } from '@/utils/china-region';
+import { estimateAntTableActionColWidth } from '@/utils/table-action-width';
 import {
   CREATE_ENTRY_PROXY,
   CREATE_ENTRY_UPSTREAM_FIRST,
@@ -58,6 +61,13 @@ import {
   normalizeTargetCompanyOption,
   normalizeText
 } from '../create-work-order-form';
+
+/** 地址簿子表操作列：设为默认 / 编辑 / 删除 横排估算（选择与管理模式一致） */
+const CREATE_MODAL_COMPANY_ADDRESS_ACTION_COL_W = estimateAntTableActionColWidth([
+  '设为默认',
+  '编辑',
+  '删除'
+]);
 
 const emit = defineEmits<{
   (e: 'created'): void;
@@ -190,14 +200,31 @@ const showCreateFaultRemark = computed(() => {
   if (hasCreateResolvedBarcodeInfo.value || createForm.barcodeQueryFailed) return true;
   return false;
 });
-// 根据字段多少动态设置抽屉宽度
-const createDrawerWidth = computed(() => {
-  // 字段较多时加宽抽屉，便于双列排版减少换行
+// 根据字段多少动态设置抽屉基准宽度；多于 6 个可见表单项（≥7）时宽度与 720 取大（见 adaptiveModalWidth）
+const createDrawerBaseWidth = computed(() => {
   if (hasCreateResolvedBarcodeInfo.value || isCreateMailMode.value || showCreateTargetCompany.value) {
     return 760;
   }
   return 560;
 });
+
+const createFormVisibleFieldCount = computed(() => {
+  let n = 1; // 维修路径
+  if (showCreateCustomerFields.value) n += 1;
+  if (showCreateTargetCompany.value) n += 1;
+  if (createBarcodeQueryHasFaultDescription.value) n += 1;
+  if (showCreateFaultRemark.value) n += 1;
+  if (isCreateMailMode.value) n += 1;
+  if (createSupplementExpanded.value) {
+    n += 2; // 故障媒体、语音
+    if (isCreateMailMode.value) n += 1; // 寄件快递单号凭证
+  }
+  return n;
+});
+
+const createDrawerWidth = computed(() =>
+  adaptiveModalWidth(createDrawerBaseWidth.value, createFormVisibleFieldCount.value)
+);
 // 故障选择框占位提示文案
 const createFaultPlaceholder = computed(() => {
   if (isCreateFaultSelectDisabled.value) return '请先完成商品查询';
@@ -230,7 +257,7 @@ const companyAddressColumns = computed(() => {
     {
       title: '操作',
       key: 'actions',
-      width: companyAddressDialogMode.value === 'select' ? 200 : 240,
+      width: CREATE_MODAL_COMPANY_ADDRESS_ACTION_COL_W,
       fixed: 'right' as const
     }
   ];
@@ -468,17 +495,6 @@ function resolveCreateBarcodeInfoRequest(barcode: string) {
 }
 
 /**
- * 作用：从接口结果中提取提示文案。
- * @param result - 接口返回或任意对象
- * @returns 文案字符串
- */
-function pickApiMessage(result: unknown): string {
-  if (!result || typeof result !== 'object') return '';
-  const obj = result as Record<string, unknown>;
-  return normalizeText(obj.msg ?? obj.message);
-}
-
-/**
  * 作用：请求条码信息并回填表单；失败时标记 barcodeQueryFailed。
  * @param options.preserveTargetSelection - 是否保留目标网点
  * @param options.silentSuccess - 成功时不弹 success 提示
@@ -501,7 +517,7 @@ async function queryCreateBarcodeInfo(options: { preserveTargetSelection?: boole
     const body = (res?.data || {}) as Record<string, unknown>;
     applyCreateBarcodeInfo(body, barcode);
     if (!options.silentSuccess) {
-      const msg = pickApiMessage(res);
+      const msg = getFlatResponseMsg(res, '');
       if (msg) window.$message?.success(msg);
     }
   } catch {
@@ -664,11 +680,11 @@ async function submitCompanyAddress() {
   try {
     if (companyAddressForm.id) {
       const res = await updateCompanyAddress({ id: companyAddressForm.id, ...payload });
-      const msg = pickApiMessage(res);
+      const msg = getFlatResponseMsg(res, '');
       if (msg) window.$message?.success(msg);
     } else {
       const res = await createCompanyAddress(payload);
-      const msg = pickApiMessage(res);
+      const msg = getFlatResponseMsg(res, '');
       if (msg) window.$message?.success(msg);
     }
     companyAddressFormVisible.value = false;
@@ -691,7 +707,7 @@ async function handleDeleteCompanyAddress(row: CompanyAddressVO) {
     cancelText: '取消',
     onOk: async () => {
       const res = await deleteCompanyAddress(row.id);
-      const msg = pickApiMessage(res);
+      const msg = getFlatResponseMsg(res, '');
       if (msg) window.$message?.success(msg);
       await loadCompanyAddressList({ preserveSelection: true });
     }
@@ -705,7 +721,7 @@ async function handleDeleteCompanyAddress(row: CompanyAddressVO) {
 async function handleSetDefaultCompanyAddress(row: CompanyAddressVO) {
   if (!row?.id || row.isDefault === 1) return;
   const res = await setDefaultCompanyAddress(row.id);
-  const msg = pickApiMessage(res);
+  const msg = getFlatResponseMsg(res, '');
   if (msg) window.$message?.success(msg);
   await loadCompanyAddressList({ preserveSelection: true });
 }
@@ -845,7 +861,7 @@ async function submitCreate() {
     createSubmitting.value = true;
     try {
       const res = await request;
-      const msg = pickApiMessage(res);
+      const msg = getFlatResponseMsg(res, '');
       if (msg) window.$message?.success(msg);
       createDrawerOpen.value = false;
       emit('created');
@@ -1468,6 +1484,7 @@ defineExpose({
       row-key="id"
       size="small"
       :pagination="false"
+      :scroll="{ x: 'max-content' }"
     >
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'pick'">
@@ -1481,25 +1498,29 @@ defineExpose({
           <span v-else>-</span>
         </template>
         <template v-else-if="column.key === 'actions'">
-          <AButton
-            v-if="(record as CompanyAddressVO).isDefault !== 1"
-            type="link"
-            size="small"
-            @click="handleSetDefaultCompanyAddress(record as CompanyAddressVO)"
-          >
-            设为默认
-          </AButton>
-          <AButton
-            type="link"
-            size="small"
-            class="table-action-link--primary"
-            @click="openCompanyAddressForm(record as CompanyAddressVO)"
-          >
-            编辑
-          </AButton>
-          <AButton type="link" size="small" danger @click="handleDeleteCompanyAddress(record as CompanyAddressVO)">
-            删除
-          </AButton>
+          <ASpace :size="2" :wrap="false">
+            <APopconfirm
+              v-if="(record as CompanyAddressVO).isDefault !== 1"
+              :title="`确认将「${(record as CompanyAddressVO).contactName || '该'}」设为默认地址？`"
+              @confirm="handleSetDefaultCompanyAddress(record as CompanyAddressVO)"
+            >
+              <AButton type="link" size="small">设为默认</AButton>
+            </APopconfirm>
+            <AButton
+              type="link"
+              size="small"
+              class="table-action-link--primary"
+              @click="openCompanyAddressForm(record as CompanyAddressVO)"
+            >
+              编辑
+            </AButton>
+            <APopconfirm
+              title="确认删除该地址？"
+              @confirm="handleDeleteCompanyAddress(record as CompanyAddressVO)"
+            >
+              <AButton type="link" size="small" danger>删除</AButton>
+            </APopconfirm>
+          </ASpace>
         </template>
       </template>
     </ATable>

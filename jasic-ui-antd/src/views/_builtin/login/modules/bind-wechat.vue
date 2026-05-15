@@ -44,10 +44,10 @@ async function handleSubmit() {
 
 <template>
   <AForm ref="formRef" :model="model" :rules="rules" @keyup.enter="handleSubmit">
-    <AFormItem name="bindTicket">
+    <AFormItem name="bindTicket" required>
       <AInput v-model:value="model.bindTicket" size="large" placeholder="请输入绑定票据 bindTicket" />
     </AFormItem>
-    <AFormItem name="code">
+    <AFormItem name="code" required>
       <AInput v-model:value="model.code" size="large" placeholder="请输入微信登录 code" />
     </AFormItem>
     <ASpace direction="vertical" size="large" class="w-full">

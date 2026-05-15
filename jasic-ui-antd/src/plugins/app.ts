@@ -1,5 +1,7 @@
 /**
  * 应用级插件：Vue 全局错误处理、生产环境构建版本检测与更新通知等。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 import { h } from 'vue';
 import type { App } from 'vue';
@@ -10,6 +12,8 @@ import { $t } from '@/locales';
  * 作用：注册 Vue 全局 errorHandler，仅记录运行时错误；异常页仅由接口错误跳转进入。
  * @param app Vue 应用实例
  * @returns {void}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function setupAppErrorHandle(app: App) {
   app.config.errorHandler = (err, vm, info) => {
@@ -21,6 +25,8 @@ export function setupAppErrorHandle(app: App) {
 /**
  * 作用：生产环境下按间隔拉取 index.html 的 buildTime，若有新版本则弹出刷新提示（受 VITE_AUTOMATICALLY_DETECT_UPDATE 控制）。
  * @returns {void}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function setupAppVersionNotification() {
   // 检测新版本的时间间隔（毫秒）
@@ -105,6 +111,8 @@ export function setupAppVersionNotification() {
 /**
  * 作用：请求首页 HTML 并解析 meta buildTime，用于与当前构建时间比对。
  * @returns {Promise<string>} 构建时间字符串，解析失败为空串
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 async function getHtmlBuildTime() {
   const baseUrl = import.meta.env.VITE_BASE_URL || '/';

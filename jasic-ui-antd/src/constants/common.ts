@@ -1,5 +1,7 @@
 /**
  * 通用是否类常量：是/否等 Record 与 options，供表单与列表展示复用。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 import { transformRecordToOption } from '@/utils/common';
 

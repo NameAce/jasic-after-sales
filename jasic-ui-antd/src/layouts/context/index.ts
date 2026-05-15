@@ -8,6 +8,8 @@ export const { setupStore: setupMixMenuContext, useStore: useMixMenuContext } = 
 /**
  * 混合布局下的一级/子级菜单上下文：根据当前路由同步选中的一级菜单与子菜单列表。
  * @returns 菜单数据、一级 key、子级列表及同步方法
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 function useMixMenu() {
   const route = useRoute();
@@ -20,7 +22,9 @@ function useMixMenu() {
    * 作用：设置当前高亮的一级菜单 key。
    * @param key 路由 name 前缀段
    * @returns {void}
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function setActiveFirstLevelMenuKey(key: string) {
     activeFirstLevelMenuKey.value = key;
   }
@@ -28,7 +32,9 @@ function useMixMenu() {
   /**
    * 作用：从当前 `selectedKey` 解析一级路由名并写入 `activeFirstLevelMenuKey`。
    * @returns {void}
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function getActiveFirstLevelMenuKey() {
     const [firstLevelRouteName] = selectedKey.value.split('_');
 
@@ -86,6 +92,8 @@ function useMixMenu() {
 /**
  * 作用：解析当前路由在菜单选中态下应对应的菜单 key（支持 hideInMenu + activeMenu）。
  * @returns {{ selectedKey }}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function useMenu() {
   const route = useRoute();

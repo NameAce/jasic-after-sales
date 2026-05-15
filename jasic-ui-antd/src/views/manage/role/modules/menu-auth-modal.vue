@@ -2,10 +2,11 @@
 /**
  * 角色授权 — 菜单权限弹窗：加载菜单树并回显角色已分配菜单。
  */
-import { computed, shallowRef, watch } from 'vue';
+import { computed, nextTick, shallowRef, watch } from 'vue';
 import type { SelectProps } from 'ant-design-vue';
 import type { DataNode } from 'ant-design-vue/es/tree';
 import { fetchGetAllPages, fetchGetMenuTree } from '@/service/api';
+import { computeExpandedKeysForCheckedMenuTree } from '@/utils/tree-expand-keys';
 import { $t } from '@/locales';
 
 defineOptions({
@@ -129,6 +130,9 @@ function recursiveTransform(data: Api.SystemManage.MenuTree[]): DataNode[] {
 // 已勾选菜单 id
 const checks = shallowRef<number[]>([]);
 
+// 默认展开到已勾选路径
+const expandedKeys = shallowRef<Array<string | number>>([]);
+
 /**
  * 作用：加载角色已授权菜单 id（示例为 Mock）。
  * @param 无
@@ -164,6 +168,12 @@ async function init() {
   getPages();
   await getTree();
   await getChecks();
+  expandedKeys.value = computeExpandedKeysForCheckedMenuTree(
+    tree.value as unknown[],
+    checks.value as Array<string | number>,
+    'key',
+  );
+  await nextTick();
 }
 
 // visible 为 true 时拉取数据
@@ -180,7 +190,13 @@ watch(visible, val => {
       <div>{{ $t('page.manage.menu.home') }}</div>
       <ASelect :value="home" :options="pageSelectOptions" class="w-240px" @update:value="updateHome" />
     </div>
-    <ATree v-model:checked-keys="checks" :tree-data="tree" checkable :height="280" class="h-280px" />
+    <ATree
+      v-model:checked-keys="checks"
+      v-model:expanded-keys="expandedKeys"
+      :tree-data="tree"
+      checkable
+      class="overflow-auto"
+    />
     <template #footer>
       <AButton size="small" class="mt-16px" @click="closeModal">
         {{ $t('common.cancel') }}

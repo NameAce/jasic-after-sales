@@ -1,5 +1,7 @@
 /**
  * 多页签共享逻辑：tab id、首页/固定排序、与路由 meta 同步的标题与图标更新等。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 import type { Router } from 'vue-router';
 import type { LastLevelRouteKey, RouteKey, RouteMap } from '@elegant-router/types';
@@ -11,6 +13,8 @@ import { getRoutePath } from '@/router/elegant/transform';
  * @param tabs 当前页签列表
  * @param homeTab 首页页签
  * @returns {App.Global.Tab[]} 排序后的完整列表
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function getAllTabs(tabs: App.Global.Tab[], homeTab?: App.Global.Tab) {
   if (!homeTab) {
@@ -32,6 +36,8 @@ export function getAllTabs(tabs: App.Global.Tab[], homeTab?: App.Global.Tab) {
  * 作用：判断页签是否带固定顺序索引。
  * @param tab 页签
  * @returns {boolean}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 function isFixedTab(tab: App.Global.Tab) {
   return tab.fixedIndex !== undefined && tab.fixedIndex !== null;
@@ -41,6 +47,8 @@ function isFixedTab(tab: App.Global.Tab) {
  * 作用：由路由生成页签唯一 id（支持 multiTab 时附排序后的 query）。
  * @param route 当前 tab 路由快照
  * @returns {string} 页签 id
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function getTabIdByRoute(route: App.Global.TabRoute) {
   const { path, query = {}, meta } = route;
@@ -61,6 +69,8 @@ export function getTabIdByRoute(route: App.Global.TabRoute) {
  * 作用：从路由 meta 构建完整 Tab 结构（含图标、固定序、国际化标题）。
  * @param route 路由对象
  * @returns {App.Global.Tab}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function getTabByRoute(route: App.Global.TabRoute) {
   const { name, path, fullPath = path, meta } = route;
@@ -90,6 +100,8 @@ export function getTabByRoute(route: App.Global.TabRoute) {
  * 作用：解析页签图标；多段 matched 时优先取与当前 name 一致记录上的 meta，避免合并 meta 污染。
  * @param route 路由对象
  * @returns {{ icon: string; localIcon?: string }} 图标配置
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function getRouteIcons(route: App.Global.TabRoute) {
   // Set default value for icon at the beginning
@@ -113,6 +125,8 @@ export function getRouteIcons(route: App.Global.TabRoute) {
  * @param router Router 实例
  * @param homeRouteName 首页路由名
  * @returns {App.Global.Tab}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function getDefaultHomeTab(router: Router, homeRouteName: LastLevelRouteKey) {
   const homeRoutePath = getRoutePath(homeRouteName);
@@ -140,6 +154,8 @@ export function getDefaultHomeTab(router: Router, homeRouteName: LastLevelRouteK
  * @param tabId 页签 id
  * @param tabs 页签列表
  * @returns {boolean}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function isTabInTabs(tabId: string, tabs: App.Global.Tab[]) {
   return tabs.some(tab => tab.id === tabId);
@@ -150,6 +166,8 @@ export function isTabInTabs(tabId: string, tabs: App.Global.Tab[]) {
  * @param tabId 要移除的 id
  * @param tabs 原列表
  * @returns {App.Global.Tab[]} 新列表
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function filterTabsById(tabId: string, tabs: App.Global.Tab[]) {
   return tabs.filter(tab => tab.id !== tabId);
@@ -160,6 +178,8 @@ export function filterTabsById(tabId: string, tabs: App.Global.Tab[]) {
  * @param tabIds id 列表
  * @param tabs 原列表
  * @returns {App.Global.Tab[]}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function filterTabsByIds(tabIds: string[], tabs: App.Global.Tab[]) {
   return tabs.filter(tab => !tabIds.includes(tab.id));
@@ -170,6 +190,8 @@ export function filterTabsByIds(tabIds: string[], tabs: App.Global.Tab[]) {
  * @param router Router
  * @param tabs 当前页签
  * @returns {App.Global.Tab[]}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function extractTabsByAllRoutes(router: Router, tabs: App.Global.Tab[]) {
   const routes = router.getRoutes();
@@ -183,6 +205,8 @@ export function extractTabsByAllRoutes(router: Router, tabs: App.Global.Tab[]) {
  * 作用：取出所有带 fixedIndex 的页签。
  * @param tabs 页签列表
  * @returns {App.Global.Tab[]}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function getFixedTabs(tabs: App.Global.Tab[]) {
   return tabs.filter(tab => tab.fixedIndex !== undefined);
@@ -192,6 +216,8 @@ export function getFixedTabs(tabs: App.Global.Tab[]) {
  * 作用：固定页签的 id 列表。
  * @param tabs 页签列表
  * @returns {string[]}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function getFixedTabIds(tabs: App.Global.Tab[]) {
   const fixedTabs = getFixedTabs(tabs);
@@ -203,6 +229,8 @@ export function getFixedTabIds(tabs: App.Global.Tab[]) {
  * 作用：将 newLabel/oldLabel 合并进最终展示 label。
  * @param tabs 页签列表
  * @returns {App.Global.Tab[]}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 function updateTabsLabel(tabs: App.Global.Tab[]) {
   const updated = tabs.map(tab => ({
@@ -217,6 +245,8 @@ function updateTabsLabel(tabs: App.Global.Tab[]) {
  * 作用：按 i18nKey 重新解析单个页签标题。
  * @param tab 页签
  * @returns {App.Global.Tab}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function updateTabByI18nKey(tab: App.Global.Tab) {
   const { i18nKey, label } = tab;
@@ -231,6 +261,8 @@ export function updateTabByI18nKey(tab: App.Global.Tab) {
  * 作用：批量更新页签的 i18n 标题。
  * @param tabs 页签列表
  * @returns {App.Global.Tab[]}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function updateTabsByI18nKey(tabs: App.Global.Tab[]) {
   return tabs.map(tab => updateTabByI18nKey(tab));
@@ -241,6 +273,8 @@ export function updateTabsByI18nKey(tabs: App.Global.Tab[]) {
  * @param name 路由 name
  * @param tabs 页签列表
  * @returns {App.Global.Tab | undefined}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function findTabByRouteName(name: RouteKey, tabs: App.Global.Tab[]) {
   const routePath = getRoutePath(name);

@@ -63,10 +63,10 @@ async function handleGetCaptcha() {
 
 <template>
   <AForm ref="formRef" :model="model" :rules="rules" @keyup.enter="handleSubmit">
-    <AFormItem name="phone">
+    <AFormItem name="phone" required>
       <AInput v-model:value="model.phone" size="large" :placeholder="$t('page.login.common.phonePlaceholder')" />
     </AFormItem>
-    <AFormItem name="code">
+    <AFormItem name="code" required>
       <div class="w-full flex-y-center gap-16px">
         <AInput v-model:value="model.code" size="large" :placeholder="$t('page.login.common.codePlaceholder')" />
         <AButton size="large" :disabled="isCounting" :loading="loading" @click="handleGetCaptcha">

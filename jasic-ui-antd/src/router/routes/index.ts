@@ -1,12 +1,17 @@
 /**
  * 自定义与静态路由：在 elegant 生成路由上追加业务/异常路由，并导出 `createStaticRoutes` 等。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 import type { CustomRoute, ElegantConstRoute, ElegantRoute } from '@elegant-router/types';
 import { generatedRoutes } from '../elegant/routes';
 import { layouts, views } from '../elegant/imports';
 import { transformElegantRoutesToVueRoutes } from '../elegant/transform';
 
-/** 追加在生成路由之外的自定义路由（如 exception 分组） */
+/** 追加在生成路由之外的自定义路由（如 exception 分组）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
 const customRoutes: CustomRoute[] = [
   {
     name: 'exception',
@@ -54,7 +59,10 @@ const customRoutes: CustomRoute[] = [
   }
 ];
 
-/** create routes when the auth route mode is static */
+/** create routes when the auth route mode is static
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
 export function createStaticRoutes() {
   const constantRoutes: ElegantRoute[] = [];
 
@@ -95,6 +103,8 @@ export function createStaticRoutes() {
  * Get auth vue routes
  *
  * @param routes Elegant routes
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function getAuthVueRoutes(routes: ElegantConstRoute[]) {
   return transformElegantRoutesToVueRoutes(routes, layouts, views);

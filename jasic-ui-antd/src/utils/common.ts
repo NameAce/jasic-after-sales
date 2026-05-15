@@ -1,5 +1,7 @@
 /**
  * 通用纯函数：如将常量 Record 转为 options、HTML class 切换等页面无关工具。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 import { $t } from '@/locales';
 
@@ -13,6 +15,8 @@ import { $t } from '@/locales';
  * const record = { key1: 'label1', key2: 'label2' };
  * transformRecordToOption(record);
  * ```
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function transformRecordToOption<T extends Record<string, string>>(record: T) {
   return Object.entries(record).map(([value, label]) => ({
@@ -26,6 +30,8 @@ export function transformRecordToOption<T extends Record<string, string>>(record
  *
  * @param options - 含 i18n key 的选项数组
  * @returns {CommonType.Option<string>[]} 翻译后的选项
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function translateOptions(options: CommonType.Option<string>[]) {
   return options.map(option => ({
@@ -39,6 +45,8 @@ export function translateOptions(options: CommonType.Option<string>[]) {
  *
  * @param className - 要切换的 class 名
  * @returns {{ add: () => void; remove: () => void }} 添加与移除函数
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function toggleHtmlClass(className: string) {
   function add() {

@@ -1,5 +1,7 @@
 /**
  * 与侧栏菜单 `getGlobalMenuByBaseRoute` 一致的展示标题：后端菜单在关闭 VITE_BACKEND_MENU_USE_I18N 时使用 meta.title。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 import type { RouteLocationNormalizedLoaded } from 'vue-router';
 import { $t, getLocale } from '@/locales';

@@ -53,20 +53,20 @@ async function handleSubmit() {
 
 <template>
   <AForm ref="formRef" :model="model" :rules="rules" @keyup.enter="handleSubmit">
-    <AFormItem name="phone">
+    <AFormItem name="phone" required>
       <AInput v-model:value="model.phone" size="large" :placeholder="$t('page.login.common.phonePlaceholder')" />
     </AFormItem>
-    <AFormItem name="code">
+    <AFormItem name="code" required>
       <AInput v-model:value="model.code" size="large" :placeholder="$t('page.login.common.codePlaceholder')" />
     </AFormItem>
-    <AFormItem name="password">
+    <AFormItem name="password" required>
       <AInputPassword
         v-model:value="model.password"
         size="large"
         :placeholder="$t('page.login.common.passwordPlaceholder')"
       />
     </AFormItem>
-    <AFormItem name="confirmPassword">
+    <AFormItem name="confirmPassword" required>
       <AInputPassword
         v-model:value="model.confirmPassword"
         size="large"

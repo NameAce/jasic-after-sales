@@ -1,5 +1,7 @@
 /**
  * 应用入口：静态资源与插件初始化后创建 Vue 实例，挂载 Pinia、路由再挂到 #app。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 import { createApp } from 'vue';
 import './plugins/assets';
@@ -19,6 +21,8 @@ import App from './App.vue';
  * 初始化并挂载 Vue 应用：加载插件、状态、路由后挂载到 DOM。
  *
  * @returns {Promise<void>} 无返回值
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 async function setupApp() {
   // 加载插件

@@ -2,6 +2,8 @@ import { request } from '../request';
 
 /**
  * 售后工单域接口：列表、状态统计、创建/指派/流转/维修/关闭等全生命周期。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 
 type IdLike = string | number;
@@ -20,7 +22,10 @@ export interface WorkOrderQuery extends Query {
   hasTransfer?: 0 | 1;
 }
 
-/** `GET /system/work-order/status-count`：仅提交前端筛选字段，不提交权限上下文字段。 */
+/** `GET /system/work-order/status-count`：仅提交前端筛选字段，不提交权限上下文字段。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
 export type WorkOrderStatusCountQuery = Pick<
   WorkOrderQuery,
   'viewScope' | 'orderNo' | 'customerName' | 'customerMobile' | 'barcode' | 'hasTransfer'

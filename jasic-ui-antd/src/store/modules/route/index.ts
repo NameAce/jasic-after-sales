@@ -1,5 +1,7 @@
 /**
  * 动态路由与菜单：拉取后端菜单、生成可访问路由、面包屑、缓存路由名及常量路由初始化。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 import { computed, nextTick, ref, shallowRef } from 'vue';
 import type { RouteRecordRaw } from 'vue-router';
@@ -29,7 +31,10 @@ import {
   updateLocaleOfGlobalMenus
 } from './shared';
 
-/** 路由表、菜单、面包屑与缓存策略的 Pinia store */
+/** 路由表、菜单、面包屑与缓存策略的 Pinia store
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
 export const useRouteStore = defineStore(SetupStoreId.Route, () => {
   const authStore = useAuthStore();
   const tabStore = useTabStore();
@@ -47,7 +52,9 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
    *
    * @param routeKey - 末级路由 key
    * @returns {void} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function setRouteHome(routeKey: LastLevelRouteKey) {
     routeHome.value = routeKey;
   }
@@ -60,7 +67,9 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
    *
    * @param routes - 常量路由数组
    * @returns {void} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function addConstantRoutes(routes: ElegantConstRoute[]) {
     const constantRoutesMap = new Map<string, ElegantConstRoute>([]);
 
@@ -79,7 +88,9 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
    *
    * @param routes - 权限路由数组
    * @returns {void} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function addAuthRoutes(routes: ElegantConstRoute[]) {
     const authRoutesMap = new Map<string, ElegantConstRoute>([]);
 
@@ -103,7 +114,9 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
    *
    * @param routes - 已排序的权限路由
    * @returns {void} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function getGlobalMenus(routes: ElegantConstRoute[]) {
     menus.value = getGlobalMenusByAuthRoutes(routes);
   }
@@ -112,7 +125,9 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
    * 语言切换后刷新菜单上的 i18n 文案。
    *
    * @returns {void} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function updateGlobalMenusByLocale() {
     menus.value = updateLocaleOfGlobalMenus(menus.value);
   }
@@ -128,7 +143,9 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
    *
    * @param routes - 已注册的 Vue 路由表
    * @returns {void} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function getCacheRoutes(routes: RouteRecordRaw[]) {
     cacheRoutes.value = getCacheRouteNames(routes);
   }
@@ -138,7 +155,9 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
    *
    * @param routeKey - 要刷新的路由 name，默认当前路由
    * @returns {Promise<void>} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   async function resetRouteCache(routeKey?: RouteKey) {
     const routeName = routeKey || (router.currentRoute.value.name as RouteKey);
 
@@ -156,7 +175,9 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
    * 清空路由 store、移除动态路由并重新初始化常量路由。
    *
    * @returns {Promise<void>} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   async function resetStore() {
     const routeStore = useRouteStore();
 
@@ -172,7 +193,9 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
    * 调用此前记录的 remove 函数，从 Vue Router 卸载动态添加的路由。
    *
    * @returns {void} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function resetVueRoutes() {
     removeRouteFns.forEach(fn => fn());
     removeRouteFns.length = 0;
@@ -182,7 +205,9 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
    * 首次注册常量路由、合并菜单与缓存配置，并初始化首页标签。
    *
    * @returns {Promise<void>} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   async function initConstantRoute() {
     if (isInitConstantRoute.value) return;
 
@@ -201,7 +226,9 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
    * 在用户已登录前提下初始化权限路由（静态过滤或动态拉菜单）。
    *
    * @returns {Promise<void>} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   async function initAuthRoute() {
     // check if user info is initialized
     if (!authStore.userInfo.userId && !authStore.needChooseCompany) {
@@ -225,7 +252,9 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
    * 静态模式：从 elegant 生成路由并按角色过滤后加入 Router。
    *
    * @returns {void} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function initStaticAuthRoute() {
     const { authRoutes: staticAuthRoutes } = createStaticRoutes();
 
@@ -247,7 +276,9 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
    * 动态模式：请求后端菜单、规范化后注册并解析首页与根重定向。
    *
    * @returns {Promise<void>} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   async function initDynamicAuthRoute() {
     // dynamic 模式主判定依赖后端下发路由；guard 中 meta.roles 仅兜底
     const { data, error } = await fetchGetMenus();
@@ -279,7 +310,9 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
    * 合并常量与权限路由、排序、注册到 Vue Router，并同步菜单与 keep-alive 列表。
    *
    * @returns {void} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function handleConstantAndAuthRoutes() {
     const allRoutes = [...constantRoutes.value, ...authRoutes.value];
 
@@ -301,7 +334,9 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
    *
    * @param routes - Vue 路由配置数组
    * @returns {void} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function addRoutesToVueRouter(routes: RouteRecordRaw[]) {
     routes.forEach(route => {
       const removeFn = router.addRoute(route);
@@ -314,7 +349,9 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
    *
    * @param fn - router.addRoute 返回的卸载函数
    * @returns {void} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function addRemoveRouteFn(fn: () => void) {
     removeRouteFns.push(fn);
   }
@@ -325,7 +362,9 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
    * @param redirectKey - 作为首页的路由 key
    * @param lookupRoutes - 用于解析重定向路径的完整路由表
    * @returns {void} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function handleUpdateRootRouteRedirect(redirectKey: LastLevelRouteKey, lookupRoutes: ElegantConstRoute[]) {
     const redirect = resolveRootRedirectPath(redirectKey, lookupRoutes);
 
@@ -345,7 +384,9 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
    *
    * @param routePath - 路由完整 path
    * @returns {Promise<boolean>} 是否存在对应 name 的路由
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   async function getIsAuthRouteExist(routePath: RouteMap[RouteKey]) {
     const routeName = getRouteName(routePath);
 
@@ -368,7 +409,9 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
    *
    * @param selectedKey - 当前选中菜单项 id
    * @returns {string[]} 父级到当前项的 key 路径
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function getSelectedMenuKeyPath(selectedKey: string) {
     return getSelectedMenuKeyPathByKey(selectedKey, menus.value);
   }
@@ -377,7 +420,9 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
    * 已登录用户切换路由时：若无 userId 则尝试补拉用户信息。
    *
    * @returns {Promise<void>} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   async function onRouteSwitchWhenLoggedIn() {
     if (!authStore.userInfo.userId && !authStore.needChooseCompany) {
       await authStore.initUserInfo();
@@ -388,7 +433,9 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
    * 未登录用户切换路由时的占位钩子（可扩展全局初始化）。
    *
    * @returns {Promise<void>} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   async function onRouteSwitchWhenNotLoggedIn() {
     // some global init logic if it does not need to be logged in
   }

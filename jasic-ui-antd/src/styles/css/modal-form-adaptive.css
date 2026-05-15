@@ -1,0 +1,19 @@
+/*
+ * 弹窗内表单：严格多于 6 个表单项（即从第 7 个起）时，在容器上加 .adaptive-modal-form-grid，使子级 AFormItem 两列横排；
+ * 抽屉宽度由 `adaptiveModalWidth` 将基准与 720px 取大（见 modal-form-layout.ts）。
+ */
+
+.adaptive-modal-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 16px;
+  align-items: start;
+}
+
+.adaptive-modal-form-grid > .ant-form-item {
+  margin-bottom: 16px;
+}
+
+.adaptive-modal-form-grid__full {
+  grid-column: 1 / -1;
+}

@@ -1,5 +1,7 @@
 /**
  * HTTP 请求实例：主后端 createFlatRequest、多 baseURL 的 createRequest，统一鉴权与业务错误码处理。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 import { Modal } from 'ant-design-vue';
 import { BACKEND_ERROR_CODE, createFlatRequest, createRequest } from '@sa/axios';
@@ -7,6 +9,7 @@ import { router } from '@/router';
 import { useAuthStore } from '@/store/modules/auth';
 import { localStg } from '@/utils/storage';
 import { getServiceBaseURL } from '@/utils/service';
+import type { AxiosError } from 'axios';
 import { getAuthorization, getResponseMsg, showErrorMsg } from './shared';
 import {
   shouldSkipSessionExpiredModalForUrl,
@@ -14,7 +17,10 @@ import {
 } from './skip-session-expired-modal';
 import type { RequestInstanceState } from './type';
 
-/** 开发环境且开启代理时，请求将走 Vite 代理前缀 */
+/** 开发环境且开启代理时，请求将走 Vite 代理前缀
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
 const isHttpProxy = import.meta.env.DEV && import.meta.env.VITE_HTTP_PROXY === 'Y';
 const { baseURL, otherBaseURL } = getServiceBaseURL(import.meta.env, isHttpProxy);
 
@@ -22,6 +28,8 @@ const { baseURL, otherBaseURL } = getServiceBaseURL(import.meta.env, isHttpProxy
  * 作用：将环境变量中的逗号分隔错误码解析为去空白的字符串数组。
  * @param raw 原始字符串
  * @returns {string[]} 错误码列表
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 function parseCodeList(raw: string | undefined) {
   return (raw?.split(',') || []).map(c => c.trim()).filter(Boolean);
@@ -34,6 +42,8 @@ type ExceptionRouteName = '403' | '404' | '500';
  * @param routeName 目标异常路由名
  * @param msg 接口 msg/message，展示在异常页
  * @returns {void}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 function redirectToExceptionPage(routeName: ExceptionRouteName, msg?: string) {
   const current = router.currentRoute.value;
@@ -51,6 +61,8 @@ function redirectToExceptionPage(routeName: ExceptionRouteName, msg?: string) {
 /**
  * 作用：判断当前是否处于首页相关路由，用于无权限时在首页仅弹消息而不跳 403。
  * @returns {boolean} 是否在首页
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 function isOnHomeRoute() {
   const current = router.currentRoute.value;
@@ -70,6 +82,8 @@ if (apifoxToken) {
 /**
  * 作用：主后端扁平请求实例：附加 Authorization、按业务码处理登出/无权限/500、转换 data 与网络错误提示。
  * @remarks 与 `@sa/axios` createFlatRequest 配置对象配对导出
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export const request = createFlatRequest<App.Service.Response, RequestInstanceState>(
   {
@@ -175,15 +189,21 @@ export const request = createFlatRequest<App.Service.Response, RequestInstanceSt
       return response.data.data;
     },
     onError(error) {
+      /** 业务码失败已在 `onBackendFail` 里提示，避免与 `showErrorMsg` 重复
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
+      if ((error as AxiosError)?.code === BACKEND_ERROR_CODE) {
+        return;
+      }
+
       let message = error.message || '网络错误';
       let backendErrorCode = '';
       const httpStatus = error.response?.status;
 
-      if (error.code === BACKEND_ERROR_CODE) {
-        const errorData = (error.response?.data || {}) as App.Service.Response & { message?: string };
-        message = errorData.msg || errorData.message || message;
-        backendErrorCode = String(errorData.code) || '';
-      }
+      const errorData = (error.response?.data || {}) as App.Service.Response & { message?: string };
+      message = errorData.msg || errorData.message || message;
+      backendErrorCode = String(errorData.code) || '';
 
       const httpBodyMsg = getResponseMsg(error.response, message);
 
@@ -237,6 +257,8 @@ export const request = createFlatRequest<App.Service.Response, RequestInstanceSt
 /**
  * 作用：演示/第二基地址请求实例（成功判断与数据结构不同于主接口）。
  * @remarks 使用 demo 服务 baseURL 与独立 token 头格式
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export const demoRequest = createRequest<App.Service.DemoResponse>(
   {

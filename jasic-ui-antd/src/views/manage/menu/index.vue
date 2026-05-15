@@ -21,7 +21,16 @@ const { bool: visible, setTrue: openModal } = useBoolean();
 const { tableWrapperRef, scrollConfig } = useTableScroll();
 const pageMenuTitle = useRouteMenuTitle();
 
-const { columns, columnChecks, data, loading, pagination, getData, getDataByPage } = useTable({
+const {
+  columns,
+  columnChecks,
+  data,
+  loading,
+  pagination,
+  tableListLocale,
+  getData,
+  getDataByPage
+} = useTable({
   apiFn: fetchGetMenuList,
   columns: () => [
     {
@@ -285,6 +294,7 @@ init();
         :row-selection="rowSelection"
         size="small"
         :loading="loading"
+        :locale="tableListLocale"
         row-key="id"
         :scroll="scrollConfig"
         :pagination="pagination"

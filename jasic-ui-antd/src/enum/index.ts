@@ -1,5 +1,7 @@
 /**
  * Pinia 中 setup 语法 Store 的 `$id` 枚举，与 `resetSetupStore` 插件白名单一致。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export enum SetupStoreId {
   App = 'app-store',

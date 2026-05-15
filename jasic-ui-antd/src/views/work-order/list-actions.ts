@@ -2,6 +2,8 @@
  * 工单列表主操作：按状态与权限生成行内按钮配置（与 jasic-ui 列表操作一致）。
  *
  * @see jasic-ui `workOrder/index.vue` 列表操作
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export type WorkOrderListActionCode =
   | 'ASSIGN'
@@ -53,6 +55,8 @@ export interface RowActionButton {
  * 作用：判断字符串是否为有效的工单列表动作编码。
  * @param s - 待判断字符串
  * @returns 是否为 WorkOrderListActionCode
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 function isActionCode(s: string): s is WorkOrderListActionCode {
   return Object.hasOwn(ACTION_META, s);
@@ -62,6 +66,8 @@ function isActionCode(s: string): s is WorkOrderListActionCode {
  * 作用：从行数据解析并规范化可用动作编码列表。
  * @param row - 表格行对象（含 availableActions）
  * @returns 有效动作编码数组
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function normalizeRowActionCodes(row: Record<string, unknown>): WorkOrderListActionCode[] {
   const raw = row?.availableActions;
@@ -77,6 +83,8 @@ export function normalizeRowActionCodes(row: Record<string, unknown>): WorkOrder
  * 作用：将行可用动作拆成主按钮区与「更多」区（当前策略为主区尽量展示全部）。
  * @param row - 表格行对象
  * @returns primary：优先顺序排列的主操作；more：剩余动作
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function splitRowActions(row: Record<string, unknown>): {
   primary: RowActionButton[];
@@ -120,6 +128,8 @@ export function splitRowActions(row: Record<string, unknown>): {
  * 作用：获取行数据对应的主操作按钮列表。
  * @param row - 表格行对象
  * @returns 主操作按钮配置数组
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function getRowPrimaryActions(row: Record<string, unknown>): RowActionButton[] {
   return splitRowActions(row).primary;
@@ -129,6 +139,8 @@ export function getRowPrimaryActions(row: Record<string, unknown>): RowActionBut
  * 作用：获取行数据中归入「更多」的动作按钮列表。
  * @param row - 表格行对象
  * @returns 更多区按钮配置数组
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function getRowMoreActions(row: Record<string, unknown>): RowActionButton[] {
   return splitRowActions(row).more;
@@ -139,6 +151,8 @@ export function getRowMoreActions(row: Record<string, unknown>): RowActionButton
  * @param row - 表格行对象
  * @param isCurrentView - 是否为「当前处理」视图
  * @returns 是否展示只读原因
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function shouldShowReadonlyReason(row: Record<string, unknown>, isCurrentView: boolean): boolean {
   if (!isCurrentView) return false;

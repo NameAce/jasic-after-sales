@@ -1,5 +1,7 @@
 /**
  * 多页签：与当前路由同步的 tabs、固定/首页顺序、切换与关闭策略及本地缓存键。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 import { computed, ref } from 'vue';
 import { useEventListener } from '@vueuse/core';
@@ -26,7 +28,10 @@ import {
   updateTabsByI18nKey
 } from './shared';
 
-/** 多页签状态：打开列表、激活项、与路由联动及本地缓存 */
+/** 多页签状态：打开列表、激活项、与路由联动及本地缓存
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
 export const useTabStore = defineStore(SetupStoreId.Tab, () => {
   const routeStore = useRouteStore();
   const themeStore = useThemeStore();
@@ -42,7 +47,9 @@ export const useTabStore = defineStore(SetupStoreId.Tab, () => {
    * 根据路由配置生成默认首页 tab。
    *
    * @returns {void} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function initHomeTab() {
     homeTab.value = getDefaultHomeTab(router, routeStore.routeHome);
   }
@@ -58,7 +65,9 @@ export const useTabStore = defineStore(SetupStoreId.Tab, () => {
    *
    * @param id - 页签 id
    * @returns {void} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function setActiveTabId(id: string) {
     activeTabId.value = id;
   }
@@ -68,7 +77,9 @@ export const useTabStore = defineStore(SetupStoreId.Tab, () => {
    *
    * @param currentRoute - 当前路由上的 tab 元信息
    * @returns {void} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function initTabStore(currentRoute: App.Global.TabRoute) {
     const storageTabs = localStg.get('globalTabs');
 
@@ -86,7 +97,9 @@ export const useTabStore = defineStore(SetupStoreId.Tab, () => {
    * @param route - 目标路由 tab 信息
    * @param active - 是否激活新页签，默认 true
    * @returns {void} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function addTab(route: App.Global.TabRoute, active = true) {
     const tab = getTabByRoute(route);
 
@@ -106,7 +119,9 @@ export const useTabStore = defineStore(SetupStoreId.Tab, () => {
    *
    * @param tabId - 页签 id
    * @returns {Promise<void>} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   async function removeTab(tabId: string) {
     const isRemoveActiveTab = activeTabId.value === tabId;
     const updatedTabs = filterTabsById(tabId, tabs.value);
@@ -132,7 +147,9 @@ export const useTabStore = defineStore(SetupStoreId.Tab, () => {
    * 关闭当前激活的页签。
    *
    * @returns {Promise<void>} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   async function removeActiveTab() {
     await removeTab(activeTabId.value);
   }
@@ -142,7 +159,9 @@ export const useTabStore = defineStore(SetupStoreId.Tab, () => {
    *
    * @param routeName - 路由 name
    * @returns {Promise<void>} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   async function removeTabByRouteName(routeName: RouteKey) {
     const tab = findTabByRouteName(routeName, tabs.value);
     if (!tab) return;
@@ -155,7 +174,9 @@ export const useTabStore = defineStore(SetupStoreId.Tab, () => {
    *
    * @param excludes - 额外保留的页签 id
    * @returns {Promise<void>} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   async function clearTabs(excludes: string[] = []) {
     const remainTabIds = [...getFixedTabIds(tabs.value), ...excludes];
     const removedTabsIds = tabs.value.map(tab => tab.id).filter(id => !remainTabIds.includes(id));
@@ -183,7 +204,9 @@ export const useTabStore = defineStore(SetupStoreId.Tab, () => {
    *
    * @param tab - 目标页签
    * @returns {Promise<void>} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   async function switchRouteByTab(tab: App.Global.Tab) {
     const fail = await routerPush(tab.fullPath);
     if (!fail) {
@@ -196,7 +219,9 @@ export const useTabStore = defineStore(SetupStoreId.Tab, () => {
    *
    * @param tabId - 锚点页签 id
    * @returns {Promise<void>} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   async function clearLeftTabs(tabId: string) {
     const tabIds = tabs.value.map(tab => tab.id);
     const index = tabIds.indexOf(tabId);
@@ -211,7 +236,9 @@ export const useTabStore = defineStore(SetupStoreId.Tab, () => {
    *
    * @param tabId - 锚点页签 id
    * @returns {Promise<void>} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   async function clearRightTabs(tabId: string) {
     const isHomeTab = tabId === homeTab.value?.id;
     if (isHomeTab) {
@@ -233,7 +260,9 @@ export const useTabStore = defineStore(SetupStoreId.Tab, () => {
    * @param label - 新标题文案
    * @param tabId - 目标页签 id，默认当前激活
    * @returns {void} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function setTabLabel(label: string, tabId?: string) {
     const id = tabId || activeTabId.value;
 
@@ -249,7 +278,9 @@ export const useTabStore = defineStore(SetupStoreId.Tab, () => {
    *
    * @param tabId - 目标页签 id，默认当前激活
    * @returns {void} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function resetTabLabel(tabId?: string) {
     const id = tabId || activeTabId.value;
 
@@ -264,7 +295,9 @@ export const useTabStore = defineStore(SetupStoreId.Tab, () => {
    *
    * @param tabId - 页签 id
    * @returns {boolean} 是否应保留
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function isTabRetain(tabId: string) {
     if (tabId === homeTab.value?.id) return true;
 
@@ -277,7 +310,9 @@ export const useTabStore = defineStore(SetupStoreId.Tab, () => {
    * 语言变更后刷新所有页签上的 i18n 标题。
    *
    * @returns {void} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function updateTabsByLocale() {
     tabs.value = updateTabsByI18nKey(tabs.value);
 
@@ -290,7 +325,9 @@ export const useTabStore = defineStore(SetupStoreId.Tab, () => {
    * 在开启 tab 缓存配置时将当前页签列表写入本地存储。
    *
    * @returns {void} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function cacheTabs() {
     if (!themeStore.tab.cache) return;
 

@@ -1,5 +1,7 @@
 /**
  * 主题 CSS 变量：`createColorPaletteVars` 生成各语义色色阶，`themeVars` 导出供全局样式与 Uno 引用。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 function createColorPaletteVars() {
   const colors: App.Theme.ThemeColorKey[] = ['primary', 'info', 'success', 'warning', 'error'];

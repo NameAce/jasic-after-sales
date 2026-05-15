@@ -1,5 +1,7 @@
 /**
  * 文档标题守卫：根据路由 meta 的 i18nKey 或 title 更新浏览器 tab 标题。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 import type { Router } from 'vue-router';
 import { useTitle } from '@vueuse/core';
@@ -9,6 +11,8 @@ import { $t } from '@/locales';
  * 作用：在路由切换后根据 meta 的 i18nKey/title 设置浏览器标题。
  * @param router Vue Router 实例
  * @returns {void}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function createDocumentTitleGuard(router: Router) {
   router.afterEach(to => {

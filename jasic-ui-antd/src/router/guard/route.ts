@@ -1,5 +1,7 @@
 /**
  * 核心路由守卫：常量/动态路由初始化、登录与选公司流程、角色与外链处理。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 import type {
   LocationQueryRaw,
@@ -19,6 +21,8 @@ import { $t } from '@/locales';
  * 作用：注册全局前置守卫：初始化常量/鉴权路由、登录态与公司选择流程、meta.roles 与外链等。
  * @param router Vue Router 实例
  * @returns {void}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function createRouteGuard(router: Router) {
   router.beforeEach(async (to, from, next) => {
@@ -101,6 +105,8 @@ export function createRouteGuard(router: Router) {
  * 作用：在登录后首次或常量路由未就绪时补全路由，必要时重定向登录或选公司页。
  * @param to 目标路由
  * @returns {Promise<RouteLocationRaw | null>} 需要重定向时返回目标，否则 null 表示继续当前导航
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 async function initRoute(to: RouteLocationNormalized): Promise<RouteLocationRaw | null> {
   const routeStore = useRouteStore();
@@ -219,6 +225,8 @@ async function initRoute(to: RouteLocationNormalized): Promise<RouteLocationRaw 
  * @param from 来源路由
  * @param next 导航 next
  * @returns {void}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 function handleRouteSwitch(to: RouteLocationNormalized, from: RouteLocationNormalized, next: NavigationGuardNext) {
   // route with href
@@ -238,6 +246,8 @@ function handleRouteSwitch(to: RouteLocationNormalized, from: RouteLocationNorma
  * @param to 当前目标路由
  * @param routeHome 应用首页路由 name
  * @returns {LocationQueryRaw} 登录页 query
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 function getRouteQueryOfLoginRoute(to: RouteLocationNormalized, routeHome: RouteKey) {
   const loginRoute: RouteKey = 'login';

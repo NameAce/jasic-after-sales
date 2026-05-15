@@ -1,5 +1,7 @@
 /**
  * Pinia 根安装：创建实例、注册 `$reset` 插件并挂到 Vue 应用。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 import type { App } from 'vue';
 import { createPinia } from 'pinia';
@@ -10,6 +12,8 @@ import { resetSetupStore } from './plugins';
  *
  * @param app - Vue 应用实例
  * @returns {void} 无返回值
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function setupStore(app: App) {
   // Pinia 根实例

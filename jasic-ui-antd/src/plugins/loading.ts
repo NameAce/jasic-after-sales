@@ -6,6 +6,8 @@ import { $t } from '@/locales';
 /**
  * 作用：在 #app 挂载前注入全屏加载动画 HTML，使用本地存储中的主题主色与系统标题文案。
  * @returns {void}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function setupLoading() {
   // 与主题设置同步的主色（RGB），供 UnoCSS primary 工具类在首屏生效
@@ -53,6 +55,8 @@ export function setupLoading() {
 /**
  * 作用：生成内联 SVG Logo 字符串，供首屏加载层展示。
  * @returns {string} SVG 标记字符串
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 function getLogoSvg() {
   const logoSvg = `<svg

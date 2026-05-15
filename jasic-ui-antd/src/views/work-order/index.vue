@@ -17,14 +17,21 @@ import { usePageSearchFilterCollapse } from "@/hooks/common/page-search-filter-c
 import { useRouteMenuTitle } from "@/hooks/common/route-menu-title";
 import { useTableScroll } from "@/hooks/common/table";
 import { useAuth } from "@/hooks/business/auth";
+import { estimateAntTableActionColWidth } from "@/utils/table-action-width";
+import {
+  createAntTableListLocale,
+  useListRequestTableMsgs,
+} from "@/utils/list-table-empty-state";
 import WorkOrderCreateModals from "./components/WorkOrderCreateModals.vue";
 import WorkOrderDetailDrawer from "./components/WorkOrderDetailDrawer.vue";
-import { getRowPrimaryActions } from "./list-actions";
+import {
+  ACTION_META,
+  getRowPrimaryActions,
+  type WorkOrderListActionCode,
+} from "./list-actions";
 
 type RowData = Record<string, any>;
 
-// 表格滚动容器 ref 与横向滚动配置
-const { tableWrapperRef, scrollConfig } = useTableScroll(1500);
 // 搜索区筛选项超过 4 个时可折叠
 const workOrderSearchFilter = usePageSearchFilterCollapse(5);
 // 权限钩子（如「建维修订单」按钮）
@@ -44,6 +51,20 @@ const loading = ref(false);
 const rows = ref<RowData[]>([]);
 // 分页总条数
 const total = ref(0);
+
+const {
+  listFetchErrorMsg,
+  listEmptyBackendMsg,
+  clearListMsgs,
+  consumeFlatError,
+  refreshEmptySuccessMsg,
+  setMsgFromCatch,
+} = useListRequestTableMsgs();
+const tableListLocale = createAntTableListLocale(
+  listFetchErrorMsg,
+  listEmptyBackendMsg,
+  rows,
+);
 
 // 列表查询条件（分页、视图范围、筛选字段）
 const query = reactive({
@@ -167,6 +188,22 @@ const hasAnyRowActionButtons = computed(() =>
   rows.value.some((row) => getRowPrimaryActions(row).length > 0),
 );
 
+/** 操作列宽度：主操作区单行最多时取「文案最长的 6 个」按钮横排估算（与 ACTION_META 一致） */
+const WORK_ORDER_LIST_ACTION_COL_WIDTH = estimateAntTableActionColWidth(
+  (Object.keys(ACTION_META) as WorkOrderListActionCode[])
+    .map((code) => ACTION_META[code].label)
+    .sort((a, b) => b.length - a.length)
+    .slice(0, 6),
+);
+
+/** 列宽之和（含操作列），随是否存在操作列变化，避免横向滚动不足 */
+const workOrderListTableScrollMinX = computed(() => {
+  const base =
+    180 + 140 + 120 + 140 + 140 + 120 + 180 + 140 + 140 + 90 + 180;
+  return base + (hasAnyRowActionButtons.value ? WORK_ORDER_LIST_ACTION_COL_WIDTH : 0);
+});
+const { tableWrapperRef, scrollConfig } = useTableScroll(workOrderListTableScrollMinX);
+
 // 表格列定义（按需追加操作列）
 const columns = computed(() => {
   const baseColumns: any[] = [
@@ -235,7 +272,7 @@ const columns = computed(() => {
       title: "操作",
       dataIndex: "actions",
       key: "actions",
-      width: 200,
+      width: WORK_ORDER_LIST_ACTION_COL_WIDTH,
       fixed: "right" as const,
     });
   }
@@ -326,16 +363,30 @@ function syncStatusCountMap(list: unknown) {
  * 作用：并行拉取工单列表与各状态数量。
  */
 async function loadData() {
+  clearListMsgs();
   loading.value = true;
   try {
     const [listRes, countRes] = await Promise.all([
       listWorkOrder(buildListParams()),
       countWorkOrderStatus(buildStatusCountParams()),
     ]);
-    const page = listRes.data as any;
-    rows.value = pickRows(page);
-    total.value = pickTotal(page, rows.value.length);
-    syncStatusCountMap(countRes.data);
+    if (consumeFlatError(listRes)) {
+      rows.value = [];
+      total.value = 0;
+    } else {
+      const page = listRes.data as any;
+      rows.value = pickRows(page);
+      total.value = pickTotal(page, rows.value.length);
+      refreshEmptySuccessMsg(listRes, rows.value.length);
+    }
+    const countFlat = countRes as { error?: unknown; data?: unknown };
+    if (countFlat.error == null || countFlat.error === false) {
+      syncStatusCountMap(countFlat.data);
+    }
+  } catch (e: unknown) {
+    rows.value = [];
+    total.value = 0;
+    setMsgFromCatch(e);
   } finally {
     loading.value = false;
   }
@@ -660,6 +711,7 @@ watch(
         :columns="columns"
         :data-source="rows"
         :loading="loading"
+        :locale="tableListLocale"
         bordered
         class="work-order-table h-full"
         :scroll="scrollConfig"
@@ -958,7 +1010,7 @@ watch(
 
 .work-order-actions-cell {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
   align-items: center;
   min-width: 0;
@@ -966,10 +1018,11 @@ watch(
 
 .work-order-actions-cell__row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 4px 2px;
   line-height: 1.4;
+  white-space: nowrap;
 }
 
 .work-order-actions-cell__row--primary {

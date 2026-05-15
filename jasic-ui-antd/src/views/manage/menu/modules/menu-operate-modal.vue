@@ -7,6 +7,7 @@ import { SimpleScrollbar } from '@sa/materials';
 import { enableStatusOptions, menuIconTypeOptions, menuTypeOptions } from '@/constants/business';
 import { fetchGetAllRoles } from '@/service/api';
 import { useAntdForm, useFormRules } from '@/hooks/common/form';
+import { adaptiveModalWidth } from '@/hooks/common/modal-form-layout';
 import { getLocalIcons } from '@/utils/icon';
 import { $t } from '@/locales';
 import SvgIcon from '@/components/custom/svg-icon.vue';
@@ -150,6 +151,20 @@ const showLayout = computed(() => model.value.parentId === 0);
 
 // 菜单类型为「页面」时展示 page 选择
 const showPage = computed(() => model.value.menuType === '2');
+
+/** 菜单表单顶层 AFormItem 数量下限（含 query/buttons 两块），恒大于 6，用于抽屉宽度至少 720 */
+const manageMenuFormFieldCount = computed(() => {
+  let n = 16; // 类型、名称、路由名、路径、参数、i18n、排序、图标类型、图标、状态、缓存、常量、外链、隐藏、多页签、固定序号
+  if (showLayout.value) n += 1;
+  if (showPage.value) n += 1;
+  if (model.value.hideInMenu) n += 1;
+  n += 2; // query、buttons
+  return n;
+});
+
+const manageMenuDrawerWidth = computed(() =>
+  adaptiveModalWidth(960, manageMenuFormFieldCount.value)
+);
 
 // 页面组件下拉选项（含当前 routeName 兜底）
 const pageOptions = computed(() => {
@@ -366,7 +381,7 @@ watch(
 </script>
 
 <template>
-  <ADrawer v-model:open="visible" :title="title" :width="960">
+  <ADrawer v-model:open="visible" :title="title" :width="manageMenuDrawerWidth">
     <div class="h-480px">
       <SimpleScrollbar>
         <AForm ref="formRef" layout="vertical" :model="model" :rules="rules" class="pr-20px">

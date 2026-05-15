@@ -1,5 +1,7 @@
 /**
  * 全局应用布局状态：断点、主题抽屉、侧栏折叠、整页重载、全内容区与横向滚动控制等。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 import { effectScope, nextTick, onScopeDispose, ref, watch } from 'vue';
 import { breakpointsTailwind, useBreakpoints, useEventListener, useTitle } from '@vueuse/core';
@@ -39,7 +41,9 @@ export const useAppStore = defineStore(SetupStoreId.App, () => {
    *
    * @param duration - 刷新前等待的毫秒数（有页面动画时略长）
    * @returns {Promise<void>} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   async function reloadPage(duration = 300) {
     setReloadFlag(false);
 
@@ -63,7 +67,9 @@ export const useAppStore = defineStore(SetupStoreId.App, () => {
    * 根据当前路由 meta 更新浏览器标签页标题。
    *
    * @returns {void} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function updateDocumentTitleByLocale() {
     const { i18nKey, title } = router.currentRoute.value.meta;
 
@@ -76,7 +82,9 @@ export const useAppStore = defineStore(SetupStoreId.App, () => {
    * 应用级初始化：同步 dayjs 语言、同步文档标题。
    *
    * @returns {void} 无返回值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
   function init() {
     setDayjsLocale();
     updateDocumentTitleByLocale();

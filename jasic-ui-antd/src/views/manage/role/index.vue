@@ -24,6 +24,7 @@ const {
   getData,
   getDataByPage,
   mobilePagination,
+  tableListLocale,
   searchParams,
   resetSearchParams
 } = useTable({
@@ -171,6 +172,7 @@ function edit(id: number) {
         :data-source="data"
         :row-selection="rowSelection"
         :loading="loading"
+        :locale="tableListLocale"
         row-key="id"
         size="small"
         :pagination="mobilePagination"

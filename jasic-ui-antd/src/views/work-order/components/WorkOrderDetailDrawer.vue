@@ -23,6 +23,8 @@ import {
   updateWorkOrderSendExpress,
   uploadSystemFile
 } from '@/service/api';
+import { notifyOnceSuccessFromFlatResult } from '@/service/request/shared';
+import { adaptiveModalWidth } from '@/hooks/common/modal-form-layout';
 import { useAuthStore } from '@/store/modules/auth';
 import { useAuth } from '@/hooks/business/auth';
 import type { WorkOrderListActionCode } from '../list-actions';
@@ -347,6 +349,36 @@ const isOtherRepairSelected = computed(() =>
 const isOtherReviewSelected = computed(() =>
   normalizeRepairItems(reviewForm.repairItems).includes(OTHER_REPAIR_OPTION)
 );
+
+const repairFormFieldCount = computed(() => {
+  let n = 2; // 报价金额、报价说明
+  if (hasRepairFaultConfig.value) {
+    n += 2; // 维修确认故障、维修说明（多选）
+    if (showRepairFaultRemarkInput.value) n += 1;
+    if (isOtherRepairSelected.value) n += 1;
+  } else {
+    n += 2; // 维修说明、其他维修说明（无故障配置分支下均展示）
+  }
+  n += 2; // 更换配件、故障处图片
+  return n;
+});
+
+const repairDrawerWidth = computed(() => adaptiveModalWidth(560, repairFormFieldCount.value));
+
+const reviewFormFieldCount = computed(() => {
+  let n = 2; // 客户报修故障、维修确认故障（只读）
+  if (showReviewFaultRemark.value) n += 1;
+  if (hasRepairFaultConfig.value) {
+    n += 1; // 维修说明多选
+    if (isOtherReviewSelected.value) n += 1;
+  } else {
+    n += 2; // 维修说明、其他维修说明
+  }
+  n += 2; // 更换配件、故障处图片
+  return n;
+});
+
+const reviewDrawerWidth = computed(() => adaptiveModalWidth(560, reviewFormFieldCount.value));
 
 /**
  * 根据当前工单 id 请求并写入详情数据。
@@ -848,42 +880,6 @@ function textValue(value: unknown, empty = '-') {
 }
 
 /**
- * 从接口返回体中解析成功提示文案（兼容多种嵌套结构）。
- *
- * @param result - 接口原始返回或字符串
- * @param fallback - 无 msg 时的默认提示
- * @returns {string} 用于 message.success 的文案
- */
-function successMessageFromResult(result: unknown, fallback: string) {
-  if (!result) return fallback;
-  if (typeof result === 'string') {
-    const t = result.trim();
-    return t || fallback;
-  }
-  if (typeof result === 'object') {
-    const o = result as Record<string, unknown>;
-    const direct = [o.msg, o.message, o.successMessage].find(v => typeof v === 'string' && String(v).trim());
-    if (typeof direct === 'string') return direct.trim() || fallback;
-    if (o.response && typeof o.response === 'object') {
-      const response = o.response as Record<string, unknown>;
-      if (response.data && typeof response.data === 'object') {
-        const responseData = response.data as Record<string, unknown>;
-        const responseMsg = [responseData.msg, responseData.message].find(
-          v => typeof v === 'string' && String(v).trim()
-        );
-        if (typeof responseMsg === 'string') return responseMsg.trim() || fallback;
-      }
-    }
-    if (o.data && typeof o.data === 'object') {
-      const d = o.data as Record<string, unknown>;
-      const nested = [d.msg, d.message].find(v => typeof v === 'string' && String(v).trim());
-      if (typeof nested === 'string') return nested.trim() || fallback;
-    }
-  }
-  return fallback;
-}
-
-/**
  * 将任意值规范为 trim 后的字符串（null/undefined 视为空）。
  *
  * @param value - 原始值
@@ -1030,13 +1026,13 @@ async function submitAssign() {
   try {
     const chosenId = assignForm.assignUserId as number;
     const assignResult = await assignWorkOrder({ workOrderId: id.value, assignedUserId: chosenId });
-    assignOpen.value = false;
     const selfId = Number(authStore.userInfo.userId);
-    if (Number.isFinite(selfId) && selfId > 0 && chosenId === selfId) {
-      window.$message?.success(successMessageFromResult(assignResult, '已派单给自己，可在「待接单」中接单'));
-    } else {
-      window.$message?.success(successMessageFromResult(assignResult, '派单成功'));
-    }
+    const fallback =
+      Number.isFinite(selfId) && selfId > 0 && chosenId === selfId
+        ? '已派单给自己，可在「待接单」中接单'
+        : '派单成功';
+    if (!notifyOnceSuccessFromFlatResult(assignResult, fallback)) return;
+    assignOpen.value = false;
     await loadDetail();
     emit('success');
   } finally {
@@ -1528,7 +1524,7 @@ async function submitReview() {
         : undefined,
       otherImageFileIds: reviewForm.otherImageFileIds.length ? reviewForm.otherImageFileIds : undefined
     });
-    window.$message?.success(successMessageFromResult(reviewResult, '复检登记提交成功'));
+    if (!notifyOnceSuccessFromFlatResult(reviewResult, '复检登记提交成功')) return;
     reviewOpen.value = false;
     await loadDetail();
     emit('success');
@@ -1624,7 +1620,7 @@ async function submitClose() {
     } else {
       closeResult = await closeWorkOrder(closePayload);
     }
-    window.$message?.success(successMessageFromResult(closeResult, '关闭工单提交成功'));
+    if (!notifyOnceSuccessFromFlatResult(closeResult, '关闭工单提交成功')) return;
     pendingTechAcceptPayload.value = null;
     closeOpen.value = false;
     await loadDetail();
@@ -2243,7 +2239,7 @@ defineExpose({
 
     <ADrawer v-model:open="techAcceptOpen" title="维修员接单" :width="420">
       <AForm ref="techAcceptFormRef" layout="vertical" :model="techAcceptForm" :rules="techAcceptFormRules as any">
-        <AFormItem label="故障判断" name="faultJudge">
+        <AFormItem label="故障判断" name="faultJudge" required>
           <ASelect
             v-model:value="techAcceptForm.faultJudge"
             :options="[
@@ -2279,7 +2275,7 @@ defineExpose({
 
     <ADrawer v-model:open="assignOpen" title="派单" :width="360">
       <AForm ref="assignFormRef" layout="vertical" :model="assignForm" :rules="assignFormRules as any">
-        <AFormItem label="维修员" name="assignUserId">
+        <AFormItem label="维修员" name="assignUserId" required>
           <ASelect
             v-model:value="assignForm.assignUserId"
             show-search
@@ -2299,7 +2295,7 @@ defineExpose({
 
     <ADrawer v-model:open="transferOpen" title="转单" :width="360">
       <AForm ref="transferFormRef" layout="vertical" :model="transferForm" :rules="transferFormRules as any">
-        <AFormItem label="目标公司" name="companyId">
+        <AFormItem label="目标公司" name="companyId" required>
           <ASelect
             v-model:value="transferForm.companyId"
             show-search
@@ -2320,7 +2316,7 @@ defineExpose({
       </template>
     </ADrawer>
 
-    <ADrawer v-model:open="repairOpen" title="维修登记" :width="560">
+    <ADrawer v-model:open="repairOpen" title="维修登记" :width="repairDrawerWidth">
       <AForm ref="repairFormRef" layout="vertical" :model="repairForm" :rules="repairFormRules as any">
         <AFormItem label="报价金额" name="quoteAmount">
           <AInputNumber v-model:value="repairForm.quoteAmount" class="w-full" :min="0" :precision="2" />
@@ -2338,7 +2334,7 @@ defineExpose({
             @change="handleRepairFaultItemsChange"
           />
         </AFormItem>
-        <AFormItem v-if="showRepairFaultRemarkInput" label="其它故障说明" name="faultRemark">
+        <AFormItem v-if="showRepairFaultRemarkInput" label="其它故障说明" name="faultRemark" required>
           <ATextarea v-model:value="repairForm.faultRemark" :rows="2" allow-clear placeholder="请输入其它故障说明" />
         </AFormItem>
         <AFormItem v-if="hasRepairFaultConfig" label="维修说明" name="repairItems" required>
@@ -2361,10 +2357,11 @@ defineExpose({
           v-if="isOtherRepairSelected || !hasRepairFaultConfig"
           label="其他维修说明"
           name="otherDesc"
+          :required="isOtherRepairSelected"
         >
           <ATextarea v-model:value="repairForm.otherDesc" :rows="2" allow-clear placeholder="请输入其他维修说明" />
         </AFormItem>
-        <AFormItem label="更换配件" name="partList">
+        <AFormItem label="更换配件" name="partList" required>
           <div
             v-for="(item, idx) in repairForm.partList"
             :key="`repair-part-${idx}`"
@@ -2490,7 +2487,7 @@ defineExpose({
       </template>
     </ADrawer>
 
-    <ADrawer v-model:open="reviewOpen" title="复检登记" :width="560">
+    <ADrawer v-model:open="reviewOpen" title="复检登记" :width="reviewDrawerWidth">
       <AForm ref="reviewFormRef" layout="vertical" :model="reviewForm" :rules="reviewFormRules as any">
         <AFormItem label="客户报修故障">
           <ATextarea :value="textValue(detail.faultDesc, '当前工单未记录故障描述')" :rows="2" disabled />
@@ -2530,10 +2527,11 @@ defineExpose({
           v-if="isOtherReviewSelected || !hasRepairFaultConfig"
           label="其他维修说明"
           name="otherDesc"
+          :required="isOtherReviewSelected"
         >
           <ATextarea v-model:value="reviewForm.otherDesc" :rows="2" allow-clear placeholder="请输入其他维修说明" />
         </AFormItem>
-        <AFormItem label="更换配件" name="partList">
+        <AFormItem label="更换配件" name="partList" required>
           <div
             v-for="(item, idx) in reviewForm.partList"
             :key="`review-part-${idx}`"
@@ -2691,7 +2689,7 @@ defineExpose({
 
     <ADrawer v-model:open="closeOpen" title="关闭工单" :width="420">
       <AForm ref="closeFormRef" layout="vertical" :model="closeForm" :rules="closeFormRules as any">
-        <AFormItem label="返回方式" name="returnMethod">
+        <AFormItem label="返回方式" name="returnMethod" required>
           <ASelect
             v-model:value="closeForm.returnMethod"
             placeholder="请选择返回方式"
@@ -2701,7 +2699,12 @@ defineExpose({
             ]"
           />
         </AFormItem>
-        <AFormItem v-if="closeForm.returnMethod === '回寄'" label="回寄凭证" name="returnVoucherFileIds">
+        <AFormItem
+          v-if="closeForm.returnMethod === '回寄'"
+          label="回寄凭证"
+          name="returnVoucherFileIds"
+          required
+        >
           <AUpload
             class="create-upload-picture-card"
             list-type="picture-card"
@@ -2720,7 +2723,7 @@ defineExpose({
             </div>
           </AUpload>
         </AFormItem>
-        <AFormItem label="关闭原因" name="closeReason">
+        <AFormItem label="关闭原因" name="closeReason" required>
           <ATextarea v-model:value="closeForm.closeReason" :rows="3" allow-clear placeholder="请输入关闭原因" />
         </AFormItem>
       </AForm>

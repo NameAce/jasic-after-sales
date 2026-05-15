@@ -2,13 +2,25 @@
 /**
  * 站内通知：待办与历史分页列表、角标数量与标记已读（对接 notify 接口）。
  */
-import { onMounted, reactive, ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
-import { getNotifyTodoCount, getNotifyTodoPage, markNotifyMessageRead } from '@/service/api';
+import { onMounted, reactive, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { useRouteMenuTitle } from "@/hooks/common/route-menu-title";
+import {
+  getNotifyTodoCount,
+  getNotifyTodoPage,
+  markNotifyMessageRead,
+} from "@/service/api";
+import { estimateAntTableActionColWidth } from "@/utils/table-action-width";
+import {
+  createAntTableListLocale,
+  useListRequestTableMsgs,
+} from "@/utils/list-table-empty-state";
 
 type RowData = Record<string, any>;
-type TabKey = 'TODO' | 'HISTORY';
+type TabKey = "TODO" | "HISTORY";
+
+/** 操作列：待办行「标记已读」单按钮横排估算 */
+const NOTIFY_LIST_ACTION_COL_WIDTH = estimateAntTableActionColWidth(["标记已读"]);
 
 // 列表加载中
 const loading = ref(false);
@@ -19,8 +31,22 @@ const listTotal = ref(0);
 // 当前页表格行
 const rows = ref<RowData[]>([]);
 
+const {
+  listFetchErrorMsg,
+  listEmptyBackendMsg,
+  clearListMsgs,
+  consumeFlatError,
+  refreshEmptySuccessMsg,
+  setMsgFromCatch,
+} = useListRequestTableMsgs();
+const tableListLocale = createAntTableListLocale(
+  listFetchErrorMsg,
+  listEmptyBackendMsg,
+  rows,
+);
+
 // 当前消息箱 Tab（待处理/历史）
-const activeTab = ref<TabKey>('TODO');
+const activeTab = ref<TabKey>("TODO");
 const router = useRouter();
 const route = useRoute();
 const pageMenuTitle = useRouteMenuTitle();
@@ -35,27 +61,47 @@ function defaultPageState() {
 }
 
 // 各 Tab 独立分页状态
-const pageState = reactive<Record<TabKey, { pageNum: number; pageSize: number }>>({
+const pageState = reactive<
+  Record<TabKey, { pageNum: number; pageSize: number }>
+>({
   TODO: defaultPageState(),
-  HISTORY: defaultPageState()
+  HISTORY: defaultPageState(),
 });
 
 // 待办/消息状态与 Tag 展示元数据
 const STATUS_META: Record<string, { label: string; color: string }> = {
-  PENDING: { label: '待处理', color: 'warning' },
-  READ: { label: '已读', color: 'default' },
-  DONE: { label: '已处理', color: 'success' },
-  INVALID: { label: '已失效', color: 'error' }
+  PENDING: { label: "待处理", color: "warning" },
+  READ: { label: "已读", color: "default" },
+  DONE: { label: "已处理", color: "success" },
+  INVALID: { label: "已失效", color: "error" },
 };
 
 // 消息中心表格列配置
 const columns = [
-  { title: '标题', dataIndex: 'title', key: 'title', ellipsis: true, width: 200 },
-  { title: '摘要', dataIndex: 'summary', key: 'summary', ellipsis: true, minWidth: 200 },
-  { title: '工单号', dataIndex: 'bizNo', key: 'bizNo', width: 160, ellipsis: true },
-  { title: '状态', dataIndex: 'todoStatus', key: 'todoStatus', width: 100 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 170 },
-  { title: '操作', dataIndex: 'actions', key: 'actions', width: 100 }
+  {
+    title: "标题",
+    dataIndex: "title",
+    key: "title",
+    ellipsis: true,
+    width: 200,
+  },
+  {
+    title: "摘要",
+    dataIndex: "summary",
+    key: "summary",
+    ellipsis: true,
+    minWidth: 200,
+  },
+  {
+    title: "工单号",
+    dataIndex: "bizNo",
+    key: "bizNo",
+    width: 160,
+    ellipsis: true,
+  },
+  { title: "状态", dataIndex: "todoStatus", key: "todoStatus", width: 100 },
+  { title: "创建时间", dataIndex: "createTime", key: "createTime", width: 170 },
+  { title: "操作", dataIndex: "actions", key: "actions", width: NOTIFY_LIST_ACTION_COL_WIDTH },
 ];
 
 /**
@@ -85,17 +131,28 @@ async function refreshTodoCount() {
  * @returns 返回 Promise，列表加载结束后结束
  */
 async function loadList() {
+  clearListMsgs();
   loading.value = true;
   const ps = pageState[activeTab.value];
   try {
     const pageRes = await getNotifyTodoPage({
       box: activeTab.value,
       pageNum: ps.pageNum,
-      pageSize: ps.pageSize
+      pageSize: ps.pageSize,
     });
+    if (consumeFlatError(pageRes)) {
+      rows.value = [];
+      listTotal.value = 0;
+      return;
+    }
     const body = pageRes.data;
     rows.value = pickRows(body);
     listTotal.value = Number(body?.total ?? 0);
+    refreshEmptySuccessMsg(pageRes, rows.value.length);
+  } catch (e: unknown) {
+    rows.value = [];
+    listTotal.value = 0;
+    setMsgFromCatch(e);
   } finally {
     loading.value = false;
   }
@@ -116,7 +173,7 @@ async function loadPage() {
  * @returns 展示文案或原值
  */
 function statusLabel(status: string | undefined) {
-  if (!status) return '-';
+  if (!status) return "-";
   return STATUS_META[status]?.label ?? status;
 }
 
@@ -126,8 +183,8 @@ function statusLabel(status: string | undefined) {
  * @returns Ant Design Tag 颜色名
  */
 function statusColor(status: string | undefined) {
-  if (!status) return 'default';
-  return STATUS_META[status]?.color ?? 'default';
+  if (!status) return "default";
+  return STATUS_META[status]?.color ?? "default";
 }
 
 /**
@@ -194,17 +251,17 @@ function resolveWorkOrderId(row: RowData) {
 async function openMessage(row: RowData) {
   const workOrderId = resolveWorkOrderId(row);
   if (!workOrderId) {
-    window.$message?.warning('当前消息缺少工单跳转信息');
+    window.$message?.warning("当前消息缺少工单跳转信息");
     return;
   }
 
   const jump = () =>
     router.push({
-      name: 'after-sales_work-order',
-      query: { detailId: String(workOrderId), fromNotify: '1' }
+      name: "after-sales_work-order",
+      query: { detailId: String(workOrderId), fromNotify: "1" },
     });
 
-  if (row.todoStatus !== 'PENDING') {
+  if (row.todoStatus !== "PENDING") {
     await jump();
     return;
   }
@@ -221,21 +278,32 @@ async function openMessage(row: RowData) {
  * @returns {void} 无
  */
 onMounted(() => {
-  const box = String(route.query.box || '').toUpperCase();
-  if (box === 'HISTORY') {
-    activeTab.value = 'HISTORY';
-  } else if (box === 'TODO') {
-    activeTab.value = 'TODO';
+  const box = String(route.query.box || "").toUpperCase();
+  if (box === "HISTORY") {
+    activeTab.value = "HISTORY";
+  } else if (box === "TODO") {
+    activeTab.value = "TODO";
   }
   loadPage();
 });
 </script>
 
 <template>
-  <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
-    <ACard :title="pageMenuTitle" :bordered="false" class="flex-col-stretch card-wrapper sm:flex-1-hidden">
+  <div
+    class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto"
+  >
+    <ACard
+      :title="pageMenuTitle"
+      :bordered="false"
+      class="flex-col-stretch card-wrapper sm:flex-1-hidden"
+    >
       <div class="mb-12px">待办通知数：{{ todoCount }}</div>
-      <ATabs :active-key="activeTab" size="small" class="mb-12px" @change="handleTabChange">
+      <ATabs
+        :active-key="activeTab"
+        size="small"
+        class="mb-12px"
+        @change="handleTabChange"
+      >
         <ATabPane key="TODO" tab="待处理" />
         <ATabPane key="HISTORY" tab="历史记录" />
       </ATabs>
@@ -243,32 +311,41 @@ onMounted(() => {
         :columns="columns"
         :data-source="rows"
         :loading="loading"
+        :locale="tableListLocale"
+        :scroll="{ x: 'max-content' }"
         :pagination="{
           current: pageState[activeTab].pageNum,
           pageSize: pageState[activeTab].pageSize,
           total: listTotal,
           showSizeChanger: true,
           showTotal: (t: number) => `共 ${t} 条`,
-          onChange: handleTableChange
+          onChange: handleTableChange,
         }"
         row-key="id"
         size="small"
-        :custom-row="record => ({ onClick: () => openMessage(record) })"
+        :custom-row="(record) => ({ onClick: () => openMessage(record) })"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'todoStatus'">
-            <ATag :color="statusColor(record.todoStatus)">{{ statusLabel(record.todoStatus) }}</ATag>
+            <ATag :color="statusColor(record.todoStatus)">{{
+              statusLabel(record.todoStatus)
+            }}</ATag>
           </template>
           <template v-else-if="column.key === 'actions'">
-            <AButton
+            <APopconfirm
               v-if="record.todoStatus === 'PENDING'"
-              type="link"
-              size="small"
-              class="table-action-link--success"
-              @click.stop="markRead(record)"
+              title="确认将本条标记为已读？"
+              @confirm="markRead(record)"
             >
-              标记已读
-            </AButton>
+              <AButton
+                type="link"
+                size="small"
+                class="table-action-link--success"
+                @click.stop="() => {}"
+              >
+                标记已读
+              </AButton>
+            </APopconfirm>
             <span v-else>-</span>
           </template>
         </template>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 操作日志：分页查询、条件筛选与清理/删除（对接 log 域接口）。
+ * 操作日志：分页查询、条件筛选与清理/删除；详情以右侧抽屉展示（对接 log 域接口）。
  */
 import { onMounted, reactive, ref } from 'vue';
 import { tagColorEnabled } from '@/constants/list-status-tag';
@@ -9,6 +9,10 @@ import PageSearchExpandButton from '@/components/custom/page-search-expand-butto
 import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
 import { useTableScroll } from '@/hooks/common/table';
+import {
+  createAntTableListLocale,
+  useListRequestTableMsgs
+} from '@/utils/list-table-empty-state';
 
 type RowData = Record<string, any>;
 
@@ -21,6 +25,17 @@ const logSearchFilter = usePageSearchFilterCollapse(5);
 const loading = ref(false);
 const rows = ref<RowData[]>([]);
 const total = ref(0);
+
+const {
+  listFetchErrorMsg,
+  listEmptyBackendMsg,
+  clearListMsgs,
+  consumeFlatError,
+  refreshEmptySuccessMsg,
+  setMsgFromCatch
+} = useListRequestTableMsgs();
+const tableListLocale = createAntTableListLocale(listFetchErrorMsg, listEmptyBackendMsg, rows);
+
 // 表格多选主键
 const selectedRowKeys = ref<(string | number)[]>([]);
 
@@ -62,7 +77,7 @@ const columns = [
   { title: '操作时间', dataIndex: 'operTime', key: 'operTime', width: 170 }
 ];
 
-// 详情弹窗开关与当前行数据
+// 详情抽屉开关与当前行数据
 const detailOpen = ref(false);
 const detail = ref<RowData>({});
 
@@ -100,11 +115,23 @@ function buildListParams(): OperLogQuery {
  * @returns Promise，列表加载完成后结束
  */
 async function loadList() {
+  clearListMsgs();
   loading.value = true;
   try {
-    const { data } = await listOperLog(buildListParams());
+    const flat = await listOperLog(buildListParams());
+    if (consumeFlatError(flat)) {
+      rows.value = [];
+      total.value = 0;
+      return;
+    }
+    const data = (flat as { data?: unknown }).data;
     rows.value = pickRows(data);
-    total.value = Number(data?.total) || rows.value.length;
+    total.value = Number((data as { total?: unknown })?.total) || rows.value.length;
+    refreshEmptySuccessMsg(flat, rows.value.length);
+  } catch (e: unknown) {
+    rows.value = [];
+    total.value = 0;
+    setMsgFromCatch(e);
   } finally {
     loading.value = false;
   }
@@ -156,7 +183,7 @@ function onPageChange(page: number, pageSize?: number) {
 }
 
 /**
- * 作用：打开详情弹窗并展示当前行数据。
+ * 作用：打开右侧详情抽屉并展示当前行数据。
  * @param row - 日志表格行
  * @returns {void} 无
  */
@@ -301,8 +328,12 @@ onMounted(loadList);
     >
       <template #extra>
         <ASpace>
-          <AButton danger size="small" :disabled="!selectedRowKeys.length" @click="batchDelete">批量删除</AButton>
-          <AButton danger size="small" ghost @click="cleanAll">清空日志</AButton>
+          <APopconfirm title="确认删除所选日志？" :disabled="!selectedRowKeys.length" @confirm="batchDelete">
+            <AButton danger size="small" :disabled="!selectedRowKeys.length">批量删除</AButton>
+          </APopconfirm>
+          <APopconfirm title="确认清空全部操作日志？此操作不可恢复。" @confirm="cleanAll">
+            <AButton danger size="small" ghost>清空日志</AButton>
+          </APopconfirm>
         </ASpace>
       </template>
       <ATable
@@ -310,6 +341,7 @@ onMounted(loadList);
         :columns="columns"
         :data-source="rows"
         :loading="loading"
+        :locale="tableListLocale"
         row-key="id"
         size="small"
         class="h-full"
@@ -356,7 +388,13 @@ onMounted(loadList);
       </ATable>
     </ACard>
 
-    <AModal v-model:open="detailOpen" title="操作日志详情" width="860px" :footer="null">
+    <ADrawer
+      v-model:open="detailOpen"
+      title="操作日志详情"
+      placement="right"
+      :width="800"
+      destroy-on-close
+    >
       <ADescriptions bordered size="small" :column="2" :label-style="{ whiteSpace: 'nowrap' }">
         <ADescriptionsItem label="日志ID">{{ detail.id }}</ADescriptionsItem>
         <ADescriptionsItem label="操作模块">{{ detail.title }}</ADescriptionsItem>
@@ -381,6 +419,11 @@ onMounted(loadList);
           <span class="text-red-500">{{ detail.errorMsg }}</span>
         </ADescriptionsItem>
       </ADescriptions>
-    </AModal>
+      <template #footer>
+        <ASpace>
+          <AButton type="primary" @click="detailOpen = false">关闭</AButton>
+        </ASpace>
+      </template>
+    </ADrawer>
   </div>
 </template>

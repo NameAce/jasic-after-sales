@@ -1,5 +1,7 @@
 /**
  * 路由与菜单共享工具：后端菜单与 elegant 路由的归一化、排序、按角色过滤、全局菜单/面包屑/缓存路由名等。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 import type { RouteLocationNormalizedLoaded, RouteRecordRaw, _RouteRecordBase } from 'vue-router';
 import type { ElegantConstRoute, LastLevelRouteKey, RouteKey, RouteMap } from '@elegant-router/types';
@@ -102,7 +104,10 @@ function resolveFallbackOrder(
   return siblingIndex + 1 + siblingCount * 100;
 }
 
-/** Ensure Vue Router absolute path (leading `/`). */
+/** Ensure Vue Router absolute path (leading `/`).
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
 function normalizeLeadingSlash(path: string): string {
   const p = String(path || '').trim();
   if (!p) return '/';
@@ -111,6 +116,8 @@ function normalizeLeadingSlash(path: string): string {
 
 /**
  * Join parent absolute path with backend segment (may be absolute or relative).
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 function resolveBackendAbsolutePath(parentAbs: string | null, segment: string): string {
   const seg = String(segment || '').trim();
@@ -123,6 +130,8 @@ function resolveBackendAbsolutePath(parentAbs: string | null, segment: string): 
 /**
  * Build elegant-router route name from absolute path (underscore between segments, kebab per segment).
  * Example: `/system/user` -> `system_user`, `/log/operLog` -> `log_oper-log`
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 function pathToElegantRouteName(fullPath: string): string {
   const segments = normalizeLeadingSlash(fullPath)
@@ -134,6 +143,8 @@ function pathToElegantRouteName(fullPath: string): string {
 
 /**
  * Convert jasic-ui style component path to elegant `view` key (`system/user/index` -> `system_user`).
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 function backendFilePathToViewKey(filePath: string): string {
   let s = filePath.trim();
@@ -163,10 +174,14 @@ function isBackendLayoutPlaceholder(raw: unknown): boolean {
 /**
  * Backend pages not yet split into separate Vue files: map generated view key -> existing registered view key.
  * Keeps dynamic mode from crashing when menus reference more pages than the PC bundle registers.
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 /**
  * 后端路径里的驼峰段会变成 kebab（如 roleTemplate -> role-template），
  * 路由名形如 system_role-template；别名必须用最终 routeName / viewKey，否则会匹配失败。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 const BACKEND_VIEW_KEY_ALIASES: Record<string, string> = {
   'log_oper-log': 'log',
@@ -232,6 +247,8 @@ function resolveElegantComponentString(params: {
  * Backend may return these fields either at route root or in `meta`.
  * - Resolves relative `path` against parent (e.g. `user` under `/system` -> `/system/user`).
  * - Maps jasic `component` like `system/user/index` to elegant `view.system_user` / `layout.base`.
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function normalizeAuthRoutesFromBackend(
   routes: Array<ElegantConstRoute | BackendMenuRoute>,
@@ -315,6 +332,8 @@ function getFirstLeafRoute(routes: ElegantConstRoute[]): ElegantConstRoute | nul
 /**
  * 动态路由下后端菜单的 route name 往往不在前端的 routeMap 中，且可能与 VITE_ROUTE_HOME（默认 home）不一致。
  * 解析实际存在的首页 name，避免根路径仍重定向到未注册的 /home 而进入 not-found。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function resolveDynamicHomeRouteKey(
   preferred: LastLevelRouteKey,
@@ -326,7 +345,10 @@ export function resolveDynamicHomeRouteKey(
   return (leaf?.name as LastLevelRouteKey) ?? preferred;
 }
 
-/** 根路由 redirect 使用菜单树中的绝对 path，避免仅依赖 getRoutePath（静态表）导致 404 */
+/** 根路由 redirect 使用菜单树中的绝对 path，避免仅依赖 getRoutePath（静态表）导致 404
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
+ */
 export function resolveRootRedirectPath(
   redirectKey: LastLevelRouteKey,
   routes: ElegantConstRoute[]
@@ -345,6 +367,8 @@ export function resolveRootRedirectPath(
  *
  * @param routes Auth routes
  * @param roles Roles
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function filterAuthRoutesByRoles(routes: ElegantConstRoute[], roles: string[]) {
   return routes.flatMap(route => filterAuthRouteByRoles(route, roles));
@@ -355,6 +379,8 @@ export function filterAuthRoutesByRoles(routes: ElegantConstRoute[], roles: stri
  *
  * @param route Auth route
  * @param roles Roles
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 function filterAuthRouteByRoles(route: ElegantConstRoute, roles: string[]): ElegantConstRoute[] {
   const routeRoles = (route.meta && route.meta.roles) || [];
@@ -383,6 +409,8 @@ function filterAuthRouteByRoles(route: ElegantConstRoute, roles: string[]): Eleg
  * sort route by order
  *
  * @param route route
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 function sortRouteByOrder(route: ElegantConstRoute) {
   if (route.children?.length) {
@@ -397,6 +425,8 @@ function sortRouteByOrder(route: ElegantConstRoute) {
  * sort routes by order
  *
  * @param routes routes
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function sortRoutesByOrder(routes: ElegantConstRoute[]) {
   routes.sort((next, prev) => (Number(next.meta?.order) || 0) - (Number(prev.meta?.order) || 0));
@@ -409,6 +439,8 @@ export function sortRoutesByOrder(routes: ElegantConstRoute[]) {
  * Get global menus by auth routes
  *
  * @param routes Auth routes
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function getGlobalMenusByAuthRoutes(routes: ElegantConstRoute[]) {
   const menus: App.Global.Menu[] = [];
@@ -432,6 +464,8 @@ export function getGlobalMenusByAuthRoutes(routes: ElegantConstRoute[]) {
  * Update locale of global menus
  *
  * @param menus
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function updateLocaleOfGlobalMenus(menus: App.Global.Menu[]) {
   const result: App.Global.Menu[] = [];
@@ -461,6 +495,8 @@ export function updateLocaleOfGlobalMenus(menus: App.Global.Menu[]) {
  * Get global menu by route
  *
  * @param route
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 // eslint-disable-next-line complexity
 function getGlobalMenuByBaseRoute(route: RouteLocationNormalizedLoaded | ElegantConstRoute) {
@@ -497,6 +533,8 @@ function getGlobalMenuByBaseRoute(route: RouteLocationNormalizedLoaded | Elegant
  * Get cache route names
  *
  * @param routes Vue routes (two levels)
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function getCacheRouteNames(routes: RouteRecordRaw[]) {
   const cacheNames: LastLevelRouteKey[] = [];
@@ -518,6 +556,8 @@ export function getCacheRouteNames(routes: RouteRecordRaw[]) {
  *
  * @param routeName
  * @param routes
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function isRouteExistByRouteName(routeName: RouteKey, routes: ElegantConstRoute[]) {
   return routes.some(route => recursiveGetIsRouteExistByRouteName(route, routeName));
@@ -528,6 +568,8 @@ export function isRouteExistByRouteName(routeName: RouteKey, routes: ElegantCons
  *
  * @param route
  * @param routeName
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 function recursiveGetIsRouteExistByRouteName(route: ElegantConstRoute, routeName: RouteKey) {
   let isExist = route.name === routeName;
@@ -548,6 +590,8 @@ function recursiveGetIsRouteExistByRouteName(route: ElegantConstRoute, routeName
  *
  * @param selectedKey
  * @param menus
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function getSelectedMenuKeyPathByKey(selectedKey: string, menus: App.Global.Menu[]) {
   const keyPath: string[] = [];
@@ -572,6 +616,8 @@ export function getSelectedMenuKeyPathByKey(selectedKey: string, menus: App.Glob
  *
  * @param targetKey Target menu key
  * @param menu Menu
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 function findMenuPath(targetKey: string, menu: App.Global.Menu): string[] | null {
   const path: string[] = [];
@@ -608,6 +654,8 @@ function findMenuPath(targetKey: string, menu: App.Global.Menu): string[] | null
  *
  * @param route
  * @param menus
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function getBreadcrumbsByRoute(
   route: RouteLocationNormalizedLoaded,
@@ -653,6 +701,8 @@ export function getBreadcrumbsByRoute(
  *
  * @param menus - menus
  * @param treeMap
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 export function transformMenuToSearchMenus(menus: App.Global.Menu[], treeMap: App.Global.Menu[] = []) {
   if (menus && menus.length === 0) return [];

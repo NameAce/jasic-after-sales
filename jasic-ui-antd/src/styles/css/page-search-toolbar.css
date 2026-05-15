@@ -40,7 +40,6 @@
   }
 }
 
-/** layout="inline" 的弹窗内筛选：最后一项（通常为按钮组）靠右 */
 .page-search-toolbar--inline.ant-form,
 form.page-search-toolbar--inline.ant-form-inline {
   display: flex;
@@ -50,8 +49,13 @@ form.page-search-toolbar--inline.ant-form-inline {
   width: 100%;
 }
 
-.page-search-toolbar--inline.ant-form > .ant-form-item:last-child,
-form.page-search-toolbar--inline.ant-form-inline > .ant-form-item:last-child {
+/**
+ * layout="inline" 的弹窗内筛选：最后一项（通常为按钮组）靠右。
+ * 仅一项时不要用 margin-left:auto，否则单独的状态等筛选项会被挤到最右侧（应靠左）。
+ */
+.page-search-toolbar--inline.ant-form > .ant-form-item:last-child:not(:only-child),
+form.page-search-toolbar--inline.ant-form-inline
+  > .ant-form-item:last-child:not(:only-child) {
   margin-left: auto;
   margin-bottom: 0;
 }

@@ -1,5 +1,7 @@
 /**
  * 简体中文文案表：键结构与 `App.I18n.Schema` 一致，为 `$t` 的唯一数据源。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 const local: App.I18n.Schema = {
   system: {

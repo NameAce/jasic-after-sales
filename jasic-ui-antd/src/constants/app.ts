@@ -1,5 +1,7 @@
 /**
  * 应用级常量：顶栏/侧栏菜单挂载点 DOM id、主题方案与布局模式 i18n key、登录子模块与主题抽屉选项等。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-14
  */
 import { transformRecordToOption } from '@/utils/common';
 
