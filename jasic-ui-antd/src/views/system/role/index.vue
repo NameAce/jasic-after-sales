@@ -75,6 +75,8 @@ const menuOpen = ref(false);
 const menuSubmitting = ref(false);
 const menuTreeData = ref<any[]>([]);
 const menuCheckedKeys = ref<Array<string | number>>([]);
+/** 分配菜单抽屉打开时，展开所有「已勾选节点」的祖先路径，便于直接看到选中项 */
+const menuExpandedKeys = ref<Array<string | number>>([]);
 const currentRoleId = ref<number | null>(null);
 
 // 角色列表表格列
@@ -133,6 +135,46 @@ function mergeLegacyOption(options: ScopeOption[], currentValue?: string) {
     });
   }
   return result;
+}
+
+/**
+ * 作用：根据已勾选菜单 id，计算菜单树应展开的节点 key（祖先 + 自身若有子节点且被勾选）。
+ * @param nodes - 菜单树节点列表
+ * @param checkedKeys - 已勾选菜单 id 列表
+ * @returns 用于 ATree expanded-keys 的 key 数组
+ */
+function computeMenuExpandedKeysForChecked(
+  nodes: unknown[] | undefined,
+  checkedKeys: Array<string | number>,
+): Array<string | number> {
+  const checked = new Set(
+    checkedKeys
+      .map((k) => Number(k))
+      .filter((id) => !Number.isNaN(id)),
+  );
+  const expand = new Set<number>();
+
+  function walk(list: unknown[], ancestors: number[]): void {
+    for (const raw of list || []) {
+      const node = raw as { id?: unknown; children?: unknown[] };
+      const id = Number(node.id);
+      if (!Number.isNaN(id)) {
+        const children = Array.isArray(node.children) ? node.children : [];
+        if (children.length) {
+          walk(children, [...ancestors, id]);
+        }
+        if (checked.has(id)) {
+          ancestors.forEach((a) => expand.add(a));
+          if (children.length) {
+            expand.add(id);
+          }
+        }
+      }
+    }
+  }
+
+  walk(nodes || [], []);
+  return Array.from(expand);
 }
 
 const roleFormRules = computed(() => ({
@@ -386,6 +428,10 @@ async function openAssignMenu(record: RowData) {
         .map((id: unknown) => Number(id))
         .filter((id: number) => !Number.isNaN(id))
     : [];
+  menuExpandedKeys.value = computeMenuExpandedKeysForChecked(
+    menuTreeData.value,
+    menuCheckedKeys.value,
+  );
   await nextTick();
   menuOpen.value = true;
 }
@@ -640,10 +686,11 @@ onMounted(async () => {
       <ATree
         :key="`role-menu-${currentRoleId ?? ''}`"
         v-model:checked-keys="menuCheckedKeys"
+        v-model:expanded-keys="menuExpandedKeys"
         checkable
         :tree-data="menuTreeData"
         :field-names="{ title: 'menuName', key: 'id', children: 'children' }"
-        class="max-h-420px overflow-auto"
+        class="overflow-auto"
       />
       <template #footer>
         <ASpace :size="16">

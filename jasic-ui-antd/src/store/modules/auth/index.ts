@@ -1,7 +1,7 @@
 /**
  * 鉴权与会话：登录/登出、选公司、用户信息、token 与小程序绑定等，并与路由/页签 store 协同。
  */
-import { computed, reactive, ref } from 'vue';
+import { computed, nextTick, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { defineStore } from 'pinia';
 import { Modal } from 'ant-design-vue';
@@ -23,6 +23,9 @@ import { $t } from '@/locales';
 import { useRouteStore } from '../route';
 import { useTabStore } from '../tab';
 import { clearAuthStorage, getToken } from './shared';
+
+/** 登出接口最长等待时间；超时也继续清本地态，避免后端无响应时确认框一直 loading */
+const LOGOUT_API_WAIT_MS = 3000;
 
 export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
   const route = useRoute();
@@ -191,14 +194,12 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
 
   /**
    * 清空登录态与本地凭证，并按需跳转登录、重置路由与标签缓存。
+   * 末尾 `Modal.destroyAll` 须在导航完成之后执行，避免在「退出确认」onOk 执行过程中拆掉当前 Modal 导致界面卡死。
    *
    * @returns {Promise<void>} 无返回值
    */
   async function resetStore() {
     const authStore = useAuthStore();
-
-    // 清理可能残留的 Modal 遮罩，避免与路由跳转叠层导致整页无法点击
-    Modal.destroyAll();
 
     clearAuthStorage();
 
@@ -209,7 +210,11 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     }
 
     tabStore.cacheTabs();
-    routeStore.resetStore();
+    await routeStore.resetStore();
+
+    // 须在导航与路由重置之后执行：若在「退出确认」的 onOk 链路内过早 destroyAll，会拆掉当前 Modal 实例，易导致 AntDV 卡死
+    await nextTick();
+    Modal.destroyAll();
   }
 
   /**
@@ -219,7 +224,12 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
    */
   async function logout() {
     try {
-      await fetchLogout();
+      await Promise.race([
+        fetchLogout(),
+        new Promise<void>(resolve => {
+          setTimeout(resolve, LOGOUT_API_WAIT_MS);
+        })
+      ]);
     } finally {
       await resetStore();
     }
