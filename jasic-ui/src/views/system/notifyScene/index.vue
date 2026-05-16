@@ -250,6 +250,27 @@
                 </el-form-item>
               </el-col>
               <el-col :span="12">
+                <el-form-item label="发送小程序">
+                  <el-select
+                    v-model="getTargetForm(targetMeta.targetType).channelScene"
+                    :disabled="dialogReadonly"
+                    placeholder="请选择发送小程序"
+                    clearable
+                    style="width: 100%;"
+                  >
+                    <el-option
+                      v-for="item in channelSceneOptions"
+                      :key="item.code"
+                      :label="item.desc"
+                      :value="item.code"
+                    />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+            </el-row>
+
+            <el-row :gutter="16">
+              <el-col :span="24">
                 <el-form-item label="页面路径模板">
                   <el-input
                     v-model="getTargetForm(targetMeta.targetType).pagePathTemplate"
@@ -398,6 +419,7 @@ function buildEmptyPreviewDialog() {
     sceneName: '',
     targetType: '',
     targetTypeDesc: '',
+    channelScene: '',
     variablesText: '{}',
     result: null
   }
@@ -416,6 +438,7 @@ export default {
       options: {
         sceneOptions: [],
         targetTypeOptions: [],
+        channelSceneOptions: [],
         routeTypeOptions: []
       },
       dialogVisible: false,
@@ -435,6 +458,9 @@ export default {
     },
     targetTypeOptions() {
       return Array.isArray(this.options.targetTypeOptions) ? this.options.targetTypeOptions : []
+    },
+    channelSceneOptions() {
+      return Array.isArray(this.options.channelSceneOptions) ? this.options.channelSceneOptions : []
     },
     routeTypeOptions() {
       return Array.isArray(this.options.routeTypeOptions) ? this.options.routeTypeOptions : []
@@ -472,6 +498,7 @@ export default {
         this.options = Object.assign({
           sceneOptions: [],
           targetTypeOptions: [],
+          channelSceneOptions: [],
           routeTypeOptions: []
         }, res.data || {})
         this.optionsLoaded = true
@@ -568,6 +595,8 @@ export default {
         routeType: '',
         routeValueTemplate: '',
         templateId: '',
+        channelScene: '',
+        channelSceneDesc: '',
         pagePathTemplate: '',
         fieldMapping: [buildFieldMapping()],
         remark: ''
@@ -608,6 +637,8 @@ export default {
         routeType: targetMeta ? (targetMeta.defaultRouteType || '') : '',
         routeValueTemplate: targetMeta ? (targetMeta.defaultRouteValueTemplate || '') : '',
         templateId: targetMeta ? (targetMeta.templateId || '') : '',
+        channelScene: targetMeta ? (targetMeta.channelScene || '') : '',
+        channelSceneDesc: targetMeta ? (targetMeta.channelSceneDesc || '') : '',
         pagePathTemplate: targetMeta ? (targetMeta.pagePathTemplate || '') : '',
         fieldMapping: targetMeta && Array.isArray(targetMeta.fieldMapping) && targetMeta.fieldMapping.length
           ? targetMeta.fieldMapping.map(item => ({
@@ -648,6 +679,9 @@ export default {
       if (targetMeta.targetType === 'MP_SUBSCRIBE') {
         if (!targetForm.templateId) {
           targetForm.templateId = targetMeta.templateId || ''
+        }
+        if (!targetForm.channelScene) {
+          targetForm.channelScene = targetMeta.channelScene || ''
         }
         if (!targetForm.pagePathTemplate) {
           targetForm.pagePathTemplate = targetMeta.pagePathTemplate || ''
@@ -694,18 +728,23 @@ export default {
       if (!this.dialogForm) {
         return null
       }
-      const targetConfigs = this.currentSceneTargetMetas.map(targetMeta => {
+      const targetConfigs = []
+      for (const targetMeta of this.currentSceneTargetMetas) {
         const targetForm = this.getTargetForm(targetMeta.targetType)
         const enabled = this.checkedTargetTypes.includes(targetMeta.targetType)
           ? Number(targetForm.enabled === 1 ? 1 : 0)
           : 0
+        if (targetMeta.targetType === 'MP_SUBSCRIBE' && enabled === 1 && !this.trimValue(targetForm.channelScene)) {
+          this.$message.error(`${targetMeta.targetTypeDesc}启用时必须选择发送小程序`)
+          return null
+        }
         const fieldMapping = Array.isArray(targetForm.fieldMapping) && targetForm.fieldMapping.length
           ? targetForm.fieldMapping.map(item => ({
             field: this.trimValue(item.field) || '',
             value: this.trimValue(item.value) || ''
           }))
           : []
-        return {
+        targetConfigs.push({
           targetType: targetMeta.targetType,
           enabled,
           titleTemplate: this.trimValue(targetForm.titleTemplate),
@@ -713,11 +752,12 @@ export default {
           routeType: this.trimValue(targetForm.routeType),
           routeValueTemplate: this.trimValue(targetForm.routeValueTemplate),
           templateId: this.trimValue(targetForm.templateId),
+          channelScene: this.trimValue(targetForm.channelScene),
           pagePathTemplate: this.trimValue(targetForm.pagePathTemplate),
           fieldMapping,
           remark: this.trimValue(targetForm.remark)
-        }
-      })
+        })
+      }
       return {
         status: this.dialogForm.status,
         remark: this.trimValue(this.dialogForm.remark),
@@ -740,6 +780,7 @@ export default {
       this.previewDialog.routeType = targetForm.routeType
       this.previewDialog.routeValueTemplate = targetForm.routeValueTemplate
       this.previewDialog.templateId = targetForm.templateId
+      this.previewDialog.channelScene = targetForm.channelScene
       this.previewDialog.pagePathTemplate = targetForm.pagePathTemplate
       this.previewDialog.fieldMapping = (targetForm.fieldMapping || []).map(item => ({
         field: item.field || '',
@@ -773,6 +814,7 @@ export default {
         routeType: this.trimValue(this.previewDialog.routeType),
         routeValueTemplate: this.trimValue(this.previewDialog.routeValueTemplate),
         templateId: this.trimValue(this.previewDialog.templateId),
+        channelScene: this.trimValue(this.previewDialog.channelScene),
         pagePathTemplate: this.trimValue(this.previewDialog.pagePathTemplate),
         fieldMapping: (this.previewDialog.fieldMapping || []).map(item => ({
           field: this.trimValue(item.field),

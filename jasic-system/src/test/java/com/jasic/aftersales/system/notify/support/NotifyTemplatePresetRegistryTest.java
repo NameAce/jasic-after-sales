@@ -1,6 +1,7 @@
 package com.jasic.aftersales.system.notify.support;
 
 import com.jasic.aftersales.system.notify.domain.enums.NotifyBizTypeEnum;
+import com.jasic.aftersales.system.notify.domain.enums.NotifyChannelSceneEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyChannelTypeEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyReceiverTypeEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyTypeEnum;
@@ -48,6 +49,12 @@ public class NotifyTemplatePresetRegistryTest {
         );
         Assert.assertEquals("C端客户", evaluationInviteScene.getReceiverDesc());
         Assert.assertEquals(NotifyChannelTypeEnum.MP_SUBSCRIBE.getCode(), evaluationInviteScene.getChannelType());
+        Assert.assertEquals(
+                NotifyChannelSceneEnum.C.getCode(),
+                evaluationInviteScene.getTargetMeta(NotifyTypeEnum.MP_SUBSCRIBE.getCode())
+                        .getDefaultChannelConfig()
+                        .getChannelScene()
+        );
         Assert.assertEquals("customerOpenid", evaluationInviteScene.getVariables().get(4).getName());
     }
 }

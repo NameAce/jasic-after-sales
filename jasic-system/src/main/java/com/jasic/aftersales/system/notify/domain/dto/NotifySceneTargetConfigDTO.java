@@ -63,6 +63,12 @@ public class NotifySceneTargetConfigDTO implements Serializable {
     private String templateId;
 
     /**
+     * 小程序场景。
+     */
+    @ApiModelProperty(value = "小程序场景，B/C")
+    private String channelScene;
+
+    /**
      * 小程序页面路径模板。
      */
     @ApiModelProperty(value = "小程序页面路径模板")

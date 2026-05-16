@@ -50,5 +50,9 @@ public class CompanyDataPolicyRegistryTest {
                 CompanyDataPolicyRegistry.getPolicy("fault_repair_config"));
         Assert.assertEquals(CompanyDataPolicyType.DOMAIN_POLICY,
                 CompanyDataPolicyRegistry.getPolicy("work_order"));
+        Assert.assertEquals(CompanyDataPolicyType.GLOBAL,
+                CompanyDataPolicyRegistry.getPolicy("notify_scene"));
+        Assert.assertEquals(CompanyDataPolicyType.GLOBAL,
+                CompanyDataPolicyRegistry.getPolicy("notify_scene_target"));
     }
 }

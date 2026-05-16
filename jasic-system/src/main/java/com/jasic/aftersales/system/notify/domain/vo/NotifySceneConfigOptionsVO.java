@@ -26,6 +26,9 @@ public class NotifySceneConfigOptionsVO implements Serializable {
     @ApiModelProperty(value = "通知目标类型选项")
     private List<NotifyTemplateEnumOptionVO> targetTypeOptions = new ArrayList<>();
 
+    @ApiModelProperty(value = "小程序场景选项")
+    private List<NotifyTemplateEnumOptionVO> channelSceneOptions = new ArrayList<>();
+
     @ApiModelProperty(value = "跳转类型选项")
     private List<NotifyTemplateEnumOptionVO> routeTypeOptions = new ArrayList<>();
 }

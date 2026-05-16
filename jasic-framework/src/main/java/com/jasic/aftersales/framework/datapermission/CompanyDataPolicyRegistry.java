@@ -73,6 +73,8 @@ public final class CompanyDataPolicyRegistry {
                 "crm_first_second_relation_snapshot",
                 "crm_hq_first_contract_snapshot",
                 "crm_warehouse_scan_outstorage_snapshot",
+                "notify_scene",
+                "notify_scene_target",
                 "sync_task",
                 "sync_task_log",
                 "sys_area",

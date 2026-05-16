@@ -47,12 +47,14 @@ public class NotifyChannelConfigServiceImplTest {
 
         Assert.assertEquals(1, state.targets.size());
         Assert.assertTrue(state.targets.get(0).getConfigJson().contains("templateId"));
+        Assert.assertTrue(state.targets.get(0).getConfigJson().contains("channelScene"));
 
         List<NotifyTemplateChannelVO> channelVOList = service.listChannelConfigs(
                 NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode()
         );
         Assert.assertEquals(1, channelVOList.size());
         Assert.assertEquals("wx-template-001", channelVOList.get(0).getTemplateId());
+        Assert.assertEquals("B", channelVOList.get(0).getChannelScene());
     }
 
     @Test
@@ -103,6 +105,7 @@ public class NotifyChannelConfigServiceImplTest {
         dto.setChannelType("MP_SUBSCRIBE");
         dto.setChannelEnabled(1);
         dto.setTemplateId(templateId);
+        dto.setChannelScene("B");
         dto.setPagePathTemplate("pages/order/detail?workOrderId=${workOrderId}");
         List<NotifyChannelFieldMappingDTO> fieldMappings = new ArrayList<>();
         NotifyChannelFieldMappingDTO mapping = new NotifyChannelFieldMappingDTO();

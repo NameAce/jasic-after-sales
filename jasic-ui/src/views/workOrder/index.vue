@@ -657,19 +657,6 @@
             <el-descriptions-item label="标签" :span="2">{{ textValue(detail.evaluation.tags) }}</el-descriptions-item>
             <el-descriptions-item label="评价内容" :span="2">{{ textValue(detail.evaluation.content) }}</el-descriptions-item>
           </el-descriptions>
-
-          <div class="section-title">通知事件</div>
-          <el-table :data="detail.notifyEvents || []" border size="small">
-            <el-table-column label="归属公司" prop="companyName" min-width="150" />
-            <el-table-column label="事件类型" prop="eventType" min-width="140" />
-            <el-table-column label="触发节点" prop="triggerNode" min-width="140" />
-            <el-table-column label="接收对象" prop="receiverType" min-width="120" />
-            <el-table-column label="发送状态" prop="sendStatus" min-width="120" />
-            <el-table-column label="标题快照" prop="titleSnapshot" min-width="180" show-overflow-tooltip />
-            <el-table-column label="内容快照" prop="contentSnapshot" min-width="220" show-overflow-tooltip />
-            <el-table-column label="失败原因" prop="failReason" min-width="180" show-overflow-tooltip />
-            <el-table-column label="发送时间" prop="sendTime" min-width="160" />
-          </el-table>
         </template>
       </div>
     </el-drawer>

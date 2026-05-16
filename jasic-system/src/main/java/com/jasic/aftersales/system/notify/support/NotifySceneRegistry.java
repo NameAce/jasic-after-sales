@@ -3,6 +3,7 @@ package com.jasic.aftersales.system.notify.support;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyChannelFieldMappingDTO;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyBizTypeEnum;
+import com.jasic.aftersales.system.notify.domain.enums.NotifyChannelSceneEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyChannelTypeEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyEventTypeEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyReceiverTypeEnum;
@@ -277,6 +278,7 @@ public class NotifySceneRegistry {
     private NotifyTemplateChannelConfig buildDefaultAssignedMpChannelConfig() {
         NotifyTemplateChannelConfig config = new NotifyTemplateChannelConfig();
         config.setTemplateId("");
+        config.setChannelScene(NotifyChannelSceneEnum.B.getCode());
         config.setPagePathTemplate("pages/order/detail?workOrderId=${workOrderId}");
         List<NotifyChannelFieldMappingDTO> mappings = new ArrayList<>();
         mappings.add(buildFieldMapping("thing1", "${orderNo}"));
@@ -293,6 +295,7 @@ public class NotifySceneRegistry {
     private NotifyTemplateChannelConfig buildDefaultEvaluationInviteMpChannelConfig() {
         NotifyTemplateChannelConfig config = new NotifyTemplateChannelConfig();
         config.setTemplateId("");
+        config.setChannelScene(NotifyChannelSceneEnum.C.getCode());
         config.setPagePathTemplate("pages/order/evaluate?workOrderId=${workOrderId}");
         List<NotifyChannelFieldMappingDTO> mappings = new ArrayList<>();
         mappings.add(buildFieldMapping("thing1", "${orderNo}"));

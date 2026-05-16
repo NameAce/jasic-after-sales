@@ -60,6 +60,7 @@ public class NotifyTraceServiceImpl implements NotifyTraceService {
 
     private static final String PRODUCT_CATEGORY_IN_APP = "IN_APP";
     private static final String PRODUCT_CATEGORY_EXTERNAL = "EXTERNAL";
+    private static final String UNKNOWN_TARGET_TYPE = "UNKNOWN";
     private static final String EVENT_MANUAL_DEAD_MESSAGE_PREFIX = "人工标记不再处理：";
     private static final String DISPATCH_MANUAL_DEAD_MESSAGE_PREFIX = "人工标记不再处理：";
 
@@ -419,7 +420,9 @@ public class NotifyTraceServiceImpl implements NotifyTraceService {
             return Collections.emptyList();
         }
         Map<String, List<NotifyTraceMessageDetailVO>> groupedMap = messages.stream()
-                .collect(Collectors.groupingBy(NotifyTraceMessageDetailVO::getTargetType, LinkedHashMap::new, Collectors.toList()));
+                // 历史记录可能缺少 targetType，排障页要兜底展示，不能因为旧数据脏值直接报错。
+                .collect(Collectors.groupingBy(message -> resolveTargetTypeKey(message.getTargetType()),
+                        LinkedHashMap::new, Collectors.toList()));
         List<NotifyTraceTargetSummaryVO> summaries = new ArrayList<>();
         for (Map.Entry<String, List<NotifyTraceMessageDetailVO>> entry : groupedMap.entrySet()) {
             Map<String, Integer> statusCountMap = new LinkedHashMap<>();
@@ -493,7 +496,9 @@ public class NotifyTraceServiceImpl implements NotifyTraceService {
             return Collections.emptyList();
         }
         Map<String, List<NotifyTraceDispatchDetailVO>> groupedMap = dispatches.stream()
-                .collect(Collectors.groupingBy(NotifyTraceDispatchDetailVO::getTargetType, LinkedHashMap::new, Collectors.toList()));
+                // 历史记录可能缺少 targetType，排障页要兜底展示，不能因为旧数据脏值直接报错。
+                .collect(Collectors.groupingBy(dispatch -> resolveTargetTypeKey(dispatch.getTargetType()),
+                        LinkedHashMap::new, Collectors.toList()));
         List<NotifyTraceTargetSummaryVO> summaries = new ArrayList<>();
         for (Map.Entry<String, List<NotifyTraceDispatchDetailVO>> entry : groupedMap.entrySet()) {
             Map<String, Integer> statusCountMap = new LinkedHashMap<>();
@@ -709,12 +714,12 @@ public class NotifyTraceServiceImpl implements NotifyTraceService {
      */
     private String resolveMessageTargetType(SysNotifyMessage message) {
         if (message == null) {
-            return null;
+            return UNKNOWN_TARGET_TYPE;
         }
         if (StrUtil.isNotBlank(message.getTargetType())) {
             return message.getTargetType();
         }
-        return message.getMessageType();
+        return resolveTargetTypeKey(message.getMessageType());
     }
 
     /**
@@ -725,12 +730,22 @@ public class NotifyTraceServiceImpl implements NotifyTraceService {
      */
     private String resolveDispatchTargetType(SysNotifyDispatch dispatch) {
         if (dispatch == null) {
-            return null;
+            return UNKNOWN_TARGET_TYPE;
         }
         if (StrUtil.isNotBlank(dispatch.getTargetType())) {
             return dispatch.getTargetType();
         }
-        return dispatch.getChannelType();
+        return resolveTargetTypeKey(dispatch.getChannelType());
+    }
+
+    /**
+     * 归一化通知目标类型分组键。
+     *
+     * @param targetType 原始目标类型
+     * @return 可用于分组和展示的目标类型
+     */
+    private String resolveTargetTypeKey(String targetType) {
+        return StrUtil.blankToDefault(StrUtil.trim(targetType), UNKNOWN_TARGET_TYPE);
     }
 
     /**
@@ -740,6 +755,9 @@ public class NotifyTraceServiceImpl implements NotifyTraceService {
      * @return 目标类型说明
      */
     private String resolveTargetTypeDesc(String targetType) {
+        if (StrUtil.isBlank(targetType) || StrUtil.equals(targetType, UNKNOWN_TARGET_TYPE)) {
+            return "未知目标";
+        }
         NotifyTypeEnum targetTypeEnum = NotifyTypeEnum.getByCode(targetType);
         return targetTypeEnum == null ? targetType : targetTypeEnum.getDesc();
     }

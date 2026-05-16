@@ -712,8 +712,6 @@ const flows = computed(() => (Array.isArray(detail.value.flows) ? detail.value.f
 const quotes = computed(() => (Array.isArray(detail.value.quotes) ? detail.value.quotes : []));
 // 维修登记记录列表
 const repairs = computed(() => (Array.isArray(detail.value.repairs) ? detail.value.repairs : []));
-// 通知事件表格数据源
-const notifyEvents = computed(() => (Array.isArray(detail.value.notifyEvents) ? detail.value.notifyEvents : []));
 // 故障点全历史扁平行（供履历表）
 const faultPointHistoryRows = computed(() => {
   const rows: Array<Record<string, unknown>> = [];
@@ -841,19 +839,6 @@ const quotesColumns = [
   { title: '报价说明', dataIndex: 'quoteDesc', key: 'quoteDesc' },
   { title: '当前有效', dataIndex: 'isCurrentValid', key: 'isCurrentValid' },
   { title: '创建时间', dataIndex: 'createTime', key: 'createTime' }
-];
-
-// 通知事件表格列
-const notifyColumns = [
-  { title: '归属公司', dataIndex: 'companyName', key: 'companyName' },
-  { title: '事件类型', dataIndex: 'eventType', key: 'eventType' },
-  { title: '触发节点', dataIndex: 'triggerNode', key: 'triggerNode' },
-  { title: '接收对象', dataIndex: 'receiverType', key: 'receiverType' },
-  { title: '发送状态', dataIndex: 'sendStatus', key: 'sendStatus' },
-  { title: '标题快照', dataIndex: 'titleSnapshot', key: 'titleSnapshot' },
-  { title: '内容快照', dataIndex: 'contentSnapshot', key: 'contentSnapshot' },
-  { title: '失败原因', dataIndex: 'failReason', key: 'failReason' },
-  { title: '发送时间', dataIndex: 'sendTime', key: 'sendTime' }
 ];
 
 // 故障点历史表格列
@@ -2209,20 +2194,6 @@ defineExpose({
           row-key="id"
         />
       </template>
-
-      <template v-if="notifyEvents.length">
-        <div class="mb-8px text-14px text-gray-700">通知事件</div>
-        <ATable
-          bordered
-          class="mb-16px"
-          :columns="notifyColumns"
-          :data-source="notifyEvents"
-          :pagination="false"
-          size="small"
-          row-key="id"
-        />
-      </template>
-
       <AModal v-model:open="previewOpen" :title="previewTitle || '附件预览'" :footer="null" :width="820" centered>
         <img v-if="previewType === 'image' && previewUrl" :src="previewUrl" class="max-h-70vh w-full object-contain" />
         <video

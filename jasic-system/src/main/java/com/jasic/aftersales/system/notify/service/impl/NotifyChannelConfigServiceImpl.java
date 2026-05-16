@@ -7,6 +7,7 @@ import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyChannelFieldMappingDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTemplateChannelDTO;
 import com.jasic.aftersales.system.notify.domain.entity.NotifySceneTarget;
+import com.jasic.aftersales.system.notify.domain.enums.NotifyChannelSceneEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyChannelTypeEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyTypeEnum;
 import com.jasic.aftersales.system.notify.domain.vo.NotifyTemplateChannelVO;
@@ -142,6 +143,7 @@ public class NotifyChannelConfigServiceImpl implements NotifyChannelConfigServic
             if (!channelTypeCode.equals(targetMeta.getChannelType())) {
                 throw new ServiceException("当前通知目标只允许维护渠道类型：" + targetMeta.getChannelType());
             }
+            validateChannelScene(channelDTO.getChannelScene());
 
             List<NotifyChannelFieldMappingDTO> fieldMappings = copyFieldMappings(channelDTO.getFieldMapping());
             Set<String> uniqueFields = new LinkedHashSet<>();
@@ -159,6 +161,9 @@ public class NotifyChannelConfigServiceImpl implements NotifyChannelConfigServic
             if (Objects.equals(channelDTO.getChannelEnabled(), 1)) {
                 if (normalizeNullableField(channelDTO.getTemplateId()) == null) {
                     throw new ServiceException("启用小程序渠道时必须配置模板ID");
+                }
+                if (normalizeNullableField(channelDTO.getChannelScene()) == null) {
+                    throw new ServiceException("启用小程序渠道时必须配置小程序场景");
                 }
                 if (normalizeNullableField(channelDTO.getPagePathTemplate()) == null) {
                     throw new ServiceException("启用小程序渠道时必须配置页面路径模板");
@@ -179,6 +184,7 @@ public class NotifyChannelConfigServiceImpl implements NotifyChannelConfigServic
     private String buildChannelConfigJson(NotifyTemplateChannelDTO dto) {
         NotifyTemplateChannelConfig config = new NotifyTemplateChannelConfig();
         config.setTemplateId(normalizeNullableField(dto.getTemplateId()));
+        config.setChannelScene(normalizeNullableField(dto.getChannelScene()));
         config.setPagePathTemplate(normalizeNullableField(dto.getPagePathTemplate()));
         config.setFieldMapping(copyFieldMappings(dto.getFieldMapping()));
         return JSONUtil.toJsonStr(config);
@@ -204,6 +210,8 @@ public class NotifyChannelConfigServiceImpl implements NotifyChannelConfigServic
         NotifyTemplateChannelConfig config = parseChannelConfig(entity.getConfigJson());
         if (config != null) {
             vo.setTemplateId(config.getTemplateId());
+            vo.setChannelScene(config.getChannelScene());
+            vo.setChannelSceneDesc(resolveChannelSceneDesc(config.getChannelScene()));
             vo.setPagePathTemplate(config.getPagePathTemplate());
             vo.setFieldMapping(copyFieldMappings(config.getFieldMapping()));
         }
@@ -365,6 +373,21 @@ public class NotifyChannelConfigServiceImpl implements NotifyChannelConfigServic
     }
 
     /**
+     * 校验小程序场景。
+     *
+     * @param channelScene 小程序场景编码
+     */
+    private void validateChannelScene(String channelScene) {
+        String normalizedChannelScene = normalizeNullableField(channelScene);
+        if (normalizedChannelScene == null) {
+            return;
+        }
+        if (NotifyChannelSceneEnum.getByCode(normalizedChannelScene) == null) {
+            throw new ServiceException("不支持的小程序场景：" + normalizedChannelScene);
+        }
+    }
+
+    /**
      * 校验字符串长度。
      *
      * @param value 字段值
@@ -400,5 +423,16 @@ public class NotifyChannelConfigServiceImpl implements NotifyChannelConfigServic
      */
     private String normalizeNullableField(String value) {
         return StrUtil.trimToNull(value);
+    }
+
+    /**
+     * 解析小程序场景说明。
+     *
+     * @param channelScene 小程序场景编码
+     * @return 中文说明
+     */
+    private String resolveChannelSceneDesc(String channelScene) {
+        NotifyChannelSceneEnum channelSceneEnum = NotifyChannelSceneEnum.getByCode(channelScene);
+        return channelSceneEnum == null ? null : channelSceneEnum.getDesc();
     }
 }

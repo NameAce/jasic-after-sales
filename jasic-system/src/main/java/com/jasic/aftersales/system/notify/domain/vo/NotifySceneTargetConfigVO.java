@@ -60,6 +60,12 @@ public class NotifySceneTargetConfigVO implements Serializable {
     @ApiModelProperty(value = "小程序订阅消息模板ID")
     private String templateId;
 
+    @ApiModelProperty(value = "小程序场景，B/C")
+    private String channelScene;
+
+    @ApiModelProperty(value = "小程序场景描述")
+    private String channelSceneDesc;
+
     @ApiModelProperty(value = "小程序页面路径模板")
     private String pagePathTemplate;
 

@@ -169,7 +169,6 @@ export type WorkOrderDetailVO = {
   evaluation?: WorkOrderEvaluationVO
   flows?: WorkOrderFlowVO[]
   participants?: WorkOrderParticipantVO[]
-  notifyEvents?: WorkOrderNotifyEventVO[]
 
   completedTime?: string
   closedTime?: string
@@ -224,23 +223,6 @@ export type WorkOrderFlowVO = {
   remark?: string
   toCompanyId?: number
   toCompanyName?: string
-}
-
-/** 后端 `/api/system/work-order/notify-event` 单条记录 */
-export type WorkOrderNotifyEventVO = {
-  companyId?: number
-  companyName?: string
-  contentSnapshot?: string
-  createTime?: string
-  eventType?: string
-  failReason?: string
-  id?: number
-  receiverId?: number
-  receiverType?: string
-  sendStatus?: string
-  sendTime?: string
-  titleSnapshot?: string
-  triggerNode?: string
 }
 
 /** 后端 `/api/system/work-order/participant` 单条记录 */

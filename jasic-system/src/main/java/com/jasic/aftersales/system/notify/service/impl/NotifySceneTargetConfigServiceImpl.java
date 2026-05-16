@@ -11,6 +11,7 @@ import com.jasic.aftersales.system.notify.domain.dto.NotifyScenePreviewDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifySceneTargetConfigDTO;
 import com.jasic.aftersales.system.notify.domain.entity.NotifyScene;
 import com.jasic.aftersales.system.notify.domain.entity.NotifySceneTarget;
+import com.jasic.aftersales.system.notify.domain.enums.NotifyChannelSceneEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyRouteTypeEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyTypeEnum;
 import com.jasic.aftersales.system.notify.domain.query.NotifySceneConfigQuery;
@@ -74,6 +75,7 @@ public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConf
     private static final int CONTENT_MAX_LENGTH = 512;
     private static final int ROUTE_TYPE_MAX_LENGTH = 64;
     private static final int ROUTE_VALUE_MAX_LENGTH = 256;
+    private static final int CHANNEL_SCENE_MAX_LENGTH = 16;
     private static final int REMARK_MAX_LENGTH = 255;
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\$\\{([A-Za-z0-9_]+)}");
 
@@ -100,6 +102,7 @@ public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConf
                 .map(this::toSceneMetaOptionVO)
                 .collect(Collectors.toList()));
         optionsVO.setTargetTypeOptions(buildTargetTypeOptions());
+        optionsVO.setChannelSceneOptions(buildChannelSceneOptions());
         optionsVO.setRouteTypeOptions(buildRouteTypeOptions());
         return optionsVO;
     }
@@ -358,8 +361,9 @@ public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConf
      */
     private void validateMpSubscribeConfig(NotifySceneTargetConfigDTO dto, Set<String> allowedVariables) {
         validateLength(normalizeNullableField(dto.getTemplateId()), TITLE_MAX_LENGTH, "小程序模板ID");
+        validateLength(normalizeNullableField(dto.getChannelScene()), CHANNEL_SCENE_MAX_LENGTH, "小程序场景");
         validateLength(normalizeNullableField(dto.getPagePathTemplate()), CONTENT_MAX_LENGTH, "小程序页面路径模板");
-
+        validateChannelScene(dto.getChannelScene());
         validatePlaceholders(dto.getPagePathTemplate(), allowedVariables, "小程序页面路径模板");
 
         List<NotifyChannelFieldMappingDTO> fieldMappings = dto.getFieldMapping() == null
@@ -380,6 +384,9 @@ public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConf
         if (Integer.valueOf(1).equals(dto.getEnabled())) {
             if (normalizeNullableField(dto.getTemplateId()) == null) {
                 throw new ServiceException("启用小程序通知时必须配置模板ID");
+            }
+            if (normalizeNullableField(dto.getChannelScene()) == null) {
+                throw new ServiceException("启用小程序通知时必须配置小程序场景");
             }
             if (normalizeNullableField(dto.getPagePathTemplate()) == null) {
                 throw new ServiceException("启用小程序通知时必须配置页面路径模板");
@@ -403,6 +410,7 @@ public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConf
         }
         NotifyTemplateChannelConfig config = new NotifyTemplateChannelConfig();
         config.setTemplateId(normalizeNullableField(dto.getTemplateId()));
+        config.setChannelScene(normalizeNullableField(dto.getChannelScene()));
         config.setPagePathTemplate(normalizeNullableField(dto.getPagePathTemplate()));
         config.setFieldMapping(copyFieldMappings(dto.getFieldMapping()));
         return JSONUtil.toJsonStr(config);
@@ -475,6 +483,8 @@ public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConf
             targetMetaVO.setChannelTypeDesc(targetMeta.getChannelTypeDesc());
             if (targetMeta.getDefaultChannelConfig() != null) {
                 targetMetaVO.setTemplateId(targetMeta.getDefaultChannelConfig().getTemplateId());
+                targetMetaVO.setChannelScene(targetMeta.getDefaultChannelConfig().getChannelScene());
+                targetMetaVO.setChannelSceneDesc(resolveChannelSceneDesc(targetMeta.getDefaultChannelConfig().getChannelScene()));
                 targetMetaVO.setPagePathTemplate(targetMeta.getDefaultChannelConfig().getPagePathTemplate());
                 targetMetaVO.setFieldMapping(copyFieldMappings(targetMeta.getDefaultChannelConfig().getFieldMapping()));
             }
@@ -512,6 +522,8 @@ public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConf
         NotifyTemplateChannelConfig channelConfig = parseChannelConfig(actualEntity.getConfigJson());
         if (channelConfig != null) {
             configVO.setTemplateId(channelConfig.getTemplateId());
+            configVO.setChannelScene(channelConfig.getChannelScene());
+            configVO.setChannelSceneDesc(resolveChannelSceneDesc(channelConfig.getChannelScene()));
             configVO.setPagePathTemplate(channelConfig.getPagePathTemplate());
             configVO.setFieldMapping(copyFieldMappings(channelConfig.getFieldMapping()));
         }
@@ -662,6 +674,7 @@ public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConf
         dto.setRouteValueTemplate(targetMeta.getDefaultRouteValueTemplate());
         if (targetMeta.getDefaultChannelConfig() != null) {
             dto.setTemplateId(targetMeta.getDefaultChannelConfig().getTemplateId());
+            dto.setChannelScene(targetMeta.getDefaultChannelConfig().getChannelScene());
             dto.setPagePathTemplate(targetMeta.getDefaultChannelConfig().getPagePathTemplate());
             dto.setFieldMapping(copyFieldMappings(targetMeta.getDefaultChannelConfig().getFieldMapping()));
         }
@@ -890,6 +903,22 @@ public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConf
     }
 
     /**
+     * 构造小程序场景选项。
+     *
+     * @return 小程序场景选项
+     */
+    private List<NotifyTemplateEnumOptionVO> buildChannelSceneOptions() {
+        List<NotifyTemplateEnumOptionVO> options = new ArrayList<>();
+        for (NotifyChannelSceneEnum channelSceneEnum : NotifyChannelSceneEnum.values()) {
+            NotifyTemplateEnumOptionVO optionVO = new NotifyTemplateEnumOptionVO();
+            optionVO.setCode(channelSceneEnum.getCode());
+            optionVO.setDesc(channelSceneEnum.getDesc());
+            options.add(optionVO);
+        }
+        return options;
+    }
+
+    /**
      * 构造跳转类型选项。
      *
      * @return 跳转类型选项
@@ -949,6 +978,21 @@ public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConf
     }
 
     /**
+     * 校验小程序场景。
+     *
+     * @param channelScene 小程序场景编码
+     */
+    private void validateChannelScene(String channelScene) {
+        String normalizedChannelScene = normalizeNullableField(channelScene);
+        if (normalizedChannelScene == null) {
+            return;
+        }
+        if (NotifyChannelSceneEnum.getByCode(normalizedChannelScene) == null) {
+            throw new ServiceException("不支持的小程序场景：" + normalizedChannelScene);
+        }
+    }
+
+    /**
      * 校验字符串长度。
      *
      * @param value 字段值
@@ -984,6 +1028,17 @@ public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConf
      */
     private String normalizeNullableField(String value) {
         return StrUtil.trimToNull(value);
+    }
+
+    /**
+     * 解析小程序场景中文描述。
+     *
+     * @param channelScene 小程序场景编码
+     * @return 中文描述
+     */
+    private String resolveChannelSceneDesc(String channelScene) {
+        NotifyChannelSceneEnum channelSceneEnum = NotifyChannelSceneEnum.getByCode(channelScene);
+        return channelSceneEnum == null ? null : channelSceneEnum.getDesc();
     }
 
     /**

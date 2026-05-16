@@ -189,10 +189,6 @@ public class WorkOrderDetailVO extends WorkOrderListVO {
     @ApiModelProperty(value = "客户评价")
     private WorkOrderEvaluationVO evaluation;
 
-    /** 通知事件列表 */
-//    @ApiModelProperty(value = "通知事件列表")
-//    private List<WorkOrderNotifyEventVO> notifyEvents;
-
     /** 当前详情页可执行动作编码列表；由“可见范围 + 关系标签 + 主状态 + 权限点”共同决定。 */
     @ApiModelProperty(value = "当前可执行动作；返回按钮动作编码列表，如 ASSIGN、REPAIR_FINISH、CLOSE")
     private List<String> availableActions;

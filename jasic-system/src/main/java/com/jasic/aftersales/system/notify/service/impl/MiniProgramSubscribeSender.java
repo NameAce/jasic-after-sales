@@ -6,6 +6,7 @@ import cn.hutool.json.JSONObject;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.system.domain.enums.WechatMiniProgramScene;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyChannelFieldMappingDTO;
+import com.jasic.aftersales.system.notify.domain.enums.NotifyChannelSceneEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyChannelTypeEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyDispatchResultCodeEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyReceiverTypeEnum;
@@ -106,9 +107,13 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
                     "Mini program field mapping is missing"
             );
         }
-        // 阶段二开始，同一 sceneCode 可以分流多个目标，因此 sender 不能再依赖旧模板编码后缀。
-        // 这里优先按接收对象类型区分 B/C 端，再用 sceneCode 作为兜底兼容判断。
-        WechatMiniProgramScene scene = resolveScene(payload.getSceneCode(), context.getDispatch().getReceiverType());
+        // 当前正式口径优先使用配置中显式声明的小程序场景，
+        // 只有旧数据尚未补齐 `channelScene` 时，才回退到接收对象类型 / 历史 sceneCode 兼容推断。
+        WechatMiniProgramScene scene = resolveScene(
+                channelConfig.getChannelScene(),
+                payload.getSceneCode(),
+                context.getDispatch().getReceiverType()
+        );
         if (scene == null) {
             return NotifyChannelSendResult.skipped(
                     NotifyDispatchResultCodeEnum.SKIPPED_CHANNEL_CONFIG_MISSING.getCode(),
@@ -181,11 +186,18 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
     /**
      * 解析场景。
      *
+     * @param channelScene 配置中的小程序场景
      * @param sceneCode 通知场景编码
      * @param receiverType 接收对象类型
      * @return 处理结果
      */
-    private WechatMiniProgramScene resolveScene(String sceneCode, String receiverType) {
+    private WechatMiniProgramScene resolveScene(String channelScene, String sceneCode, String receiverType) {
+        NotifyChannelSceneEnum configuredScene = NotifyChannelSceneEnum.getByCode(channelScene);
+        if (configuredScene != null) {
+            return NotifyChannelSceneEnum.B.equals(configuredScene)
+                    ? WechatMiniProgramScene.B
+                    : WechatMiniProgramScene.C;
+        }
         if (NotifyReceiverTypeEnum.REPAIRER.getCode().equals(receiverType)) {
             return WechatMiniProgramScene.B;
         }

@@ -47,7 +47,8 @@ public class MiniProgramSubscribeSenderTest {
         NotifyChannelSendResult result = sender.send(buildContext(
                 "WORK_ORDER_ASSIGNED",
                 NotifyReceiverTypeEnum.REPAIRER.getCode(),
-                "openid-repairer"
+                "openid-repairer",
+                null
         ));
 
         Assert.assertEquals(NotifyDispatchStatusEnum.SUCCESS.getCode(), result.getDispatchStatus());
@@ -68,7 +69,30 @@ public class MiniProgramSubscribeSenderTest {
         NotifyChannelSendResult result = sender.send(buildContext(
                 "WORK_ORDER_EVALUATION_INVITE",
                 NotifyReceiverTypeEnum.CUSTOMER.getCode(),
-                "openid-customer"
+                "openid-customer",
+                null
+        ));
+
+        Assert.assertEquals(NotifyDispatchStatusEnum.SUCCESS.getCode(), result.getDispatchStatus());
+        Assert.assertEquals(WechatMiniProgramScene.C, capture.scene);
+    }
+
+    /**
+     * 显式配置了小程序场景时，应优先按配置发送，而不是继续依赖接收对象类型推断。
+     *
+     * @throws Exception 反射异常
+     */
+    @Test
+    public void shouldPreferConfiguredChannelScene() throws Exception {
+        MiniProgramSubscribeSender sender = new MiniProgramSubscribeSender();
+        SendCapture capture = new SendCapture();
+        setField(sender, "wechatMiniProgramService", createWechatService(capture));
+
+        NotifyChannelSendResult result = sender.send(buildContext(
+                "WORK_ORDER_ASSIGNED",
+                NotifyReceiverTypeEnum.REPAIRER.getCode(),
+                "openid-repairer",
+                "C"
         ));
 
         Assert.assertEquals(NotifyDispatchStatusEnum.SUCCESS.getCode(), result.getDispatchStatus());
@@ -81,11 +105,13 @@ public class MiniProgramSubscribeSenderTest {
      * @param sceneCode 场景编码
      * @param receiverType 接收对象类型
      * @param openid 接收人openid
+     * @param channelScene 显式小程序场景
      * @return 发送上下文
      */
-    private NotifyChannelSendContext buildContext(String sceneCode, String receiverType, String openid) {
+    private NotifyChannelSendContext buildContext(String sceneCode, String receiverType, String openid, String channelScene) {
         NotifyTemplateChannelConfig config = new NotifyTemplateChannelConfig();
         config.setTemplateId("wx-template-001");
+        config.setChannelScene(channelScene);
         config.setPagePathTemplate("pages/order/detail?workOrderId=${workOrderId}");
         NotifyChannelFieldMappingDTO fieldMapping = new NotifyChannelFieldMappingDTO();
         fieldMapping.setField("thing1");

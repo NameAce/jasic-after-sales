@@ -335,6 +335,27 @@
               </el-form-item>
             </el-col>
             <el-col :span="12">
+              <el-form-item label="发送小程序">
+                <el-select
+                  v-model="channelDialog.form.channelScene"
+                  :disabled="channelDialog.readonly"
+                  placeholder="请选择发送小程序"
+                  clearable
+                  style="width: 100%;"
+                >
+                  <el-option
+                    v-for="item in channelSceneOptions"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value"
+                  />
+                </el-select>
+              </el-form-item>
+            </el-col>
+          </el-row>
+
+          <el-row :gutter="16">
+            <el-col :span="24">
               <el-form-item label="跳转页面模板">
                 <el-input
                   v-model="channelDialog.form.pagePathTemplate"
@@ -445,6 +466,11 @@ const ROUTE_TYPE_OPTIONS = [
   { label: '工单评价', value: 'WORK_ORDER_EVALUATE' }
 ]
 
+const CHANNEL_SCENE_OPTIONS = [
+  { label: 'B端小程序', value: 'B' },
+  { label: 'C端小程序', value: 'C' }
+]
+
 const SCENE_TRIGGER_HINT_MAP = {
   WORK_ORDER_ASSIGNED_TODO: '工单派单后，系统会给当前维修员生成一条站内待办。',
   WORK_ORDER_EVALUATION_INVITE_MP_C: '工单完成后，系统会给 C 端客户发送一条评价邀请小程序订阅消息。'
@@ -496,6 +522,7 @@ function buildEmptyChannelForm(channelType) {
     channelType: channelType || MP_SUBSCRIBE,
     channelEnabled: 1,
     templateId: '',
+    channelScene: '',
     pagePathTemplate: '',
     fieldMapping: [createFieldMapping()],
     remark: ''
@@ -576,6 +603,9 @@ export default {
         }
       })
       return Array.from(optionMap.values())
+    },
+    channelSceneOptions() {
+      return CHANNEL_SCENE_OPTIONS
     },
     currentSceneMeta() {
       return this.getSceneMeta(this.form.sceneCode)
@@ -925,6 +955,7 @@ export default {
     normalizeChannelForm(data, sceneMeta) {
       const form = buildEmptyChannelForm(sceneMeta ? sceneMeta.channelType : '')
       if (!data) {
+        form.channelScene = sceneMeta && sceneMeta.channelScene ? sceneMeta.channelScene : ''
         return form
       }
       return Object.assign(form, {
@@ -932,6 +963,7 @@ export default {
         channelType: data.channelType || form.channelType,
         channelEnabled: typeof data.channelEnabled === 'number' ? data.channelEnabled : 1,
         templateId: data.templateId || '',
+        channelScene: data.channelScene || (sceneMeta && sceneMeta.channelScene ? sceneMeta.channelScene : ''),
         pagePathTemplate: data.pagePathTemplate || '',
         fieldMapping: Array.isArray(data.fieldMapping) && data.fieldMapping.length
           ? data.fieldMapping.map(item => ({
@@ -996,6 +1028,10 @@ export default {
           this.$message.error('启用渠道时必须填写微信模板 ID')
           return false
         }
+        if (!this.trimValue(form.channelScene)) {
+          this.$message.error('启用渠道时必须选择发送小程序')
+          return false
+        }
         if (!this.trimValue(form.pagePathTemplate)) {
           this.$message.error('启用渠道时必须填写跳转页面模板')
           return false
@@ -1018,6 +1054,7 @@ export default {
         channelType: this.trimValue(form.channelType),
         channelEnabled: form.channelEnabled,
         templateId: this.trimValue(form.templateId),
+        channelScene: this.trimValue(form.channelScene),
         pagePathTemplate: this.trimValue(form.pagePathTemplate),
         fieldMapping: (form.fieldMapping || [])
           .filter(item => this.trimValue(item.field) || this.trimValue(item.value))
