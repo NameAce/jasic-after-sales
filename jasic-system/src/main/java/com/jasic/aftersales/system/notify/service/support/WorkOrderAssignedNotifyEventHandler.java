@@ -19,6 +19,7 @@ import com.jasic.aftersales.system.notify.service.NotifyMessageLogService;
 import com.jasic.aftersales.system.notify.service.NotifyMessageService;
 import com.jasic.aftersales.system.notify.support.NotifyConstants;
 import com.jasic.aftersales.system.notify.support.NotifyEventExecutionContext;
+import com.jasic.aftersales.system.notify.support.NotifyReceiverSnapshot;
 import com.jasic.aftersales.system.notify.support.NotifySceneCode;
 import org.springframework.stereotype.Component;
 
@@ -86,6 +87,13 @@ public class WorkOrderAssignedNotifyEventHandler implements NotifyEventHandler {
         context.setReceiverCompanyId(payload.getReceiverCompanyId());
         context.setReceiverName(receiverName);
         context.setReceiverAddress(receiver == null ? null : StrUtil.trimToNull(receiver.getOpenid()));
+        context.addReceiverSnapshot(NotifyReceiverSnapshot.of(
+                NotifyReceiverTypeEnum.REPAIRER.getCode(),
+                payload.getNewAssignedUserId(),
+                payload.getReceiverCompanyId(),
+                receiverName,
+                receiver == null ? null : StrUtil.trimToNull(receiver.getOpenid())
+        ));
         context.setTemplateVariables(buildAssignedTemplateVariables(event, payload, receiverName));
         context.setMessageExtJson(buildAssignedMessageExt(payload));
         return context;

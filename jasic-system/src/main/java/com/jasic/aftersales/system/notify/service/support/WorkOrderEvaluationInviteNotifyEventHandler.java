@@ -8,6 +8,7 @@ import com.jasic.aftersales.system.notify.domain.entity.SysNotifyEvent;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyEventTypeEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyReceiverTypeEnum;
 import com.jasic.aftersales.system.notify.support.NotifyEventExecutionContext;
+import com.jasic.aftersales.system.notify.support.NotifyReceiverSnapshot;
 import com.jasic.aftersales.system.notify.support.NotifySceneCode;
 import org.springframework.stereotype.Component;
 
@@ -49,6 +50,13 @@ public class WorkOrderEvaluationInviteNotifyEventHandler implements NotifyEventH
         context.setReceiverId(payload.getCustomerId());
         context.setReceiverName(resolveReceiverName(payload));
         context.setReceiverAddress(StrUtil.trimToNull(payload.getCustomerOpenid()));
+        context.addReceiverSnapshot(NotifyReceiverSnapshot.of(
+                NotifyReceiverTypeEnum.CUSTOMER.getCode(),
+                payload.getCustomerId(),
+                null,
+                resolveReceiverName(payload),
+                StrUtil.trimToNull(payload.getCustomerOpenid())
+        ));
         context.setTemplateVariables(buildEvaluationVariables(payload));
         context.setMessageExtJson(null);
         return context;

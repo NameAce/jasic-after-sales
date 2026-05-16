@@ -264,7 +264,7 @@ public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConf
         previewVO.setRouteValue(renderText(resolvePreviewValue(dto.getRouteValueTemplate(), targetMeta.getDefaultRouteValueTemplate()), variables));
         previewVO.setErrors(Collections.emptyList());
 
-        if (NotifyTypeEnum.MP_SUBSCRIBE.getCode().equals(targetMeta.getTargetType())) {
+        if (targetMeta.isExternalTarget()) {
             String pagePathTemplate = resolvePreviewValue(
                     dto.getPagePathTemplate(),
                     targetMeta.getDefaultChannelConfig() == null ? null : targetMeta.getDefaultChannelConfig().getPagePathTemplate()
@@ -348,7 +348,7 @@ public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConf
         validatePlaceholders(dto.getContentTemplate(), allowedVariables, "内容模板");
         validatePlaceholders(dto.getRouteValueTemplate(), allowedVariables, "跳转值模板");
 
-        if (NotifyTypeEnum.MP_SUBSCRIBE.getCode().equals(targetMeta.getTargetType())) {
+        if (targetMeta.isExternalTarget()) {
             validateMpSubscribeConfig(dto, allowedVariables);
         }
     }
@@ -405,7 +405,7 @@ public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConf
      * @return 目标专属配置 JSON；当前非外部目标返回 {@code null}
      */
     private String buildTargetConfigJson(NotifySceneTargetMeta targetMeta, NotifySceneTargetConfigDTO dto) {
-        if (!NotifyTypeEnum.MP_SUBSCRIBE.getCode().equals(targetMeta.getTargetType())) {
+        if (!targetMeta.isExternalTarget()) {
             return null;
         }
         NotifyTemplateChannelConfig config = new NotifyTemplateChannelConfig();

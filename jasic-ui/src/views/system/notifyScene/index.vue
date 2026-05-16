@@ -238,7 +238,7 @@
             </el-col>
           </el-row>
 
-          <template v-if="targetMeta.targetType === 'MP_SUBSCRIBE'">
+          <template v-if="isMiniProgramTarget(targetMeta)">
             <el-row :gutter="16">
               <el-col :span="12">
                 <el-form-item label="模板ID">
@@ -367,7 +367,7 @@
         <el-descriptions-item label="内容">{{ previewDialog.result.content || '-' }}</el-descriptions-item>
         <el-descriptions-item label="跳转类型">{{ formatRouteType(previewDialog.result.routeType) }}</el-descriptions-item>
         <el-descriptions-item label="跳转值">{{ previewDialog.result.routeValue || '-' }}</el-descriptions-item>
-        <el-descriptions-item v-if="previewDialog.result.targetType === 'MP_SUBSCRIBE'" label="页面路径">
+        <el-descriptions-item v-if="isMiniProgramTarget(previewDialog.targetType)" label="页面路径">
           {{ previewDialog.result.pagePath || '-' }}
         </el-descriptions-item>
       </el-descriptions>
@@ -676,7 +676,7 @@ export default {
       if (!targetForm.routeValueTemplate) {
         targetForm.routeValueTemplate = targetMeta.defaultRouteValueTemplate || ''
       }
-      if (targetMeta.targetType === 'MP_SUBSCRIBE') {
+      if (this.isMiniProgramTarget(targetMeta)) {
         if (!targetForm.templateId) {
           targetForm.templateId = targetMeta.templateId || ''
         }
@@ -734,7 +734,7 @@ export default {
         const enabled = this.checkedTargetTypes.includes(targetMeta.targetType)
           ? Number(targetForm.enabled === 1 ? 1 : 0)
           : 0
-        if (targetMeta.targetType === 'MP_SUBSCRIBE' && enabled === 1 && !this.trimValue(targetForm.channelScene)) {
+        if (this.isMiniProgramTarget(targetMeta) && enabled === 1 && !this.trimValue(targetForm.channelScene)) {
           this.$message.error(`${targetMeta.targetTypeDesc}启用时必须选择发送小程序`)
           return null
         }
@@ -840,6 +840,18 @@ export default {
       }
       const matched = this.routeTypeOptions.find(item => item.code === routeType)
       return matched ? matched.desc : routeType
+    },
+    isMiniProgramTarget(targetMetaOrType) {
+      if (!targetMetaOrType) {
+        return false
+      }
+      if (typeof targetMetaOrType === 'string') {
+        return targetMetaOrType === 'MP_SUBSCRIBE' || targetMetaOrType.indexOf('MP_SUBSCRIBE_') === 0
+      }
+      if (targetMetaOrType.channelType === 'MP_SUBSCRIBE') {
+        return true
+      }
+      return this.isMiniProgramTarget(targetMetaOrType.targetType)
     },
     trimValue(value) {
       if (value == null) {

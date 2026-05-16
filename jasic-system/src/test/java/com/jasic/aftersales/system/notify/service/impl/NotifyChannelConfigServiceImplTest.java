@@ -64,7 +64,7 @@ public class NotifyChannelConfigServiceImplTest {
         NotifySceneTarget disabledTarget = new NotifySceneTarget();
         disabledTarget.setId(1L);
         disabledTarget.setSceneCode(NotifySceneCode.WORK_ORDER_EVALUATION_INVITE_MP_C.getCode());
-        disabledTarget.setTargetType(NotifyTypeEnum.MP_SUBSCRIBE.getCode());
+        disabledTarget.setTargetType(NotifyTypeEnum.MP_SUBSCRIBE_C.getCode());
         disabledTarget.setEnabled(0);
         disabledTarget.setConfigJson("{\"templateId\":\"wx-template-001\",\"pagePathTemplate\":\"pages/order/evaluate?workOrderId=${workOrderId}\",\"fieldMapping\":[{\"field\":\"thing1\",\"value\":\"${orderNo}\"}]}");
         state.targets.add(disabledTarget);
@@ -102,6 +102,7 @@ public class NotifyChannelConfigServiceImplTest {
     private List<NotifyTemplateChannelDTO> buildSingleEnabledChannel(String templateId) {
         List<NotifyTemplateChannelDTO> channelConfigs = new ArrayList<>();
         NotifyTemplateChannelDTO dto = new NotifyTemplateChannelDTO();
+        dto.setTargetType(NotifyTypeEnum.MP_SUBSCRIBE_B.getCode());
         dto.setChannelType("MP_SUBSCRIBE");
         dto.setChannelEnabled(1);
         dto.setTemplateId(templateId);
@@ -124,6 +125,9 @@ public class NotifyChannelConfigServiceImplTest {
                 new Class[]{NotifySceneTargetMapper.class},
                 (proxy, method, args) -> {
                     String methodName = method.getName();
+                    if ("selectList".equals(methodName)) {
+                        return selectTargets(state.targets, args[0]);
+                    }
                     if ("selectOne".equals(methodName)) {
                         List<NotifySceneTarget> matches = selectTargets(state.targets, args[0]);
                         return matches.isEmpty() ? null : matches.get(0);
@@ -155,7 +159,7 @@ public class NotifyChannelConfigServiceImplTest {
             if (sqlSegment.contains("scene_code") && !params.values().contains(target.getSceneCode())) {
                 continue;
             }
-            if (sqlSegment.contains("target_type") && !params.values().contains(target.getTargetType())) {
+            if (sqlSegment.contains("target_type") && !containsParamValue(params.values(), target.getTargetType())) {
                 continue;
             }
             if (sqlSegment.contains("enabled") && !params.values().contains(target.getEnabled())) {
@@ -164,6 +168,22 @@ public class NotifyChannelConfigServiceImplTest {
             matches.add(cloneTarget(target));
         }
         return matches;
+    }
+
+    private boolean containsParamValue(Iterable<?> values, Object expected) {
+        for (Object value : values) {
+            if (Objects.equals(value, expected)) {
+                return true;
+            }
+            if (value instanceof Iterable) {
+                for (Object item : (Iterable<?>) value) {
+                    if (Objects.equals(item, expected)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     private void replaceTarget(List<NotifySceneTarget> targets, NotifySceneTarget updated) {

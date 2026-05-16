@@ -37,6 +37,7 @@ import com.jasic.aftersales.system.notify.service.support.WorkOrderEvaluationInv
 import com.jasic.aftersales.system.notify.support.NotifyConstants;
 import com.jasic.aftersales.system.notify.support.NotifyDispatchPayload;
 import com.jasic.aftersales.system.notify.support.NotifySceneCode;
+import com.jasic.aftersales.system.notify.support.NotifySceneRegistry;
 import com.jasic.aftersales.system.notify.support.NotifyTemplateChannelConfig;
 import com.jasic.aftersales.system.notify.support.NotifyTemplateRenderResult;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
@@ -114,12 +115,12 @@ public class NotifyEventConsumeServiceImplTest {
         SysNotifyDispatch dispatch = dispatchService.createdDispatches.get(0);
         Assert.assertEquals(NotifyDispatchStatusEnum.PENDING.getCode(), dispatch.getDispatchStatus());
         Assert.assertEquals(NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode(), dispatch.getSceneCode());
-        Assert.assertEquals(NotifyTypeEnum.MP_SUBSCRIBE.getCode(), dispatch.getTargetType());
+        Assert.assertEquals(NotifyTypeEnum.MP_SUBSCRIBE_B.getCode(), dispatch.getTargetType());
         Assert.assertEquals(NotifyReceiverTypeEnum.REPAIRER.getCode(), dispatch.getReceiverType());
 
         NotifyDispatchPayload payload = JSONUtil.toBean(dispatch.getPayloadJson(), NotifyDispatchPayload.class);
         Assert.assertEquals(NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode(), payload.getSceneCode());
-        Assert.assertEquals(NotifyTypeEnum.MP_SUBSCRIBE.getCode(), payload.getTargetType());
+        Assert.assertEquals(NotifyTypeEnum.MP_SUBSCRIBE_B.getCode(), payload.getTargetType());
         Assert.assertEquals("pages/order/detail?workOrderId=${workOrderId}", payload.getChannelConfig().getPagePathTemplate());
         Assert.assertEquals(2, logService.logs.size());
     }
@@ -302,6 +303,7 @@ public class NotifyEventConsumeServiceImplTest {
         setField(service, "notifyEventHandlerRegistry",
                 buildRegistry(messageService, logService, userMapper));
         setField(service, "notifySceneTargetMapper", createTargetMapper(targetState));
+        setField(service, "notifySceneRegistry", new NotifySceneRegistry());
         setField(service, "notifyTemplateRenderService", new FakeNotifyTemplateRenderService());
         setField(service, "notifyMessageService", messageService);
         setField(service, "notifyMessageLogService", logService);
@@ -365,7 +367,9 @@ public class NotifyEventConsumeServiceImplTest {
         NotifySceneTarget target = new NotifySceneTarget();
         target.setId(id);
         target.setSceneCode(sceneCode);
-        target.setTargetType(NotifyTypeEnum.MP_SUBSCRIBE.getCode());
+        target.setTargetType(sceneCode.equals(NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode())
+                ? NotifyTypeEnum.MP_SUBSCRIBE_B.getCode()
+                : NotifyTypeEnum.MP_SUBSCRIBE_C.getCode());
         target.setEnabled(1);
         NotifyTemplateChannelConfig config = new NotifyTemplateChannelConfig();
         config.setTemplateId("wx-template-001");
@@ -797,7 +801,10 @@ public class NotifyEventConsumeServiceImplTest {
                 result.setSceneName(sceneCode);
             }
             result.setTemplateCode(sceneCode);
-            result.setTemplateName(result.getSceneName() + "-" + targetType);
+            String templateTargetType = NotifyTypeEnum.isMiniProgramSubscribeTarget(targetType)
+                    ? "MP_SUBSCRIBE"
+                    : targetType;
+            result.setTemplateName(result.getSceneName() + "-" + templateTargetType);
             result.setTitle("标题-" + targetType);
             result.setSummary("内容-" + variables.get("orderNo") + "-" + targetType);
             result.setRouteType(NotifyConstants.ROUTE_TYPE_WORK_ORDER_DETAIL);

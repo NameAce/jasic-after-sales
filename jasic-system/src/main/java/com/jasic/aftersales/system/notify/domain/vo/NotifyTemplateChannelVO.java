@@ -12,8 +12,7 @@ import java.util.List;
 /**
  * 通知模板渠道配置返回对象。
  *
- * <p>该对象用于后台渠道配置查询和运行时渠道快照读取，
- * 既保留原始 `config_json`，也展开常用字段，便于后台直接编辑和运行时快速判断。</p>
+ * <p>该对象既用于后台渠道配置查询，也用于运行时读取结构化渠道参数。</p>
  *
  * @author Codex
  * @date 2026/05/15
@@ -29,6 +28,18 @@ public class NotifyTemplateChannelVO implements Serializable {
      */
     @ApiModelProperty(value = "主键")
     private Long id;
+
+    /**
+     * 通知目标类型编码。
+     */
+    @ApiModelProperty(value = "通知目标类型编码")
+    private String targetType;
+
+    /**
+     * 通知目标类型说明。
+     */
+    @ApiModelProperty(value = "通知目标类型说明")
+    private String targetTypeDesc;
 
     /**
      * 通知场景编码。
@@ -55,13 +66,13 @@ public class NotifyTemplateChannelVO implements Serializable {
     private Integer channelEnabled;
 
     /**
-     * 小程序订阅消息模板 ID。
+     * 小程序订阅消息模板ID。
      */
     @ApiModelProperty(value = "小程序订阅消息模板ID")
     private String templateId;
 
     /**
-     * 小程序场景。
+     * 小程序场景，B/C。
      */
     @ApiModelProperty(value = "小程序场景，B/C")
     private String channelScene;
@@ -85,7 +96,7 @@ public class NotifyTemplateChannelVO implements Serializable {
     private List<NotifyChannelFieldMappingDTO> fieldMapping;
 
     /**
-     * 原始配置 JSON。
+     * 原始配置JSON。
      */
     @ApiModelProperty(value = "原始配置JSON")
     private String configJson;

@@ -3,6 +3,7 @@ package com.jasic.aftersales.system.notify.support;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -64,4 +65,68 @@ public class NotifyEventExecutionContext implements Serializable {
      * 站内消息扩展字段快照。
      */
     private String messageExtJson;
+
+    /**
+     * 按接收对象类型归档的接收人快照。
+     *
+     * <p>当同一个场景同时启用多个通知目标，且不同目标指向不同接收对象时，
+     * 统一由该映射提供“按目标取接收人”的能力。</p>
+     */
+    private Map<String, NotifyReceiverSnapshot> receiverSnapshots = new LinkedHashMap<>();
+
+    /**
+     * 追加接收人快照。
+     *
+     * @param snapshot 接收人快照
+     */
+    public void addReceiverSnapshot(NotifyReceiverSnapshot snapshot) {
+        if (snapshot == null || snapshot.getReceiverType() == null) {
+            return;
+        }
+        if (receiverSnapshots == null) {
+            receiverSnapshots = new LinkedHashMap<>();
+        }
+        receiverSnapshots.put(snapshot.getReceiverType(), snapshot);
+    }
+
+    /**
+     * 按接收对象类型读取接收人快照。
+     *
+     * <p>为兼容仍只写入单接收人的旧 handler，
+     * 当映射中未命中时会尝试回退到上下文主接收人字段。</p>
+     *
+     * @param receiverType 接收对象类型
+     * @return 接收人快照；未命中时返回 {@code null}
+     */
+    public NotifyReceiverSnapshot getReceiverSnapshot(String receiverType) {
+        if (receiverType == null) {
+            return null;
+        }
+        NotifyReceiverSnapshot snapshot = receiverSnapshots == null ? null : receiverSnapshots.get(receiverType);
+        if (snapshot != null) {
+            return snapshot;
+        }
+        if (receiverType.equals(this.receiverType)) {
+            return NotifyReceiverSnapshot.of(
+                    this.receiverType,
+                    this.receiverId,
+                    this.receiverCompanyId,
+                    this.receiverName,
+                    this.receiverAddress
+            );
+        }
+        return null;
+    }
+
+    /**
+     * 读取只读接收人快照映射。
+     *
+     * @return 接收人快照映射
+     */
+    public Map<String, NotifyReceiverSnapshot> getReceiverSnapshots() {
+        if (receiverSnapshots == null) {
+            return Collections.emptyMap();
+        }
+        return receiverSnapshots;
+    }
 }

@@ -173,8 +173,8 @@ public class NotifySceneRegistry {
                 null
         ));
         targetMetas.add(new NotifySceneTargetMeta(
-                NotifyTypeEnum.MP_SUBSCRIBE.getCode(),
-                NotifyTypeEnum.MP_SUBSCRIBE.getDesc(),
+                NotifyTypeEnum.MP_SUBSCRIBE_B.getCode(),
+                NotifyTypeEnum.MP_SUBSCRIBE_B.getDesc(),
                 NotifyReceiverTypeEnum.REPAIRER.getCode(),
                 NotifyReceiverTypeEnum.REPAIRER.getDesc(),
                 "维修员",
@@ -207,8 +207,8 @@ public class NotifySceneRegistry {
     private NotifySceneMeta buildWorkOrderEvaluationInviteScene() {
         List<NotifySceneTargetMeta> targetMetas = new ArrayList<>();
         targetMetas.add(new NotifySceneTargetMeta(
-                NotifyTypeEnum.MP_SUBSCRIBE.getCode(),
-                NotifyTypeEnum.MP_SUBSCRIBE.getDesc(),
+                NotifyTypeEnum.MP_SUBSCRIBE_C.getCode(),
+                NotifyTypeEnum.MP_SUBSCRIBE_C.getDesc(),
                 NotifyReceiverTypeEnum.CUSTOMER.getCode(),
                 NotifyReceiverTypeEnum.CUSTOMER.getDesc(),
                 "C端客户",
@@ -227,7 +227,7 @@ public class NotifySceneRegistry {
                 NotifySceneCode.WORK_ORDER_EVALUATION_INVITE_MP_C.getDesc(),
                 NotifyBizTypeEnum.WORK_ORDER.getCode(),
                 NotifyEventTypeEnum.WORK_ORDER_EVALUATION_INVITE.getCode(),
-                NotifyTypeEnum.MP_SUBSCRIBE.getCode(),
+                NotifyTypeEnum.MP_SUBSCRIBE_C.getCode(),
                 buildEvaluationInviteVariables(),
                 targetMetas
         );

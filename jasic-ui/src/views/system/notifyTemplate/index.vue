@@ -519,6 +519,7 @@ function createFieldMapping() {
 function buildEmptyChannelForm(channelType) {
   return {
     id: null,
+    targetType: '',
     channelType: channelType || MP_SUBSCRIBE,
     channelEnabled: 1,
     templateId: '',
@@ -960,6 +961,7 @@ export default {
       }
       return Object.assign(form, {
         id: data.id || null,
+        targetType: data.targetType || '',
         channelType: data.channelType || form.channelType,
         channelEnabled: typeof data.channelEnabled === 'number' ? data.channelEnabled : 1,
         templateId: data.templateId || '',
@@ -1051,6 +1053,7 @@ export default {
     buildChannelPayload(form) {
       return {
         id: form.id,
+        targetType: this.trimValue(form.targetType),
         channelType: this.trimValue(form.channelType),
         channelEnabled: form.channelEnabled,
         templateId: this.trimValue(form.templateId),

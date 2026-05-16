@@ -198,7 +198,7 @@ public class NotifySceneMeta {
      * @return 默认通知目标渠道类型
      */
     public String getChannelType() {
-        NotifySceneTargetMeta targetMeta = getDefaultTargetMeta();
+        NotifySceneTargetMeta targetMeta = resolveChannelTargetMeta();
         return targetMeta == null ? null : targetMeta.getChannelType();
     }
 
@@ -208,8 +208,30 @@ public class NotifySceneMeta {
      * @return 默认通知目标渠道类型描述
      */
     public String getChannelTypeDesc() {
-        NotifySceneTargetMeta targetMeta = getDefaultTargetMeta();
+        NotifySceneTargetMeta targetMeta = resolveChannelTargetMeta();
         return targetMeta == null ? null : targetMeta.getChannelTypeDesc();
+    }
+
+    /**
+     * 解析供兼容接口使用的主渠道目标。
+     *
+     * <p>如果默认目标本身是外部渠道目标，则直接返回默认目标；
+     * 否则回退到场景下声明的第一个外部渠道目标，
+     * 让旧配置页至少能感知当前场景存在可维护的外部渠道。</p>
+     *
+     * @return 主渠道目标；不存在时返回 {@code null}
+     */
+    private NotifySceneTargetMeta resolveChannelTargetMeta() {
+        NotifySceneTargetMeta defaultTargetMeta = getDefaultTargetMeta();
+        if (defaultTargetMeta != null && defaultTargetMeta.isExternalTarget()) {
+            return defaultTargetMeta;
+        }
+        for (NotifySceneTargetMeta targetMeta : targetMetas) {
+            if (targetMeta.isExternalTarget()) {
+                return targetMeta;
+            }
+        }
+        return null;
     }
 
     /**

@@ -51,7 +51,7 @@ public class NotifyTemplatePresetRegistryTest {
         Assert.assertEquals(NotifyChannelTypeEnum.MP_SUBSCRIBE.getCode(), evaluationInviteScene.getChannelType());
         Assert.assertEquals(
                 NotifyChannelSceneEnum.C.getCode(),
-                evaluationInviteScene.getTargetMeta(NotifyTypeEnum.MP_SUBSCRIBE.getCode())
+                evaluationInviteScene.getTargetMeta(NotifyTypeEnum.MP_SUBSCRIBE_C.getCode())
                         .getDefaultChannelConfig()
                         .getChannelScene()
         );

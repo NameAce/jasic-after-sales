@@ -9,7 +9,6 @@ import com.jasic.aftersales.system.notify.domain.dto.NotifyTemplateChannelDTO;
 import com.jasic.aftersales.system.notify.domain.entity.NotifySceneTarget;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyChannelSceneEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyChannelTypeEnum;
-import com.jasic.aftersales.system.notify.domain.enums.NotifyTypeEnum;
 import com.jasic.aftersales.system.notify.domain.vo.NotifyTemplateChannelVO;
 import com.jasic.aftersales.system.notify.mapper.NotifySceneTargetMapper;
 import com.jasic.aftersales.system.notify.service.NotifyChannelConfigService;
@@ -34,12 +33,8 @@ import java.util.stream.Collectors;
 /**
  * 通知渠道配置服务实现。
  *
- * <p>阶段一之后，外部渠道专属参数已经并入 `notify_scene_target.config_json`，
- * 因此该实现的职责变为：
- * 1. 把旧的渠道配置读取接口兼容映射到新的目标配置表
- * 2. 继续为运行时 `MP_SUBSCRIBE` sender 提供结构化渠道参数
- *
- * <p>该实现不再维护独立的渠道配置表，也不负责模板主数据、接收人规则和真实发送。</p>
+ * <p>重构后外部渠道参数统一落在 `notify_scene_target.config_json`，
+ * 该服务主要承担旧渠道接口到新目标配置模型之间的兼容映射。</p>
  *
  * @author Codex
  * @date 2026/05/16
@@ -56,83 +51,117 @@ public class NotifyChannelConfigServiceImpl implements NotifyChannelConfigServic
     private NotifySceneRegistry notifySceneRegistry;
 
     /**
-     * 查询后台维护页使用的渠道配置。
-     *
-     * @param sceneCode 通知场景编码
-     * @return 渠道配置列表
+     * {@inheritDoc}
      */
     @Override
     public List<NotifyTemplateChannelVO> listChannelConfigs(String sceneCode) {
-        NotifySceneTargetMeta targetMeta = getExternalTargetMetaOrThrow(sceneCode);
-        NotifySceneTarget entity = getTargetEntity(targetMeta, false);
-        return entity == null ? Collections.emptyList() : Collections.singletonList(toChannelVO(targetMeta, entity));
+        String normalizedSceneCode = normalizeRequiredField(sceneCode, "通知场景编码不能为空");
+        List<NotifySceneTargetMeta> targetMetas = getExternalTargetMetasOrThrow(normalizedSceneCode);
+        Map<String, NotifySceneTarget> entityMap = listTargetEntities(normalizedSceneCode, targetMetas).stream()
+                .collect(Collectors.toMap(NotifySceneTarget::getTargetType, item -> item, (left, right) -> left, LinkedHashMap::new));
+
+        List<NotifyTemplateChannelVO> result = new ArrayList<>();
+        for (NotifySceneTargetMeta targetMeta : targetMetas) {
+            NotifySceneTarget entity = entityMap.get(targetMeta.getTargetType());
+            if (entity == null) {
+                entity = buildDefaultTargetEntity(normalizedSceneCode, targetMeta);
+            }
+            result.add(toChannelVO(targetMeta, entity));
+        }
+        return result;
     }
 
     /**
-     * 按通知场景查询运行时可发送渠道配置。
-     *
-     * @param sceneCode 通知场景编码
-     * @return 启用中的渠道配置列表
+     * {@inheritDoc}
      */
     @Override
     public List<NotifyTemplateChannelVO> listRuntimeChannelConfigs(String sceneCode) {
-        NotifySceneTargetMeta targetMeta = getExternalTargetMetaOrThrow(sceneCode);
-        NotifySceneTarget entity = getTargetEntity(targetMeta, true);
-        return entity == null ? Collections.emptyList() : Collections.singletonList(toChannelVO(targetMeta, entity));
+        String normalizedSceneCode = normalizeRequiredField(sceneCode, "通知场景编码不能为空");
+        List<NotifySceneTargetMeta> targetMetas = getExternalTargetMetasOrThrow(normalizedSceneCode);
+        Map<String, NotifySceneTargetMeta> targetMetaMap = targetMetas.stream()
+                .collect(Collectors.toMap(NotifySceneTargetMeta::getTargetType, item -> item, (left, right) -> left, LinkedHashMap::new));
+
+        List<NotifyTemplateChannelVO> result = new ArrayList<>();
+        for (NotifySceneTarget entity : listTargetEntities(normalizedSceneCode, targetMetas)) {
+            if (!Objects.equals(entity.getEnabled(), 1)) {
+                continue;
+            }
+            NotifySceneTargetMeta targetMeta = targetMetaMap.get(entity.getTargetType());
+            if (targetMeta != null) {
+                result.add(toChannelVO(targetMeta, entity));
+            }
+        }
+        return result;
     }
 
     /**
-     * 判断某个通知场景是否存在渠道配置记录。
-     *
-     * @param sceneCode 通知场景编码
-     * @return `true` 表示存在任意渠道配置记录
+     * {@inheritDoc}
      */
     @Override
     public boolean hasRuntimeChannelConfigs(String sceneCode) {
-        NotifySceneTargetMeta targetMeta = getExternalTargetMetaOrThrow(sceneCode);
-        return countTargetEntities(targetMeta) > 0;
+        String normalizedSceneCode = normalizeRequiredField(sceneCode, "通知场景编码不能为空");
+        return !listTargetEntities(normalizedSceneCode, getExternalTargetMetasOrThrow(normalizedSceneCode)).isEmpty();
     }
 
     /**
-     * 保存通知场景渠道配置。
-     *
-     * <p>旧接口的保存单位是“按场景整批覆盖渠道配置”，
-     * 但阶段一后一个场景下的外部渠道配置已经收口为单条 `MP_SUBSCRIBE` 目标配置。
-     * 因此这里会把旧请求转换为目标配置上的 enabled/configJson/remark 更新，
-     * 并保留标题、内容、跳转等非渠道字段不被误覆盖。</p>
-     *
-     * @param sceneCode 通知场景编码
-     * @param channelConfigs 渠道配置列表
+     * {@inheritDoc}
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void saveChannelConfigs(String sceneCode, List<NotifyTemplateChannelDTO> channelConfigs) {
-        NotifySceneTargetMeta targetMeta = getExternalTargetMetaOrThrow(sceneCode);
-        List<NotifyTemplateChannelDTO> actualConfigs = channelConfigs == null ? Collections.emptyList() : channelConfigs;
-        validateChannelConfigs(targetMeta, actualConfigs);
+        String normalizedSceneCode = normalizeRequiredField(sceneCode, "通知场景编码不能为空");
+        List<NotifySceneTargetMeta> targetMetas = getExternalTargetMetasOrThrow(normalizedSceneCode);
+        Map<String, NotifySceneTargetMeta> targetMetaMap = targetMetas.stream()
+                .collect(Collectors.toMap(NotifySceneTargetMeta::getTargetType, item -> item, (left, right) -> left, LinkedHashMap::new));
 
-        NotifySceneTarget entity = getOrCreateTargetEntity(targetMeta);
-        NotifyTemplateChannelDTO channelDTO = actualConfigs.isEmpty() ? buildDisabledChannelDTO(targetMeta) : actualConfigs.get(0);
-        entity.setEnabled(channelDTO.getChannelEnabled());
-        entity.setConfigJson(buildChannelConfigJson(channelDTO));
-        entity.setRemark(normalizeNullableField(channelDTO.getRemark()));
-        notifySceneTargetMapper.updateById(entity);
+        List<NotifyTemplateChannelDTO> actualConfigs = channelConfigs == null ? Collections.emptyList() : channelConfigs;
+        Map<String, NotifyTemplateChannelDTO> requestMap = buildRequestTargetMap(targetMetas, actualConfigs);
+        validateChannelConfigs(targetMetaMap, requestMap);
+
+        Map<String, NotifySceneTarget> existingEntityMap = listTargetEntities(normalizedSceneCode, targetMetas).stream()
+                .collect(Collectors.toMap(NotifySceneTarget::getTargetType, item -> item, (left, right) -> left, LinkedHashMap::new));
+
+        boolean multipleExternalTargets = targetMetas.size() > 1;
+        for (NotifySceneTargetMeta targetMeta : targetMetas) {
+            NotifyTemplateChannelDTO channelDTO = requestMap.get(targetMeta.getTargetType());
+            if (channelDTO == null && multipleExternalTargets) {
+                // 旧渠道页仍是单表单交互，为避免一次保存把其它目标误停用，
+                // 多目标场景下对未提交的目标保持现状。
+                continue;
+            }
+            if (channelDTO == null) {
+                channelDTO = buildDisabledChannelDTO(targetMeta);
+            }
+            NotifySceneTarget entity = existingEntityMap.get(targetMeta.getTargetType());
+            if (entity == null) {
+                entity = buildDefaultTargetEntity(normalizedSceneCode, targetMeta);
+                notifySceneTargetMapper.insert(entity);
+            }
+            entity.setEnabled(channelDTO.getChannelEnabled());
+            entity.setConfigJson(buildChannelConfigJson(channelDTO));
+            entity.setRemark(normalizeNullableField(channelDTO.getRemark()));
+            notifySceneTargetMapper.updateById(entity);
+        }
     }
 
     /**
      * 校验渠道配置请求。
      *
-     * @param targetMeta 场景目标元数据
-     * @param channelConfigs 渠道配置请求
+     * @param targetMetaMap 目标元数据映射
+     * @param requestMap 请求映射
      */
-    private void validateChannelConfigs(NotifySceneTargetMeta targetMeta, List<NotifyTemplateChannelDTO> channelConfigs) {
-        if (channelConfigs.size() > 1) {
-            throw new ServiceException("当前场景的小程序渠道配置只允许保存一条");
-        }
-        for (NotifyTemplateChannelDTO channelDTO : channelConfigs) {
+    private void validateChannelConfigs(Map<String, NotifySceneTargetMeta> targetMetaMap,
+                                        Map<String, NotifyTemplateChannelDTO> requestMap) {
+        for (Map.Entry<String, NotifyTemplateChannelDTO> entry : requestMap.entrySet()) {
+            NotifyTemplateChannelDTO channelDTO = entry.getValue();
             if (channelDTO == null) {
                 throw new ServiceException("渠道配置不能为空");
             }
+            NotifySceneTargetMeta targetMeta = targetMetaMap.get(entry.getKey());
+            if (targetMeta == null) {
+                throw new ServiceException("当前通知场景不支持目标类型：" + entry.getKey());
+            }
+
             validateStatus(channelDTO.getChannelEnabled());
             validateLength(normalizeNullableField(channelDTO.getRemark()), REMARK_MAX_LENGTH, "备注");
 
@@ -176,10 +205,10 @@ public class NotifyChannelConfigServiceImpl implements NotifyChannelConfigServic
     }
 
     /**
-     * 构造渠道配置 JSON。
+     * 构建渠道配置JSON。
      *
      * @param dto 渠道配置参数
-     * @return 渠道配置 JSON
+     * @return 渠道配置JSON
      */
     private String buildChannelConfigJson(NotifyTemplateChannelDTO dto) {
         NotifyTemplateChannelConfig config = new NotifyTemplateChannelConfig();
@@ -191,21 +220,25 @@ public class NotifyChannelConfigServiceImpl implements NotifyChannelConfigServic
     }
 
     /**
-     * 把目标配置实体转换为旧渠道配置 VO。
+     * 转换为兼容渠道配置VO。
      *
      * @param targetMeta 目标元数据
-     * @param entity 目标配置实体
-     * @return 旧渠道配置 VO
+     * @param entity 目标实体
+     * @return 渠道配置VO
      */
     private NotifyTemplateChannelVO toChannelVO(NotifySceneTargetMeta targetMeta, NotifySceneTarget entity) {
         NotifyTemplateChannelVO vo = new NotifyTemplateChannelVO();
         vo.setId(entity.getId());
+        vo.setTargetType(targetMeta.getTargetType());
+        vo.setTargetTypeDesc(targetMeta.getTargetTypeDesc());
         vo.setSceneCode(entity.getSceneCode());
         vo.setChannelType(targetMeta.getChannelType());
         vo.setChannelTypeDesc(targetMeta.getChannelTypeDesc());
         vo.setChannelEnabled(entity.getEnabled());
         vo.setRemark(entity.getRemark());
         vo.setConfigJson(entity.getConfigJson());
+        vo.setCreateTime(entity.getCreateTime());
+        vo.setUpdateTime(entity.getUpdateTime());
 
         NotifyTemplateChannelConfig config = parseChannelConfig(entity.getConfigJson());
         if (config != null) {
@@ -219,123 +252,121 @@ public class NotifyChannelConfigServiceImpl implements NotifyChannelConfigServic
     }
 
     /**
-     * 查询场景下的小程序目标配置实体。
+     * 构建请求目标映射。
      *
-     * @param targetMeta 目标元数据
-     * @param enabledOnly 是否只读取启用目标
-     * @return 目标配置实体；不存在时返回 {@code null}
+     * @param targetMetas 外部目标元数据
+     * @param channelConfigs 请求列表
+     * @return 按 targetType 索引的请求映射
      */
-    private NotifySceneTarget getTargetEntity(NotifySceneTargetMeta targetMeta, boolean enabledOnly) {
+    private Map<String, NotifyTemplateChannelDTO> buildRequestTargetMap(List<NotifySceneTargetMeta> targetMetas,
+                                                                        List<NotifyTemplateChannelDTO> channelConfigs) {
+        Map<String, NotifyTemplateChannelDTO> requestMap = new LinkedHashMap<>();
+        NotifySceneTargetMeta singleTargetMeta = targetMetas.size() == 1 ? targetMetas.get(0) : null;
+        for (NotifyTemplateChannelDTO channelDTO : channelConfigs) {
+            if (channelDTO == null) {
+                throw new ServiceException("渠道配置不能为空");
+            }
+            String targetType = normalizeNullableField(channelDTO.getTargetType());
+            if (targetType == null && singleTargetMeta != null) {
+                targetType = singleTargetMeta.getTargetType();
+                channelDTO.setTargetType(targetType);
+            }
+            if (targetType == null) {
+                throw new ServiceException("多目标渠道配置时必须传入 targetType");
+            }
+            if (requestMap.put(targetType, channelDTO) != null) {
+                throw new ServiceException("同一个通知目标只允许提交一条渠道配置");
+            }
+        }
+        return requestMap;
+    }
+
+    /**
+     * 查询场景对应的全部外部目标元数据。
+     *
+     * @param sceneCode 场景编码
+     * @return 外部目标元数据列表
+     */
+    private List<NotifySceneTargetMeta> getExternalTargetMetasOrThrow(String sceneCode) {
+        NotifySceneMeta sceneMeta = notifySceneRegistry.getRequiredScene(sceneCode);
+        List<NotifySceneTargetMeta> targetMetas = sceneMeta.getTargetMetas().stream()
+                .filter(NotifySceneTargetMeta::isExternalTarget)
+                .collect(Collectors.toList());
+        if (targetMetas.isEmpty()) {
+            throw new ServiceException("当前通知场景不支持外部渠道配置");
+        }
+        return targetMetas;
+    }
+
+    /**
+     * 查询场景下的外部目标配置实体。
+     *
+     * @param sceneCode 场景编码
+     * @param targetMetas 目标元数据列表
+     * @return 目标配置实体列表
+     */
+    private List<NotifySceneTarget> listTargetEntities(String sceneCode, List<NotifySceneTargetMeta> targetMetas) {
+        Set<String> targetTypes = targetMetas.stream()
+                .map(NotifySceneTargetMeta::getTargetType)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (targetTypes.isEmpty()) {
+            return Collections.emptyList();
+        }
         LambdaQueryWrapper<NotifySceneTarget> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(NotifySceneTarget::getSceneCode, targetMeta == null ? null : getSceneCode(targetMeta))
-                .eq(NotifySceneTarget::getTargetType, NotifyTypeEnum.MP_SUBSCRIBE.getCode())
-                .last("limit 1");
-        if (enabledOnly) {
-            wrapper.eq(NotifySceneTarget::getEnabled, 1);
-        }
-        return notifySceneTargetMapper.selectOne(wrapper);
+        wrapper.eq(NotifySceneTarget::getSceneCode, sceneCode)
+                .in(NotifySceneTarget::getTargetType, targetTypes)
+                .orderByAsc(NotifySceneTarget::getId);
+        return notifySceneTargetMapper.selectList(wrapper);
     }
 
     /**
-     * 统计场景下的小程序目标配置数量。
+     * 构建默认目标实体。
+     *
+     * @param sceneCode 场景编码
+     * @param targetMeta 目标元数据
+     * @return 默认目标实体
+     */
+    private NotifySceneTarget buildDefaultTargetEntity(String sceneCode, NotifySceneTargetMeta targetMeta) {
+        NotifySceneTarget entity = new NotifySceneTarget();
+        entity.setSceneCode(sceneCode);
+        entity.setTargetType(targetMeta.getTargetType());
+        entity.setEnabled(targetMeta.getDefaultEnabled());
+        entity.setTitleTemplate(targetMeta.getDefaultTitleTemplate());
+        entity.setContentTemplate(targetMeta.getDefaultContentTemplate());
+        entity.setRouteType(targetMeta.getDefaultRouteType());
+        entity.setRouteValueTemplate(targetMeta.getDefaultRouteValueTemplate());
+        entity.setRemark(null);
+        if (targetMeta.getDefaultChannelConfig() != null) {
+            entity.setConfigJson(JSONUtil.toJsonStr(targetMeta.getDefaultChannelConfig()));
+        }
+        return entity;
+    }
+
+    /**
+     * 构建默认停用渠道DTO。
      *
      * @param targetMeta 目标元数据
-     * @return 目标配置数量
-     */
-    private long countTargetEntities(NotifySceneTargetMeta targetMeta) {
-        LambdaQueryWrapper<NotifySceneTarget> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(NotifySceneTarget::getSceneCode, getSceneCode(targetMeta))
-                .eq(NotifySceneTarget::getTargetType, NotifyTypeEnum.MP_SUBSCRIBE.getCode());
-        return notifySceneTargetMapper.selectCount(wrapper);
-    }
-
-    /**
-     * 获取或创建小程序目标配置实体。
-     *
-     * @param targetMeta 目标元数据
-     * @return 目标配置实体
-     */
-    private NotifySceneTarget getOrCreateTargetEntity(NotifySceneTargetMeta targetMeta) {
-        NotifySceneTarget entity = getTargetEntity(targetMeta, false);
-        if (entity != null) {
-            return entity;
-        }
-
-        NotifySceneMeta sceneMeta = notifySceneRegistry.getRequiredScene(getSceneCode(targetMeta));
-        NotifySceneTargetMeta actualTargetMeta = notifySceneRegistry.getRequiredTargetMeta(sceneMeta.getSceneCode(), NotifyTypeEnum.MP_SUBSCRIBE.getCode());
-        NotifySceneTarget targetEntity = new NotifySceneTarget();
-        targetEntity.setSceneCode(sceneMeta.getSceneCode());
-        targetEntity.setTargetType(actualTargetMeta.getTargetType());
-        targetEntity.setEnabled(actualTargetMeta.getDefaultEnabled());
-        targetEntity.setTitleTemplate(actualTargetMeta.getDefaultTitleTemplate());
-        targetEntity.setContentTemplate(actualTargetMeta.getDefaultContentTemplate());
-        targetEntity.setRouteType(actualTargetMeta.getDefaultRouteType());
-        targetEntity.setRouteValueTemplate(actualTargetMeta.getDefaultRouteValueTemplate());
-        targetEntity.setRemark(null);
-        if (actualTargetMeta.getDefaultChannelConfig() != null) {
-            targetEntity.setConfigJson(JSONUtil.toJsonStr(actualTargetMeta.getDefaultChannelConfig()));
-        }
-        notifySceneTargetMapper.insert(targetEntity);
-        return targetEntity;
-    }
-
-    /**
-     * 解析目标配置中的小程序专属 JSON。
-     *
-     * @param configJson 配置 JSON
-     * @return 解析后的配置对象
-     */
-    private NotifyTemplateChannelConfig parseChannelConfig(String configJson) {
-        if (StrUtil.isBlank(configJson)) {
-            return null;
-        }
-        return JSONUtil.toBean(configJson, NotifyTemplateChannelConfig.class);
-    }
-
-    /**
-     * 构造默认停用渠道 DTO。
-     *
-     * @param targetMeta 目标元数据
-     * @return 默认停用 DTO
+     * @return 默认停用DTO
      */
     private NotifyTemplateChannelDTO buildDisabledChannelDTO(NotifySceneTargetMeta targetMeta) {
         NotifyTemplateChannelDTO dto = new NotifyTemplateChannelDTO();
+        dto.setTargetType(targetMeta.getTargetType());
         dto.setChannelType(targetMeta.getChannelType());
         dto.setChannelEnabled(0);
         return dto;
     }
 
     /**
-     * 查询场景对应的外部通知目标元数据。
+     * 解析渠道配置。
      *
-     * @param sceneCode 场景编码
-     * @return 外部通知目标元数据
+     * @param configJson 配置JSON
+     * @return 渠道配置对象
      */
-    private NotifySceneTargetMeta getExternalTargetMetaOrThrow(String sceneCode) {
-        NotifySceneMeta sceneMeta = notifySceneRegistry.getRequiredScene(
-                normalizeRequiredField(sceneCode, "通知场景编码不能为空")
-        );
-        NotifySceneTargetMeta targetMeta = sceneMeta.getTargetMeta(NotifyTypeEnum.MP_SUBSCRIBE.getCode());
-        if (targetMeta == null || StrUtil.isBlank(targetMeta.getChannelType())) {
-            throw new ServiceException("当前通知场景不支持外部渠道配置");
+    private NotifyTemplateChannelConfig parseChannelConfig(String configJson) {
+        if (StrUtil.isBlank(configJson)) {
+            return null;
         }
-        return targetMeta;
-    }
-
-    /**
-     * 通过目标元数据反查所属场景编码。
-     *
-     * @param targetMeta 目标元数据
-     * @return 场景编码
-     */
-    private String getSceneCode(NotifySceneTargetMeta targetMeta) {
-        for (NotifySceneMeta sceneMeta : notifySceneRegistry.listScenes()) {
-            NotifySceneTargetMeta matched = sceneMeta.getTargetMeta(targetMeta.getTargetType());
-            if (matched == targetMeta) {
-                return sceneMeta.getSceneCode();
-            }
-        }
-        throw new ServiceException("无法从通知目标元数据反查场景编码");
+        return JSONUtil.toBean(configJson, NotifyTemplateChannelConfig.class);
     }
 
     /**
@@ -359,6 +390,17 @@ public class NotifyChannelConfigServiceImpl implements NotifyChannelConfigServic
             copied.add(copy);
         }
         return copied;
+    }
+
+    /**
+     * 解析小程序场景说明。
+     *
+     * @param channelScene 小程序场景编码
+     * @return 场景说明
+     */
+    private String resolveChannelSceneDesc(String channelScene) {
+        NotifyChannelSceneEnum channelSceneEnum = NotifyChannelSceneEnum.getByCode(channelScene);
+        return channelSceneEnum == null ? null : channelSceneEnum.getDesc();
     }
 
     /**
@@ -388,11 +430,11 @@ public class NotifyChannelConfigServiceImpl implements NotifyChannelConfigServic
     }
 
     /**
-     * 校验字符串长度。
+     * 校验字段长度。
      *
      * @param value 字段值
      * @param maxLength 最大长度
-     * @param fieldName 字段名称
+     * @param fieldName 字段名
      */
     private void validateLength(String value, int maxLength, String fieldName) {
         if (value != null && value.length() > maxLength) {
@@ -401,11 +443,11 @@ public class NotifyChannelConfigServiceImpl implements NotifyChannelConfigServic
     }
 
     /**
-     * 规范化必填字符串。
+     * 规范化必填字段。
      *
      * @param value 原始值
      * @param emptyMessage 为空时的异常文案
-     * @return 规范化后的字符串
+     * @return 规范化后的值
      */
     private String normalizeRequiredField(String value, String emptyMessage) {
         String normalizedValue = normalizeNullableField(value);
@@ -419,20 +461,9 @@ public class NotifyChannelConfigServiceImpl implements NotifyChannelConfigServic
      * 规范化可空字符串。
      *
      * @param value 原始值
-     * @return 去掉首尾空白后的值；为空白时返回 {@code null}
+     * @return 去除首尾空白后的值；为空时返回 {@code null}
      */
     private String normalizeNullableField(String value) {
         return StrUtil.trimToNull(value);
-    }
-
-    /**
-     * 解析小程序场景说明。
-     *
-     * @param channelScene 小程序场景编码
-     * @return 中文说明
-     */
-    private String resolveChannelSceneDesc(String channelScene) {
-        NotifyChannelSceneEnum channelSceneEnum = NotifyChannelSceneEnum.getByCode(channelScene);
-        return channelSceneEnum == null ? null : channelSceneEnum.getDesc();
     }
 }

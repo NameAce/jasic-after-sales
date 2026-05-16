@@ -12,9 +12,8 @@ import java.util.List;
 /**
  * 通知模板渠道配置参数。
  *
- * <p>该对象描述 `sys_notify_template_channel` 的单条配置。
- * 本次重构后渠道配置改为按 `sceneCode` 维护，`sceneCode` 本身由接口路径承载，
- * DTO 只保留单条渠道记录自己的启停状态和配置内容。</p>
+ * <p>当前兼容接口的保存单位已经从“按 sceneCode 单条渠道配置”
+ * 升级为“按 sceneCode 下的多个外部通知目标整体覆盖保存”。</p>
  *
  * @author Codex
  * @date 2026/05/15
@@ -32,6 +31,12 @@ public class NotifyTemplateChannelDTO implements Serializable {
     private Long id;
 
     /**
+     * 通知目标类型编码。
+     */
+    @ApiModelProperty(value = "通知目标类型编码")
+    private String targetType;
+
+    /**
      * 渠道类型编码。
      */
     @ApiModelProperty(value = "渠道类型", required = true)
@@ -46,13 +51,13 @@ public class NotifyTemplateChannelDTO implements Serializable {
     private Integer channelEnabled;
 
     /**
-     * 第三方模板 ID。
+     * 小程序订阅消息模板ID。
      */
     @ApiModelProperty(value = "小程序订阅消息模板ID")
     private String templateId;
 
     /**
-     * 小程序场景。
+     * 小程序场景，B/C。
      */
     @ApiModelProperty(value = "小程序场景，B/C")
     private String channelScene;
@@ -70,7 +75,7 @@ public class NotifyTemplateChannelDTO implements Serializable {
     private List<NotifyChannelFieldMappingDTO> fieldMapping;
 
     /**
-     * 原始配置 JSON。
+     * 原始配置JSON。
      */
     @ApiModelProperty(value = "原始配置JSON")
     private String configJson;
