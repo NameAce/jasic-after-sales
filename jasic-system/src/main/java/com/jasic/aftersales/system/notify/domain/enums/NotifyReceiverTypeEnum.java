@@ -4,32 +4,37 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
- * Notify receiver type.
+ * 通知接收对象类型枚举。
+ *
+ * <p>该枚举只用于模板配置页展示和排障辅助，不直接决定实际接收人解析规则。
+ * 实际接收对象仍由具体事件 handler 根据业务快照解析。</p>
  *
  * @author Codex
- * @date 2026/04/21
+ * @date 2026/05/15
  */
 public enum NotifyReceiverTypeEnum {
 
-    CUSTOMER("CUSTOMER", "瀹㈡埛"),
-    SYS_USER("SYS_USER", "绯荤粺鐢ㄦ埛");
+    /** 维修员。 */
+    REPAIRER("REPAIRER", "维修员"),
+
+    /** C端客户。 */
+    CUSTOMER("CUSTOMER", "C端客户");
 
     /**
-     * 通知接收人类型编码。
-     *
-     * @param code 参数
-     * @param desc 参数
-     * @return 处理结果
+     * 接收对象类型编码。
      */
     private final String code;
 
+    /**
+     * 接收对象类型说明。
+     */
     private final String desc;
 
     /**
-     * 构造通知接收人类型实例。
+     * 构造通知接收对象类型枚举。
      *
-     * @param code 参数
-     * @param desc 参数
+     * @param code 接收对象类型编码
+     * @param desc 接收对象类型说明
      */
     NotifyReceiverTypeEnum(String code, String desc) {
         this.code = code;
@@ -37,16 +42,15 @@ public enum NotifyReceiverTypeEnum {
     }
 
     /**
-     * 根据编码查询通知接收人类型。
+     * 按编码查询通知接收对象类型。
      *
-     * @param code 参数
-     * @return 处理结果
+     * @param code 接收对象类型编码
+     * @return 命中的接收对象类型；未命中时返回 {@code null}
      */
     public static NotifyReceiverTypeEnum getByCode(String code) {
         if (code == null) {
             return null;
         }
-        // 调用trim方法，复用统一能力并保证业务规则一致。
         String normalizedCode = code.trim();
         if (normalizedCode.isEmpty()) {
             return null;
@@ -60,25 +64,24 @@ public enum NotifyReceiverTypeEnum {
     }
 
     /**
-     * 根据编码解析通知接收人类型。
+     * 按编码解析通知接收对象类型。
      *
-     * @param code 参数
-     * @return 处理结果
+     * @param code 接收对象类型编码
+     * @return 命中的接收对象类型；入参为 {@code null} 时返回 {@code null}
      */
     @JsonCreator
     public static NotifyReceiverTypeEnum fromCode(String code) {
-        // 调用getByCode方法，复用统一能力并保证业务规则一致。
         NotifyReceiverTypeEnum value = getByCode(code);
         if (value == null && code != null) {
-            throw new IllegalArgumentException("Unsupported notify receiver type: " + code);
+            throw new IllegalArgumentException("不支持的通知接收对象类型编码：" + code);
         }
         return value;
     }
 
     /**
-     * 获取通知接收人类型编码。
+     * 获取接收对象类型编码。
      *
-     * @return 处理结果
+     * @return 接收对象类型编码
      */
     @JsonValue
     public String getCode() {
@@ -86,15 +89,11 @@ public enum NotifyReceiverTypeEnum {
     }
 
     /**
-     * 获取通知接收人类型描述。
+     * 获取接收对象类型说明。
      *
-     * @return 处理结果
+     * @return 接收对象类型说明
      */
     public String getDesc() {
         return desc;
     }
 }
-
-
-
-

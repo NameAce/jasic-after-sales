@@ -36,6 +36,9 @@ public class SysNotifyMessage extends BaseEntity {
     /** 事件类型 */
     private String eventType;
 
+    /** 通知场景编码 */
+    private String templateCode;
+
     /** 业务类型 */
     private String bizType;
 

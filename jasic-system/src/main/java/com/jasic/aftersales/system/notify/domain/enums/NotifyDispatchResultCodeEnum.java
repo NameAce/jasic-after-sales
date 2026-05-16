@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
- * Notify dispatch result code.
+ * 通知分发结果码枚举。
  *
  * @author Codex
  * @date 2026/04/21
@@ -19,7 +19,16 @@ public enum NotifyDispatchResultCodeEnum {
     SKIPPED_USER_NOT_SUBSCRIBED("SKIPPED_USER_NOT_SUBSCRIBED", "User not subscribed"),
     FAILED_CHANNEL_REQUEST("FAILED_CHANNEL_REQUEST", "Channel request failed"),
     FAILED_CHANNEL_RESPONSE("FAILED_CHANNEL_RESPONSE", "Channel response invalid"),
-    FAILED_RENDER_ERROR("FAILED_RENDER_ERROR", "Render failed");
+    FAILED_RENDER_ERROR("FAILED_RENDER_ERROR", "Render failed"),
+
+    /** 超过重试上限后进入死信。 */
+    DEAD_RETRY_EXCEEDED("DEAD_RETRY_EXCEEDED", "Dead retry exceeded"),
+
+    /** 人工关闭后进入死信。 */
+    DEAD_MANUAL_CLOSED("DEAD_MANUAL_CLOSED", "Dead manual closed"),
+
+    /** 未识别异常统一落到兜底失败码。 */
+    FAILED_UNKNOWN("FAILED_UNKNOWN", "Unknown failure");
 
     /**
      * 通知分发结果编码编码。

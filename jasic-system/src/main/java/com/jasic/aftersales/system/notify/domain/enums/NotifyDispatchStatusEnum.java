@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
- * Notify dispatch status.
+ * 通知分发状态枚举。
  *
  * @author Codex
  * @date 2026/04/21
@@ -15,7 +15,10 @@ public enum NotifyDispatchStatusEnum {
     PROCESSING("PROCESSING", "Processing"),
     SUCCESS("SUCCESS", "Success"),
     FAILED("FAILED", "Failed"),
-    SKIPPED("SKIPPED", "Skipped");
+    SKIPPED("SKIPPED", "Skipped"),
+
+    /** 进入死信。 */
+    DEAD("DEAD", "Dead");
 
     /**
      * 通知分发状态编码。

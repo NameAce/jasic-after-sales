@@ -68,6 +68,13 @@ knife4j:
 jasic:
   notify:
     consume-interval-seconds: 30
+    dispatch-interval-seconds: 30
+    event-retry-max-count: 3
+    event-retry-delay-minutes: 5
+    event-processing-timeout-minutes: 10
+    dispatch-retry-max-count: 3
+    dispatch-retry-delay-minutes: 5
+    dispatch-processing-timeout-minutes: 10
   amap:
     geocode:
       enabled: true

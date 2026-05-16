@@ -4,6 +4,7 @@ import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jasic.aftersales.common.exception.ServiceException;
+import com.jasic.aftersales.framework.datapermission.CompanyDataAccessContext;
 import com.jasic.aftersales.system.domain.dto.SysRoleTemplateDTO;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
 import com.jasic.aftersales.system.domain.entity.SysRole;
@@ -71,6 +72,9 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
 
     @Resource
     private SysDataScopeRuleService dataScopeRuleService;
+
+    @Resource
+    private CompanyDataAccessContext companyDataAccessContext;
 
     /**
      * 查询listByTypeCode相关业务数据。
@@ -246,6 +250,7 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
 
         Set<Long> updatedRoleIds = new HashSet<>();
         for (SysCompany company : companies) {
+            companyDataAccessContext.runWithTargetCompany(company.getId(), () -> {
             LambdaQueryWrapper<SysRole> roleWrapper = new LambdaQueryWrapper<>();
             roleWrapper.eq(SysRole::getCompanyId, company.getId())
                     .eq(SysRole::getRoleKey, template.getRoleKey())
@@ -271,6 +276,7 @@ public class SysRoleTemplateServiceImpl implements ISysRoleTemplateService {
                 // 调用getId方法，复用统一能力并保证业务规则一致。
                 updatedRoleIds.add(role.getId());
             }
+            });
         }
 
         // 调用kickAffectedUsers方法，复用统一能力并保证业务规则一致。

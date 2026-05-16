@@ -1,20 +1,25 @@
 package com.jasic.aftersales.system.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.system.domain.entity.WorkOrder;
 import com.jasic.aftersales.system.mapper.WorkOrderMapper;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyReadByBizDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoCompleteDTO;
 import com.jasic.aftersales.system.notify.domain.entity.SysNotifyMessage;
 import com.jasic.aftersales.system.notify.domain.entity.SysNotifyMessageLog;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyActionTypeEnum;
+import com.jasic.aftersales.system.notify.domain.enums.NotifyBizTypeEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyTodoStatusEnum;
 import com.jasic.aftersales.system.notify.domain.query.NotifyMessageQuery;
 import com.jasic.aftersales.system.notify.domain.vo.NotifyMessagePageVO;
 import com.jasic.aftersales.system.notify.mapper.SysNotifyMessageMapper;
 import com.jasic.aftersales.system.notify.service.NotifyMessageLogService;
 import com.jasic.aftersales.system.notify.service.impl.NotifyMessageServiceImpl;
+import com.jasic.aftersales.system.notify.support.NotifyConstants;
 import com.jasic.aftersales.system.service.WorkOrderPermissionService;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.apache.ibatis.session.Configuration;
@@ -184,6 +189,59 @@ public class NotifyMessageServiceImplTest {
         Assert.assertEquals(0, mapperState.updateCount);
     }
 
+    @Test
+    public void shouldMarkPendingTodoReadByBusinessWhenOpeningWorkOrderDetail() throws Exception {
+        NotifyMessageServiceImpl service = new NotifyMessageServiceImpl();
+        MessageMapperState mapperState = new MessageMapperState();
+        mapperState.messageStore.put(5L, buildMessage(5L, 100L, NotifyTodoStatusEnum.PENDING.getCode()));
+        MemoryNotifyMessageLogService logService = new MemoryNotifyMessageLogService();
+        setField(service, "sysNotifyMessageMapper", createMapperProxy(mapperState));
+        setField(service, "notifyMessageLogService", logService);
+        setField(service, "workOrderMapper", createWorkOrderMapperProxy(true));
+        setField(service, "workOrderPermissionService", new TestWorkOrderPermissionService(true));
+        initTableInfo();
+
+        NotifyReadByBizDTO dto = new NotifyReadByBizDTO();
+        dto.setBizType(NotifyBizTypeEnum.WORK_ORDER.getCode());
+        dto.setBizId(88L);
+        dto.setReceiverId(100L);
+        dto.setReceiverCompanyId(300L);
+        service.markReadByBiz(dto);
+
+        Assert.assertEquals(1, mapperState.updateCount);
+        Assert.assertEquals(NotifyTodoStatusEnum.READ.getCode(), mapperState.messageStore.get(5L).getTodoStatus());
+        Assert.assertNotNull(mapperState.messageStore.get(5L).getReadTime());
+        Assert.assertEquals(1, logService.logs.size());
+        Assert.assertEquals(NotifyActionTypeEnum.READ.getCode(), logService.logs.get(0).getActionType());
+    }
+
+    @Test
+    public void shouldCompleteActiveTodoByBusinessWhenTechnicianAccepts() throws Exception {
+        NotifyMessageServiceImpl service = new NotifyMessageServiceImpl();
+        MessageMapperState mapperState = new MessageMapperState();
+        mapperState.messageStore.put(6L, buildMessage(6L, 100L, NotifyTodoStatusEnum.READ.getCode()));
+        MemoryNotifyMessageLogService logService = new MemoryNotifyMessageLogService();
+        setField(service, "sysNotifyMessageMapper", createMapperProxy(mapperState));
+        setField(service, "notifyMessageLogService", logService);
+        setField(service, "workOrderMapper", createWorkOrderMapperProxy(true));
+        setField(service, "workOrderPermissionService", new TestWorkOrderPermissionService(true));
+        initTableInfo();
+
+        NotifyTodoCompleteDTO dto = new NotifyTodoCompleteDTO();
+        dto.setBizType(NotifyBizTypeEnum.WORK_ORDER.getCode());
+        dto.setBizId(88L);
+        dto.setReceiverId(100L);
+        dto.setReceiverCompanyId(300L);
+        dto.setActionCode(NotifyConstants.ACTION_TECH_ACCEPT);
+        service.completeTodoByBizAndReceiver(dto);
+
+        Assert.assertEquals(1, mapperState.updateCount);
+        Assert.assertEquals(NotifyTodoStatusEnum.DONE.getCode(), mapperState.messageStore.get(6L).getTodoStatus());
+        Assert.assertNotNull(mapperState.messageStore.get(6L).getDoneTime());
+        Assert.assertEquals(1, logService.logs.size());
+        Assert.assertEquals(NotifyActionTypeEnum.DONE.getCode(), logService.logs.get(0).getActionType());
+    }
+
     private void initTableInfo() {
         if (TableInfoHelper.getTableInfo(SysNotifyMessage.class) != null) {
             return;
@@ -221,16 +279,11 @@ public class NotifyMessageServiceImplTest {
                 }
                 if ("update".equals(name)) {
                     state.updateCount++;
-                    SysNotifyMessage message = state.messageStore.get(state.lastMessageId);
-                    if (message != null && NotifyTodoStatusEnum.PENDING.getCode().equals(message.getTodoStatus())) {
-                        message.setTodoStatus(NotifyTodoStatusEnum.READ.getCode());
-                        message.setReadTime(LocalDateTime.now());
-                        return 1;
-                    }
-                    return 0;
+                    applyMessageUpdate(state, (LambdaUpdateWrapper<SysNotifyMessage>) args[1]);
+                    return 1;
                 }
                 if ("selectList".equals(name)) {
-                    return Collections.emptyList();
+                    return new ArrayList<>(state.messageStore.values());
                 }
                 if ("insert".equals(name)) {
                     return 1;
@@ -243,6 +296,37 @@ public class NotifyMessageServiceImplTest {
                 new Class[]{SysNotifyMessageMapper.class},
                 handler
         );
+    }
+
+    private void applyMessageUpdate(MessageMapperState state, LambdaUpdateWrapper<SysNotifyMessage> wrapper) {
+        Long messageId = resolveMessageId(state, wrapper);
+        SysNotifyMessage message = state.messageStore.get(messageId);
+        if (message == null) {
+            return;
+        }
+        Map<String, Object> params = wrapper.getParamNameValuePairs();
+        if (params.containsValue(NotifyTodoStatusEnum.READ.getCode())) {
+            message.setTodoStatus(NotifyTodoStatusEnum.READ.getCode());
+            message.setReadTime(LocalDateTime.now());
+        } else if (params.containsValue(NotifyTodoStatusEnum.DONE.getCode())) {
+            message.setTodoStatus(NotifyTodoStatusEnum.DONE.getCode());
+            message.setDoneTime(LocalDateTime.now());
+        } else if (params.containsValue(NotifyTodoStatusEnum.INVALID.getCode())) {
+            message.setTodoStatus(NotifyTodoStatusEnum.INVALID.getCode());
+            message.setInvalidTime(LocalDateTime.now());
+        }
+    }
+
+    private Long resolveMessageId(MessageMapperState state, LambdaUpdateWrapper<SysNotifyMessage> wrapper) {
+        if (state.lastMessageId != null) {
+            return state.lastMessageId;
+        }
+        for (Object value : wrapper.getParamNameValuePairs().values()) {
+            if (value instanceof Long && state.messageStore.containsKey(value)) {
+                return (Long) value;
+            }
+        }
+        return null;
     }
 
     private WorkOrderMapper createWorkOrderMapperProxy(boolean found) {

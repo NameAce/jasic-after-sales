@@ -54,6 +54,10 @@ public class SysNotifyEvent extends BaseEntity {
     /** 事件状态 */
     private String status;
 
+    /** 开始处理时间 */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime processingTime;
+
     /** 重试次数 */
     private Integer retryCount;
 

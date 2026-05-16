@@ -12,6 +12,7 @@ import com.jasic.aftersales.system.notify.service.NotifyChannelSender;
 import com.jasic.aftersales.system.notify.support.NotifyChannelSendContext;
 import com.jasic.aftersales.system.notify.support.NotifyChannelSendResult;
 import com.jasic.aftersales.system.notify.support.NotifyDispatchPayload;
+import com.jasic.aftersales.system.notify.support.NotifySceneCode;
 import com.jasic.aftersales.system.notify.support.NotifyTemplateChannelConfig;
 import com.jasic.aftersales.system.service.WechatMiniProgramService;
 import org.springframework.stereotype.Service;
@@ -104,8 +105,9 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
                     "Mini program field mapping is missing"
             );
         }
-        // 调用getScene方法，复用统一能力并保证业务规则一致。
-        WechatMiniProgramScene scene = resolveScene(channelConfig.getScene());
+        // Phase 1 起小程序端口归属不再存放在渠道配置 JSON，而是由 sceneCode 隐含表达。
+        // 这里优先根据 dispatch payload 中携带的模板身份解析实际小程序端口。
+        WechatMiniProgramScene scene = resolveScene(payload.getTemplateCode());
         if (scene == null) {
             return NotifyChannelSendResult.skipped(
                     NotifyDispatchResultCodeEnum.SKIPPED_CHANNEL_CONFIG_MISSING.getCode(),
@@ -178,15 +180,16 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
     /**
      * 解析场景。
      *
-     * @param sceneCode 参数
+     * @param sceneCode 通知场景编码
      * @return 处理结果
      */
     private WechatMiniProgramScene resolveScene(String sceneCode) {
-        if (WechatMiniProgramScene.B.getCode().equals(sceneCode)) {
-            return WechatMiniProgramScene.B;
-        }
-        if (WechatMiniProgramScene.C.getCode().equals(sceneCode)) {
+        if (NotifySceneCode.WORK_ORDER_EVALUATION_INVITE_MP_C.getCode().equals(sceneCode)
+                || StrUtil.endWithIgnoreCase(sceneCode, "_MP_C")) {
             return WechatMiniProgramScene.C;
+        }
+        if (StrUtil.endWithIgnoreCase(sceneCode, "_MP_B")) {
+            return WechatMiniProgramScene.B;
         }
         return null;
     }

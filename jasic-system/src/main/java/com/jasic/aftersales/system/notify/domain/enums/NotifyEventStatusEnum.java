@@ -21,7 +21,10 @@ public enum NotifyEventStatusEnum {
     SUCCESS("SUCCESS", "成功"),
 
     /** 消费失败。 */
-    FAILED("FAILED", "失败");
+    FAILED("FAILED", "失败"),
+
+    /** 进入死信。 */
+    DEAD("DEAD", "死信");
 
     /**
      * 通知事件状态编码。

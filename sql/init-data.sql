@@ -218,13 +218,7 @@ INSERT INTO `sys_config` (`id`, `config_name`, `config_key`, `config_value`, `co
 (2, 'B端小程序AppID', 'wechat.mp.b.appid', '', 0, 'S8.3 真实微信登录链路配置，默认留空', NOW(), NOW()),
 (3, 'B端小程序Secret', 'wechat.mp.b.secret', '', 0, 'S8.3 真实微信登录链路配置，默认留空', NOW(), NOW()),
 (4, 'C端小程序AppID', 'wechat.mp.c.appid', '', 0, 'S8.3 真实微信登录链路配置，默认留空', NOW(), NOW()),
-(5, 'C端小程序Secret', 'wechat.mp.c.secret', '', 0, 'S8.3 真实微信登录链路配置，默认留空', NOW(), NOW()),
-(6, '客户维修完成通知模板ID', 'wechat.notify.customer.repairFinished.templateId', '', 0, 'S8.3 微信订阅消息配置，默认留空', NOW(), NOW()),
-(7, '客户维修完成通知跳转页', 'wechat.notify.customer.repairFinished.pagePath', '', 0, 'S8.3 微信订阅消息配置，默认留空', NOW(), NOW()),
-(8, '客户评价邀请通知模板ID', 'wechat.notify.customer.evaluationInvite.templateId', '', 0, 'S8.3 微信订阅消息配置，默认留空', NOW(), NOW()),
-(9, '客户评价邀请通知跳转页', 'wechat.notify.customer.evaluationInvite.pagePath', '', 0, 'S8.3 微信订阅消息配置，默认留空', NOW(), NOW()),
-(10, '公司侧客户评价结果通知模板ID', 'wechat.notify.company.customerEvaluated.templateId', '', 0, 'S8.3 微信订阅消息配置，默认留空', NOW(), NOW()),
-(11, '公司侧客户评价结果通知跳转页', 'wechat.notify.company.customerEvaluated.pagePath', '', 0, 'S8.3 微信订阅消息配置，默认留空', NOW(), NOW());
+(5, 'C端小程序Secret', 'wechat.mp.c.secret', '', 0, 'S8.3 真实微信登录链路配置，默认留空', NOW(), NOW());
 -- -------------------------------------------
 -- 13. 条码档案菜单与权限
 -- -------------------------------------------

@@ -160,29 +160,29 @@ export function refreshConfigCache() {
 export function listNotifyTemplate(params) {
   return request({ url: '/system/notify/template/list', method: 'get', params })
 }
+export function getNotifyTemplateOptions() {
+  return request({ url: '/system/notify/template/options', method: 'get' })
+}
 export function getNotifyTemplate(id) {
   return request({ url: `/system/notify/template/${id}`, method: 'get' })
 }
-export function listNotifyTemplateChannels(templateCode) {
-  return request({ url: `/system/notify/template/${templateCode}/channels`, method: 'get' })
+export function createNotifyTemplate(data) {
+  return request({ url: '/system/notify/template', method: 'post', data })
 }
-export function saveNotifyTemplateChannels(templateCode, data) {
-  return request({ url: `/system/notify/template/${templateCode}/channels`, method: 'put', data })
+export function updateNotifyTemplate(data) {
+  return request({ url: '/system/notify/template', method: 'put', data })
 }
-export function addNotifyTemplateCustom(data) {
-  return request({ url: '/system/notify/template/custom', method: 'post', data })
+export function updateNotifyTemplateStatus(id, data) {
+  return request({ url: `/system/notify/template/${id}/status`, method: 'put', data })
 }
-export function updateNotifyTemplateCustom(data) {
-  return request({ url: '/system/notify/template/custom', method: 'put', data })
+export function listNotifyTemplateChannels(sceneCode) {
+  return request({ url: `/system/notify/template/${sceneCode}/channels`, method: 'get' })
 }
-export function deleteNotifyTemplateCustom(id) {
-  return request({ url: `/system/notify/template/custom/${id}`, method: 'delete' })
+export function saveNotifyTemplateChannels(sceneCode, data) {
+  return request({ url: `/system/notify/template/${sceneCode}/channels`, method: 'put', data })
 }
 export function previewNotifyTemplate(data) {
   return request({ url: '/system/notify/template/preview', method: 'post', data })
-}
-export function refreshNotifyTemplateCache() {
-  return request({ url: '/system/notify/template/refresh-cache', method: 'post' })
 }
 
 // --- Machine Barcode ---

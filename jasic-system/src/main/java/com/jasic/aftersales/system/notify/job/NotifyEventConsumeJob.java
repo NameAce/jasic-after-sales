@@ -1,16 +1,22 @@
 package com.jasic.aftersales.system.notify.job;
 
 import com.jasic.aftersales.system.notify.service.NotifyEventConsumeService;
+import com.jasic.aftersales.system.notify.service.NotifyEventService;
+import com.jasic.aftersales.system.notify.support.NotifyConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
+import org.springframework.beans.factory.annotation.Value;
 
 import javax.annotation.Resource;
+import java.time.LocalDateTime;
 
 /**
  * 通知事件消费任务。
+ *
+ * <p>任务执行前会先恢复处理超时的事件，避免 `PROCESSING` 状态因宕机或线程中断永久卡死。</p>
  *
  * @author Codex
  * @date 2026/04/18
@@ -19,34 +25,34 @@ import javax.annotation.Resource;
 @DisallowConcurrentExecution
 public class NotifyEventConsumeJob implements Job {
 
-    /**
-     * 通知事件消费服务服务依赖。
-     *
-     * @param context 参数
-     */
     @Resource
     private NotifyEventConsumeService notifyEventConsumeService;
 
+    @Resource
+    private NotifyEventService notifyEventService;
+
+    @Value("${jasic.notify.event-processing-timeout-minutes:" + NotifyConstants.EVENT_PROCESSING_TIMEOUT_MINUTES + "}")
+    private long eventProcessingTimeoutMinutes = NotifyConstants.EVENT_PROCESSING_TIMEOUT_MINUTES;
+
     /**
-     * 处理execute业务逻辑。
+     * 执行事件消费任务。
      *
-     * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
-     * @param context 参数
-     * @throws JobExecutionException 异常场景
+     * @param context Quartz 上下文
+     * @throws JobExecutionException 任务异常
      */
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {
         try {
-            // 调用consumePendingEvents方法，复用统一能力并保证业务规则一致。
+            LocalDateTime timeoutBefore = LocalDateTime.now().minusMinutes(eventProcessingTimeoutMinutes);
+            int recoveredCount = notifyEventService.recoverTimeoutProcessingEvents(timeoutBefore);
+            if (recoveredCount > 0) {
+                log.warn("Recover timeout notify events finished. recoveredCount={}", recoveredCount);
+            }
             int successCount = notifyEventConsumeService.consumePendingEvents();
-            // 调用info方法，复用统一能力并保证业务规则一致。
-            log.info("通知事件消费任务执行完成，本轮成功处理 {} 条事件", successCount);
+            log.info("Notify event consume job finished. recoveredCount={}, successCount={}", recoveredCount, successCount);
         } catch (Exception ex) {
-            // 调用error方法，复用统一能力并保证业务规则一致。
-            log.error("通知事件消费任务执行失败", ex);
+            log.error("Notify event consume job failed", ex);
             throw new JobExecutionException(ex);
         }
     }
 }
-
-

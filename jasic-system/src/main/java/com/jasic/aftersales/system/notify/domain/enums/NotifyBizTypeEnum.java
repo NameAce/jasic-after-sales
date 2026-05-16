@@ -6,26 +6,32 @@ import com.fasterxml.jackson.annotation.JsonValue;
 /**
  * 通知业务类型枚举。
  *
+ * <p>用于约束通知事件、消息和分发排障里允许出现的业务边界。
+ * 当前阶段只收口售后工单通知，不负责扩展未知业务类型。</p>
+ *
  * @author Codex
- * @date 2026/04/18
+ * @date 2026/05/15
  */
 public enum NotifyBizTypeEnum {
 
     /** 工单业务。 */
-        WORK_ORDER("WORK_ORDER", "工单");
+    WORK_ORDER("WORK_ORDER", "工单");
 
     /**
-     * 通知业务类型编码。
+     * 业务类型编码。
      */
     private final String code;
 
+    /**
+     * 业务类型说明。
+     */
     private final String desc;
 
     /**
-     * 构造通知业务类型实例。
+     * 构造通知业务类型枚举。
      *
-     * @param code 参数
-     * @param desc 参数
+     * @param code 业务类型编码
+     * @param desc 业务类型说明
      */
     NotifyBizTypeEnum(String code, String desc) {
         this.code = code;
@@ -33,16 +39,17 @@ public enum NotifyBizTypeEnum {
     }
 
     /**
-     * 根据编码查询通知业务类型。
+     * 按编码查询通知业务类型。
      *
-     * @param code 参数
-     * @return 处理结果
+     * <p>该方法只做轻量解析，不对未知编码抛异常，便于查询和校验场景按需判断。</p>
+     *
+     * @param code 业务类型编码
+     * @return 命中的业务类型；未命中时返回 {@code null}
      */
     public static NotifyBizTypeEnum getByCode(String code) {
         if (code == null) {
             return null;
         }
-        // 调用trim方法，复用统一能力并保证业务规则一致。
         String normalizedCode = code.trim();
         if (normalizedCode.isEmpty()) {
             return null;
@@ -56,14 +63,16 @@ public enum NotifyBizTypeEnum {
     }
 
     /**
-     * 根据编码解析通知业务类型。
+     * 按编码解析通知业务类型。
      *
-     * @param code 参数
-     * @return 处理结果
+     * <p>该方法用于 JSON 反序列化和强校验场景，遇到未知编码时直接抛错，
+     * 避免非法业务类型进入通知事件链路。</p>
+     *
+     * @param code 业务类型编码
+     * @return 命中的业务类型；入参为 {@code null} 时返回 {@code null}
      */
     @JsonCreator
     public static NotifyBizTypeEnum fromCode(String code) {
-        // 调用getByCode方法，复用统一能力并保证业务规则一致。
         NotifyBizTypeEnum value = getByCode(code);
         if (value == null && code != null) {
             throw new IllegalArgumentException("不支持的通知业务类型编码：" + code);
@@ -72,9 +81,9 @@ public enum NotifyBizTypeEnum {
     }
 
     /**
-     * 获取通知业务类型编码。
+     * 获取业务类型编码。
      *
-     * @return 处理结果
+     * @return 业务类型编码
      */
     @JsonValue
     public String getCode() {
@@ -82,16 +91,11 @@ public enum NotifyBizTypeEnum {
     }
 
     /**
-     * 获取通知业务类型描述。
+     * 获取业务类型说明。
      *
-     * @return 处理结果
+     * @return 业务类型说明
      */
     public String getDesc() {
         return desc;
     }
 }
-
-
-
-
-

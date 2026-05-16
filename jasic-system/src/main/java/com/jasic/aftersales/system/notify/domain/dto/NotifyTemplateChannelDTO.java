@@ -10,47 +10,68 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
- * Notify template channel config DTO.
+ * 通知模板渠道配置参数。
+ *
+ * <p>该对象描述 `sys_notify_template_channel` 的单条配置。
+ * 本次重构后渠道配置改为按 `sceneCode` 维护，`sceneCode` 本身由接口路径承载，
+ * DTO 只保留单条渠道记录自己的启停状态和配置内容。</p>
  *
  * @author Codex
- * @date 2026/04/21
+ * @date 2026/05/15
  */
-@ApiModel(description = "Notify template channel config DTO")
+@ApiModel(description = "通知模板渠道配置参数")
 @Data
 public class NotifyTemplateChannelDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @ApiModelProperty(value = "Primary key")
+    /**
+     * 主键。
+     */
+    @ApiModelProperty(value = "主键")
     private Long id;
 
-    @ApiModelProperty(value = "Template code", required = true)
-    @NotBlank(message = "templateCode cannot be blank")
-    private String templateCode;
-
-    @ApiModelProperty(value = "Channel type", required = true)
-    @NotBlank(message = "channelType cannot be blank")
+    /**
+     * 渠道类型编码。
+     */
+    @ApiModelProperty(value = "渠道类型", required = true)
+    @NotBlank(message = "渠道类型不能为空")
     private String channelType;
 
-    @ApiModelProperty(value = "Channel enabled", required = true)
-    @NotNull(message = "channelEnabled cannot be null")
+    /**
+     * 渠道启停状态。
+     */
+    @ApiModelProperty(value = "渠道状态：1启用，0停用", required = true)
+    @NotNull(message = "渠道状态不能为空")
     private Integer channelEnabled;
 
-    @ApiModelProperty(value = "Channel scene")
-    private String channelScene;
-
-    @ApiModelProperty(value = "Third-party template id")
+    /**
+     * 第三方模板 ID。
+     */
+    @ApiModelProperty(value = "小程序订阅消息模板ID")
     private String templateId;
 
-    @ApiModelProperty(value = "Page path template")
+    /**
+     * 页面路径模板。
+     */
+    @ApiModelProperty(value = "页面路径模板")
     private String pagePathTemplate;
 
-    @ApiModelProperty(value = "Field mappings")
+    /**
+     * 字段映射。
+     */
+    @ApiModelProperty(value = "字段映射")
     private List<NotifyChannelFieldMappingDTO> fieldMapping;
 
-    @ApiModelProperty(value = "Raw config json")
+    /**
+     * 原始配置 JSON。
+     */
+    @ApiModelProperty(value = "原始配置JSON")
     private String configJson;
 
-    @ApiModelProperty(value = "Remark")
+    /**
+     * 备注。
+     */
+    @ApiModelProperty(value = "备注")
     private String remark;
 }

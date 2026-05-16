@@ -11,7 +11,7 @@ import lombok.EqualsAndHashCode;
 import java.time.LocalDateTime;
 
 /**
- * Notify dispatch entity.
+ * 通知分发实体。
  *
  * @author Codex
  * @date 2026/04/21
@@ -45,6 +45,9 @@ public class SysNotifyDispatch extends BaseEntity {
     private String bizNo;
 
     private String dispatchStatus;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime processingTime;
 
     private String resultCode;
 

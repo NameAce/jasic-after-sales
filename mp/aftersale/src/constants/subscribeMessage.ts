@@ -1,6 +1,6 @@
 /**
  * 微信「客户满意度评价通知」订阅消息模板 ID
- * （与公众平台模板「客户满意度评价通知」一致，后台 `wechat.notify.customer.evaluationInvite.templateId` 需配置同一 ID）
+ * （小程序端仅负责向微信申请订阅；后台真实发送模板 ID 统一通过通知模板渠道配置维护）
  */
 export const WECHAT_TMPL_CUSTOMER_EVALUATION_INVITE =
   '01ZBgiyxkgui_wKWFtYsETnkSySMxeANaK2SoShvXkM'

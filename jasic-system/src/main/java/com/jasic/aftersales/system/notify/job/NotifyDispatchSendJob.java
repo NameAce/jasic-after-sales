@@ -1,16 +1,21 @@
 package com.jasic.aftersales.system.notify.job;
 
 import com.jasic.aftersales.system.notify.service.NotifyDispatchService;
+import com.jasic.aftersales.system.notify.support.NotifyConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
+import org.springframework.beans.factory.annotation.Value;
 
 import javax.annotation.Resource;
+import java.time.LocalDateTime;
 
 /**
- * Notify dispatch send job.
+ * 通知分发发送任务。
+ *
+ * <p>任务执行前会先恢复超时卡住的分发任务，确保 `PROCESSING` 状态不会永久占住发送队列。</p>
  *
  * @author Codex
  * @date 2026/04/21
@@ -19,34 +24,31 @@ import javax.annotation.Resource;
 @DisallowConcurrentExecution
 public class NotifyDispatchSendJob implements Job {
 
-    /**
-     * 通知分发服务服务依赖。
-     *
-     * @param context 参数
-     */
     @Resource
     private NotifyDispatchService notifyDispatchService;
 
+    @Value("${jasic.notify.dispatch-processing-timeout-minutes:" + NotifyConstants.DISPATCH_PROCESSING_TIMEOUT_MINUTES + "}")
+    private long dispatchProcessingTimeoutMinutes = NotifyConstants.DISPATCH_PROCESSING_TIMEOUT_MINUTES;
+
     /**
-     * 处理execute业务逻辑。
+     * 执行分发发送任务。
      *
-     * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
-     * @param context 参数
-     * @throws JobExecutionException 异常场景
+     * @param context Quartz 上下文
+     * @throws JobExecutionException 任务异常
      */
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {
         try {
-            // 调用consumePendingDispatches方法，复用统一能力并保证业务规则一致。
+            LocalDateTime timeoutBefore = LocalDateTime.now().minusMinutes(dispatchProcessingTimeoutMinutes);
+            int recoveredCount = notifyDispatchService.recoverTimeoutProcessingDispatches(timeoutBefore);
+            if (recoveredCount > 0) {
+                log.warn("Recover timeout notify dispatches finished. recoveredCount={}", recoveredCount);
+            }
             int successCount = notifyDispatchService.consumePendingDispatches();
-            // 调用info方法，复用统一能力并保证业务规则一致。
-            log.info("Notify dispatch send job finished. successCount={}", successCount);
+            log.info("Notify dispatch send job finished. recoveredCount={}, successCount={}", recoveredCount, successCount);
         } catch (Exception ex) {
-            // 调用error方法，复用统一能力并保证业务规则一致。
             log.error("Notify dispatch send job failed", ex);
             throw new JobExecutionException(ex);
         }
     }
 }
-
-
