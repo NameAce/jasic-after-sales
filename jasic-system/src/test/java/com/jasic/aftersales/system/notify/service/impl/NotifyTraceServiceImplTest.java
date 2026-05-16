@@ -43,15 +43,32 @@ public class NotifyTraceServiceImplTest {
         TraceMapperState traceMapperState = new TraceMapperState();
         NotifyTracePageVO row = new NotifyTracePageVO();
         row.setEventId(100L);
-        row.setDispatchId(200L);
-        row.setStatus("FAILED");
+        row.setSceneCode("WORK_ORDER_ASSIGNED");
+        row.setEventStatus("FAILED");
         traceMapperState.pageResult = new Page<>(2, 5, 8);
         traceMapperState.pageResult.setRecords(Collections.singletonList(row));
+
+        MessageMapperState messageMapperState = new MessageMapperState();
+        SysNotifyMessage message = new SysNotifyMessage();
+        message.setId(201L);
+        message.setEventId(100L);
+        message.setTargetType("IN_APP_TODO");
+        message.setTodoStatus("READ");
+        messageMapperState.messages = Collections.singletonList(message);
+
+        DispatchMapperState dispatchMapperState = new DispatchMapperState();
+        SysNotifyDispatch dispatch = new SysNotifyDispatch();
+        dispatch.setId(301L);
+        dispatch.setEventId(100L);
+        dispatch.setTargetType("MP_SUBSCRIBE");
+        dispatch.setDispatchStatus("FAILED");
+        dispatchMapperState.dispatches = Collections.singletonList(dispatch);
+
         setField(service, "notifyTraceMapper", createTraceMapperProxy(traceMapperState));
         setField(service, "notifyEventService", createNotifyEventServiceProxy(new EventServiceState()));
         setField(service, "notifyDispatchService", createNotifyDispatchServiceProxy(new DispatchServiceState()));
-        setField(service, "sysNotifyMessageMapper", createNotifyMessageMapperProxy(new MessageMapperState()));
-        setField(service, "sysNotifyDispatchMapper", createSysNotifyDispatchMapperProxy(new DispatchMapperState()));
+        setField(service, "sysNotifyMessageMapper", createNotifyMessageMapperProxy(messageMapperState));
+        setField(service, "sysNotifyDispatchMapper", createSysNotifyDispatchMapperProxy(dispatchMapperState));
 
         NotifyTraceQuery query = new NotifyTraceQuery();
         query.setPageNum(2);
@@ -63,6 +80,10 @@ public class NotifyTraceServiceImplTest {
         Assert.assertEquals(Integer.valueOf(5), pageResult.getPageSize());
         Assert.assertEquals(1, pageResult.getRecords().size());
         Assert.assertEquals(Long.valueOf(100L), pageResult.getRecords().get(0).getEventId());
+        Assert.assertEquals(Integer.valueOf(1), pageResult.getRecords().get(0).getMessageCount());
+        Assert.assertEquals(Integer.valueOf(1), pageResult.getRecords().get(0).getDispatchCount());
+        Assert.assertEquals(1, pageResult.getRecords().get(0).getMessageTargetSummaries().size());
+        Assert.assertEquals(1, pageResult.getRecords().get(0).getDispatchTargetSummaries().size());
         Assert.assertSame(query, traceMapperState.lastQuery);
     }
 
@@ -229,6 +250,8 @@ public class NotifyTraceServiceImplTest {
 
         Assert.assertEquals(1, service.getEventDetail(31L).getMessages().size());
         Assert.assertEquals(1, service.getEventDetail(31L).getDispatches().size());
+        Assert.assertEquals(1, service.getEventDetail(31L).getMessageTargetSummaries().size());
+        Assert.assertEquals(1, service.getEventDetail(31L).getDispatchTargetSummaries().size());
     }
 
     /**

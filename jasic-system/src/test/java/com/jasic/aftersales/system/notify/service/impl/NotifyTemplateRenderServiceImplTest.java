@@ -2,8 +2,9 @@ package com.jasic.aftersales.system.notify.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
-import com.jasic.aftersales.system.notify.domain.entity.SysNotifyTemplate;
-import com.jasic.aftersales.system.notify.mapper.SysNotifyTemplateMapper;
+import com.jasic.aftersales.system.notify.domain.entity.NotifySceneTarget;
+import com.jasic.aftersales.system.notify.domain.enums.NotifyTypeEnum;
+import com.jasic.aftersales.system.notify.mapper.NotifySceneTargetMapper;
 import com.jasic.aftersales.system.notify.support.NotifySceneCode;
 import com.jasic.aftersales.system.notify.support.NotifySceneRegistry;
 import com.jasic.aftersales.system.notify.support.NotifyTemplateRenderResult;
@@ -24,8 +25,8 @@ import java.util.Map;
 /**
  * 通知模板运行时渲染服务测试。
  *
- * <p>该测试只覆盖发送侧运行时语义：
- * 必须按 `sceneCode` 命中启用模板，且模板缺失时返回明确的不可发送结果。</p>
+ * <p>阶段一后运行时渲染已经切换为从 `notify_scene_target` 读取默认目标配置，
+ * 本测试重点验证旧的“只传 sceneCode”调用方式仍然可用。</p>
  *
  * @author Codex
  * @date 2026/05/16
@@ -33,10 +34,15 @@ import java.util.Map;
 public class NotifyTemplateRenderServiceImplTest {
 
     @Test
-    public void shouldRenderRuntimeTemplateBySceneCode() throws Exception {
+    public void shouldRenderDefaultTargetBySceneCode() throws Exception {
         NotifyTemplateRenderServiceImpl service = buildService();
         RenderMapperState state = new RenderMapperState();
-        state.templates.add(buildAssignedTemplate(2L, NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode(), 1));
+        state.targets.add(buildTarget(
+                2L,
+                NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode(),
+                NotifyTypeEnum.IN_APP_TODO.getCode(),
+                1
+        ));
         injectMapper(service, state);
 
         Map<String, Object> variables = new LinkedHashMap<>();
@@ -54,10 +60,15 @@ public class NotifyTemplateRenderServiceImplTest {
     }
 
     @Test
-    public void shouldReturnDisabledResultWhenNoActiveTemplate() throws Exception {
+    public void shouldReturnDisabledResultWhenTargetConfigIsNotEnabled() throws Exception {
         NotifyTemplateRenderServiceImpl service = buildService();
         RenderMapperState state = new RenderMapperState();
-        state.templates.add(buildAssignedTemplate(1L, NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode(), 0));
+        state.targets.add(buildTarget(
+                1L,
+                NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode(),
+                NotifyTypeEnum.IN_APP_TODO.getCode(),
+                0
+        ));
         injectMapper(service, state);
 
         NotifyTemplateRenderResult renderResult = service.render(
@@ -78,42 +89,42 @@ public class NotifyTemplateRenderServiceImplTest {
     }
 
     private void initTableInfo() {
-        if (TableInfoHelper.getTableInfo(SysNotifyTemplate.class) == null) {
+        if (TableInfoHelper.getTableInfo(NotifySceneTarget.class) == null) {
             Configuration configuration = new Configuration();
             configuration.setMapUnderscoreToCamelCase(true);
-            MapperBuilderAssistant assistant = new MapperBuilderAssistant(configuration, "notify-template-render-test");
-            assistant.setCurrentNamespace(SysNotifyTemplateMapper.class.getName());
-            TableInfoHelper.initTableInfo(assistant, SysNotifyTemplate.class);
+            MapperBuilderAssistant assistant = new MapperBuilderAssistant(configuration, "notify-scene-target-render-test");
+            assistant.setCurrentNamespace(NotifySceneTargetMapper.class.getName());
+            TableInfoHelper.initTableInfo(assistant, NotifySceneTarget.class);
         }
     }
 
     private void injectMapper(NotifyTemplateRenderServiceImpl service, RenderMapperState state) throws Exception {
-        setField(service, "sysNotifyTemplateMapper", createTemplateMapperProxy(state));
+        setField(service, "notifySceneTargetMapper", createTargetMapperProxy(state));
     }
 
-    private SysNotifyTemplate buildAssignedTemplate(Long id, String sceneCode, Integer status) {
-        SysNotifyTemplate template = new SysNotifyTemplate();
-        template.setId(id);
-        template.setSceneCode(sceneCode);
-        template.setTemplateName("工单派单待办");
-        template.setTitleTemplate("您有新的维修工单");
-        template.setContentTemplate("工单${orderNo}已派给您，请及时处理");
-        template.setRouteType("WORK_ORDER_DETAIL");
-        template.setRouteValueTemplate("${workOrderId}");
-        template.setStatus(status);
-        template.setCreateTime(LocalDateTime.of(2026, 5, 16, 10, 0, 0));
-        template.setUpdateTime(LocalDateTime.of(2026, 5, 16, 10, 0, 0));
-        return template;
+    private NotifySceneTarget buildTarget(Long id, String sceneCode, String targetType, Integer enabled) {
+        NotifySceneTarget target = new NotifySceneTarget();
+        target.setId(id);
+        target.setSceneCode(sceneCode);
+        target.setTargetType(targetType);
+        target.setEnabled(enabled);
+        target.setTitleTemplate("您有新的维修工单");
+        target.setContentTemplate("工单${orderNo}已派给您，请及时处理");
+        target.setRouteType("WORK_ORDER_DETAIL");
+        target.setRouteValueTemplate("${workOrderId}");
+        target.setCreateTime(LocalDateTime.of(2026, 5, 16, 10, 0, 0));
+        target.setUpdateTime(LocalDateTime.of(2026, 5, 16, 10, 0, 0));
+        return target;
     }
 
     @SuppressWarnings("unchecked")
-    private SysNotifyTemplateMapper createTemplateMapperProxy(RenderMapperState state) {
-        return (SysNotifyTemplateMapper) Proxy.newProxyInstance(
-                SysNotifyTemplateMapper.class.getClassLoader(),
-                new Class[]{SysNotifyTemplateMapper.class},
+    private NotifySceneTargetMapper createTargetMapperProxy(RenderMapperState state) {
+        return (NotifySceneTargetMapper) Proxy.newProxyInstance(
+                NotifySceneTargetMapper.class.getClassLoader(),
+                new Class[]{NotifySceneTargetMapper.class},
                 (proxy, method, args) -> {
                     if ("selectList".equals(method.getName())) {
-                        return selectTemplates(state.templates, args[0]);
+                        return selectTargets(state.targets, args[0]);
                     }
                     return defaultValue(method.getReturnType());
                 }
@@ -121,18 +132,21 @@ public class NotifyTemplateRenderServiceImplTest {
     }
 
     @SuppressWarnings("unchecked")
-    private List<SysNotifyTemplate> selectTemplates(List<SysNotifyTemplate> templates, Object wrapper) throws Exception {
+    private List<NotifySceneTarget> selectTargets(List<NotifySceneTarget> targets, Object wrapper) throws Exception {
         String sqlSegment = String.valueOf(invokeWrapperMethod(wrapper, "getSqlSegment"));
         Map<String, Object> params = (Map<String, Object>) invokeWrapperMethod(wrapper, "getParamNameValuePairs");
-        List<SysNotifyTemplate> matched = new ArrayList<>();
-        for (SysNotifyTemplate template : templates) {
-            if (sqlSegment.contains("scene_code") && !params.values().contains(template.getSceneCode())) {
+        List<NotifySceneTarget> matched = new ArrayList<>();
+        for (NotifySceneTarget target : targets) {
+            if (sqlSegment.contains("scene_code") && !params.values().contains(target.getSceneCode())) {
                 continue;
             }
-            if (sqlSegment.contains("status") && !params.values().contains(template.getStatus())) {
+            if (sqlSegment.contains("target_type") && !params.values().contains(target.getTargetType())) {
                 continue;
             }
-            matched.add(copyTemplate(template));
+            if (sqlSegment.contains("enabled") && !params.values().contains(target.getEnabled())) {
+                continue;
+            }
+            matched.add(copyTarget(target));
         }
         matched.sort((left, right) -> Long.compare(right.getId(), left.getId()));
         return matched;
@@ -144,8 +158,8 @@ public class NotifyTemplateRenderServiceImplTest {
         return method.invoke(wrapper);
     }
 
-    private SysNotifyTemplate copyTemplate(SysNotifyTemplate template) {
-        return BeanUtil.copyProperties(template, SysNotifyTemplate.class);
+    private NotifySceneTarget copyTarget(NotifySceneTarget target) {
+        return BeanUtil.copyProperties(target, NotifySceneTarget.class);
     }
 
     private void setField(Object target, String fieldName, Object value) throws Exception {
@@ -168,6 +182,6 @@ public class NotifyTemplateRenderServiceImplTest {
     }
 
     private static class RenderMapperState {
-        private final List<SysNotifyTemplate> templates = new ArrayList<>();
+        private final List<NotifySceneTarget> targets = new ArrayList<>();
     }
 }

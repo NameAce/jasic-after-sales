@@ -5,19 +5,22 @@
         <el-form-item label="工单号" prop="bizNo">
           <el-input v-model="queryParams.bizNo" placeholder="请输入工单号" clearable />
         </el-form-item>
-        <el-form-item label="通知场景" prop="templateCode">
-          <el-input v-model="queryParams.templateCode" placeholder="请输入通知场景编码" clearable />
+        <el-form-item label="通知场景" prop="sceneCode">
+          <el-input v-model="queryParams.sceneCode" placeholder="请输入通知场景编码" clearable />
         </el-form-item>
-        <el-form-item label="渠道" prop="channelType">
-          <el-select v-model="queryParams.channelType" placeholder="全部" clearable>
-            <el-option label="小程序订阅消息" value="MP_SUBSCRIBE" />
-            <el-option label="短信" value="SMS" />
-            <el-option label="邮件" value="EMAIL" />
+        <el-form-item label="通知目标" prop="targetType">
+          <el-select v-model="queryParams.targetType" placeholder="全部" clearable>
+            <el-option v-for="item in targetTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="状态" prop="status">
-          <el-select v-model="queryParams.status" placeholder="全部" clearable>
-            <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
+        <el-form-item label="事件状态" prop="eventStatus">
+          <el-select v-model="queryParams.eventStatus" placeholder="全部" clearable>
+            <el-option v-for="item in eventStatusOptions" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="分发状态" prop="dispatchStatus">
+          <el-select v-model="queryParams.dispatchStatus" placeholder="全部" clearable>
+            <el-option v-for="item in dispatchStatusOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
         </el-form-item>
         <el-form-item label="时间范围" prop="timeRange">
@@ -44,67 +47,97 @@
       </div>
       <el-table v-loading="loading" :data="tableData" border stripe>
         <el-table-column label="业务编号" prop="bizNo" min-width="150" show-overflow-tooltip />
-        <el-table-column label="通知场景" min-width="240" show-overflow-tooltip>
+        <el-table-column label="通知场景" min-width="220" show-overflow-tooltip>
           <template slot-scope="{ row }">
-            <div>{{ templateLabel(row.templateCode) }}</div>
-            <div class="muted-code">{{ row.templateCode || '-' }}</div>
+            <div>{{ sceneLabel(row.sceneCode, row.sceneName) }}</div>
+            <div class="muted-code">{{ row.sceneCode || '-' }}</div>
           </template>
         </el-table-column>
-        <el-table-column label="事件类型" prop="eventType" min-width="210" show-overflow-tooltip />
-        <el-table-column label="接收对象" min-width="190" show-overflow-tooltip>
+        <el-table-column label="事件状态" width="110" align="center">
           <template slot-scope="{ row }">
-            <div>{{ formatReceiver(row) }}</div>
-            <div v-if="row.receiverAddress" class="muted-code">{{ row.receiverAddress }}</div>
-          </template>
-        </el-table-column>
-        <el-table-column label="渠道" min-width="120" align="center">
-          <template slot-scope="{ row }">
-            <el-tag size="mini" :type="row.channelType ? 'primary' : 'info'">
-              {{ channelLabel(row.channelType, row.messageId) }}
+            <el-tag size="mini" :type="statusTagType(row.eventStatus)">
+              {{ eventStatusLabel(row.eventStatus) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="110" align="center">
+        <el-table-column label="站内产物" min-width="320">
           <template slot-scope="{ row }">
-            <el-tag size="mini" :type="statusTagType(row.status)">
-              {{ statusLabel(row.status) }}
-            </el-tag>
+            <div v-if="row.messageCount" class="summary-block">
+              <div class="summary-count">共 {{ row.messageCount }} 条</div>
+              <div v-for="summary in row.messageTargetSummaries || []" :key="`message-${summary.targetType}`" class="summary-item">
+                <div class="summary-item__header">
+                  <span>{{ targetTypeLabel(summary.targetType, summary.targetTypeDesc) }}</span>
+                  <el-tag size="mini" :type="statusTagType(summary.highlightStatus)">
+                    {{ summary.highlightStatusDesc || '-' }}
+                  </el-tag>
+                </div>
+                <div class="summary-item__text">{{ summary.summaryText }}</div>
+                <div class="summary-item__tags">
+                  <el-tag
+                    v-for="item in summary.statusCounts || []"
+                    :key="`${summary.targetType}-${item.status}`"
+                    size="mini"
+                    :type="statusTagType(item.status)"
+                  >
+                    {{ item.statusDesc }} {{ item.count }}
+                  </el-tag>
+                </div>
+              </div>
+            </div>
+            <span v-else>-</span>
           </template>
         </el-table-column>
-        <el-table-column label="结果编码" prop="resultCode" min-width="180" show-overflow-tooltip />
-        <el-table-column label="结果说明" prop="resultMessage" min-width="240" show-overflow-tooltip />
-        <el-table-column label="重试次数" prop="retryCount" width="90" align="center" />
+        <el-table-column label="外部分发" min-width="320">
+          <template slot-scope="{ row }">
+            <div v-if="row.dispatchCount" class="summary-block">
+              <div class="summary-count">共 {{ row.dispatchCount }} 条</div>
+              <div v-for="summary in row.dispatchTargetSummaries || []" :key="`dispatch-${summary.targetType}`" class="summary-item">
+                <div class="summary-item__header">
+                  <span>{{ targetTypeLabel(summary.targetType, summary.targetTypeDesc) }}</span>
+                  <el-tag size="mini" :type="statusTagType(summary.highlightStatus)">
+                    {{ summary.highlightStatusDesc || '-' }}
+                  </el-tag>
+                </div>
+                <div class="summary-item__text">{{ summary.summaryText }}</div>
+                <div class="summary-item__tags">
+                  <el-tag
+                    v-for="item in summary.statusCounts || []"
+                    :key="`${summary.targetType}-${item.status}`"
+                    size="mini"
+                    :type="statusTagType(item.status)"
+                  >
+                    {{ item.statusDesc }} {{ item.count }}
+                  </el-tag>
+                </div>
+              </div>
+            </div>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="最近错误" prop="eventErrorMessage" min-width="240" show-overflow-tooltip />
+        <el-table-column label="重试次数" prop="eventRetryCount" width="90" align="center" />
         <el-table-column label="创建时间" prop="createTime" width="170" />
-        <el-table-column label="操作" width="250" fixed="right">
+        <el-table-column label="操作" width="220" fixed="right">
           <template slot-scope="{ row }">
             <el-button type="text" size="mini" v-hasPerms="['system:notifyTrace:view']" @click="openEventDetail(row.eventId)">
               事件详情
             </el-button>
             <el-button
-              v-if="row.dispatchId"
-              type="text"
-              size="mini"
-              v-hasPerms="['system:notifyTrace:view']"
-              @click="openDispatchDetail(row.dispatchId)"
-            >
-              分发详情
-            </el-button>
-            <el-button
-              v-if="canRetryRow(row)"
+              v-if="canRetryEventStatus(row.eventStatus)"
               type="text"
               size="mini"
               v-hasPerms="['system:notifyTrace:retry']"
-              @click="handleRowRetry(row)"
+              @click="confirmRetry('event', row.eventId)"
             >
-              重试
+              重试事件
             </el-button>
             <el-button
-              v-if="canDeadRow(row)"
+              v-if="canDeadEventStatus(row.eventStatus)"
               type="text"
               size="mini"
               class="danger-action"
               v-hasPerms="['system:notifyTrace:dead']"
-              @click="handleRowDead(row)"
+              @click="confirmDead('event', row.eventId)"
             >
               标记死信
             </el-button>
@@ -117,21 +150,21 @@
         :page-size="queryParams.pageSize"
         :total="total"
         layout="total, sizes, prev, pager, next, jumper"
-        @size-change="val => { queryParams.pageSize = val; getList() }"
-        @current-change="val => { queryParams.pageNum = val; getList() }"
+        @size-change="handleSizeChange"
+        @current-change="handleCurrentChange"
       />
     </el-card>
 
     <el-drawer
       :visible.sync="eventDrawer.visible"
       title="事件详情"
-      size="820px"
+      size="900px"
       append-to-body
     >
       <div class="drawer-body" v-loading="eventDrawer.loading">
         <div class="drawer-toolbar" v-if="eventDrawer.data && eventDrawer.data.id">
           <el-button
-            v-if="canRetryEventDetail(eventDrawer.data)"
+            v-if="canRetryEventStatus(eventDrawer.data.status)"
             type="primary"
             plain
             size="small"
@@ -141,23 +174,27 @@
             重试事件
           </el-button>
           <el-button
-            v-if="canDeadEventDetail(eventDrawer.data)"
+            v-if="canDeadEventStatus(eventDrawer.data.status)"
             type="danger"
             plain
             size="small"
             v-hasPerms="['system:notifyTrace:dead']"
             @click="confirmDead('event', eventDrawer.data.id)"
           >
-            标记不再处理
+            标记死信
           </el-button>
         </div>
         <el-descriptions v-if="eventDrawer.data" :column="2" border size="small">
           <el-descriptions-item label="事件ID">{{ eventDrawer.data.id }}</el-descriptions-item>
           <el-descriptions-item label="事件状态">
             <el-tag size="mini" :type="statusTagType(eventDrawer.data.status)">
-              {{ statusLabel(eventDrawer.data.status) }}
+              {{ eventStatusLabel(eventDrawer.data.status) }}
             </el-tag>
           </el-descriptions-item>
+          <el-descriptions-item label="通知场景">
+            {{ sceneLabel(eventDrawer.data.sceneCode, eventDrawer.data.sceneName) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="场景编码">{{ eventDrawer.data.sceneCode || '-' }}</el-descriptions-item>
           <el-descriptions-item label="事件类型">{{ eventDrawer.data.eventType || '-' }}</el-descriptions-item>
           <el-descriptions-item label="幂等键">{{ eventDrawer.data.eventKey || '-' }}</el-descriptions-item>
           <el-descriptions-item label="业务类型">{{ eventDrawer.data.bizType || '-' }}</el-descriptions-item>
@@ -175,13 +212,81 @@
           </el-descriptions-item>
         </el-descriptions>
 
+        <div class="section-title">目标产物概览</div>
+        <div class="overview-grid">
+          <div class="overview-card">
+            <div class="overview-card__title">站内消息 / 站内待办</div>
+            <div v-if="eventDrawer.data && eventDrawer.data.messageTargetSummaries && eventDrawer.data.messageTargetSummaries.length">
+              <div
+                v-for="summary in eventDrawer.data.messageTargetSummaries"
+                :key="`event-message-${summary.targetType}`"
+                class="summary-item"
+              >
+                <div class="summary-item__header">
+                  <span>{{ targetTypeLabel(summary.targetType, summary.targetTypeDesc) }}</span>
+                  <el-tag size="mini" :type="statusTagType(summary.highlightStatus)">
+                    {{ summary.highlightStatusDesc || '-' }}
+                  </el-tag>
+                </div>
+                <div class="summary-item__text">{{ summary.summaryText }}</div>
+                <div class="summary-item__tags">
+                  <el-tag
+                    v-for="item in summary.statusCounts || []"
+                    :key="`event-message-${summary.targetType}-${item.status}`"
+                    size="mini"
+                    :type="statusTagType(item.status)"
+                  >
+                    {{ item.statusDesc }} {{ item.count }}
+                  </el-tag>
+                </div>
+              </div>
+            </div>
+            <div v-else class="empty-text">当前事件未生成站内产物</div>
+          </div>
+          <div class="overview-card">
+            <div class="overview-card__title">外部分发任务</div>
+            <div v-if="eventDrawer.data && eventDrawer.data.dispatchTargetSummaries && eventDrawer.data.dispatchTargetSummaries.length">
+              <div
+                v-for="summary in eventDrawer.data.dispatchTargetSummaries"
+                :key="`event-dispatch-${summary.targetType}`"
+                class="summary-item"
+              >
+                <div class="summary-item__header">
+                  <span>{{ targetTypeLabel(summary.targetType, summary.targetTypeDesc) }}</span>
+                  <el-tag size="mini" :type="statusTagType(summary.highlightStatus)">
+                    {{ summary.highlightStatusDesc || '-' }}
+                  </el-tag>
+                </div>
+                <div class="summary-item__text">{{ summary.summaryText }}</div>
+                <div class="summary-item__tags">
+                  <el-tag
+                    v-for="item in summary.statusCounts || []"
+                    :key="`event-dispatch-${summary.targetType}-${item.status}`"
+                    size="mini"
+                    :type="statusTagType(item.status)"
+                  >
+                    {{ item.statusDesc }} {{ item.count }}
+                  </el-tag>
+                </div>
+              </div>
+            </div>
+            <div v-else class="empty-text">当前事件未生成外部分发任务</div>
+          </div>
+        </div>
+
         <div class="section-title">事件载荷 payload_json</div>
         <pre class="json-view">{{ prettyJson(eventDrawer.data && eventDrawer.data.payloadJson) }}</pre>
 
-        <div class="section-title">关联站内消息</div>
+        <div class="section-title">关联站内产物</div>
         <el-table :data="eventDrawer.data && eventDrawer.data.messages || []" size="mini" border>
           <el-table-column label="消息ID" prop="id" width="90" />
-          <el-table-column label="接收人" min-width="150" show-overflow-tooltip>
+          <el-table-column label="目标" min-width="130">
+            <template slot-scope="{ row }">
+              <div>{{ targetTypeLabel(row.targetType, row.targetTypeDesc) }}</div>
+              <div class="muted-code">{{ row.targetType || '-' }}</div>
+            </template>
+          </el-table-column>
+          <el-table-column label="接收人" min-width="160" show-overflow-tooltip>
             <template slot-scope="{ row }">
               {{ row.receiverName || '-' }} / {{ row.receiverId || '-' }}
             </template>
@@ -190,35 +295,41 @@
           <el-table-column label="状态" width="100" align="center">
             <template slot-scope="{ row }">
               <el-tag size="mini" :type="statusTagType(row.todoStatus)">
-                {{ statusLabel(row.todoStatus) }}
+                {{ inAppStatusLabel(row.todoStatus) }}
               </el-tag>
             </template>
           </el-table-column>
           <el-table-column label="失效原因" prop="invalidReason" min-width="160" show-overflow-tooltip />
+          <el-table-column label="创建时间" prop="createTime" width="170" />
         </el-table>
 
-        <div class="section-title">关联分发任务</div>
+        <div class="section-title">关联外部分发任务</div>
         <el-table :data="eventDrawer.data && eventDrawer.data.dispatches || []" size="mini" border>
           <el-table-column label="分发ID" prop="id" width="90" />
-          <el-table-column label="渠道" width="130">
-            <template slot-scope="{ row }">{{ channelLabel(row.channelType) }}</template>
+          <el-table-column label="目标" min-width="130">
+            <template slot-scope="{ row }">
+              <div>{{ targetTypeLabel(row.targetType, row.targetTypeDesc) }}</div>
+              <div class="muted-code">{{ row.targetType || '-' }}</div>
+            </template>
           </el-table-column>
-          <el-table-column label="接收对象" min-width="150" show-overflow-tooltip>
-            <template slot-scope="{ row }">{{ receiverTypeLabel(row.receiverType) }} / {{ row.receiverId || '-' }}</template>
+          <el-table-column label="渠道" width="120">
+            <template slot-scope="{ row }">{{ targetTypeLabel(row.channelType) }}</template>
           </el-table-column>
+          <el-table-column label="接收地址" prop="receiverAddress" min-width="170" show-overflow-tooltip />
           <el-table-column label="状态" width="100" align="center">
             <template slot-scope="{ row }">
               <el-tag size="mini" :type="statusTagType(row.dispatchStatus)">
-                {{ statusLabel(row.dispatchStatus) }}
+                {{ dispatchStatusLabel(row.dispatchStatus) }}
               </el-tag>
             </template>
           </el-table-column>
+          <el-table-column label="结果编码" prop="resultCode" min-width="160" show-overflow-tooltip />
           <el-table-column label="结果说明" prop="resultMessage" min-width="180" show-overflow-tooltip />
-          <el-table-column label="操作" width="190">
+          <el-table-column label="操作" width="220">
             <template slot-scope="{ row }">
               <el-button type="text" size="mini" @click="openDispatchDetail(row.id)">查看</el-button>
               <el-button
-                v-if="canRetryDispatchDetail(row)"
+                v-if="canRetryDispatchStatus(row.dispatchStatus)"
                 type="text"
                 size="mini"
                 v-hasPerms="['system:notifyTrace:retry']"
@@ -227,7 +338,7 @@
                 重试
               </el-button>
               <el-button
-                v-if="canDeadDispatchDetail(row)"
+                v-if="canDeadDispatchStatus(row.dispatchStatus)"
                 type="text"
                 size="mini"
                 class="danger-action"
@@ -245,13 +356,13 @@
     <el-drawer
       :visible.sync="dispatchDrawer.visible"
       title="分发详情"
-      size="820px"
+      size="860px"
       append-to-body
     >
       <div class="drawer-body" v-loading="dispatchDrawer.loading">
         <div class="drawer-toolbar" v-if="dispatchDrawer.data && dispatchDrawer.data.id">
           <el-button
-            v-if="canRetryDispatchDetail(dispatchDrawer.data)"
+            v-if="canRetryDispatchStatus(dispatchDrawer.data.dispatchStatus)"
             type="primary"
             plain
             size="small"
@@ -261,28 +372,35 @@
             重试分发
           </el-button>
           <el-button
-            v-if="canDeadDispatchDetail(dispatchDrawer.data)"
+            v-if="canDeadDispatchStatus(dispatchDrawer.data.dispatchStatus)"
             type="danger"
             plain
             size="small"
             v-hasPerms="['system:notifyTrace:dead']"
             @click="confirmDead('dispatch', dispatchDrawer.data.id)"
           >
-            标记不再处理
+            标记死信
           </el-button>
         </div>
         <el-descriptions v-if="dispatchDrawer.data" :column="2" border size="small">
           <el-descriptions-item label="分发ID">{{ dispatchDrawer.data.id }}</el-descriptions-item>
           <el-descriptions-item label="来源事件ID">{{ dispatchDrawer.data.eventId || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="通知场景">{{ dispatchDrawer.data.templateCode || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="渠道">{{ channelLabel(dispatchDrawer.data.channelType) }}</el-descriptions-item>
-          <el-descriptions-item label="接收对象">{{ receiverTypeLabel(dispatchDrawer.data.receiverType) }} / {{ dispatchDrawer.data.receiverId || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="通知场景">
+            {{ sceneLabel(dispatchDrawer.data.sceneCode, dispatchDrawer.data.sceneName) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="场景编码">{{ dispatchDrawer.data.sceneCode || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="通知目标">
+            {{ targetTypeLabel(dispatchDrawer.data.targetType, dispatchDrawer.data.targetTypeDesc) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="目标编码">{{ dispatchDrawer.data.targetType || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="渠道">{{ targetTypeLabel(dispatchDrawer.data.channelType) }}</el-descriptions-item>
+          <el-descriptions-item label="接收对象">{{ dispatchDrawer.data.receiverId || '-' }}</el-descriptions-item>
           <el-descriptions-item label="接收地址">{{ dispatchDrawer.data.receiverAddress || '-' }}</el-descriptions-item>
           <el-descriptions-item label="业务编号">{{ dispatchDrawer.data.bizNo || '-' }}</el-descriptions-item>
           <el-descriptions-item label="业务ID">{{ dispatchDrawer.data.bizId || '-' }}</el-descriptions-item>
           <el-descriptions-item label="分发状态">
             <el-tag size="mini" :type="statusTagType(dispatchDrawer.data.dispatchStatus)">
-              {{ statusLabel(dispatchDrawer.data.dispatchStatus) }}
+              {{ dispatchStatusLabel(dispatchDrawer.data.dispatchStatus) }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="重试次数">{{ dispatchDrawer.data.retryCount || 0 }}</el-descriptions-item>
@@ -292,7 +410,7 @@
           <el-descriptions-item label="下次重试">{{ dispatchDrawer.data.nextRetryTime || '-' }}</el-descriptions-item>
           <el-descriptions-item label="创建时间">{{ dispatchDrawer.data.createTime || '-' }}</el-descriptions-item>
           <el-descriptions-item label="更新时间">{{ dispatchDrawer.data.updateTime || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="最近错误/结果说明" :span="2">
+          <el-descriptions-item label="最近错误 / 结果说明" :span="2">
             <span class="error-text">{{ dispatchDrawer.data.resultMessage || '-' }}</span>
           </el-descriptions-item>
         </el-descriptions>
@@ -329,15 +447,27 @@ export default {
       loading: false,
       total: 0,
       tableData: [],
-      queryParams: {
-        pageNum: 1,
-        pageSize: 10,
-        bizNo: '',
-        templateCode: '',
-        channelType: '',
-        status: '',
-        timeRange: []
-      },
+      targetTypeOptions: [
+        { label: '站内消息', value: 'IN_APP_MESSAGE' },
+        { label: '站内待办', value: 'IN_APP_TODO' },
+        { label: '小程序订阅消息', value: 'MP_SUBSCRIBE' }
+      ],
+      eventStatusOptions: [
+        { label: '新建 / NEW', value: 'NEW' },
+        { label: '处理中 / PROCESSING', value: 'PROCESSING' },
+        { label: '成功 / SUCCESS', value: 'SUCCESS' },
+        { label: '失败 / FAILED', value: 'FAILED' },
+        { label: '死信 / DEAD', value: 'DEAD' }
+      ],
+      dispatchStatusOptions: [
+        { label: '待发送 / PENDING', value: 'PENDING' },
+        { label: '处理中 / PROCESSING', value: 'PROCESSING' },
+        { label: '成功 / SUCCESS', value: 'SUCCESS' },
+        { label: '失败 / FAILED', value: 'FAILED' },
+        { label: '跳过 / SKIPPED', value: 'SKIPPED' },
+        { label: '死信 / DEAD', value: 'DEAD' }
+      ],
+      queryParams: this.createDefaultQueryParams(),
       eventDrawer: {
         visible: false,
         loading: false,
@@ -347,25 +477,25 @@ export default {
         visible: false,
         loading: false,
         data: null
-      },
-      statusOptions: [
-        { label: '新建 / NEW', value: 'NEW' },
-        { label: '待发送 / PENDING', value: 'PENDING' },
-        { label: '处理中 / PROCESSING', value: 'PROCESSING' },
-        { label: '成功 / SUCCESS', value: 'SUCCESS' },
-        { label: '失败 / FAILED', value: 'FAILED' },
-        { label: '跳过 / SKIPPED', value: 'SKIPPED' },
-        { label: '死信 / DEAD', value: 'DEAD' },
-        { label: '已读 / READ', value: 'READ' },
-        { label: '已处理 / DONE', value: 'DONE' },
-        { label: '已失效 / INVALID', value: 'INVALID' }
-      ]
+      }
     }
   },
   created() {
     this.getList()
   },
   methods: {
+    createDefaultQueryParams() {
+      return {
+        pageNum: 1,
+        pageSize: 10,
+        bizNo: '',
+        sceneCode: '',
+        targetType: '',
+        eventStatus: '',
+        dispatchStatus: '',
+        timeRange: []
+      }
+    },
     getList() {
       this.loading = true
       getNotifyTracePage(this.buildQueryParams()).then(res => {
@@ -383,15 +513,7 @@ export default {
     },
     resetQuery() {
       this.$refs.queryForm.resetFields()
-      this.queryParams = {
-        pageNum: 1,
-        pageSize: 10,
-        bizNo: '',
-        templateCode: '',
-        channelType: '',
-        status: '',
-        timeRange: []
-      }
+      this.queryParams = this.createDefaultQueryParams()
       this.getList()
     },
     buildQueryParams() {
@@ -403,6 +525,14 @@ export default {
         params.endTime = timeRange[1]
       }
       return params
+    },
+    handleSizeChange(value) {
+      this.queryParams.pageSize = value
+      this.getList()
+    },
+    handleCurrentChange(value) {
+      this.queryParams.pageNum = value
+      this.getList()
     },
     openEventDetail(eventId) {
       if (!eventId) {
@@ -438,14 +568,6 @@ export default {
         this.dispatchDrawer.loading = false
       })
     },
-    handleRowRetry(row) {
-      const target = this.resolveRowTarget(row)
-      this.confirmRetry(target.type, target.id)
-    },
-    handleRowDead(row) {
-      const target = this.resolveRowTarget(row)
-      this.confirmDead(target.type, target.id)
-    },
     confirmRetry(type, id) {
       if (!id) {
         this.$message.warning('未获取到可操作记录ID')
@@ -470,14 +592,13 @@ export default {
         return
       }
       const label = type === 'dispatch' ? '分发任务' : '通知事件'
-      this.$prompt(`请填写该${label}标记不再处理的原因`, '死信确认', {
+      this.$prompt(`请填写该${label}标记死信的原因`, '死信确认', {
         confirmButtonText: '确认标记',
         cancelButtonText: '取消',
         inputType: 'textarea',
         inputPattern: /\S+/,
         inputErrorMessage: '处理原因不能为空'
       }).then(({ value }) => {
-        // 死信会终止自动消费或发送，原因必须交给后端留痕，便于后续区分人工终止和自动失败。
         this.deadTarget(type, id, value)
       }).catch(() => {})
     },
@@ -485,7 +606,7 @@ export default {
       const api = type === 'dispatch' ? deadNotifyTraceDispatch : deadNotifyTraceEvent
       api(id, { reason }).then(res => {
         if (!res) return
-        this.$message.success('已标记不再处理')
+        this.$message.success('已标记死信')
         this.refreshAfterAction(type, id)
       })
     },
@@ -501,73 +622,56 @@ export default {
         this.loadEventDetail(this.eventDrawer.data.id)
       }
     },
-    resolveRowTarget(row) {
-      if (row.dispatchId) {
-        return { type: 'dispatch', id: row.dispatchId, status: row.dispatchStatus || row.status }
-      }
-      return { type: 'event', id: row.eventId, status: row.eventStatus || row.status }
+    canRetryEventStatus(status) {
+      return RETRY_STATUS.includes(status)
     },
-    canRetryRow(row) {
-      const target = this.resolveRowTarget(row)
-      return Boolean(target.id && RETRY_STATUS.includes(target.status))
+    canDeadEventStatus(status) {
+      return EVENT_DEAD_STATUS.includes(status)
     },
-    canDeadRow(row) {
-      const target = this.resolveRowTarget(row)
-      if (!target.id) return false
-      if (target.type === 'dispatch') {
-        return DISPATCH_DEAD_STATUS.includes(target.status)
-      }
-      return EVENT_DEAD_STATUS.includes(target.status)
+    canRetryDispatchStatus(status) {
+      return RETRY_STATUS.includes(status)
     },
-    canRetryEventDetail(detail) {
-      return Boolean(detail && detail.id && RETRY_STATUS.includes(detail.status))
+    canDeadDispatchStatus(status) {
+      return DISPATCH_DEAD_STATUS.includes(status)
     },
-    canDeadEventDetail(detail) {
-      return Boolean(detail && detail.id && EVENT_DEAD_STATUS.includes(detail.status))
+    sceneLabel(sceneCode, sceneName) {
+      return sceneName || sceneCode || '-'
     },
-    canRetryDispatchDetail(detail) {
-      return Boolean(detail && detail.id && RETRY_STATUS.includes(detail.dispatchStatus))
-    },
-    canDeadDispatchDetail(detail) {
-      return Boolean(detail && detail.id && DISPATCH_DEAD_STATUS.includes(detail.dispatchStatus))
-    },
-    templateLabel(code) {
+    targetTypeLabel(code, desc) {
+      if (desc) return desc
       const map = {
-        WORK_ORDER_ASSIGNED: '工单派单待办',
-        WORK_ORDER_EVALUATION_INVITE: '客户评价邀请'
-      }
-      return map[code] || code || '-'
-    },
-    channelLabel(code, messageId) {
-      if (!code && messageId) return '站内消息'
-      const map = {
-        IN_APP: '站内消息',
+        IN_APP_MESSAGE: '站内消息',
+        IN_APP_TODO: '站内待办',
         MP_SUBSCRIBE: '小程序订阅消息',
         SMS: '短信',
         EMAIL: '邮件'
       }
       return map[code] || code || '-'
     },
-    receiverTypeLabel(code) {
-      const map = {
-        CUSTOMER: '客户',
-        SYS_USER: '系统用户'
-      }
-      return map[code] || code || '-'
-    },
-    formatReceiver(row) {
-      if (!row.receiverType && !row.receiverId) return '-'
-      return `${this.receiverTypeLabel(row.receiverType)} / ${row.receiverId || '-'}`
-    },
-    statusLabel(status) {
+    eventStatusLabel(status) {
       const map = {
         NEW: '新建',
-        PENDING: '待处理',
         PROCESSING: '处理中',
         SUCCESS: '成功',
         FAILED: '失败',
-        SKIPPED: '跳过',
-        DEAD: '死信',
+        DEAD: '死信'
+      }
+      return map[status] || status || '-'
+    },
+    dispatchStatusLabel(status) {
+      const map = {
+        PENDING: '待发送',
+        PROCESSING: '处理中',
+        SUCCESS: '成功',
+        FAILED: '失败',
+        SKIPPED: '已跳过',
+        DEAD: '死信'
+      }
+      return map[status] || status || '-'
+    },
+    inAppStatusLabel(status) {
+      const map = {
+        PENDING: '待处理',
         READ: '已读',
         DONE: '已处理',
         INVALID: '已失效'
@@ -625,6 +729,61 @@ export default {
   margin: 18px 0 8px;
   font-weight: 600;
   color: #303133;
+}
+.summary-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.summary-count {
+  color: #606266;
+  font-size: 12px;
+}
+.summary-item {
+  padding: 10px 12px;
+  border: 1px solid #EBEEF5;
+  border-radius: 4px;
+  background: #FAFBFC;
+}
+.summary-item__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  color: #303133;
+  font-weight: 600;
+}
+.summary-item__text {
+  color: #606266;
+  font-size: 12px;
+  line-height: 18px;
+}
+.summary-item__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.overview-card {
+  padding: 12px;
+  border: 1px solid #EBEEF5;
+  border-radius: 4px;
+  background: #fff;
+}
+.overview-card__title {
+  margin-bottom: 10px;
+  color: #303133;
+  font-weight: 600;
+}
+.empty-text {
+  color: #909399;
+  font-size: 12px;
 }
 .json-view {
   min-height: 90px;

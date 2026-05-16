@@ -27,6 +27,10 @@ public class NotifyEventQuery extends PageQuery {
     @ApiModelProperty(value = "事件类型")
     private String eventType;
 
+    /** 通知场景编码 */
+    @ApiModelProperty(value = "通知场景编码")
+    private String sceneCode;
+
     /** 业务类型 */
     @ApiModelProperty(value = "业务类型")
     private String bizType;

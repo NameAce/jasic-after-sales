@@ -480,6 +480,12 @@ public class NotifyDispatchServiceImpl implements NotifyDispatchService {
                 .eq(SysNotifyDispatch::getTemplateCode, dispatch.getTemplateCode())
                 .eq(SysNotifyDispatch::getChannelType, dispatch.getChannelType())
                 .eq(SysNotifyDispatch::getReceiverType, dispatch.getReceiverType());
+        if (StrUtil.isNotBlank(dispatch.getSceneCode())) {
+            wrapper.eq(SysNotifyDispatch::getSceneCode, dispatch.getSceneCode());
+        }
+        if (StrUtil.isNotBlank(dispatch.getTargetType())) {
+            wrapper.eq(SysNotifyDispatch::getTargetType, dispatch.getTargetType());
+        }
         if (dispatch.getReceiverId() != null) {
             wrapper.eq(SysNotifyDispatch::getReceiverId, dispatch.getReceiverId());
         } else {

@@ -129,6 +129,9 @@ public class NotifyEventServiceImpl implements NotifyEventService {
         if (StrUtil.isNotBlank(query.getEventType())) {
             wrapper.eq(SysNotifyEvent::getEventType, query.getEventType());
         }
+        if (StrUtil.isNotBlank(query.getSceneCode())) {
+            wrapper.eq(SysNotifyEvent::getSceneCode, query.getSceneCode());
+        }
         if (StrUtil.isNotBlank(query.getBizType())) {
             wrapper.eq(SysNotifyEvent::getBizType, query.getBizType());
         }

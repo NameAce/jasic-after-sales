@@ -14,6 +14,7 @@ import com.jasic.aftersales.system.notify.domain.entity.SysNotifyMessageLog;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyActionTypeEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyBizTypeEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyTodoStatusEnum;
+import com.jasic.aftersales.system.notify.domain.enums.NotifyTypeEnum;
 import com.jasic.aftersales.system.notify.domain.query.NotifyMessageQuery;
 import com.jasic.aftersales.system.notify.domain.vo.NotifyMessagePageVO;
 import com.jasic.aftersales.system.notify.mapper.SysNotifyMessageMapper;
@@ -387,6 +388,8 @@ public class NotifyMessageServiceImplTest {
         message.setId(id);
         message.setReceiverId(receiverId);
         message.setReceiverCompanyId(300L);
+        message.setTargetType(NotifyTypeEnum.IN_APP_TODO.getCode());
+        message.setMessageType(NotifyTypeEnum.IN_APP_TODO.getCode());
         message.setTodoStatus(todoStatus);
         message.setTitle("message-" + id);
         message.setSummary("summary-" + id);

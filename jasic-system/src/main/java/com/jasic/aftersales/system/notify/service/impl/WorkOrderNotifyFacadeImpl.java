@@ -16,6 +16,7 @@ import com.jasic.aftersales.system.notify.service.NotifyEventService;
 import com.jasic.aftersales.system.notify.service.NotifyMessageService;
 import com.jasic.aftersales.system.notify.service.WorkOrderNotifyFacade;
 import com.jasic.aftersales.system.notify.support.NotifyConstants;
+import com.jasic.aftersales.system.notify.support.NotifySceneCode;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
@@ -63,6 +64,7 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
         SysNotifyEvent notifyEvent = buildEvent(
                 eventKey,
                 NotifyEventTypeEnum.WORK_ORDER_ASSIGNED.getCode(),
+                NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode(),
                 dto.getWorkOrderId(),
                 dto.getOrderNo(),
                 dto.getOperatorId(),
@@ -91,6 +93,7 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
         SysNotifyEvent notifyEvent = buildEvent(
                 eventKey,
                 NotifyEventTypeEnum.WORK_ORDER_EVALUATION_INVITE.getCode(),
+                NotifySceneCode.WORK_ORDER_EVALUATION_INVITE_MP_C.getCode(),
                 dto.getWorkOrderId(),
                 dto.getOrderNo(),
                 null,
@@ -139,13 +142,14 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
      *
      * @param eventKey 参数
      * @param eventType 参数
+     * @param sceneCode 通知场景编码
      * @param bizNo 参数
      * @param operatorId operator ID
      * @param receiverId receiver ID
      * @param payloadJson 参数
      * @return 处理结果
      */
-    private SysNotifyEvent buildEvent(String eventKey, String eventType, Long bizId, String bizNo,
+    private SysNotifyEvent buildEvent(String eventKey, String eventType, String sceneCode, Long bizId, String bizNo,
                                       Long operatorId, Long receiverId, String payloadJson) {
         // 说明：执行该步骤以保证业务流程正确。
         SysNotifyEvent notifyEvent = new SysNotifyEvent();
@@ -153,6 +157,8 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
         notifyEvent.setEventKey(eventKey);
         // 调用setEventType方法，复用统一能力并保证业务规则一致。
         notifyEvent.setEventType(eventType);
+        // 显式固化 sceneCode，保证事件消费阶段直接按场景查询多个目标，而不是再从 eventType 反推。
+        notifyEvent.setSceneCode(sceneCode);
         // 调用getCode方法，复用统一能力并保证业务规则一致。
         notifyEvent.setBizType(NotifyBizTypeEnum.WORK_ORDER.getCode());
         // 调用setBizId方法，复用统一能力并保证业务规则一致。
@@ -263,5 +269,4 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
         );
     }
 }
-
 

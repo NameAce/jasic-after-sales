@@ -4,66 +4,24 @@
 
     <!--
       说明：
-      1. 第一版排障页按事件主表查询，并关联每个事件最新的一条站内消息和最新的一条分发记录。
-      2. sys_notify_message.template_code 在旧数据回填前可能为空，因此这里回退到 event_type 兼容历史数据。
+      1. 阶段三开始，排障列表严格按事件主表分页，不再把“最新一条消息/分发”误当成全链路结果。
+      2. SQL 只负责事件筛选；同事件下的站内消息、站内待办和外部分发任务由服务层统一聚合。
+      3. 为兼容阶段二之前的少量历史数据，scene_code 为空时仍允许回退 event_type 兜底定位。
     -->
     <select id="selectTracePage" resultType="com.jasic.aftersales.system.notify.domain.vo.NotifyTracePageVO">
         SELECT
             e.id AS eventId,
-            m.id AS messageId,
-            d.id AS dispatchId,
             e.event_type AS eventType,
-            COALESCE(NULLIF(d.template_code, ''), NULLIF(m.template_code, ''), e.event_type) AS templateCode,
-            t.template_name AS templateName,
+            COALESCE(NULLIF(e.scene_code, ''), e.event_type) AS sceneCode,
             e.biz_type AS bizType,
             e.biz_id AS bizId,
             e.biz_no AS bizNo,
-            d.channel_type AS channelType,
-            c.channel_enabled AS channelEnabled,
-            CASE
-                WHEN d.id IS NOT NULL THEN d.receiver_type
-                WHEN m.id IS NOT NULL THEN 'SYS_USER'
-                ELSE NULL
-            END AS receiverType,
-            COALESCE(d.receiver_id, m.receiver_id, e.receiver_id) AS receiverId,
-            COALESCE(d.receiver_address, m.receiver_name) AS receiverAddress,
-            COALESCE(d.dispatch_status, m.todo_status, e.status) AS status,
             e.status AS eventStatus,
-            m.todo_status AS messageStatus,
-            d.dispatch_status AS dispatchStatus,
-            COALESCE(d.result_code, m.invalid_reason) AS resultCode,
-            CASE
-                WHEN d.id IS NOT NULL THEN d.result_message
-                WHEN m.invalid_reason IS NOT NULL THEN m.invalid_reason
-                ELSE e.error_message
-            END AS resultMessage,
-            COALESCE(d.retry_count, e.retry_count, 0) AS retryCount,
-            COALESCE(d.create_time, m.create_time, e.create_time) AS createTime,
-            COALESCE(d.update_time, m.update_time, e.update_time) AS updateTime
+            e.retry_count AS eventRetryCount,
+            e.error_message AS eventErrorMessage,
+            e.create_time AS createTime,
+            e.update_time AS updateTime
         FROM sys_notify_event e
-        LEFT JOIN (
-            SELECT sm.*
-            FROM sys_notify_message sm
-            INNER JOIN (
-                SELECT event_id, MAX(id) AS max_id
-                FROM sys_notify_message
-                GROUP BY event_id
-            ) latest_sm ON latest_sm.max_id = sm.id
-        ) m ON m.event_id = e.id
-        LEFT JOIN (
-            SELECT sd.*
-            FROM sys_notify_dispatch sd
-            INNER JOIN (
-                SELECT event_id, MAX(id) AS max_id
-                FROM sys_notify_dispatch
-                GROUP BY event_id
-            ) latest_sd ON latest_sd.max_id = sd.id
-        ) d ON d.event_id = e.id
-        LEFT JOIN sys_notify_template t
-            ON t.scene_code = COALESCE(NULLIF(d.template_code, ''), NULLIF(m.template_code, ''))
-        LEFT JOIN sys_notify_template_channel c
-            ON c.scene_code = d.template_code
-            AND c.channel_type = d.channel_type
         <where>
             <if test="query.bizType != null and query.bizType != ''">
                 AND e.biz_type = #{query.bizType}
@@ -74,33 +32,49 @@
             <if test="query.bizNo != null and query.bizNo != ''">
                 AND e.biz_no LIKE CONCAT('%', #{query.bizNo}, '%')
             </if>
-            <if test="query.eventType != null and query.eventType != ''">
-                AND e.event_type = #{query.eventType}
+            <if test="query.sceneCode != null and query.sceneCode != ''">
+                AND COALESCE(NULLIF(e.scene_code, ''), e.event_type) = #{query.sceneCode}
             </if>
-            <if test="query.templateCode != null and query.templateCode != ''">
-                AND COALESCE(NULLIF(d.template_code, ''), NULLIF(m.template_code, ''), e.event_type) = #{query.templateCode}
-            </if>
-            <if test="query.channelType != null and query.channelType != ''">
-                AND d.channel_type = #{query.channelType}
-            </if>
-            <if test="query.receiverType != null and query.receiverType != ''">
+            <if test="query.targetType != null and query.targetType != ''">
                 AND (
-                    (d.id IS NOT NULL AND d.receiver_type = #{query.receiverType})
-                    OR (m.id IS NOT NULL AND #{query.receiverType} = 'SYS_USER')
+                    EXISTS (
+                        SELECT 1
+                        FROM sys_notify_message sm
+                        WHERE sm.event_id = e.id
+                          AND (
+                              sm.target_type = #{query.targetType}
+                              OR sm.message_type = #{query.targetType}
+                          )
+                    )
+                    OR EXISTS (
+                        SELECT 1
+                        FROM sys_notify_dispatch sd
+                        WHERE sd.event_id = e.id
+                          AND (
+                              sd.target_type = #{query.targetType}
+                              OR sd.channel_type = #{query.targetType}
+                          )
+                    )
                 )
             </if>
-            <if test="query.receiverId != null">
-                AND COALESCE(d.receiver_id, m.receiver_id, e.receiver_id) = #{query.receiverId}
+            <if test="query.eventStatus != null and query.eventStatus != ''">
+                AND e.status = #{query.eventStatus}
             </if>
-            <if test="query.status != null and query.status != ''">
-                AND (
-                    e.status = #{query.status}
-                    OR m.todo_status = #{query.status}
-                    OR d.dispatch_status = #{query.status}
+            <if test="query.dispatchStatus != null and query.dispatchStatus != ''">
+                AND EXISTS (
+                    SELECT 1
+                    FROM sys_notify_dispatch sd
+                    WHERE sd.event_id = e.id
+                      AND sd.dispatch_status = #{query.dispatchStatus}
                 )
             </if>
             <if test="query.resultCode != null and query.resultCode != ''">
-                AND COALESCE(d.result_code, m.invalid_reason) = #{query.resultCode}
+                AND EXISTS (
+                    SELECT 1
+                    FROM sys_notify_dispatch sd
+                    WHERE sd.event_id = e.id
+                      AND sd.result_code = #{query.resultCode}
+                )
             </if>
             <if test="query.beginTime != null and query.beginTime != ''">
                 AND e.create_time &gt;= #{query.beginTime}

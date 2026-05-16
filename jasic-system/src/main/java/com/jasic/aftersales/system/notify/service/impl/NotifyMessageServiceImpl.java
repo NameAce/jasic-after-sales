@@ -19,6 +19,7 @@ import com.jasic.aftersales.system.notify.domain.entity.SysNotifyMessageLog;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyActionTypeEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyBizTypeEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyInvalidReasonEnum;
+import com.jasic.aftersales.system.notify.domain.enums.NotifyTypeEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyTodoStatusEnum;
 import com.jasic.aftersales.system.notify.domain.query.NotifyMessageQuery;
 import com.jasic.aftersales.system.notify.domain.vo.NotifyMessagePageVO;
@@ -108,6 +109,25 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
     }
 
     /**
+     * {@inheritDoc}
+     */
+    @Override
+    public SysNotifyMessage getByEventIdAndTargetType(Long eventId, String targetType) {
+        if (eventId == null || StrUtil.isBlank(targetType)) {
+            return null;
+        }
+        LambdaQueryWrapper<SysNotifyMessage> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysNotifyMessage::getEventId, eventId)
+                .and(condition -> condition
+                        .eq(SysNotifyMessage::getTargetType, targetType)
+                        .or()
+                        .eq(SysNotifyMessage::getMessageType, targetType))
+                .orderByAsc(SysNotifyMessage::getId)
+                .last("limit 1");
+        return sysNotifyMessageMapper.selectOne(wrapper);
+    }
+
+    /**
      * 分页查询Active待办By业务And接收人列表。
      *
      * @param bizType 参数
@@ -127,6 +147,7 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
                 .eq(SysNotifyMessage::getBizId, bizId)
                 .eq(SysNotifyMessage::getReceiverId, receiverId)
                 .eq(SysNotifyMessage::getReceiverCompanyId, receiverCompanyId)
+                .and(this::appendTodoTargetFilter)
                 .in(SysNotifyMessage::getTodoStatus,
                         NotifyTodoStatusEnum.PENDING.getCode(),
                         NotifyTodoStatusEnum.READ.getCode())
@@ -392,6 +413,7 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         LambdaQueryWrapper<SysNotifyMessage> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysNotifyMessage::getReceiverId, receiverId)
                 .eq(SysNotifyMessage::getReceiverCompanyId, receiverCompanyId)
+                .and(this::appendTodoTargetFilter)
                 .in(SysNotifyMessage::getTodoStatus,
                         NotifyTodoStatusEnum.PENDING.getCode(),
                         // 调用getCode方法，复用统一能力并保证业务规则一致。
@@ -420,6 +442,7 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
                 .eq(SysNotifyMessage::getBizId, bizId)
                 .eq(SysNotifyMessage::getReceiverId, receiverId)
                 .eq(SysNotifyMessage::getReceiverCompanyId, receiverCompanyId)
+                .and(this::appendTodoTargetFilter)
                 .eq(SysNotifyMessage::getTodoStatus, NotifyTodoStatusEnum.PENDING.getCode())
                 // 调用orderByAsc方法，复用统一能力并保证业务规则一致。
                 .orderByAsc(SysNotifyMessage::getId);
@@ -440,6 +463,7 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         LambdaQueryWrapper<SysNotifyMessage> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysNotifyMessage::getBizType, bizType)
                 .eq(SysNotifyMessage::getBizId, bizId)
+                .and(this::appendTodoTargetFilter)
                 .in(SysNotifyMessage::getTodoStatus,
                         NotifyTodoStatusEnum.PENDING.getCode(),
                         NotifyTodoStatusEnum.READ.getCode())
@@ -488,6 +512,23 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
                 // 调用set方法，复用统一能力并保证业务规则一致。
                 .set(SysNotifyMessage::getDoneTime, doneTime);
         return sysNotifyMessageMapper.update(null, wrapper) > 0;
+    }
+
+    /**
+     * 追加“仅站内待办”过滤条件。
+     *
+     * <p>阶段二开始，站内消息和站内待办共存于同一张表。
+     * 因此所有待办计数、完成、失效和按业务批量已读逻辑，都必须明确只命中 `IN_APP_TODO`，
+     * 同时兼容历史仍写成 `TODO` 的旧消息类型。</p>
+     *
+     * @param wrapper 查询包装器
+     */
+    private void appendTodoTargetFilter(LambdaQueryWrapper<SysNotifyMessage> wrapper) {
+        wrapper.eq(SysNotifyMessage::getTargetType, NotifyTypeEnum.IN_APP_TODO.getCode())
+                .or()
+                .eq(SysNotifyMessage::getMessageType, NotifyTypeEnum.IN_APP_TODO.getCode())
+                .or()
+                .eq(SysNotifyMessage::getMessageType, NotifyConstants.MESSAGE_TYPE_TODO);
     }
 
     /**
@@ -697,7 +738,6 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
     }
 
 }
-
 
 
 

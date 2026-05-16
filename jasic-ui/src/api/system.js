@@ -185,6 +185,23 @@ export function previewNotifyTemplate(data) {
   return request({ url: '/system/notify/template/preview', method: 'post', data })
 }
 
+// --- Notify Scene ---
+export function listNotifyScene(params) {
+  return request({ url: '/system/notify/scene/list', method: 'get', params })
+}
+export function getNotifySceneOptions() {
+  return request({ url: '/system/notify/scene/options', method: 'get' })
+}
+export function getNotifyScene(sceneCode) {
+  return request({ url: `/system/notify/scene/${sceneCode}`, method: 'get' })
+}
+export function updateNotifyScene(sceneCode, data) {
+  return request({ url: `/system/notify/scene/${sceneCode}`, method: 'put', data })
+}
+export function previewNotifyScene(data) {
+  return request({ url: '/system/notify/scene/preview', method: 'post', data })
+}
+
 // --- Machine Barcode ---
 export function listMachineBarcode(params) {
   return request({ url: '/system/machine-barcode/list', method: 'get', params })

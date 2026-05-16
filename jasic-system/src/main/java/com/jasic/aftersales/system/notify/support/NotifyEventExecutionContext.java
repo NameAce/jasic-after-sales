@@ -1,0 +1,67 @@
+package com.jasic.aftersales.system.notify.support;
+
+import lombok.Data;
+
+import java.io.Serializable;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+/**
+ * 通知事件执行上下文。
+ *
+ * <p>阶段二开始，事件处理器不再直接决定“落站内消息还是落外部分发”，
+ * 而是统一负责把业务事件解析成运行时上下文。
+ * 事件消费编排层再基于该上下文，按场景下启用的多个通知目标逐个渲染并分流执行。</p>
+ *
+ * @author Codex
+ * @date 2026/05/16
+ */
+@Data
+public class NotifyEventExecutionContext implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * 通知场景编码。
+     */
+    private String sceneCode;
+
+    /**
+     * 接收对象类型。
+     */
+    private String receiverType;
+
+    /**
+     * 接收对象ID。
+     */
+    private Long receiverId;
+
+    /**
+     * 站内目标使用的接收公司ID。
+     */
+    private Long receiverCompanyId;
+
+    /**
+     * 接收对象名称快照。
+     */
+    private String receiverName;
+
+    /**
+     * 外部目标使用的接收地址快照。
+     *
+     * <p>当前 `MP_SUBSCRIBE` 对应微信 openid。</p>
+     */
+    private String receiverAddress;
+
+    /**
+     * 模板变量快照。
+     *
+     * <p>该快照在事件消费阶段即固定下来，避免后续分发重试时回查最新业务数据。</p>
+     */
+    private Map<String, Object> templateVariables = new LinkedHashMap<>();
+
+    /**
+     * 站内消息扩展字段快照。
+     */
+    private String messageExtJson;
+}

@@ -24,29 +24,17 @@ public class NotifyTracePageVO implements Serializable {
     @ApiModelProperty(value = "事件ID")
     private Long eventId;
 
-    /** 站内消息ID */
-    @ApiModelProperty(value = "站内消息ID")
-    private Long messageId;
-
-    /** 分发任务ID */
-    @ApiModelProperty(value = "分发任务ID")
-    private Long dispatchId;
-
     /** 事件类型 */
     @ApiModelProperty(value = "事件类型")
     private String eventType;
 
     /** 通知场景编码 */
     @ApiModelProperty(value = "通知场景编码")
-    private String templateCode;
+    private String sceneCode;
 
     /** 通知场景名称 */
     @ApiModelProperty(value = "通知场景名称")
     private String sceneName;
-
-    /** 模板名称快照 */
-    @ApiModelProperty(value = "模板名称快照")
-    private String templateName;
 
     /** 业务类型 */
     @ApiModelProperty(value = "业务类型")
@@ -60,53 +48,33 @@ public class NotifyTracePageVO implements Serializable {
     @ApiModelProperty(value = "业务编号")
     private String bizNo;
 
-    /** 渠道类型 */
-    @ApiModelProperty(value = "渠道类型")
-    private String channelType;
-
-    /** 渠道状态：1启用，0停用 */
-    @ApiModelProperty(value = "渠道状态：1启用，0停用")
-    private Integer channelEnabled;
-
-    /** 接收对象类型 */
-    @ApiModelProperty(value = "接收对象类型")
-    private String receiverType;
-
-    /** 接收对象ID */
-    @ApiModelProperty(value = "接收对象ID")
-    private Long receiverId;
-
-    /** 接收地址 */
-    @ApiModelProperty(value = "接收地址")
-    private String receiverAddress;
-
-    /** 统一展示状态 */
-    @ApiModelProperty(value = "统一展示状态")
-    private String status;
-
     /** 事件状态 */
     @ApiModelProperty(value = "事件状态")
     private String eventStatus;
 
-    /** 站内消息状态 */
-    @ApiModelProperty(value = "站内消息状态")
-    private String messageStatus;
+    /** 事件重试次数 */
+    @ApiModelProperty(value = "事件重试次数")
+    private Integer eventRetryCount;
 
-    /** 分发状态 */
-    @ApiModelProperty(value = "分发状态")
-    private String dispatchStatus;
+    /** 事件最近错误 */
+    @ApiModelProperty(value = "事件最近错误")
+    private String eventErrorMessage;
 
-    /** 结果编码 */
-    @ApiModelProperty(value = "结果编码")
-    private String resultCode;
+    /** 站内产物数量 */
+    @ApiModelProperty(value = "站内产物数量")
+    private Integer messageCount;
 
-    /** 结果说明 */
-    @ApiModelProperty(value = "结果说明")
-    private String resultMessage;
+    /** 外部分发任务数量 */
+    @ApiModelProperty(value = "外部分发任务数量")
+    private Integer dispatchCount;
 
-    /** 重试次数 */
-    @ApiModelProperty(value = "重试次数")
-    private Integer retryCount;
+    /** 站内目标聚合摘要 */
+    @ApiModelProperty(value = "站内目标聚合摘要")
+    private java.util.List<NotifyTraceTargetSummaryVO> messageTargetSummaries;
+
+    /** 外部分发目标聚合摘要 */
+    @ApiModelProperty(value = "外部分发目标聚合摘要")
+    private java.util.List<NotifyTraceTargetSummaryVO> dispatchTargetSummaries;
 
     /** 创建时间 */
     @ApiModelProperty(value = "创建时间")

@@ -38,11 +38,19 @@ public class NotifyTraceMessageDetailVO implements Serializable {
 
     /** 通知场景编码 */
     @ApiModelProperty(value = "通知场景编码")
-    private String templateCode;
+    private String sceneCode;
 
     /** 通知场景名称 */
     @ApiModelProperty(value = "通知场景名称")
     private String sceneName;
+
+    /** 通知目标类型 */
+    @ApiModelProperty(value = "通知目标类型")
+    private String targetType;
+
+    /** 通知目标类型说明 */
+    @ApiModelProperty(value = "通知目标类型说明")
+    private String targetTypeDesc;
 
     /** 业务类型 */
     @ApiModelProperty(value = "业务类型")

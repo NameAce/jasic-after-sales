@@ -33,6 +33,9 @@ public class SysNotifyEvent extends BaseEntity {
     /** 事件类型 */
     private String eventType;
 
+    /** 通知场景编码 */
+    private String sceneCode;
+
     /** 业务类型 */
     private String bizType;
 

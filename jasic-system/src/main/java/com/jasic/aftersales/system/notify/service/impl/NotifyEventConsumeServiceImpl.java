@@ -1,14 +1,33 @@
 package com.jasic.aftersales.system.notify.service.impl;
 
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jasic.aftersales.common.exception.ServiceException;
+import com.jasic.aftersales.system.notify.domain.entity.NotifySceneTarget;
+import com.jasic.aftersales.system.notify.domain.entity.SysNotifyDispatch;
 import com.jasic.aftersales.system.notify.domain.entity.SysNotifyEvent;
+import com.jasic.aftersales.system.notify.domain.entity.SysNotifyMessage;
+import com.jasic.aftersales.system.notify.domain.entity.SysNotifyMessageLog;
+import com.jasic.aftersales.system.notify.domain.enums.NotifyActionTypeEnum;
+import com.jasic.aftersales.system.notify.domain.enums.NotifyDispatchResultCodeEnum;
+import com.jasic.aftersales.system.notify.domain.enums.NotifyDispatchStatusEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyEventStatusEnum;
+import com.jasic.aftersales.system.notify.domain.enums.NotifyTypeEnum;
+import com.jasic.aftersales.system.notify.mapper.NotifySceneTargetMapper;
+import com.jasic.aftersales.system.notify.service.NotifyDispatchService;
 import com.jasic.aftersales.system.notify.service.NotifyEventConsumeService;
 import com.jasic.aftersales.system.notify.service.NotifyEventService;
+import com.jasic.aftersales.system.notify.service.NotifyMessageLogService;
+import com.jasic.aftersales.system.notify.service.NotifyMessageService;
+import com.jasic.aftersales.system.notify.service.NotifyTemplateRenderService;
 import com.jasic.aftersales.system.notify.service.support.NotifyEventHandler;
 import com.jasic.aftersales.system.notify.service.support.NotifyEventHandlerRegistry;
 import com.jasic.aftersales.system.notify.support.NotifyConstants;
+import com.jasic.aftersales.system.notify.support.NotifyDispatchPayload;
+import com.jasic.aftersales.system.notify.support.NotifyEventExecutionContext;
+import com.jasic.aftersales.system.notify.support.NotifyTemplateChannelConfig;
+import com.jasic.aftersales.system.notify.support.NotifyTemplateRenderResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -16,26 +35,54 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 
 /**
  * 通知事件消费服务。
  *
- * <p>该类只负责消费编排：查询可处理事件、抢占事件、委派给对应 handler，
- * 并在成功或失败后统一回写事件状态。具体 payload 解析和业务动作由 handler 自己负责。</p>
+ * <p>阶段二开始，该服务按“单事件 -> 多目标”统一编排：
+ * 1. 抢占待处理事件
+ * 2. 根据事件类型解析统一执行上下文
+ * 3. 按 `sceneCode` 查询启用的多个通知目标
+ * 4. 对每个目标统一渲染模板
+ * 5. 站内目标写入消息表，外部目标写入分发表
+ *
+ * <p>该服务不直接调用真实 sender，外部目标只负责生成带快照的分发任务，
+ * 后续仍由 `NotifyDispatchService` 异步消费。</p>
  *
  * @author Codex
- * @date 2026/05/14
+ * @date 2026/05/16
  */
 @Slf4j
 @Service
 public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService {
+
+    /**
+     * 自动重试超过上限后的死信说明。
+     */
+    private static final String DEAD_RETRY_EXCEEDED_MESSAGE = "通知事件超过最大重试次数，已转入死信";
 
     @Resource
     private NotifyEventService notifyEventService;
 
     @Resource
     private NotifyEventHandlerRegistry notifyEventHandlerRegistry;
+
+    @Resource
+    private NotifySceneTargetMapper notifySceneTargetMapper;
+
+    @Resource
+    private NotifyTemplateRenderService notifyTemplateRenderService;
+
+    @Resource
+    private NotifyMessageService notifyMessageService;
+
+    @Resource
+    private NotifyMessageLogService notifyMessageLogService;
+
+    @Resource
+    private NotifyDispatchService notifyDispatchService;
 
     @Resource
     private TransactionTemplate transactionTemplate;
@@ -45,11 +92,6 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
 
     @Value("${jasic.notify.event-retry-delay-minutes:" + NotifyConstants.EVENT_RETRY_DELAY_MINUTES + "}")
     private long eventRetryDelayMinutes = NotifyConstants.EVENT_RETRY_DELAY_MINUTES;
-
-    /**
-     * 自动重试耗尽后的兜底文案。
-     */
-    private static final String DEAD_RETRY_EXCEEDED_MESSAGE = "通知事件超过最大重试次数，已转入死信";
 
     /**
      * {@inheritDoc}
@@ -72,8 +114,7 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
                 });
                 successCount++;
             } catch (Exception ex) {
-                log.error("Consume notify event failed. eventId={}, eventKey={}", event.getId(), event.getEventKey(), ex);
-                // 统一在这里做失败兜底，保证所有 handler 异常都会走同一套重试和死信规则。
+                log.error("消费通知事件失败。eventId={}, eventKey={}", event.getId(), event.getEventKey(), ex);
                 markEventFailed(event.getId(), ex);
             }
         }
@@ -83,14 +124,252 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
     /**
      * 消费单条已抢占事件。
      *
+     * <p>这里先由业务处理器解析上下文，再统一按启用目标逐个执行。
+     * 这样同一个事件就可以同时生成站内消息、站内待办和外部分发表。</p>
+     *
      * @param eventId 事件ID
      */
     private void consumeSingleEvent(Long eventId) {
         SysNotifyEvent event = getRequiredProcessingEvent(eventId);
-        // 统一通过注册表路由处理器，避免消费服务随通知场景增加继续膨胀。
-        NotifyEventHandler notifyEventHandler = notifyEventHandlerRegistry.getRequiredHandler(event.getEventType());
-        notifyEventHandler.handle(event);
+        NotifyEventHandler handler = notifyEventHandlerRegistry.getRequiredHandler(event.getEventType());
+        NotifyEventExecutionContext context = handler.buildExecutionContext(event);
+        executeTargets(event, context);
         notifyEventService.markSuccess(event.getId());
+    }
+
+    /**
+     * 统一执行当前事件下的多个通知目标。
+     *
+     * <p>目标配置统一来自 `notify_scene_target`。
+     * 站内目标和外部目标共享同一套模板渲染入口，但落库分支不同。</p>
+     *
+     * @param event 通知事件
+     * @param context 事件执行上下文
+     */
+    private void executeTargets(SysNotifyEvent event, NotifyEventExecutionContext context) {
+        if (context == null) {
+            throw new ServiceException("通知事件执行上下文不能为空");
+        }
+        String sceneCode = normalizeRequiredField(resolveSceneCode(event, context), "通知场景编码不能为空");
+
+        List<NotifySceneTarget> enabledTargets = listEnabledTargets(sceneCode);
+        if (enabledTargets.isEmpty()) {
+            log.info("通知事件未命中任何启用目标，直接结束消费。eventId={}, sceneCode={}", event.getId(), sceneCode);
+            return;
+        }
+
+        for (NotifySceneTarget target : enabledTargets) {
+            String targetType = normalizeRequiredField(target.getTargetType(), "通知目标类型不能为空");
+            NotifyTemplateRenderResult renderResult = notifyTemplateRenderService.render(
+                    sceneCode,
+                    targetType,
+                    context.getTemplateVariables()
+            );
+
+            // 理论上只会查询到启用目标，这里保留兜底分支，避免配置被并发停用时直接打断整条事件链路。
+            if (!renderResult.isNotifyEnabled()) {
+                log.warn("通知目标渲染被跳过。eventId={}, sceneCode={}, targetType={}, errors={}",
+                        event.getId(), sceneCode, targetType, renderResult.getErrors());
+                continue;
+            }
+
+            NotifyTypeEnum targetTypeEnum = NotifyTypeEnum.getByCode(targetType);
+            if (targetTypeEnum == null) {
+                throw new ServiceException("不支持的通知目标类型：" + targetType);
+            }
+
+            switch (targetTypeEnum) {
+                case IN_APP_MESSAGE:
+                case IN_APP_TODO:
+                    // 站内消息与站内待办统一进入站内表，但状态语义通过 targetType 区分。
+                    createInAppMessage(event, context, targetTypeEnum, renderResult);
+                    break;
+                case MP_SUBSCRIBE:
+                    // 外部目标统一只落分发表，真实发送由 sender 链路异步执行。
+                    createDispatch(event, context, target, renderResult);
+                    break;
+                default:
+                    throw new ServiceException("当前消费链路尚未覆盖该通知目标类型：" + targetType);
+            }
+        }
+    }
+
+    /**
+     * 创建站内消息或站内待办。
+     *
+     * <p>两者共用同一张表，但会同步固化 `targetType` 和 `messageType`：
+     * 1. `IN_APP_MESSAGE` 表示普通站内消息，只参与已读状态流转
+     * 2. `IN_APP_TODO` 表示站内待办，额外参与完成、失效和计数逻辑</p>
+     *
+     * @param event 通知事件
+     * @param context 事件执行上下文
+     * @param targetTypeEnum 目标类型
+     * @param renderResult 模板渲染结果
+     */
+    private void createInAppMessage(SysNotifyEvent event, NotifyEventExecutionContext context,
+                                    NotifyTypeEnum targetTypeEnum, NotifyTemplateRenderResult renderResult) {
+        if (notifyMessageService.getByEventIdAndTargetType(event.getId(), targetTypeEnum.getCode()) != null) {
+            return;
+        }
+
+        if (context.getReceiverId() == null) {
+            throw new ServiceException("站内通知缺少接收人ID");
+        }
+        if (context.getReceiverCompanyId() == null) {
+            throw new ServiceException("站内通知缺少接收公司ID");
+        }
+
+        SysNotifyMessage message = new SysNotifyMessage();
+        message.setEventId(event.getId());
+        message.setSceneCode(renderResult.getSceneCode());
+        message.setTargetType(targetTypeEnum.getCode());
+        message.setMessageType(targetTypeEnum.getCode());
+        message.setEventType(event.getEventType());
+        // 兼容现有排障与历史字段，继续把 sceneCode 回填到 templateCode。
+        message.setTemplateCode(renderResult.getTemplateCode());
+        message.setBizType(event.getBizType());
+        message.setBizId(event.getBizId());
+        message.setBizNo(event.getBizNo());
+        message.setReceiverId(context.getReceiverId());
+        message.setReceiverCompanyId(context.getReceiverCompanyId());
+        message.setReceiverName(context.getReceiverName());
+        message.setTitle(renderResult.getTitle());
+        message.setSummary(renderResult.getSummary());
+        message.setRouteType(renderResult.getRouteType());
+        message.setRouteValue(renderResult.getRouteValue());
+        // 统一以 PENDING 表示“未读/待处理”，后续是否允许 DONE/INVALID 由 targetType 决定。
+        message.setTodoStatus(com.jasic.aftersales.system.notify.domain.enums.NotifyTodoStatusEnum.PENDING.getCode());
+        message.setExtJson(context.getMessageExtJson());
+
+        Long messageId = notifyMessageService.createMessage(message);
+        message.setId(messageId);
+        notifyMessageLogService.createLog(buildCreateMessageLog(
+                message,
+                event.getOperatorId(),
+                targetTypeEnum == NotifyTypeEnum.IN_APP_TODO ? "创建站内待办" : "创建站内消息"
+        ));
+    }
+
+    /**
+     * 创建外部分发任务。
+     *
+     * <p>小程序目标在事件消费阶段必须把模板渲染结果、渠道配置和变量快照全部固化到 `payloadJson`，
+     * 后续 dispatch 重试只读取快照，不允许回查最新配置。</p>
+     *
+     * @param event 通知事件
+     * @param context 事件执行上下文
+     * @param target 目标配置实体
+     * @param renderResult 模板渲染结果
+     */
+    private void createDispatch(SysNotifyEvent event, NotifyEventExecutionContext context,
+                                NotifySceneTarget target, NotifyTemplateRenderResult renderResult) {
+        NotifyTemplateChannelConfig channelConfig = parseChannelConfig(target.getConfigJson());
+
+        SysNotifyDispatch dispatch = new SysNotifyDispatch();
+        dispatch.setEventId(event.getId());
+        dispatch.setSceneCode(renderResult.getSceneCode());
+        dispatch.setTargetType(NotifyTypeEnum.MP_SUBSCRIBE.getCode());
+        dispatch.setTemplateCode(renderResult.getTemplateCode());
+        dispatch.setChannelType(NotifyTypeEnum.MP_SUBSCRIBE.getCode());
+        dispatch.setReceiverType(context.getReceiverType());
+        dispatch.setReceiverId(context.getReceiverId());
+        dispatch.setReceiverAddress(StrUtil.trimToNull(context.getReceiverAddress()));
+        dispatch.setBizType(event.getBizType());
+        dispatch.setBizId(event.getBizId());
+        dispatch.setBizNo(event.getBizNo());
+        dispatch.setRetryCount(0);
+
+        // 分发表 payload 在首次创建时就固化完整快照，后续 sender 重试不允许回查 notify_scene_target 当前配置。
+        dispatch.setPayloadJson(buildDispatchPayload(renderResult, channelConfig, context));
+
+        if (StrUtil.isBlank(dispatch.getReceiverAddress())) {
+            dispatch.setDispatchStatus(NotifyDispatchStatusEnum.SKIPPED.getCode());
+            dispatch.setResultCode(NotifyDispatchResultCodeEnum.SKIPPED_OPENID_MISSING.getCode());
+            dispatch.setResultMessage("接收人缺少小程序openid，无法创建订阅消息发送任务");
+        } else if (!isValidMpChannelConfig(channelConfig)) {
+            dispatch.setDispatchStatus(NotifyDispatchStatusEnum.SKIPPED.getCode());
+            dispatch.setResultCode(NotifyDispatchResultCodeEnum.SKIPPED_CHANNEL_CONFIG_MISSING.getCode());
+            dispatch.setResultMessage("小程序通知目标配置不完整，无法创建订阅消息发送任务");
+        } else {
+            dispatch.setDispatchStatus(NotifyDispatchStatusEnum.PENDING.getCode());
+        }
+
+        notifyDispatchService.createDispatch(dispatch);
+    }
+
+    /**
+     * 构建外部分发快照。
+     *
+     * @param renderResult 模板渲染结果
+     * @param channelConfig 渠道配置快照
+     * @param context 事件执行上下文
+     * @return 分发快照JSON
+     */
+    private String buildDispatchPayload(NotifyTemplateRenderResult renderResult,
+                                        NotifyTemplateChannelConfig channelConfig,
+                                        NotifyEventExecutionContext context) {
+        NotifyDispatchPayload payload = new NotifyDispatchPayload();
+        payload.setSceneCode(renderResult.getSceneCode());
+        payload.setSceneName(renderResult.getSceneName());
+        payload.setTargetType(NotifyTypeEnum.MP_SUBSCRIBE.getCode());
+        payload.setTemplateCode(renderResult.getTemplateCode());
+        payload.setTemplateName(renderResult.getTemplateName());
+        payload.setTitle(renderResult.getTitle());
+        payload.setContent(renderResult.getSummary());
+        payload.setRouteType(renderResult.getRouteType());
+        payload.setRouteValue(renderResult.getRouteValue());
+        payload.setChannelType(NotifyTypeEnum.MP_SUBSCRIBE.getCode());
+        payload.setChannelEnabled(1);
+        payload.setChannelConfig(channelConfig);
+        payload.setVariables(context.getTemplateVariables() == null
+                ? Collections.emptyMap()
+                : context.getTemplateVariables());
+        return JSONUtil.toJsonStr(payload);
+    }
+
+    /**
+     * 查询指定场景下启用中的目标配置。
+     *
+     * @param sceneCode 场景编码
+     * @return 启用目标列表
+     */
+    private List<NotifySceneTarget> listEnabledTargets(String sceneCode) {
+        LambdaQueryWrapper<NotifySceneTarget> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(NotifySceneTarget::getSceneCode, sceneCode)
+                .eq(NotifySceneTarget::getEnabled, 1)
+                .orderByAsc(NotifySceneTarget::getId);
+        return notifySceneTargetMapper.selectList(wrapper);
+    }
+
+    /**
+     * 解析小程序通知目标配置。
+     *
+     * @param configJson 目标配置JSON
+     * @return 渠道配置快照
+     */
+    private NotifyTemplateChannelConfig parseChannelConfig(String configJson) {
+        if (StrUtil.isBlank(configJson)) {
+            return null;
+        }
+        try {
+            return JSONUtil.toBean(configJson, NotifyTemplateChannelConfig.class);
+        } catch (Exception ex) {
+            throw new ServiceException("小程序通知目标配置解析失败");
+        }
+    }
+
+    /**
+     * 校验小程序渠道配置是否完整。
+     *
+     * @param channelConfig 渠道配置快照
+     * @return `true` 表示配置可用于发送
+     */
+    private boolean isValidMpChannelConfig(NotifyTemplateChannelConfig channelConfig) {
+        return channelConfig != null
+                && StrUtil.isNotBlank(channelConfig.getTemplateId())
+                && StrUtil.isNotBlank(channelConfig.getPagePathTemplate())
+                && channelConfig.getFieldMapping() != null
+                && !channelConfig.getFieldMapping().isEmpty();
     }
 
     /**
@@ -102,19 +381,32 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
     private SysNotifyEvent getRequiredProcessingEvent(Long eventId) {
         SysNotifyEvent event = notifyEventService.getById(eventId);
         if (event == null) {
-            throw new ServiceException("Notify event not found");
+            throw new ServiceException("通知事件不存在");
         }
         if (!NotifyEventStatusEnum.PROCESSING.getCode().equals(event.getStatus())) {
-            throw new ServiceException("Notify event is not processing");
+            throw new ServiceException("通知事件当前不是处理中状态");
         }
         return event;
     }
 
     /**
-     * 按 Phase 3 规则回写失败状态。
+     * 优先解析执行上下文中的场景编码。
      *
-     * <p>未达到上限时进入 FAILED 并安排下一次自动重试；
-     * 达到上限时进入 DEAD，后续只能依赖人工重试重新放回消费队列。</p>
+     * <p>事件主表和执行上下文都保留该字段，是为了让业务事件入口和消费链路都能独立追到真实场景。</p>
+     *
+     * @param event 通知事件
+     * @param context 执行上下文
+     * @return 场景编码
+     */
+    private String resolveSceneCode(SysNotifyEvent event, NotifyEventExecutionContext context) {
+        if (context != null && StrUtil.isNotBlank(context.getSceneCode())) {
+            return context.getSceneCode();
+        }
+        return event == null ? null : event.getSceneCode();
+    }
+
+    /**
+     * 统一回写事件失败结果。
      *
      * @param eventId 事件ID
      * @param ex 消费异常
@@ -125,7 +417,6 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         int nextRetryCount = currentRetryCount + 1;
         String errorMessage = buildErrorMessage(ex);
         if (nextRetryCount >= eventRetryMaxCount) {
-            // 进入死信前先补齐最后一次失败计数，避免排障时看不到“为何已经耗尽重试预算”。
             notifyEventService.updateRetryInfo(eventId, nextRetryCount, null, errorMessage);
             notifyEventService.markDead(eventId, buildDeadErrorMessage(errorMessage));
             return;
@@ -139,6 +430,24 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
     }
 
     /**
+     * 构建创建消息日志。
+     *
+     * @param message 消息快照
+     * @param actionUserId 操作人ID
+     * @param remark 日志备注
+     * @return 消息日志
+     */
+    private SysNotifyMessageLog buildCreateMessageLog(SysNotifyMessage message, Long actionUserId, String remark) {
+        SysNotifyMessageLog logEntity = new SysNotifyMessageLog();
+        logEntity.setMessageId(message.getId());
+        logEntity.setActionType(NotifyActionTypeEnum.CREATE.getCode());
+        logEntity.setActionUserId(actionUserId);
+        logEntity.setRemark(remark);
+        logEntity.setSnapshotJson(JSONUtil.toJsonStr(message));
+        return logEntity;
+    }
+
+    /**
      * 构建死信原因。
      *
      * @param errorMessage 最近一次失败原因
@@ -148,15 +457,15 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         if (StrUtil.isBlank(errorMessage)) {
             return DEAD_RETRY_EXCEEDED_MESSAGE;
         }
-        String message = DEAD_RETRY_EXCEEDED_MESSAGE + "：" + errorMessage;
+        String message = DEAD_RETRY_EXCEEDED_MESSAGE + "；" + errorMessage;
         return message.length() > 500 ? StrUtil.sub(message, 0, 500) : message;
     }
 
     /**
-     * 构建失败信息文本。
+     * 构建失败原因文本。
      *
      * @param ex 消费异常
-     * @return 裁剪后的失败信息
+     * @return 裁剪后的失败原因
      */
     private String buildErrorMessage(Exception ex) {
         String message = ex == null ? null : StrUtil.trim(ex.getMessage());
@@ -167,5 +476,20 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
             return null;
         }
         return message.length() > 500 ? StrUtil.sub(message, 0, 500) : message;
+    }
+
+    /**
+     * 规范化必填字符串。
+     *
+     * @param value 原始值
+     * @param emptyMessage 空值异常文案
+     * @return 规范化后的字符串
+     */
+    private String normalizeRequiredField(String value, String emptyMessage) {
+        String normalizedValue = StrUtil.trimToNull(value);
+        if (normalizedValue == null) {
+            throw new ServiceException(emptyMessage);
+        }
+        return normalizedValue;
     }
 }

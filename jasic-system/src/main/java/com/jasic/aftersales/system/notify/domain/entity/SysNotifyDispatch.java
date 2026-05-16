@@ -28,6 +28,10 @@ public class SysNotifyDispatch extends BaseEntity {
 
     private Long eventId;
 
+    private String sceneCode;
+
+    private String targetType;
+
     private String templateCode;
 
     private String channelType;

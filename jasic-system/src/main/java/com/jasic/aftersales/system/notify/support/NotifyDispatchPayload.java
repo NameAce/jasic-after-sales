@@ -32,6 +32,11 @@ public class NotifyDispatchPayload implements Serializable {
     private String sceneName;
 
     /**
+     * 通知目标类型快照。
+     */
+    private String targetType;
+
+    /**
      * 兼容发送器读取的模板身份字段。
      *
      * <p>Phase 2 后该字段写入实际 sceneCode，避免外部分发继续依赖旧模板编码或旧组合字段。</p>

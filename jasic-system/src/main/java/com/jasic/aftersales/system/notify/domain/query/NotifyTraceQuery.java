@@ -31,29 +31,21 @@ public class NotifyTraceQuery extends PageQuery {
     @ApiModelProperty(value = "业务编号")
     private String bizNo;
 
-    /** 事件类型 */
-    @ApiModelProperty(value = "事件类型")
-    private String eventType;
-
     /** 通知场景编码 */
     @ApiModelProperty(value = "通知场景编码")
-    private String templateCode;
+    private String sceneCode;
 
-    /** 渠道类型 */
-    @ApiModelProperty(value = "渠道类型")
-    private String channelType;
+    /** 通知目标类型 */
+    @ApiModelProperty(value = "通知目标类型")
+    private String targetType;
 
-    /** 接收对象类型 */
-    @ApiModelProperty(value = "接收对象类型")
-    private String receiverType;
+    /** 事件状态 */
+    @ApiModelProperty(value = "事件状态")
+    private String eventStatus;
 
-    /** 接收对象ID */
-    @ApiModelProperty(value = "接收对象ID")
-    private Long receiverId;
-
-    /** 当前状态 */
-    @ApiModelProperty(value = "当前状态")
-    private String status;
+    /** 外部分发状态 */
+    @ApiModelProperty(value = "外部分发状态")
+    private String dispatchStatus;
 
     /** 结果编码 */
     @ApiModelProperty(value = "结果编码")

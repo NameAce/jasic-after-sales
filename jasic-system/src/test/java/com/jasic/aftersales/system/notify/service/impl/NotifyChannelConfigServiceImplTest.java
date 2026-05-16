@@ -2,13 +2,12 @@ package com.jasic.aftersales.system.notify.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
-import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyChannelFieldMappingDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTemplateChannelDTO;
-import com.jasic.aftersales.system.notify.domain.entity.SysNotifyTemplateChannel;
-import com.jasic.aftersales.system.notify.domain.enums.NotifyChannelTypeEnum;
+import com.jasic.aftersales.system.notify.domain.entity.NotifySceneTarget;
+import com.jasic.aftersales.system.notify.domain.enums.NotifyTypeEnum;
 import com.jasic.aftersales.system.notify.domain.vo.NotifyTemplateChannelVO;
-import com.jasic.aftersales.system.notify.mapper.SysNotifyTemplateChannelMapper;
+import com.jasic.aftersales.system.notify.mapper.NotifySceneTargetMapper;
 import com.jasic.aftersales.system.notify.support.NotifySceneCode;
 import com.jasic.aftersales.system.notify.support.NotifySceneRegistry;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
@@ -27,28 +26,13 @@ import java.util.Objects;
 /**
  * 通知渠道配置服务测试。
  *
- * <p>Phase 1 重点验证渠道配置已经改为按 `sceneCode` 维护，
- * 且站内待办场景不会被误开放外部渠道配置。</p>
+ * <p>阶段一后，渠道配置已经并入 `notify_scene_target`，
+ * 本测试验证旧渠道读取接口仍然可以从新表拿到结构化 `MP_SUBSCRIBE` 配置。</p>
  *
  * @author Codex
  * @date 2026/05/16
  */
 public class NotifyChannelConfigServiceImplTest {
-
-    @Test
-    public void shouldRejectSaveWhenSceneDoesNotSupportExternalChannel() throws Exception {
-        NotifyChannelConfigServiceImpl service = buildService();
-        ChannelMapperState state = new ChannelMapperState();
-        injectMapper(service, state);
-
-        try {
-            service.saveChannelConfigs(NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode(),
-                    buildSingleEnabledChannel("wx-template-001"));
-            Assert.fail("Expected ServiceException");
-        } catch (ServiceException ex) {
-            Assert.assertTrue(ex.getMessage().contains("不支持外部渠道"));
-        }
-    }
 
     @Test
     public void shouldRoundTripMiniProgramChannelConfigBySceneCode() throws Exception {
@@ -57,15 +41,15 @@ public class NotifyChannelConfigServiceImplTest {
         injectMapper(service, state);
 
         service.saveChannelConfigs(
-                NotifySceneCode.WORK_ORDER_EVALUATION_INVITE_MP_C.getCode(),
+                NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode(),
                 buildSingleEnabledChannel("wx-template-001")
         );
 
-        Assert.assertEquals(1, state.channels.size());
-        Assert.assertTrue(state.channels.get(0).getConfigJson().contains("templateId"));
+        Assert.assertEquals(1, state.targets.size());
+        Assert.assertTrue(state.targets.get(0).getConfigJson().contains("templateId"));
 
         List<NotifyTemplateChannelVO> channelVOList = service.listChannelConfigs(
-                NotifySceneCode.WORK_ORDER_EVALUATION_INVITE_MP_C.getCode()
+                NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode()
         );
         Assert.assertEquals(1, channelVOList.size());
         Assert.assertEquals("wx-template-001", channelVOList.get(0).getTemplateId());
@@ -75,13 +59,13 @@ public class NotifyChannelConfigServiceImplTest {
     public void shouldFilterDisabledRuntimeChannelsButKeepConfigPresence() throws Exception {
         NotifyChannelConfigServiceImpl service = buildService();
         ChannelMapperState state = new ChannelMapperState();
-        SysNotifyTemplateChannel disabledChannel = new SysNotifyTemplateChannel();
-        disabledChannel.setId(1L);
-        disabledChannel.setSceneCode(NotifySceneCode.WORK_ORDER_EVALUATION_INVITE_MP_C.getCode());
-        disabledChannel.setChannelType(NotifyChannelTypeEnum.MP_SUBSCRIBE.getCode());
-        disabledChannel.setChannelEnabled(0);
-        disabledChannel.setConfigJson("{\"templateId\":\"wx-template-001\",\"pagePathTemplate\":\"pages/order/evaluate?workOrderId=${workOrderId}\",\"fieldMapping\":[{\"field\":\"thing1\",\"value\":\"${orderNo}\"}]}");
-        state.channels.add(disabledChannel);
+        NotifySceneTarget disabledTarget = new NotifySceneTarget();
+        disabledTarget.setId(1L);
+        disabledTarget.setSceneCode(NotifySceneCode.WORK_ORDER_EVALUATION_INVITE_MP_C.getCode());
+        disabledTarget.setTargetType(NotifyTypeEnum.MP_SUBSCRIBE.getCode());
+        disabledTarget.setEnabled(0);
+        disabledTarget.setConfigJson("{\"templateId\":\"wx-template-001\",\"pagePathTemplate\":\"pages/order/evaluate?workOrderId=${workOrderId}\",\"fieldMapping\":[{\"field\":\"thing1\",\"value\":\"${orderNo}\"}]}");
+        state.targets.add(disabledTarget);
         injectMapper(service, state);
 
         Assert.assertTrue(service.listRuntimeChannelConfigs(
@@ -100,26 +84,26 @@ public class NotifyChannelConfigServiceImplTest {
     }
 
     private void initTableInfo() {
-        if (TableInfoHelper.getTableInfo(SysNotifyTemplateChannel.class) == null) {
+        if (TableInfoHelper.getTableInfo(NotifySceneTarget.class) == null) {
             Configuration configuration = new Configuration();
             configuration.setMapUnderscoreToCamelCase(true);
-            MapperBuilderAssistant assistant = new MapperBuilderAssistant(configuration, "notify-channel-config-test");
-            assistant.setCurrentNamespace(SysNotifyTemplateChannelMapper.class.getName());
-            TableInfoHelper.initTableInfo(assistant, SysNotifyTemplateChannel.class);
+            MapperBuilderAssistant assistant = new MapperBuilderAssistant(configuration, "notify-scene-target-channel-test");
+            assistant.setCurrentNamespace(NotifySceneTargetMapper.class.getName());
+            TableInfoHelper.initTableInfo(assistant, NotifySceneTarget.class);
         }
     }
 
     private void injectMapper(NotifyChannelConfigServiceImpl service, ChannelMapperState state) throws Exception {
-        setField(service, "sysNotifyTemplateChannelMapper", createTemplateChannelMapperProxy(state));
+        setField(service, "notifySceneTargetMapper", createTargetMapperProxy(state));
     }
 
     private List<NotifyTemplateChannelDTO> buildSingleEnabledChannel(String templateId) {
         List<NotifyTemplateChannelDTO> channelConfigs = new ArrayList<>();
         NotifyTemplateChannelDTO dto = new NotifyTemplateChannelDTO();
-        dto.setChannelType(NotifyChannelTypeEnum.MP_SUBSCRIBE.getCode());
+        dto.setChannelType("MP_SUBSCRIBE");
         dto.setChannelEnabled(1);
         dto.setTemplateId(templateId);
-        dto.setPagePathTemplate("pages/order/evaluate?workOrderId=${workOrderId}");
+        dto.setPagePathTemplate("pages/order/detail?workOrderId=${workOrderId}");
         List<NotifyChannelFieldMappingDTO> fieldMappings = new ArrayList<>();
         NotifyChannelFieldMappingDTO mapping = new NotifyChannelFieldMappingDTO();
         mapping.setField("thing1");
@@ -131,26 +115,27 @@ public class NotifyChannelConfigServiceImplTest {
     }
 
     @SuppressWarnings("unchecked")
-    private SysNotifyTemplateChannelMapper createTemplateChannelMapperProxy(ChannelMapperState state) {
-        return (SysNotifyTemplateChannelMapper) Proxy.newProxyInstance(
-                SysNotifyTemplateChannelMapper.class.getClassLoader(),
-                new Class[]{SysNotifyTemplateChannelMapper.class},
+    private NotifySceneTargetMapper createTargetMapperProxy(ChannelMapperState state) {
+        return (NotifySceneTargetMapper) Proxy.newProxyInstance(
+                NotifySceneTargetMapper.class.getClassLoader(),
+                new Class[]{NotifySceneTargetMapper.class},
                 (proxy, method, args) -> {
                     String methodName = method.getName();
-                    if ("selectList".equals(methodName)) {
-                        return selectChannels(state.channels, args[0]);
+                    if ("selectOne".equals(methodName)) {
+                        List<NotifySceneTarget> matches = selectTargets(state.targets, args[0]);
+                        return matches.isEmpty() ? null : matches.get(0);
                     }
                     if ("selectCount".equals(methodName)) {
-                        return countChannels(state.channels, args[0]);
-                    }
-                    if ("delete".equals(methodName)) {
-                        deleteChannels(state.channels, args[0]);
-                        return 1;
+                        return Long.valueOf(selectTargets(state.targets, args[0]).size());
                     }
                     if ("insert".equals(methodName)) {
-                        SysNotifyTemplateChannel channel = (SysNotifyTemplateChannel) args[0];
-                        channel.setId((long) (state.channels.size() + 1));
-                        state.channels.add(cloneChannel(channel));
+                        NotifySceneTarget target = (NotifySceneTarget) args[0];
+                        target.setId((long) (state.targets.size() + 1));
+                        state.targets.add(cloneTarget(target));
+                        return 1;
+                    }
+                    if ("updateById".equals(methodName)) {
+                        replaceTarget(state.targets, (NotifySceneTarget) args[0]);
                         return 1;
                     }
                     return defaultValue(method.getReturnType());
@@ -159,63 +144,45 @@ public class NotifyChannelConfigServiceImplTest {
     }
 
     @SuppressWarnings("unchecked")
-    private List<SysNotifyTemplateChannel> selectChannels(List<SysNotifyTemplateChannel> channels, Object wrapper) {
+    private List<NotifySceneTarget> selectTargets(List<NotifySceneTarget> targets, Object wrapper) {
         String sqlSegment = String.valueOf(invokeWrapperMethod(wrapper, "getSqlSegment"));
         Map<String, Object> params = (Map<String, Object>) invokeWrapperMethod(wrapper, "getParamNameValuePairs");
-        List<SysNotifyTemplateChannel> matches = new ArrayList<>();
-        for (SysNotifyTemplateChannel channel : channels) {
-            if (sqlSegment.contains("scene_code") && !params.values().contains(channel.getSceneCode())) {
+        List<NotifySceneTarget> matches = new ArrayList<>();
+        for (NotifySceneTarget target : targets) {
+            if (sqlSegment.contains("scene_code") && !params.values().contains(target.getSceneCode())) {
                 continue;
             }
-            if (sqlSegment.contains("channel_type") && !params.values().contains(channel.getChannelType())) {
+            if (sqlSegment.contains("target_type") && !params.values().contains(target.getTargetType())) {
                 continue;
             }
-            if (sqlSegment.contains("channel_enabled") && !params.values().contains(channel.getChannelEnabled())) {
+            if (sqlSegment.contains("enabled") && !params.values().contains(target.getEnabled())) {
                 continue;
             }
-            matches.add(cloneChannel(channel));
+            matches.add(cloneTarget(target));
         }
         return matches;
     }
 
-    @SuppressWarnings("unchecked")
-    private Long countChannels(List<SysNotifyTemplateChannel> channels, Object wrapper) {
-        String sqlSegment = String.valueOf(invokeWrapperMethod(wrapper, "getSqlSegment"));
-        Map<String, Object> params = (Map<String, Object>) invokeWrapperMethod(wrapper, "getParamNameValuePairs");
-        long count = 0L;
-        for (SysNotifyTemplateChannel channel : channels) {
-            if (sqlSegment.contains("scene_code") && !params.values().contains(channel.getSceneCode())) {
-                continue;
+    private void replaceTarget(List<NotifySceneTarget> targets, NotifySceneTarget updated) {
+        for (int i = 0; i < targets.size(); i++) {
+            if (Objects.equals(targets.get(i).getId(), updated.getId())) {
+                targets.set(i, cloneTarget(updated));
+                return;
             }
-            if (sqlSegment.contains("channel_type") && !params.values().contains(channel.getChannelType())) {
-                continue;
-            }
-            count++;
         }
-        return count;
-    }
-
-    @SuppressWarnings("unchecked")
-    private void deleteChannels(List<SysNotifyTemplateChannel> channels, Object wrapper) {
-        Map<String, Object> params = (Map<String, Object>) invokeWrapperMethod(wrapper, "getParamNameValuePairs");
-        Object sceneCode = params.values().stream()
-                .filter(String.class::isInstance)
-                .findFirst()
-                .orElse(null);
-        channels.removeIf(channel -> Objects.equals(channel.getSceneCode(), sceneCode));
     }
 
     private Object invokeWrapperMethod(Object wrapper, String methodName) {
         try {
-            Method method = wrapper.getClass().getMethod(methodName);
-            return method.invoke(wrapper);
+          Method method = wrapper.getClass().getMethod(methodName);
+          return method.invoke(wrapper);
         } catch (Exception ex) {
-            throw new IllegalStateException("Failed to inspect wrapper method: " + methodName, ex);
+          throw new IllegalStateException("Failed to inspect wrapper method: " + methodName, ex);
         }
     }
 
-    private SysNotifyTemplateChannel cloneChannel(SysNotifyTemplateChannel channel) {
-        return BeanUtil.copyProperties(channel, SysNotifyTemplateChannel.class);
+    private NotifySceneTarget cloneTarget(NotifySceneTarget target) {
+        return BeanUtil.copyProperties(target, NotifySceneTarget.class);
     }
 
     private void setField(Object target, String fieldName, Object value) throws Exception {
@@ -241,6 +208,6 @@ public class NotifyChannelConfigServiceImplTest {
     }
 
     private static class ChannelMapperState {
-        private final List<SysNotifyTemplateChannel> channels = new ArrayList<>();
+        private final List<NotifySceneTarget> targets = new ArrayList<>();
     }
 }

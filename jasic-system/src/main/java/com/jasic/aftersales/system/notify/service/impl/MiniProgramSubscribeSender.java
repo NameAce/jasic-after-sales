@@ -8,6 +8,7 @@ import com.jasic.aftersales.system.domain.enums.WechatMiniProgramScene;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyChannelFieldMappingDTO;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyChannelTypeEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyDispatchResultCodeEnum;
+import com.jasic.aftersales.system.notify.domain.enums.NotifyReceiverTypeEnum;
 import com.jasic.aftersales.system.notify.service.NotifyChannelSender;
 import com.jasic.aftersales.system.notify.support.NotifyChannelSendContext;
 import com.jasic.aftersales.system.notify.support.NotifyChannelSendResult;
@@ -105,9 +106,9 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
                     "Mini program field mapping is missing"
             );
         }
-        // Phase 1 起小程序端口归属不再存放在渠道配置 JSON，而是由 sceneCode 隐含表达。
-        // 这里优先根据 dispatch payload 中携带的模板身份解析实际小程序端口。
-        WechatMiniProgramScene scene = resolveScene(payload.getTemplateCode());
+        // 阶段二开始，同一 sceneCode 可以分流多个目标，因此 sender 不能再依赖旧模板编码后缀。
+        // 这里优先按接收对象类型区分 B/C 端，再用 sceneCode 作为兜底兼容判断。
+        WechatMiniProgramScene scene = resolveScene(payload.getSceneCode(), context.getDispatch().getReceiverType());
         if (scene == null) {
             return NotifyChannelSendResult.skipped(
                     NotifyDispatchResultCodeEnum.SKIPPED_CHANNEL_CONFIG_MISSING.getCode(),
@@ -181,9 +182,16 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
      * 解析场景。
      *
      * @param sceneCode 通知场景编码
+     * @param receiverType 接收对象类型
      * @return 处理结果
      */
-    private WechatMiniProgramScene resolveScene(String sceneCode) {
+    private WechatMiniProgramScene resolveScene(String sceneCode, String receiverType) {
+        if (NotifyReceiverTypeEnum.REPAIRER.getCode().equals(receiverType)) {
+            return WechatMiniProgramScene.B;
+        }
+        if (NotifyReceiverTypeEnum.CUSTOMER.getCode().equals(receiverType)) {
+            return WechatMiniProgramScene.C;
+        }
         if (NotifySceneCode.WORK_ORDER_EVALUATION_INVITE_MP_C.getCode().equals(sceneCode)
                 || StrUtil.endWithIgnoreCase(sceneCode, "_MP_C")) {
             return WechatMiniProgramScene.C;

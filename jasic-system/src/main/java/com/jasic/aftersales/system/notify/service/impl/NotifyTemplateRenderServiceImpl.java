@@ -3,11 +3,12 @@ package com.jasic.aftersales.system.notify.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jasic.aftersales.common.exception.ServiceException;
-import com.jasic.aftersales.system.notify.domain.entity.SysNotifyTemplate;
-import com.jasic.aftersales.system.notify.mapper.SysNotifyTemplateMapper;
+import com.jasic.aftersales.system.notify.domain.entity.NotifySceneTarget;
+import com.jasic.aftersales.system.notify.mapper.NotifySceneTargetMapper;
 import com.jasic.aftersales.system.notify.service.NotifyTemplateRenderService;
 import com.jasic.aftersales.system.notify.support.NotifySceneMeta;
 import com.jasic.aftersales.system.notify.support.NotifySceneRegistry;
+import com.jasic.aftersales.system.notify.support.NotifySceneTargetMeta;
 import com.jasic.aftersales.system.notify.support.NotifyTemplateRenderResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,8 +23,10 @@ import java.util.regex.Pattern;
 /**
  * 通知模板运行时渲染服务实现。
  *
- * <p>该实现只服务事件消费链路，根据 `sceneCode` 命中当前启用模板并完成文本渲染。
- * 它不负责后台模板维护、渠道配置和消息落库，也不再保留历史组合字段查询逻辑。</p>
+ * <p>该实现服务于现有运行时链路，但底层数据源已经切换为 `notify_scene_target`。
+ * 也就是说，事件消费方仍然可以调用“按场景编码渲染”的旧入口，
+ * 但真正命中的已经是该场景下默认目标类型对应的目标配置。
+ * 阶段二完成后，运行时将逐步切换为显式传入 `targetType`。</p>
  *
  * @author Codex
  * @date 2026/05/16
@@ -35,13 +38,13 @@ public class NotifyTemplateRenderServiceImpl implements NotifyTemplateRenderServ
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\$\\{([A-Za-z0-9_]+)}");
 
     @Resource
-    private SysNotifyTemplateMapper sysNotifyTemplateMapper;
+    private NotifySceneTargetMapper notifySceneTargetMapper;
 
     @Resource
     private NotifySceneRegistry notifySceneRegistry;
 
     /**
-     * 按通知场景渲染当前启用模板。
+     * 按场景编码渲染默认通知目标。
      *
      * @param sceneCode 通知场景编码
      * @param variables 模板变量
@@ -49,66 +52,88 @@ public class NotifyTemplateRenderServiceImpl implements NotifyTemplateRenderServ
      */
     @Override
     public NotifyTemplateRenderResult render(String sceneCode, Map<String, Object> variables) {
+        NotifySceneMeta sceneMeta = getRequiredScene(sceneCode);
+        return render(sceneMeta.getSceneCode(), sceneMeta.getDefaultTargetType(), variables);
+    }
+
+    /**
+     * 按场景编码和通知目标类型渲染指定目标。
+     *
+     * @param sceneCode 通知场景编码
+     * @param targetType 通知目标类型
+     * @param variables 模板变量
+     * @return 渲染结果
+     */
+    @Override
+    public NotifyTemplateRenderResult render(String sceneCode, String targetType, Map<String, Object> variables) {
         String normalizedSceneCode = normalizeRequiredField(sceneCode, "通知场景编码不能为空");
+        String normalizedTargetType = normalizeRequiredField(targetType, "通知目标类型不能为空");
         NotifySceneMeta sceneMeta = notifySceneRegistry.getRequiredScene(normalizedSceneCode);
+        NotifySceneTargetMeta targetMeta = notifySceneRegistry.getRequiredTargetMeta(normalizedSceneCode, normalizedTargetType);
+
         NotifyTemplateRenderResult result = new NotifyTemplateRenderResult();
-        // 先固化场景元数据，即使模板缺失或停用，后续跳过记录也能展示业务场景名称。
         result.setSceneCode(sceneMeta.getSceneCode());
         result.setSceneName(sceneMeta.getSceneName());
-        // 运行时结果对象当前仍沿用 templateCode 字段对外传递模板身份，这里先回填 sceneCode，
-        // 避免模板缺失时后续日志和分发链路完全丢失场景定位信息。
-        result.setTemplateCode(normalizedSceneCode);
+        // 当前排障和运行时链路仍把 templateCode 视为“命中的业务场景编码”。
+        // 阶段一先保持该字段继续存 sceneCode，避免扩大 trace、dispatch 等模块的改动面。
+        result.setTemplateCode(sceneMeta.getSceneCode());
 
-        SysNotifyTemplate template = getActiveTemplateBySceneCode(normalizedSceneCode);
-        if (template == null) {
+        NotifySceneTarget target = getActiveTargetConfig(normalizedSceneCode, normalizedTargetType);
+        if (target == null) {
             result.setNotifyEnabled(false);
-            result.addError("未找到启用通知模板，sceneCode=" + normalizedSceneCode);
+            result.addError("未找到启用通知目标配置，sceneCode=" + normalizedSceneCode + ", targetType=" + normalizedTargetType);
             return result;
         }
 
         Map<String, Object> actualVariables = variables == null ? Collections.emptyMap() : variables;
         result.setNotifyEnabled(true);
-        result.setTemplateCode(template.getSceneCode());
-        result.setTemplateName(template.getTemplateName());
-        result.setTitle(renderText(template.getTitleTemplate(), actualVariables));
-        // 当前消息中心主体链路仍使用 summary 承载内容模板，因此这里继续复用旧字段名返回渲染内容。
-        result.setSummary(renderText(template.getContentTemplate(), actualVariables));
-        result.setRouteType(template.getRouteType());
-        result.setRouteValue(renderText(template.getRouteValueTemplate(), actualVariables));
+        result.setTemplateName(resolveTemplateName(targetMeta));
+        result.setTitle(renderText(target.getTitleTemplate(), actualVariables));
+        result.setSummary(renderText(target.getContentTemplate(), actualVariables));
+        result.setRouteType(target.getRouteType());
+        result.setRouteValue(renderText(target.getRouteValueTemplate(), actualVariables));
         return result;
     }
 
     /**
-     * 按通知场景查询启用模板。
+     * 查询某个场景目标下启用中的配置。
      *
-     * <p>模板表理论上已通过唯一键保证 `sceneCode` 唯一，
-     * 这里仍读取两条并记录告警，避免脏数据直接卡死事件消费链路。</p>
-     *
-     * @param sceneCode 通知场景编码
-     * @return 启用模板；不存在时返回 {@code null}
+     * @param sceneCode 场景编码
+     * @param targetType 通知目标类型
+     * @return 启用中的目标配置；不存在时返回 {@code null}
      */
-    private SysNotifyTemplate getActiveTemplateBySceneCode(String sceneCode) {
-        LambdaQueryWrapper<SysNotifyTemplate> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysNotifyTemplate::getSceneCode, sceneCode)
-                .eq(SysNotifyTemplate::getStatus, 1)
-                .orderByDesc(SysNotifyTemplate::getId)
+    private NotifySceneTarget getActiveTargetConfig(String sceneCode, String targetType) {
+        LambdaQueryWrapper<NotifySceneTarget> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(NotifySceneTarget::getSceneCode, sceneCode)
+                .eq(NotifySceneTarget::getTargetType, targetType)
+                .eq(NotifySceneTarget::getEnabled, 1)
+                .orderByDesc(NotifySceneTarget::getId)
                 .last("limit 2");
 
-        List<SysNotifyTemplate> templates = sysNotifyTemplateMapper.selectList(wrapper);
-        if (templates == null || templates.isEmpty()) {
+        List<NotifySceneTarget> targets = notifySceneTargetMapper.selectList(wrapper);
+        if (targets == null || targets.isEmpty()) {
             return null;
         }
-        if (templates.size() > 1) {
-            log.warn("Detected multiple active notify templates for sceneCode={}", sceneCode);
+        if (targets.size() > 1) {
+            log.warn("Detected multiple active notify scene targets, sceneCode={}, targetType={}", sceneCode, targetType);
         }
-        return templates.get(0);
+        return targets.get(0);
+    }
+
+    /**
+     * 解析运行时模板名称。
+     *
+     * @param targetMeta 目标元数据
+     * @return 模板名称
+     */
+    private String resolveTemplateName(NotifySceneTargetMeta targetMeta) {
+        return targetMeta == null ? null : targetMeta.getDefaultTemplateName();
     }
 
     /**
      * 渲染文本模板。
      *
-     * <p>运行时缺变量时统一回写空串，避免单个变量缺失直接打断整个通知事件的消费。
-     * 缺失变量的具体影响仍可通过渲染结果和最终通知内容排查。</p>
+     * <p>运行时缺变量时统一替换为空串，避免单个变量缺失直接打断整个通知事件消费。</p>
      *
      * @param template 模板文本
      * @param variables 模板变量
@@ -131,9 +156,19 @@ public class NotifyTemplateRenderServiceImpl implements NotifyTemplateRenderServ
     }
 
     /**
+     * 按场景编码读取注册表场景并做必填校验。
+     *
+     * @param sceneCode 场景编码
+     * @return 场景元数据
+     */
+    private NotifySceneMeta getRequiredScene(String sceneCode) {
+        return notifySceneRegistry.getRequiredScene(normalizeRequiredField(sceneCode, "通知场景编码不能为空"));
+    }
+
+    /**
      * 规范化必填字符串。
      *
-     * @param value 原值
+     * @param value 原始值
      * @param emptyMessage 为空时的异常文案
      * @return 规范化后的字符串
      */
@@ -148,8 +183,8 @@ public class NotifyTemplateRenderServiceImpl implements NotifyTemplateRenderServ
     /**
      * 规范化可空字符串。
      *
-     * @param value 原值
-     * @return 去空白后的值；为空时返回 {@code null}
+     * @param value 原始值
+     * @return 去掉首尾空白后的值；为空时返回 {@code null}
      */
     private String normalizeNullableField(String value) {
         return StrUtil.trimToNull(value);

@@ -753,6 +753,44 @@ CREATE TABLE `work_order_notify_event` (
 -- -------------------------------------------
 -- 31. 消息通知与待办基础表
 -- -------------------------------------------
+-- -------------------------------------------
+-- 31. 通知场景与通知目标配置基础表
+-- -------------------------------------------
+DROP TABLE IF EXISTS `notify_scene_target`;
+DROP TABLE IF EXISTS `notify_scene`;
+CREATE TABLE `notify_scene` (
+  `id`          bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `scene_code`  varchar(64)     NOT NULL COMMENT '通知场景编码',
+  `scene_name`  varchar(128)    NOT NULL COMMENT '通知场景名称',
+  `biz_type`    varchar(64)     NOT NULL COMMENT '业务类型',
+  `event_code`  varchar(64)     NOT NULL COMMENT '事件编码',
+  `status`      tinyint(1)      NOT NULL DEFAULT 1 COMMENT '状态：1启用，0停用',
+  `remark`      varchar(255)    DEFAULT NULL COMMENT '备注',
+  `create_time` datetime        NOT NULL COMMENT '创建时间',
+  `update_time` datetime        NOT NULL COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_scene_code` (`scene_code`),
+  KEY `idx_biz_type_status` (`biz_type`, `status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='通知场景表';
+
+CREATE TABLE `notify_scene_target` (
+  `id`                   bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `scene_code`           varchar(64)     NOT NULL COMMENT '通知场景编码',
+  `target_type`          varchar(32)     NOT NULL COMMENT '通知目标类型',
+  `enabled`              tinyint(1)      NOT NULL DEFAULT 0 COMMENT '目标开关：1启用，0停用',
+  `title_template`       varchar(128)    DEFAULT NULL COMMENT '标题模板',
+  `content_template`     varchar(512)    DEFAULT NULL COMMENT '内容模板',
+  `route_type`           varchar(64)     DEFAULT NULL COMMENT '跳转类型',
+  `route_value_template` varchar(256)    DEFAULT NULL COMMENT '跳转值模板',
+  `config_json`          text            DEFAULT NULL COMMENT '目标专属参数 JSON',
+  `remark`               varchar(255)    DEFAULT NULL COMMENT '备注',
+  `create_time`          datetime        NOT NULL COMMENT '创建时间',
+  `update_time`          datetime        NOT NULL COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_scene_target` (`scene_code`, `target_type`),
+  KEY `idx_target_type_enabled` (`target_type`, `enabled`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='通知场景目标配置表';
+
 DROP TABLE IF EXISTS `sys_notify_message_log`;
 DROP TABLE IF EXISTS `sys_notify_message`;
 DROP TABLE IF EXISTS `sys_notify_event`;

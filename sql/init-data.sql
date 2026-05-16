@@ -268,6 +268,30 @@ INSERT INTO `sys_role_menu` (`role_id`, `menu_id`, `create_time`, `update_time`)
 (1, 1104, NOW(), NOW()),
 (1, 1105, NOW(), NOW());
 
+-- -------------------------------------------
+-- 15. 通知场景配置菜单与权限
+-- -------------------------------------------
+INSERT INTO `sys_menu` (`id`, `subject_type`, `menu_name`, `parent_id`, `menu_type`, `path`, `component`, `perms`, `icon`, `order_num`, `is_visible`, `status`, `create_time`, `update_time`) VALUES
+(111,  'PLATFORM', '通知场景配置', 1,   'C', 'notifyScene', 'system/notifyScene/index', NULL, 'el-icon-message-solid', 10, 1, 1, NOW(), NOW()),
+(1111, 'PLATFORM', '配置查询',     111, 'F', NULL,          NULL,                          'system:notifyScene:list',    NULL, 1, 1, 1, NOW(), NOW()),
+(1112, 'PLATFORM', '配置查看',     111, 'F', NULL,          NULL,                          'system:notifyScene:view',    NULL, 2, 1, 1, NOW(), NOW()),
+(1113, 'PLATFORM', '配置保存',     111, 'F', NULL,          NULL,                          'system:notifyScene:update',  NULL, 3, 1, 1, NOW(), NOW()),
+(1114, 'PLATFORM', '配置预览',     111, 'F', NULL,          NULL,                          'system:notifyScene:preview', NULL, 4, 1, 1, NOW(), NOW());
+
+INSERT INTO `sys_role_menu` (`role_id`, `menu_id`, `create_time`, `update_time`) VALUES
+(1, 111, NOW(), NOW()),
+(1, 1111, NOW(), NOW()),
+(1, 1112, NOW(), NOW()),
+(1, 1113, NOW(), NOW()),
+(1, 1114, NOW(), NOW());
+
+INSERT INTO `sys_type_code_menu` (`type_code`, `menu_id`, `create_time`, `update_time`) VALUES
+('PLATFORM', 111, NOW(), NOW()),
+('PLATFORM', 1111, NOW(), NOW()),
+('PLATFORM', 1112, NOW(), NOW()),
+('PLATFORM', 1113, NOW(), NOW()),
+('PLATFORM', 1114, NOW(), NOW());
+
 INSERT INTO `sys_type_code_menu` (`type_code`, `menu_id`, `create_time`, `update_time`) VALUES
 ('PLATFORM', 110, NOW(), NOW()),
 ('PLATFORM', 1101, NOW(), NOW()),

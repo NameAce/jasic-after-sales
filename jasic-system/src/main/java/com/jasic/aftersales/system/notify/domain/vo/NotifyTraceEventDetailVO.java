@@ -33,6 +33,14 @@ public class NotifyTraceEventDetailVO implements Serializable {
     @ApiModelProperty(value = "事件类型")
     private String eventType;
 
+    /** 通知场景编码 */
+    @ApiModelProperty(value = "通知场景编码")
+    private String sceneCode;
+
+    /** 通知场景名称 */
+    @ApiModelProperty(value = "通知场景名称")
+    private String sceneName;
+
     /** 业务类型 */
     @ApiModelProperty(value = "业务类型")
     private String bizType;
@@ -78,6 +86,14 @@ public class NotifyTraceEventDetailVO implements Serializable {
     /** 事件载荷快照 */
     @ApiModelProperty(value = "事件载荷快照")
     private String payloadJson;
+
+    /** 站内目标聚合摘要 */
+    @ApiModelProperty(value = "站内目标聚合摘要")
+    private List<NotifyTraceTargetSummaryVO> messageTargetSummaries;
+
+    /** 外部分发目标聚合摘要 */
+    @ApiModelProperty(value = "外部分发目标聚合摘要")
+    private List<NotifyTraceTargetSummaryVO> dispatchTargetSummaries;
 
     /** 创建时间 */
     @ApiModelProperty(value = "创建时间")

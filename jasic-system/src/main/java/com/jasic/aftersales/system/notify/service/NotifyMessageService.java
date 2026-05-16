@@ -44,6 +44,15 @@ public interface NotifyMessageService {
     SysNotifyMessage getByEventId(Long eventId);
 
     /**
+     * 根据事件ID和通知目标类型查询通知消息。
+     *
+     * @param eventId 事件ID
+     * @param targetType 通知目标类型
+     * @return 通知消息
+     */
+    SysNotifyMessage getByEventIdAndTargetType(Long eventId, String targetType);
+
+    /**
      * 查询接收人当前有效待办。
      *
      * @param bizType    业务类型
@@ -112,7 +121,6 @@ public interface NotifyMessageService {
      */
     Long countTodo(Long receiverId, Long receiverCompanyId);
 }
-
 
 
 
