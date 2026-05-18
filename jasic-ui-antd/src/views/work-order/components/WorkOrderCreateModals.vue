@@ -29,8 +29,8 @@ import {
   listUpstreamFirstCreateTargetOptions
 } from '@/service/api';
 import { getFlatResponseMsg } from '@/service/request/shared';
-import { adaptiveModalWidth } from '@/hooks/common/modal-form-layout';
 import { useAuthStore } from '@/store/modules/auth';
+import { adaptiveModalWidth } from '@/hooks/common/modal-form-layout';
 import {
   type RegionCascaderOption,
   composeAddressWithRegion,
@@ -63,11 +63,7 @@ import {
 } from '../create-work-order-form';
 
 /** 地址簿子表操作列：设为默认 / 编辑 / 删除 横排估算（选择与管理模式一致） */
-const CREATE_MODAL_COMPANY_ADDRESS_ACTION_COL_W = estimateAntTableActionColWidth([
-  '设为默认',
-  '编辑',
-  '删除'
-]);
+const CREATE_MODAL_COMPANY_ADDRESS_ACTION_COL_W = estimateAntTableActionColWidth(['设为默认', '编辑', '删除']);
 
 const emit = defineEmits<{
   (e: 'created'): void;
@@ -1321,7 +1317,12 @@ defineExpose({
               </AFormItem>
             </ACol>
             <ACol v-if="createBarcodeQueryHasFaultDescription" :span="24">
-              <AFormItem label="故障描述" name="faultItems" class="mb-12px" :required="createBarcodeQueryHasFaultDescription">
+              <AFormItem
+                label="故障描述"
+                name="faultItems"
+                class="mb-12px"
+                :required="createBarcodeQueryHasFaultDescription"
+              >
                 <ASelect
                   v-model:value="createForm.faultItems"
                   mode="multiple"
@@ -1514,10 +1515,7 @@ defineExpose({
             >
               编辑
             </AButton>
-            <APopconfirm
-              title="确认删除该地址？"
-              @confirm="handleDeleteCompanyAddress(record as CompanyAddressVO)"
-            >
+            <APopconfirm title="确认删除该地址？" @confirm="handleDeleteCompanyAddress(record as CompanyAddressVO)">
               <AButton type="link" size="small" danger>删除</AButton>
             </APopconfirm>
           </ASpace>

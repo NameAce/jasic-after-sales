@@ -21,16 +21,7 @@ const { bool: visible, setTrue: openModal } = useBoolean();
 const { tableWrapperRef, scrollConfig } = useTableScroll();
 const pageMenuTitle = useRouteMenuTitle();
 
-const {
-  columns,
-  columnChecks,
-  data,
-  loading,
-  pagination,
-  tableListLocale,
-  getData,
-  getDataByPage
-} = useTable({
+const { columns, columnChecks, data, loading, pagination, tableListLocale, getData, getDataByPage } = useTable({
   apiFn: fetchGetMenuList,
   columns: () => [
     {
@@ -211,9 +202,8 @@ async function handleBatchDelete() {
  * @param id - 菜单 id
  * @returns {void} 无
  */
-function handleDelete(id: number) {
+function handleDelete(_id: number) {
   // request
-  console.log(id);
 
   onDeleted();
 }

@@ -5,14 +5,14 @@
  */
 export type MenuIconOverride = {
   /** Iconify 名称，例如 `mdi:clipboard-text-outline`
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   icon?: string;
   /** 本地 SVG：`src/assets/svg-icon` 下的文件名（不含后缀）
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   localIcon?: string;
   iconFontSize?: number;
 };

@@ -55,9 +55,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
   // 是否已持有 token（不代表 userInfo 一定已拉取）
   const isLogin = computed(() => Boolean(token.value));
   /** 与 jasic-ui user.js：仅当后端声明 needChooseCompany 时进入选公司流程；user-info 里带 companies 列表不触发
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   const needChooseCompany = ref(false);
   // 去重后的角色 key 列表，用于静态超管等判断
   const roleKeys = computed(() => Array.from(new Set(userInfo.roles.filter(Boolean))));
@@ -73,9 +73,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
    * - PC 主链路：login -> loginByToken -> getUserInfo/chooseCompany -> redirect
    * - mp 兼容链路：loginByWechatCode / bindWechatAndLogin / confirmWechatBindAndLogin
    *   仅兼容保留，默认不由 PC 登录入口触发
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
 
   type RawUserInfo = {
     userId?: string;
@@ -97,9 +97,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
    *
    * @param roles - 原始角色列表
    * @returns {string[]} 角色 key 列表
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   function normalizeRoles(roles: RawUserInfo['roles']) {
     if (!Array.isArray(roles)) return [];
 
@@ -120,9 +120,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
    *
    * @param raw - 原始用户字段
    * @returns {string[]} 权限码数组
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   function normalizeButtons(raw: RawUserInfo | null | undefined) {
     if (Array.isArray(raw?.perms)) {
       return raw.perms;
@@ -138,9 +138,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
    *
    * @param raw - 原始用户信息
    * @returns {Api.Auth.UserInfo} 规范化后的用户信息
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   function normalizeUserInfo(raw: RawUserInfo | null | undefined): Api.Auth.UserInfo {
     const roles = normalizeRoles(raw?.roles);
     const buttons = normalizeButtons(raw);
@@ -163,9 +163,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
    *
    * @param raw - 原始用户信息
    * @returns {void} 无返回值
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   function applyUserInfo(raw: RawUserInfo | null | undefined) {
     const normalized = normalizeUserInfo(raw);
     Object.assign(userInfo, normalized);
@@ -176,9 +176,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
    *
    * @param targetRoles - 目标角色 key 列表；空数组视为通过
    * @returns {boolean} 是否匹配
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   function hasAnyRole(targetRoles: string[]) {
     if (!targetRoles.length) return true;
     return roleKeys.value.some(role => targetRoles.includes(role));
@@ -189,9 +189,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
    *
    * @param payload - 登录响应或用户信息体
    * @returns {void} 无返回值
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   function applyLoginResponseContext(payload: Api.Auth.LoginResponse | Api.Auth.BackendUserInfo | null | undefined) {
     if (!payload) {
       companyOptions.value = [];
@@ -219,9 +219,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
    * 末尾 `Modal.destroyAll` 须在导航完成之后执行，避免在「退出确认」onOk 执行过程中拆掉当前 Modal 导致界面卡死。
    *
    * @returns {Promise<void>} 无返回值
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   async function resetStore() {
     const authStore = useAuthStore();
 
@@ -245,9 +245,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
    * 调用后端登出接口后执行本地 resetStore。
    *
    * @returns {Promise<void>} 无返回值
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   async function logout() {
     try {
       await Promise.race([
@@ -268,9 +268,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
    * @param password - 密码
    * @param redirect - 登录成功后是否执行登录前重定向，默认 true
    * @returns {Promise<void>} 无返回值
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   async function login(userName: string, password: string, redirect = true) {
     // PC 主流程登录入口：仅密码登录会走该分支（/auth/login）。
     startLoading();
@@ -303,9 +303,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
    *
    * @param loginToken - 含 access/refresh token 及可选用户与公司上下文
    * @returns {Promise<boolean>} 是否已完成可进入系统的用户态（false 可能表示需选公司）
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   async function loginByToken(loginToken: Api.Auth.LoginToken) {
     // 1. stored in the localStorage, the later requests need it in headers
     localStg.set('token', loginToken.token);
@@ -341,9 +341,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
    * 请求 /auth/user-info 并合并到本地 userInfo / 选公司状态。
    *
    * @returns {Promise<boolean>} 是否拉取成功
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   async function getUserInfo() {
     // PC 主流程用户态拉取口径：/auth/user-info
     const { data: info, error } = await fetchGetUserInfo();
@@ -362,9 +362,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
    *
    * @param companyId - 公司主键
    * @returns {Promise<boolean>} 是否成功
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   async function chooseCompany(companyId: Api.Common.IdLike) {
     // PC 主流程选公司口径：/auth/choose-company
     const { data, error } = await fetchChooseCompany({ companyId });
@@ -381,9 +381,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
    * 应用启动时若本地有 token 则尝试静默拉取用户信息，失败则清理登录态。
    *
    * @returns {Promise<void>} 无返回值
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   async function initUserInfo() {
     const hasToken = getToken();
 
@@ -402,9 +402,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
    * @param code - 微信授权码
    * @param redirect - 成功后是否重定向
    * @returns {Promise<void>} 无返回值
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   async function loginByWechatCode(code: string, redirect = true) {
     // 非 PC 主流程：该函数仅用于兼容保留的 mp 登录链路，不应作为 PC 登录入口接入。
     startLoading();
@@ -429,9 +429,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
    * @param payload - 绑定登录参数
    * @param redirect - 成功后是否重定向
    * @returns {Promise<void>} 无返回值
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   async function bindWechatAndLogin(payload: Api.Auth.MpBindLoginParams, redirect = true) {
     // 非 PC 主流程：该函数仅用于兼容保留的 mp 绑定登录链路，不应由 PC register/reset-pwd 触发。
     startLoading();
@@ -455,9 +455,9 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
    * @param payload - 绑定确认参数
    * @param redirect - 成功后是否重定向
    * @returns {Promise<void>} 无返回值
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   async function confirmWechatBindAndLogin(payload: Api.Auth.MpBindConfirmParams, redirect = true) {
     // 非 PC 主流程：该函数仅用于兼容保留的 mp 绑定确认链路，不应由 PC 登录页主入口触发。
     startLoading();

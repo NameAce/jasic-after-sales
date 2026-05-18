@@ -68,9 +68,9 @@ export function useRouterPush(inSetup = true) {
    * @param loginModule 登录子模块（如 pwd-login）
    * @param redirectUrl 自定义回跳地址，默认当前 fullPath
    * @returns {Promise} `router.push` 结果
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   async function toLogin(loginModule?: UnionKey.LoginModule, redirectUrl?: string) {
     const module = loginModule || 'pwd-login';
 
@@ -93,9 +93,9 @@ export function useRouterPush(inSetup = true) {
    * 作用：留在登录路由仅切换 query 中的 module 参数。
    * @param module 登录模块名
    * @returns {Promise}
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   async function toggleLoginModule(module: UnionKey.LoginModule) {
     const query = route.value.query as Record<string, string>;
 
@@ -106,9 +106,9 @@ export function useRouterPush(inSetup = true) {
    * 作用：登录成功后按 query.redirect 回跳或回首页。
    * @param needRedirect 是否执行 redirect，默认 true
    * @returns {Promise}
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   async function redirectFromLogin(needRedirect = true) {
     const redirect = route.value.query?.redirect as string;
 

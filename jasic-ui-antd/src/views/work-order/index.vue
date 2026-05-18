@@ -2,33 +2,23 @@
 /**
  * 售后工单列表：状态统计、表格筛选、创建/详情抽屉与行内主操作（对接 work-order 接口）。
  */
-import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import { transformColorWithOpacity } from "@sa/utils";
-import {
-  tagColorTransferTransferred,
-  workOrderMainStatusTagColor,
-} from "@/constants/list-status-tag";
-import { countWorkOrderStatus, listWorkOrder } from "@/service/api";
-import type { WorkOrderQuery, WorkOrderStatusCountQuery } from "@/service/api";
-import { useThemeStore } from "@/store/modules/theme";
-import PageSearchExpandButton from "@/components/custom/page-search-expand-button.vue";
-import { usePageSearchFilterCollapse } from "@/hooks/common/page-search-filter-collapse";
-import { useRouteMenuTitle } from "@/hooks/common/route-menu-title";
-import { useTableScroll } from "@/hooks/common/table";
-import { useAuth } from "@/hooks/business/auth";
-import { estimateAntTableActionColWidth } from "@/utils/table-action-width";
-import {
-  createAntTableListLocale,
-  useListRequestTableMsgs,
-} from "@/utils/list-table-empty-state";
-import WorkOrderCreateModals from "./components/WorkOrderCreateModals.vue";
-import WorkOrderDetailDrawer from "./components/WorkOrderDetailDrawer.vue";
-import {
-  ACTION_META,
-  getRowPrimaryActions,
-  type WorkOrderListActionCode,
-} from "./list-actions";
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { transformColorWithOpacity } from '@sa/utils';
+import { tagColorTransferTransferred, workOrderMainStatusTagColor } from '@/constants/list-status-tag';
+import { countWorkOrderStatus, listWorkOrder } from '@/service/api';
+import type { WorkOrderQuery, WorkOrderStatusCountQuery } from '@/service/api';
+import { useThemeStore } from '@/store/modules/theme';
+import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
+import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
+import { useTableScroll } from '@/hooks/common/table';
+import { useAuth } from '@/hooks/business/auth';
+import { estimateAntTableActionColWidth } from '@/utils/table-action-width';
+import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
+import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
+import WorkOrderCreateModals from './components/WorkOrderCreateModals.vue';
+import WorkOrderDetailDrawer from './components/WorkOrderDetailDrawer.vue';
+import { ACTION_META, type WorkOrderListActionCode, getRowPrimaryActions } from './list-actions';
 
 type RowData = Record<string, any>;
 
@@ -37,13 +27,7 @@ const workOrderSearchFilter = usePageSearchFilterCollapse(5);
 // 权限钩子（如「建维修订单」按钮）
 const { hasAuth } = useAuth();
 
-type MainStatusTab =
-  | "ALL"
-  | "PENDING_ASSIGN"
-  | "PENDING_TECH_ACCEPT"
-  | "IN_PROGRESS"
-  | "COMPLETED"
-  | "CLOSED";
+type MainStatusTab = 'ALL' | 'PENDING_ASSIGN' | 'PENDING_TECH_ACCEPT' | 'IN_PROGRESS' | 'COMPLETED' | 'CLOSED';
 
 // 列表加载态
 const loading = ref(false);
@@ -58,25 +42,21 @@ const {
   clearListMsgs,
   consumeFlatError,
   refreshEmptySuccessMsg,
-  setMsgFromCatch,
+  setMsgFromCatch
 } = useListRequestTableMsgs();
-const tableListLocale = createAntTableListLocale(
-  listFetchErrorMsg,
-  listEmptyBackendMsg,
-  rows,
-);
+const tableListLocale = createAntTableListLocale(listFetchErrorMsg, listEmptyBackendMsg, rows);
 
 // 列表查询条件（分页、视图范围、筛选字段）
 const query = reactive({
   pageNum: 1,
   pageSize: 10,
-  viewScope: "CURRENT" as WorkOrderQuery["viewScope"],
-  orderNo: "",
-  customerName: "",
-  customerMobile: "",
-  barcode: "",
-  mainStatus: "" as string,
-  hasTransfer: undefined as undefined | 0 | 1,
+  viewScope: 'CURRENT' as WorkOrderQuery['viewScope'],
+  orderNo: '',
+  customerName: '',
+  customerMobile: '',
+  barcode: '',
+  mainStatus: '' as string,
+  hasTransfer: undefined as undefined | 0 | 1
 });
 
 // 各主状态工单数量（用于状态 Segmented 角标）
@@ -86,19 +66,17 @@ const statusCountMap = ref<Record<string, number>>({
   PENDING_TECH_ACCEPT: 0,
   IN_PROGRESS: 0,
   COMPLETED: 0,
-  CLOSED: 0,
+  CLOSED: 0
 });
 
 // 「是否转单」筛选下拉选项
 const hasTransferOptions = [
-  { label: "是", value: 1 },
-  { label: "否", value: 0 },
+  { label: '是', value: 1 },
+  { label: '否', value: 0 }
 ];
 
 // 建单弹窗组件实例引用
-const createModalsRef = ref<InstanceType<typeof WorkOrderCreateModals> | null>(
-  null,
-);
+const createModalsRef = ref<InstanceType<typeof WorkOrderCreateModals> | null>(null);
 // 当前路由（详情 query、筛选参数）
 const route = useRoute();
 const router = useRouter();
@@ -106,22 +84,16 @@ const pageMenuTitle = useRouteMenuTitle();
 // 主题 store（主色、暗色模式，用于 Segmented 选中底）
 const themeStore = useThemeStore();
 // 路由 query 中合法的视图范围取值
-const VIEW_SCOPE_SET = new Set(["CURRENT", "HISTORY", "ALL"]);
+const VIEW_SCOPE_SET = new Set(['CURRENT', 'HISTORY', 'ALL']);
 // 路由 query 中合法的主状态取值
-const MAIN_STATUS_SET = new Set([
-  "PENDING_ASSIGN",
-  "PENDING_TECH_ACCEPT",
-  "IN_PROGRESS",
-  "COMPLETED",
-  "CLOSED",
-]);
+const MAIN_STATUS_SET = new Set(['PENDING_ASSIGN', 'PENDING_TECH_ACCEPT', 'IN_PROGRESS', 'COMPLETED', 'CLOSED']);
 
 // 工单状态 Segmented 选中拇指背景色（与 PageTab 激活底同色）
 const workOrderStatusSegmentedThumbBg = computed(() => {
   const primary = themeStore.themeColors.primary;
   return themeStore.darkMode
-    ? transformColorWithOpacity(primary, 0.3, "#000000")
-    : transformColorWithOpacity(primary, 0.1, "#ffffff");
+    ? transformColorWithOpacity(primary, 0.3, '#000000')
+    : transformColorWithOpacity(primary, 0.1, '#ffffff');
 });
 
 // 详情抽屉是否打开
@@ -129,77 +101,72 @@ const detailOpen = ref(false);
 // 当前查看的工单 ID
 const detailWorkOrderId = ref<number | null>(null);
 // 工单详情抽屉组件引用（列表操作直达弹层内动作）
-const detailDrawerRef = ref<InstanceType<typeof WorkOrderDetailDrawer> | null>(
-  null,
-);
+const detailDrawerRef = ref<InstanceType<typeof WorkOrderDetailDrawer> | null>(null);
 
 // 绑定主状态 Segmented 与 query.mainStatus（ALL 表示空字符串）
 const activeMainStatus = computed({
-  get: () => (query.mainStatus ? query.mainStatus : "ALL") as MainStatusTab,
+  get: () => (query.mainStatus ? query.mainStatus : 'ALL') as MainStatusTab,
   set: (v: MainStatusTab) => {
-    query.mainStatus = v === "ALL" ? "" : v;
-  },
+    query.mainStatus = v === 'ALL' ? '' : v;
+  }
 });
 
 // 主状态 Tab 元数据（文案 + 对应数量）
 const statusTabOptions = computed(() => [
   {
-    value: "ALL" as const,
-    label: "全部",
-    count: statusCountMap.value.ALL || 0,
+    value: 'ALL' as const,
+    label: '全部',
+    count: statusCountMap.value.ALL || 0
   },
   {
-    value: "PENDING_ASSIGN" as const,
-    label: "待派单",
-    count: statusCountMap.value.PENDING_ASSIGN || 0,
+    value: 'PENDING_ASSIGN' as const,
+    label: '待派单',
+    count: statusCountMap.value.PENDING_ASSIGN || 0
   },
   {
-    value: "PENDING_TECH_ACCEPT" as const,
-    label: "待接单",
-    count: statusCountMap.value.PENDING_TECH_ACCEPT || 0,
+    value: 'PENDING_TECH_ACCEPT' as const,
+    label: '待接单',
+    count: statusCountMap.value.PENDING_TECH_ACCEPT || 0
   },
   {
-    value: "IN_PROGRESS" as const,
-    label: "维修中",
-    count: statusCountMap.value.IN_PROGRESS || 0,
+    value: 'IN_PROGRESS' as const,
+    label: '维修中',
+    count: statusCountMap.value.IN_PROGRESS || 0
   },
   {
-    value: "COMPLETED" as const,
-    label: "已完成",
-    count: statusCountMap.value.COMPLETED || 0,
+    value: 'COMPLETED' as const,
+    label: '已完成',
+    count: statusCountMap.value.COMPLETED || 0
   },
   {
-    value: "CLOSED" as const,
-    label: "已关闭",
-    count: statusCountMap.value.CLOSED || 0,
-  },
+    value: 'CLOSED' as const,
+    label: '已关闭',
+    count: statusCountMap.value.CLOSED || 0
+  }
 ]);
 
 // Segmented 组件用的选项（标签含数量）
 const statusSegmentOptions = computed(() =>
-  statusTabOptions.value.map((item) => ({
+  statusTabOptions.value.map(item => ({
     label: `${item.label}（${item.count}）`,
-    value: item.value,
-  })),
+    value: item.value
+  }))
 );
 
 // 是否存在任一行的主操作按钮；有则显示「操作」列
-const hasAnyRowActionButtons = computed(() =>
-  rows.value.some((row) => getRowPrimaryActions(row).length > 0),
-);
+const hasAnyRowActionButtons = computed(() => rows.value.some(row => getRowPrimaryActions(row).length > 0));
 
 /** 操作列宽度：主操作区单行最多时取「文案最长的 6 个」按钮横排估算（与 ACTION_META 一致） */
 const WORK_ORDER_LIST_ACTION_COL_WIDTH = estimateAntTableActionColWidth(
   (Object.keys(ACTION_META) as WorkOrderListActionCode[])
-    .map((code) => ACTION_META[code].label)
+    .map(code => ACTION_META[code].label)
     .sort((a, b) => b.length - a.length)
-    .slice(0, 6),
+    .slice(0, 6)
 );
 
 /** 列宽之和（含操作列），随是否存在操作列变化，避免横向滚动不足 */
 const workOrderListTableScrollMinX = computed(() => {
-  const base =
-    180 + 140 + 120 + 140 + 140 + 120 + 180 + 140 + 140 + 90 + 180;
+  const base = 180 + 140 + 120 + 140 + 140 + 120 + 180 + 140 + 140 + 90 + 180;
   return base + (hasAnyRowActionButtons.value ? WORK_ORDER_LIST_ACTION_COL_WIDTH : 0);
 });
 const { tableWrapperRef, scrollConfig } = useTableScroll(workOrderListTableScrollMinX);
@@ -207,73 +174,73 @@ const { tableWrapperRef, scrollConfig } = useTableScroll(workOrderListTableScrol
 // 表格列定义（按需追加操作列）
 const columns = computed(() => {
   const baseColumns: any[] = [
-    { title: "工单号", dataIndex: "orderNo", key: "orderNo", width: 180 },
+    { title: '工单号', dataIndex: 'orderNo', key: 'orderNo', width: 180 },
     {
-      title: "客户",
-      dataIndex: "customerName",
-      key: "customerName",
+      title: '客户',
+      dataIndex: 'customerName',
+      key: 'customerName',
+      width: 140
+    },
+    {
+      title: '客户手机号',
+      dataIndex: 'customerMobile',
+      key: 'customerMobile',
+      width: 120
+    },
+    {
+      title: '条码',
+      dataIndex: 'barcode',
+      key: 'barcode',
       width: 140,
+      ellipsis: true
     },
     {
-      title: "客户手机号",
-      dataIndex: "customerMobile",
-      key: "customerMobile",
-      width: 120,
-    },
-    {
-      title: "条码",
-      dataIndex: "barcode",
-      key: "barcode",
+      title: '机型',
+      dataIndex: 'productModel',
+      key: 'productModel',
       width: 140,
-      ellipsis: true,
+      ellipsis: true
     },
     {
-      title: "机型",
-      dataIndex: "productModel",
-      key: "productModel",
-      width: 140,
-      ellipsis: true,
+      title: '状态',
+      dataIndex: 'mainStatusLabel',
+      key: 'mainStatusLabel',
+      width: 120
     },
     {
-      title: "状态",
-      dataIndex: "mainStatusLabel",
-      key: "mainStatusLabel",
-      width: 120,
-    },
-    {
-      title: "当前受理公司",
-      dataIndex: "currentAcceptCompanyName",
-      key: "currentAcceptCompanyName",
+      title: '当前受理公司',
+      dataIndex: 'currentAcceptCompanyName',
+      key: 'currentAcceptCompanyName',
       width: 180,
-      ellipsis: true,
+      ellipsis: true
     },
     {
-      title: "网点电话",
-      dataIndex: "currentAcceptCompanyPhone",
-      key: "currentAcceptCompanyPhone",
-      width: 140,
+      title: '网点电话',
+      dataIndex: 'currentAcceptCompanyPhone',
+      key: 'currentAcceptCompanyPhone',
+      width: 140
     },
     {
-      title: "当前维修员",
-      dataIndex: "assignedUserName",
-      key: "assignedUserName",
-      width: 140,
+      title: '当前维修员',
+      dataIndex: 'assignedUserName',
+      key: 'assignedUserName',
+      width: 140
     },
-    { title: "转单", dataIndex: "hasTransfer", key: "hasTransfer", width: 90 },
+    { title: '转单', dataIndex: 'hasTransfer', key: 'hasTransfer', width: 90 },
     {
-      title: "创建时间",
-      dataIndex: "createTime",
-      key: "createTime",
-      width: 180,
-    },
+      title: '创建时间',
+      dataIndex: 'createTime',
+      key: 'createTime',
+      width: 180
+    }
   ];
   if (hasAnyRowActionButtons.value) {
     baseColumns.push({
-      title: "操作",
-      dataIndex: "actions",
-      key: "actions",
+      title: '操作',
+      dataIndex: 'actions',
+      key: 'actions',
       width: WORK_ORDER_LIST_ACTION_COL_WIDTH,
-      fixed: "right" as const,
+      fixed: 'right' as const
     });
   }
   return baseColumns;
@@ -312,7 +279,7 @@ function buildStatusCountParams(): WorkOrderStatusCountQuery {
     customerName: query.customerName || undefined,
     customerMobile: query.customerMobile || undefined,
     barcode: query.barcode || undefined,
-    hasTransfer: query.hasTransfer,
+    hasTransfer: query.hasTransfer
   };
 }
 
@@ -329,8 +296,8 @@ function buildListParams(): WorkOrderQuery {
     customerName: query.customerName || undefined,
     customerMobile: query.customerMobile || undefined,
     barcode: query.barcode || undefined,
-    mainStatus: (query.mainStatus || undefined) as WorkOrderQuery["mainStatus"],
-    hasTransfer: query.hasTransfer,
+    mainStatus: (query.mainStatus || undefined) as WorkOrderQuery['mainStatus'],
+    hasTransfer: query.hasTransfer
   };
 }
 
@@ -345,7 +312,7 @@ function syncStatusCountMap(list: unknown) {
     PENDING_TECH_ACCEPT: 0,
     IN_PROGRESS: 0,
     COMPLETED: 0,
-    CLOSED: 0,
+    CLOSED: 0
   };
   if (!Array.isArray(list)) {
     statusCountMap.value = next;
@@ -368,7 +335,7 @@ async function loadData() {
   try {
     const [listRes, countRes] = await Promise.all([
       listWorkOrder(buildListParams()),
-      countWorkOrderStatus(buildStatusCountParams()),
+      countWorkOrderStatus(buildStatusCountParams())
     ]);
     if (consumeFlatError(listRes)) {
       rows.value = [];
@@ -380,7 +347,7 @@ async function loadData() {
       refreshEmptySuccessMsg(listRes, rows.value.length);
     }
     const countFlat = countRes as { error?: unknown; data?: unknown };
-    if (countFlat.error == null || countFlat.error === false) {
+    if (countFlat.error === null || countFlat.error === undefined || countFlat.error === false) {
       syncStatusCountMap(countFlat.data);
     }
   } catch (e: unknown) {
@@ -433,12 +400,12 @@ function handleMainStatusChange() {
 function resetQuery() {
   query.pageNum = 1;
   query.pageSize = 10;
-  query.viewScope = "CURRENT";
-  query.orderNo = "";
-  query.customerName = "";
-  query.customerMobile = "";
-  query.barcode = "";
-  query.mainStatus = "";
+  query.viewScope = 'CURRENT';
+  query.orderNo = '';
+  query.customerName = '';
+  query.customerMobile = '';
+  query.barcode = '';
+  query.mainStatus = '';
   query.hasTransfer = undefined;
   loadData();
 }
@@ -504,15 +471,11 @@ function openDetailByRouteQuery() {
  * 作用：从路由 query 同步视图范围与主状态到本地 query。
  */
 function applyFiltersFromRouteQuery() {
-  const routeViewScope = String(route.query.viewScope || "").toUpperCase();
-  const routeMainStatus = String(route.query.mainStatus || "").toUpperCase();
+  const routeViewScope = String(route.query.viewScope || '').toUpperCase();
+  const routeMainStatus = String(route.query.mainStatus || '').toUpperCase();
 
-  query.viewScope = (
-    VIEW_SCOPE_SET.has(routeViewScope) ? routeViewScope : "CURRENT"
-  ) as WorkOrderQuery["viewScope"];
-  query.mainStatus = MAIN_STATUS_SET.has(routeMainStatus)
-    ? routeMainStatus
-    : "";
+  query.viewScope = (VIEW_SCOPE_SET.has(routeViewScope) ? routeViewScope : 'CURRENT') as WorkOrderQuery['viewScope'];
+  query.mainStatus = MAIN_STATUS_SET.has(routeMainStatus) ? routeMainStatus : '';
   query.pageNum = 1;
 }
 
@@ -528,24 +491,14 @@ watch(
   () => {
     applyFiltersFromRouteQuery();
     loadData();
-  },
+  }
 );
 </script>
 
 <template>
-  <div
-    class="work-order-page min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto"
-  >
-    <ACard
-      :bordered="false"
-      size="small"
-      class="work-order-search-card card-wrapper"
-    >
-      <AForm
-        :model="query"
-        :label-col="{ span: 5, md: 7 }"
-        class="work-order-search-form"
-      >
+  <div class="work-order-page min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <ACard :bordered="false" size="small" class="work-order-search-card card-wrapper">
+      <AForm :model="query" :label-col="{ span: 5, md: 7 }" class="work-order-search-form">
         <div class="work-order-dual-filters">
           <div class="work-order-scope-section work-order-filter-strip">
             <ATabs
@@ -561,8 +514,7 @@ watch(
           <div
             class="work-order-status-toolbar work-order-filter-strip"
             :style="{
-              '--work-order-segmented-thumb-bg':
-                workOrderStatusSegmentedThumbBg,
+              '--work-order-segmented-thumb-bg': workOrderStatusSegmentedThumbBg
             }"
           >
             <span class="work-order-section-label">工单状态</span>
@@ -586,16 +538,11 @@ watch(
                 :md="12"
                 :lg="6"
                 :class="{
-                  'page-search-toolbar__filter-col--collapsed':
-                    workOrderSearchFilter.isSearchFilterHidden(0),
+                  'page-search-toolbar__filter-col--collapsed': workOrderSearchFilter.isSearchFilterHidden(0)
                 }"
               >
                 <AFormItem label="工单号" class="m-0">
-                  <AInput
-                    v-model:value="query.orderNo"
-                    allow-clear
-                    placeholder="请输入工单号"
-                  />
+                  <AInput v-model:value="query.orderNo" allow-clear placeholder="请输入工单号" />
                 </AFormItem>
               </ACol>
               <ACol
@@ -603,16 +550,11 @@ watch(
                 :md="12"
                 :lg="6"
                 :class="{
-                  'page-search-toolbar__filter-col--collapsed':
-                    workOrderSearchFilter.isSearchFilterHidden(1),
+                  'page-search-toolbar__filter-col--collapsed': workOrderSearchFilter.isSearchFilterHidden(1)
                 }"
               >
                 <AFormItem label="客户姓名" class="m-0">
-                  <AInput
-                    v-model:value="query.customerName"
-                    allow-clear
-                    placeholder="请输入客户姓名"
-                  />
+                  <AInput v-model:value="query.customerName" allow-clear placeholder="请输入客户姓名" />
                 </AFormItem>
               </ACol>
               <ACol
@@ -620,16 +562,11 @@ watch(
                 :md="12"
                 :lg="6"
                 :class="{
-                  'page-search-toolbar__filter-col--collapsed':
-                    workOrderSearchFilter.isSearchFilterHidden(2),
+                  'page-search-toolbar__filter-col--collapsed': workOrderSearchFilter.isSearchFilterHidden(2)
                 }"
               >
                 <AFormItem label="客户手机号" class="m-0">
-                  <AInput
-                    v-model:value="query.customerMobile"
-                    allow-clear
-                    placeholder="请输入客户手机号"
-                  />
+                  <AInput v-model:value="query.customerMobile" allow-clear placeholder="请输入客户手机号" />
                 </AFormItem>
               </ACol>
               <ACol
@@ -637,16 +574,11 @@ watch(
                 :md="12"
                 :lg="6"
                 :class="{
-                  'page-search-toolbar__filter-col--collapsed':
-                    workOrderSearchFilter.isSearchFilterHidden(3),
+                  'page-search-toolbar__filter-col--collapsed': workOrderSearchFilter.isSearchFilterHidden(3)
                 }"
               >
                 <AFormItem label="条码" class="m-0">
-                  <AInput
-                    v-model:value="query.barcode"
-                    allow-clear
-                    placeholder="请输入条码"
-                  />
+                  <AInput v-model:value="query.barcode" allow-clear placeholder="请输入条码" />
                 </AFormItem>
               </ACol>
               <ACol
@@ -654,8 +586,7 @@ watch(
                 :md="12"
                 :lg="6"
                 :class="{
-                  'page-search-toolbar__filter-col--collapsed':
-                    workOrderSearchFilter.isSearchFilterHidden(4),
+                  'page-search-toolbar__filter-col--collapsed': workOrderSearchFilter.isSearchFilterHidden(4)
                 }"
               >
                 <AFormItem label="是否转单" class="m-0">
@@ -671,9 +602,7 @@ watch(
             </ARow>
           </div>
           <div class="page-search-toolbar__actions">
-            <AButton type="primary" :loading="loading" @click="handleSearch"
-              >查询</AButton
-            >
+            <AButton type="primary" :loading="loading" @click="handleSearch">查询</AButton>
             <AButton :loading="loading" @click="resetQuery">重置</AButton>
             <PageSearchExpandButton
               v-if="workOrderSearchFilter.showSearchFilterExpandToggle"
@@ -697,12 +626,7 @@ watch(
         </div>
       </template>
       <template #extra>
-        <AButton
-          v-if="hasAuth('workorder:add')"
-          type="primary"
-          size="small"
-          @click="createModalsRef?.open()"
-        >
+        <AButton v-if="hasAuth('workorder:add')" type="primary" size="small" @click="createModalsRef?.open()">
           建维修订单
         </AButton>
       </template>
@@ -721,7 +645,7 @@ watch(
           total,
           showSizeChanger: true,
           showTotal: (t: number) => `共 ${t} 条`,
-          onChange: handleTableChange,
+          onChange: handleTableChange
         }"
         row-key="id"
         size="small"
@@ -735,32 +659,22 @@ watch(
               @click="openDetail(record)"
               @keydown.enter.prevent="openDetail(record)"
             >
-              {{ record.orderNo || "-" }}
+              {{ record.orderNo || '-' }}
             </span>
           </template>
           <template v-else-if="column.key === 'mainStatusLabel'">
-            <ATag
-              :color="
-                workOrderMainStatusTagColor(String(record.mainStatus || ''))
-              "
-            >
-              {{ record.mainStatusLabel || record.mainStatus || "-" }}
+            <ATag :color="workOrderMainStatusTagColor(String(record.mainStatus || ''))">
+              {{ record.mainStatusLabel || record.mainStatus || '-' }}
             </ATag>
           </template>
           <template v-else-if="column.key === 'hasTransfer'">
-            <ATag
-              :color="
-                tagColorTransferTransferred(Number(record.hasTransfer) === 1)
-              "
-            >
-              {{ Number(record.hasTransfer) === 1 ? "是" : "否" }}
+            <ATag :color="tagColorTransferTransferred(Number(record.hasTransfer) === 1)">
+              {{ Number(record.hasTransfer) === 1 ? '是' : '否' }}
             </ATag>
           </template>
           <template v-else-if="column.key === 'actions'">
             <div class="work-order-actions-cell">
-              <div
-                class="work-order-actions-cell__row work-order-actions-cell__row--primary"
-              >
+              <div class="work-order-actions-cell__row work-order-actions-cell__row--primary">
                 <AButton
                   v-for="item in getRowPrimaryActions(record)"
                   :key="`${record.id}-${item.action}`"
@@ -770,7 +684,7 @@ watch(
                   :danger="item.type === 'danger'"
                   :class="{
                     'table-action-link--warning': item.type === 'warning',
-                    'table-action-link--primary': item.type === 'primary',
+                    'table-action-link--primary': item.type === 'primary'
                   }"
                   @click="handleListAction(record, item.action)"
                 >
@@ -788,7 +702,7 @@ watch(
       ref="detailDrawerRef"
       :open="detailOpen"
       :work-order-id="detailWorkOrderId"
-      @update:open="(v) => (detailOpen = v)"
+      @update:open="v => (detailOpen = v)"
       @success="loadData"
     />
   </div>
@@ -919,28 +833,19 @@ watch(
  * --work-order-segmented-thumb-bg 与 PageTab chrome-tab_active 同色（transformColorWithOpacity）。
  */
 :deep(.work-order-status-segmented .ant-segmented-thumb) {
-  background: var(
-    --work-order-segmented-thumb-bg,
-    rgb(var(--primary-100-color))
-  ) !important;
+  background: var(--work-order-segmented-thumb-bg, rgb(var(--primary-100-color))) !important;
   border-radius: 6px;
   box-shadow: none !important;
 }
 
-:deep(
-    .work-order-status-segmented
-      .ant-segmented-item:hover:not(.ant-segmented-item-selected)
-  ) {
+:deep(.work-order-status-segmented .ant-segmented-item:hover:not(.ant-segmented-item-selected)) {
   background: transparent !important;
 }
 
 :deep(.work-order-status-segmented .ant-segmented-item-selected) {
   border-radius: 6px;
   overflow: hidden;
-  background-color: var(
-    --work-order-segmented-thumb-bg,
-    rgb(var(--primary-100-color))
-  ) !important;
+  background-color: var(--work-order-segmented-thumb-bg, rgb(var(--primary-100-color))) !important;
   box-shadow: none !important;
   color: rgb(var(--primary-color));
 }
@@ -949,20 +854,12 @@ watch(
   background-color: transparent !important;
 }
 
-:deep(
-    .work-order-status-segmented
-      .ant-segmented-item-selected
-      .ant-segmented-item-label
-  ) {
+:deep(.work-order-status-segmented .ant-segmented-item-selected .ant-segmented-item-label) {
   color: rgb(var(--primary-color)) !important;
   font-weight: 500;
 }
 
-:deep(
-    .work-order-status-segmented
-      .ant-segmented-item:not(.ant-segmented-item-selected)
-      .ant-segmented-item-label
-  ) {
+:deep(.work-order-status-segmented .ant-segmented-item:not(.ant-segmented-item-selected) .ant-segmented-item-label) {
   color: var(--ant-color-text-secondary);
 }
 

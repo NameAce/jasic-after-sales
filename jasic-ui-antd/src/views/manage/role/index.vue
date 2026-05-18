@@ -130,9 +130,8 @@ async function handleBatchDelete() {
  * @param id - 角色 id
  * @returns {void} 无
  */
-function handleDelete(id: number) {
+function handleDelete(_id: number) {
   // request
-  console.log(id);
 
   onDeleted();
 }

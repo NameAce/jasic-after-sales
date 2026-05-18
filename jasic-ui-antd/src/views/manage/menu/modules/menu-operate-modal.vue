@@ -162,9 +162,7 @@ const manageMenuFormFieldCount = computed(() => {
   return n;
 });
 
-const manageMenuDrawerWidth = computed(() =>
-  adaptiveModalWidth(960, manageMenuFormFieldCount.value)
-);
+const manageMenuDrawerWidth = computed(() => adaptiveModalWidth(960, manageMenuFormFieldCount.value));
 
 // 页面组件下拉选项（含当前 routeName 兜底）
 const pageOptions = computed(() => {
@@ -351,9 +349,7 @@ function getSubmitParams() {
 async function handleSubmit() {
   await validate();
 
-  const params = getSubmitParams();
-
-  console.log('params: ', params);
+  getSubmitParams();
 
   // request
   window.$message?.success($t('common.updateSuccess'));

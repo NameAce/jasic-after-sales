@@ -2,9 +2,9 @@
 /**
  * 系统管理 — 角色：分页列表、数据范围、分配菜单与角色模板维护（对接后端角色接口）。
  */
-import { computed, nextTick, onMounted, reactive, ref } from "vue";
-import type { FormInstance } from "ant-design-vue";
-import { tagColorEnabled } from "@/constants/list-status-tag";
+import { computed, nextTick, onMounted, reactive, ref } from 'vue';
+import type { FormInstance } from 'ant-design-vue';
+import { tagColorEnabled } from '@/constants/list-status-tag';
 import {
   type SysRoleVO,
   addRole,
@@ -14,25 +14,19 @@ import {
   listRole,
   roleDataScopeOptions,
   typeCodeMenuTree,
-  updateRole,
-} from "@/service/api";
-import { notifyOnceSuccessFromFlatResult } from "@/service/request/shared";
-import { useAuthStore } from "@/store/modules/auth";
-import { useAuth } from "@/hooks/business/auth";
-import { useRouteMenuTitle } from "@/hooks/common/route-menu-title";
-import {
-  ADAPTIVE_MODAL_FORM_WIDE_MIN_COUNT,
-  adaptiveModalWidth,
-} from "@/hooks/common/modal-form-layout";
-import { usePageSearchFilterCollapse } from "@/hooks/common/page-search-filter-collapse";
-import { useTableScroll } from "@/hooks/common/table";
-import { estimateAntTableActionColWidth } from "@/utils/table-action-width";
-import {
-  createAntTableListLocale,
-  useListRequestTableMsgs,
-} from "@/utils/list-table-empty-state";
-import { computeExpandedKeysForCheckedMenuTree } from "@/utils/tree-expand-keys";
-import PageSearchExpandButton from "@/components/custom/page-search-expand-button.vue";
+  updateRole
+} from '@/service/api';
+import { notifyOnceSuccessFromFlatResult } from '@/service/request/shared';
+import { useAuthStore } from '@/store/modules/auth';
+import { useAuth } from '@/hooks/business/auth';
+import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
+import { ADAPTIVE_MODAL_FORM_WIDE_MIN_COUNT, adaptiveModalWidth } from '@/hooks/common/modal-form-layout';
+import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
+import { useTableScroll } from '@/hooks/common/table';
+import { estimateAntTableActionColWidth } from '@/utils/table-action-width';
+import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
+import { computeExpandedKeysForCheckedMenuTree } from '@/utils/tree-expand-keys';
+import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
 
 type RowData = Record<string, any>;
 type ScopeOption = {
@@ -47,11 +41,7 @@ const { hasAuth } = useAuth();
 const pageMenuTitle = useRouteMenuTitle();
 
 /** 操作列：编辑 / 分配菜单 / 删除 横排估算 */
-const ROLE_LIST_ACTION_COL_WIDTH = estimateAntTableActionColWidth([
-  "编辑",
-  "分配菜单",
-  "删除",
-]);
+const ROLE_LIST_ACTION_COL_WIDTH = estimateAntTableActionColWidth(['编辑', '分配菜单', '删除']);
 const roleListTableScrollMinX = computed(() => 890 + ROLE_LIST_ACTION_COL_WIDTH);
 const { tableWrapperRef, scrollConfig } = useTableScroll(roleListTableScrollMinX);
 const loading = ref(false);
@@ -66,24 +56,20 @@ const {
   clearListMsgs,
   consumeFlatError,
   refreshEmptySuccessMsg,
-  setMsgFromCatch,
+  setMsgFromCatch
 } = useListRequestTableMsgs();
-const tableListLocale = createAntTableListLocale(
-  listFetchErrorMsg,
-  listEmptyBackendMsg,
-  rows,
-);
+const tableListLocale = createAntTableListLocale(listFetchErrorMsg, listEmptyBackendMsg, rows);
 
 const statusOptions = [
-  { label: "启用", value: 1 },
-  { label: "停用", value: 0 },
+  { label: '启用', value: 1 },
+  { label: '停用', value: 0 }
 ];
 
 const systemRoleSearchFilter = usePageSearchFilterCollapse(2);
 
 const queryParams = reactive({
-  roleName: "",
-  status: undefined as number | undefined,
+  roleName: '',
+  status: undefined as number | undefined
 });
 
 const dataScopeOptions = ref<ScopeOption[]>([]);
@@ -92,16 +78,16 @@ const formDataScopeOptions = ref<ScopeOption[]>([]);
 
 const formOpen = ref(false);
 const formSubmitting = ref(false);
-const formTitle = ref("新增角色");
+const formTitle = ref('新增角色');
 const roleFormRef = ref<FormInstance | null>(null);
 const formModel = reactive<RowData>({
   id: undefined,
-  roleName: "",
-  roleKey: "",
-  dataScope: "",
+  roleName: '',
+  roleKey: '',
+  dataScope: '',
   orderNum: 0,
   status: 1,
-  remark: "",
+  remark: ''
 });
 
 const menuOpen = ref(false);
@@ -114,28 +100,26 @@ const currentRoleId = ref<number | null>(null);
 
 /** 新增/编辑抽屉内 AFormItem 数量（与模板一致；≤6 单列窄抽屉，≥7 才与全局规则一致加宽并两列） */
 const ROLE_EDIT_FORM_FIELD_COUNT = 6;
-const roleFormDrawerWidth = computed(() =>
-  adaptiveModalWidth(560, ROLE_EDIT_FORM_FIELD_COUNT),
-);
+const roleFormDrawerWidth = computed(() => adaptiveModalWidth(560, ROLE_EDIT_FORM_FIELD_COUNT));
 const roleFormOperateColSpan = computed(() =>
-  ROLE_EDIT_FORM_FIELD_COUNT >= ADAPTIVE_MODAL_FORM_WIDE_MIN_COUNT ? 12 : 24,
+  ROLE_EDIT_FORM_FIELD_COUNT >= ADAPTIVE_MODAL_FORM_WIDE_MIN_COUNT ? 12 : 24
 );
 
 // 角色列表表格列
 const columns = computed(() => [
-  { title: "ID", dataIndex: "id", key: "id", width: 70 },
-  { title: "角色名称", dataIndex: "roleName", key: "roleName", width: 160 },
-  { title: "角色标识", dataIndex: "roleKey", key: "roleKey", width: 160 },
+  { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
+  { title: '角色名称', dataIndex: 'roleName', key: 'roleName', width: 160 },
+  { title: '角色标识', dataIndex: 'roleKey', key: 'roleKey', width: 160 },
   {
-    title: "数据范围",
-    dataIndex: "dataScope",
-    key: "dataScope",
-    minWidth: 140,
+    title: '数据范围',
+    dataIndex: 'dataScope',
+    key: 'dataScope',
+    minWidth: 140
   },
-  { title: "状态", dataIndex: "status", key: "status", width: 90 },
-  { title: "系统角色", dataIndex: "isSystem", key: "isSystem", width: 100 },
-  { title: "创建时间", dataIndex: "createTime", key: "createTime", width: 170 },
-  { title: "操作", key: "actions", width: ROLE_LIST_ACTION_COL_WIDTH, fixed: "right" as const },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
+  { title: '系统角色', dataIndex: 'isSystem', key: 'isSystem', width: 100 },
+  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 170 },
+  { title: '操作', key: 'actions', width: ROLE_LIST_ACTION_COL_WIDTH, fixed: 'right' as const }
 ]);
 
 /**
@@ -169,35 +153,35 @@ function buildDataScopeMap(options: ScopeOption[]) {
  */
 function mergeLegacyOption(options: ScopeOption[], currentValue?: string) {
   const result = [...(options || [])];
-  if (currentValue && !result.some((item) => item.value === currentValue)) {
+  if (currentValue && !result.some(item => item.value === currentValue)) {
     result.push({
       value: currentValue,
       label: `${currentValue}（历史值）`,
-      disabled: true,
+      disabled: true
     });
   }
   return result;
 }
 
 const roleFormRules = computed(() => ({
-  roleName: [{ required: true, message: "请输入角色名称", trigger: "blur" }],
-  roleKey: [{ required: true, message: "请输入角色标识", trigger: "blur" }],
+  roleName: [{ required: true, message: '请输入角色名称', trigger: 'blur' }],
+  roleKey: [{ required: true, message: '请输入角色标识', trigger: 'blur' }],
   dataScope: [
-    { required: true, message: "请选择数据范围", trigger: "change" },
+    { required: true, message: '请选择数据范围', trigger: 'change' },
     {
       validator: async () => {
-        const v = String(formModel.dataScope || "").trim();
+        const v = String(formModel.dataScope || '').trim();
         if (!v) {
-          return Promise.reject(new Error("请选择数据范围"));
+          return Promise.reject(new Error('请选择数据范围'));
         }
         if (!isValidDataScope(v)) {
-          return Promise.reject(new Error("请选择当前公司允许的数据范围"));
+          return Promise.reject(new Error('请选择当前公司允许的数据范围'));
         }
         return Promise.resolve();
       },
-      trigger: "change",
-    },
-  ],
+      trigger: 'change'
+    }
+  ]
 }));
 
 /**
@@ -205,13 +189,8 @@ const roleFormRules = computed(() => ({
  * @param currentValue - 当前 dataScope 字符串
  * @returns {void} 无
  */
-function syncFormDataScopeOptions(
-  currentValue = String(formModel.dataScope || ""),
-) {
-  formDataScopeOptions.value = mergeLegacyOption(
-    dataScopeOptions.value,
-    currentValue,
-  );
+function syncFormDataScopeOptions(currentValue = String(formModel.dataScope || '')) {
+  formDataScopeOptions.value = mergeLegacyOption(dataScopeOptions.value, currentValue);
 }
 
 /**
@@ -220,10 +199,8 @@ function syncFormDataScopeOptions(
  * @returns 默认 value，无则 SELF
  */
 function getDefaultDataScope() {
-  const defaultOption = dataScopeOptions.value.find(
-    (item) => item.defaultOption,
-  );
-  return defaultOption?.value || "SELF";
+  const defaultOption = dataScopeOptions.value.find(item => item.defaultOption);
+  return defaultOption?.value || 'SELF';
 }
 
 /**
@@ -232,7 +209,7 @@ function getDefaultDataScope() {
  * @returns 是否合法
  */
 function isValidDataScope(value: string) {
-  return dataScopeOptions.value.some((item) => item.value === value);
+  return dataScopeOptions.value.some(item => item.value === value);
 }
 
 /**
@@ -268,7 +245,7 @@ async function loadList(page = pageNum.value) {
       pageNum: pageNum.value,
       pageSize: pageSize.value,
       roleName: queryParams.roleName || undefined,
-      status: queryParams.status,
+      status: queryParams.status
     });
 
     if (consumeFlatError(flat)) {
@@ -305,7 +282,7 @@ function handleSearch() {
  * @returns {void} 无
  */
 function resetSearch() {
-  queryParams.roleName = "";
+  queryParams.roleName = '';
   queryParams.status = undefined;
   handleSearch();
 }
@@ -331,15 +308,15 @@ function handleTablePageChange(page: number, pageSizeArg?: number) {
  * @returns {void} 无
  */
 function openAdd() {
-  formTitle.value = "新增角色";
+  formTitle.value = '新增角色';
   Object.assign(formModel, {
     id: undefined,
-    roleName: "",
-    roleKey: "",
+    roleName: '',
+    roleKey: '',
     dataScope: getDefaultDataScope(),
     orderNum: 0,
     status: 1,
-    remark: "",
+    remark: ''
   });
   syncFormDataScopeOptions(String(formModel.dataScope));
   formOpen.value = true;
@@ -351,17 +328,17 @@ function openAdd() {
  * @returns 返回 Promise，详情加载并回填后结束
  */
 async function openEdit(record: RowData) {
-  formTitle.value = "编辑角色";
+  formTitle.value = '编辑角色';
   const { data } = await getRole(record.id);
   const role = (data as RowData) || record;
   Object.assign(formModel, {
     id: role.id,
-    roleName: role.roleName ?? "",
-    roleKey: role.roleKey ?? "",
-    dataScope: role.dataScope ?? "",
+    roleName: role.roleName ?? '',
+    roleKey: role.roleKey ?? '',
+    dataScope: role.dataScope ?? '',
     orderNum: role.orderNum ?? 0,
     status: role.status ?? 1,
-    remark: role.remark ?? "",
+    remark: role.remark ?? ''
   });
   syncFormDataScopeOptions(String(formModel.dataScope));
   formOpen.value = true;
@@ -388,14 +365,14 @@ async function submitForm() {
       dataScope: String(formModel.dataScope).trim(),
       orderNum: Number(formModel.orderNum) || 0,
       status: Number(formModel.status) || 0,
-      remark: String(formModel.remark || ""),
+      remark: String(formModel.remark || '')
     };
     if (payload.id) {
       const res = await updateRole(payload);
-      if (!notifyOnceSuccessFromFlatResult(res, "操作成功")) return;
+      if (!notifyOnceSuccessFromFlatResult(res, '操作成功')) return;
     } else {
       const res = await addRole(payload);
-      if (!notifyOnceSuccessFromFlatResult(res, "操作成功")) return;
+      if (!notifyOnceSuccessFromFlatResult(res, '操作成功')) return;
     }
     formOpen.value = false;
     await loadList(pageNum.value);
@@ -411,7 +388,7 @@ async function submitForm() {
  */
 async function removeRole(record: RowData) {
   const res = await deleteRole(record.id);
-  if (!notifyOnceSuccessFromFlatResult(res, "删除成功")) return;
+  if (!notifyOnceSuccessFromFlatResult(res, '删除成功')) return;
   await loadList(pageNum.value);
 }
 
@@ -421,9 +398,9 @@ async function removeRole(record: RowData) {
  * @returns 返回 Promise，数据就绪后结束
  */
 async function openAssignMenu(record: RowData) {
-  const typeCode = String(authStore.userInfo.currentTypeCode || "");
+  const typeCode = String(authStore.userInfo.currentTypeCode || '');
   if (!typeCode) {
-    window.$message?.warning("当前账号缺少公司类型编码，无法分配菜单");
+    window.$message?.warning('当前账号缺少公司类型编码，无法分配菜单');
     return;
   }
 
@@ -431,22 +408,14 @@ async function openAssignMenu(record: RowData) {
   menuCheckedKeys.value = [];
   menuExpandedKeys.value = [];
 
-  const [treeRes, roleRes] = await Promise.all([
-    typeCodeMenuTree(typeCode),
-    getRole(record.id),
-  ]);
+  const [treeRes, roleRes] = await Promise.all([typeCodeMenuTree(typeCode), getRole(record.id)]);
   menuTreeData.value = pickRows(treeRes.data);
   const role = roleRes.data as SysRoleVO | undefined;
   const ids = role?.menuIds;
   menuCheckedKeys.value = Array.isArray(ids)
-    ? ids
-        .map((id: unknown) => Number(id))
-        .filter((id: number) => !Number.isNaN(id))
+    ? ids.map((id: unknown) => Number(id)).filter((id: number) => !Number.isNaN(id))
     : [];
-  menuExpandedKeys.value = computeExpandedKeysForCheckedMenuTree(
-    menuTreeData.value,
-    menuCheckedKeys.value,
-  );
+  menuExpandedKeys.value = computeExpandedKeysForCheckedMenuTree(menuTreeData.value, menuCheckedKeys.value);
   await nextTick();
   menuOpen.value = true;
 }
@@ -461,11 +430,8 @@ async function submitAssignMenu() {
 
   menuSubmitting.value = true;
   try {
-    const res = await assignRoleMenus(
-      currentRoleId.value,
-      menuCheckedKeys.value,
-    );
-    if (!notifyOnceSuccessFromFlatResult(res, "分配成功")) return;
+    const res = await assignRoleMenus(currentRoleId.value, menuCheckedKeys.value);
+    if (!notifyOnceSuccessFromFlatResult(res, '分配成功')) return;
     menuOpen.value = false;
   } finally {
     menuSubmitting.value = false;
@@ -484,9 +450,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div
-    class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto"
-  >
+  <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
     <ACard :bordered="false" class="card-wrapper">
       <AForm :model="queryParams" :label-col="{ span: 5, md: 7 }">
         <div class="page-search-toolbar">
@@ -497,16 +461,11 @@ onMounted(async () => {
                 :md="12"
                 :lg="6"
                 :class="{
-                  'page-search-toolbar__filter-col--collapsed':
-                    systemRoleSearchFilter.isSearchFilterHidden(0),
+                  'page-search-toolbar__filter-col--collapsed': systemRoleSearchFilter.isSearchFilterHidden(0)
                 }"
               >
                 <AFormItem label="角色名称" class="m-0">
-                  <AInput
-                    v-model:value="queryParams.roleName"
-                    allow-clear
-                    placeholder="请输入角色名称"
-                  />
+                  <AInput v-model:value="queryParams.roleName" allow-clear placeholder="请输入角色名称" />
                 </AFormItem>
               </ACol>
               <ACol
@@ -514,8 +473,7 @@ onMounted(async () => {
                 :md="12"
                 :lg="6"
                 :class="{
-                  'page-search-toolbar__filter-col--collapsed':
-                    systemRoleSearchFilter.isSearchFilterHidden(1),
+                  'page-search-toolbar__filter-col--collapsed': systemRoleSearchFilter.isSearchFilterHidden(1)
                 }"
               >
                 <AFormItem label="状态" class="m-0">
@@ -526,7 +484,7 @@ onMounted(async () => {
                     class="w-full"
                     :options="[
                       { label: '启用', value: 1 },
-                      { label: '停用', value: 0 },
+                      { label: '停用', value: 0 }
                     ]"
                   />
                 </AFormItem>
@@ -534,9 +492,7 @@ onMounted(async () => {
             </ARow>
           </div>
           <div class="page-search-toolbar__actions">
-            <AButton type="primary" :loading="loading" @click="handleSearch"
-              >搜索</AButton
-            >
+            <AButton type="primary" :loading="loading" @click="handleSearch">搜索</AButton>
             <AButton @click="resetSearch">重置</AButton>
             <PageSearchExpandButton
               v-if="systemRoleSearchFilter.showSearchFilterExpandToggle"
@@ -554,12 +510,7 @@ onMounted(async () => {
       class="flex-col-stretch card-wrapper sm:flex-1-hidden"
     >
       <template #extra>
-        <AButton
-          v-if="hasAuth('system:role:add')"
-          type="primary"
-          @click="openAdd"
-          >新增</AButton
-        >
+        <AButton v-if="hasAuth('system:role:add')" type="primary" @click="openAdd">新增</AButton>
       </template>
       <ATable
         ref="tableWrapperRef"
@@ -573,7 +524,7 @@ onMounted(async () => {
           total,
           showSizeChanger: true,
           showTotal: (t: number) => `共 ${t} 条`,
-          onChange: handleTablePageChange,
+          onChange: handleTablePageChange
         }"
         row-key="id"
         size="small"
@@ -582,11 +533,11 @@ onMounted(async () => {
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'dataScope'">
-            {{ dataScopeMap[record.dataScope] || record.dataScope || "-" }}
+            {{ dataScopeMap[record.dataScope] || record.dataScope || '-' }}
           </template>
           <template v-else-if="column.key === 'status'">
             <ATag :color="tagColorEnabled(record.status === 1)">
-              {{ record.status === 1 ? "启用" : "停用" }}
+              {{ record.status === 1 ? '启用' : '停用' }}
             </ATag>
           </template>
           <template v-else-if="column.key === 'isSystem'">
@@ -619,13 +570,7 @@ onMounted(async () => {
                 :disabled="record.isSystem === 1"
                 @confirm="removeRole(record)"
               >
-                <AButton
-                  type="link"
-                  size="small"
-                  danger
-                  :disabled="record.isSystem === 1"
-                  >删除</AButton
-                >
+                <AButton type="link" size="small" danger :disabled="record.isSystem === 1">删除</AButton>
               </APopconfirm>
             </ASpace>
           </template>
@@ -634,12 +579,7 @@ onMounted(async () => {
     </ACard>
 
     <ADrawer v-model:open="formOpen" :title="formTitle" :width="roleFormDrawerWidth">
-      <AForm
-        ref="roleFormRef"
-        layout="vertical"
-        :model="formModel"
-        :rules="roleFormRules as any"
-      >
+      <AForm ref="roleFormRef" layout="vertical" :model="formModel" :rules="roleFormRules as any">
         <ARow :gutter="16">
           <ACol :span="roleFormOperateColSpan">
             <AFormItem label="角色名称" name="roleName" required>
@@ -653,29 +593,18 @@ onMounted(async () => {
           </ACol>
           <ACol :span="roleFormOperateColSpan">
             <AFormItem label="数据范围" name="dataScope" required>
-              <ASelect
-                v-model:value="formModel.dataScope"
-                :options="formDataScopeOptions"
-              />
+              <ASelect v-model:value="formModel.dataScope" :options="formDataScopeOptions" />
             </AFormItem>
           </ACol>
           <ACol :span="roleFormOperateColSpan">
             <AFormItem label="排序">
-              <AInputNumber
-                v-model:value="formModel.orderNum"
-                :min="0"
-                class="w-full"
-              />
+              <AInputNumber v-model:value="formModel.orderNum" :min="0" class="w-full" />
             </AFormItem>
           </ACol>
           <ACol :span="roleFormOperateColSpan">
             <AFormItem label="状态">
               <ARadioGroup v-model:value="formModel.status">
-                <ARadio
-                  v-for="item in statusOptions"
-                  :key="item.value"
-                  :value="item.value"
-                >
+                <ARadio v-for="item in statusOptions" :key="item.value" :value="item.value">
                   {{ item.label }}
                 </ARadio>
               </ARadioGroup>
@@ -691,9 +620,7 @@ onMounted(async () => {
       <template #footer>
         <ASpace :size="16">
           <AButton @click="formOpen = false">取消</AButton>
-          <AButton type="primary" :loading="formSubmitting" @click="submitForm"
-            >确定</AButton
-          >
+          <AButton type="primary" :loading="formSubmitting" @click="submitForm">确定</AButton>
         </ASpace>
       </template>
     </ADrawer>
@@ -711,12 +638,7 @@ onMounted(async () => {
       <template #footer>
         <ASpace :size="16">
           <AButton @click="menuOpen = false">取消</AButton>
-          <AButton
-            type="primary"
-            :loading="menuSubmitting"
-            @click="submitAssignMenu"
-            >确定</AButton
-          >
+          <AButton type="primary" :loading="menuSubmitting" @click="submitAssignMenu">确定</AButton>
         </ASpace>
       </template>
     </ADrawer>

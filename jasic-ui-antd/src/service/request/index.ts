@@ -4,12 +4,12 @@
  * @修改时间 2026-05-14
  */
 import { Modal } from 'ant-design-vue';
+import type { AxiosError } from 'axios';
 import { BACKEND_ERROR_CODE, createFlatRequest, createRequest } from '@sa/axios';
 import { router } from '@/router';
 import { useAuthStore } from '@/store/modules/auth';
 import { localStg } from '@/utils/storage';
 import { getServiceBaseURL } from '@/utils/service';
-import type { AxiosError } from 'axios';
 import { getAuthorization, getResponseMsg, showErrorMsg } from './shared';
 import {
   shouldSkipSessionExpiredModalForUrl,
@@ -72,6 +72,37 @@ function isOnHomeRoute() {
   return routeName === 'root' || routeName === 'home' || routePath === '/' || routePath.startsWith('/home');
 }
 
+function showForbiddenError(state: RequestInstanceState, message: string) {
+  if (isOnHomeRoute()) {
+    showErrorMsg(state, message || '没有操作权限');
+    return;
+  }
+  redirectToExceptionPage('403', message);
+}
+
+function tryHandleHttpStatusError(ctx: {
+  state: RequestInstanceState;
+  httpStatus: number | undefined;
+  httpBodyMsg: string;
+  message: string;
+}) {
+  const { state, httpStatus, httpBodyMsg, message } = ctx;
+  if (httpStatus === 403) {
+    const statusMsg = httpBodyMsg || message;
+    showForbiddenError(state, statusMsg || '没有操作权限');
+    return true;
+  }
+  if (httpStatus === 404) {
+    redirectToExceptionPage('404', httpBodyMsg || message);
+    return true;
+  }
+  if (typeof httpStatus === 'number' && httpStatus >= 500) {
+    redirectToExceptionPage('500', httpBodyMsg || message);
+    return true;
+  }
+  return false;
+}
+
 const defaultRequestHeaders: Record<string, string> = {};
 // 联调 Apifox 等工具时可在请求头附加 token
 const apifoxToken = import.meta.env.VITE_APIFOX_TOKEN;
@@ -110,7 +141,7 @@ export const request = createFlatRequest<App.Service.Response, RequestInstanceSt
       const responseMsg = responseData.msg || responseData.message || '操作失败';
 
       function handleLogout() {
-        void authStore.resetStore();
+        authStore.resetStore();
       }
 
       async function logoutAndCleanup() {
@@ -119,9 +150,7 @@ export const request = createFlatRequest<App.Service.Response, RequestInstanceSt
         if (!request.state.modalLogoutShownCodes) {
           request.state.modalLogoutShownCodes = [];
         }
-        request.state.modalLogoutShownCodes = request.state.modalLogoutShownCodes.filter(
-          code => code !== responseCode
-        );
+        request.state.modalLogoutShownCodes = request.state.modalLogoutShownCodes.filter(code => code !== responseCode);
 
         await authStore.resetStore();
       }
@@ -190,9 +219,9 @@ export const request = createFlatRequest<App.Service.Response, RequestInstanceSt
     },
     onError(error) {
       /** 业务码失败已在 `onBackendFail` 里提示，避免与 `showErrorMsg` 重复
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+       * @修改人 黄碧莲
+       * @修改时间 2026-05-14
+       */
       if ((error as AxiosError)?.code === BACKEND_ERROR_CODE) {
         return;
       }
@@ -215,11 +244,7 @@ export const request = createFlatRequest<App.Service.Response, RequestInstanceSt
       const forbiddenEnvErr = import.meta.env.VITE_SERVICE_FORBIDDEN_CODES;
       const forbiddenCodes = parseCodeList(forbiddenEnvErr ?? 'A0200');
       if (forbiddenCodes.includes(backendErrorCode)) {
-        if (isOnHomeRoute()) {
-          showErrorMsg(request.state, message || '没有操作权限');
-          return;
-        }
-        redirectToExceptionPage('403', message);
+        showForbiddenError(request.state, message);
         return;
       }
 
@@ -229,23 +254,7 @@ export const request = createFlatRequest<App.Service.Response, RequestInstanceSt
         return;
       }
 
-      if (httpStatus === 403) {
-        const statusMsg = httpBodyMsg || message;
-        if (isOnHomeRoute()) {
-          showErrorMsg(request.state, statusMsg || '没有操作权限');
-          return;
-        }
-        redirectToExceptionPage('403', statusMsg);
-        return;
-      }
-
-      if (httpStatus === 404) {
-        redirectToExceptionPage('404', httpBodyMsg || message);
-        return;
-      }
-
-      if (typeof httpStatus === 'number' && httpStatus >= 500) {
-        redirectToExceptionPage('500', httpBodyMsg || message);
+      if (tryHandleHttpStatusError({ state: request.state, httpStatus, httpBodyMsg, message })) {
         return;
       }
 

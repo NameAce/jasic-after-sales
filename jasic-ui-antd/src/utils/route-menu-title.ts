@@ -11,8 +11,8 @@ const useBackendMenuI18n = import.meta.env.VITE_BACKEND_MENU_USE_I18N === 'Y';
 export function getRouteMenuTitle(route: Pick<RouteLocationNormalizedLoaded, 'meta' | 'name'>): string {
   const meta = route.meta ?? {};
   const i18nKey = meta.i18nKey as App.I18n.I18nKey | null | undefined;
-  const title = meta.title != null && String(meta.title) !== '' ? String(meta.title) : '';
-  const name = route.name != null ? String(route.name) : '';
+  const title = meta.title !== null && meta.title !== undefined && String(meta.title) !== '' ? String(meta.title) : '';
+  const name = route.name !== null && route.name !== undefined ? String(route.name) : '';
   const fallbackLabel = (title || name) as string;
   let normalizedFallbackLabel = fallbackLabel;
   if (name === 'home' && fallbackLabel.trim().toLowerCase() === 'home') {

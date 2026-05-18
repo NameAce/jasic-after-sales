@@ -53,18 +53,18 @@ export function useFormRules() {
   } satisfies Record<string, App.Global.FormRule[]>;
 
   /** 通用必填规则（仅 message）
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   const defaultRequiredRule = createRequiredRule($t('form.required'));
 
   /**
    * 作用：创建必填校验规则。
    * @param message 校验失败提示
    * @returns {App.Global.FormRule}
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   function createRequiredRule(message: string) {
     return {
       required: true,
@@ -76,9 +76,9 @@ export function useFormRules() {
    * 作用：创建与主密码字段一致的确认密码校验规则。
    * @param pwd 主密码（ref/computed/字符串）
    * @returns {App.Global.FormRule[]}
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   function createConfirmPwdRule(pwd: string | Ref<string> | ComputedRef<string>) {
     const confirmPwdRule: App.Global.FormRule[] = [
       { required: true, message: $t('form.confirmPwd.required') },

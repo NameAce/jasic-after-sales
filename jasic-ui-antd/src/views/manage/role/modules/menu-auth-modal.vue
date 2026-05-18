@@ -45,8 +45,9 @@ const home = shallowRef('');
  * @returns 返回 Promise，请求结束后结束
  */
 async function getHome() {
-  console.log(props.roleId);
-
+  if (!Number.isFinite(props.roleId)) {
+    return;
+  }
   home.value = 'home';
 }
 
@@ -139,7 +140,10 @@ const expandedKeys = shallowRef<Array<string | number>>([]);
  * @returns 返回 Promise，请求结束后结束
  */
 async function getChecks() {
-  console.log(props.roleId);
+  if (!Number.isFinite(props.roleId)) {
+    checks.value = [];
+    return;
+  }
   // request
   checks.value = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21];
 }
@@ -150,7 +154,9 @@ async function getChecks() {
  * @returns {void} 无
  */
 function handleSubmit() {
-  console.log(checks.value, props.roleId);
+  if (!Number.isFinite(props.roleId)) {
+    return;
+  }
   // request
 
   window.$message?.success?.($t('common.modifySuccess'));
@@ -171,7 +177,7 @@ async function init() {
   expandedKeys.value = computeExpandedKeysForCheckedMenuTree(
     tree.value as unknown[],
     checks.value as Array<string | number>,
-    'key',
+    'key'
   );
   await nextTick();
 }

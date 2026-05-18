@@ -22,9 +22,9 @@ function useMixMenu() {
    * 作用：设置当前高亮的一级菜单 key。
    * @param key 路由 name 前缀段
    * @returns {void}
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   function setActiveFirstLevelMenuKey(key: string) {
     activeFirstLevelMenuKey.value = key;
   }
@@ -32,9 +32,9 @@ function useMixMenu() {
   /**
    * 作用：从当前 `selectedKey` 解析一级路由名并写入 `activeFirstLevelMenuKey`。
    * @returns {void}
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   function getActiveFirstLevelMenuKey() {
     const [firstLevelRouteName] = selectedKey.value.split('_');
 

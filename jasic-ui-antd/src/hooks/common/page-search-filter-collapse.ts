@@ -22,9 +22,9 @@ export function usePageSearchFilterCollapse(filterItemCount: MaybeRef<number>) {
   const total = computed(() => unref(filterItemCount));
 
   /** 仅当筛选项个数大于 4 时为 true，用于控制展开按钮是否渲染
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   const showExpandToggle = computed(() => total.value > PAGE_SEARCH_FILTER_MAX_VISIBLE);
 
   function toggleExpanded() {

@@ -2,15 +2,10 @@
 /**
  * 组织与客商：公司/类型、区域、合同、客户导入等多 Tab 业务聚合页（对接 org 域接口）。
  */
-import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
-import { useRoute } from "vue-router";
-import type { FormInstance } from "ant-design-vue";
-import { useRouteMenuTitle } from "@/hooks/common/route-menu-title";
-import { computeExpandedKeysForCheckedMenuTree } from "@/utils/tree-expand-keys";
-import {
-  tagColorEnabled,
-  tagColorPositiveNeutral,
-} from "@/constants/list-status-tag";
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
+import type { FormInstance } from 'ant-design-vue';
+import { tagColorEnabled, tagColorPositiveNeutral } from '@/constants/list-status-tag';
 import {
   addCompany,
   addCompanyType,
@@ -40,19 +35,18 @@ import {
   updateCompany,
   updateCompanyType,
   updateHqFirstContract,
-  updateRegion,
-} from "@/service/api";
-import type { SysCompanyDTO, SysCompanyQuery } from "@/service/api";
-import { notifyOnceSuccessFromFlatResult } from "@/service/request/shared";
-import { adaptiveModalWidth } from "@/hooks/common/modal-form-layout";
-import PageSearchExpandButton from "@/components/custom/page-search-expand-button.vue";
-import { usePageSearchFilterCollapse } from "@/hooks/common/page-search-filter-collapse";
-import { useTableScroll } from "@/hooks/common/table";
-import { estimateAntTableActionColWidth } from "@/utils/table-action-width";
-import {
-  createAntTableListLocale,
-  useListRequestTableMsgs,
-} from "@/utils/list-table-empty-state";
+  updateRegion
+} from '@/service/api';
+import type { SysCompanyDTO, SysCompanyQuery } from '@/service/api';
+import { notifyOnceSuccessFromFlatResult } from '@/service/request/shared';
+import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
+import { adaptiveModalWidth } from '@/hooks/common/modal-form-layout';
+import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
+import { useTableScroll } from '@/hooks/common/table';
+import { computeExpandedKeysForCheckedMenuTree } from '@/utils/tree-expand-keys';
+import { estimateAntTableActionColWidth } from '@/utils/table-action-width';
+import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
+import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
 
 type RowData = Record<string, any>;
 type HqFormModel = {
@@ -68,18 +62,12 @@ type FsFormModel = {
   firstCompanyId?: number;
   secondCompanyId?: number;
 };
-type TabKey =
-  | "companyType"
-  | "company"
-  | "hqFirst"
-  | "firstSecond"
-  | "external"
-  | "area";
+type TabKey = 'companyType' | 'company' | 'hqFirst' | 'firstSecond' | 'external' | 'area';
 
 // 表格与列表通用加载态
 const loading = ref(false);
 // 当前组织管理子 Tab
-const activeTab = ref<TabKey>("companyType");
+const activeTab = ref<TabKey>('companyType');
 // 当前 Tab 表格数据
 const rows = ref<RowData[]>([]);
 // 当前 Tab 分页总数（部分 Tab 为前端全长）
@@ -91,13 +79,9 @@ const {
   clearListMsgs,
   consumeFlatError,
   refreshEmptySuccessMsg,
-  setMsgFromCatch,
+  setMsgFromCatch
 } = useListRequestTableMsgs();
-const tableListLocale = createAntTableListLocale(
-  listFetchErrorMsg,
-  listEmptyBackendMsg,
-  rows,
-);
+const tableListLocale = createAntTableListLocale(listFetchErrorMsg, listEmptyBackendMsg, rows);
 
 const route = useRoute();
 const pageMenuTitle = useRouteMenuTitle();
@@ -108,10 +92,10 @@ const hqCrmImportSearchFilter = usePageSearchFilterCollapse(5);
 
 // 路由 name 与子 Tab 映射
 const ROUTE_NAME_TO_TAB_KEY: Record<string, TabKey> = {
-  "org_company-type": "companyType",
-  org_company: "company",
-  org_contract: "hqFirst",
-  org_region: "area",
+  'org_company-type': 'companyType',
+  org_company: 'company',
+  org_contract: 'hqFirst',
+  org_region: 'area'
 };
 
 // 公司列表查询参数
@@ -121,24 +105,24 @@ const companyQuery = reactive<SysCompanyQuery>({
   companyName: undefined,
   typeCode: undefined,
   category: undefined,
-  status: undefined,
+  status: undefined
 });
 
 // 总部-一级签约列表查询
 const hqFirstQuery = reactive({
   pageNum: 1,
   pageSize: 10,
-  hqCompanyId: undefined as number | undefined,
+  hqCompanyId: undefined as number | undefined
 });
 // 一级-二级关系列表查询
 const firstSecondQuery = reactive({
   pageNum: 1,
   pageSize: 10,
   targetCompanyId: undefined as number | undefined,
-  firstCompanyId: undefined as number | undefined,
+  firstCompanyId: undefined as number | undefined
 });
 // 外部公司列表查询
-const externalQuery = reactive({ pageNum: 1, pageSize: 10, companyName: "" });
+const externalQuery = reactive({ pageNum: 1, pageSize: 10, companyName: '' });
 
 /** 与 jasic-ui `views/org/contract/index.vue` CRM 总部一级导入筛选一致 */
 const crmHqQuery = reactive({
@@ -147,8 +131,8 @@ const crmHqQuery = reactive({
   hqCompanyId: undefined as number | undefined,
   firstCompanyId: undefined as number | undefined,
   regionId: undefined as number | undefined,
-  kunnr: "",
-  showAbnormal: false,
+  kunnr: '',
+  showAbnormal: false
 });
 
 /** 与 jasic-ui 一级二级 CRM 导入筛选一致 */
@@ -158,9 +142,9 @@ const crmFsQuery = reactive({
   targetCompanyId: undefined as number | undefined,
   firstCompanyId: undefined as number | undefined,
   secondCompanyId: undefined as number | undefined,
-  firstCompanyCode: "",
-  secondCompanyCode: "",
-  showAbnormal: false,
+  firstCompanyCode: '',
+  secondCompanyCode: '',
+  showAbnormal: false
 });
 
 // 总部公司下拉选项
@@ -182,8 +166,8 @@ const hqForm = reactive<HqFormModel>({
   hqCompanyId: undefined,
   firstCompanyId: undefined,
   regionId: undefined,
-  contractTime: "",
-  status: 1,
+  contractTime: '',
+  status: 1
 });
 
 // 一级表单打开状态
@@ -192,7 +176,7 @@ const fsFormOpen = ref(false);
 const fsForm = reactive<FsFormModel>({
   id: undefined,
   firstCompanyId: undefined,
-  secondCompanyId: undefined,
+  secondCompanyId: undefined
 });
 
 // 公司表单打开状态
@@ -200,22 +184,22 @@ const companyFormOpen = ref(false);
 // 公司表单数据
 const companyForm = reactive<Partial<SysCompanyDTO> & { id?: number }>({
   id: undefined,
-  companyName: "",
-  companyShortName: "",
-  companyCode: "",
-  typeCode: "",
-  contactName: "",
-  contactPhone: "",
-  servicePhone: "",
-  sourceType: "MANUAL",
-  provinceCode: "",
-  cityCode: "",
-  districtCode: "",
-  detailAddress: "",
-  adminUsername: "",
-  salesOrg: "",
+  companyName: '',
+  companyShortName: '',
+  companyCode: '',
+  typeCode: '',
+  contactName: '',
+  contactPhone: '',
+  servicePhone: '',
+  sourceType: 'MANUAL',
+  provinceCode: '',
+  cityCode: '',
+  districtCode: '',
+  detailAddress: '',
+  adminUsername: '',
+  salesOrg: '',
   status: 1,
-  remark: "",
+  remark: ''
 });
 
 const companyFormRef = ref<FormInstance | null>(null);
@@ -223,7 +207,7 @@ const companyFormRef = ref<FormInstance | null>(null);
 // 预览打开状态
 const previewOpen = ref(false);
 // 预览客户ID
-const previewCustId = ref<string | number>("");
+const previewCustId = ref<string | number>('');
 // 预览加载状态
 const previewLoading = ref(false);
 // 预览数据
@@ -241,27 +225,27 @@ const companyCrmListMsgs = useListRequestTableMsgs();
 const companyCrmTableLocale = createAntTableListLocale(
   companyCrmListMsgs.listFetchErrorMsg,
   companyCrmListMsgs.listEmptyBackendMsg,
-  companyCrmImportRows,
+  companyCrmImportRows
 );
 
 // 公司CRM导入查询参数
 const companyCrmImportQuery = reactive({
   pageNum: 1,
   pageSize: 10,
-  companyCode: "",
-  companyName: "",
-  custState: undefined as number | undefined,
+  companyCode: '',
+  companyName: '',
+  custState: undefined as number | undefined
 });
 // 外部公司状态选项
 const externalStateOptions = [
-  { value: 0, label: "待审核" },
-  { value: 1, label: "审核通过" },
-  { value: 2, label: "审核不通过" },
-  { value: 3, label: "注销" },
-  { value: 4, label: "资料已保存" },
-  { value: 5, label: "申请注销" },
-  { value: 6, label: "资料未填写" },
-  { value: 9, label: "删除" },
+  { value: 0, label: '待审核' },
+  { value: 1, label: '审核通过' },
+  { value: 2, label: '审核不通过' },
+  { value: 3, label: '注销' },
+  { value: 4, label: '资料已保存' },
+  { value: 5, label: '申请注销' },
+  { value: 6, label: '资料未填写' },
+  { value: 9, label: '删除' }
 ];
 
 // 区域查询公司ID
@@ -272,9 +256,9 @@ const regionFormOpen = ref(false);
 const regionForm = reactive({
   id: undefined as number | undefined,
   targetCompanyId: undefined as number | undefined,
-  regionCode: "",
-  regionName: "",
-  remark: "",
+  regionCode: '',
+  regionName: '',
+  remark: ''
 });
 
 const orgRegionFormRef = ref<FormInstance | null>(null);
@@ -292,11 +276,11 @@ const companyTypeFormOpen = ref(false);
 // 公司类型表单数据
 const companyTypeForm = reactive({
   id: undefined as number | undefined,
-  typeName: "",
-  typeCode: "",
-  subjectType: "SERVICE",
+  typeName: '',
+  typeCode: '',
+  subjectType: 'SERVICE',
   orderNum: 0,
-  remark: "",
+  remark: ''
 });
 
 const companyTypeFormRef = ref<FormInstance | null>(null);
@@ -307,7 +291,7 @@ const companyTypeMenuLoading = ref(false);
 // 公司类型菜单提交状态
 const companyTypeMenuSubmitting = ref(false);
 // 公司类型菜单标题
-const companyTypeMenuTitle = ref("");
+const companyTypeMenuTitle = ref('');
 // 公司类型菜单树数据
 const companyTypeMenuTreeData = ref<any[]>([]);
 // 公司类型菜单选中键
@@ -315,7 +299,7 @@ const companyTypeMenuCheckedKeys = ref<Array<string | number>>([]);
 // 公司类型菜单展开键（分配菜单时展开到已勾选路径）
 const companyTypeMenuExpandedKeys = ref<Array<string | number>>([]);
 // 公司类型菜单类型编码
-const companyTypeMenuTypeCode = ref("");
+const companyTypeMenuTypeCode = ref('');
 
 // 省市区下拉选项（公司表单）
 const provinceOptions = ref<RowData[]>([]);
@@ -330,13 +314,11 @@ const districtOptions = ref<RowData[]>([]);
  * @returns 主体类型字符串，未匹配返回空串
  */
 function getCompanySubjectType(typeCode?: string) {
-  const target = String(typeCode || "");
-  if (!target) return "";
+  const target = String(typeCode || '');
+  if (!target) return '';
   // 匹配公司类型选项
-  const matched = companyTypeOptions.value.find(
-    (item) => String(item.typeCode || "") === target,
-  );
-  return String(matched?.subjectType || "");
+  const matched = companyTypeOptions.value.find(item => String(item.typeCode || '') === target);
+  return String(matched?.subjectType || '');
 }
 
 /**
@@ -345,54 +327,54 @@ function getCompanySubjectType(typeCode?: string) {
  * @returns 是否总部
  */
 function isCompanyHqType(typeCode?: string) {
-  return getCompanySubjectType(typeCode) === "HQ";
+  return getCompanySubjectType(typeCode) === 'HQ';
 }
 
 const companyFormRules = computed(() => ({
-  companyName: [{ required: true, message: "请输入公司名称", trigger: "blur" }],
-  typeCode: [{ required: true, message: "请选择公司类型", trigger: "change" }],
+  companyName: [{ required: true, message: '请输入公司名称', trigger: 'blur' }],
+  typeCode: [{ required: true, message: '请选择公司类型', trigger: 'change' }],
   companyCode: [
     {
       validator: async () => {
         if (isCompanyHqType(companyForm.typeCode)) return Promise.resolve();
-        if (!String(companyForm.companyCode || "").trim()) {
-          return Promise.reject(new Error("请输入公司编码"));
+        if (!String(companyForm.companyCode || '').trim()) {
+          return Promise.reject(new Error('请输入公司编码'));
         }
         return Promise.resolve();
       },
-      trigger: "blur",
-    },
+      trigger: 'blur'
+    }
   ],
   salesOrg: [
     {
       validator: async () => {
         if (!isCompanyHqType(companyForm.typeCode)) return Promise.resolve();
-        if (!String(companyForm.salesOrg || "").trim()) {
-          return Promise.reject(new Error("请输入销售组织"));
+        if (!String(companyForm.salesOrg || '').trim()) {
+          return Promise.reject(new Error('请输入销售组织'));
         }
         return Promise.resolve();
       },
-      trigger: "blur",
-    },
+      trigger: 'blur'
+    }
   ],
-  contactName: [{ required: true, message: "请输入联系人", trigger: "blur" }],
-  contactPhone: [{ required: true, message: "请输入联系电话", trigger: "blur" }],
-  provinceCode: [{ required: true, message: "请选择省份", trigger: "change" }],
-  cityCode: [{ required: true, message: "请选择城市", trigger: "change" }],
-  districtCode: [{ required: true, message: "请选择区县", trigger: "change" }],
-  detailAddress: [{ required: true, message: "请输入详细地址", trigger: "blur" }],
+  contactName: [{ required: true, message: '请输入联系人', trigger: 'blur' }],
+  contactPhone: [{ required: true, message: '请输入联系电话', trigger: 'blur' }],
+  provinceCode: [{ required: true, message: '请选择省份', trigger: 'change' }],
+  cityCode: [{ required: true, message: '请选择城市', trigger: 'change' }],
+  districtCode: [{ required: true, message: '请选择区县', trigger: 'change' }],
+  detailAddress: [{ required: true, message: '请输入详细地址', trigger: 'blur' }],
   adminUsername: [
     {
       validator: async () => {
         if (companyForm.id) return Promise.resolve();
-        if (!String(companyForm.adminUsername || "").trim()) {
-          return Promise.reject(new Error("请输入管理员用户名"));
+        if (!String(companyForm.adminUsername || '').trim()) {
+          return Promise.reject(new Error('请输入管理员用户名'));
         }
         return Promise.resolve();
       },
-      trigger: "blur",
-    },
-  ],
+      trigger: 'blur'
+    }
+  ]
 }));
 
 /** 公司信息抽屉内表单项计数（与模板 AFormItem 一致；地址块 4+1，基础信息 8 项，另含状态与条件项） */
@@ -406,18 +388,16 @@ const companyFormFieldCount = computed(() => {
   return n;
 });
 
-const companyFormDrawerWidth = computed(() =>
-  adaptiveModalWidth(980, companyFormFieldCount.value)
-);
+const companyFormDrawerWidth = computed(() => adaptiveModalWidth(980, companyFormFieldCount.value));
 
 const companyTypeFormRules = {
-  typeName: [{ required: true, message: "请输入类型名称", trigger: "blur" }],
-  typeCode: [{ required: true, message: "请输入类型编码", trigger: "blur" }],
-  subjectType: [{ required: true, message: "请选择主体类型", trigger: "change" }],
+  typeName: [{ required: true, message: '请输入类型名称', trigger: 'blur' }],
+  typeCode: [{ required: true, message: '请输入类型编码', trigger: 'blur' }],
+  subjectType: [{ required: true, message: '请选择主体类型', trigger: 'change' }]
 };
 
 const orgRegionFormRules = {
-  regionName: [{ required: true, message: "请输入大区名称", trigger: "blur" }],
+  regionName: [{ required: true, message: '请输入大区名称', trigger: 'blur' }]
 };
 
 /**
@@ -426,12 +406,10 @@ const orgRegionFormRules = {
  * @returns 类型名称或空串
  */
 function getCompanyTypeLabel(typeCode?: string) {
-  const target = String(typeCode || "");
-  if (!target) return "";
-  const matched = companyTypeOptions.value.find(
-    (item) => String(item.typeCode || "") === target,
-  );
-  return String(matched?.typeName || "");
+  const target = String(typeCode || '');
+  if (!target) return '';
+  const matched = companyTypeOptions.value.find(item => String(item.typeCode || '') === target);
+  return String(matched?.typeName || '');
 }
 
 /**
@@ -441,288 +419,286 @@ function getCompanyTypeLabel(typeCode?: string) {
  */
 function formatCompanyRegion(record: RowData) {
   const parts = [record.provinceName, record.cityName, record.districtName]
-    .map((item) => String(item || "").trim())
+    .map(item => String(item || '').trim())
     .filter(Boolean);
-  return parts.length ? parts.join("/") : "-";
+  return parts.length ? parts.join('/') : '-';
 }
 
 // 是否为签约相关 Tab（总部一级 / 一级二级）
-const isContractPageTab = computed(
-  () => activeTab.value === "hqFirst" || activeTab.value === "firstSecond",
-);
+const isContractPageTab = computed(() => activeTab.value === 'hqFirst' || activeTab.value === 'firstSecond');
 
 // 各 Tab 列表操作列宽度：按「该行最多操作按钮」文案横排估算
 const ORG_LIST_ACTION_COL_WIDTH = {
-  company: estimateAntTableActionColWidth(["编辑", "删除"]),
-  hqFirst: estimateAntTableActionColWidth(["编辑", "删除"]),
-  firstSecond: estimateAntTableActionColWidth(["删除"]),
-  external: estimateAntTableActionColWidth(["导入预览"]),
-  area: estimateAntTableActionColWidth(["编辑", "删除"]),
-  companyType: estimateAntTableActionColWidth(["编辑", "分配菜单", "删除"]),
+  company: estimateAntTableActionColWidth(['编辑', '删除']),
+  hqFirst: estimateAntTableActionColWidth(['编辑', '删除']),
+  firstSecond: estimateAntTableActionColWidth(['删除']),
+  external: estimateAntTableActionColWidth(['导入预览']),
+  area: estimateAntTableActionColWidth(['编辑', '删除']),
+  companyType: estimateAntTableActionColWidth(['编辑', '分配菜单', '删除'])
 } as const;
 
 /** CRM 导入建议列表：单行仅「选择」 */
-const COMPANY_CRM_IMPORT_LIST_ACTION_COL_WIDTH = estimateAntTableActionColWidth(["选择"]);
+const COMPANY_CRM_IMPORT_LIST_ACTION_COL_WIDTH = estimateAntTableActionColWidth(['选择']);
 
 // 按当前 Tab 切换表格列定义
 const columns = computed(() => {
   switch (activeTab.value) {
-    case "company":
+    case 'company':
       return [
-        { title: "ID", dataIndex: "id", key: "id", width: 70 },
+        { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
         {
-          title: "公司名称",
-          dataIndex: "companyName",
-          key: "companyName",
-          width: 200,
+          title: '公司名称',
+          dataIndex: 'companyName',
+          key: 'companyName',
+          width: 200
         },
         {
-          title: "公司简称",
-          dataIndex: "companyShortName",
-          key: "companyShortName",
-          width: 140,
+          title: '公司简称',
+          dataIndex: 'companyShortName',
+          key: 'companyShortName',
+          width: 140
         },
         {
-          title: "公司编码",
-          dataIndex: "companyCode",
-          key: "companyCode",
-          width: 140,
+          title: '公司编码',
+          dataIndex: 'companyCode',
+          key: 'companyCode',
+          width: 140
         },
         {
-          title: "公司类型",
-          dataIndex: "typeCode",
-          key: "typeCode",
-          width: 120,
+          title: '公司类型',
+          dataIndex: 'typeCode',
+          key: 'typeCode',
+          width: 120
         },
         {
-          title: "主体类型",
-          dataIndex: "subjectType",
-          key: "subjectType",
-          width: 100,
+          title: '主体类型',
+          dataIndex: 'subjectType',
+          key: 'subjectType',
+          width: 100
         },
         {
-          title: "来源",
-          dataIndex: "sourceType",
-          key: "sourceType",
-          width: 90,
+          title: '来源',
+          dataIndex: 'sourceType',
+          key: 'sourceType',
+          width: 90
         },
         {
-          title: "联系人",
-          dataIndex: "contactName",
-          key: "contactName",
-          width: 120,
+          title: '联系人',
+          dataIndex: 'contactName',
+          key: 'contactName',
+          width: 120
         },
         {
-          title: "联系电话",
-          dataIndex: "contactPhone",
-          key: "contactPhone",
-          width: 140,
+          title: '联系电话',
+          dataIndex: 'contactPhone',
+          key: 'contactPhone',
+          width: 140
         },
         {
-          title: "客服电话",
-          dataIndex: "servicePhone",
-          key: "servicePhone",
-          width: 140,
+          title: '客服电话',
+          dataIndex: 'servicePhone',
+          key: 'servicePhone',
+          width: 140
         },
         {
-          title: "销售组织",
-          dataIndex: "salesOrg",
-          key: "salesOrg",
-          width: 120,
+          title: '销售组织',
+          dataIndex: 'salesOrg',
+          key: 'salesOrg',
+          width: 120
         },
-        { title: "地区", dataIndex: "region", key: "region", width: 180 },
+        { title: '地区', dataIndex: 'region', key: 'region', width: 180 },
         {
-          title: "详细地址",
-          dataIndex: "detailAddress",
-          key: "detailAddress",
+          title: '详细地址',
+          dataIndex: 'detailAddress',
+          key: 'detailAddress',
           ellipsis: true,
-          width: 220,
+          width: 220
         },
         {
-          title: "地理解析",
-          dataIndex: "geocodeStatus",
-          key: "geocodeStatus",
-          width: 100,
+          title: '地理解析',
+          dataIndex: 'geocodeStatus',
+          key: 'geocodeStatus',
+          width: 100
         },
-        { title: "状态", dataIndex: "status", key: "status", width: 80 },
+        { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
         {
-          title: "创建时间",
-          dataIndex: "createTime",
-          key: "createTime",
-          width: 160,
+          title: '创建时间',
+          dataIndex: 'createTime',
+          key: 'createTime',
+          width: 160
         },
         {
-          title: "操作",
-          dataIndex: "actions",
-          key: "actions",
+          title: '操作',
+          dataIndex: 'actions',
+          key: 'actions',
           width: ORG_LIST_ACTION_COL_WIDTH.company,
-          fixed: "right" as const,
-        },
+          fixed: 'right' as const
+        }
       ];
-    case "hqFirst":
+    case 'hqFirst':
       return [
-        { title: "ID", dataIndex: "id", key: "id", width: 70 },
+        { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
         {
-          title: "总部",
-          dataIndex: "hqCompanyName",
-          key: "hqCompanyName",
-          width: 180,
+          title: '总部',
+          dataIndex: 'hqCompanyName',
+          key: 'hqCompanyName',
+          width: 180
         },
         {
-          title: "一级网点",
-          dataIndex: "firstCompanyName",
-          key: "firstCompanyName",
-          width: 180,
+          title: '一级网点',
+          dataIndex: 'firstCompanyName',
+          key: 'firstCompanyName',
+          width: 180
         },
         {
-          title: "大区",
-          dataIndex: "regionName",
-          key: "regionName",
-          width: 140,
+          title: '大区',
+          dataIndex: 'regionName',
+          key: 'regionName',
+          width: 140
         },
-        { title: "状态", dataIndex: "status", key: "status", width: 80 },
+        { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
         {
-          title: "签约时间",
-          dataIndex: "contractTime",
-          key: "contractTime",
-          width: 170,
-        },
-        {
-          title: "创建时间",
-          dataIndex: "createTime",
-          key: "createTime",
-          width: 170,
+          title: '签约时间',
+          dataIndex: 'contractTime',
+          key: 'contractTime',
+          width: 170
         },
         {
-          title: "操作",
-          dataIndex: "actions",
-          key: "actions",
+          title: '创建时间',
+          dataIndex: 'createTime',
+          key: 'createTime',
+          width: 170
+        },
+        {
+          title: '操作',
+          dataIndex: 'actions',
+          key: 'actions',
           width: ORG_LIST_ACTION_COL_WIDTH.hqFirst,
-          fixed: "right" as const,
-        },
+          fixed: 'right' as const
+        }
       ];
-    case "firstSecond":
+    case 'firstSecond':
       return [
-        { title: "ID", dataIndex: "id", key: "id", width: 70 },
+        { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
         {
-          title: "一级",
-          dataIndex: "firstCompanyName",
-          key: "firstCompanyName",
-          width: 180,
+          title: '一级',
+          dataIndex: 'firstCompanyName',
+          key: 'firstCompanyName',
+          width: 180
         },
         {
-          title: "二级",
-          dataIndex: "secondCompanyName",
-          key: "secondCompanyName",
-          width: 180,
+          title: '二级',
+          dataIndex: 'secondCompanyName',
+          key: 'secondCompanyName',
+          width: 180
         },
         {
-          title: "创建时间",
-          dataIndex: "createTime",
-          key: "createTime",
-          width: 170,
+          title: '创建时间',
+          dataIndex: 'createTime',
+          key: 'createTime',
+          width: 170
         },
         {
-          title: "操作",
-          dataIndex: "actions",
-          key: "actions",
+          title: '操作',
+          dataIndex: 'actions',
+          key: 'actions',
           width: ORG_LIST_ACTION_COL_WIDTH.firstSecond,
-          fixed: "right" as const,
-        },
+          fixed: 'right' as const
+        }
       ];
-    case "external":
+    case 'external':
       return [
         {
-          title: "名称",
-          dataIndex: "companyName",
-          key: "companyName",
-          width: 200,
+          title: '名称',
+          dataIndex: 'companyName',
+          key: 'companyName',
+          width: 200
         },
         {
-          title: "编码",
-          dataIndex: "companyCode",
-          key: "companyCode",
-          width: 140,
+          title: '编码',
+          dataIndex: 'companyCode',
+          key: 'companyCode',
+          width: 140
         },
         {
-          title: "联系人",
-          dataIndex: "contactName",
-          key: "contactName",
-          width: 120,
+          title: '联系人',
+          dataIndex: 'contactName',
+          key: 'contactName',
+          width: 120
         },
         {
-          title: "电话",
-          dataIndex: "contactPhone",
-          key: "contactPhone",
-          width: 140,
+          title: '电话',
+          dataIndex: 'contactPhone',
+          key: 'contactPhone',
+          width: 140
         },
-        { title: "状态", dataIndex: "status", key: "status", width: 80 },
+        { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
         {
-          title: "操作",
-          dataIndex: "actions",
-          key: "actions",
+          title: '操作',
+          dataIndex: 'actions',
+          key: 'actions',
           width: ORG_LIST_ACTION_COL_WIDTH.external,
-          fixed: "right" as const,
-        },
+          fixed: 'right' as const
+        }
       ];
-    case "area":
+    case 'area':
       return [
-        { title: "ID", dataIndex: "id", key: "id", width: 70 },
+        { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
         {
-          title: "大区编码",
-          dataIndex: "regionCode",
-          key: "regionCode",
-          width: 120,
+          title: '大区编码',
+          dataIndex: 'regionCode',
+          key: 'regionCode',
+          width: 120
         },
         {
-          title: "大区名称",
-          dataIndex: "regionName",
-          key: "regionName",
-          width: 200,
+          title: '大区名称',
+          dataIndex: 'regionName',
+          key: 'regionName',
+          width: 200
         },
-        { title: "备注", dataIndex: "remark", key: "remark" },
+        { title: '备注', dataIndex: 'remark', key: 'remark' },
         {
-          title: "创建时间",
-          dataIndex: "createTime",
-          key: "createTime",
-          width: 160,
+          title: '创建时间',
+          dataIndex: 'createTime',
+          key: 'createTime',
+          width: 160
         },
         {
-          title: "操作",
-          dataIndex: "actions",
-          key: "actions",
+          title: '操作',
+          dataIndex: 'actions',
+          key: 'actions',
           width: ORG_LIST_ACTION_COL_WIDTH.area,
-          fixed: "right" as const,
-        },
+          fixed: 'right' as const
+        }
       ];
-    case "companyType":
+    case 'companyType':
       return [
         {
-          title: "类型名称",
-          dataIndex: "typeName",
-          key: "typeName",
-          width: 200,
+          title: '类型名称',
+          dataIndex: 'typeName',
+          key: 'typeName',
+          width: 200
         },
         {
-          title: "类型编码",
-          dataIndex: "typeCode",
-          key: "typeCode",
-          width: 160,
+          title: '类型编码',
+          dataIndex: 'typeCode',
+          key: 'typeCode',
+          width: 160
         },
         {
-          title: "主体类型",
-          dataIndex: "subjectType",
-          key: "subjectType",
-          width: 120,
+          title: '主体类型',
+          dataIndex: 'subjectType',
+          key: 'subjectType',
+          width: 120
         },
-        { title: "备注", dataIndex: "remark", key: "remark", ellipsis: true },
+        { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
         {
-          title: "操作",
-          dataIndex: "actions",
-          key: "actions",
+          title: '操作',
+          dataIndex: 'actions',
+          key: 'actions',
           width: ORG_LIST_ACTION_COL_WIDTH.companyType,
-          fixed: "right" as const,
-        },
+          fixed: 'right' as const
+        }
       ];
     default:
       return [];
@@ -731,109 +707,109 @@ const columns = computed(() => {
 
 /** 与 jasic-ui `contract/index.vue` 总部一级 CRM 导入表列一致 */
 const crmHqImportColumns = [
-  { title: "客户编码", dataIndex: "kunnr", key: "kunnr", width: 120 },
+  { title: '客户编码', dataIndex: 'kunnr', key: 'kunnr', width: 120 },
   {
-    title: "CRM企业名称",
-    dataIndex: "crmCompanyName",
-    key: "crmCompanyName",
+    title: 'CRM企业名称',
+    dataIndex: 'crmCompanyName',
+    key: 'crmCompanyName',
     ellipsis: true,
-    width: 180,
+    width: 180
   },
-  { title: "销售组织", dataIndex: "salesOrg", key: "salesOrg", width: 120 },
-  { title: "CRM大区", key: "hqCrmRegion", ellipsis: true, width: 180 },
+  { title: '销售组织', dataIndex: 'salesOrg', key: 'salesOrg', width: 120 },
+  { title: 'CRM大区', key: 'hqCrmRegion', ellipsis: true, width: 180 },
   {
-    title: "一级公司",
-    dataIndex: "firstCompanyName",
-    key: "firstCompanyName",
+    title: '一级公司',
+    dataIndex: 'firstCompanyName',
+    key: 'firstCompanyName',
     ellipsis: true,
-    width: 160,
+    width: 160
   },
   {
-    title: "本地大区",
-    dataIndex: "localRegionName",
-    key: "localRegionName",
+    title: '本地大区',
+    dataIndex: 'localRegionName',
+    key: 'localRegionName',
     ellipsis: true,
-    width: 150,
+    width: 150
   },
-  { title: "CRM状态", key: "hqCrmAlive", width: 100 },
-  { title: "导入状态", key: "hqCrmImportSts", width: 110 },
+  { title: 'CRM状态', key: 'hqCrmAlive', width: 100 },
+  { title: '导入状态', key: 'hqCrmImportSts', width: 110 },
   {
-    title: "说明",
-    dataIndex: "matchRemark",
-    key: "matchRemark",
+    title: '说明',
+    dataIndex: 'matchRemark',
+    key: 'matchRemark',
     ellipsis: true,
-    width: 200,
-  },
+    width: 200
+  }
 ];
 
 /** 与 jasic-ui 一级二级 CRM 导入表列一致 */
 const crmFsImportColumns = [
   {
-    title: "一级CRM ID",
-    dataIndex: "firstCustId",
-    key: "firstCustId",
-    width: 110,
+    title: '一级CRM ID',
+    dataIndex: 'firstCustId',
+    key: 'firstCustId',
+    width: 110
   },
   {
-    title: "一级编码",
-    dataIndex: "firstCompanyCode",
-    key: "firstCompanyCode",
-    width: 120,
+    title: '一级编码',
+    dataIndex: 'firstCompanyCode',
+    key: 'firstCompanyCode',
+    width: 120
   },
   {
-    title: "一级名称",
-    dataIndex: "firstCompanyName",
-    key: "firstCompanyName",
+    title: '一级名称',
+    dataIndex: 'firstCompanyName',
+    key: 'firstCompanyName',
     ellipsis: true,
-    width: 160,
+    width: 160
   },
   {
-    title: "二级CRM ID",
-    dataIndex: "secondCustId",
-    key: "secondCustId",
-    width: 110,
+    title: '二级CRM ID',
+    dataIndex: 'secondCustId',
+    key: 'secondCustId',
+    width: 110
   },
   {
-    title: "二级编码",
-    dataIndex: "secondCompanyCode",
-    key: "secondCompanyCode",
-    width: 120,
+    title: '二级编码',
+    dataIndex: 'secondCompanyCode',
+    key: 'secondCompanyCode',
+    width: 120
   },
   {
-    title: "二级名称",
-    dataIndex: "secondCompanyName",
-    key: "secondCompanyName",
+    title: '二级名称',
+    dataIndex: 'secondCompanyName',
+    key: 'secondCompanyName',
     ellipsis: true,
-    width: 160,
+    width: 160
   },
   {
-    title: "本地一级",
-    dataIndex: "localFirstCompanyName",
-    key: "localFirstCompanyName",
+    title: '本地一级',
+    dataIndex: 'localFirstCompanyName',
+    key: 'localFirstCompanyName',
     ellipsis: true,
-    width: 140,
+    width: 140
   },
   {
-    title: "本地二级",
-    dataIndex: "localSecondCompanyName",
-    key: "localSecondCompanyName",
+    title: '本地二级',
+    dataIndex: 'localSecondCompanyName',
+    key: 'localSecondCompanyName',
     ellipsis: true,
-    width: 140,
+    width: 140
   },
   {
-    title: "来源更新时间",
-    dataIndex: "crmOperTime",
-    key: "crmOperTime",
-    width: 160,
+    title: '来源更新时间',
+    dataIndex: 'crmOperTime',
+    key: 'crmOperTime',
+    width: 160
   },
-  { title: "导入状态", key: "fsCrmImportSts", width: 110 },
+  { title: '导入状态', key: 'fsCrmImportSts', width: 110 },
   {
-    title: "说明",
-    dataIndex: "matchRemark",
-    key: "matchRemark",
+    title: '说明',
+    dataIndex: 'matchRemark',
+    key: 'matchRemark',
     ellipsis: true,
-    width: 220,
-  },
+    width: 220
+  }
 ];
 
 // 主表格当前展示的列（与 columns 同步）
@@ -842,17 +818,17 @@ const displayColumns = computed(() => columns.value);
 // 主表格横向滚动宽度估计值
 const crmTableScrollX = computed(() => {
   switch (activeTab.value) {
-    case "company":
+    case 'company':
       return 2252;
-    case "hqFirst":
+    case 'hqFirst':
       return 1152;
-    case "firstSecond":
+    case 'firstSecond':
       return 676;
-    case "external":
+    case 'external':
       return 824;
-    case "area":
+    case 'area':
       return 852;
-    case "companyType":
+    case 'companyType':
       return 846;
     default:
       return 1100;
@@ -888,18 +864,14 @@ function pickTotal(data: any) {
  * @returns 返回 Promise，选项就绪后结束；已缓存则无请求
  */
 async function loadCompanyOptionsForCrm() {
-  if (
-    hqCompanyOptions.value.length &&
-    firstCompanyOptions.value.length &&
-    secondCompanyOptions.value.length
-  ) {
+  if (hqCompanyOptions.value.length && firstCompanyOptions.value.length && secondCompanyOptions.value.length) {
     return;
   }
   const base = { pageNum: 1, pageSize: 999 };
   const [hqRes, firstRes, secondRes] = await Promise.all([
-    listCompany({ ...base, category: "HQ" }),
-    listCompany({ ...base, category: "FIRST_LEVEL" }),
-    listCompany({ ...base, category: "SECOND_LEVEL" }),
+    listCompany({ ...base, category: 'HQ' }),
+    listCompany({ ...base, category: 'FIRST_LEVEL' }),
+    listCompany({ ...base, category: 'SECOND_LEVEL' })
   ]);
   hqCompanyOptions.value = pickRows(hqRes.data);
   firstCompanyOptions.value = pickRows(firstRes.data);
@@ -945,12 +917,12 @@ async function loadList() {
   loading.value = true;
   try {
     switch (activeTab.value) {
-      case "company": {
+      case 'company': {
         const flat = await listCompany({
           ...companyQuery,
           companyName: companyQuery.companyName || undefined,
           typeCode: companyQuery.typeCode || undefined,
-          status: companyQuery.status,
+          status: companyQuery.status
         });
         if (consumeFlatError(flat)) {
           rows.value = [];
@@ -963,7 +935,7 @@ async function loadList() {
         refreshEmptySuccessMsg(flat, rows.value.length);
         break;
       }
-      case "hqFirst": {
+      case 'hqFirst': {
         if (!hqFirstQuery.hqCompanyId) {
           rows.value = [];
           total.value = 0;
@@ -973,7 +945,7 @@ async function loadList() {
           pageNum: hqFirstQuery.pageNum,
           pageSize: hqFirstQuery.pageSize,
           targetCompanyId: hqFirstQuery.hqCompanyId,
-          hqCompanyId: hqFirstQuery.hqCompanyId,
+          hqCompanyId: hqFirstQuery.hqCompanyId
         });
         if (consumeFlatError(flat)) {
           rows.value = [];
@@ -986,7 +958,7 @@ async function loadList() {
         refreshEmptySuccessMsg(flat, rows.value.length);
         break;
       }
-      case "firstSecond": {
+      case 'firstSecond': {
         if (!firstSecondQuery.targetCompanyId) {
           rows.value = [];
           total.value = 0;
@@ -996,7 +968,7 @@ async function loadList() {
           pageNum: firstSecondQuery.pageNum,
           pageSize: firstSecondQuery.pageSize,
           targetCompanyId: firstSecondQuery.targetCompanyId,
-          firstCompanyId: firstSecondQuery.firstCompanyId,
+          firstCompanyId: firstSecondQuery.firstCompanyId
         });
         if (consumeFlatError(flat)) {
           rows.value = [];
@@ -1009,11 +981,11 @@ async function loadList() {
         refreshEmptySuccessMsg(flat, rows.value.length);
         break;
       }
-      case "external": {
+      case 'external': {
         const flat = await listExternalCompany({
           pageNum: externalQuery.pageNum,
           pageSize: externalQuery.pageSize,
-          companyName: externalQuery.companyName.trim() || undefined,
+          companyName: externalQuery.companyName.trim() || undefined
         });
         if (consumeFlatError(flat)) {
           rows.value = [];
@@ -1026,7 +998,7 @@ async function loadList() {
         refreshEmptySuccessMsg(flat, rows.value.length);
         break;
       }
-      case "area": {
+      case 'area': {
         if (!regionQueryCompanyId.value) {
           rows.value = [];
           total.value = 0;
@@ -1045,7 +1017,7 @@ async function loadList() {
         refreshEmptySuccessMsg(flat, rows.value.length);
         break;
       }
-      case "companyType": {
+      case 'companyType': {
         await ensureCompanyTypeOptions();
         rows.value = companyTypeOptions.value;
         total.value = rows.value.length;
@@ -1079,16 +1051,14 @@ function handleRegionSearch() {
  */
 function openRegionForm(record?: RowData) {
   if (!regionQueryCompanyId.value && !record?.companyId) {
-    window.$message?.warning?.("请先选择总部公司");
+    window.$message?.warning?.('请先选择总部公司');
     return;
   }
   regionForm.id = record?.id;
-  regionForm.targetCompanyId = Number(
-    record?.companyId ?? regionQueryCompanyId.value,
-  );
-  regionForm.regionCode = record?.regionCode ?? "";
-  regionForm.regionName = record?.regionName ?? "";
-  regionForm.remark = record?.remark ?? "";
+  regionForm.targetCompanyId = Number(record?.companyId ?? regionQueryCompanyId.value);
+  regionForm.regionCode = record?.regionCode ?? '';
+  regionForm.regionName = record?.regionName ?? '';
+  regionForm.remark = record?.remark ?? '';
   regionFormOpen.value = true;
 }
 
@@ -1106,14 +1076,14 @@ async function submitRegionForm() {
     targetCompanyId: regionForm.targetCompanyId,
     regionCode: regionForm.regionCode.trim() || undefined,
     regionName: regionForm.regionName.trim(),
-    remark: regionForm.remark,
+    remark: regionForm.remark
   };
   if (payload.id) {
     const r = await updateRegion(payload);
-    if (!notifyOnceSuccessFromFlatResult(r, "操作成功")) return;
+    if (!notifyOnceSuccessFromFlatResult(r, '操作成功')) return;
   } else {
     const r = await addRegion(payload);
-    if (!notifyOnceSuccessFromFlatResult(r, "操作成功")) return;
+    if (!notifyOnceSuccessFromFlatResult(r, '操作成功')) return;
   }
   regionFormOpen.value = false;
   await loadList();
@@ -1125,9 +1095,9 @@ async function submitRegionForm() {
  */
 async function removeRegion(record: RowData) {
   const r = await deleteRegion(record.id, {
-    targetCompanyId: Number(record?.companyId ?? regionQueryCompanyId.value),
+    targetCompanyId: Number(record?.companyId ?? regionQueryCompanyId.value)
   });
-  if (!notifyOnceSuccessFromFlatResult(r, "删除成功")) return;
+  if (!notifyOnceSuccessFromFlatResult(r, '删除成功')) return;
   await loadList();
 }
 
@@ -1152,7 +1122,7 @@ async function loadCrmHqRows() {
       firstCompanyId: crmHqQuery.firstCompanyId,
       regionId: crmHqQuery.regionId,
       kunnr: crmHqQuery.kunnr.trim() || undefined,
-      showAbnormal: crmHqQuery.showAbnormal,
+      showAbnormal: crmHqQuery.showAbnormal
     });
     if (consumeFlatError(flat)) {
       rows.value = [];
@@ -1196,7 +1166,7 @@ async function loadCrmFsRows() {
       secondCompanyId: crmFsQuery.secondCompanyId,
       firstCompanyCode: crmFsQuery.firstCompanyCode.trim() || undefined,
       secondCompanyCode: crmFsQuery.secondCompanyCode.trim() || undefined,
-      showAbnormal: crmFsQuery.showAbnormal,
+      showAbnormal: crmFsQuery.showAbnormal
     });
     if (consumeFlatError(flat)) {
       rows.value = [];
@@ -1259,7 +1229,7 @@ function onCrmHqCompanyChange() {
  */
 function handleCrmHqSearch() {
   if (!crmHqQuery.hqCompanyId) {
-    window.$message?.warning?.("请选择总部公司");
+    window.$message?.warning?.('请选择总部公司');
     return;
   }
   crmHqQuery.pageNum = 1;
@@ -1273,7 +1243,7 @@ function resetHqCrmQuery() {
   const hqCompanyId = crmHqQuery.hqCompanyId;
   crmHqQuery.firstCompanyId = undefined;
   crmHqQuery.regionId = undefined;
-  crmHqQuery.kunnr = "";
+  crmHqQuery.kunnr = '';
   crmHqQuery.showAbnormal = false;
   crmHqQuery.pageNum = 1;
   crmHqQuery.pageSize = 10;
@@ -1292,7 +1262,7 @@ function resetHqCrmQuery() {
  */
 function handleCrmFsSearch() {
   if (!crmFsQuery.targetCompanyId) {
-    window.$message?.warning?.("请选择目标总部公司");
+    window.$message?.warning?.('请选择目标总部公司');
     return;
   }
   crmFsQuery.pageNum = 1;
@@ -1306,8 +1276,8 @@ function resetFsCrmQuery() {
   const targetCompanyId = crmFsQuery.targetCompanyId;
   crmFsQuery.firstCompanyId = undefined;
   crmFsQuery.secondCompanyId = undefined;
-  crmFsQuery.firstCompanyCode = "";
-  crmFsQuery.secondCompanyCode = "";
+  crmFsQuery.firstCompanyCode = '';
+  crmFsQuery.secondCompanyCode = '';
   crmFsQuery.showAbnormal = false;
   crmFsQuery.pageNum = 1;
   crmFsQuery.pageSize = 10;
@@ -1321,12 +1291,7 @@ function resetFsCrmQuery() {
  * @returns row-key 值
  */
 function tableRowKey(record: RowData) {
-  return (
-    record.id ??
-    record.batchId ??
-    record.custId ??
-    `${record.areaCode ?? ""}-${record.typeCode ?? ""}`
-  );
+  return record.id ?? record.batchId ?? record.custId ?? `${record.areaCode ?? ''}-${record.typeCode ?? ''}`;
 }
 
 /**
@@ -1336,10 +1301,10 @@ function tableRowKey(record: RowData) {
 function applyActiveTabByRoute(tab: TabKey) {
   activeTab.value = tab;
   let skipImmediateLoadList = false;
-  if (tab === "company") {
+  if (tab === 'company') {
     companyQuery.pageNum = 1;
   }
-  if (tab === "hqFirst" || tab === "firstSecond") {
+  if (tab === 'hqFirst' || tab === 'firstSecond') {
     hqFirstQuery.pageNum = 1;
     firstSecondQuery.pageNum = 1;
     skipImmediateLoadList = true;
@@ -1347,10 +1312,10 @@ function applyActiveTabByRoute(tab: TabKey) {
       loadList();
     });
   }
-  if (tab === "external") {
+  if (tab === 'external') {
     externalQuery.pageNum = 1;
   }
-  if (tab === "area") {
+  if (tab === 'area') {
     loadCompanyOptionsForCrm().then(() => {
       if (!regionQueryCompanyId.value && hqCompanyOptions.value.length) {
         regionQueryCompanyId.value = Number(hqCompanyOptions.value[0].id);
@@ -1394,7 +1359,7 @@ function handleExternalSearch() {
  * 作用：重置外部公司名称筛选并查询。
  */
 function resetExternalQuery() {
-  externalQuery.companyName = "";
+  externalQuery.companyName = '';
   handleExternalSearch();
 }
 
@@ -1420,7 +1385,7 @@ function handleFirstSecondSearch() {
  */
 function handleContractTabChange(tab: string | number) {
   const next = String(tab);
-  if (next === "hqFirst" || next === "firstSecond") {
+  if (next === 'hqFirst' || next === 'firstSecond') {
     applyActiveTabByRoute(next);
   }
 }
@@ -1445,7 +1410,7 @@ async function onHqFormHqCompanyChange(value: any) {
  * 与 jasic-ui `el-date-picker` `yyyy-MM-dd` 一致，避免带时分秒时控件不回显。
  */
 function toContractDatePickerValue(v: unknown): string {
-  if (v == null || v === "") return "";
+  if (v == null || v === '') return '';
   const s = String(v).trim();
   const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
   return m ? m[1] : s;
@@ -1455,7 +1420,7 @@ function toContractDatePickerValue(v: unknown): string {
  * 作用：下拉与表单 v-model 统一为有限 number，避免接口 number|string 与选项 value 类型不一致导致 ASelect 不回显。
  */
 function toOptionalFiniteId(v: unknown): number | undefined {
-  if (v == null || v === "") return undefined;
+  if (v == null || v === '') return undefined;
   const n = Number(v);
   return Number.isFinite(n) ? n : undefined;
 }
@@ -1466,7 +1431,7 @@ function toOptionalFiniteId(v: unknown): number | undefined {
  * @returns 是否发生了 Tab 切换
  */
 function syncActiveTabByRouteName(routeName: unknown) {
-  const routeKey = String(routeName || "");
+  const routeKey = String(routeName || '');
   const tab = ROUTE_NAME_TO_TAB_KEY[routeKey];
   if (!tab || tab === activeTab.value) return false;
   applyActiveTabByRoute(tab);
@@ -1491,7 +1456,7 @@ async function openHqForm(record?: RowData) {
     hqForm.hqCompanyId = toOptionalFiniteId(hqFirstQuery.hqCompanyId);
     hqForm.firstCompanyId = undefined;
     hqForm.regionId = undefined;
-    hqForm.contractTime = "";
+    hqForm.contractTime = '';
     hqForm.status = 1;
   }
   const hqId = Number(hqForm.hqCompanyId || 0);
@@ -1509,20 +1474,20 @@ async function openHqForm(record?: RowData) {
  */
 async function submitHqForm() {
   if (!hqForm.hqCompanyId) {
-    window.$message?.warning?.("请选择总部公司");
+    window.$message?.warning?.('请选择总部公司');
     return;
   }
   if (!hqForm.firstCompanyId) {
-    window.$message?.warning?.("请选择一级网点");
+    window.$message?.warning?.('请选择一级网点');
     return;
   }
   const body = { ...hqForm, targetCompanyId: hqForm.hqCompanyId };
   if (hqForm.id) {
     const r = await updateHqFirstContract(body);
-    if (!notifyOnceSuccessFromFlatResult(r, "操作成功")) return;
+    if (!notifyOnceSuccessFromFlatResult(r, '操作成功')) return;
   } else {
     const r = await addHqFirstContract(body);
-    if (!notifyOnceSuccessFromFlatResult(r, "操作成功")) return;
+    if (!notifyOnceSuccessFromFlatResult(r, '操作成功')) return;
   }
   hqFormOpen.value = false;
   loadList();
@@ -1534,13 +1499,13 @@ async function submitHqForm() {
  */
 async function removeHq(id: number) {
   if (!hqFirstQuery.hqCompanyId) {
-    window.$message?.warning?.("请先选择总部公司");
+    window.$message?.warning?.('请先选择总部公司');
     return;
   }
   const r = await deleteHqFirstContract(id, {
-    targetCompanyId: hqFirstQuery.hqCompanyId,
+    targetCompanyId: hqFirstQuery.hqCompanyId
   });
-  if (!notifyOnceSuccessFromFlatResult(r, "删除成功")) return;
+  if (!notifyOnceSuccessFromFlatResult(r, '删除成功')) return;
   loadList();
 }
 
@@ -1550,7 +1515,7 @@ async function removeHq(id: number) {
  */
 async function openFsForm(record?: RowData) {
   if (!firstSecondQuery.targetCompanyId) {
-    window.$message?.warning?.("请先选择目标总部公司");
+    window.$message?.warning?.('请先选择目标总部公司');
     return;
   }
   await loadCompanyOptionsForCrm();
@@ -1571,21 +1536,21 @@ async function openFsForm(record?: RowData) {
  */
 async function submitFsForm() {
   if (!fsForm.firstCompanyId) {
-    window.$message?.warning?.("请选择一级网点");
+    window.$message?.warning?.('请选择一级网点');
     return;
   }
   if (!fsForm.secondCompanyId) {
-    window.$message?.warning?.("请选择二级网点");
+    window.$message?.warning?.('请选择二级网点');
     return;
   }
   const tid = firstSecondQuery.targetCompanyId;
   if (!tid) {
-    window.$message?.warning?.("请先选择目标总部公司");
+    window.$message?.warning?.('请先选择目标总部公司');
     return;
   }
   const body = { ...fsForm, targetCompanyId: tid };
   const r = await addFirstSecondRelation(body);
-  if (!notifyOnceSuccessFromFlatResult(r, "操作成功")) return;
+  if (!notifyOnceSuccessFromFlatResult(r, '操作成功')) return;
   fsFormOpen.value = false;
   loadList();
 }
@@ -1596,13 +1561,13 @@ async function submitFsForm() {
  */
 async function removeFs(id: number) {
   if (!firstSecondQuery.targetCompanyId) {
-    window.$message?.warning?.("请先选择目标总部公司");
+    window.$message?.warning?.('请先选择目标总部公司');
     return;
   }
   const r = await deleteFirstSecondRelation(id, {
-    targetCompanyId: firstSecondQuery.targetCompanyId,
+    targetCompanyId: firstSecondQuery.targetCompanyId
   });
-  if (!notifyOnceSuccessFromFlatResult(r, "删除成功")) return;
+  if (!notifyOnceSuccessFromFlatResult(r, '删除成功')) return;
   loadList();
 }
 
@@ -1611,17 +1576,17 @@ async function removeFs(id: number) {
  */
 async function triggerCrmHqImport() {
   if (!crmHqQuery.hqCompanyId) {
-    window.$message?.warning?.("请选择总部公司");
+    window.$message?.warning?.('请选择总部公司');
     return;
   }
   if (!selectedHqSnapshotIds.value.length) {
-    window.$message?.warning?.("请选择要导入的CRM签约关系");
+    window.$message?.warning?.('请选择要导入的CRM签约关系');
     return;
   }
   const res = await importCrmHqFirstContract({
     targetCompanyId: crmHqQuery.hqCompanyId,
     hqCompanyId: crmHqQuery.hqCompanyId,
-    snapshotIds: selectedHqSnapshotIds.value,
+    snapshotIds: selectedHqSnapshotIds.value
   });
   const d = (res.data || {}) as RowData;
   const detail = `选中 ${d.selectedCount ?? 0} 条，成功 ${d.successCount ?? 0} 条，已存在 ${d.existedCount ?? 0} 条，失败 ${d.failedCount ?? 0} 条`;
@@ -1636,16 +1601,16 @@ async function triggerCrmHqImport() {
  */
 async function triggerCrmFsImport() {
   if (!crmFsQuery.targetCompanyId) {
-    window.$message?.warning?.("请选择目标总部公司");
+    window.$message?.warning?.('请选择目标总部公司');
     return;
   }
   if (!selectedFsSnapshotIds.value.length) {
-    window.$message?.warning?.("请选择要导入的一级二级关系");
+    window.$message?.warning?.('请选择要导入的一级二级关系');
     return;
   }
   const res = await importCrmFirstSecondRelation({
     targetCompanyId: crmFsQuery.targetCompanyId,
-    snapshotIds: selectedFsSnapshotIds.value,
+    snapshotIds: selectedFsSnapshotIds.value
   });
   const d = (res.data || {}) as RowData;
   const detail = `选中 ${d.selectedCount ?? 0} 条，成功 ${d.successCount ?? 0} 条，已存在 ${d.existedCount ?? 0} 条，冲突 ${d.conflictCount ?? 0} 条，失败 ${d.failedCount ?? 0} 条`;
@@ -1669,8 +1634,8 @@ function openPreview(custId: string | number) {
  * 作用：按预览抽屉中的 custId 拉取 CRM 导入预览 JSON。
  */
 async function loadPreview() {
-  if (previewCustId.value === "" || previewCustId.value === undefined) {
-    window.$message?.warning?.("请填写客户/外部主键 ID");
+  if (previewCustId.value === '' || previewCustId.value === undefined) {
+    window.$message?.warning?.('请填写客户/外部主键 ID');
     return;
   }
   previewLoading.value = true;
@@ -1696,13 +1661,8 @@ function extractSnapshotId(record: RowData) {
  * @param _keys - 选中 key（未使用）
  * @param selectedRows - 选中行
  */
-function onSelectHqCrmRows(
-  _keys: Array<string | number>,
-  selectedRows: RowData[],
-) {
-  selectedHqSnapshotIds.value = (selectedRows || [])
-    .map(extractSnapshotId)
-    .filter((id) => id != null && id !== "");
+function onSelectHqCrmRows(_keys: Array<string | number>, selectedRows: RowData[]) {
+  selectedHqSnapshotIds.value = (selectedRows || []).map(extractSnapshotId).filter(id => id != null && id !== '');
 }
 
 /**
@@ -1710,13 +1670,8 @@ function onSelectHqCrmRows(
  * @param _keys - 选中 key（未使用）
  * @param selectedRows - 选中行
  */
-function onSelectFsCrmRows(
-  _keys: Array<string | number>,
-  selectedRows: RowData[],
-) {
-  selectedFsSnapshotIds.value = (selectedRows || [])
-    .map(extractSnapshotId)
-    .filter((id) => id != null && id !== "");
+function onSelectFsCrmRows(_keys: Array<string | number>, selectedRows: RowData[]) {
+  selectedFsSnapshotIds.value = (selectedRows || []).map(extractSnapshotId).filter(id => id != null && id !== '');
 }
 
 /**
@@ -1737,43 +1692,43 @@ function openCompanyForm(record?: RowData) {
   if (record) {
     Object.assign(companyForm, {
       id: record.id,
-      companyName: record.companyName ?? "",
-      companyShortName: record.companyShortName ?? "",
-      companyCode: record.companyCode ?? "",
-      typeCode: record.typeCode ?? "",
-      contactName: record.contactName ?? "",
-      contactPhone: record.contactPhone ?? "",
-      servicePhone: record.servicePhone ?? "",
-      sourceType: record.sourceType ?? "MANUAL",
-      provinceCode: record.provinceCode ?? "",
-      cityCode: record.cityCode ?? "",
-      districtCode: record.districtCode ?? "",
-      detailAddress: record.detailAddress ?? "",
-      adminUsername: record.adminUsername ?? "",
-      salesOrg: record.salesOrg ?? "",
+      companyName: record.companyName ?? '',
+      companyShortName: record.companyShortName ?? '',
+      companyCode: record.companyCode ?? '',
+      typeCode: record.typeCode ?? '',
+      contactName: record.contactName ?? '',
+      contactPhone: record.contactPhone ?? '',
+      servicePhone: record.servicePhone ?? '',
+      sourceType: record.sourceType ?? 'MANUAL',
+      provinceCode: record.provinceCode ?? '',
+      cityCode: record.cityCode ?? '',
+      districtCode: record.districtCode ?? '',
+      detailAddress: record.detailAddress ?? '',
+      adminUsername: record.adminUsername ?? '',
+      salesOrg: record.salesOrg ?? '',
       status: record.status ?? 1,
-      remark: record.remark ?? "",
+      remark: record.remark ?? ''
     });
     loadCompanyAreaOptionsForEdit(record.provinceCode, record.cityCode);
   } else {
     Object.assign(companyForm, {
       id: undefined,
-      companyName: "",
-      companyShortName: "",
-      companyCode: "",
-      typeCode: "",
-      contactName: "",
-      contactPhone: "",
-      servicePhone: "",
-      sourceType: "MANUAL",
-      provinceCode: "",
-      cityCode: "",
-      districtCode: "",
-      detailAddress: "",
-      adminUsername: "",
-      salesOrg: "",
+      companyName: '',
+      companyShortName: '',
+      companyCode: '',
+      typeCode: '',
+      contactName: '',
+      contactPhone: '',
+      servicePhone: '',
+      sourceType: 'MANUAL',
+      provinceCode: '',
+      cityCode: '',
+      districtCode: '',
+      detailAddress: '',
+      adminUsername: '',
+      salesOrg: '',
       status: 1,
-      remark: "",
+      remark: ''
     });
   }
   companyFormOpen.value = true;
@@ -1789,25 +1744,17 @@ async function submitCompanyForm() {
     return;
   }
 
-  const province = provinceOptions.value.find(
-    (item) => String(item.areaCode) === String(companyForm.provinceCode),
-  );
-  const city = cityOptions.value.find(
-    (item) => String(item.areaCode) === String(companyForm.cityCode),
-  );
-  const district = districtOptions.value.find(
-    (item) => String(item.areaCode) === String(companyForm.districtCode),
-  );
+  const province = provinceOptions.value.find(item => String(item.areaCode) === String(companyForm.provinceCode));
+  const city = cityOptions.value.find(item => String(item.areaCode) === String(companyForm.cityCode));
+  const district = districtOptions.value.find(item => String(item.areaCode) === String(companyForm.districtCode));
   const body = { ...companyForm } as SysCompanyDTO;
   body.provinceName = province?.areaName;
   body.cityName = city?.areaName;
   body.districtName = district?.areaName;
 
   // 接口失败时 request 侧会统一弹出错误信息；成功时优先展示接口 msg。
-  const result = companyForm.id
-    ? await updateCompany(body)
-    : await addCompany(body);
-  if (!notifyOnceSuccessFromFlatResult(result, "操作成功")) return;
+  const result = companyForm.id ? await updateCompany(body) : await addCompany(body);
+  if (!notifyOnceSuccessFromFlatResult(result, '操作成功')) return;
 
   companyFormOpen.value = false;
   await loadList();
@@ -1819,7 +1766,7 @@ async function submitCompanyForm() {
  */
 async function removeCompany(id: number) {
   const r = await deleteCompany(id);
-  if (!notifyOnceSuccessFromFlatResult(r, "删除成功")) return;
+  if (!notifyOnceSuccessFromFlatResult(r, '删除成功')) return;
   loadList();
 }
 
@@ -1829,11 +1776,11 @@ async function removeCompany(id: number) {
  */
 function openCompanyTypeForm(record?: RowData) {
   companyTypeForm.id = record?.id;
-  companyTypeForm.typeName = record?.typeName ?? "";
-  companyTypeForm.typeCode = record?.typeCode ?? "";
-  companyTypeForm.subjectType = record?.subjectType ?? "SERVICE";
+  companyTypeForm.typeName = record?.typeName ?? '';
+  companyTypeForm.typeCode = record?.typeCode ?? '';
+  companyTypeForm.subjectType = record?.subjectType ?? 'SERVICE';
   companyTypeForm.orderNum = Number(record?.orderNum ?? 0);
-  companyTypeForm.remark = record?.remark ?? "";
+  companyTypeForm.remark = record?.remark ?? '';
   companyTypeFormOpen.value = true;
 }
 
@@ -1850,16 +1797,16 @@ async function submitCompanyTypeForm() {
     id: companyTypeForm.id,
     typeName: companyTypeForm.typeName,
     typeCode: companyTypeForm.typeCode,
-    subjectType: companyTypeForm.subjectType as "PLATFORM" | "HQ" | "SERVICE",
+    subjectType: companyTypeForm.subjectType as 'PLATFORM' | 'HQ' | 'SERVICE',
     orderNum: Number(companyTypeForm.orderNum ?? 0),
-    remark: companyTypeForm.remark,
+    remark: companyTypeForm.remark
   };
   if (payload.id) {
     const r = await updateCompanyType(payload);
-    if (!notifyOnceSuccessFromFlatResult(r, "操作成功")) return;
+    if (!notifyOnceSuccessFromFlatResult(r, '操作成功')) return;
   } else {
     const r = await addCompanyType(payload);
-    if (!notifyOnceSuccessFromFlatResult(r, "操作成功")) return;
+    if (!notifyOnceSuccessFromFlatResult(r, '操作成功')) return;
   }
   companyTypeFormOpen.value = false;
   await loadList();
@@ -1871,7 +1818,7 @@ async function submitCompanyTypeForm() {
  */
 async function removeCompanyType(id: number) {
   const r = await deleteCompanyType(id);
-  if (!notifyOnceSuccessFromFlatResult(r, "删除成功")) return;
+  if (!notifyOnceSuccessFromFlatResult(r, '删除成功')) return;
   await loadList();
 }
 
@@ -1880,32 +1827,27 @@ async function removeCompanyType(id: number) {
  * @param record - 公司类型行
  */
 async function openCompanyTypeMenuAssign(record: RowData) {
-  const typeCode = String(record.typeCode || "");
+  const typeCode = String(record.typeCode || '');
   if (!typeCode) {
-    window.$message?.warning?.("当前类型缺少 typeCode");
+    window.$message?.warning?.('当前类型缺少 typeCode');
     return;
   }
   companyTypeMenuTypeCode.value = typeCode;
-  companyTypeMenuTitle.value = `分配菜单 - ${record.typeName || ""}（${typeCode}）`;
+  companyTypeMenuTitle.value = `分配菜单 - ${record.typeName || ''}（${typeCode}）`;
   companyTypeMenuCheckedKeys.value = [];
   companyTypeMenuExpandedKeys.value = [];
   companyTypeMenuTreeData.value = [];
   companyTypeMenuOpen.value = true;
   companyTypeMenuLoading.value = true;
   try {
-    const [treeRes, idsRes] = await Promise.all([
-      typeCodeMenuTree(typeCode),
-      typeCodeMenuIds(typeCode),
-    ]);
+    const [treeRes, idsRes] = await Promise.all([typeCodeMenuTree(typeCode), typeCodeMenuIds(typeCode)]);
     companyTypeMenuTreeData.value = pickRows(treeRes.data);
     companyTypeMenuCheckedKeys.value = Array.isArray(idsRes.data)
-      ? (idsRes.data as unknown[])
-          .map((x) => Number(x))
-          .filter((id) => !Number.isNaN(id))
+      ? (idsRes.data as unknown[]).map(x => Number(x)).filter(id => !Number.isNaN(id))
       : [];
     companyTypeMenuExpandedKeys.value = computeExpandedKeysForCheckedMenuTree(
       companyTypeMenuTreeData.value,
-      companyTypeMenuCheckedKeys.value,
+      companyTypeMenuCheckedKeys.value
     );
     await nextTick();
   } finally {
@@ -1920,11 +1862,8 @@ async function submitCompanyTypeMenuAssign() {
   if (!companyTypeMenuTypeCode.value) return;
   companyTypeMenuSubmitting.value = true;
   try {
-    const r = await assignTypeCodeMenus(
-      companyTypeMenuTypeCode.value,
-      companyTypeMenuCheckedKeys.value,
-    );
-    if (!notifyOnceSuccessFromFlatResult(r, "菜单分配保存成功")) return;
+    const r = await assignTypeCodeMenus(companyTypeMenuTypeCode.value, companyTypeMenuCheckedKeys.value);
+    if (!notifyOnceSuccessFromFlatResult(r, '菜单分配保存成功')) return;
     companyTypeMenuOpen.value = false;
   } finally {
     companyTypeMenuSubmitting.value = false;
@@ -1944,28 +1883,21 @@ async function loadProvinceOptions() {
  * @param provinceCode - 省代码
  * @param cityCode - 市代码
  */
-async function loadCompanyAreaOptionsForEdit(
-  provinceCode?: string | number,
-  cityCode?: string | number,
-) {
+async function loadCompanyAreaOptionsForEdit(provinceCode?: string | number, cityCode?: string | number) {
   cityOptions.value = [];
   districtOptions.value = [];
 
-  const province = String(provinceCode ?? "").trim();
+  const province = String(provinceCode ?? '').trim();
   if (!province) return;
 
   const cityRes = await listAreaOptions(province);
-  cityOptions.value = Array.isArray(cityRes.data)
-    ? cityRes.data
-    : pickRows(cityRes.data);
+  cityOptions.value = Array.isArray(cityRes.data) ? cityRes.data : pickRows(cityRes.data);
 
-  const city = String(cityCode ?? "").trim();
+  const city = String(cityCode ?? '').trim();
   if (!city) return;
 
   const districtRes = await listAreaOptions(city);
-  districtOptions.value = Array.isArray(districtRes.data)
-    ? districtRes.data
-    : pickRows(districtRes.data);
+  districtOptions.value = Array.isArray(districtRes.data) ? districtRes.data : pickRows(districtRes.data);
 }
 
 /**
@@ -1973,8 +1905,8 @@ async function loadCompanyAreaOptionsForEdit(
  * @param code - 省 areaCode
  */
 async function onCompanyProvinceChange(code?: any) {
-  companyForm.cityCode = "";
-  companyForm.districtCode = "";
+  companyForm.cityCode = '';
+  companyForm.districtCode = '';
   cityOptions.value = [];
   districtOptions.value = [];
   if (!code) return;
@@ -1987,7 +1919,7 @@ async function onCompanyProvinceChange(code?: any) {
  * @param code - 市 areaCode
  */
 async function onCompanyCityChange(code?: any) {
-  companyForm.districtCode = "";
+  companyForm.districtCode = '';
   districtOptions.value = [];
   if (!code) return;
   const { data } = await listAreaOptions(code);
@@ -2015,7 +1947,7 @@ async function loadCompanyCrmImportList() {
       pageSize: companyCrmImportQuery.pageSize,
       companyCode: companyCrmImportQuery.companyCode.trim() || undefined,
       companyName: companyCrmImportQuery.companyName.trim() || undefined,
-      custState: companyCrmImportQuery.custState,
+      custState: companyCrmImportQuery.custState
     });
     if (companyCrmListMsgs.consumeFlatError(flat)) {
       companyCrmImportRows.value = [];
@@ -2049,8 +1981,8 @@ function handleCompanyCrmImportSearch() {
 function resetCompanyCrmImportSearch() {
   companyCrmImportQuery.pageNum = 1;
   companyCrmImportQuery.pageSize = 10;
-  companyCrmImportQuery.companyCode = "";
-  companyCrmImportQuery.companyName = "";
+  companyCrmImportQuery.companyCode = '';
+  companyCrmImportQuery.companyName = '';
   companyCrmImportQuery.custState = undefined;
   loadCompanyCrmImportList();
 }
@@ -2066,46 +1998,39 @@ async function useCompanyCrmImportRow(row: RowData) {
   const preview = ((data as RowData) || {}) as RowData;
   if (preview.existingCompanyId) {
     companyCrmImportOpen.value = false;
-    const existing = rows.value.find(
-      (item) => Number(item.id) === Number(preview.existingCompanyId),
-    );
+    const existing = rows.value.find(item => Number(item.id) === Number(preview.existingCompanyId));
     if (existing) {
       openCompanyForm(existing);
     } else {
-      window.$message?.warning?.("该公司已存在，请在列表中编辑");
+      window.$message?.warning?.('该公司已存在，请在列表中编辑');
     }
     return;
   }
   if (preview.canImport === false) {
-    window.$message?.warning?.(
-      String(preview.importDisabledReason || "当前记录不可导入"),
-    );
+    window.$message?.warning?.(String(preview.importDisabledReason || '当前记录不可导入'));
     return;
   }
   companyCrmImportOpen.value = false;
   openCompanyForm();
   Object.assign(companyForm, {
-    companyName: preview.companyName ?? "",
-    companyShortName: preview.companyShortName ?? "",
-    companyCode: preview.companyCode ?? "",
-    typeCode: preview.typeCode ?? "",
-    contactName: preview.contactName ?? "",
-    contactPhone: preview.contactPhone ?? "",
-    servicePhone: preview.servicePhone ?? "",
-    sourceType: preview.sourceType ?? "CRM",
-    provinceCode: preview.provinceCode ?? "",
-    cityCode: preview.cityCode ?? "",
-    districtCode: preview.districtCode ?? "",
-    detailAddress: preview.detailAddress ?? "",
-    salesOrg: preview.salesOrg ?? "",
-    adminUsername: preview.adminUsername ?? preview.companyCode ?? "",
+    companyName: preview.companyName ?? '',
+    companyShortName: preview.companyShortName ?? '',
+    companyCode: preview.companyCode ?? '',
+    typeCode: preview.typeCode ?? '',
+    contactName: preview.contactName ?? '',
+    contactPhone: preview.contactPhone ?? '',
+    servicePhone: preview.servicePhone ?? '',
+    sourceType: preview.sourceType ?? 'CRM',
+    provinceCode: preview.provinceCode ?? '',
+    cityCode: preview.cityCode ?? '',
+    districtCode: preview.districtCode ?? '',
+    detailAddress: preview.detailAddress ?? '',
+    salesOrg: preview.salesOrg ?? '',
+    adminUsername: preview.adminUsername ?? preview.companyCode ?? '',
     status: preview.status == null ? 1 : preview.status,
-    remark: preview.remark ?? "",
+    remark: preview.remark ?? ''
   });
-  loadCompanyAreaOptionsForEdit(
-    companyForm.provinceCode as string,
-    companyForm.cityCode as string,
-  );
+  loadCompanyAreaOptionsForEdit(companyForm.provinceCode as string, companyForm.cityCode as string);
 }
 
 /**
@@ -2113,7 +2038,7 @@ async function useCompanyCrmImportRow(row: RowData) {
  * @returns Pagination 配置或 false
  */
 function companyPagination() {
-  if (activeTab.value !== "company") return false;
+  if (activeTab.value !== 'company') return false;
   return {
     current: companyQuery.pageNum,
     pageSize: companyQuery.pageSize,
@@ -2124,7 +2049,7 @@ function companyPagination() {
       companyQuery.pageNum = page;
       if (pageSize) companyQuery.pageSize = pageSize;
       loadList();
-    },
+    }
   };
 }
 
@@ -2133,7 +2058,7 @@ function companyPagination() {
  * @returns Pagination 配置或 false
  */
 function hqPagination() {
-  if (activeTab.value !== "hqFirst") return false;
+  if (activeTab.value !== 'hqFirst') return false;
   return {
     current: hqFirstQuery.pageNum,
     pageSize: hqFirstQuery.pageSize,
@@ -2144,7 +2069,7 @@ function hqPagination() {
       hqFirstQuery.pageNum = page;
       if (pageSize) hqFirstQuery.pageSize = pageSize;
       loadList();
-    },
+    }
   };
 }
 
@@ -2153,7 +2078,7 @@ function hqPagination() {
  * @returns Pagination 配置或 false
  */
 function fsPagination() {
-  if (activeTab.value !== "firstSecond") return false;
+  if (activeTab.value !== 'firstSecond') return false;
   return {
     current: firstSecondQuery.pageNum,
     pageSize: firstSecondQuery.pageSize,
@@ -2164,7 +2089,7 @@ function fsPagination() {
       firstSecondQuery.pageNum = page;
       if (pageSize) firstSecondQuery.pageSize = pageSize;
       loadList();
-    },
+    }
   };
 }
 
@@ -2173,7 +2098,7 @@ function fsPagination() {
  * @returns Pagination 配置或 false
  */
 function externalPagination() {
-  if (activeTab.value !== "external") return false;
+  if (activeTab.value !== 'external') return false;
   return {
     current: externalQuery.pageNum,
     pageSize: externalQuery.pageSize,
@@ -2184,7 +2109,7 @@ function externalPagination() {
       externalQuery.pageNum = page;
       if (pageSize) externalQuery.pageSize = pageSize;
       loadList();
-    },
+    }
   };
 }
 
@@ -2193,12 +2118,7 @@ function externalPagination() {
  * @returns Pagination 配置或 false
  */
 function mergedPagination() {
-  const p =
-    companyPagination() ||
-    hqPagination() ||
-    fsPagination() ||
-    externalPagination() ||
-    false;
+  const p = companyPagination() || hqPagination() || fsPagination() || externalPagination() || false;
   return p;
 }
 
@@ -2208,17 +2128,16 @@ function mergedPagination() {
  */
 function tablePagination() {
   const p = mergedPagination();
-  if (activeTab.value === "companyType" || activeTab.value === "area")
-    return false;
+  if (activeTab.value === 'companyType' || activeTab.value === 'area') return false;
   return p || false;
 }
 
 // 路由切换时同步组织管理子 Tab
 watch(
   () => route.name,
-  (name) => {
+  name => {
     syncActiveTabByRouteName(name);
-  },
+  }
 );
 
 onMounted(() => {
@@ -2230,14 +2149,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <div
-    class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto"
-  >
-    <ACard
-      v-if="activeTab !== 'companyType'"
-      :bordered="false"
-      class="card-wrapper"
-    >
+  <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <ACard v-if="activeTab !== 'companyType'" :bordered="false" class="card-wrapper">
       <ATabs
         v-if="isContractPageTab"
         :active-key="activeTab"
@@ -2248,12 +2161,7 @@ onMounted(() => {
         <ATabPane key="hqFirst" tab="总部-一级签约" />
         <ATabPane key="firstSecond" tab="一级-二级关系" />
       </ATabs>
-      <AForm
-        v-if="activeTab === 'company'"
-        :model="companyQuery"
-        :label-col="{ span: 5, md: 7 }"
-        class="mb-12px"
-      >
+      <AForm v-if="activeTab === 'company'" :model="companyQuery" :label-col="{ span: 5, md: 7 }" class="mb-12px">
         <div class="page-search-toolbar">
           <div class="page-search-toolbar__filters">
             <ARow :gutter="[16, 16]" wrap>
@@ -2262,16 +2170,11 @@ onMounted(() => {
                 :md="12"
                 :lg="6"
                 :class="{
-                  'page-search-toolbar__filter-col--collapsed':
-                    companySearchFilter.isSearchFilterHidden(0),
+                  'page-search-toolbar__filter-col--collapsed': companySearchFilter.isSearchFilterHidden(0)
                 }"
               >
                 <AFormItem label="公司名称" class="m-0">
-                  <AInput
-                    v-model:value="companyQuery.companyName"
-                    allow-clear
-                    placeholder="请输入公司名称"
-                  />
+                  <AInput v-model:value="companyQuery.companyName" allow-clear placeholder="请输入公司名称" />
                 </AFormItem>
               </ACol>
               <ACol
@@ -2279,8 +2182,7 @@ onMounted(() => {
                 :md="12"
                 :lg="6"
                 :class="{
-                  'page-search-toolbar__filter-col--collapsed':
-                    companySearchFilter.isSearchFilterHidden(1),
+                  'page-search-toolbar__filter-col--collapsed': companySearchFilter.isSearchFilterHidden(1)
                 }"
               >
                 <AFormItem label="公司类型" class="m-0">
@@ -2290,9 +2192,9 @@ onMounted(() => {
                     placeholder="全部"
                     class="w-full"
                     :options="
-                      companyTypeOptions.map((item) => ({
+                      companyTypeOptions.map(item => ({
                         label: item.typeName,
-                        value: item.typeCode,
+                        value: item.typeCode
                       }))
                     "
                   />
@@ -2303,8 +2205,7 @@ onMounted(() => {
                 :md="12"
                 :lg="6"
                 :class="{
-                  'page-search-toolbar__filter-col--collapsed':
-                    companySearchFilter.isSearchFilterHidden(2),
+                  'page-search-toolbar__filter-col--collapsed': companySearchFilter.isSearchFilterHidden(2)
                 }"
               >
                 <AFormItem label="状态" class="m-0">
@@ -2315,7 +2216,7 @@ onMounted(() => {
                     class="w-full"
                     :options="[
                       { label: '启用', value: 1 },
-                      { label: '停用', value: 0 },
+                      { label: '停用', value: 0 }
                     ]"
                   />
                 </AFormItem>
@@ -2323,15 +2224,8 @@ onMounted(() => {
             </ARow>
           </div>
           <div class="page-search-toolbar__actions">
-            <AButton
-              type="primary"
-              :loading="loading"
-              @click="handleCompanySearch"
-              >查询</AButton
-            >
-            <AButton :loading="loading" @click="resetCompanyQuery"
-              >重置</AButton
-            >
+            <AButton type="primary" :loading="loading" @click="handleCompanySearch">查询</AButton>
+            <AButton :loading="loading" @click="resetCompanyQuery">重置</AButton>
             <PageSearchExpandButton
               v-if="companySearchFilter.showSearchFilterExpandToggle"
               :expanded="companySearchFilter.searchFilterExpanded"
@@ -2341,12 +2235,7 @@ onMounted(() => {
         </div>
       </AForm>
 
-      <AForm
-        v-if="activeTab === 'hqFirst'"
-        :model="hqFirstQuery"
-        :label-col="{ span: 5, md: 7 }"
-        class="mb-12px"
-      >
+      <AForm v-if="activeTab === 'hqFirst'" :model="hqFirstQuery" :label-col="{ span: 5, md: 7 }" class="mb-12px">
         <div class="page-search-toolbar">
           <div class="page-search-toolbar__filters">
             <ARow :gutter="[16, 16]" wrap>
@@ -2360,9 +2249,9 @@ onMounted(() => {
                     placeholder="全部"
                     class="w-full"
                     :options="
-                      hqCompanyOptions.map((c) => ({
+                      hqCompanyOptions.map(c => ({
                         label: c.companyName,
-                        value: Number(c.id),
+                        value: Number(c.id)
                       }))
                     "
                     @change="handleHqFirstSearch"
@@ -2393,9 +2282,9 @@ onMounted(() => {
                     placeholder="请选择总部"
                     class="w-full"
                     :options="
-                      hqCompanyOptions.map((c) => ({
+                      hqCompanyOptions.map(c => ({
                         label: c.companyName,
-                        value: Number(c.id),
+                        value: Number(c.id)
                       }))
                     "
                     @change="handleFirstSecondSearch"
@@ -2413,9 +2302,9 @@ onMounted(() => {
                     placeholder="全部"
                     class="w-full"
                     :options="
-                      firstCompanyOptions.map((c) => ({
+                      firstCompanyOptions.map(c => ({
                         label: c.companyName,
-                        value: c.id,
+                        value: c.id
                       }))
                     "
                     @change="handleFirstSecondSearch"
@@ -2427,12 +2316,7 @@ onMounted(() => {
         </div>
       </AForm>
 
-      <AForm
-        v-if="activeTab === 'external'"
-        :model="externalQuery"
-        :label-col="{ span: 5, md: 7 }"
-        class="mb-12px"
-      >
+      <AForm v-if="activeTab === 'external'" :model="externalQuery" :label-col="{ span: 5, md: 7 }" class="mb-12px">
         <div class="page-search-toolbar">
           <div class="page-search-toolbar__filters">
             <ARow :gutter="[16, 16]" wrap>
@@ -2441,30 +2325,18 @@ onMounted(() => {
                 :md="12"
                 :lg="6"
                 :class="{
-                  'page-search-toolbar__filter-col--collapsed':
-                    externalSearchFilter.isSearchFilterHidden(0),
+                  'page-search-toolbar__filter-col--collapsed': externalSearchFilter.isSearchFilterHidden(0)
                 }"
               >
                 <AFormItem label="名称" class="m-0">
-                  <AInput
-                    v-model:value="externalQuery.companyName"
-                    allow-clear
-                    placeholder="名称筛选"
-                  />
+                  <AInput v-model:value="externalQuery.companyName" allow-clear placeholder="名称筛选" />
                 </AFormItem>
               </ACol>
             </ARow>
           </div>
           <div class="page-search-toolbar__actions">
-            <AButton
-              type="primary"
-              :loading="loading"
-              @click="handleExternalSearch"
-              >查询</AButton
-            >
-            <AButton :loading="loading" @click="resetExternalQuery"
-              >重置</AButton
-            >
+            <AButton type="primary" :loading="loading" @click="handleExternalSearch">查询</AButton>
+            <AButton :loading="loading" @click="resetExternalQuery">重置</AButton>
             <PageSearchExpandButton
               v-if="externalSearchFilter.showSearchFilterExpandToggle"
               :expanded="externalSearchFilter.searchFilterExpanded"
@@ -2474,11 +2346,7 @@ onMounted(() => {
         </div>
       </AForm>
 
-      <AForm
-        v-if="activeTab === 'area'"
-        :label-col="{ span: 5, md: 7 }"
-        class="mb-12px"
-      >
+      <AForm v-if="activeTab === 'area'" :label-col="{ span: 5, md: 7 }" class="mb-12px">
         <div class="page-search-toolbar">
           <div class="page-search-toolbar__filters">
             <ARow :gutter="[16, 16]" wrap>
@@ -2492,9 +2360,9 @@ onMounted(() => {
                     placeholder="请选择"
                     class="w-full"
                     :options="
-                      hqCompanyOptions.map((c) => ({
+                      hqCompanyOptions.map(c => ({
                         label: c.companyName,
-                        value: c.id,
+                        value: c.id
                       }))
                     "
                     @change="handleRegionSearch"
@@ -2514,11 +2382,7 @@ onMounted(() => {
     >
       <template #extra>
         <ASpace wrap>
-          <AButton
-            v-if="activeTab === 'companyType'"
-            type="primary"
-            @click="openCompanyTypeForm()"
-          >
+          <AButton v-if="activeTab === 'companyType'" type="primary" @click="openCompanyTypeForm()">
             新增公司类型
           </AButton>
           <AButton
@@ -2529,39 +2393,11 @@ onMounted(() => {
           >
             新增大区
           </AButton>
-          <AButton
-            v-if="activeTab === 'company'"
-            type="primary"
-            ghost
-            @click="openCompanyForm()"
-            >新增公司</AButton
-          >
-          <AButton
-            v-if="activeTab === 'company'"
-            type="primary"
-            @click="prefillCompanyByCrm"
-            >从 CRM 导入</AButton
-          >
-          <AButton
-            v-if="activeTab === 'hqFirst'"
-            type="primary"
-            ghost
-            @click="openHqForm()"
-            >新增签约</AButton
-          >
-          <AButton
-            v-if="activeTab === 'hqFirst'"
-            type="primary"
-            @click="openHqCrmImport"
-            >从CRM导入</AButton
-          >
-          <AButton
-            v-if="activeTab === 'firstSecond'"
-            type="primary"
-            ghost
-            @click="openFsForm()"
-            >新增关系</AButton
-          >
+          <AButton v-if="activeTab === 'company'" type="primary" ghost @click="openCompanyForm()">新增公司</AButton>
+          <AButton v-if="activeTab === 'company'" type="primary" @click="prefillCompanyByCrm">从 CRM 导入</AButton>
+          <AButton v-if="activeTab === 'hqFirst'" type="primary" ghost @click="openHqForm()">新增签约</AButton>
+          <AButton v-if="activeTab === 'hqFirst'" type="primary" @click="openHqCrmImport">从CRM导入</AButton>
+          <AButton v-if="activeTab === 'firstSecond'" type="primary" ghost @click="openFsForm()">新增关系</AButton>
         </ASpace>
       </template>
       <ATable
@@ -2579,109 +2415,63 @@ onMounted(() => {
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'hqCrmRegion'">
-            <span>{{ record.regionName || "-" }}</span>
-            <span v-if="record.regionCode" class="text-gray-500"
-              >（{{ record.regionCode }}）</span
-            >
+            <span>{{ record.regionName || '-' }}</span>
+            <span v-if="record.regionCode" class="text-gray-500">（{{ record.regionCode }}）</span>
           </template>
           <template v-else-if="column.key === 'hqCrmAlive'">
             <ATag :color="tagColorPositiveNeutral(record.aliveFlag === 1)">
-              {{ record.aliveFlag === 1 ? "有效" : "失效" }}
+              {{ record.aliveFlag === 1 ? '有效' : '失效' }}
             </ATag>
           </template>
           <template v-else-if="column.key === 'hqCrmImportSts'">
             <ATag v-if="record.canImport" color="success">可导入</ATag>
-            <ATag v-else-if="record.existingContract" color="processing"
-              >已存在</ATag
-            >
+            <ATag v-else-if="record.existingContract" color="processing">已存在</ATag>
             <ATag v-else color="warning">异常</ATag>
           </template>
           <template v-else-if="column.key === 'fsCrmImportSts'">
             <ATag v-if="record.canImport" color="success">可导入</ATag>
-            <ATag v-else-if="record.existingRelation" color="processing"
-              >已存在</ATag
-            >
-            <ATag v-else-if="record.conflictingRelation" color="error"
-              >冲突</ATag
-            >
+            <ATag v-else-if="record.existingRelation" color="processing">已存在</ATag>
+            <ATag v-else-if="record.conflictingRelation" color="error">冲突</ATag>
             <ATag v-else color="warning">异常</ATag>
           </template>
-          <template
-            v-else-if="column.key === 'typeCode' && activeTab === 'company'"
-          >
-            {{ getCompanyTypeLabel(record.typeCode) || record.typeCode || "-" }}
+          <template v-else-if="column.key === 'typeCode' && activeTab === 'company'">
+            {{ getCompanyTypeLabel(record.typeCode) || record.typeCode || '-' }}
           </template>
-          <template
-            v-else-if="column.key === 'subjectType' && activeTab === 'company'"
-          >
-            <ATag
-              v-if="getCompanySubjectType(record.typeCode) === 'HQ'"
-              color="warning"
-              >总部</ATag
-            >
-            <ATag
-              v-else-if="getCompanySubjectType(record.typeCode) === 'SERVICE'"
-              color="success"
-              >网点</ATag
-            >
+          <template v-else-if="column.key === 'subjectType' && activeTab === 'company'">
+            <ATag v-if="getCompanySubjectType(record.typeCode) === 'HQ'" color="warning">总部</ATag>
+            <ATag v-else-if="getCompanySubjectType(record.typeCode) === 'SERVICE'" color="success">网点</ATag>
             <ATag v-else>平台</ATag>
           </template>
-          <template
-            v-else-if="column.key === 'sourceType' && activeTab === 'company'"
-          >
-            <ATag
-              :color="record.sourceType === 'CRM' ? 'default' : 'success'"
-              >{{ record.sourceType || "-" }}</ATag
-            >
+          <template v-else-if="column.key === 'sourceType' && activeTab === 'company'">
+            <ATag :color="record.sourceType === 'CRM' ? 'default' : 'success'">{{ record.sourceType || '-' }}</ATag>
           </template>
-          <template
-            v-else-if="column.key === 'salesOrg' && activeTab === 'company'"
-          >
-            {{
-              getCompanySubjectType(record.typeCode) === "HQ"
-                ? record.salesOrg || "-"
-                : "-"
-            }}
+          <template v-else-if="column.key === 'salesOrg' && activeTab === 'company'">
+            {{ getCompanySubjectType(record.typeCode) === 'HQ' ? record.salesOrg || '-' : '-' }}
           </template>
-          <template
-            v-else-if="column.key === 'region' && activeTab === 'company'"
-          >
+          <template v-else-if="column.key === 'region' && activeTab === 'company'">
             {{ formatCompanyRegion(record) }}
           </template>
-          <template
-            v-else-if="
-              column.key === 'geocodeStatus' && activeTab === 'company'
-            "
-          >
-            <ATag
-              :color="record.geocodeStatus === 'SUCCESS' ? 'success' : 'error'"
-            >
-              {{ record.geocodeStatus === "SUCCESS" ? "SUCCESS" : "FAILED" }}
+          <template v-else-if="column.key === 'geocodeStatus' && activeTab === 'company'">
+            <ATag :color="record.geocodeStatus === 'SUCCESS' ? 'success' : 'error'">
+              {{ record.geocodeStatus === 'SUCCESS' ? 'SUCCESS' : 'FAILED' }}
             </ATag>
           </template>
           <template v-else-if="column.key === 'status'">
             <ATag :color="tagColorEnabled(record.status === 1)">
               {{
-                activeTab === "hqFirst"
+                activeTab === 'hqFirst'
                   ? record.status === 1
-                    ? "有效"
-                    : "失效"
+                    ? '有效'
+                    : '失效'
                   : record.status === 1
-                    ? "启用"
-                    : "停用"
+                    ? '启用'
+                    : '停用'
               }}
             </ATag>
           </template>
-          <template
-            v-else-if="column.key === 'actions' && activeTab === 'company'"
-          >
+          <template v-else-if="column.key === 'actions' && activeTab === 'company'">
             <ASpace :wrap="false">
-              <AButton
-                type="link"
-                size="small"
-                class="table-action-link--primary"
-                @click="openCompanyForm(record)"
-              >
+              <AButton type="link" size="small" class="table-action-link--primary" @click="openCompanyForm(record)">
                 编辑
               </AButton>
               <APopconfirm
@@ -2692,41 +2482,24 @@ onMounted(() => {
               </APopconfirm>
             </ASpace>
           </template>
-          <template
-            v-else-if="column.key === 'actions' && activeTab === 'hqFirst'"
-          >
+          <template v-else-if="column.key === 'actions' && activeTab === 'hqFirst'">
             <ASpace :wrap="false">
-              <AButton
-                type="link"
-                size="small"
-                class="table-action-link--primary"
-                @click="openHqForm(record)"
-              >
+              <AButton type="link" size="small" class="table-action-link--primary" @click="openHqForm(record)">
                 编辑
               </AButton>
-              <APopconfirm
-                title="确认删除该签约关系？"
-                @confirm="removeHq(record.id)"
-              >
+              <APopconfirm title="确认删除该签约关系？" @confirm="removeHq(record.id)">
                 <AButton type="link" size="small" danger>删除</AButton>
               </APopconfirm>
             </ASpace>
           </template>
-          <template
-            v-else-if="column.key === 'actions' && activeTab === 'firstSecond'"
-          >
+          <template v-else-if="column.key === 'actions' && activeTab === 'firstSecond'">
             <ASpace :wrap="false">
-              <APopconfirm
-                title="确认删除该关系？"
-                @confirm="removeFs(record.id)"
-              >
+              <APopconfirm title="确认删除该关系？" @confirm="removeFs(record.id)">
                 <AButton type="link" size="small" danger>删除</AButton>
               </APopconfirm>
             </ASpace>
           </template>
-          <template
-            v-else-if="column.key === 'actions' && activeTab === 'external'"
-          >
+          <template v-else-if="column.key === 'actions' && activeTab === 'external'">
             <AButton
               type="link"
               size="small"
@@ -2736,36 +2509,19 @@ onMounted(() => {
               导入预览
             </AButton>
           </template>
-          <template
-            v-else-if="column.key === 'actions' && activeTab === 'area'"
-          >
+          <template v-else-if="column.key === 'actions' && activeTab === 'area'">
             <ASpace :wrap="false">
-              <AButton
-                type="link"
-                size="small"
-                class="table-action-link--primary"
-                @click="openRegionForm(record)"
-              >
+              <AButton type="link" size="small" class="table-action-link--primary" @click="openRegionForm(record)">
                 编辑
               </AButton>
-              <APopconfirm
-                :title="`确认删除大区“${record.regionName || '-'}”？`"
-                @confirm="removeRegion(record)"
-              >
+              <APopconfirm :title="`确认删除大区“${record.regionName || '-'}”？`" @confirm="removeRegion(record)">
                 <AButton type="link" size="small" danger>删除</AButton>
               </APopconfirm>
             </ASpace>
           </template>
-          <template
-            v-else-if="column.key === 'actions' && activeTab === 'companyType'"
-          >
+          <template v-else-if="column.key === 'actions' && activeTab === 'companyType'">
             <ASpace :wrap="false">
-              <AButton
-                type="link"
-                size="small"
-                class="table-action-link--primary"
-                @click="openCompanyTypeForm(record)"
-              >
+              <AButton type="link" size="small" class="table-action-link--primary" @click="openCompanyTypeForm(record)">
                 编辑
               </AButton>
               <AButton
@@ -2776,10 +2532,7 @@ onMounted(() => {
               >
                 分配菜单
               </AButton>
-              <APopconfirm
-                :title="`确认删除类型“${record.typeName || '-'}”？`"
-                @confirm="removeCompanyType(record.id)"
-              >
+              <APopconfirm :title="`确认删除类型“${record.typeName || '-'}”？`" @confirm="removeCompanyType(record.id)">
                 <AButton type="link" size="small" danger>删除</AButton>
               </APopconfirm>
             </ASpace>
@@ -2789,16 +2542,11 @@ onMounted(() => {
     </ACard>
 
     <ADrawer v-model:open="hqCrmImportOpen" title="从CRM导入签约" :width="1180">
-      <AForm
-        :model="crmHqQuery"
-        layout="inline"
-        class="page-search-toolbar--inline mb-12px"
-      >
+      <AForm :model="crmHqQuery" layout="inline" class="page-search-toolbar--inline mb-12px">
         <AFormItem
           label="总部公司"
           :class="{
-            'page-search-toolbar__filter-col--collapsed':
-              hqCrmImportSearchFilter.isSearchFilterHidden(0),
+            'page-search-toolbar__filter-col--collapsed': hqCrmImportSearchFilter.isSearchFilterHidden(0)
           }"
         >
           <ASelect
@@ -2809,9 +2557,9 @@ onMounted(() => {
             placeholder="请选择总部公司"
             class="min-w-180px"
             :options="
-              hqCompanyOptions.map((c) => ({
+              hqCompanyOptions.map(c => ({
                 label: c.companyName,
-                value: c.id,
+                value: c.id
               }))
             "
             @change="onCrmHqCompanyChange"
@@ -2820,8 +2568,7 @@ onMounted(() => {
         <AFormItem
           label="一级公司"
           :class="{
-            'page-search-toolbar__filter-col--collapsed':
-              hqCrmImportSearchFilter.isSearchFilterHidden(1),
+            'page-search-toolbar__filter-col--collapsed': hqCrmImportSearchFilter.isSearchFilterHidden(1)
           }"
         >
           <ASelect
@@ -2832,9 +2579,9 @@ onMounted(() => {
             placeholder="全部"
             class="min-w-160px"
             :options="
-              firstCompanyOptions.map((c) => ({
+              firstCompanyOptions.map(c => ({
                 label: c.companyName,
-                value: c.id,
+                value: c.id
               }))
             "
           />
@@ -2842,8 +2589,7 @@ onMounted(() => {
         <AFormItem
           label="大区"
           :class="{
-            'page-search-toolbar__filter-col--collapsed':
-              hqCrmImportSearchFilter.isSearchFilterHidden(2),
+            'page-search-toolbar__filter-col--collapsed': hqCrmImportSearchFilter.isSearchFilterHidden(2)
           }"
         >
           <ASelect
@@ -2854,9 +2600,9 @@ onMounted(() => {
             placeholder="全部"
             class="min-w-160px"
             :options="
-              crmImportRegionOptions.map((r) => ({
+              crmImportRegionOptions.map(r => ({
                 label: `${r.regionName || '-'}${r.regionCode ? `（${r.regionCode}）` : ''}`,
-                value: r.id,
+                value: r.id
               }))
             "
           />
@@ -2864,8 +2610,7 @@ onMounted(() => {
         <AFormItem
           label="客户编码"
           :class="{
-            'page-search-toolbar__filter-col--collapsed':
-              hqCrmImportSearchFilter.isSearchFilterHidden(3),
+            'page-search-toolbar__filter-col--collapsed': hqCrmImportSearchFilter.isSearchFilterHidden(3)
           }"
         >
           <AInput
@@ -2877,21 +2622,14 @@ onMounted(() => {
         </AFormItem>
         <AFormItem
           :class="{
-            'page-search-toolbar__filter-col--collapsed':
-              hqCrmImportSearchFilter.isSearchFilterHidden(4),
+            'page-search-toolbar__filter-col--collapsed': hqCrmImportSearchFilter.isSearchFilterHidden(4)
           }"
         >
-          <ACheckbox v-model:checked="crmHqQuery.showAbnormal"
-            >查看异常数据</ACheckbox
-          >
+          <ACheckbox v-model:checked="crmHqQuery.showAbnormal">查看异常数据</ACheckbox>
         </AFormItem>
         <AFormItem>
-          <AButton type="primary" :loading="loading" @click="handleCrmHqSearch"
-            >搜索</AButton
-          >
-          <AButton class="ml-8px" :loading="loading" @click="resetHqCrmQuery"
-            >重置</AButton
-          >
+          <AButton type="primary" :loading="loading" @click="handleCrmHqSearch">搜索</AButton>
+          <AButton class="ml-8px" :loading="loading" @click="resetHqCrmQuery">重置</AButton>
           <PageSearchExpandButton
             v-if="hqCrmImportSearchFilter.showSearchFilterExpandToggle"
             class="ml-8px"
@@ -2911,8 +2649,8 @@ onMounted(() => {
           selectedRowKeys: selectedHqSnapshotIds,
           onChange: onSelectHqCrmRows,
           getCheckboxProps: (record: RowData) => ({
-            disabled: !record.canImport,
-          }),
+            disabled: !record.canImport
+          })
         }"
         :pagination="{
           current: crmHqQuery.pageNum,
@@ -2923,27 +2661,23 @@ onMounted(() => {
             crmHqQuery.pageNum = page;
             if (pageSize) crmHqQuery.pageSize = pageSize;
             loadCrmHqRows();
-          },
+          }
         }"
         :scroll="{ x: 1480 }"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'hqCrmRegion'">
-            <span>{{ record.regionName || "-" }}</span>
-            <span v-if="record.regionCode" class="text-gray-500"
-              >（{{ record.regionCode }}）</span
-            >
+            <span>{{ record.regionName || '-' }}</span>
+            <span v-if="record.regionCode" class="text-gray-500">（{{ record.regionCode }}）</span>
           </template>
           <template v-else-if="column.key === 'hqCrmAlive'">
             <ATag :color="tagColorPositiveNeutral(record.aliveFlag === 1)">
-              {{ record.aliveFlag === 1 ? "有效" : "失效" }}
+              {{ record.aliveFlag === 1 ? '有效' : '失效' }}
             </ATag>
           </template>
           <template v-else-if="column.key === 'hqCrmImportSts'">
             <ATag v-if="record.canImport" color="success">可导入</ATag>
-            <ATag v-else-if="record.existingContract" color="processing"
-              >已存在</ATag
-            >
+            <ATag v-else-if="record.existingContract" color="processing">已存在</ATag>
             <ATag v-else color="warning">异常</ATag>
           </template>
         </template>
@@ -2951,9 +2685,7 @@ onMounted(() => {
       <template #footer>
         <ASpace :size="16">
           <AButton @click="hqCrmImportOpen = false">取消</AButton>
-          <AButton type="primary" :loading="loading" @click="triggerCrmHqImport"
-            >确定</AButton
-          >
+          <AButton type="primary" :loading="loading" @click="triggerCrmHqImport">确定</AButton>
         </ASpace>
       </template>
     </ADrawer>
@@ -2968,9 +2700,9 @@ onMounted(() => {
             placeholder="请选择"
             class="w-full"
             :options="
-              hqCompanyOptions.map((c) => ({
+              hqCompanyOptions.map(c => ({
                 label: c.companyName,
-                value: Number(c.id),
+                value: Number(c.id)
               }))
             "
             @change="onHqFormHqCompanyChange"
@@ -2984,9 +2716,9 @@ onMounted(() => {
             placeholder="请选择"
             class="w-full"
             :options="
-              firstCompanyOptions.map((c) => ({
+              firstCompanyOptions.map(c => ({
                 label: c.companyName,
-                value: Number(c.id),
+                value: Number(c.id)
               }))
             "
           />
@@ -3000,9 +2732,9 @@ onMounted(() => {
             placeholder="请选择"
             class="w-full"
             :options="
-              hqFormRegionOptions.map((r) => ({
+              hqFormRegionOptions.map(r => ({
                 label: r.regionName,
-                value: Number(r.id),
+                value: Number(r.id)
               }))
             "
           />
@@ -3040,9 +2772,9 @@ onMounted(() => {
             placeholder="请选择"
             class="w-full"
             :options="
-              firstCompanyOptions.map((c) => ({
+              firstCompanyOptions.map(c => ({
                 label: c.companyName,
-                value: c.id,
+                value: c.id
               }))
             "
           />
@@ -3055,9 +2787,9 @@ onMounted(() => {
             placeholder="请选择"
             class="w-full"
             :options="
-              secondCompanyOptions.map((c) => ({
+              secondCompanyOptions.map(c => ({
                 label: c.companyName,
-                value: c.id,
+                value: c.id
               }))
             "
           />
@@ -3082,18 +2814,12 @@ onMounted(() => {
         <ARow :gutter="[16, 0]">
           <ACol :span="24" :md="12">
             <AFormItem label="公司名称" name="companyName" required>
-              <AInput
-                v-model:value="companyForm.companyName"
-                placeholder="请输入公司名称"
-              />
+              <AInput v-model:value="companyForm.companyName" placeholder="请输入公司名称" />
             </AFormItem>
           </ACol>
           <ACol :span="24" :md="12">
             <AFormItem label="公司简称">
-              <AInput
-                v-model:value="companyForm.companyShortName"
-                placeholder="请输入公司简称"
-              />
+              <AInput v-model:value="companyForm.companyShortName" placeholder="请输入公司简称" />
             </AFormItem>
           </ACol>
           <ACol :span="24" :md="12">
@@ -3114,9 +2840,9 @@ onMounted(() => {
                 :disabled="!!companyForm.id"
                 placeholder="请选择"
                 :options="
-                  companyTypeOptions.map((item) => ({
+                  companyTypeOptions.map(item => ({
                     label: `${item.typeName} (${item.typeCode})`,
-                    value: item.typeCode,
+                    value: item.typeCode
                   }))
                 "
               />
@@ -3124,26 +2850,17 @@ onMounted(() => {
           </ACol>
           <ACol :span="24" :md="12">
             <AFormItem label="联系人" name="contactName" required>
-              <AInput
-                v-model:value="companyForm.contactName"
-                placeholder="请输入联系人"
-              />
+              <AInput v-model:value="companyForm.contactName" placeholder="请输入联系人" />
             </AFormItem>
           </ACol>
           <ACol :span="24" :md="12">
             <AFormItem label="联系电话" name="contactPhone" required>
-              <AInput
-                v-model:value="companyForm.contactPhone"
-                placeholder="请输入联系电话"
-              />
+              <AInput v-model:value="companyForm.contactPhone" placeholder="请输入联系电话" />
             </AFormItem>
           </ACol>
           <ACol :span="24" :md="12">
             <AFormItem label="客服电话">
-              <AInput
-                v-model:value="companyForm.servicePhone"
-                placeholder="请输入客服电话"
-              />
+              <AInput v-model:value="companyForm.servicePhone" placeholder="请输入客服电话" />
             </AFormItem>
           </ACol>
           <ACol :span="24" :md="12">
@@ -3163,9 +2880,9 @@ onMounted(() => {
                   option-filter-prop="label"
                   placeholder="请选择省份"
                   :options="
-                    provinceOptions.map((item) => ({
+                    provinceOptions.map(item => ({
                       label: item.areaName,
-                      value: item.areaCode,
+                      value: item.areaCode
                     }))
                   "
                   @change="onCompanyProvinceChange"
@@ -3181,9 +2898,9 @@ onMounted(() => {
                   :disabled="!companyForm.provinceCode"
                   placeholder="请选择城市"
                   :options="
-                    cityOptions.map((item) => ({
+                    cityOptions.map(item => ({
                       label: item.areaName,
-                      value: item.areaCode,
+                      value: item.areaCode
                     }))
                   "
                   @change="onCompanyCityChange"
@@ -3199,47 +2916,28 @@ onMounted(() => {
                   :disabled="!companyForm.cityCode"
                   placeholder="请选择区县"
                   :options="
-                    districtOptions.map((item) => ({
+                    districtOptions.map(item => ({
                       label: item.areaName,
-                      value: item.areaCode,
+                      value: item.areaCode
                     }))
                   "
                 />
               </AFormItem>
             </ACol>
           </ARow>
-          <AFormItem
-            label="详细地址"
-            name="detailAddress"
-            required
-            class="company-address-block__detail"
-          >
-            <AInput
-              v-model:value="companyForm.detailAddress"
-              placeholder="请输入详细地址"
-            />
+          <AFormItem label="详细地址" name="detailAddress" required class="company-address-block__detail">
+            <AInput v-model:value="companyForm.detailAddress" placeholder="请输入详细地址" />
           </AFormItem>
         </div>
         <ARow :gutter="[16, 0]">
           <ACol :span="24" :md="12">
             <AFormItem v-if="!companyForm.id" label="管理员用户名" name="adminUsername" required>
-              <AInput
-                v-model:value="companyForm.adminUsername"
-                placeholder="新增公司时必填，用于创建默认管理员账号"
-              />
+              <AInput v-model:value="companyForm.adminUsername" placeholder="新增公司时必填，用于创建默认管理员账号" />
             </AFormItem>
           </ACol>
           <ACol :span="24" :md="12">
-            <AFormItem
-              v-if="isCompanyHqType(companyForm.typeCode)"
-              label="销售组织"
-              name="salesOrg"
-              required
-            >
-              <AInput
-                v-model:value="companyForm.salesOrg"
-                placeholder="请输入销售组织"
-              />
+            <AFormItem v-if="isCompanyHqType(companyForm.typeCode)" label="销售组织" name="salesOrg" required>
+              <AInput v-model:value="companyForm.salesOrg" placeholder="请输入销售组织" />
             </AFormItem>
           </ACol>
           <ACol :span="24">
@@ -3269,10 +2967,7 @@ onMounted(() => {
         :rules="companyTypeFormRules as any"
       >
         <AFormItem label="类型名称" name="typeName" required>
-          <AInput
-            v-model:value="companyTypeForm.typeName"
-            placeholder="如 总部A"
-          />
+          <AInput v-model:value="companyTypeForm.typeName" placeholder="如 总部A" />
         </AFormItem>
         <AFormItem label="类型编码" name="typeCode" required>
           <AInput
@@ -3288,23 +2983,15 @@ onMounted(() => {
             :options="[
               { label: '平台', value: 'PLATFORM' },
               { label: '总部', value: 'HQ' },
-              { label: '网点', value: 'SERVICE' },
+              { label: '网点', value: 'SERVICE' }
             ]"
           />
         </AFormItem>
         <AFormItem label="排序">
-          <AInputNumber
-            v-model:value="companyTypeForm.orderNum"
-            :min="0"
-            class="w-full"
-          />
+          <AInputNumber v-model:value="companyTypeForm.orderNum" :min="0" class="w-full" />
         </AFormItem>
         <AFormItem label="备注">
-          <ATextarea
-            v-model:value="companyTypeForm.remark"
-            :rows="2"
-            placeholder="请输入备注"
-          />
+          <ATextarea v-model:value="companyTypeForm.remark" :rows="2" placeholder="请输入备注" />
         </AFormItem>
       </AForm>
       <template #footer>
@@ -3315,11 +3002,7 @@ onMounted(() => {
       </template>
     </ADrawer>
 
-    <ADrawer
-      v-model:open="companyTypeMenuOpen"
-      :title="companyTypeMenuTitle"
-      :width="680"
-    >
+    <ADrawer v-model:open="companyTypeMenuOpen" :title="companyTypeMenuTitle" :width="680">
       <ASpin :spinning="companyTypeMenuLoading">
         <ATree
           v-model:checked-keys="companyTypeMenuCheckedKeys"
@@ -3333,22 +3016,14 @@ onMounted(() => {
       <template #footer>
         <ASpace :size="16">
           <AButton @click="companyTypeMenuOpen = false">取消</AButton>
-          <AButton
-            type="primary"
-            :loading="companyTypeMenuSubmitting"
-            @click="submitCompanyTypeMenuAssign"
-          >
+          <AButton type="primary" :loading="companyTypeMenuSubmitting" @click="submitCompanyTypeMenuAssign">
             确定
           </AButton>
         </ASpace>
       </template>
     </ADrawer>
 
-    <ADrawer
-      v-model:open="regionFormOpen"
-      :title="regionForm.id ? '编辑大区' : '新增大区'"
-      :width="460"
-    >
+    <ADrawer v-model:open="regionFormOpen" :title="regionForm.id ? '编辑大区' : '新增大区'" :width="460">
       <AForm
         ref="orgRegionFormRef"
         layout="vertical"
@@ -3357,17 +3032,10 @@ onMounted(() => {
         :rules="orgRegionFormRules as any"
       >
         <AFormItem label="大区编码" name="regionCode" required>
-          <AInput
-            v-model:value="regionForm.regionCode"
-            placeholder="如：HD"
-            :maxlength="32"
-          />
+          <AInput v-model:value="regionForm.regionCode" placeholder="如：HD" :maxlength="32" />
         </AFormItem>
         <AFormItem label="大区名称" name="regionName" required>
-          <AInput
-            v-model:value="regionForm.regionName"
-            placeholder="如：华东大区"
-          />
+          <AInput v-model:value="regionForm.regionName" placeholder="如：华东大区" />
         </AFormItem>
         <AFormItem label="备注">
           <ATextarea v-model:value="regionForm.remark" :rows="3" />
@@ -3381,29 +3049,14 @@ onMounted(() => {
       </template>
     </ADrawer>
 
-    <ADrawer
-      v-model:open="previewOpen"
-      title="外部公司 CRM 导入预览"
-      :width="720"
-    >
+    <ADrawer v-model:open="previewOpen" title="外部公司 CRM 导入预览" :width="720">
       <div class="mb-8px">
-        <AInput
-          v-model:value="previewCustId"
-          placeholder="custId / 主键"
-          class="max-w-240px"
-        />
-        <AButton
-          class="ml-8px"
-          type="primary"
-          :loading="previewLoading"
-          @click="loadPreview"
-          >加载</AButton
-        >
+        <AInput v-model:value="previewCustId" placeholder="custId / 主键" class="max-w-240px" />
+        <AButton class="ml-8px" type="primary" :loading="previewLoading" @click="loadPreview">加载</AButton>
       </div>
-      <pre
-        class="max-h-400px overflow-auto rounded-4px bg-gray-50 p-12px text-12px dark:bg-dark-800"
-        >{{ JSON.stringify(previewData, null, 2) }}</pre
-      >
+      <pre class="max-h-400px overflow-auto rounded-4px bg-gray-50 p-12px text-12px dark:bg-dark-800">{{
+        JSON.stringify(previewData, null, 2)
+      }}</pre>
       <template #footer>
         <ASpace :size="16">
           <AButton @click="previewOpen = false">关闭</AButton>
@@ -3411,25 +3064,13 @@ onMounted(() => {
       </template>
     </ADrawer>
 
-    <ADrawer
-      v-model:open="companyCrmImportOpen"
-      title="选择 CRM 公司"
-      :width="1100"
-    >
+    <ADrawer v-model:open="companyCrmImportOpen" title="选择 CRM 公司" :width="1100">
       <AForm layout="inline" class="page-search-toolbar--inline mb-12px">
         <AFormItem label="SAP 公司编码">
-          <AInput
-            v-model:value="companyCrmImportQuery.companyCode"
-            allow-clear
-            placeholder="请输入 SAP 公司编码"
-          />
+          <AInput v-model:value="companyCrmImportQuery.companyCode" allow-clear placeholder="请输入 SAP 公司编码" />
         </AFormItem>
         <AFormItem label="公司名称">
-          <AInput
-            v-model:value="companyCrmImportQuery.companyName"
-            allow-clear
-            placeholder="请输入公司名称"
-          />
+          <AInput v-model:value="companyCrmImportQuery.companyName" allow-clear placeholder="请输入公司名称" />
         </AFormItem>
         <AFormItem label="CRM 状态">
           <ASelect
@@ -3438,20 +3079,16 @@ onMounted(() => {
             placeholder="全部"
             class="min-w-160px"
             :options="
-              externalStateOptions.map((item) => ({
+              externalStateOptions.map(item => ({
                 label: item.label,
-                value: item.value,
+                value: item.value
               }))
             "
           />
         </AFormItem>
         <AFormItem>
-          <AButton type="primary" @click="handleCompanyCrmImportSearch"
-            >搜索</AButton
-          >
-          <AButton class="ml-8px" @click="resetCompanyCrmImportSearch"
-            >重置</AButton
-          >
+          <AButton type="primary" @click="handleCompanyCrmImportSearch">搜索</AButton>
+          <AButton class="ml-8px" @click="resetCompanyCrmImportSearch">重置</AButton>
         </AFormItem>
       </AForm>
       <ATable
@@ -3469,57 +3106,57 @@ onMounted(() => {
             companyCrmImportQuery.pageNum = page;
             if (pageSize) companyCrmImportQuery.pageSize = pageSize;
             loadCompanyCrmImportList();
-          },
+          }
         }"
         :columns="[
           {
             title: 'SAP 公司编码',
             dataIndex: 'companyCode',
             key: 'companyCode',
-            width: 140,
+            width: 140
           },
           {
             title: '公司名称',
             dataIndex: 'companyName',
             key: 'companyName',
-            width: 180,
+            width: 180
           },
           {
             title: '公司简称',
             dataIndex: 'companyShortName',
             key: 'companyShortName',
-            width: 140,
+            width: 140
           },
           {
             title: '建议类型',
             dataIndex: 'typeCode',
             key: 'typeCode',
-            width: 120,
+            width: 120
           },
           {
             title: '联系人',
             dataIndex: 'contactName',
             key: 'contactName',
-            width: 100,
+            width: 100
           },
           {
             title: '联系电话',
             dataIndex: 'contactPhone',
             key: 'contactPhone',
-            width: 130,
+            width: 130
           },
           {
             title: '地址',
             dataIndex: 'address',
             key: 'address',
-            ellipsis: true,
+            ellipsis: true
           },
-          { title: '操作', key: 'actions', width: COMPANY_CRM_IMPORT_LIST_ACTION_COL_WIDTH, fixed: 'right' },
+          { title: '操作', key: 'actions', width: COMPANY_CRM_IMPORT_LIST_ACTION_COL_WIDTH, fixed: 'right' }
         ]"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'typeCode'">
-            {{ record.typeCode || "-" }}
+            {{ record.typeCode || '-' }}
           </template>
           <template v-else-if="column.key === 'actions'">
             <AButton

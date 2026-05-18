@@ -292,7 +292,9 @@ async function handleUnbindWechat() {
     onOk: async () => {
       bindLoading.value = true;
       try {
-        const { error, response } = await fetchUnbindWechat({ currentPassword } as Api.Auth.UnbindWechatParams);
+        const { error, response } = await fetchUnbindWechat({
+          currentPassword
+        } as Api.Auth.UnbindWechatParams);
         if (error) return;
         window.$message?.success(getResponseMsg(response, '微信解绑成功，请重新登录'));
         unbindForm.currentPassword = '';

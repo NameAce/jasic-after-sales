@@ -40,9 +40,9 @@ export function useCaptcha() {
    * 作用：验证手机号是否有效
    * @param phone 手机号
    * @returns 是否有效
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   function isPhoneValid(phone: string) {
     if (phone.trim() === '') {
       window.$message?.error?.($t('form.phone.required'));
@@ -63,9 +63,9 @@ export function useCaptcha() {
    * 作用：获取验证码
    * @param phone 手机号
    * @returns 是否成功
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   async function getCaptcha(phone: string) {
     // 验证手机号是否有效
     const valid = isPhoneValid(phone);

@@ -32,9 +32,9 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
    * 将主题 store 重置为初始状态。
    *
    * @returns {void} 无返回值
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   function resetStore() {
     const themeStore = useThemeStore();
 
@@ -77,9 +77,9 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
    *
    * @param themeScheme - 主题方案枚举
    * @returns {void} 无返回值
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   function setThemeScheme(themeScheme: UnionKey.ThemeScheme) {
     settings.value.themeScheme = themeScheme;
   }
@@ -89,9 +89,9 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
    *
    * @param isGrayscale - 是否灰度
    * @returns {void} 无返回值
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   function setGrayscale(isGrayscale: boolean) {
     settings.value.grayscale = isGrayscale;
   }
@@ -101,9 +101,9 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
    *
    * @param isColourWeakness - 是否色弱模式
    * @returns {void} 无返回值
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   function setColourWeakness(isColourWeakness: boolean) {
     settings.value.colourWeakness = isColourWeakness;
   }
@@ -112,9 +112,9 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
    * 在 light → dark → auto 之间循环切换主题方案。
    *
    * @returns {void} 无返回值
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   function toggleThemeScheme() {
     const themeSchemes: UnionKey.ThemeScheme[] = ['light', 'dark', 'auto'];
 
@@ -132,9 +132,9 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
    *
    * @param mode - 布局模式
    * @returns {void} 无返回值
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   function setThemeLayout(mode: UnionKey.ThemeLayoutMode) {
     settings.value.layout.mode = mode;
   }
@@ -145,9 +145,9 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
    * @param key - 颜色键（如 primary、success）
    * @param color - 用户选择的颜色值
    * @returns {void} 无返回值
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   function updateThemeColors(key: App.Theme.ThemeColorKey, color: string) {
     let colorValue = color;
 
@@ -168,9 +168,9 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
    * 将主题 CSS 变量写入文档根节点，供全局样式使用。
    *
    * @returns {void} 无返回值
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   function setupThemeVarsToGlobal() {
     const { themeTokens, darkThemeTokens } = createThemeToken(
       themeColors.value,
@@ -185,9 +185,9 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
    *
    * @param reverse - 是否反向
    * @returns {void} 无返回值
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   function setLayoutReverseHorizontalMix(reverse: boolean) {
     settings.value.layout.reverseHorizontalMix = reverse;
   }
@@ -196,9 +196,9 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
    * 生产环境下将当前主题设置持久化到本地存储。
    *
    * @returns {void} 无返回值
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   function cacheThemeSettings() {
     const isProd = import.meta.env.PROD;
 

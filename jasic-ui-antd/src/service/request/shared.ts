@@ -8,6 +8,10 @@ import { localStg } from '@/utils/storage';
 import { fetchRefreshToken } from '../api';
 import type { RequestInstanceState } from './type';
 
+function isNil(value: unknown): value is null | undefined {
+  return value === null || value === undefined;
+}
+
 /**
  * 作用：从本地存储读取 token 并格式化为请求头 Authorization 值（与 Sa-Token 约定一致，不加 Bearer）。
  * @returns {string | null} 鉴权头内容，未登录为 null
@@ -158,7 +162,7 @@ export function getResponseMsg(response: unknown, fallback = '') {
  * @修改时间 2026-05-14
  */
 export function getFlatResponseMsg(flatResult: unknown, fallback = ''): string {
-  if (flatResult == null) return fallback;
+  if (isNil(flatResult)) return fallback;
   if (typeof flatResult === 'string') {
     const t = flatResult.trim();
     return t || fallback;
@@ -167,10 +171,10 @@ export function getFlatResponseMsg(flatResult: unknown, fallback = ''): string {
 
   const o = flatResult as Record<string, unknown>;
   /** 扁平请求失败时不再从 response 取文案，避免业务层误把错误 msg 当成功提示
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
-  if ('error' in o && o.error != null && o.error !== false) {
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
+  if ('error' in o && !isNil(o.error) && o.error !== false) {
     return fallback;
   }
   if (o.response) {
@@ -198,9 +202,9 @@ export function getFlatResponseMsg(flatResult: unknown, fallback = ''): string {
  * @修改时间 2026-05-14
  */
 export function getFlatErrorMsg(flatResult: unknown, fallback = ''): string {
-  if (flatResult == null || typeof flatResult !== 'object') return fallback;
+  if (isNil(flatResult) || typeof flatResult !== 'object') return fallback;
   const o = flatResult as Record<string, unknown>;
-  if (o.response != null) {
+  if (!isNil(o.response)) {
     const fromResponse = getResponseMsg(o.response, '');
     if (fromResponse) return fromResponse;
   }
@@ -208,7 +212,7 @@ export function getFlatErrorMsg(flatResult: unknown, fallback = ''): string {
     const v = o[key];
     if (typeof v === 'string' && v.trim()) return v.trim();
   }
-  if (o.data != null && typeof o.data === 'object') {
+  if (!isNil(o.data) && typeof o.data === 'object') {
     const d = o.data as Record<string, unknown>;
     const nested = [d.msg, d.message].find(x => typeof x === 'string' && String(x).trim());
     if (typeof nested === 'string') return nested.trim();
@@ -226,12 +230,12 @@ export function getFlatErrorMsg(flatResult: unknown, fallback = ''): string {
  * @修改时间 2026-05-14
  */
 export function notifyOnceSuccessFromFlatResult(result: unknown, fallback: string): boolean {
-  if (result != null && typeof result === 'object') {
+  if (!isNil(result) && typeof result === 'object') {
     const r = result as { error?: unknown; response?: unknown };
-    if (r.error != null && r.error !== false) {
+    if (!isNil(r.error) && r.error !== false) {
       return false;
     }
-    if (r.response != null && typeof r.response === 'object') {
+    if (!isNil(r.response) && typeof r.response === 'object') {
       const text = getResponseMsg(r.response, '').trim();
       window.$message?.success?.(text || fallback);
       return true;

@@ -14,3 +14,7 @@ end_of_line = lf
 trim_trailing_whitespace = true
 # 插入最终换行符
 insert_final_newline = true
+# 删掉文件末尾尾随逗号
+remove_trailing_comma = true
+# 单引号风格
+quote_style = single

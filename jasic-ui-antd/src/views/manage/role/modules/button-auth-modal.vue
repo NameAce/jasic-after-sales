@@ -66,7 +66,10 @@ const checks = shallowRef<number[]>([]);
  * @returns 返回 Promise，本地状态更新后结束
  */
 async function getChecks() {
-  console.log(props.roleId);
+  if (!Number.isFinite(props.roleId)) {
+    checks.value = [];
+    return;
+  }
   // request
   checks.value = [1, 2, 3, 4, 5];
 }
@@ -77,7 +80,9 @@ async function getChecks() {
  * @returns {void} 无
  */
 function handleSubmit() {
-  console.log(checks.value, props.roleId);
+  if (!Number.isFinite(props.roleId)) {
+    return;
+  }
   // request
 
   window.$message?.success?.($t('common.modifySuccess'));

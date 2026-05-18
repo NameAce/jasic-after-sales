@@ -2,20 +2,11 @@
 /**
  * 高级/运维配置聚合页：字典、参数、通知模板、角色模板、同步任务等多 Tab（对接 system 等接口）。
  */
-import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
-import { useRoute } from "vue-router";
-import type { FormInstance } from "ant-design-vue";
-import { useRouteMenuTitle } from "@/hooks/common/route-menu-title";
-import {
-  adaptiveModalFormGridClass,
-  adaptiveModalWidth,
-} from "@/hooks/common/modal-form-layout";
-import { computeExpandedKeysForCheckedMenuTree } from "@/utils/tree-expand-keys";
-import { notifyOnceSuccessFromFlatResult } from "@/service/request/shared";
-import {
-  tagColorEnabled,
-  tagColorPositiveNeutral,
-} from "@/constants/list-status-tag";
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
+import type { FormInstance } from 'ant-design-vue';
+import { tagColorEnabled, tagColorPositiveNeutral } from '@/constants/list-status-tag';
+import { notifyOnceSuccessFromFlatResult } from '@/service/request/shared';
 import {
   addConfig,
   addDictType,
@@ -65,17 +56,17 @@ import {
   updateNotifyTemplateCustom,
   updateRegion,
   updateRoleTemplate,
-  updateSyncTask,
-} from "@/service/api";
-import { useAuth } from "@/hooks/business/auth";
-import PageSearchExpandButton from "@/components/custom/page-search-expand-button.vue";
-import { usePageSearchFilterCollapse } from "@/hooks/common/page-search-filter-collapse";
-import { useTableScroll } from "@/hooks/common/table";
-import { estimateAntTableActionColWidth } from "@/utils/table-action-width";
-import {
-  createAntTableListLocale,
-  useListRequestTableMsgs,
-} from "@/utils/list-table-empty-state";
+  updateSyncTask
+} from '@/service/api';
+import { adaptiveModalFormGridClass, adaptiveModalWidth } from '@/hooks/common/modal-form-layout';
+import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
+import { useAuth } from '@/hooks/business/auth';
+import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
+import { useTableScroll } from '@/hooks/common/table';
+import { computeExpandedKeysForCheckedMenuTree } from '@/utils/tree-expand-keys';
+import { estimateAntTableActionColWidth } from '@/utils/table-action-width';
+import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
+import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
 
 type RowData = Record<string, any>;
 type DataScopeOption = {
@@ -84,15 +75,7 @@ type DataScopeOption = {
   defaultOption?: boolean;
   disabled?: boolean;
 };
-type ModuleKey =
-  | "dict"
-  | "config"
-  | "notifyTemplate"
-  | "barcode"
-  | "syncTask"
-  | "fault"
-  | "roleTemplate"
-  | "region";
+type ModuleKey = 'dict' | 'config' | 'notifyTemplate' | 'barcode' | 'syncTask' | 'fault' | 'roleTemplate' | 'region';
 
 const route = useRoute();
 const pageMenuTitle = useRouteMenuTitle();
@@ -107,7 +90,7 @@ const faultSearchFilter = usePageSearchFilterCollapse(5);
 
 // 主列表加载与 Tab
 const loading = ref(false);
-const activeKey = ref<ModuleKey>("dict");
+const activeKey = ref<ModuleKey>('dict');
 const rows = ref<RowData[]>([]);
 const total = ref(0);
 const {
@@ -116,122 +99,102 @@ const {
   clearListMsgs,
   consumeFlatError,
   refreshEmptySuccessMsg,
-  setMsgFromCatch,
+  setMsgFromCatch
 } = useListRequestTableMsgs();
 // 通用分页
 const pageQuery = reactive({ pageNum: 1, pageSize: 10 });
 
 /** 各子模块操作列宽度：按「当前表格该行最多操作按钮」文案横排估算 */
 const ADV_MODULE_ACTION_COL_WIDTH = {
-  dict: estimateAntTableActionColWidth(["编辑", "删除"]),
-  config: estimateAntTableActionColWidth(["编辑", "删除"]),
-  notifyTemplate: estimateAntTableActionColWidth([
-    "预览",
-    "渠道配置",
-    "编辑",
-    "删除",
-  ]),
-  syncTask: estimateAntTableActionColWidth(["编辑", "执行", "日志"]),
-  fault: estimateAntTableActionColWidth(["编辑"]),
-  roleTemplate: estimateAntTableActionColWidth([
-    "编辑",
-    "分配菜单",
-    "全量同步到公司",
-    "删除",
-  ]),
-  region: estimateAntTableActionColWidth(["编辑", "删除"]),
+  dict: estimateAntTableActionColWidth(['编辑', '删除']),
+  config: estimateAntTableActionColWidth(['编辑', '删除']),
+  notifyTemplate: estimateAntTableActionColWidth(['预览', '渠道配置', '编辑', '删除']),
+  syncTask: estimateAntTableActionColWidth(['编辑', '执行', '日志']),
+  fault: estimateAntTableActionColWidth(['编辑']),
+  roleTemplate: estimateAntTableActionColWidth(['编辑', '分配菜单', '全量同步到公司', '删除']),
+  region: estimateAntTableActionColWidth(['编辑', '删除'])
 } as const;
 
 /** 通知模板渠道弹窗内「字段映射」子表：单行仅「删除」 */
-const NOTIFY_FIELD_MAPPING_ACTION_COL_W = estimateAntTableActionColWidth([
-  "删除",
-]);
+const NOTIFY_FIELD_MAPPING_ACTION_COL_W = estimateAntTableActionColWidth(['删除']);
 
 /** 与当前 Tab 列宽之和匹配的最小 scroll.x，避免固定操作列被挤压、需横向拖动才能点全按钮 */
 function advancedModuleTableMinScrollX(key: ModuleKey): number {
   const w = ADV_MODULE_ACTION_COL_WIDTH;
   switch (key) {
-    case "dict":
+    case 'dict':
       return 160 + 180 + 90 + 140 + w.dict;
-    case "config":
+    case 'config':
       return 160 + 180 + 220 + 90 + 140 + w.config;
-    case "notifyTemplate":
-      return (
-        200 + 180 + 110 + 100 + 100 + 160 + 140 + 140 + 170 + w.notifyTemplate
-      );
-    case "barcode":
+    case 'notifyTemplate':
+      return 200 + 180 + 110 + 100 + 100 + 160 + 140 + 140 + 170 + w.notifyTemplate;
+    case 'barcode':
       return 180 + 140 + 160 + 120 + 120 + 120 + 160 + 140 + 140 + 90 + 170;
-    case "syncTask":
+    case 'syncTask':
       return 160 + 180 + 140 + 160 + 90 + 100 + 170 + 170 + w.syncTask;
-    case "fault":
+    case 'fault':
       return 180 + 140 + 140 + 160 + 90 + 170 + w.fault;
-    case "roleTemplate":
+    case 'roleTemplate':
       return 180 + 160 + 140 + 90 + 140 + 160 + 170 + w.roleTemplate;
-    case "region":
+    case 'region':
       return 140 + 200 + 120 + 170 + w.region;
     default:
       return 960;
   }
 }
 
-const tableScrollMinX = computed(() =>
-  advancedModuleTableMinScrollX(activeKey.value),
-);
+const tableScrollMinX = computed(() => advancedModuleTableMinScrollX(activeKey.value));
 const { tableWrapperRef, scrollConfig } = useTableScroll(tableScrollMinX);
 
-const tableListLocale = createAntTableListLocale(
-  listFetchErrorMsg,
-  listEmptyBackendMsg,
-  rows,
-);
+const tableListLocale = createAntTableListLocale(listFetchErrorMsg, listEmptyBackendMsg, rows);
 
 // 字典筛选
 const dictQuery = reactive({
-  dictName: "",
-  dictType: "",
-  status: undefined as number | undefined,
+  dictName: '',
+  dictType: '',
+  status: undefined as number | undefined
 });
 
 // 参数配置筛选
 const configQuery = reactive({
-  configName: "",
-  configKey: "",
-  configType: undefined as number | undefined,
+  configName: '',
+  configKey: '',
+  configType: undefined as number | undefined
 });
 
 // 通知模板筛选
 const notifyQuery = reactive({
-  templateCode: "",
-  templateName: "",
-  templateSource: undefined as string | undefined,
+  templateCode: '',
+  templateName: '',
+  templateSource: undefined as string | undefined
 });
 
 // 机器条码档案筛选
 const barcodeQuery = reactive({
   ownerHqId: undefined as number | undefined,
-  barcode: "",
-  deliverNumber: "",
-  productCode: "",
-  machineNo: "",
-  productModel: "",
-  status: undefined as number | undefined,
+  barcode: '',
+  deliverNumber: '',
+  productCode: '',
+  machineNo: '',
+  productModel: '',
+  status: undefined as number | undefined
 });
 
 // 同步任务筛选
 const syncTaskQuery = reactive({
-  taskCode: "",
-  taskName: "",
+  taskCode: '',
+  taskName: '',
   handlerCode: undefined as string | undefined,
-  status: undefined as number | undefined,
+  status: undefined as number | undefined
 });
 
 // 故障维修配置筛选
 const faultQuery = reactive({
   companyId: undefined as number | undefined,
-  productCode: "",
-  productModel: "",
-  faultDesc: "",
-  status: undefined as number | undefined,
+  productCode: '',
+  productModel: '',
+  faultDesc: '',
+  status: undefined as number | undefined
 });
 
 // 角色模板：当前筛选的类型编码
@@ -250,34 +213,34 @@ const barcodeHqOptions = ref<RowData[]>([]);
 
 // 顶部 Tab 选项
 const tabOptions = [
-  { key: "dict" as const, label: "字典管理" },
-  { key: "config" as const, label: "参数配置" },
-  { key: "notifyTemplate" as const, label: "通知模板" },
-  { key: "barcode" as const, label: "机器条码档案" },
-  { key: "syncTask" as const, label: "同步任务" },
-  { key: "fault" as const, label: "故障维修配置" },
-  { key: "roleTemplate" as const, label: "角色模板" },
-  { key: "region" as const, label: "系统大区" },
+  { key: 'dict' as const, label: '字典管理' },
+  { key: 'config' as const, label: '参数配置' },
+  { key: 'notifyTemplate' as const, label: '通知模板' },
+  { key: 'barcode' as const, label: '机器条码档案' },
+  { key: 'syncTask' as const, label: '同步任务' },
+  { key: 'fault' as const, label: '故障维修配置' },
+  { key: 'roleTemplate' as const, label: '角色模板' },
+  { key: 'region' as const, label: '系统大区' }
 ];
 
 // 路由 name -> 子模块 key
 const ROUTE_NAME_TO_MODULE_KEY: Record<string, ModuleKey> = {
-  "system_role-template": "roleTemplate",
-  system_config: "config",
-  "system_dict-type": "dict",
-  "system_dict-data": "dict",
-  "system_notify-template": "notifyTemplate",
-  "system_machine-barcode": "barcode",
-  "system_sync-task": "syncTask",
-  "system_fault-repair-config": "fault",
-  system_region: "region",
+  'system_role-template': 'roleTemplate',
+  system_config: 'config',
+  'system_dict-type': 'dict',
+  'system_dict-data': 'dict',
+  'system_notify-template': 'notifyTemplate',
+  'system_machine-barcode': 'barcode',
+  'system_sync-task': 'syncTask',
+  'system_fault-repair-config': 'fault',
+  system_region: 'region'
 };
 
 // 字典/参数配置等通用表单抽屉
 const formOpen = ref(false);
 const unifiedFormRef = ref<FormInstance | null>(null);
 const formModel = reactive<RowData>({});
-const formTitle = ref("");
+const formTitle = ref('');
 
 // 条码档案详情抽屉
 const barcodeDetailOpen = ref(false);
@@ -286,53 +249,52 @@ const barcodeDetail = ref<RowData | null>(null);
 const barcodeDetailRows = computed(() => {
   const detail = barcodeDetail.value || {};
   const statusValue = Number(detail.status);
-  const statusLabel =
-    statusValue === 1 ? "启用" : statusValue === 0 ? "停用" : "-";
+  const statusLabel = statusValue === 1 ? '启用' : statusValue === 0 ? '停用' : '-';
   return [
-    { key: "barcode", label: "条码", value: detail.barcode || "-" },
+    { key: 'barcode', label: '条码', value: detail.barcode || '-' },
     {
-      key: "deliverNumber",
-      label: "发货单号",
-      value: detail.deliverNumber || "-",
+      key: 'deliverNumber',
+      label: '发货单号',
+      value: detail.deliverNumber || '-'
     },
     {
-      key: "hqCompanyName",
-      label: "归属总部",
-      value: detail.hqCompanyName || "-",
+      key: 'hqCompanyName',
+      label: '归属总部',
+      value: detail.hqCompanyName || '-'
     },
-    { key: "custId", label: "CRM公司ID", value: detail.custId || "-" },
-    { key: "salesOrg", label: "销售组织", value: detail.salesOrg || "-" },
-    { key: "productCode", label: "物料编码", value: detail.productCode || "-" },
-    { key: "productName", label: "商品名称", value: detail.productName || "-" },
+    { key: 'custId', label: 'CRM公司ID', value: detail.custId || '-' },
+    { key: 'salesOrg', label: '销售组织', value: detail.salesOrg || '-' },
+    { key: 'productCode', label: '物料编码', value: detail.productCode || '-' },
+    { key: 'productName', label: '商品名称', value: detail.productName || '-' },
     {
-      key: "productModel",
-      label: "产品型号",
-      value: detail.productModel || "-",
+      key: 'productModel',
+      label: '产品型号',
+      value: detail.productModel || '-'
     },
-    { key: "machineNo", label: "机器小号", value: detail.machineNo || "-" },
-    { key: "scanDate", label: "条码扫码时间", value: detail.scanDate || "-" },
+    { key: 'machineNo', label: '机器小号', value: detail.machineNo || '-' },
+    { key: 'scanDate', label: '条码扫码时间', value: detail.scanDate || '-' },
     {
-      key: "lastOutDate",
-      label: "最后出库日期",
-      value: detail.lastOutDate || "-",
-    },
-    {
-      key: "crmAddTime",
-      label: "CRM创建时间",
-      value: detail.crmAddTime || "-",
+      key: 'lastOutDate',
+      label: '最后出库日期',
+      value: detail.lastOutDate || '-'
     },
     {
-      key: "lastSyncTime",
-      label: "最近同步时间",
-      value: detail.lastSyncTime || "-",
+      key: 'crmAddTime',
+      label: 'CRM创建时间',
+      value: detail.crmAddTime || '-'
     },
     {
-      key: "warrantyStatus",
-      label: "质保状态",
-      value: detail.warrantyStatus || "-",
+      key: 'lastSyncTime',
+      label: '最近同步时间',
+      value: detail.lastSyncTime || '-'
     },
-    { key: "status", label: "状态", value: statusLabel },
-    { key: "remark", label: "备注", value: detail.remark || "-" },
+    {
+      key: 'warrantyStatus',
+      label: '质保状态',
+      value: detail.warrantyStatus || '-'
+    },
+    { key: 'status', label: '状态', value: statusLabel },
+    { key: 'remark', label: '备注', value: detail.remark || '-' }
   ];
 });
 
@@ -340,56 +302,54 @@ const barcodeDetailRows = computed(() => {
 const notifyViewOpen = ref(false);
 // 通知模板：抽屉表单与预览弹窗状态
 const notifyFormOpen = ref(false);
-const notifyFormTitle = ref("");
+const notifyFormTitle = ref('');
 const notifyFormReadonly = ref(false);
 const notifyFormSubmitting = ref(false);
 const notifyFormRef = ref<FormInstance | null>(null);
 const notifyForm = reactive<RowData>({});
 const notifyPreviewOpen = ref(false);
 const notifyPreviewLoading = ref(false);
-const notifyPreviewVariablesText = ref("");
+const notifyPreviewVariablesText = ref('');
 const notifyPreviewResult = ref<RowData | null>(null);
 const notifyPreviewPayload = ref<RowData | null>(null);
 const notifyRouteTypeOptions = [
-  { label: "工单详情", value: "WORK_ORDER_DETAIL" },
-  { label: "工单评价", value: "WORK_ORDER_EVALUATE" },
+  { label: '工单详情', value: 'WORK_ORDER_DETAIL' },
+  { label: '工单评价', value: 'WORK_ORDER_EVALUATE' }
 ];
 
 // 通知渠道配置抽屉
 const channelsOpen = ref(false);
 const channelsLoading = ref(false);
 const channelsReadonly = ref(false);
-const channelsTemplateCode = ref("");
+const channelsTemplateCode = ref('');
 const channelsRows = ref<RowData[]>([]);
 
 // 同步任务编辑抽屉
 const syncFormOpen = ref(false);
-const syncFormTitle = ref("");
+const syncFormTitle = ref('');
 const syncTaskFormRef = ref<FormInstance | null>(null);
 const syncFormModel = reactive<RowData>({});
 
 // 同步任务执行日志弹窗
 const logOpen = ref(false);
-const logDialogTitle = ref("执行日志");
+const logDialogTitle = ref('执行日志');
 const logTaskId = ref<number | string | undefined>(undefined);
 const logRows = ref<RowData[]>([]);
 const logTotal = ref(0);
 const logPage = reactive({ pageNum: 1, pageSize: 10 });
 const logLoading = ref(false);
 const logQuery = reactive({
-  status: undefined as string | undefined,
+  status: undefined as string | undefined
 });
 
 // 角色模板数据范围映射（按 typeCode，供表格列展示标签）
 const roleTemplateDataScopeMap = ref<Record<string, DataScopeOption[]>>({});
 // 角色模板表单：当前 typeCode 对应的数据范围下拉
-const roleTemplateScopeOptions = ref<Array<{ label: string; value: string }>>(
-  [],
-);
+const roleTemplateScopeOptions = ref<Array<{ label: string; value: string }>>([]);
 // 角色模板菜单分配
 const menuAssignOpen = ref(false);
 const menuAssignSubmitting = ref(false);
-const menuAssignTypeCode = ref("");
+const menuAssignTypeCode = ref('');
 const menuAssignTemplate = ref<RowData | null>(null);
 const menuTreeData = ref<any[]>([]);
 const menuCheckedKeys = ref<Array<string | number>>([]);
@@ -397,7 +357,7 @@ const menuExpandedKeys = ref<Array<string | number>>([]);
 
 // 系统大区表单抽屉
 const regionFormOpen = ref(false);
-const regionFormTitle = ref("");
+const regionFormTitle = ref('');
 const regionForm = reactive<RowData>({});
 const advRegionFormRef = ref<FormInstance | null>(null);
 
@@ -509,7 +469,7 @@ async function loadHqForRegion() {
   const { data } = await listCompany({
     pageNum: 1,
     pageSize: 999,
-    category: "HQ",
+    category: 'HQ'
   });
   const list = pickRows(data);
   hqCompanyOptions.value = list;
@@ -536,10 +496,10 @@ async function loadTypeCodeLabels() {
   }
   try {
     const { data } = await roleTemplateDataScopeOptionMap();
-    roleTemplateDataScopeMap.value = ((data as unknown as Record<
+    roleTemplateDataScopeMap.value = ((data as unknown as Record<string, DataScopeOption[]>) || {}) as Record<
       string,
       DataScopeOption[]
-    >) || {}) as Record<string, DataScopeOption[]>;
+    >;
   } catch {
     roleTemplateDataScopeMap.value = {};
   }
@@ -552,28 +512,28 @@ async function loadTypeCodeLabels() {
 function loadByModule() {
   const p = listParams();
   switch (activeKey.value) {
-    case "dict":
+    case 'dict':
       return listDictType({
         ...p,
         dictName: dictQuery.dictName || undefined,
         dictType: dictQuery.dictType || undefined,
-        status: dictQuery.status,
+        status: dictQuery.status
       });
-    case "config":
+    case 'config':
       return listSystemConfig({
         ...p,
         configName: configQuery.configName || undefined,
         configKey: configQuery.configKey || undefined,
-        configType: configQuery.configType,
+        configType: configQuery.configType
       });
-    case "notifyTemplate":
+    case 'notifyTemplate':
       return listNotifyTemplate({
         ...p,
         templateCode: notifyQuery.templateCode || undefined,
         templateName: notifyQuery.templateName || undefined,
-        templateSource: notifyQuery.templateSource,
+        templateSource: notifyQuery.templateSource
       });
-    case "barcode":
+    case 'barcode':
       return listMachineBarcode({
         ...p,
         ownerHqId: barcodeQuery.ownerHqId,
@@ -582,28 +542,28 @@ function loadByModule() {
         productCode: barcodeQuery.productCode || undefined,
         machineNo: barcodeQuery.machineNo || undefined,
         productModel: barcodeQuery.productModel || undefined,
-        status: barcodeQuery.status,
+        status: barcodeQuery.status
       });
-    case "syncTask":
+    case 'syncTask':
       return listSyncTask({
         ...p,
         taskCode: syncTaskQuery.taskCode || undefined,
         taskName: syncTaskQuery.taskName || undefined,
         handlerCode: syncTaskQuery.handlerCode,
-        status: syncTaskQuery.status,
+        status: syncTaskQuery.status
       });
-    case "fault":
+    case 'fault':
       return listFaultRepairConfig({
         ...p,
         companyId: faultQuery.companyId,
         productCode: faultQuery.productCode || undefined,
         productModel: faultQuery.productModel || undefined,
         faultDesc: faultQuery.faultDesc || undefined,
-        status: faultQuery.status,
+        status: faultQuery.status
       });
-    case "roleTemplate":
+    case 'roleTemplate':
       return listRoleTemplate(roleTemplateTypeCode.value || undefined, p);
-    case "region":
+    case 'region':
       if (regionHqId.value == null) {
         return Promise.resolve({ data: [] });
       }
@@ -617,302 +577,302 @@ function loadByModule() {
 const columns = computed(() => {
   const aw = ADV_MODULE_ACTION_COL_WIDTH;
   const actionCol = (width: number) => ({
-    title: "操作",
-    key: "actions",
+    title: '操作',
+    key: 'actions',
     width,
-    fixed: "right" as const,
+    fixed: 'right' as const
   });
   switch (activeKey.value) {
-    case "dict":
+    case 'dict':
       return [
         {
-          title: "字典名称",
-          dataIndex: "dictName",
-          key: "dictName",
-          width: 160,
+          title: '字典名称',
+          dataIndex: 'dictName',
+          key: 'dictName',
+          width: 160
         },
         {
-          title: "字典类型",
-          dataIndex: "dictType",
-          key: "dictType",
-          width: 180,
+          title: '字典类型',
+          dataIndex: 'dictType',
+          key: 'dictType',
+          width: 180
         },
-        { title: "状态", dataIndex: "status", key: "status", width: 90 },
-        { title: "备注", dataIndex: "remark", key: "remark", ellipsis: true },
-        actionCol(aw.dict),
+        { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
+        { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
+        actionCol(aw.dict)
       ];
-    case "config":
+    case 'config':
       return [
         {
-          title: "参数名称",
-          dataIndex: "configName",
-          key: "configName",
-          width: 160,
+          title: '参数名称',
+          dataIndex: 'configName',
+          key: 'configName',
+          width: 160
         },
         {
-          title: "参数键",
-          dataIndex: "configKey",
-          key: "configKey",
-          width: 180,
+          title: '参数键',
+          dataIndex: 'configKey',
+          key: 'configKey',
+          width: 180
         },
         {
-          title: "参数值",
-          dataIndex: "configValue",
-          key: "configValue",
-          ellipsis: true,
+          title: '参数值',
+          dataIndex: 'configValue',
+          key: 'configValue',
+          ellipsis: true
         },
-        { title: "状态", dataIndex: "status", key: "status", width: 90 },
-        { title: "备注", dataIndex: "remark", key: "remark", ellipsis: true },
-        actionCol(aw.config),
+        { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
+        { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
+        actionCol(aw.config)
       ];
-    case "notifyTemplate":
+    case 'notifyTemplate':
       return [
         {
-          title: "模板编码",
-          dataIndex: "templateCode",
-          key: "templateCode",
-          width: 200,
+          title: '模板编码',
+          dataIndex: 'templateCode',
+          key: 'templateCode',
+          width: 200
         },
         {
-          title: "模板名称",
-          dataIndex: "templateName",
-          key: "templateName",
-          width: 180,
+          title: '模板名称',
+          dataIndex: 'templateName',
+          key: 'templateName',
+          width: 180
         },
         {
-          title: "模板来源",
-          dataIndex: "templateSource",
-          key: "templateSource",
-          width: 110,
+          title: '模板来源',
+          dataIndex: 'templateSource',
+          key: 'templateSource',
+          width: 110
         },
         {
-          title: "通知开关",
-          dataIndex: "notifyEnabled",
-          key: "notifyEnabled",
-          width: 100,
+          title: '通知开关',
+          dataIndex: 'notifyEnabled',
+          key: 'notifyEnabled',
+          width: 100
         },
         {
-          title: "覆盖开关",
-          dataIndex: "overrideEnabled",
-          key: "overrideEnabled",
-          width: 100,
+          title: '覆盖开关',
+          dataIndex: 'overrideEnabled',
+          key: 'overrideEnabled',
+          width: 100
         },
         {
-          title: "路由类型",
-          dataIndex: "routeType",
-          key: "routeType",
-          width: 160,
+          title: '路由类型',
+          dataIndex: 'routeType',
+          key: 'routeType',
+          width: 160
         },
         {
-          title: "标题模板",
-          dataIndex: "titleTemplate",
-          key: "titleTemplate",
-          ellipsis: true,
+          title: '标题模板',
+          dataIndex: 'titleTemplate',
+          key: 'titleTemplate',
+          ellipsis: true
         },
         {
-          title: "摘要模板",
-          dataIndex: "summaryTemplate",
-          key: "summaryTemplate",
-          ellipsis: true,
+          title: '摘要模板',
+          dataIndex: 'summaryTemplate',
+          key: 'summaryTemplate',
+          ellipsis: true
         },
         {
-          title: "更新时间",
-          dataIndex: "updateTime",
-          key: "updateTime",
-          width: 170,
+          title: '更新时间',
+          dataIndex: 'updateTime',
+          key: 'updateTime',
+          width: 170
         },
-        actionCol(aw.notifyTemplate),
+        actionCol(aw.notifyTemplate)
       ];
-    case "barcode":
+    case 'barcode':
       return [
-        { title: "条码", dataIndex: "barcode", key: "barcode", width: 180 },
+        { title: '条码', dataIndex: 'barcode', key: 'barcode', width: 180 },
         {
-          title: "发货单号",
-          dataIndex: "deliverNumber",
-          key: "deliverNumber",
-          width: 140,
+          title: '发货单号',
+          dataIndex: 'deliverNumber',
+          key: 'deliverNumber',
+          width: 140
         },
         {
-          title: "归属总部",
-          dataIndex: "hqCompanyName",
-          key: "hqCompanyName",
+          title: '归属总部',
+          dataIndex: 'hqCompanyName',
+          key: 'hqCompanyName',
+          width: 160
+        },
+        { title: 'CRM公司ID', dataIndex: 'custId', key: 'custId', width: 120 },
+        {
+          title: '销售组织',
+          dataIndex: 'salesOrg',
+          key: 'salesOrg',
+          width: 120
+        },
+        {
+          title: '物料编码',
+          dataIndex: 'productCode',
+          key: 'productCode',
+          width: 120
+        },
+        {
+          title: '商品名称',
+          dataIndex: 'productName',
+          key: 'productName',
           width: 160,
-        },
-        { title: "CRM公司ID", dataIndex: "custId", key: "custId", width: 120 },
-        {
-          title: "销售组织",
-          dataIndex: "salesOrg",
-          key: "salesOrg",
-          width: 120,
+          ellipsis: true
         },
         {
-          title: "物料编码",
-          dataIndex: "productCode",
-          key: "productCode",
-          width: 120,
+          title: '产品型号',
+          dataIndex: 'productModel',
+          key: 'productModel',
+          width: 140
         },
         {
-          title: "商品名称",
-          dataIndex: "productName",
-          key: "productName",
-          width: 160,
-          ellipsis: true,
+          title: '机器小号',
+          dataIndex: 'machineNo',
+          key: 'machineNo',
+          width: 140
         },
+        { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
         {
-          title: "产品型号",
-          dataIndex: "productModel",
-          key: "productModel",
-          width: 140,
-        },
-        {
-          title: "机器小号",
-          dataIndex: "machineNo",
-          key: "machineNo",
-          width: 140,
-        },
-        { title: "状态", dataIndex: "status", key: "status", width: 90 },
-        {
-          title: "更新时间",
-          dataIndex: "updateTime",
-          key: "updateTime",
-          width: 170,
-        },
+          title: '更新时间',
+          dataIndex: 'updateTime',
+          key: 'updateTime',
+          width: 170
+        }
       ];
-    case "syncTask":
+    case 'syncTask':
       return [
         {
-          title: "任务编码",
-          dataIndex: "taskCode",
-          key: "taskCode",
-          width: 160,
+          title: '任务编码',
+          dataIndex: 'taskCode',
+          key: 'taskCode',
+          width: 160
         },
         {
-          title: "任务名称",
-          dataIndex: "taskName",
-          key: "taskName",
-          width: 180,
+          title: '任务名称',
+          dataIndex: 'taskName',
+          key: 'taskName',
+          width: 180
         },
         {
-          title: "处理器",
-          dataIndex: "handlerName",
-          key: "handlerName",
-          width: 140,
+          title: '处理器',
+          dataIndex: 'handlerName',
+          key: 'handlerName',
+          width: 140
         },
         {
-          title: "Cron",
-          dataIndex: "cronExpression",
-          key: "cronExpression",
-          width: 160,
+          title: 'Cron',
+          dataIndex: 'cronExpression',
+          key: 'cronExpression',
+          width: 160
         },
-        { title: "状态", dataIndex: "status", key: "status", width: 90 },
+        { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
         {
-          title: "最近状态",
-          dataIndex: "lastStatus",
-          key: "lastStatus",
-          width: 100,
-        },
-        {
-          title: "最近结束",
-          dataIndex: "lastEndTime",
-          key: "lastEndTime",
-          width: 170,
+          title: '最近状态',
+          dataIndex: 'lastStatus',
+          key: 'lastStatus',
+          width: 100
         },
         {
-          title: "下次触发",
-          dataIndex: "nextFireTime",
-          key: "nextFireTime",
-          width: 170,
+          title: '最近结束',
+          dataIndex: 'lastEndTime',
+          key: 'lastEndTime',
+          width: 170
         },
-        actionCol(aw.syncTask),
+        {
+          title: '下次触发',
+          dataIndex: 'nextFireTime',
+          key: 'nextFireTime',
+          width: 170
+        },
+        actionCol(aw.syncTask)
       ];
-    case "fault":
+    case 'fault':
       return [
         {
-          title: "归属总部",
-          dataIndex: "companyName",
-          key: "companyName",
-          width: 180,
+          title: '归属总部',
+          dataIndex: 'companyName',
+          key: 'companyName',
+          width: 180
         },
         {
-          title: "物料编码",
-          dataIndex: "productCode",
-          key: "productCode",
-          width: 140,
+          title: '物料编码',
+          dataIndex: 'productCode',
+          key: 'productCode',
+          width: 140
         },
         {
-          title: "产品型号",
-          dataIndex: "productModel",
-          key: "productModel",
-          width: 140,
+          title: '产品型号',
+          dataIndex: 'productModel',
+          key: 'productModel',
+          width: 140
         },
         {
-          title: "故障摘要",
-          dataIndex: "faultDescSummary",
-          key: "faultDescSummary",
-          ellipsis: true,
+          title: '故障摘要',
+          dataIndex: 'faultDescSummary',
+          key: 'faultDescSummary',
+          ellipsis: true
         },
-        { title: "状态", dataIndex: "status", key: "status", width: 90 },
+        { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
         {
-          title: "更新时间",
-          dataIndex: "updateTime",
-          key: "updateTime",
-          width: 170,
+          title: '更新时间',
+          dataIndex: 'updateTime',
+          key: 'updateTime',
+          width: 170
         },
-        actionCol(aw.fault),
+        actionCol(aw.fault)
       ];
-    case "roleTemplate":
+    case 'roleTemplate':
       return [
         {
-          title: "角色名称",
-          dataIndex: "roleName",
-          key: "roleName",
-          width: 180,
+          title: '角色名称',
+          dataIndex: 'roleName',
+          key: 'roleName',
+          width: 180
         },
-        { title: "角色标识", dataIndex: "roleKey", key: "roleKey", width: 160 },
+        { title: '角色标识', dataIndex: 'roleKey', key: 'roleKey', width: 160 },
         {
-          title: "所属类型",
-          dataIndex: "typeCode",
-          key: "typeCode",
-          width: 140,
+          title: '所属类型',
+          dataIndex: 'typeCode',
+          key: 'typeCode',
+          width: 140
         },
-        { title: "管理员", dataIndex: "isAdmin", key: "isAdmin", width: 90 },
+        { title: '管理员', dataIndex: 'isAdmin', key: 'isAdmin', width: 90 },
         {
-          title: "数据范围",
-          dataIndex: "dataScope",
-          key: "dataScope",
-          width: 140,
+          title: '数据范围',
+          dataIndex: 'dataScope',
+          key: 'dataScope',
+          width: 140
         },
-        { title: "备注", dataIndex: "remark", key: "remark", ellipsis: true },
+        { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
         {
-          title: "创建时间",
-          dataIndex: "createTime",
-          key: "createTime",
-          width: 170,
+          title: '创建时间',
+          dataIndex: 'createTime',
+          key: 'createTime',
+          width: 170
         },
-        actionCol(aw.roleTemplate),
+        actionCol(aw.roleTemplate)
       ];
-    case "region":
+    case 'region':
       return [
         {
-          title: "大区编码",
-          dataIndex: "regionCode",
-          key: "regionCode",
-          width: 140,
+          title: '大区编码',
+          dataIndex: 'regionCode',
+          key: 'regionCode',
+          width: 140
         },
         {
-          title: "大区名称",
-          dataIndex: "regionName",
-          key: "regionName",
-          width: 200,
+          title: '大区名称',
+          dataIndex: 'regionName',
+          key: 'regionName',
+          width: 200
         },
-        { title: "备注", dataIndex: "remark", key: "remark", ellipsis: true },
+        { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
         {
-          title: "创建时间",
-          dataIndex: "createTime",
-          key: "createTime",
-          width: 170,
+          title: '创建时间',
+          dataIndex: 'createTime',
+          key: 'createTime',
+          width: 170
         },
-        actionCol(aw.region),
+        actionCol(aw.region)
       ];
     default:
       return [];
@@ -920,9 +880,7 @@ const columns = computed(() => {
 });
 
 // 字典/参数模块是否展示行内编辑删除
-const hasDictConfigRowActions = computed(
-  () => activeKey.value === "dict" || activeKey.value === "config",
-);
+const hasDictConfigRowActions = computed(() => activeKey.value === 'dict' || activeKey.value === 'config');
 
 /**
  * 作用：为表格行生成稳定 key。
@@ -930,13 +888,7 @@ const hasDictConfigRowActions = computed(
  * @returns 唯一键字符串
  */
 function resolveRowKey(r: RowData) {
-  return (
-    r.id ??
-    r.dictId ??
-    r.configId ??
-    r.templateCode ??
-    String(r.taskCode ?? r.barcode ?? Math.random())
-  );
+  return r.id ?? r.dictId ?? r.configId ?? r.templateCode ?? String(r.taskCode ?? r.barcode ?? Math.random());
 }
 
 /**
@@ -947,19 +899,19 @@ async function loadList() {
   loading.value = true;
   clearListMsgs();
   try {
-    if (activeKey.value === "region") {
+    if (activeKey.value === 'region') {
       await loadHqForRegion();
     }
-    if (activeKey.value === "syncTask") {
+    if (activeKey.value === 'syncTask') {
       await ensureHandlerOptions();
     }
-    if (activeKey.value === "fault") {
+    if (activeKey.value === 'fault') {
       await ensureFaultCompanyOptions();
     }
-    if (activeKey.value === "barcode") {
+    if (activeKey.value === 'barcode') {
       await ensureBarcodeHqOptions();
     }
-    if (activeKey.value === "roleTemplate") {
+    if (activeKey.value === 'roleTemplate') {
       await loadTypeCodeLabels();
     }
 
@@ -969,12 +921,9 @@ async function loadList() {
       total.value = 0;
       return;
     }
-    const data =
-      flat != null && typeof flat === "object" && "data" in flat
-        ? (flat as { data?: unknown }).data
-        : flat;
+    const data = flat != null && typeof flat === 'object' && 'data' in flat ? (flat as { data?: unknown }).data : flat;
     rows.value = pickRows(data);
-    if (activeKey.value === "region") {
+    if (activeKey.value === 'region') {
       total.value = rows.value.length;
     } else {
       total.value = pickTotal(data) || rows.value.length;
@@ -995,7 +944,7 @@ async function loadList() {
  * @returns 是否发生了 Tab 切换
  */
 async function syncActiveModuleByRouteName(routeName: unknown): Promise<boolean> {
-  const key = String(routeName || "");
+  const key = String(routeName || '');
   const moduleKey = ROUTE_NAME_TO_MODULE_KEY[key];
   if (!moduleKey || moduleKey === activeKey.value) return false;
 
@@ -1003,11 +952,11 @@ async function syncActiveModuleByRouteName(routeName: unknown): Promise<boolean>
   pageQuery.pageNum = 1;
   formOpen.value = false;
   syncFormOpen.value = false;
-  if (moduleKey === "fault") {
+  if (moduleKey === 'fault') {
     await ensureFaultCompanyOptions();
     applyDefaultFaultRepairCompanyFilter();
   }
-  if (moduleKey === "barcode") {
+  if (moduleKey === 'barcode') {
     await ensureBarcodeHqOptions();
     applyDefaultBarcodeOwnerHqFilter();
   }
@@ -1030,47 +979,47 @@ function handleSearch() {
  */
 function resetSearch() {
   switch (activeKey.value) {
-    case "dict":
-      dictQuery.dictName = "";
-      dictQuery.dictType = "";
+    case 'dict':
+      dictQuery.dictName = '';
+      dictQuery.dictType = '';
       dictQuery.status = undefined;
       break;
-    case "config":
-      configQuery.configName = "";
-      configQuery.configKey = "";
+    case 'config':
+      configQuery.configName = '';
+      configQuery.configKey = '';
       configQuery.configType = undefined;
       break;
-    case "notifyTemplate":
-      notifyQuery.templateCode = "";
-      notifyQuery.templateName = "";
+    case 'notifyTemplate':
+      notifyQuery.templateCode = '';
+      notifyQuery.templateName = '';
       notifyQuery.templateSource = undefined;
       break;
-    case "barcode":
+    case 'barcode':
       barcodeQuery.ownerHqId = undefined;
-      barcodeQuery.barcode = "";
-      barcodeQuery.deliverNumber = "";
-      barcodeQuery.productCode = "";
-      barcodeQuery.machineNo = "";
-      barcodeQuery.productModel = "";
+      barcodeQuery.barcode = '';
+      barcodeQuery.deliverNumber = '';
+      barcodeQuery.productCode = '';
+      barcodeQuery.machineNo = '';
+      barcodeQuery.productModel = '';
       barcodeQuery.status = undefined;
       break;
-    case "syncTask":
-      syncTaskQuery.taskCode = "";
-      syncTaskQuery.taskName = "";
+    case 'syncTask':
+      syncTaskQuery.taskCode = '';
+      syncTaskQuery.taskName = '';
       syncTaskQuery.handlerCode = undefined;
       syncTaskQuery.status = undefined;
       break;
-    case "fault":
+    case 'fault':
       faultQuery.companyId = undefined;
-      faultQuery.productCode = "";
-      faultQuery.productModel = "";
-      faultQuery.faultDesc = "";
+      faultQuery.productCode = '';
+      faultQuery.productModel = '';
+      faultQuery.faultDesc = '';
       faultQuery.status = undefined;
       break;
-    case "roleTemplate":
+    case 'roleTemplate':
       roleTemplateTypeCode.value = undefined;
       break;
-    case "region":
+    case 'region':
       regionHqId.value = undefined;
       break;
     default:
@@ -1103,70 +1052,50 @@ function onPageChange(page: number, pageSize?: number) {
  * @param title - 抽屉标题，可选
  */
 async function openForm(record?: RowData, title?: string) {
-  if (activeKey.value === "roleTemplate") {
-    formTitle.value = title || (record?.id ? "编辑模板" : "新增模板");
+  if (activeKey.value === 'roleTemplate') {
+    formTitle.value = title || (record?.id ? '编辑模板' : '新增模板');
   } else {
-    formTitle.value = title || (record?.id ? "编辑" : "新增");
+    formTitle.value = title || (record?.id ? '编辑' : '新增');
   }
-  Object.keys(formModel).forEach((k) => delete formModel[k]);
+  Object.keys(formModel).forEach(k => delete formModel[k]);
   if (record) Object.assign(formModel, JSON.parse(JSON.stringify(record)));
-  if (activeKey.value === "dict" && !record) {
+  if (activeKey.value === 'dict' && !record) {
     formModel.status = 1;
   }
-  if (activeKey.value === "config" && !record) {
+  if (activeKey.value === 'config' && !record) {
     formModel.configType = 0;
   }
-  if (activeKey.value === "config" && record) {
-    if (
-      formModel.configType === undefined ||
-      formModel.configType === null ||
-      formModel.configType === ""
-    ) {
+  if (activeKey.value === 'config' && record) {
+    if (formModel.configType === undefined || formModel.configType === null || formModel.configType === '') {
       formModel.configType = formModel.status;
     }
   }
-  if (activeKey.value === "fault") {
+  if (activeKey.value === 'fault') {
     if (record?.id != null) {
       try {
-        const { data } = await getFaultRepairConfig(
-          record.id,
-          buildFaultDetailParams(record),
-        );
-        Object.assign(
-          formModel,
-          normalizeFaultFormData((data as RowData) || record),
-        );
+        const { data } = await getFaultRepairConfig(record.id, buildFaultDetailParams(record));
+        Object.assign(formModel, normalizeFaultFormData((data as RowData) || record));
       } catch {
         Object.assign(formModel, normalizeFaultFormData(record));
       }
     } else {
       const defaultCompanyId =
         faultCompanyOptions.value.length === 1
-          ? Number(
-              faultCompanyOptions.value[0].id ??
-                faultCompanyOptions.value[0].value,
-            )
+          ? Number(faultCompanyOptions.value[0].id ?? faultCompanyOptions.value[0].value)
           : undefined;
-      Object.assign(
-        formModel,
-        normalizeFaultFormData({ companyId: defaultCompanyId, status: 1 }),
-      );
+      Object.assign(formModel, normalizeFaultFormData({ companyId: defaultCompanyId, status: 1 }));
     }
   }
 
-  if (activeKey.value === "roleTemplate") {
-    const defaultTypeCode = String(
-      roleTemplateTypeCode.value ||
-        Object.keys(typeCodeLabelMap.value)[0] ||
-        "",
-    );
+  if (activeKey.value === 'roleTemplate') {
+    const defaultTypeCode = String(roleTemplateTypeCode.value || Object.keys(typeCodeLabelMap.value)[0] || '');
     if (!record) {
-      formModel.roleName = "";
-      formModel.roleKey = "";
-      formModel.remark = "";
+      formModel.roleName = '';
+      formModel.roleKey = '';
+      formModel.remark = '';
       formModel.isAdmin = 0;
       formModel.typeCode = defaultTypeCode;
-      formModel.dataScope = "";
+      formModel.dataScope = '';
     }
     formModel.isAdmin = Number(formModel.isAdmin) === 1 ? 1 : 0;
     await onRoleTemplateDataScopeInit(Boolean(record));
@@ -1180,24 +1109,14 @@ async function openForm(record?: RowData, title?: string) {
  * @returns 是否必填
  */
 function isFormFieldRequired(key: string) {
-  if (activeKey.value === "dict") {
-    return key === "dictName" || key === "dictType" || key === "status";
+  if (activeKey.value === 'dict') {
+    return key === 'dictName' || key === 'dictType' || key === 'status';
   }
-  if (activeKey.value === "config") {
-    return (
-      key === "configName" ||
-      key === "configKey" ||
-      key === "configValue" ||
-      key === "configType"
-    );
+  if (activeKey.value === 'config') {
+    return key === 'configName' || key === 'configKey' || key === 'configValue' || key === 'configType';
   }
-  if (activeKey.value === "notifyTemplate") {
-    return (
-      key === "templateCode" ||
-      key === "templateName" ||
-      key === "notifyEnabled" ||
-      key === "overrideEnabled"
-    );
+  if (activeKey.value === 'notifyTemplate') {
+    return key === 'templateCode' || key === 'templateName' || key === 'notifyEnabled' || key === 'overrideEnabled';
   }
   return false;
 }
@@ -1209,50 +1128,50 @@ function isFormFieldRequired(key: string) {
 function formFields(): {
   label: string;
   key: string;
-  type: "input" | "textarea" | "number" | "radio";
+  type: 'input' | 'textarea' | 'number' | 'radio';
 }[] {
   switch (activeKey.value) {
-    case "dict":
+    case 'dict':
       return [
-        { label: "字典名称", key: "dictName", type: "input" },
-        { label: "字典类型", key: "dictType", type: "input" },
-        { label: "状态", key: "status", type: "radio" },
-        { label: "备注", key: "remark", type: "textarea" },
+        { label: '字典名称', key: 'dictName', type: 'input' },
+        { label: '字典类型', key: 'dictType', type: 'input' },
+        { label: '状态', key: 'status', type: 'radio' },
+        { label: '备注', key: 'remark', type: 'textarea' }
       ];
-    case "config":
+    case 'config':
       return [
-        { label: "参数名称", key: "configName", type: "input" },
-        { label: "参数键名", key: "configKey", type: "input" },
-        { label: "参数键值", key: "configValue", type: "textarea" },
-        { label: "是否内置", key: "configType", type: "radio" },
-        { label: "备注", key: "remark", type: "textarea" },
+        { label: '参数名称', key: 'configName', type: 'input' },
+        { label: '参数键名', key: 'configKey', type: 'input' },
+        { label: '参数键值', key: 'configValue', type: 'textarea' },
+        { label: '是否内置', key: 'configType', type: 'radio' },
+        { label: '备注', key: 'remark', type: 'textarea' }
       ];
-    case "notifyTemplate":
+    case 'notifyTemplate':
       return [
-        { label: "模板编码", key: "templateCode", type: "input" },
-        { label: "模板名称", key: "templateName", type: "input" },
-        { label: "通知开关(1/0)", key: "notifyEnabled", type: "number" },
-        { label: "覆盖开关(1/0)", key: "overrideEnabled", type: "number" },
-        { label: "路由类型", key: "routeType", type: "input" },
-        { label: "标题模板", key: "titleTemplate", type: "textarea" },
-        { label: "摘要模板", key: "summaryTemplate", type: "textarea" },
-        { label: "路由值模板", key: "routeValueTemplate", type: "input" },
+        { label: '模板编码', key: 'templateCode', type: 'input' },
+        { label: '模板名称', key: 'templateName', type: 'input' },
+        { label: '通知开关(1/0)', key: 'notifyEnabled', type: 'number' },
+        { label: '覆盖开关(1/0)', key: 'overrideEnabled', type: 'number' },
+        { label: '路由类型', key: 'routeType', type: 'input' },
+        { label: '标题模板', key: 'titleTemplate', type: 'textarea' },
+        { label: '摘要模板', key: 'summaryTemplate', type: 'textarea' },
+        { label: '路由值模板', key: 'routeValueTemplate', type: 'input' }
       ];
-    case "fault":
+    case 'fault':
       return [
-        { label: "归属总部公司ID", key: "companyId", type: "number" },
-        { label: "物料编码", key: "productCode", type: "input" },
-        { label: "产品型号", key: "productModel", type: "input" },
-        { label: "状态", key: "status", type: "number" },
-        { label: "备注", key: "remark", type: "textarea" },
+        { label: '归属总部公司ID', key: 'companyId', type: 'number' },
+        { label: '物料编码', key: 'productCode', type: 'input' },
+        { label: '产品型号', key: 'productModel', type: 'input' },
+        { label: '状态', key: 'status', type: 'number' },
+        { label: '备注', key: 'remark', type: 'textarea' }
       ];
-    case "roleTemplate":
+    case 'roleTemplate':
       return [
-        { label: "角色名称", key: "roleName", type: "input" },
-        { label: "角色标识", key: "roleKey", type: "input" },
-        { label: "类型编码 typeCode", key: "typeCode", type: "input" },
-        { label: "数据范围 dataScope", key: "dataScope", type: "input" },
-        { label: "备注", key: "remark", type: "textarea" },
+        { label: '角色名称', key: 'roleName', type: 'input' },
+        { label: '角色标识', key: 'roleKey', type: 'input' },
+        { label: '类型编码 typeCode', key: 'typeCode', type: 'input' },
+        { label: '数据范围 dataScope', key: 'dataScope', type: 'input' },
+        { label: '备注', key: 'remark', type: 'textarea' }
       ];
     default:
       return [];
@@ -1262,16 +1181,14 @@ function formFields(): {
 /** 通知模板编辑抽屉内 AFormItem 数量（与模板结构一致，用于多于 6 项即 ≥7 时宽度至少 720） */
 const NOTIFY_TEMPLATE_FORM_FIELD_COUNT = 10;
 
-const unifiedFormDrawerBaseWidth = computed(() =>
-  activeKey.value === "fault" ? 600 : 420,
-);
+const unifiedFormDrawerBaseWidth = computed(() => (activeKey.value === 'fault' ? 600 : 420));
 
 const unifiedFormFieldCount = computed(() => {
   const key = activeKey.value;
-  if (key === "roleTemplate") {
+  if (key === 'roleTemplate') {
     return 6;
   }
-  if (key === "fault") {
+  if (key === 'fault') {
     const base = 5;
     let extra = 0;
     for (const f of formModel.faults || []) {
@@ -1283,29 +1200,18 @@ const unifiedFormFieldCount = computed(() => {
 });
 
 const unifiedFormDrawerWidth = computed(() =>
-  adaptiveModalWidth(
-    unifiedFormDrawerBaseWidth.value,
-    unifiedFormFieldCount.value,
-  ),
+  adaptiveModalWidth(unifiedFormDrawerBaseWidth.value, unifiedFormFieldCount.value)
 );
 
 /** 故障配置抽屉已用 ARow 两列，不再套 grid，仅宽度自适应 */
 const unifiedFormGridClass = computed(() =>
-  activeKey.value === "fault"
-    ? ""
-    : adaptiveModalFormGridClass(unifiedFormFieldCount.value),
+  activeKey.value === 'fault' ? '' : adaptiveModalFormGridClass(unifiedFormFieldCount.value)
 );
 
-const notifyFormDrawerWidth = computed(() =>
-  adaptiveModalWidth(960, NOTIFY_TEMPLATE_FORM_FIELD_COUNT),
-);
+const notifyFormDrawerWidth = computed(() => adaptiveModalWidth(960, NOTIFY_TEMPLATE_FORM_FIELD_COUNT));
 
-const channelsDrawerFieldCount = computed(
-  () => (channelsRows.value?.length || 0) * 6,
-);
-const channelsDrawerWidth = computed(() =>
-  adaptiveModalWidth(980, channelsDrawerFieldCount.value),
-);
+const channelsDrawerFieldCount = computed(() => (channelsRows.value?.length || 0) * 6);
+const channelsDrawerWidth = computed(() => adaptiveModalWidth(980, channelsDrawerFieldCount.value));
 
 /**
  * 作用：字典/参数.radio 类型字段的选项。
@@ -1313,16 +1219,16 @@ const channelsDrawerWidth = computed(() =>
  * @returns 选项列表
  */
 function getFormRadioOptions(key: string) {
-  if (key === "status") {
+  if (key === 'status') {
     return [
-      { label: "启用", value: 1 },
-      { label: "停用", value: 0 },
+      { label: '启用', value: 1 },
+      { label: '停用', value: 0 }
     ];
   }
-  if (key === "configType") {
+  if (key === 'configType') {
     return [
-      { label: "是", value: 1 },
-      { label: "否", value: 0 },
+      { label: '是', value: 1 },
+      { label: '否', value: 0 }
     ];
   }
   return [];
@@ -1334,20 +1240,17 @@ function getFormRadioOptions(key: string) {
  * @param type - 控件类型
  * @returns 占位符或 undefined
  */
-function getFormPlaceholder(
-  key: string,
-  type: "input" | "textarea" | "number" | "radio",
-) {
-  if (activeKey.value === "dict") {
-    if (key === "dictName") return "请输入字典名称";
-    if (key === "dictType") return "如 sys_yes_no";
-    if (key === "remark" && type === "textarea") return "请输入备注";
+function getFormPlaceholder(key: string, type: 'input' | 'textarea' | 'number' | 'radio') {
+  if (activeKey.value === 'dict') {
+    if (key === 'dictName') return '请输入字典名称';
+    if (key === 'dictType') return '如 sys_yes_no';
+    if (key === 'remark' && type === 'textarea') return '请输入备注';
   }
-  if (activeKey.value === "config") {
-    if (key === "configName") return "请输入参数名称";
-    if (key === "configKey") return "请输入参数键名";
-    if (key === "configValue" && type === "textarea") return "请输入参数键值";
-    if (key === "remark" && type === "textarea") return "请输入备注";
+  if (activeKey.value === 'config') {
+    if (key === 'configName') return '请输入参数名称';
+    if (key === 'configKey') return '请输入参数键名';
+    if (key === 'configValue' && type === 'textarea') return '请输入参数键值';
+    if (key === 'remark' && type === 'textarea') return '请输入备注';
   }
   return undefined;
 }
@@ -1358,8 +1261,8 @@ function getFormPlaceholder(
  */
 function createFaultItem(): FaultRepairItem {
   return {
-    faultDesc: "",
-    repairOptions: [""],
+    faultDesc: '',
+    repairOptions: ['']
   };
 }
 
@@ -1370,17 +1273,13 @@ function createFaultItem(): FaultRepairItem {
  */
 function normalizeFaultFormData(data?: RowData) {
   const faultsRaw = Array.isArray(data?.faults) ? data.faults : [];
-  const faults: FaultRepairItem[] = (
-    faultsRaw.length ? faultsRaw : [createFaultItem()]
-  ).map((item: RowData) => {
+  const faults: FaultRepairItem[] = (faultsRaw.length ? faultsRaw : [createFaultItem()]).map((item: RowData) => {
     const repairOptions = Array.isArray(item?.repairOptions)
-      ? item.repairOptions
-          .map((x: unknown) => String(x ?? "").trim())
-          .filter(Boolean)
+      ? item.repairOptions.map((x: unknown) => String(x ?? '').trim()).filter(Boolean)
       : [];
     return {
-      faultDesc: String(item?.faultDesc ?? ""),
-      repairOptions: repairOptions.length ? repairOptions : [""],
+      faultDesc: String(item?.faultDesc ?? ''),
+      repairOptions: repairOptions.length ? repairOptions : ['']
     };
   });
 
@@ -1388,11 +1287,11 @@ function normalizeFaultFormData(data?: RowData) {
     id: data?.id,
     companyId: data?.companyId,
     companyName: data?.companyName,
-    productCode: String(data?.productCode ?? ""),
-    productModel: String(data?.productModel ?? ""),
+    productCode: String(data?.productCode ?? ''),
+    productModel: String(data?.productModel ?? ''),
     status: data?.status === 0 ? 0 : 1,
-    remark: String(data?.remark ?? ""),
-    faults,
+    remark: String(data?.remark ?? ''),
+    faults
   };
 }
 
@@ -1401,9 +1300,7 @@ function normalizeFaultFormData(data?: RowData) {
  * @returns 无
  */
 function addFaultItem() {
-  const list = Array.isArray(formModel.faults)
-    ? (formModel.faults as FaultRepairItem[])
-    : [];
+  const list = Array.isArray(formModel.faults) ? (formModel.faults as FaultRepairItem[]) : [];
   list.push(createFaultItem());
   formModel.faults = list;
 }
@@ -1413,9 +1310,7 @@ function addFaultItem() {
  * @param index - 下标
  */
 function removeFaultItem(index: number) {
-  const list = Array.isArray(formModel.faults)
-    ? (formModel.faults as FaultRepairItem[])
-    : [];
+  const list = Array.isArray(formModel.faults) ? (formModel.faults as FaultRepairItem[]) : [];
   if (list.length <= 1) return;
   list.splice(index, 1);
 }
@@ -1426,7 +1321,7 @@ function removeFaultItem(index: number) {
  * @returns 无
  */
 function addRepairOption(item: FaultRepairItem) {
-  item.repairOptions.push("");
+  item.repairOptions.push('');
 }
 
 /**
@@ -1448,18 +1343,16 @@ function getFaultDuplicateError(data: RowData): string | null {
   const faults = Array.isArray(data.faults) ? data.faults : [];
   const descSet = new Set<string>();
   for (const item of faults) {
-    const desc = String(item?.faultDesc || "").trim();
+    const desc = String(item?.faultDesc || '').trim();
     if (desc && descSet.has(desc)) {
-      return "同一配置下故障描述不能重复";
+      return '同一配置下故障描述不能重复';
     }
     if (desc) descSet.add(desc);
-    const options = (
-      Array.isArray(item?.repairOptions) ? item.repairOptions : []
-    )
-      .map((x: unknown) => String(x || "").trim())
+    const options = (Array.isArray(item?.repairOptions) ? item.repairOptions : [])
+      .map((x: unknown) => String(x || '').trim())
       .filter(Boolean);
     if (new Set(options).size !== options.length) {
-      return "同一故障下维修说明不能重复";
+      return '同一故障下维修说明不能重复';
     }
   }
   return null;
@@ -1467,194 +1360,160 @@ function getFaultDuplicateError(data: RowData): string | null {
 
 const unifiedFormRules = computed(() => {
   const key = activeKey.value;
-  if (key === "dict") {
+  if (key === 'dict') {
     return {
-      dictName: [
-        { required: true, message: "请输入字典名称", trigger: "blur" },
-      ],
-      dictType: [
-        { required: true, message: "请输入字典类型", trigger: "blur" },
-      ],
+      dictName: [{ required: true, message: '请输入字典名称', trigger: 'blur' }],
+      dictType: [{ required: true, message: '请输入字典类型', trigger: 'blur' }],
       status: [
-        { required: true, message: "请选择状态", trigger: "change" },
+        { required: true, message: '请选择状态', trigger: 'change' },
         {
           validator: async (_rule: unknown, v: unknown) => {
-            if (v === undefined || v === null || v === "") {
-              return Promise.reject(new Error("请选择状态"));
+            if (v === undefined || v === null || v === '') {
+              return Promise.reject(new Error('请选择状态'));
             }
             return Promise.resolve();
           },
-          trigger: "change",
-        },
-      ],
+          trigger: 'change'
+        }
+      ]
     };
   }
-  if (key === "config") {
+  if (key === 'config') {
     return {
-      configName: [
-        { required: true, message: "请输入参数名称", trigger: "blur" },
-      ],
-      configKey: [
-        { required: true, message: "请输入参数键名", trigger: "blur" },
-      ],
-      configValue: [
-        { required: true, message: "请输入参数键值", trigger: "blur" },
-      ],
+      configName: [{ required: true, message: '请输入参数名称', trigger: 'blur' }],
+      configKey: [{ required: true, message: '请输入参数键名', trigger: 'blur' }],
+      configValue: [{ required: true, message: '请输入参数键值', trigger: 'blur' }],
       configType: [
-        { required: true, message: "请选择是否内置", trigger: "change" },
+        { required: true, message: '请选择是否内置', trigger: 'change' },
         {
           validator: async (_rule: unknown, v: unknown) => {
-            if (v === undefined || v === null || v === "") {
-              return Promise.reject(new Error("请选择是否内置"));
+            if (v === undefined || v === null || v === '') {
+              return Promise.reject(new Error('请选择是否内置'));
             }
             return Promise.resolve();
           },
-          trigger: "change",
-        },
-      ],
+          trigger: 'change'
+        }
+      ]
     };
   }
-  if (key === "notifyTemplate") {
+  if (key === 'notifyTemplate') {
     return {
-      templateCode: [
-        { required: true, message: "请输入模板编码", trigger: "blur" },
-      ],
-      templateName: [
-        { required: true, message: "请输入模板名称", trigger: "blur" },
-      ],
+      templateCode: [{ required: true, message: '请输入模板编码', trigger: 'blur' }],
+      templateName: [{ required: true, message: '请输入模板名称', trigger: 'blur' }]
     };
   }
-  if (key === "roleTemplate") {
+  if (key === 'roleTemplate') {
     return {
-      roleName: [
-        { required: true, message: "请输入角色名称", trigger: "blur" },
-      ],
-      roleKey: [{ required: true, message: "请输入角色标识", trigger: "blur" }],
-      typeCode: [
-        { required: true, message: "请先选择类型编码", trigger: "change" },
-      ],
+      roleName: [{ required: true, message: '请输入角色名称', trigger: 'blur' }],
+      roleKey: [{ required: true, message: '请输入角色标识', trigger: 'blur' }],
+      typeCode: [{ required: true, message: '请先选择类型编码', trigger: 'change' }],
       dataScope: [
-        { required: true, message: "请先选择数据范围", trigger: "change" },
+        { required: true, message: '请先选择数据范围', trigger: 'change' },
         {
           validator: async () => {
-            const v = String(formModel.dataScope || "");
+            const v = String(formModel.dataScope || '');
             if (!v) {
-              return Promise.reject(new Error("请先选择数据范围"));
+              return Promise.reject(new Error('请先选择数据范围'));
             }
-            if (
-              !roleTemplateScopeOptions.value.some(
-                (item) => String(item.value) === String(formModel.dataScope),
-              )
-            ) {
-              return Promise.reject(
-                new Error("请选择当前公司类型允许的数据范围"),
-              );
+            if (!roleTemplateScopeOptions.value.some(item => String(item.value) === String(formModel.dataScope))) {
+              return Promise.reject(new Error('请选择当前公司类型允许的数据范围'));
             }
             return Promise.resolve();
           },
-          trigger: "change",
-        },
-      ],
+          trigger: 'change'
+        }
+      ]
     };
   }
-  if (key === "fault") {
+  if (key === 'fault') {
     return {
-      companyId: [
-        { required: true, message: "请选择归属总部", trigger: "change" },
-      ],
+      companyId: [{ required: true, message: '请选择归属总部', trigger: 'change' }],
       status: [
-        { required: true, message: "请选择状态", trigger: "change" },
+        { required: true, message: '请选择状态', trigger: 'change' },
         {
           validator: async (_rule: unknown, v: unknown) => {
-            if (v === undefined || v === null || v === "") {
-              return Promise.reject(new Error("请选择状态"));
+            if (v === undefined || v === null || v === '') {
+              return Promise.reject(new Error('请选择状态'));
             }
             return Promise.resolve();
           },
-          trigger: "change",
-        },
+          trigger: 'change'
+        }
       ],
       productCode: [
         {
           validator: async () => {
-            const pc = String(formModel.productCode || "").trim();
-            const pm = String(formModel.productModel || "").trim();
+            const pc = String(formModel.productCode || '').trim();
+            const pm = String(formModel.productModel || '').trim();
             if (!pc && !pm) {
-              return Promise.reject(
-                new Error("物料编码和产品型号不能同时为空"),
-              );
+              return Promise.reject(new Error('物料编码和产品型号不能同时为空'));
             }
             return Promise.resolve();
           },
-          trigger: "blur",
-        },
+          trigger: 'blur'
+        }
       ],
       faults: [
         {
-          type: "array",
+          type: 'array',
           required: true,
           min: 1,
-          message: "请至少添加一条故障信息",
-          trigger: "change",
+          message: '请至少添加一条故障信息',
+          trigger: 'change'
         },
         {
           validator: async () => {
             const msg = getFaultDuplicateError(formModel);
             return msg ? Promise.reject(new Error(msg)) : Promise.resolve();
           },
-          trigger: "change",
-        },
-      ],
+          trigger: 'change'
+        }
+      ]
     };
   }
   return {};
 });
 
 const notifyFormRules = {
-  templateCode: [
-    { required: true, message: "模板编码不能为空", trigger: "blur" },
-  ],
-  templateName: [
-    { required: true, message: "请输入模板名称", trigger: "blur" },
-  ],
+  templateCode: [{ required: true, message: '模板编码不能为空', trigger: 'blur' }],
+  templateName: [{ required: true, message: '请输入模板名称', trigger: 'blur' }],
   notifyEnabled: [
-    { required: true, message: "请选择通知开关", trigger: "change" },
+    { required: true, message: '请选择通知开关', trigger: 'change' },
     {
       validator: async (_rule: unknown, v: unknown) => {
-        if (v === undefined || v === null || v === "") {
-          return Promise.reject(new Error("请选择通知开关"));
+        if (v === undefined || v === null || v === '') {
+          return Promise.reject(new Error('请选择通知开关'));
         }
         return Promise.resolve();
       },
-      trigger: "change",
-    },
+      trigger: 'change'
+    }
   ],
   overrideEnabled: [
-    { required: true, message: "请选择覆盖开关", trigger: "change" },
+    { required: true, message: '请选择覆盖开关', trigger: 'change' },
     {
       validator: async (_rule: unknown, v: unknown) => {
-        if (v === undefined || v === null || v === "") {
-          return Promise.reject(new Error("请选择覆盖开关"));
+        if (v === undefined || v === null || v === '') {
+          return Promise.reject(new Error('请选择覆盖开关'));
         }
         return Promise.resolve();
       },
-      trigger: "change",
-    },
-  ],
+      trigger: 'change'
+    }
+  ]
 };
 
 const syncTaskFormRules = {
-  taskCode: [{ required: true, message: "请输入任务编码", trigger: "blur" }],
-  taskName: [{ required: true, message: "请输入任务名称", trigger: "blur" }],
-  handlerCode: [{ required: true, message: "请选择处理器", trigger: "change" }],
-  cronExpression: [
-    { required: true, message: "请输入Cron表达式", trigger: "blur" },
-  ],
+  taskCode: [{ required: true, message: '请输入任务编码', trigger: 'blur' }],
+  taskName: [{ required: true, message: '请输入任务名称', trigger: 'blur' }],
+  handlerCode: [{ required: true, message: '请选择处理器', trigger: 'change' }],
+  cronExpression: [{ required: true, message: '请输入Cron表达式', trigger: 'blur' }]
 };
 
 const advRegionFormRules = {
-  regionCode: [{ required: true, message: "请输入大区编码", trigger: "blur" }],
-  regionName: [{ required: true, message: "请输入大区名称", trigger: "blur" }],
+  regionCode: [{ required: true, message: '请输入大区编码', trigger: 'blur' }],
+  regionName: [{ required: true, message: '请输入大区名称', trigger: 'blur' }]
 };
 
 /**
@@ -1666,21 +1525,16 @@ function buildFaultSubmitPayload(data: RowData) {
   return {
     id: data.id,
     companyId: Number(data.companyId),
-    productCode: String(data.productCode || "").trim(),
-    productModel: String(data.productModel || "").trim(),
+    productCode: String(data.productCode || '').trim(),
+    productModel: String(data.productModel || '').trim(),
     status: Number(data.status ?? 1),
-    remark: String(data.remark || "").trim(),
-    faults: (Array.isArray(data.faults) ? data.faults : []).map(
-      (item: RowData) => ({
-        faultDesc: String(item.faultDesc || "").trim(),
-        repairOptions: (Array.isArray(item.repairOptions)
-          ? item.repairOptions
-          : []
-        )
-          .map((x: unknown) => String(x || "").trim())
-          .filter(Boolean),
-      }),
-    ),
+    remark: String(data.remark || '').trim(),
+    faults: (Array.isArray(data.faults) ? data.faults : []).map((item: RowData) => ({
+      faultDesc: String(item.faultDesc || '').trim(),
+      repairOptions: (Array.isArray(item.repairOptions) ? item.repairOptions : [])
+        .map((x: unknown) => String(x || '').trim())
+        .filter(Boolean)
+    }))
   };
 }
 
@@ -1697,37 +1551,27 @@ async function submitForm() {
   const data = { ...formModel };
   let submitResult: unknown;
   switch (activeKey.value) {
-    case "dict":
-      submitResult =
-        (data.dictId ?? data.id)
-          ? await updateDictType(data)
-          : await addDictType(data);
+    case 'dict':
+      submitResult = (data.dictId ?? data.id) ? await updateDictType(data) : await addDictType(data);
       break;
-    case "config":
-      submitResult =
-        (data.configId ?? data.id)
-          ? await updateConfig(data)
-          : await addConfig(data);
+    case 'config':
+      submitResult = (data.configId ?? data.id) ? await updateConfig(data) : await addConfig(data);
       break;
-    case "notifyTemplate":
-      submitResult = data.id
-        ? await updateNotifyTemplateCustom(data)
-        : await addNotifyTemplateCustom(data);
+    case 'notifyTemplate':
+      submitResult = data.id ? await updateNotifyTemplateCustom(data) : await addNotifyTemplateCustom(data);
       break;
-    case "fault":
+    case 'fault':
       submitResult = data.id
         ? await updateFaultRepairConfig(buildFaultSubmitPayload(data))
         : await addFaultRepairConfig(buildFaultSubmitPayload(data));
       break;
-    case "roleTemplate":
-      submitResult = data.id
-        ? await updateRoleTemplate(data)
-        : await addRoleTemplate(data);
+    case 'roleTemplate':
+      submitResult = data.id ? await updateRoleTemplate(data) : await addRoleTemplate(data);
       break;
     default:
       return;
   }
-  if (!notifyOnceSuccessFromFlatResult(submitResult, "操作成功")) return;
+  if (!notifyOnceSuccessFromFlatResult(submitResult, '操作成功')) return;
   formOpen.value = false;
   loadList();
 }
@@ -1740,35 +1584,30 @@ async function submitForm() {
 async function removeRow(record: RowData) {
   let delResult: unknown;
   switch (activeKey.value) {
-    case "dict":
+    case 'dict':
       delResult = await deleteDictType(record.dictId ?? record.id);
       break;
-    case "config":
+    case 'config':
       delResult = await deleteConfig(record.configId ?? record.id);
       break;
-    case "notifyTemplate":
+    case 'notifyTemplate':
       delResult = await deleteNotifyTemplateCustom(record.id);
       break;
-    case "fault":
-      window.$message?.warning?.(
-        "jasic 后端无删除接口，请使用停用或联系管理员",
-      );
+    case 'fault':
+      window.$message?.warning?.('jasic 后端无删除接口，请使用停用或联系管理员');
       return;
-    case "roleTemplate":
+    case 'roleTemplate':
       delResult = await deleteRoleTemplate(record.id);
       break;
-    case "region":
+    case 'region':
       delResult = await deleteRegion(record.id, {
-        targetCompanyId: Number(record?.companyId ?? regionHqId.value),
+        targetCompanyId: Number(record?.companyId ?? regionHqId.value)
       });
       break;
     default:
       return;
   }
-  notifyOnceSuccessFromFlatResult(
-    delResult,
-    activeKey.value === "notifyTemplate" ? "删除成功" : "已删除",
-  );
+  notifyOnceSuccessFromFlatResult(delResult, activeKey.value === 'notifyTemplate' ? '删除成功' : '已删除');
   loadList();
 }
 
@@ -1777,15 +1616,15 @@ async function removeRow(record: RowData) {
  * @returns 无
  */
 async function onRefreshCache() {
-  if (activeKey.value === "dict") {
+  if (activeKey.value === 'dict') {
     const r = await refreshDictTypeCache();
-    notifyOnceSuccessFromFlatResult(r, "字典缓存已刷新");
-  } else if (activeKey.value === "config") {
+    notifyOnceSuccessFromFlatResult(r, '字典缓存已刷新');
+  } else if (activeKey.value === 'config') {
     const r = await refreshConfigCache();
-    notifyOnceSuccessFromFlatResult(r, "参数缓存已刷新");
-  } else if (activeKey.value === "notifyTemplate") {
+    notifyOnceSuccessFromFlatResult(r, '参数缓存已刷新');
+  } else if (activeKey.value === 'notifyTemplate') {
     const r = await refreshNotifyTemplateCache();
-    notifyOnceSuccessFromFlatResult(r, "通知模板缓存已刷新");
+    notifyOnceSuccessFromFlatResult(r, '通知模板缓存已刷新');
   }
   loadList();
 }
@@ -1799,7 +1638,7 @@ async function onRunSyncTask(record: RowData) {
   const id = record.id ?? record.taskId;
   if (id == null) return;
   const r = await executeSyncTask(id);
-  notifyOnceSuccessFromFlatResult(r, "已触发执行");
+  notifyOnceSuccessFromFlatResult(r, '已触发执行');
   loadList();
 }
 
@@ -1812,7 +1651,7 @@ async function onSyncRoleTemplateRow(record: RowData) {
   const id = record.id;
   if (id == null) return;
   const r = await syncRoleTemplate(id);
-  notifyOnceSuccessFromFlatResult(r, "全量同步成功");
+  notifyOnceSuccessFromFlatResult(r, '全量同步成功');
 }
 
 /**
@@ -1821,7 +1660,7 @@ async function onSyncRoleTemplateRow(record: RowData) {
  */
 async function onFullSyncBarcode() {
   const r = await fullSyncMachineBarcode();
-  notifyOnceSuccessFromFlatResult(r, "已触发全量同步");
+  notifyOnceSuccessFromFlatResult(r, '已触发全量同步');
   loadList();
 }
 
@@ -1846,12 +1685,10 @@ async function openBarcodeDetail(record: RowData) {
  * @returns 是否存在 CUSTOM 来源记录
  */
 function hasCustomNotifyTemplate(templateCode?: string) {
-  const code = String(templateCode || "");
+  const code = String(templateCode || '');
   if (!code) return false;
   return rows.value.some(
-    (item) =>
-      String(item.templateCode || "") === code &&
-      String(item.templateSource || "") === "CUSTOM",
+    item => String(item.templateCode || '') === code && String(item.templateSource || '') === 'CUSTOM'
   );
 }
 
@@ -1866,17 +1703,17 @@ function buildNotifyPreviewVariables(templateCode?: string) {
   const commonVars = {
     // 通用业务类变量
     bizId: 88,
-    bizNo: "WO202604180001",
-    receiverName: "张三",
+    bizNo: 'WO202604180001',
+    receiverName: '张三',
     // 工单类变量（部分模板/渠道会用到）
     workOrderId: 10001,
-    orderNo: "WO202604210001",
-    customerMobile: "13800138000",
-    companyName: "深圳南山服务网点",
-    closedTime: "2026-04-21 15:30:00",
+    orderNo: 'WO202604210001',
+    customerMobile: '13800138000',
+    companyName: '深圳南山服务网点',
+    closedTime: '2026-04-21 15:30:00'
   };
 
-  if (templateCode === "WORK_ORDER_EVALUATION_INVITE") {
+  if (templateCode === 'WORK_ORDER_EVALUATION_INVITE') {
     return JSON.stringify({ ...commonVars }, null, 2);
   }
   return JSON.stringify(commonVars, null, 2);
@@ -1888,11 +1725,11 @@ function buildNotifyPreviewVariables(templateCode?: string) {
  * @returns 无
  */
 function fillNotifyForm(detail: RowData) {
-  Object.keys(notifyForm).forEach((k) => delete notifyForm[k]);
+  Object.keys(notifyForm).forEach(k => delete notifyForm[k]);
   Object.assign(notifyForm, {
     ...detail,
     notifyEnabled: Number(detail.notifyEnabled ?? 1),
-    overrideEnabled: Number(detail.overrideEnabled ?? 0),
+    overrideEnabled: Number(detail.overrideEnabled ?? 0)
   });
 }
 
@@ -1902,12 +1739,9 @@ function fillNotifyForm(detail: RowData) {
  * @returns 无
  */
 async function openNotifyView(record: RowData) {
-  notifyFormTitle.value = "查看通知模板";
+  notifyFormTitle.value = '查看通知模板';
   notifyFormReadonly.value = true;
-  const detail =
-    record.id == null
-      ? record
-      : ((await getNotifyTemplate(record.id)).data as RowData) || record;
+  const detail = record.id == null ? record : ((await getNotifyTemplate(record.id)).data as RowData) || record;
   fillNotifyForm(detail);
   notifyFormOpen.value = true;
 }
@@ -1918,19 +1752,19 @@ async function openNotifyView(record: RowData) {
  * @returns 无
  */
 async function openNotifyAddCustom(record: RowData) {
-  notifyFormTitle.value = "新增自定义模板";
+  notifyFormTitle.value = '新增自定义模板';
   notifyFormReadonly.value = false;
   fillNotifyForm({
     templateCode: record.templateCode,
     templateName: record.templateName,
     notifyEnabled: 1,
     overrideEnabled: 0,
-    routeType: record.routeType || "",
-    titleTemplate: "",
-    summaryTemplate: "",
-    routeValueTemplate: "",
-    remark: "",
-    variablesJson: record.variablesJson || "",
+    routeType: record.routeType || '',
+    titleTemplate: '',
+    summaryTemplate: '',
+    routeValueTemplate: '',
+    remark: '',
+    variablesJson: record.variablesJson || ''
   });
   notifyFormOpen.value = true;
 }
@@ -1941,10 +1775,9 @@ async function openNotifyAddCustom(record: RowData) {
  * @returns 无
  */
 async function openNotifyEdit(record: RowData) {
-  notifyFormTitle.value = "编辑自定义模板";
+  notifyFormTitle.value = '编辑自定义模板';
   notifyFormReadonly.value = false;
-  const detail =
-    ((await getNotifyTemplate(record.id)).data as RowData) || record;
+  const detail = ((await getNotifyTemplate(record.id)).data as RowData) || record;
   fillNotifyForm(detail);
   notifyFormOpen.value = true;
 }
@@ -1971,7 +1804,7 @@ async function submitNotifyForm() {
       titleTemplate: notifyForm.titleTemplate,
       summaryTemplate: notifyForm.summaryTemplate,
       routeValueTemplate: notifyForm.routeValueTemplate,
-      remark: notifyForm.remark,
+      remark: notifyForm.remark
     };
     let notifySubmitResult: unknown;
     if (notifyForm.id) {
@@ -1979,8 +1812,7 @@ async function submitNotifyForm() {
     } else {
       notifySubmitResult = await addNotifyTemplateCustom(payload);
     }
-    if (!notifyOnceSuccessFromFlatResult(notifySubmitResult, "操作成功"))
-      return;
+    if (!notifyOnceSuccessFromFlatResult(notifySubmitResult, '操作成功')) return;
     notifyFormOpen.value = false;
     await loadList();
   } finally {
@@ -2001,11 +1833,9 @@ async function onPreviewNotify(record: RowData) {
     routeType: record.routeType,
     titleTemplate: record.titleTemplate,
     summaryTemplate: record.summaryTemplate,
-    routeValueTemplate: record.routeValueTemplate,
+    routeValueTemplate: record.routeValueTemplate
   };
-  notifyPreviewVariablesText.value = buildNotifyPreviewVariables(
-    record.templateCode,
-  );
+  notifyPreviewVariablesText.value = buildNotifyPreviewVariables(record.templateCode);
   notifyPreviewResult.value = null;
   notifyPreviewPayload.value = payload;
   notifyPreviewOpen.value = true;
@@ -2024,11 +1854,10 @@ async function onPreviewNotifyForm() {
     routeType: notifyForm.routeType,
     titleTemplate: notifyForm.titleTemplate,
     summaryTemplate: notifyForm.summaryTemplate,
-    routeValueTemplate: notifyForm.routeValueTemplate,
+    routeValueTemplate: notifyForm.routeValueTemplate
   };
   notifyPreviewVariablesText.value =
-    notifyPreviewVariablesText.value ||
-    buildNotifyPreviewVariables(notifyForm.templateCode);
+    notifyPreviewVariablesText.value || buildNotifyPreviewVariables(notifyForm.templateCode);
   notifyPreviewResult.value = null;
   notifyPreviewPayload.value = payload;
   notifyPreviewOpen.value = true;
@@ -2043,11 +1872,9 @@ async function onPreviewNotifyForm() {
 async function runNotifyPreview(payload: RowData) {
   let variables = {};
   try {
-    variables = notifyPreviewVariablesText.value
-      ? JSON.parse(notifyPreviewVariablesText.value)
-      : {};
+    variables = notifyPreviewVariablesText.value ? JSON.parse(notifyPreviewVariablesText.value) : {};
   } catch {
-    window.$message?.error?.("示例变量 JSON 格式不正确");
+    window.$message?.error?.('示例变量 JSON 格式不正确');
     return;
   }
   notifyPreviewLoading.value = true;
@@ -2065,19 +1892,15 @@ async function runNotifyPreview(payload: RowData) {
  * @returns 无
  */
 async function openChannelsEditor(record: RowData) {
-  channelsReadonly.value = !hasAuth("system:notifyTemplate:update");
-  channelsTemplateCode.value = String(record.templateCode || "");
+  channelsReadonly.value = !hasAuth('system:notifyTemplate:update');
+  channelsTemplateCode.value = String(record.templateCode || '');
   channelsRows.value = [];
   channelsOpen.value = true;
   channelsLoading.value = true;
   try {
-    const { data } = await listNotifyTemplateChannels(
-      channelsTemplateCode.value,
-    );
+    const { data } = await listNotifyTemplateChannels(channelsTemplateCode.value);
     const rows = Array.isArray(data) ? data : [];
-    channelsRows.value = rows.length
-      ? rows.map((item) => normalizeChannelRow(item as RowData))
-      : defaultChannelRows();
+    channelsRows.value = rows.length ? rows.map(item => normalizeChannelRow(item as RowData)) : defaultChannelRows();
   } finally {
     channelsLoading.value = false;
   }
@@ -2088,29 +1911,29 @@ async function openChannelsEditor(record: RowData) {
  * @returns 渠道行对象
  */
 function createChannelRow() {
-  if (channelsTemplateCode.value === "WORK_ORDER_EVALUATION_INVITE") {
+  if (channelsTemplateCode.value === 'WORK_ORDER_EVALUATION_INVITE') {
     return {
-      channelType: "MP_SUBSCRIBE",
+      channelType: 'MP_SUBSCRIBE',
       channelEnabled: 1,
-      channelScene: "C",
-      templateId: "",
-      pagePathTemplate: "pages/order/evaluate?workOrderId=${workOrderId}",
+      channelScene: 'C',
+      templateId: '',
+      pagePathTemplate: 'pages/order/evaluate?workOrderId=${workOrderId}',
       fieldMapping: [
-        { field: "thing1", value: "${orderNo}" },
-        { field: "phone_number2", value: "${customerMobile}" },
-        { field: "thing3", value: "${companyName}" },
+        { field: 'thing1', value: '${orderNo}' },
+        { field: 'phone_number2', value: '${customerMobile}' },
+        { field: 'thing3', value: '${companyName}' }
       ],
-      remark: "客户满意度评价通知默认渠道配置",
+      remark: '客户满意度评价通知默认渠道配置'
     };
   }
   return {
-    channelType: "MP_SUBSCRIBE",
+    channelType: 'MP_SUBSCRIBE',
     channelEnabled: 1,
-    channelScene: "",
-    templateId: "",
-    pagePathTemplate: "",
+    channelScene: '',
+    templateId: '',
+    pagePathTemplate: '',
     fieldMapping: [],
-    remark: "",
+    remark: ''
   };
 }
 
@@ -2130,20 +1953,16 @@ function defaultChannelRows() {
 function normalizeChannelRow(item: RowData) {
   return {
     id: item.id,
-    channelType: item.channelType || "MP_SUBSCRIBE",
-    channelEnabled:
-      item.channelEnabled == null ? 1 : Number(item.channelEnabled),
-    channelScene: item.channelScene || "",
-    templateId: item.templateId || "",
-    pagePathTemplate: item.pagePathTemplate || "",
-    fieldMapping: (Array.isArray(item.fieldMapping)
-      ? item.fieldMapping
-      : []
-    ).map((mapping: RowData) => ({
-      field: mapping.field || "",
-      value: mapping.value || "",
+    channelType: item.channelType || 'MP_SUBSCRIBE',
+    channelEnabled: item.channelEnabled == null ? 1 : Number(item.channelEnabled),
+    channelScene: item.channelScene || '',
+    templateId: item.templateId || '',
+    pagePathTemplate: item.pagePathTemplate || '',
+    fieldMapping: (Array.isArray(item.fieldMapping) ? item.fieldMapping : []).map((mapping: RowData) => ({
+      field: mapping.field || '',
+      value: mapping.value || ''
     })),
-    remark: item.remark || "",
+    remark: item.remark || ''
   };
 }
 
@@ -2161,14 +1980,11 @@ function buildChannelPayload(item: RowData) {
     channelScene: item.channelScene,
     templateId: item.templateId,
     pagePathTemplate: item.pagePathTemplate,
-    fieldMapping: (Array.isArray(item.fieldMapping)
-      ? item.fieldMapping
-      : []
-    ).map((mapping: RowData) => ({
-      field: String(mapping.field || ""),
-      value: String(mapping.value || ""),
+    fieldMapping: (Array.isArray(item.fieldMapping) ? item.fieldMapping : []).map((mapping: RowData) => ({
+      field: String(mapping.field || ''),
+      value: String(mapping.value || '')
     })),
-    remark: item.remark,
+    remark: item.remark
   };
 }
 
@@ -2194,7 +2010,7 @@ function removeChannelRow(index: number) {
  */
 function addFieldMapping(item: RowData) {
   if (!Array.isArray(item.fieldMapping)) item.fieldMapping = [];
-  item.fieldMapping.push({ field: "", value: "" });
+  item.fieldMapping.push({ field: '', value: '' });
 }
 
 /**
@@ -2214,12 +2030,9 @@ function removeFieldMapping(item: RowData, index: number) {
 async function saveChannels() {
   channelsLoading.value = true;
   try {
-    const payload = channelsRows.value.map((item) => buildChannelPayload(item));
-    const r = await saveNotifyTemplateChannels(
-      channelsTemplateCode.value,
-      payload,
-    );
-    if (!notifyOnceSuccessFromFlatResult(r, "渠道配置已保存")) return;
+    const payload = channelsRows.value.map(item => buildChannelPayload(item));
+    const r = await saveNotifyTemplateChannels(channelsTemplateCode.value, payload);
+    if (!notifyOnceSuccessFromFlatResult(r, '渠道配置已保存')) return;
     channelsOpen.value = false;
   } finally {
     channelsLoading.value = false;
@@ -2232,13 +2045,13 @@ async function saveChannels() {
  * @returns 无
  */
 function openSyncForm(record?: RowData) {
-  syncFormTitle.value = record ? "编辑同步任务" : "新增同步任务";
-  Object.keys(syncFormModel).forEach((k) => delete syncFormModel[k]);
+  syncFormTitle.value = record ? '编辑同步任务' : '新增同步任务';
+  Object.keys(syncFormModel).forEach(k => delete syncFormModel[k]);
   if (record) {
     Object.assign(syncFormModel, JSON.parse(JSON.stringify(record)));
   } else {
     syncFormModel.status = 0;
-    syncFormModel.cronExpression = "0 0 2 * * ?";
+    syncFormModel.cronExpression = '0 0 2 * * ?';
   }
   syncFormOpen.value = true;
 }
@@ -2254,10 +2067,8 @@ async function submitSyncForm() {
     return;
   }
   const data = { ...syncFormModel };
-  const syncSubmitResult = data.id
-    ? await updateSyncTask(data)
-    : await addSyncTask(data);
-  if (!notifyOnceSuccessFromFlatResult(syncSubmitResult, "已保存")) return;
+  const syncSubmitResult = data.id ? await updateSyncTask(data) : await addSyncTask(data);
+  if (!notifyOnceSuccessFromFlatResult(syncSubmitResult, '已保存')) return;
   syncFormOpen.value = false;
   loadList();
 }
@@ -2282,7 +2093,7 @@ async function openSyncFormEdit(record: RowData) {
 async function openLogDialog(record: RowData) {
   logTaskId.value = record.id;
   logPage.pageNum = 1;
-  logDialogTitle.value = `执行日志 - ${record.taskName || ""}`;
+  logDialogTitle.value = `执行日志 - ${record.taskName || ''}`;
   logQuery.status = undefined;
   logOpen.value = true;
   await loadSyncLogs();
@@ -2300,7 +2111,7 @@ async function loadSyncLogs() {
       taskId: logTaskId.value,
       status: logQuery.status,
       pageNum: logPage.pageNum,
-      pageSize: logPage.pageSize,
+      pageSize: logPage.pageSize
     });
     logRows.value = pickRows(data);
     logTotal.value = pickTotal(data);
@@ -2336,11 +2147,11 @@ function handleLogStatusChange() {
  * @returns Ant Tag color
  */
 function syncLogStatusTagColor(status: unknown) {
-  const s = String(status || "");
-  if (s === "SUCCESS") return "success";
-  if (s === "FAILED") return "error";
-  if (s === "RUNNING") return "processing";
-  return "default";
+  const s = String(status || '');
+  if (s === 'SUCCESS') return 'success';
+  if (s === 'FAILED') return 'error';
+  if (s === 'RUNNING') return 'processing';
+  return 'default';
 }
 
 /**
@@ -2349,9 +2160,8 @@ function syncLogStatusTagColor(status: unknown) {
  * @returns 展示文案
  */
 function syncLogTriggerUserLabel(record: RowData) {
-  if (record.triggerType === "SCHEDULED" || Number(record.triggerUserId) === 0)
-    return "系统任务";
-  return record.triggerUserId || "-";
+  if (record.triggerType === 'SCHEDULED' || Number(record.triggerUserId) === 0) return '系统任务';
+  return record.triggerUserId || '-';
 }
 
 /**
@@ -2360,9 +2170,9 @@ function syncLogTriggerUserLabel(record: RowData) {
  * @returns 无
  */
 async function openRoleTemplateMenuAssign(record: RowData) {
-  const typeCode = String(record.typeCode || "");
+  const typeCode = String(record.typeCode || '');
   if (!typeCode) {
-    window.$message?.warning?.("当前模板缺少 typeCode");
+    window.$message?.warning?.('当前模板缺少 typeCode');
     return;
   }
   menuAssignTypeCode.value = typeCode;
@@ -2372,13 +2182,8 @@ async function openRoleTemplateMenuAssign(record: RowData) {
   const { data: treeData } = await typeCodeMenuTree(typeCode);
   menuTreeData.value = Array.isArray(treeData) ? treeData : pickRows(treeData);
   const rawIds = Array.isArray(record.menuIds) ? record.menuIds : [];
-  menuCheckedKeys.value = (rawIds as unknown[])
-    .map((x) => Number(x))
-    .filter((id) => !Number.isNaN(id));
-  menuExpandedKeys.value = computeExpandedKeysForCheckedMenuTree(
-    menuTreeData.value,
-    menuCheckedKeys.value,
-  );
+  menuCheckedKeys.value = (rawIds as unknown[]).map(x => Number(x)).filter(id => !Number.isNaN(id));
+  menuExpandedKeys.value = computeExpandedKeysForCheckedMenuTree(menuTreeData.value, menuCheckedKeys.value);
   await nextTick();
 }
 
@@ -2399,9 +2204,9 @@ async function submitRoleTemplateMenuAssign() {
       isAdmin: menuAssignTemplate.value.isAdmin === 1 ? 1 : 0,
       orderNum: menuAssignTemplate.value.orderNum,
       remark: menuAssignTemplate.value.remark,
-      menuIds: menuCheckedKeys.value,
+      menuIds: menuCheckedKeys.value
     });
-    if (!notifyOnceSuccessFromFlatResult(r, "模板菜单已分配")) return;
+    if (!notifyOnceSuccessFromFlatResult(r, '模板菜单已分配')) return;
     menuAssignOpen.value = false;
     await loadList();
   } finally {
@@ -2416,11 +2221,11 @@ async function submitRoleTemplateMenuAssign() {
  */
 function openRegionForm(record?: RowData) {
   if (!regionHqId.value) {
-    window.$message?.warning?.("请先选择总部公司");
+    window.$message?.warning?.('请先选择总部公司');
     return;
   }
-  regionFormTitle.value = record ? "编辑大区" : "新增大区";
-  Object.keys(regionForm).forEach((k) => delete regionForm[k]);
+  regionFormTitle.value = record ? '编辑大区' : '新增大区';
+  Object.keys(regionForm).forEach(k => delete regionForm[k]);
   if (record) {
     Object.assign(regionForm, JSON.parse(JSON.stringify(record)));
     regionForm.targetCompanyId = Number(record.companyId ?? regionHqId.value);
@@ -2442,10 +2247,8 @@ async function submitRegionForm() {
     return;
   }
   const data = { ...regionForm };
-  const regionSubmitResult = data.id
-    ? await updateRegion(data)
-    : await addRegion(data);
-  if (!notifyOnceSuccessFromFlatResult(regionSubmitResult, "已保存")) return;
+  const regionSubmitResult = data.id ? await updateRegion(data) : await addRegion(data);
+  if (!notifyOnceSuccessFromFlatResult(regionSubmitResult, '已保存')) return;
   regionFormOpen.value = false;
   loadList();
 }
@@ -2458,10 +2261,7 @@ async function submitRegionForm() {
 async function openFaultDetail(record: RowData) {
   const id = record.id;
   if (id == null) return;
-  const { data } = await getFaultRepairConfig(
-    id,
-    buildFaultDetailParams(record),
-  );
+  const { data } = await getFaultRepairConfig(id, buildFaultDetailParams(record));
   faultDetail.value = normalizeFaultFormData((data as RowData) || record);
   faultDetailOpen.value = true;
 }
@@ -2481,14 +2281,12 @@ function typeCodeLabel(code: string) {
  * @returns 标签或原值
  */
 function getRoleTemplateDataScopeLabel(row: RowData) {
-  const typeCode = String(row.typeCode || "");
-  const dataScope = String(row.dataScope || "");
-  if (!typeCode || !dataScope) return row.dataScope || "-";
+  const typeCode = String(row.typeCode || '');
+  const dataScope = String(row.dataScope || '');
+  if (!typeCode || !dataScope) return row.dataScope || '-';
 
   const options = roleTemplateDataScopeMap.value[typeCode] || [];
-  const matched = options.find(
-    (option: DataScopeOption) => option.value === dataScope,
-  );
+  const matched = options.find((option: DataScopeOption) => option.value === dataScope);
   return matched?.label || dataScope;
 }
 
@@ -2507,10 +2305,10 @@ function onRoleTemplateTypeChange() {
  * @returns 无
  */
 async function onRoleTemplateDataScopeInit(keepCurrentValue = false) {
-  const typeCode = String(formModel.typeCode || "");
+  const typeCode = String(formModel.typeCode || '');
   if (!typeCode) {
     roleTemplateScopeOptions.value = [];
-    formModel.dataScope = "";
+    formModel.dataScope = '';
     return;
   }
   try {
@@ -2520,37 +2318,34 @@ async function onRoleTemplateDataScopeInit(keepCurrentValue = false) {
       label: String(item.label ?? item.name ?? item.value),
       value: String(item.value ?? item.code ?? item.key),
       defaultOption: Boolean(item.defaultOption),
-      disabled: Boolean(item.disabled),
+      disabled: Boolean(item.disabled)
     }));
-    roleTemplateScopeOptions.value = options.map((item) => ({
+    roleTemplateScopeOptions.value = options.map(item => ({
       label: item.label,
-      value: item.value,
+      value: item.value
     }));
-    const currentValue = String(formModel.dataScope || "");
-    const currentValid = options.some((item) => item.value === currentValue);
+    const currentValue = String(formModel.dataScope || '');
+    const currentValid = options.some(item => item.value === currentValue);
     if (!keepCurrentValue || !currentValid) {
-      formModel.dataScope =
-        options.find((item) => item.defaultOption)?.value ||
-        options[0]?.value ||
-        "";
+      formModel.dataScope = options.find(item => item.defaultOption)?.value || options[0]?.value || '';
     }
   } catch {
     roleTemplateScopeOptions.value = [];
-    if (!keepCurrentValue) formModel.dataScope = "";
+    if (!keepCurrentValue) formModel.dataScope = '';
   }
 }
 
 // 系统大区 Tab：切换所选总部后刷新列表
 watch(regionHqId, () => {
-  if (activeKey.value === "region") loadList();
+  if (activeKey.value === 'region') loadList();
 });
 
 // 路由 name 变化时同步当前高级配置子模块 Tab
 watch(
   () => route.name,
-  (name) => {
-    void syncActiveModuleByRouteName(name);
-  },
+  name => {
+    syncActiveModuleByRouteName(name);
+  }
 );
 
 /**
@@ -2565,16 +2360,10 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div
-    class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto"
-  >
+  <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
     <ACard :bordered="false" class="card-wrapper">
       <div class="flex flex-col gap-12px">
-        <AForm
-          v-if="activeKey === 'dict'"
-          :model="dictQuery"
-          :label-col="{ span: 5, md: 7 }"
-        >
+        <AForm v-if="activeKey === 'dict'" :model="dictQuery" :label-col="{ span: 5, md: 7 }">
           <div class="page-search-toolbar">
             <div class="page-search-toolbar__filters">
               <ARow :gutter="[16, 16]" wrap>
@@ -2583,16 +2372,11 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      dictSearchFilter.isSearchFilterHidden(0),
+                    'page-search-toolbar__filter-col--collapsed': dictSearchFilter.isSearchFilterHidden(0)
                   }"
                 >
                   <AFormItem label="字典名称" class="m-0">
-                    <AInput
-                      v-model:value="dictQuery.dictName"
-                      allow-clear
-                      placeholder="请输入字典名称"
-                    />
+                    <AInput v-model:value="dictQuery.dictName" allow-clear placeholder="请输入字典名称" />
                   </AFormItem>
                 </ACol>
                 <ACol
@@ -2600,16 +2384,11 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      dictSearchFilter.isSearchFilterHidden(1),
+                    'page-search-toolbar__filter-col--collapsed': dictSearchFilter.isSearchFilterHidden(1)
                   }"
                 >
                   <AFormItem label="字典类型" class="m-0">
-                    <AInput
-                      v-model:value="dictQuery.dictType"
-                      allow-clear
-                      placeholder="请输入字典类型"
-                    />
+                    <AInput v-model:value="dictQuery.dictType" allow-clear placeholder="请输入字典类型" />
                   </AFormItem>
                 </ACol>
                 <ACol
@@ -2617,8 +2396,7 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      dictSearchFilter.isSearchFilterHidden(2),
+                    'page-search-toolbar__filter-col--collapsed': dictSearchFilter.isSearchFilterHidden(2)
                   }"
                 >
                   <AFormItem label="状态" class="m-0">
@@ -2629,7 +2407,7 @@ onMounted(async () => {
                       class="w-full"
                       :options="[
                         { label: '启用', value: 1 },
-                        { label: '停用', value: 0 },
+                        { label: '停用', value: 0 }
                       ]"
                     />
                   </AFormItem>
@@ -2648,11 +2426,7 @@ onMounted(async () => {
           </div>
         </AForm>
 
-        <AForm
-          v-if="activeKey === 'config'"
-          :model="configQuery"
-          :label-col="{ span: 5, md: 7 }"
-        >
+        <AForm v-if="activeKey === 'config'" :model="configQuery" :label-col="{ span: 5, md: 7 }">
           <div class="page-search-toolbar">
             <div class="page-search-toolbar__filters">
               <ARow :gutter="[16, 16]" wrap>
@@ -2661,16 +2435,11 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      configSearchFilter.isSearchFilterHidden(0),
+                    'page-search-toolbar__filter-col--collapsed': configSearchFilter.isSearchFilterHidden(0)
                   }"
                 >
                   <AFormItem label="参数名称" class="m-0">
-                    <AInput
-                      v-model:value="configQuery.configName"
-                      allow-clear
-                      placeholder="请输入参数名称"
-                    />
+                    <AInput v-model:value="configQuery.configName" allow-clear placeholder="请输入参数名称" />
                   </AFormItem>
                 </ACol>
                 <ACol
@@ -2678,16 +2447,11 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      configSearchFilter.isSearchFilterHidden(1),
+                    'page-search-toolbar__filter-col--collapsed': configSearchFilter.isSearchFilterHidden(1)
                   }"
                 >
                   <AFormItem label="参数键名" class="m-0">
-                    <AInput
-                      v-model:value="configQuery.configKey"
-                      allow-clear
-                      placeholder="请输入参数键名"
-                    />
+                    <AInput v-model:value="configQuery.configKey" allow-clear placeholder="请输入参数键名" />
                   </AFormItem>
                 </ACol>
                 <ACol
@@ -2695,8 +2459,7 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      configSearchFilter.isSearchFilterHidden(2),
+                    'page-search-toolbar__filter-col--collapsed': configSearchFilter.isSearchFilterHidden(2)
                   }"
                 >
                   <AFormItem label="是否内置" class="m-0">
@@ -2707,7 +2470,7 @@ onMounted(async () => {
                       class="w-full"
                       :options="[
                         { label: '是', value: 1 },
-                        { label: '否', value: 0 },
+                        { label: '否', value: 0 }
                       ]"
                     />
                   </AFormItem>
@@ -2726,11 +2489,7 @@ onMounted(async () => {
           </div>
         </AForm>
 
-        <AForm
-          v-if="activeKey === 'notifyTemplate'"
-          :model="notifyQuery"
-          :label-col="{ span: 5, md: 7 }"
-        >
+        <AForm v-if="activeKey === 'notifyTemplate'" :model="notifyQuery" :label-col="{ span: 5, md: 7 }">
           <div class="page-search-toolbar">
             <div class="page-search-toolbar__filters">
               <ARow :gutter="[16, 16]" wrap>
@@ -2739,16 +2498,11 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      notifySearchFilter.isSearchFilterHidden(0),
+                    'page-search-toolbar__filter-col--collapsed': notifySearchFilter.isSearchFilterHidden(0)
                   }"
                 >
                   <AFormItem label="模板编码" class="m-0">
-                    <AInput
-                      v-model:value="notifyQuery.templateCode"
-                      allow-clear
-                      placeholder="请输入模板编码"
-                    />
+                    <AInput v-model:value="notifyQuery.templateCode" allow-clear placeholder="请输入模板编码" />
                   </AFormItem>
                 </ACol>
                 <ACol
@@ -2756,16 +2510,11 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      notifySearchFilter.isSearchFilterHidden(1),
+                    'page-search-toolbar__filter-col--collapsed': notifySearchFilter.isSearchFilterHidden(1)
                   }"
                 >
                   <AFormItem label="模板名称" class="m-0">
-                    <AInput
-                      v-model:value="notifyQuery.templateName"
-                      allow-clear
-                      placeholder="请输入模板名称"
-                    />
+                    <AInput v-model:value="notifyQuery.templateName" allow-clear placeholder="请输入模板名称" />
                   </AFormItem>
                 </ACol>
                 <ACol
@@ -2773,8 +2522,7 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      notifySearchFilter.isSearchFilterHidden(2),
+                    'page-search-toolbar__filter-col--collapsed': notifySearchFilter.isSearchFilterHidden(2)
                   }"
                 >
                   <AFormItem label="模板来源" class="m-0">
@@ -2785,7 +2533,7 @@ onMounted(async () => {
                       class="w-full"
                       :options="[
                         { label: '内置', value: 'BUILT_IN' },
-                        { label: '自定义', value: 'CUSTOM' },
+                        { label: '自定义', value: 'CUSTOM' }
                       ]"
                     />
                   </AFormItem>
@@ -2804,11 +2552,7 @@ onMounted(async () => {
           </div>
         </AForm>
 
-        <AForm
-          v-if="activeKey === 'barcode'"
-          :model="barcodeQuery"
-          :label-col="{ span: 5, md: 7 }"
-        >
+        <AForm v-if="activeKey === 'barcode'" :model="barcodeQuery" :label-col="{ span: 5, md: 7 }">
           <div class="page-search-toolbar">
             <div class="page-search-toolbar__filters">
               <ARow :gutter="[16, 16]" wrap>
@@ -2817,8 +2561,7 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      barcodeSearchFilter.isSearchFilterHidden(0),
+                    'page-search-toolbar__filter-col--collapsed': barcodeSearchFilter.isSearchFilterHidden(0)
                   }"
                 >
                   <AFormItem label="归属总部" class="m-0">
@@ -2832,7 +2575,7 @@ onMounted(async () => {
                       :options="
                         barcodeHqOptions.map((c: RowData) => ({
                           label: c.companyName ?? c.label,
-                          value: Number(c.id ?? c.value),
+                          value: Number(c.id ?? c.value)
                         }))
                       "
                     />
@@ -2843,16 +2586,11 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      barcodeSearchFilter.isSearchFilterHidden(1),
+                    'page-search-toolbar__filter-col--collapsed': barcodeSearchFilter.isSearchFilterHidden(1)
                   }"
                 >
                   <AFormItem label="条码" class="m-0">
-                    <AInput
-                      v-model:value="barcodeQuery.barcode"
-                      allow-clear
-                      placeholder="请输入条码"
-                    />
+                    <AInput v-model:value="barcodeQuery.barcode" allow-clear placeholder="请输入条码" />
                   </AFormItem>
                 </ACol>
                 <ACol
@@ -2860,16 +2598,11 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      barcodeSearchFilter.isSearchFilterHidden(2),
+                    'page-search-toolbar__filter-col--collapsed': barcodeSearchFilter.isSearchFilterHidden(2)
                   }"
                 >
                   <AFormItem label="发货单号" class="m-0">
-                    <AInput
-                      v-model:value="barcodeQuery.deliverNumber"
-                      allow-clear
-                      placeholder="请输入发货单号"
-                    />
+                    <AInput v-model:value="barcodeQuery.deliverNumber" allow-clear placeholder="请输入发货单号" />
                   </AFormItem>
                 </ACol>
                 <ACol
@@ -2877,16 +2610,11 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      barcodeSearchFilter.isSearchFilterHidden(3),
+                    'page-search-toolbar__filter-col--collapsed': barcodeSearchFilter.isSearchFilterHidden(3)
                   }"
                 >
                   <AFormItem label="物料编码" class="m-0">
-                    <AInput
-                      v-model:value="barcodeQuery.productCode"
-                      allow-clear
-                      placeholder="请输入物料编码"
-                    />
+                    <AInput v-model:value="barcodeQuery.productCode" allow-clear placeholder="请输入物料编码" />
                   </AFormItem>
                 </ACol>
                 <ACol
@@ -2894,16 +2622,11 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      barcodeSearchFilter.isSearchFilterHidden(4),
+                    'page-search-toolbar__filter-col--collapsed': barcodeSearchFilter.isSearchFilterHidden(4)
                   }"
                 >
                   <AFormItem label="机器小号" class="m-0">
-                    <AInput
-                      v-model:value="barcodeQuery.machineNo"
-                      allow-clear
-                      placeholder="请输入机器小号"
-                    />
+                    <AInput v-model:value="barcodeQuery.machineNo" allow-clear placeholder="请输入机器小号" />
                   </AFormItem>
                 </ACol>
                 <ACol
@@ -2911,16 +2634,11 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      barcodeSearchFilter.isSearchFilterHidden(5),
+                    'page-search-toolbar__filter-col--collapsed': barcodeSearchFilter.isSearchFilterHidden(5)
                   }"
                 >
                   <AFormItem label="产品型号" class="m-0">
-                    <AInput
-                      v-model:value="barcodeQuery.productModel"
-                      allow-clear
-                      placeholder="请输入产品型号"
-                    />
+                    <AInput v-model:value="barcodeQuery.productModel" allow-clear placeholder="请输入产品型号" />
                   </AFormItem>
                 </ACol>
                 <ACol
@@ -2928,8 +2646,7 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      barcodeSearchFilter.isSearchFilterHidden(6),
+                    'page-search-toolbar__filter-col--collapsed': barcodeSearchFilter.isSearchFilterHidden(6)
                   }"
                 >
                   <AFormItem label="状态" class="m-0">
@@ -2940,7 +2657,7 @@ onMounted(async () => {
                       class="w-full"
                       :options="[
                         { label: '启用', value: 1 },
-                        { label: '停用', value: 0 },
+                        { label: '停用', value: 0 }
                       ]"
                     />
                   </AFormItem>
@@ -2959,11 +2676,7 @@ onMounted(async () => {
           </div>
         </AForm>
 
-        <AForm
-          v-if="activeKey === 'syncTask'"
-          :model="syncTaskQuery"
-          :label-col="{ span: 5, md: 7 }"
-        >
+        <AForm v-if="activeKey === 'syncTask'" :model="syncTaskQuery" :label-col="{ span: 5, md: 7 }">
           <div class="page-search-toolbar">
             <div class="page-search-toolbar__filters">
               <ARow :gutter="[16, 16]" wrap>
@@ -2972,16 +2685,11 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      syncTaskSearchFilter.isSearchFilterHidden(0),
+                    'page-search-toolbar__filter-col--collapsed': syncTaskSearchFilter.isSearchFilterHidden(0)
                   }"
                 >
                   <AFormItem label="任务编码" class="m-0">
-                    <AInput
-                      v-model:value="syncTaskQuery.taskCode"
-                      allow-clear
-                      placeholder="请输入任务编码"
-                    />
+                    <AInput v-model:value="syncTaskQuery.taskCode" allow-clear placeholder="请输入任务编码" />
                   </AFormItem>
                 </ACol>
                 <ACol
@@ -2989,16 +2697,11 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      syncTaskSearchFilter.isSearchFilterHidden(1),
+                    'page-search-toolbar__filter-col--collapsed': syncTaskSearchFilter.isSearchFilterHidden(1)
                   }"
                 >
                   <AFormItem label="任务名称" class="m-0">
-                    <AInput
-                      v-model:value="syncTaskQuery.taskName"
-                      allow-clear
-                      placeholder="请输入任务名称"
-                    />
+                    <AInput v-model:value="syncTaskQuery.taskName" allow-clear placeholder="请输入任务名称" />
                   </AFormItem>
                 </ACol>
                 <ACol
@@ -3006,8 +2709,7 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      syncTaskSearchFilter.isSearchFilterHidden(2),
+                    'page-search-toolbar__filter-col--collapsed': syncTaskSearchFilter.isSearchFilterHidden(2)
                   }"
                 >
                   <AFormItem label="处理器" class="m-0">
@@ -3019,7 +2721,7 @@ onMounted(async () => {
                       :options="
                         handlerOptions.map((h: RowData) => ({
                           label: h.handlerName ?? h.label,
-                          value: h.handlerCode ?? h.value,
+                          value: h.handlerCode ?? h.value
                         }))
                       "
                     />
@@ -3030,8 +2732,7 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      syncTaskSearchFilter.isSearchFilterHidden(3),
+                    'page-search-toolbar__filter-col--collapsed': syncTaskSearchFilter.isSearchFilterHidden(3)
                   }"
                 >
                   <AFormItem label="状态" class="m-0">
@@ -3042,7 +2743,7 @@ onMounted(async () => {
                       class="w-full"
                       :options="[
                         { label: '启用', value: 1 },
-                        { label: '停用', value: 0 },
+                        { label: '停用', value: 0 }
                       ]"
                     />
                   </AFormItem>
@@ -3061,11 +2762,7 @@ onMounted(async () => {
           </div>
         </AForm>
 
-        <AForm
-          v-if="activeKey === 'fault'"
-          :model="faultQuery"
-          :label-col="{ span: 5, md: 7 }"
-        >
+        <AForm v-if="activeKey === 'fault'" :model="faultQuery" :label-col="{ span: 5, md: 7 }">
           <div class="page-search-toolbar">
             <div class="page-search-toolbar__filters">
               <ARow :gutter="[16, 16]" wrap>
@@ -3074,8 +2771,7 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      faultSearchFilter.isSearchFilterHidden(0),
+                    'page-search-toolbar__filter-col--collapsed': faultSearchFilter.isSearchFilterHidden(0)
                   }"
                 >
                   <AFormItem label="归属总部" class="m-0">
@@ -3089,7 +2785,7 @@ onMounted(async () => {
                       :options="
                         faultCompanyOptions.map((c: RowData) => ({
                           label: c.companyName ?? c.label,
-                          value: c.id ?? c.value,
+                          value: c.id ?? c.value
                         }))
                       "
                     />
@@ -3100,16 +2796,11 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      faultSearchFilter.isSearchFilterHidden(1),
+                    'page-search-toolbar__filter-col--collapsed': faultSearchFilter.isSearchFilterHidden(1)
                   }"
                 >
                   <AFormItem label="物料编码" class="m-0">
-                    <AInput
-                      v-model:value="faultQuery.productCode"
-                      allow-clear
-                      placeholder="请输入物料编码"
-                    />
+                    <AInput v-model:value="faultQuery.productCode" allow-clear placeholder="请输入物料编码" />
                   </AFormItem>
                 </ACol>
                 <ACol
@@ -3117,16 +2808,11 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      faultSearchFilter.isSearchFilterHidden(2),
+                    'page-search-toolbar__filter-col--collapsed': faultSearchFilter.isSearchFilterHidden(2)
                   }"
                 >
                   <AFormItem label="产品型号" class="m-0">
-                    <AInput
-                      v-model:value="faultQuery.productModel"
-                      allow-clear
-                      placeholder="请输入产品型号"
-                    />
+                    <AInput v-model:value="faultQuery.productModel" allow-clear placeholder="请输入产品型号" />
                   </AFormItem>
                 </ACol>
                 <ACol
@@ -3134,16 +2820,11 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      faultSearchFilter.isSearchFilterHidden(3),
+                    'page-search-toolbar__filter-col--collapsed': faultSearchFilter.isSearchFilterHidden(3)
                   }"
                 >
                   <AFormItem label="故障描述" class="m-0">
-                    <AInput
-                      v-model:value="faultQuery.faultDesc"
-                      allow-clear
-                      placeholder="请输入故障描述"
-                    />
+                    <AInput v-model:value="faultQuery.faultDesc" allow-clear placeholder="请输入故障描述" />
                   </AFormItem>
                 </ACol>
                 <ACol
@@ -3151,8 +2832,7 @@ onMounted(async () => {
                   :md="12"
                   :lg="6"
                   :class="{
-                    'page-search-toolbar__filter-col--collapsed':
-                      faultSearchFilter.isSearchFilterHidden(4),
+                    'page-search-toolbar__filter-col--collapsed': faultSearchFilter.isSearchFilterHidden(4)
                   }"
                 >
                   <AFormItem label="状态" class="m-0">
@@ -3163,7 +2843,7 @@ onMounted(async () => {
                       class="w-full"
                       :options="[
                         { label: '启用', value: 1 },
-                        { label: '停用', value: 0 },
+                        { label: '停用', value: 0 }
                       ]"
                     />
                   </AFormItem>
@@ -3182,10 +2862,7 @@ onMounted(async () => {
           </div>
         </AForm>
 
-        <AForm
-          v-if="activeKey === 'roleTemplate'"
-          :label-col="{ span: 5, md: 7 }"
-        >
+        <AForm v-if="activeKey === 'roleTemplate'" :label-col="{ span: 5, md: 7 }">
           <div class="page-search-toolbar">
             <div class="page-search-toolbar__filters">
               <ARow :gutter="[16, 16]" wrap>
@@ -3196,11 +2873,7 @@ onMounted(async () => {
                       allow-clear
                       placeholder="全部"
                       class="w-full"
-                      :options="
-                        Object.entries(typeCodeLabelMap).map(
-                          ([value, label]) => ({ value, label }),
-                        )
-                      "
+                      :options="Object.entries(typeCodeLabelMap).map(([value, label]) => ({ value, label }))"
                       @change="onRoleTemplateTypeChange"
                     />
                   </AFormItem>
@@ -3226,7 +2899,7 @@ onMounted(async () => {
                       :options="
                         hqCompanyOptions.map((c: RowData) => ({
                           label: c.companyName,
-                          value: c.id,
+                          value: c.id
                         }))
                       "
                     />
@@ -3246,48 +2919,21 @@ onMounted(async () => {
     >
       <template #extra>
         <ASpace wrap>
-          <AButton v-if="activeKey === 'dict'" @click="onRefreshCache"
-            >刷新字典缓存</AButton
-          >
-          <AButton v-if="activeKey === 'config'" @click="onRefreshCache"
-            >刷新参数缓存</AButton
-          >
-          <AButton v-if="activeKey === 'notifyTemplate'" @click="onRefreshCache"
-            >刷新模板缓存</AButton
-          >
-          <AButton
-            v-if="activeKey === 'barcode'"
-            type="primary"
-            ghost
-            :loading="loading"
-            @click="onFullSyncBarcode"
-          >
+          <AButton v-if="activeKey === 'dict'" @click="onRefreshCache">刷新字典缓存</AButton>
+          <AButton v-if="activeKey === 'config'" @click="onRefreshCache">刷新参数缓存</AButton>
+          <AButton v-if="activeKey === 'notifyTemplate'" @click="onRefreshCache">刷新模板缓存</AButton>
+          <AButton v-if="activeKey === 'barcode'" type="primary" ghost :loading="loading" @click="onFullSyncBarcode">
             执行同步任务
           </AButton>
+          <AButton v-if="activeKey === 'syncTask'" type="primary" ghost @click="openSyncForm()">新增任务</AButton>
           <AButton
-            v-if="activeKey === 'syncTask'"
-            type="primary"
-            ghost
-            @click="openSyncForm()"
-            >新增任务</AButton
-          >
-          <AButton
-            v-if="
-              hasDictConfigRowActions ||
-              activeKey === 'fault' ||
-              activeKey === 'roleTemplate'
-            "
+            v-if="hasDictConfigRowActions || activeKey === 'fault' || activeKey === 'roleTemplate'"
             type="primary"
             @click="openForm(undefined, '新增')"
           >
             新增
           </AButton>
-          <AButton
-            v-if="activeKey === 'region'"
-            type="primary"
-            :disabled="!regionHqId"
-            @click="openRegionForm()"
-          >
+          <AButton v-if="activeKey === 'region'" type="primary" :disabled="!regionHqId" @click="openRegionForm()">
             新增大区
           </AButton>
         </ASpace>
@@ -3307,7 +2953,7 @@ onMounted(async () => {
                 total,
                 showSizeChanger: true,
                 showTotal: (t: number) => `共 ${t} 条`,
-                onChange: onPageChange,
+                onChange: onPageChange
               }
             : false
         "
@@ -3324,14 +2970,10 @@ onMounted(async () => {
               @click="openBarcodeDetail(record)"
               @keydown.enter.prevent="openBarcodeDetail(record)"
             >
-              {{ record.barcode || "-" }}
+              {{ record.barcode || '-' }}
             </span>
           </template>
-          <template
-            v-else-if="
-              column.key === 'templateCode' && activeKey === 'notifyTemplate'
-            "
-          >
+          <template v-else-if="column.key === 'templateCode' && activeKey === 'notifyTemplate'">
             <span
               class="table-list-entry-link"
               role="button"
@@ -3339,12 +2981,10 @@ onMounted(async () => {
               @click="openNotifyView(record)"
               @keydown.enter.prevent="openNotifyView(record)"
             >
-              {{ record.templateCode || "-" }}
+              {{ record.templateCode || '-' }}
             </span>
           </template>
-          <template
-            v-else-if="column.key === 'companyName' && activeKey === 'fault'"
-          >
+          <template v-else-if="column.key === 'companyName' && activeKey === 'fault'">
             <span
               class="table-list-entry-link"
               role="button"
@@ -3352,77 +2992,42 @@ onMounted(async () => {
               @click="openFaultDetail(record)"
               @keydown.enter.prevent="openFaultDetail(record)"
             >
-              {{ record.companyName || "-" }}
+              {{ record.companyName || '-' }}
             </span>
           </template>
-          <template
-            v-else-if="
-              column.key === 'status' && activeKey !== 'notifyTemplate'
-            "
-          >
+          <template v-else-if="column.key === 'status' && activeKey !== 'notifyTemplate'">
             <ATag :color="tagColorEnabled(Number(record.status) === 1)">
-              {{ Number(record.status) === 1 ? "正常" : "停用" }}
+              {{ Number(record.status) === 1 ? '正常' : '停用' }}
             </ATag>
           </template>
           <template v-else-if="column.key === 'templateSource'">
-            <ATag
-              :color="
-                record.templateSource === 'BUILT_IN' ? 'warning' : 'success'
-              "
-            >
-              {{
-                record.templateSource === "BUILT_IN" ? "内置模板" : "自定义模板"
-              }}
+            <ATag :color="record.templateSource === 'BUILT_IN' ? 'warning' : 'success'">
+              {{ record.templateSource === 'BUILT_IN' ? '内置模板' : '自定义模板' }}
             </ATag>
           </template>
-          <template
-            v-else-if="
-              column.key === 'notifyEnabled' || column.key === 'overrideEnabled'
-            "
-          >
-            <ATag
-              :color="tagColorPositiveNeutral(Number(record[column.key]) === 1)"
-            >
+          <template v-else-if="column.key === 'notifyEnabled' || column.key === 'overrideEnabled'">
+            <ATag :color="tagColorPositiveNeutral(Number(record[column.key]) === 1)">
               <template v-if="column.key === 'overrideEnabled'">
-                {{ Number(record[column.key]) === 1 ? "覆盖" : "回退" }}
+                {{ Number(record[column.key]) === 1 ? '覆盖' : '回退' }}
               </template>
               <template v-else>
-                {{ Number(record[column.key]) === 1 ? "开启" : "关闭" }}
+                {{ Number(record[column.key]) === 1 ? '开启' : '关闭' }}
               </template>
             </ATag>
           </template>
-          <template
-            v-else-if="
-              column.key === 'typeCode' && activeKey === 'roleTemplate'
-            "
-          >
+          <template v-else-if="column.key === 'typeCode' && activeKey === 'roleTemplate'">
             {{ typeCodeLabel(record.typeCode) }}
           </template>
-          <template
-            v-else-if="
-              column.key === 'dataScope' && activeKey === 'roleTemplate'
-            "
-          >
+          <template v-else-if="column.key === 'dataScope' && activeKey === 'roleTemplate'">
             {{ getRoleTemplateDataScopeLabel(record) }}
           </template>
-          <template
-            v-else-if="column.key === 'isAdmin' && activeKey === 'roleTemplate'"
-          >
+          <template v-else-if="column.key === 'isAdmin' && activeKey === 'roleTemplate'">
             <ATag v-if="record.isAdmin === 1" color="error">是</ATag>
             <span v-else>-</span>
           </template>
-          <template
-            v-else-if="
-              column.key === 'actions' && activeKey === 'notifyTemplate'
-            "
-          >
+          <template v-else-if="column.key === 'actions' && activeKey === 'notifyTemplate'">
             <ASpace :wrap="false">
-              <AButton
-                type="link"
-                size="small"
-                class="table-action-link--info"
-                @click="onPreviewNotify(record)"
-              >
+              <AButton type="link" size="small" class="table-action-link--info" @click="onPreviewNotify(record)">
                 预览
               </AButton>
               <AButton
@@ -3434,10 +3039,7 @@ onMounted(async () => {
                 渠道配置
               </AButton>
               <AButton
-                v-if="
-                  record.templateSource === 'BUILT_IN' &&
-                  !hasCustomNotifyTemplate(record.templateCode)
-                "
+                v-if="record.templateSource === 'BUILT_IN' && !hasCustomNotifyTemplate(record.templateCode)"
                 type="link"
                 size="small"
                 class="table-action-link--primary"
@@ -3463,64 +3065,32 @@ onMounted(async () => {
               </APopconfirm>
             </ASpace>
           </template>
-          <template
-            v-else-if="column.key === 'actions' && activeKey === 'syncTask'"
-          >
+          <template v-else-if="column.key === 'actions' && activeKey === 'syncTask'">
             <ASpace :wrap="false">
-              <AButton
-                type="link"
-                size="small"
-                class="table-action-link--primary"
-                @click="openSyncFormEdit(record)"
-              >
+              <AButton type="link" size="small" class="table-action-link--primary" @click="openSyncFormEdit(record)">
                 编辑
               </AButton>
               <APopconfirm
                 :title="`确认立即执行任务“${record.taskName || record.taskCode || '-'}”吗？`"
                 @confirm="onRunSyncTask(record)"
               >
-                <AButton
-                  type="link"
-                  size="small"
-                  class="table-action-link--warning"
-                  :loading="loading"
-                  >执行</AButton
-                >
+                <AButton type="link" size="small" class="table-action-link--warning" :loading="loading">执行</AButton>
               </APopconfirm>
-              <AButton
-                type="link"
-                size="small"
-                class="table-action-link--info"
-                @click="openLogDialog(record)"
-              >
+              <AButton type="link" size="small" class="table-action-link--info" @click="openLogDialog(record)">
                 日志
               </AButton>
             </ASpace>
           </template>
-          <template
-            v-else-if="column.key === 'actions' && activeKey === 'fault'"
-          >
+          <template v-else-if="column.key === 'actions' && activeKey === 'fault'">
             <ASpace :wrap="false">
-              <AButton
-                type="link"
-                size="small"
-                class="table-action-link--primary"
-                @click="openForm(record, '编辑')"
-              >
+              <AButton type="link" size="small" class="table-action-link--primary" @click="openForm(record, '编辑')">
                 编辑
               </AButton>
             </ASpace>
           </template>
-          <template
-            v-else-if="column.key === 'actions' && activeKey === 'roleTemplate'"
-          >
+          <template v-else-if="column.key === 'actions' && activeKey === 'roleTemplate'">
             <ASpace :size="4" :wrap="false">
-              <AButton
-                type="link"
-                size="small"
-                class="table-action-link--primary"
-                @click="openForm(record, '编辑')"
-              >
+              <AButton type="link" size="small" class="table-action-link--primary" @click="openForm(record, '编辑')">
                 编辑
               </AButton>
               <AButton
@@ -3535,28 +3105,16 @@ onMounted(async () => {
                 :title="`确认将角色模板「${record.roleName || record.roleKey || '-'}」全量同步到公司吗？`"
                 @confirm="onSyncRoleTemplateRow(record)"
               >
-                <AButton
-                  type="link"
-                  size="small"
-                  class="table-action-link--warning"
-                  >全量同步到公司</AButton
-                >
+                <AButton type="link" size="small" class="table-action-link--warning">全量同步到公司</AButton>
               </APopconfirm>
               <APopconfirm title="确认删除？" @confirm="removeRow(record)">
                 <AButton type="link" size="small" danger>删除</AButton>
               </APopconfirm>
             </ASpace>
           </template>
-          <template
-            v-else-if="column.key === 'actions' && activeKey === 'region'"
-          >
+          <template v-else-if="column.key === 'actions' && activeKey === 'region'">
             <ASpace :wrap="false">
-              <AButton
-                type="link"
-                size="small"
-                class="table-action-link--primary"
-                @click="openRegionForm(record)"
-              >
+              <AButton type="link" size="small" class="table-action-link--primary" @click="openRegionForm(record)">
                 编辑
               </AButton>
               <APopconfirm title="确认删除？" @confirm="removeRow(record)">
@@ -3564,16 +3122,9 @@ onMounted(async () => {
               </APopconfirm>
             </ASpace>
           </template>
-          <template
-            v-else-if="column.key === 'actions' && hasDictConfigRowActions"
-          >
+          <template v-else-if="column.key === 'actions' && hasDictConfigRowActions">
             <ASpace :wrap="false">
-              <AButton
-                type="link"
-                size="small"
-                class="table-action-link--primary"
-                @click="openForm(record, '编辑')"
-              >
+              <AButton type="link" size="small" class="table-action-link--primary" @click="openForm(record, '编辑')">
                 编辑
               </AButton>
               <APopconfirm title="确认删除？" @confirm="removeRow(record)">
@@ -3587,29 +3138,17 @@ onMounted(async () => {
 
     <ADrawer
       v-model:open="formOpen"
-      :title="`${tabOptions.find((t) => t.key === activeKey)?.label} — ${formTitle}`"
+      :title="`${tabOptions.find(t => t.key === activeKey)?.label} — ${formTitle}`"
       :width="unifiedFormDrawerWidth"
     >
-      <AForm
-        ref="unifiedFormRef"
-        layout="vertical"
-        class="mt-8px"
-        :model="formModel"
-        :rules="unifiedFormRules as any"
-      >
+      <AForm ref="unifiedFormRef" layout="vertical" class="mt-8px" :model="formModel" :rules="unifiedFormRules as any">
         <template v-if="activeKey === 'roleTemplate'">
           <div :class="unifiedFormGridClass">
             <AFormItem label="角色名称" name="roleName" required>
-              <AInput
-                v-model:value="formModel.roleName"
-                placeholder="如：管理员"
-              />
+              <AInput v-model:value="formModel.roleName" placeholder="如：管理员" />
             </AFormItem>
             <AFormItem label="角色标识" name="roleKey" required>
-              <AInput
-                v-model:value="formModel.roleKey"
-                placeholder="如：admin"
-              />
+              <AInput v-model:value="formModel.roleKey" placeholder="如：admin" />
             </AFormItem>
             <AFormItem label="类型编码" name="typeCode" required>
               <ASelect
@@ -3619,7 +3158,7 @@ onMounted(async () => {
                 :options="
                   Object.entries(typeCodeLabelMap).map(([value, label]) => ({
                     value,
-                    label,
+                    label
                   }))
                 "
                 @change="() => onRoleTemplateDataScopeInit()"
@@ -3635,17 +3174,13 @@ onMounted(async () => {
                 说明：{{
                   getRoleTemplateDataScopeLabel({
                     typeCode: formModel.typeCode,
-                    dataScope: formModel.dataScope,
+                    dataScope: formModel.dataScope
                   })
                 }}
               </div>
             </AFormItem>
             <AFormItem label="管理员模板">
-              <ASwitch
-                v-model:checked="formModel.isAdmin"
-                :checked-value="1"
-                :un-checked-value="0"
-              />
+              <ASwitch v-model:checked="formModel.isAdmin" :checked-value="1" :un-checked-value="0" />
               <div class="mt-4px text-12px text-gray-500">
                 每种公司类型最多保留一个管理员模板，用于初始化公司管理员角色。
               </div>
@@ -3667,7 +3202,7 @@ onMounted(async () => {
                   :options="
                     faultCompanyOptions.map((c: RowData) => ({
                       label: c.companyName ?? c.label,
-                      value: c.id ?? c.value,
+                      value: c.id ?? c.value
                     }))
                   "
                 />
@@ -3686,18 +3221,12 @@ onMounted(async () => {
           <ARow :gutter="16">
             <ACol :span="12">
               <AFormItem label="物料编码" name="productCode" required>
-                <AInput
-                  v-model:value="formModel.productCode"
-                  placeholder="请输入物料编码"
-                />
+                <AInput v-model:value="formModel.productCode" placeholder="请输入物料编码" />
               </AFormItem>
             </ACol>
             <ACol :span="12">
               <AFormItem label="产品型号" name="productModel" required>
-                <AInput
-                  v-model:value="formModel.productModel"
-                  placeholder="请输入产品型号（与物料编码至少填一项）"
-                />
+                <AInput v-model:value="formModel.productModel" placeholder="请输入产品型号（与物料编码至少填一项）" />
               </AFormItem>
             </ACol>
           </ARow>
@@ -3705,20 +3234,14 @@ onMounted(async () => {
           <ARow :gutter="16">
             <ACol :span="24">
               <AFormItem label="备注">
-                <ATextarea
-                  v-model:value="formModel.remark"
-                  :rows="2"
-                  placeholder="请输入备注"
-                />
+                <ATextarea v-model:value="formModel.remark" :rows="2" placeholder="请输入备注" />
               </AFormItem>
             </ACol>
           </ARow>
 
           <div class="mb-8px mt-4px flex items-center justify-between font-600">
             <span>故障信息</span>
-            <AButton type="link" size="small" @click="addFaultItem"
-              >新增故障信息</AButton
-            >
+            <AButton type="link" size="small" @click="addFaultItem">新增故障信息</AButton>
           </div>
           <div
             v-for="(item, index) in formModel.faults || []"
@@ -3745,20 +3268,15 @@ onMounted(async () => {
                 {
                   required: true,
                   message: '故障描述不能为空',
-                  trigger: 'blur',
-                },
+                  trigger: 'blur'
+                }
               ]"
             >
-              <AInput
-                v-model:value="item.faultDesc"
-                placeholder="请输入故障描述"
-              />
+              <AInput v-model:value="item.faultDesc" placeholder="请输入故障描述" />
             </AFormItem>
             <div class="mb-8px flex items-center justify-between font-500">
               <span>维修说明</span>
-              <AButton type="link" size="small" @click="addRepairOption(item)"
-                >新增维修说明</AButton
-              >
+              <AButton type="link" size="small" @click="addRepairOption(item)">新增维修说明</AButton>
             </div>
             <div
               v-for="(repairDesc, repairIndex) in item.repairOptions"
@@ -3768,24 +3286,16 @@ onMounted(async () => {
               <AFormItem
                 required
                 class="mb-0 min-w-0 flex-1"
-                :name="[
-                  'faults',
-                  Number(index),
-                  'repairOptions',
-                  Number(repairIndex),
-                ]"
+                :name="['faults', Number(index), 'repairOptions', Number(repairIndex)]"
                 :rules="[
                   {
                     required: true,
                     message: '维修说明不能为空',
-                    trigger: 'blur',
-                  },
+                    trigger: 'blur'
+                  }
                 ]"
               >
-                <AInput
-                  v-model:value="item.repairOptions[repairIndex]"
-                  placeholder="请输入维修说明"
-                />
+                <AInput v-model:value="item.repairOptions[repairIndex]" placeholder="请输入维修说明" />
               </AFormItem>
               <AButton
                 v-if="item.repairOptions.length > 1"
@@ -3799,10 +3309,7 @@ onMounted(async () => {
               </AButton>
             </div>
           </div>
-          <AFormItem
-            name="faults"
-            class="!mb-0 max-h-0 overflow-hidden p-0 opacity-0"
-          >
+          <AFormItem name="faults" class="max-h-0 overflow-hidden p-0 opacity-0 !mb-0">
             <span aria-hidden="true">.</span>
           </AFormItem>
         </template>
@@ -3813,26 +3320,15 @@ onMounted(async () => {
               :name="field.key"
               :required="isFormFieldRequired(field.key)"
               :class="{
-                'adaptive-modal-form-grid__full': field.type === 'textarea',
+                'adaptive-modal-form-grid__full': field.type === 'textarea'
               }"
             >
-              <ARadioGroup
-                v-if="field.type === 'radio'"
-                v-model:value="formModel[field.key]"
-              >
-                <ARadio
-                  v-for="option in getFormRadioOptions(field.key)"
-                  :key="option.value"
-                  :value="option.value"
-                >
+              <ARadioGroup v-if="field.type === 'radio'" v-model:value="formModel[field.key]">
+                <ARadio v-for="option in getFormRadioOptions(field.key)" :key="option.value" :value="option.value">
                   {{ option.label }}
                 </ARadio>
               </ARadioGroup>
-              <AInputNumber
-                v-else-if="field.type === 'number'"
-                v-model:value="formModel[field.key]"
-                class="w-full"
-              />
+              <AInputNumber v-else-if="field.type === 'number'" v-model:value="formModel[field.key]" class="w-full" />
               <AInput
                 v-else-if="field.type === 'input'"
                 v-model:value="formModel[field.key]"
@@ -3856,19 +3352,9 @@ onMounted(async () => {
       </template>
     </ADrawer>
 
-    <ADrawer
-      v-model:open="barcodeDetailOpen"
-      title="条码档案详情"
-      placement="right"
-      :width="760"
-      destroy-on-close
-    >
+    <ADrawer v-model:open="barcodeDetailOpen" title="条码档案详情" placement="right" :width="760" destroy-on-close>
       <ADescriptions bordered size="small" :column="1">
-        <ADescriptionsItem
-          v-for="item in barcodeDetailRows"
-          :key="item.key"
-          :label="item.label"
-        >
+        <ADescriptionsItem v-for="item in barcodeDetailRows" :key="item.key" :label="item.label">
           <div class="max-h-120px overflow-y-auto break-all">
             {{ item.value }}
           </div>
@@ -3881,18 +3367,8 @@ onMounted(async () => {
       </template>
     </ADrawer>
 
-    <ADrawer
-      v-model:open="notifyFormOpen"
-      :title="notifyFormTitle"
-      :width="notifyFormDrawerWidth"
-    >
-      <AForm
-        ref="notifyFormRef"
-        layout="vertical"
-        class="mt-8px"
-        :model="notifyForm"
-        :rules="notifyFormRules as any"
-      >
+    <ADrawer v-model:open="notifyFormOpen" :title="notifyFormTitle" :width="notifyFormDrawerWidth">
+      <AForm ref="notifyFormRef" layout="vertical" class="mt-8px" :model="notifyForm" :rules="notifyFormRules as any">
         <ARow :gutter="16">
           <ACol :span="12">
             <AFormItem label="模板编码" name="templateCode" required>
@@ -3901,20 +3377,14 @@ onMounted(async () => {
           </ACol>
           <ACol :span="12">
             <AFormItem label="模板名称" name="templateName" required>
-              <AInput
-                v-model:value="notifyForm.templateName"
-                :disabled="notifyFormReadonly"
-              />
+              <AInput v-model:value="notifyForm.templateName" :disabled="notifyFormReadonly" />
             </AFormItem>
           </ACol>
         </ARow>
         <ARow :gutter="16">
           <ACol :span="12">
             <AFormItem label="通知开关" name="notifyEnabled" required>
-              <ARadioGroup
-                v-model:value="notifyForm.notifyEnabled"
-                :disabled="notifyFormReadonly"
-              >
+              <ARadioGroup v-model:value="notifyForm.notifyEnabled" :disabled="notifyFormReadonly">
                 <ARadio :value="1">开启</ARadio>
                 <ARadio :value="0">关闭</ARadio>
               </ARadioGroup>
@@ -3922,10 +3392,7 @@ onMounted(async () => {
           </ACol>
           <ACol :span="12">
             <AFormItem label="覆盖开关" name="overrideEnabled" required>
-              <ARadioGroup
-                v-model:value="notifyForm.overrideEnabled"
-                :disabled="notifyFormReadonly"
-              >
+              <ARadioGroup v-model:value="notifyForm.overrideEnabled" :disabled="notifyFormReadonly">
                 <ARadio :value="1">启用覆盖</ARadio>
                 <ARadio :value="0">回退内置</ARadio>
               </ARadioGroup>
@@ -3974,20 +3441,12 @@ onMounted(async () => {
           </ACol>
           <ACol :span="12">
             <AFormItem label="变量说明">
-              <ATextarea
-                :value="String(notifyForm.variablesJson || '')"
-                :rows="4"
-                disabled
-              />
+              <ATextarea :value="String(notifyForm.variablesJson || '')" :rows="4" disabled />
             </AFormItem>
           </ACol>
           <ACol :span="12">
             <AFormItem label="备注">
-              <ATextarea
-                v-model:value="notifyForm.remark"
-                :disabled="notifyFormReadonly"
-                :rows="2"
-              />
+              <ATextarea v-model:value="notifyForm.remark" :disabled="notifyFormReadonly" :rows="2" />
             </AFormItem>
           </ACol>
         </ARow>
@@ -3995,15 +3454,8 @@ onMounted(async () => {
       <template #footer>
         <ASpace :size="16">
           <AButton @click="notifyFormOpen = false">取消</AButton>
-          <AButton v-if="!notifyFormReadonly" @click="onPreviewNotifyForm"
-            >预览</AButton
-          >
-          <AButton
-            v-if="!notifyFormReadonly"
-            type="primary"
-            :loading="notifyFormSubmitting"
-            @click="submitNotifyForm"
-          >
+          <AButton v-if="!notifyFormReadonly" @click="onPreviewNotifyForm">预览</AButton>
+          <AButton v-if="!notifyFormReadonly" type="primary" :loading="notifyFormSubmitting" @click="submitNotifyForm">
             确定
           </AButton>
         </ASpace>
@@ -4021,37 +3473,20 @@ onMounted(async () => {
           type="primary"
           :loading="notifyPreviewLoading"
           :disabled="!notifyPreviewPayload"
-          @click="
-            notifyPreviewPayload && runNotifyPreview(notifyPreviewPayload)
-          "
+          @click="notifyPreviewPayload && runNotifyPreview(notifyPreviewPayload)"
         >
           执行预览
         </AButton>
       </div>
-      <ADescriptions
-        v-if="notifyPreviewResult"
-        :column="1"
-        bordered
-        size="small"
-      >
+      <ADescriptions v-if="notifyPreviewResult" :column="1" bordered size="small">
         <ADescriptionsItem label="是否发送">
-          {{ Number(notifyPreviewResult.notifyEnabled) === 1 ? "是" : "否" }}
+          {{ Number(notifyPreviewResult.notifyEnabled) === 1 ? '是' : '否' }}
         </ADescriptionsItem>
-        <ADescriptionsItem label="实际来源">{{
-          notifyPreviewResult.templateSource || "-"
-        }}</ADescriptionsItem>
-        <ADescriptionsItem label="标题">{{
-          notifyPreviewResult.title || "-"
-        }}</ADescriptionsItem>
-        <ADescriptionsItem label="摘要">{{
-          notifyPreviewResult.summary || "-"
-        }}</ADescriptionsItem>
-        <ADescriptionsItem label="路由类型">{{
-          notifyPreviewResult.routeType || "-"
-        }}</ADescriptionsItem>
-        <ADescriptionsItem label="路由值">{{
-          notifyPreviewResult.routeValue || "-"
-        }}</ADescriptionsItem>
+        <ADescriptionsItem label="实际来源">{{ notifyPreviewResult.templateSource || '-' }}</ADescriptionsItem>
+        <ADescriptionsItem label="标题">{{ notifyPreviewResult.title || '-' }}</ADescriptionsItem>
+        <ADescriptionsItem label="摘要">{{ notifyPreviewResult.summary || '-' }}</ADescriptionsItem>
+        <ADescriptionsItem label="路由类型">{{ notifyPreviewResult.routeType || '-' }}</ADescriptionsItem>
+        <ADescriptionsItem label="路由值">{{ notifyPreviewResult.routeValue || '-' }}</ADescriptionsItem>
       </ADescriptions>
       <template #footer>
         <ASpace :size="16">
@@ -4067,14 +3502,7 @@ onMounted(async () => {
     >
       <ASpin :spinning="channelsLoading">
         <div class="mb-12px">
-          <AButton
-            v-if="!channelsReadonly"
-            type="primary"
-            ghost
-            size="small"
-            @click="addChannelRow"
-            >新增渠道</AButton
-          >
+          <AButton v-if="!channelsReadonly" type="primary" ghost size="small" @click="addChannelRow">新增渠道</AButton>
         </div>
         <div
           v-for="(item, index) in channelsRows"
@@ -4093,85 +3521,51 @@ onMounted(async () => {
           </div>
           <ARow :gutter="16">
             <ACol :span="8">
-              <AFormItem
-                label="渠道类型"
-                :label-col="{ span: 8 }"
-                :wrapper-col="{ span: 16 }"
-                class="mb-8px"
-              >
+              <AFormItem label="渠道类型" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }" class="mb-8px">
                 <ASelect
                   v-model:value="item.channelType"
                   :disabled="channelsReadonly"
                   :options="[
                     { label: '小程序订阅消息', value: 'MP_SUBSCRIBE' },
                     { label: '短信', value: 'SMS' },
-                    { label: '邮件', value: 'EMAIL' },
+                    { label: '邮件', value: 'EMAIL' }
                   ]"
                 />
               </AFormItem>
             </ACol>
             <ACol :span="8">
-              <AFormItem
-                label="渠道开关"
-                :label-col="{ span: 8 }"
-                :wrapper-col="{ span: 16 }"
-                class="mb-8px"
-              >
-                <ARadioGroup
-                  v-model:value="item.channelEnabled"
-                  :disabled="channelsReadonly"
-                >
+              <AFormItem label="渠道开关" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }" class="mb-8px">
+                <ARadioGroup v-model:value="item.channelEnabled" :disabled="channelsReadonly">
                   <ARadio :value="1">开启</ARadio>
                   <ARadio :value="0">关闭</ARadio>
                 </ARadioGroup>
               </AFormItem>
             </ACol>
             <ACol :span="8">
-              <AFormItem
-                label="小程序场景"
-                :label-col="{ span: 8 }"
-                :wrapper-col="{ span: 16 }"
-                class="mb-8px"
-              >
+              <AFormItem label="小程序场景" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }" class="mb-8px">
                 <ASelect
                   v-model:value="item.channelScene"
-                  :disabled="
-                    channelsReadonly || item.channelType !== 'MP_SUBSCRIBE'
-                  "
+                  :disabled="channelsReadonly || item.channelType !== 'MP_SUBSCRIBE'"
                   :options="[
                     { label: 'B 端小程序', value: 'B' },
-                    { label: 'C 端小程序', value: 'C' },
+                    { label: 'C 端小程序', value: 'C' }
                   ]"
                 />
               </AFormItem>
             </ACol>
             <ACol :span="8">
-              <AFormItem
-                label="模板 ID"
-                :label-col="{ span: 8 }"
-                :wrapper-col="{ span: 16 }"
-                class="mb-8px"
-              >
+              <AFormItem label="模板 ID" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }" class="mb-8px">
                 <AInput
                   v-model:value="item.templateId"
-                  :disabled="
-                    channelsReadonly || item.channelType !== 'MP_SUBSCRIBE'
-                  "
+                  :disabled="channelsReadonly || item.channelType !== 'MP_SUBSCRIBE'"
                 />
               </AFormItem>
             </ACol>
             <ACol :span="16">
-              <AFormItem
-                label="页面路径模板"
-                :label-col="{ span: 8 }"
-                :wrapper-col="{ span: 16 }"
-                class="mb-8px"
-              >
+              <AFormItem label="页面路径模板" :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }" class="mb-8px">
                 <AInput
                   v-model:value="item.pagePathTemplate"
-                  :disabled="
-                    channelsReadonly || item.channelType !== 'MP_SUBSCRIBE'
-                  "
+                  :disabled="channelsReadonly || item.channelType !== 'MP_SUBSCRIBE'"
                   placeholder="例如 pages/order/evaluate?workOrderId=${workOrderId}"
                 />
               </AFormItem>
@@ -4198,8 +3592,8 @@ onMounted(async () => {
                 title: '操作',
                 key: 'actions',
                 width: NOTIFY_FIELD_MAPPING_ACTION_COL_W,
-                fixed: 'right' as const,
-              },
+                fixed: 'right' as const
+              }
             ]"
             :data-source="item.fieldMapping || []"
             :pagination="false"
@@ -4207,32 +3601,24 @@ onMounted(async () => {
             size="small"
             row-key="field"
           >
-            <template
-              #bodyCell="{ column, record: mapping, index: mappingIndex }"
-            >
+            <template #bodyCell="{ column, record: mapping, index: mappingIndex }">
               <template v-if="column.key === 'field'">
                 <AInput
                   v-model:value="mapping.field"
-                  :disabled="
-                    channelsReadonly || item.channelType !== 'MP_SUBSCRIBE'
-                  "
+                  :disabled="channelsReadonly || item.channelType !== 'MP_SUBSCRIBE'"
                   placeholder="例如 thing1"
                 />
               </template>
               <template v-else-if="column.key === 'value'">
                 <AInput
                   v-model:value="mapping.value"
-                  :disabled="
-                    channelsReadonly || item.channelType !== 'MP_SUBSCRIBE'
-                  "
+                  :disabled="channelsReadonly || item.channelType !== 'MP_SUBSCRIBE'"
                   placeholder="例如 ${orderNo}"
                 />
               </template>
               <template v-else-if="column.key === 'actions'">
                 <AButton
-                  v-if="
-                    !channelsReadonly && item.channelType === 'MP_SUBSCRIBE'
-                  "
+                  v-if="!channelsReadonly && item.channelType === 'MP_SUBSCRIBE'"
                   type="link"
                   size="small"
                   danger
@@ -4250,12 +3636,7 @@ onMounted(async () => {
           <ARow :gutter="16" class="mt-8px">
             <ACol :span="24">
               <AFormItem label="备注" layout="vertical" class="mb-0">
-                <ATextarea
-                  v-model:value="item.remark"
-                  :disabled="channelsReadonly"
-                  :rows="2"
-                  class="w-full"
-                />
+                <ATextarea v-model:value="item.remark" :disabled="channelsReadonly" :rows="2" class="w-full" />
               </AFormItem>
             </ACol>
           </ARow>
@@ -4264,12 +3645,7 @@ onMounted(async () => {
       <template #footer>
         <ASpace>
           <AButton @click="channelsOpen = false">取消</AButton>
-          <AButton
-            v-if="!channelsReadonly"
-            type="primary"
-            :loading="channelsLoading"
-            @click="saveChannels"
-          >
+          <AButton v-if="!channelsReadonly" type="primary" :loading="channelsLoading" @click="saveChannels">
             保存
           </AButton>
         </ASpace>
@@ -4285,17 +3661,10 @@ onMounted(async () => {
         :rules="syncTaskFormRules as any"
       >
         <AFormItem label="任务编码" name="taskCode" required>
-          <AInput
-            v-model:value="syncFormModel.taskCode"
-            :disabled="!!syncFormModel.id"
-            placeholder="请输入任务编码"
-          />
+          <AInput v-model:value="syncFormModel.taskCode" :disabled="!!syncFormModel.id" placeholder="请输入任务编码" />
         </AFormItem>
         <AFormItem label="任务名称" name="taskName" required>
-          <AInput
-            v-model:value="syncFormModel.taskName"
-            placeholder="请输入任务名称"
-          />
+          <AInput v-model:value="syncFormModel.taskName" placeholder="请输入任务名称" />
         </AFormItem>
         <AFormItem label="处理器" name="handlerCode" required>
           <ASelect
@@ -4305,16 +3674,13 @@ onMounted(async () => {
             :options="
               handlerOptions.map((h: RowData) => ({
                 label: h.handlerName,
-                value: h.handlerCode,
+                value: h.handlerCode
               }))
             "
           />
         </AFormItem>
         <AFormItem label="Cron 表达式" name="cronExpression" required>
-          <AInput
-            v-model:value="syncFormModel.cronExpression"
-            placeholder="请输入Cron表达式，例如 0 0 2 * * ?"
-          />
+          <AInput v-model:value="syncFormModel.cronExpression" placeholder="请输入Cron表达式，例如 0 0 2 * * ?" />
         </AFormItem>
         <AFormItem label="状态">
           <ARadioGroup v-model:value="syncFormModel.status">
@@ -4323,11 +3689,7 @@ onMounted(async () => {
           </ARadioGroup>
         </AFormItem>
         <AFormItem label="备注">
-          <ATextarea
-            v-model:value="syncFormModel.remark"
-            :rows="2"
-            placeholder="请输入备注"
-          />
+          <ATextarea v-model:value="syncFormModel.remark" :rows="2" placeholder="请输入备注" />
         </AFormItem>
       </AForm>
       <template #footer>
@@ -4349,7 +3711,7 @@ onMounted(async () => {
             :options="[
               { label: 'RUNNING', value: 'RUNNING' },
               { label: 'SUCCESS', value: 'SUCCESS' },
-              { label: 'FAILED', value: 'FAILED' },
+              { label: 'FAILED', value: 'FAILED' }
             ]"
             @change="handleLogStatusChange"
           />
@@ -4362,45 +3724,45 @@ onMounted(async () => {
             title: '触发类型',
             dataIndex: 'triggerType',
             key: 'triggerType',
-            width: 120,
+            width: 120
           },
           {
             title: '触发人',
             dataIndex: 'triggerUserId',
             key: 'triggerUserId',
-            width: 140,
+            width: 140
           },
           {
             title: '开始时间',
             dataIndex: 'startTime',
             key: 'startTime',
-            width: 176,
+            width: 176
           },
           {
             title: '结束时间',
             dataIndex: 'endTime',
             key: 'endTime',
-            width: 176,
+            width: 176
           },
           {
             title: '数据开始时间',
             dataIndex: 'dataStartTime',
             key: 'dataStartTime',
-            width: 176,
+            width: 176
           },
           {
             title: '数据结束时间',
             dataIndex: 'dataEndTime',
             key: 'dataEndTime',
-            width: 176,
+            width: 176
           },
           {
             title: '执行信息',
             dataIndex: 'message',
             key: 'message',
             width: 420,
-            ellipsis: { showTitle: true },
-          },
+            ellipsis: { showTitle: true }
+          }
         ]"
         :data-source="logRows"
         :loading="logLoading"
@@ -4412,20 +3774,15 @@ onMounted(async () => {
           pageSize: logPage.pageSize,
           total: logTotal,
           showSizeChanger: true,
-          onChange: onLogPageChange,
+          onChange: onLogPageChange
         }"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
-            <ATag :color="syncLogStatusTagColor(record.status)">{{
-              record.status || "-"
-            }}</ATag>
+            <ATag :color="syncLogStatusTagColor(record.status)">{{ record.status || '-' }}</ATag>
           </template>
           <template v-else-if="column.key === 'triggerType'">
-            <ATag
-              :color="record.triggerType === 'MANUAL' ? 'warning' : 'blue'"
-              >{{ record.triggerType || "-" }}</ATag
-            >
+            <ATag :color="record.triggerType === 'MANUAL' ? 'warning' : 'blue'">{{ record.triggerType || '-' }}</ATag>
           </template>
           <template v-else-if="column.key === 'triggerUserId'">
             {{ syncLogTriggerUserLabel(record) }}
@@ -4451,21 +3808,12 @@ onMounted(async () => {
       <template #footer>
         <ASpace :size="16">
           <AButton @click="menuAssignOpen = false">取消</AButton>
-          <AButton
-            type="primary"
-            :loading="menuAssignSubmitting"
-            @click="submitRoleTemplateMenuAssign"
-            >确定</AButton
-          >
+          <AButton type="primary" :loading="menuAssignSubmitting" @click="submitRoleTemplateMenuAssign">确定</AButton>
         </ASpace>
       </template>
     </ADrawer>
 
-    <ADrawer
-      v-model:open="regionFormOpen"
-      :title="`大区 — ${regionFormTitle}`"
-      :width="420"
-    >
+    <ADrawer v-model:open="regionFormOpen" :title="`大区 — ${regionFormTitle}`" :width="420">
       <AForm
         ref="advRegionFormRef"
         layout="vertical"
@@ -4491,29 +3839,14 @@ onMounted(async () => {
       </template>
     </ADrawer>
 
-    <ADrawer
-      v-model:open="faultDetailOpen"
-      title="查看故障与维修配置"
-      placement="right"
-      :width="720"
-    >
+    <ADrawer v-model:open="faultDetailOpen" title="查看故障与维修配置" placement="right" :width="720">
       <template v-if="faultDetail">
         <ADescriptions :column="2" bordered size="small">
-          <ADescriptionsItem label="归属总部">{{
-            faultDetail.companyName || "-"
-          }}</ADescriptionsItem>
-          <ADescriptionsItem label="状态">{{
-            Number(faultDetail.status) === 1 ? "启用" : "停用"
-          }}</ADescriptionsItem>
-          <ADescriptionsItem label="物料编码">{{
-            faultDetail.productCode || "-"
-          }}</ADescriptionsItem>
-          <ADescriptionsItem label="产品型号">{{
-            faultDetail.productModel || "-"
-          }}</ADescriptionsItem>
-          <ADescriptionsItem label="备注" :span="2">{{
-            faultDetail.remark || "-"
-          }}</ADescriptionsItem>
+          <ADescriptionsItem label="归属总部">{{ faultDetail.companyName || '-' }}</ADescriptionsItem>
+          <ADescriptionsItem label="状态">{{ Number(faultDetail.status) === 1 ? '启用' : '停用' }}</ADescriptionsItem>
+          <ADescriptionsItem label="物料编码">{{ faultDetail.productCode || '-' }}</ADescriptionsItem>
+          <ADescriptionsItem label="产品型号">{{ faultDetail.productModel || '-' }}</ADescriptionsItem>
+          <ADescriptionsItem label="备注" :span="2">{{ faultDetail.remark || '-' }}</ADescriptionsItem>
         </ADescriptions>
         <div class="mb-8px mt-16px font-600">故障信息</div>
         <div
@@ -4521,7 +3854,7 @@ onMounted(async () => {
           :key="`detail-fault-${index}`"
           class="mb-12px border border-gray-200 rounded-6px border-solid p-12px"
         >
-          <div class="mb-8px font-600">{{ item.faultDesc || "-" }}</div>
+          <div class="mb-8px font-600">{{ item.faultDesc || '-' }}</div>
           <ASpace wrap>
             <ATag
               v-for="(repairDesc, repairIndex) in item.repairOptions || []"

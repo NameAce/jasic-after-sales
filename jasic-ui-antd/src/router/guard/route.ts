@@ -17,6 +17,105 @@ import { localStg } from '@/utils/storage';
 import { getRouteName } from '@/router/elegant/transform';
 import { $t } from '@/locales';
 
+type AuthStore = ReturnType<typeof useAuthStore>;
+type RouteStore = ReturnType<typeof useRouteStore>;
+
+/**
+ * 作用：已登录用户访问登录页时，重定向到选公司或首页。
+ */
+function getLoggedInLoginRedirect(to: RouteLocationNormalized, authStore: AuthStore): RouteLocationRaw | null {
+  const loginRoute: RouteKey = 'login';
+  const rootRoute: RouteKey = 'root';
+  const chooseCompanyRoute: RouteKey = 'choose-company';
+  if (to.name !== loginRoute || !authStore.isLogin) {
+    return null;
+  }
+  if (authStore.needChooseCompany) {
+    return { name: chooseCompanyRoute };
+  }
+  return { name: rootRoute };
+}
+
+/**
+ * 作用：选公司流程中的路由拦截（待选公司 / 已选完误入选公司页）。
+ * @returns 需重定向的目标；`proceed-switch` 表示在选公司页放行并由 handleRouteSwitch 继续
+ */
+function getChooseCompanyGuardResult(
+  to: RouteLocationNormalized,
+  authStore: AuthStore
+): RouteLocationRaw | 'proceed-switch' | null {
+  const chooseCompanyRoute: RouteKey = 'choose-company';
+  const rootRoute: RouteKey = 'root';
+  if (authStore.needChooseCompany && to.name !== chooseCompanyRoute) {
+    return { name: chooseCompanyRoute };
+  }
+  if (!authStore.needChooseCompany && to.name === chooseCompanyRoute) {
+    return { name: rootRoute };
+  }
+  if (authStore.needChooseCompany && to.name === chooseCompanyRoute) {
+    return 'proceed-switch';
+  }
+  return null;
+}
+
+/**
+ * 作用：未登录时根据目标路由决定放行或跳转登录。
+ */
+function resolveLocationWhenNotLoggedIn(
+  to: RouteLocationNormalized,
+  routeStore: RouteStore,
+  isNotFoundRoute: boolean
+): RouteLocationRaw | null {
+  if (to.meta.constant && !isNotFoundRoute) {
+    routeStore.onRouteSwitchWhenNotLoggedIn();
+    return null;
+  }
+  return {
+    name: 'login',
+    query: getRouteQueryOfLoginRoute(to, routeStore.routeHome)
+  };
+}
+
+/**
+ * 作用：鉴权路由未初始化时拉用户信息、处理选公司与 initAuthRoute，必要时重定向。
+ */
+async function resolveLocationWhenAuthRouteUninitialized(ctx: {
+  to: RouteLocationNormalized;
+  authStore: AuthStore;
+  routeStore: RouteStore;
+  isNotFoundRoute: boolean;
+}): Promise<RouteLocationRaw | null> {
+  const { to, authStore, routeStore, isNotFoundRoute } = ctx;
+  const chooseCompanyRoute: RouteKey = 'choose-company';
+  if (!authStore.userInfo.userId && !authStore.needChooseCompany) {
+    await authStore.initUserInfo();
+  }
+  if (authStore.needChooseCompany) {
+    if (to.name === chooseCompanyRoute) {
+      return null;
+    }
+    return { name: chooseCompanyRoute };
+  }
+  if (to.name === chooseCompanyRoute && !authStore.needChooseCompany) {
+    return { name: 'root' };
+  }
+  if (to.name === chooseCompanyRoute) {
+    return null;
+  }
+  await routeStore.initAuthRoute();
+  if (isNotFoundRoute) {
+    const rootRoute: RouteKey = 'root';
+    const path = to.redirectedFrom?.name === rootRoute ? '/' : to.fullPath;
+    return {
+      path,
+      replace: true,
+      query: to.query,
+      hash: to.hash
+    };
+  }
+  return null;
+}
+
 /**
  * 作用：注册全局前置守卫：初始化常量/鉴权路由、登录态与公司选择流程、meta.roles 与外链等。
  * @param router Vue Router 实例
@@ -38,7 +137,6 @@ export function createRouteGuard(router: Router) {
 
     const rootRoute: RouteKey = 'root';
     const loginRoute: RouteKey = 'login';
-    const chooseCompanyRoute: RouteKey = 'choose-company';
     const isLogin = authStore.isLogin;
     const needLogin = !to.meta.constant;
     const routeRoles = to.meta.roles || [];
@@ -48,13 +146,9 @@ export function createRouteGuard(router: Router) {
     // dynamic 下主判定依赖后端已下发路由；meta.roles 仅在静态模式或未初始化阶段兜底
     const hasAuth = authStore.isStaticSuper || !useMetaRolesFallback || hasAuthByMetaRoles;
 
-    // 与 jasic-ui permission.js：已登录访问登录页时跳转；若仍待选公司则进选公司页
-    if (to.name === loginRoute && isLogin) {
-      if (authStore.needChooseCompany) {
-        next({ name: chooseCompanyRoute });
-      } else {
-        next({ name: rootRoute });
-      }
+    const loggedInLoginRedirect = getLoggedInLoginRedirect(to, authStore);
+    if (loggedInLoginRedirect) {
+      next(loggedInLoginRedirect);
       return;
     }
 
@@ -70,17 +164,12 @@ export function createRouteGuard(router: Router) {
       return;
     }
 
-    if (authStore.needChooseCompany && to.name !== chooseCompanyRoute) {
-      next({ name: chooseCompanyRoute });
+    const chooseCompanyGuard = getChooseCompanyGuardResult(to, authStore);
+    if (chooseCompanyGuard && chooseCompanyGuard !== 'proceed-switch') {
+      next(chooseCompanyGuard);
       return;
     }
-
-    if (!authStore.needChooseCompany && to.name === chooseCompanyRoute) {
-      next({ name: rootRoute });
-      return;
-    }
-
-    if (authStore.needChooseCompany && to.name === chooseCompanyRoute) {
+    if (chooseCompanyGuard === 'proceed-switch') {
       handleRouteSwitch(to, from, next);
       return;
     }
@@ -136,65 +225,18 @@ async function initRoute(to: RouteLocationNormalized): Promise<RouteLocationRaw 
   const isLogin = Boolean(localStg.get('token'));
 
   if (!isLogin) {
-    // if the user is not logged in and the route is a constant route but not the "not-found" route, then it is allowed to access.
-    if (to.meta.constant && !isNotFoundRoute) {
-      routeStore.onRouteSwitchWhenNotLoggedIn();
-
-      return null;
-    }
-
-    // if the user is not logged in, then switch to the login page
-    const loginRoute: RouteKey = 'login';
-    const query = getRouteQueryOfLoginRoute(to, routeStore.routeHome);
-
-    const location: RouteLocationRaw = {
-      name: loginRoute,
-      query
-    };
-
-    return location;
+    return resolveLocationWhenNotLoggedIn(to, routeStore, isNotFoundRoute);
   }
 
   if (!routeStore.isInitAuthRoute) {
-    // 与 jasic-ui 登录后时序对齐：先拿用户信息，再判断是否待选公司与初始化鉴权路由
-    if (!authStore.userInfo.userId && !authStore.needChooseCompany) {
-      await authStore.initUserInfo();
-    }
-
-    // 与 jasic-ui：选公司完成前不拉菜单；待选公司阶段仅允许停留在 choose-company
-    if (authStore.needChooseCompany) {
-      if (to.name === chooseCompanyRoute) {
-        return null;
-      }
-      return { name: chooseCompanyRoute };
-    }
-
-    if (to.name === chooseCompanyRoute && !authStore.needChooseCompany) {
-      return { name: 'root' };
-    }
-
-    // 与 jasic-ui：选公司完成后再初始化鉴权路由
-    if (to.name === chooseCompanyRoute) {
-      return null;
-    }
-
-    // initialize the auth route
-    await routeStore.initAuthRoute();
-
-    // the route is captured by the "not-found" route because the auth route is not initialized
-    // after the auth route is initialized, redirect to the original route
-    if (isNotFoundRoute) {
-      const rootRoute: RouteKey = 'root';
-      const path = to.redirectedFrom?.name === rootRoute ? '/' : to.fullPath;
-
-      const location: RouteLocationRaw = {
-        path,
-        replace: true,
-        query: to.query,
-        hash: to.hash
-      };
-
-      return location;
+    const authBootstrapLocation = await resolveLocationWhenAuthRouteUninitialized({
+      to,
+      authStore,
+      routeStore,
+      isNotFoundRoute
+    });
+    if (authBootstrapLocation) {
+      return authBootstrapLocation;
     }
   }
 
@@ -265,4 +307,3 @@ function getRouteQueryOfLoginRoute(to: RouteLocationNormalized, routeHome: Route
 
   return query;
 }
-

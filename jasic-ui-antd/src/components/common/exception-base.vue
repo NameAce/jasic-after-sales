@@ -49,10 +49,7 @@ const icon = computed(() => iconMap[props.type]);
     <div class="flex text-400px text-primary">
       <SvgIcon :local-icon="icon" />
     </div>
-    <div
-      v-if="apiMessage"
-      class="max-w-560px text-center text-16px text-gray-700 leading-relaxed break-words"
-    >
+    <div v-if="apiMessage" class="max-w-560px break-words text-center text-16px text-gray-700 leading-relaxed">
       {{ apiMessage }}
     </div>
     <AButton type="primary" @click="routerPushByKey('root')">{{ $t('common.backToHome') }}</AButton>

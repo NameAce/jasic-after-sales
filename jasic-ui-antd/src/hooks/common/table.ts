@@ -10,9 +10,8 @@ import type { TablePaginationConfig } from 'ant-design-vue';
 import type { TableRowSelection } from 'ant-design-vue/es/table/interface';
 import { useBoolean, useHookTable } from '@sa/hooks';
 import { jsonClone } from '@sa/utils';
-import { useAppStore } from '@/store/modules/app';
-import { $t } from '@/locales';
 import { getFlatErrorMsg, getFlatResponseMsg } from '@/service/request/shared';
+import { useAppStore } from '@/store/modules/app';
 import { createAntTableListLocale } from '@/utils/list-table-empty-state';
 
 type TableData = AntDesign.TableData;
@@ -39,9 +38,9 @@ export function useTable<A extends AntDesign.TableApiFn>(config: AntDesign.AntDe
     listFetchErrorMsg.value = '';
     listEmptyBackendMsg.value = '';
     const res = await apiFn(params);
-    if (res != null && typeof res === 'object' && 'error' in res) {
+    if (res !== null && typeof res === 'object' && 'error' in res) {
       const r = res as { error?: unknown };
-      if (r.error != null && r.error !== false) {
+      if (r.error !== null && r.error !== false) {
         listFetchErrorMsg.value = getFlatErrorMsg(res, '数据加载失败');
         return { data: { records: [], current: 1, size: 10, total: 0 } } as Awaited<ReturnType<A>>;
       }
@@ -168,9 +167,9 @@ export function useTable<A extends AntDesign.TableApiFn>(config: AntDesign.AntDe
    * 作用：跳到指定页并拉取数据。
    * @param pageNum 页码，默认 1
    * @returns {Promise<void>}
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   async function getDataByPage(pageNum: number = 1) {
     updatePagination({
       current: pageNum
@@ -236,9 +235,9 @@ export function useTableOperate<T extends TableData = TableData>(data: Ref<T[]>,
   }
 
   /** the editing row data
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   const editingData: Ref<T | null> = ref(null);
 
   function handleEdit(id: T['id']) {
@@ -250,9 +249,9 @@ export function useTableOperate<T extends TableData = TableData>(data: Ref<T[]>,
   }
 
   /** the checked row keys of table
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   const checkedRowKeys: Ref<T['id'][]> = ref([]);
 
   function onSelectChange(keys: (string | number)[]) {
@@ -260,9 +259,9 @@ export function useTableOperate<T extends TableData = TableData>(data: Ref<T[]>,
   }
 
   /** 根据选中 keys 推导 Ant Design Table rowSelection
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   const rowSelection = computed<TableRowSelection<T>>(() => {
     return {
       columnWidth: 48,
@@ -273,11 +272,11 @@ export function useTableOperate<T extends TableData = TableData>(data: Ref<T[]>,
   });
 
   /** 批量删除成功后的提示与清空选中
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   async function onBatchDeleted() {
-    window.$message?.success($t('common.deleteSuccess'));
+    window.$message?.success('删除成功');
 
     checkedRowKeys.value = [];
 
@@ -285,11 +284,11 @@ export function useTableOperate<T extends TableData = TableData>(data: Ref<T[]>,
   }
 
   /** 单行删除成功后的提示
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   async function onDeleted() {
-    window.$message?.success($t('common.deleteSuccess'));
+    window.$message?.success('删除成功');
 
     await getData();
   }

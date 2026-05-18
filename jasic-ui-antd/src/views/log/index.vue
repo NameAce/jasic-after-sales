@@ -5,14 +5,11 @@
 import { onMounted, reactive, ref } from 'vue';
 import { tagColorEnabled } from '@/constants/list-status-tag';
 import { type OperLogQuery, cleanOperLog, deleteOperLog, listOperLog } from '@/service/api';
-import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
 import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
 import { useTableScroll } from '@/hooks/common/table';
-import {
-  createAntTableListLocale,
-  useListRequestTableMsgs
-} from '@/utils/list-table-empty-state';
+import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
+import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
 
 type RowData = Record<string, any>;
 
@@ -388,13 +385,7 @@ onMounted(loadList);
       </ATable>
     </ACard>
 
-    <ADrawer
-      v-model:open="detailOpen"
-      title="操作日志详情"
-      placement="right"
-      :width="800"
-      destroy-on-close
-    >
+    <ADrawer v-model:open="detailOpen" title="操作日志详情" placement="right" :width="800" destroy-on-close>
       <ADescriptions bordered size="small" :column="2" :label-style="{ whiteSpace: 'nowrap' }">
         <ADescriptionsItem label="日志ID">{{ detail.id }}</ADescriptionsItem>
         <ADescriptionsItem label="操作模块">{{ detail.title }}</ADescriptionsItem>

@@ -3,11 +3,15 @@
  * @修改人 黄碧莲
  * @修改时间 2026-05-15
  */
-import { computed, h, type Ref, ref } from 'vue';
+import { type Ref, computed, h, ref } from 'vue';
 import { Empty } from 'ant-design-vue';
 import { getFlatErrorMsg, getFlatResponseMsg } from '@/service/request/shared';
 
 const DEFAULT_NO_DATA = '暂无数据';
+
+function isNil(value: unknown): value is null | undefined {
+  return value === null || value === undefined;
+}
 
 /**
  * 作用：根据错误文案、成功但空列表时的后端文案、以及数据源是否为空，生成 ATable `locale`（含 Empty 简单插图）。
@@ -17,11 +21,13 @@ const DEFAULT_NO_DATA = '暂无数据';
  * @param options.noDataLabel - 无后端文案时的兜底
  * @returns {ComputedRef} 供 `:locale` 绑定
  */
+// 保持三参 + options 调用方式，第四项为可选配置对象
+// eslint-disable-next-line max-params
 export function createAntTableListLocale(
   listFetchErrorMsg: Ref<string>,
   listEmptyBackendMsg: Ref<string>,
   dataSource: Ref<readonly unknown[]>,
-  options?: { noDataLabel?: string },
+  options?: { noDataLabel?: string }
 ) {
   const noDataLabel = options?.noDataLabel ?? DEFAULT_NO_DATA;
   return computed(() => {
@@ -32,8 +38,8 @@ export function createAntTableListLocale(
     return {
       emptyText: h(Empty, {
         image: Empty.PRESENTED_IMAGE_SIMPLE,
-        description: desc,
-      }),
+        description: desc
+      })
     };
   });
 }
@@ -55,9 +61,9 @@ export function useListRequestTableMsgs() {
    * 作用：若扁平结果为业务失败，写入错误文案并返回 true（调用方应清空表格数据）。
    */
   function consumeFlatError(flat: unknown): boolean {
-    if (flat != null && typeof flat === 'object' && 'error' in flat) {
+    if (!isNil(flat) && typeof flat === 'object' && 'error' in flat) {
       const r = flat as { error?: unknown };
-      if (r.error != null && r.error !== false) {
+      if (!isNil(r.error) && r.error !== false) {
         listFetchErrorMsg.value = getFlatErrorMsg(flat, '数据加载失败');
         return true;
       }
@@ -78,9 +84,7 @@ export function useListRequestTableMsgs() {
 
   function setMsgFromCatch(e: unknown) {
     const withResp =
-      e && typeof e === 'object' && 'response' in e
-        ? { response: (e as { response: unknown }).response }
-        : null;
+      e && typeof e === 'object' && 'response' in e ? { response: (e as { response: unknown }).response } : null;
     listFetchErrorMsg.value =
       (withResp ? getFlatErrorMsg(withResp, '') : '') ||
       (e instanceof Error && e.message ? e.message : '') ||
@@ -93,6 +97,6 @@ export function useListRequestTableMsgs() {
     clearListMsgs,
     consumeFlatError,
     refreshEmptySuccessMsg,
-    setMsgFromCatch,
+    setMsgFromCatch
   };
 }

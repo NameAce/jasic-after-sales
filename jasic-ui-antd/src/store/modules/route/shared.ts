@@ -7,9 +7,9 @@ import type { RouteLocationNormalizedLoaded, RouteRecordRaw, _RouteRecordBase } 
 import type { ElegantConstRoute, LastLevelRouteKey, RouteKey, RouteMap } from '@elegant-router/types';
 import { MENU_ICON_OVERRIDES, resolveMenuIconFromApi } from '@/constants/menu-icon';
 import { useSvgIcon } from '@/hooks/common/icon';
+import { getRouteMenuTitle } from '@/utils/route-menu-title';
 import { $t } from '@/locales';
 import { getRoutePath } from '@/router/elegant/transform';
-import { getRouteMenuTitle } from '@/utils/route-menu-title';
 
 type RouteMetaLike = Partial<NonNullable<ElegantConstRoute['meta']>> & Record<string, unknown>;
 type BackendMenuRoute = Api.Route.BackendMenuRoute;

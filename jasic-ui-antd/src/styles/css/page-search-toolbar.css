@@ -54,8 +54,7 @@ form.page-search-toolbar--inline.ant-form-inline {
  * 仅一项时不要用 margin-left:auto，否则单独的状态等筛选项会被挤到最右侧（应靠左）。
  */
 .page-search-toolbar--inline.ant-form > .ant-form-item:last-child:not(:only-child),
-form.page-search-toolbar--inline.ant-form-inline
-  > .ant-form-item:last-child:not(:only-child) {
+form.page-search-toolbar--inline.ant-form-inline > .ant-form-item:last-child:not(:only-child) {
   margin-left: auto;
   margin-bottom: 0;
 }

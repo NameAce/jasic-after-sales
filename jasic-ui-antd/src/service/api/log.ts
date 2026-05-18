@@ -10,17 +10,17 @@ type Query = Record<string, unknown>;
 
 export interface OperLogQuery extends Query {
   /** 与 jasic-ui `views/log/operLog/index.vue` 一致
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   pageNum?: number;
   pageSize?: number;
   title?: string;
   operType?: number;
   /** jasic 字段名 `operUserName`
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   operUserName?: string;
   status?: 0 | 1;
   beginTime?: string;
@@ -38,9 +38,9 @@ export interface OperLogVO {
   responseResult?: string;
   userId?: number;
   /** jasic 列表列「操作人」
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   operUserName?: string;
   companyId?: number;
   ip?: string;

@@ -20,9 +20,9 @@ export interface SysCompanyType {
 
 export interface SysCompanyQuery extends Query {
   /** 与 jasic-ui `views/org/company/index.vue` 分页一致
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   pageNum?: number;
   pageSize?: number;
   companyName?: string;

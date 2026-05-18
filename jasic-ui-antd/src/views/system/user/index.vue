@@ -24,14 +24,11 @@ import { notifyOnceSuccessFromFlatResult } from '@/service/request/shared';
 import { useAuthStore } from '@/store/modules/auth';
 import { useAuth } from '@/hooks/business/auth';
 import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
-import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
 import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
 import { useTableScroll } from '@/hooks/common/table';
 import { estimateAntTableActionColWidth } from '@/utils/table-action-width';
-import {
-  createAntTableListLocale,
-  useListRequestTableMsgs
-} from '@/utils/list-table-empty-state';
+import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
+import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
 
 type RowData = Record<string, any>;
 
@@ -126,9 +123,7 @@ const editFormRules = computed(() => {
   const isAdd = !editForm.id;
   return {
     username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-    password: isAdd
-      ? [{ required: true, message: '请输入密码', trigger: 'blur' }]
-      : [],
+    password: isAdd ? [{ required: true, message: '请输入密码', trigger: 'blur' }] : [],
     realName: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
     phone: [
       { required: true, message: '请输入手机号', trigger: 'blur' },
@@ -369,7 +364,6 @@ async function submitEdit() {
   } catch {
     return;
   }
-  const isAdd = !editForm.id;
   editSubmitting.value = true;
   try {
     if (editForm.id) {
@@ -564,7 +558,9 @@ onMounted(() => {
                 :span="24"
                 :md="12"
                 :lg="6"
-                :class="{ 'page-search-toolbar__filter-col--collapsed': systemUserSearchFilter.isSearchFilterHidden(0) }"
+                :class="{
+                  'page-search-toolbar__filter-col--collapsed': systemUserSearchFilter.isSearchFilterHidden(0)
+                }"
               >
                 <AFormItem label="用户名" class="m-0">
                   <AInput v-model:value="query.username" allow-clear placeholder="请输入用户名" />
@@ -574,7 +570,9 @@ onMounted(() => {
                 :span="24"
                 :md="12"
                 :lg="6"
-                :class="{ 'page-search-toolbar__filter-col--collapsed': systemUserSearchFilter.isSearchFilterHidden(1) }"
+                :class="{
+                  'page-search-toolbar__filter-col--collapsed': systemUserSearchFilter.isSearchFilterHidden(1)
+                }"
               >
                 <AFormItem label="姓名" class="m-0">
                   <AInput v-model:value="query.realName" allow-clear placeholder="请输入姓名" />
@@ -584,7 +582,9 @@ onMounted(() => {
                 :span="24"
                 :md="12"
                 :lg="6"
-                :class="{ 'page-search-toolbar__filter-col--collapsed': systemUserSearchFilter.isSearchFilterHidden(2) }"
+                :class="{
+                  'page-search-toolbar__filter-col--collapsed': systemUserSearchFilter.isSearchFilterHidden(2)
+                }"
               >
                 <AFormItem label="手机号" class="m-0">
                   <AInput v-model:value="query.phone" allow-clear placeholder="请输入手机号" />
@@ -594,7 +594,9 @@ onMounted(() => {
                 :span="24"
                 :md="12"
                 :lg="6"
-                :class="{ 'page-search-toolbar__filter-col--collapsed': systemUserSearchFilter.isSearchFilterHidden(3) }"
+                :class="{
+                  'page-search-toolbar__filter-col--collapsed': systemUserSearchFilter.isSearchFilterHidden(3)
+                }"
               >
                 <AFormItem label="状态" class="m-0">
                   <ASelect

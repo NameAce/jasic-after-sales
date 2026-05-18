@@ -165,9 +165,8 @@ async function handleBatchDelete() {
  * @param id - 用户 id
  * @returns {void} 无
  */
-function handleDelete(id: number) {
+function handleDelete(_id: number) {
   // request
-  console.log(id);
 
   onDeleted();
 }

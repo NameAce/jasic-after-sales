@@ -14,6 +14,7 @@ import {
   updateCompanyAddress
 } from '@/service/api';
 import { notifyOnceSuccessFromFlatResult } from '@/service/request/shared';
+import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 import {
   type RegionCascaderOption,
   composeAddressWithRegion,
@@ -22,21 +23,13 @@ import {
   loadRegionCascaderData,
   splitFullAddressToRegionAndDetail
 } from '@/utils/china-region';
-import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
-import {
-  createAntTableListLocale,
-  useListRequestTableMsgs
-} from '@/utils/list-table-empty-state';
+import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
 import { estimateAntTableActionColWidth } from '@/utils/table-action-width';
 
 type RowData = Record<string, any>;
 
 /** 操作列：编辑 / 设为默认 / 删除 同一行最多时横排估算 */
-const COMPANY_ADDRESS_ACTION_COL_WIDTH = estimateAntTableActionColWidth([
-  '编辑',
-  '设为默认',
-  '删除'
-]);
+const COMPANY_ADDRESS_ACTION_COL_WIDTH = estimateAntTableActionColWidth(['编辑', '设为默认', '删除']);
 
 const pageMenuTitle = useRouteMenuTitle();
 
@@ -117,7 +110,13 @@ const columns = [
   { title: '是否默认', dataIndex: 'isDefault', key: 'isDefault', width: 120 },
   { title: '联系人', dataIndex: 'contactName', key: 'contactName', width: 140 },
   { title: '联系电话', dataIndex: 'contactPhone', key: 'contactPhone', width: 160 },
-  { title: '操作', dataIndex: 'actions', key: 'actions', width: COMPANY_ADDRESS_ACTION_COL_WIDTH, fixed: 'right' as const }
+  {
+    title: '操作',
+    dataIndex: 'actions',
+    key: 'actions',
+    width: COMPANY_ADDRESS_ACTION_COL_WIDTH,
+    fixed: 'right' as const
+  }
 ];
 
 /**
@@ -293,13 +292,7 @@ onMounted(async () => {
     </ACard>
 
     <ADrawer v-model:open="formOpen" :title="formTitle" :width="400">
-      <AForm
-        ref="addressFormRef"
-        class="mt-8px"
-        layout="vertical"
-        :model="formModel"
-        :rules="addressFormRules as any"
-      >
+      <AForm ref="addressFormRef" class="mt-8px" layout="vertical" :model="formModel" :rules="addressFormRules as any">
         <AFormItem label="联系人" name="contactName" required>
           <AInput v-model:value="formModel.contactName" />
         </AFormItem>

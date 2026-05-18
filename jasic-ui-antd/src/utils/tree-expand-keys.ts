@@ -11,19 +11,16 @@
 export function computeExpandedKeysForCheckedMenuTree(
   nodes: unknown[] | undefined,
   checkedKeys: Array<string | number>,
-  nodeKey: 'id' | 'key' = 'id',
+  nodeKey: 'id' | 'key' = 'id'
 ): Array<string | number> {
-  const checked = new Set(
-    checkedKeys.map(k => Number(k)).filter(id => !Number.isNaN(id)),
-  );
+  const checked = new Set(checkedKeys.map(k => Number(k)).filter(id => !Number.isNaN(id)));
   const expand = new Set<number>();
 
   function walk(list: unknown[], ancestors: number[]): void {
     for (const raw of list || []) {
       const node = raw as Record<string, unknown>;
       const rawKey = node[nodeKey];
-      const id =
-        typeof rawKey === 'number' ? rawKey : Number(String(rawKey ?? ''));
+      const id = typeof rawKey === 'number' ? rawKey : Number(String(rawKey ?? ''));
       if (Number.isNaN(id)) {
         /* skip */
       } else {

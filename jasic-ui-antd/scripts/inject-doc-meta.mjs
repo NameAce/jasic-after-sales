@@ -27,8 +27,9 @@ function collectTsFiles(dir) {
     const p = path.join(dir, ent.name);
     if (ent.isDirectory()) {
       // 跳过后端生成目录，避免与 gen-route 冲突后丢失维护信息
-      if (path.join(dir, ent.name).includes(`${path.sep}router${path.sep}elegant`)) continue;
-      out.push(...collectTsFiles(p));
+      if (!p.includes(`${path.sep}router${path.sep}elegant`)) {
+        out.push(...collectTsFiles(p));
+      }
     } else if (ent.isFile() && ent.name.endsWith('.ts') && !ent.name.endsWith('.d.ts')) out.push(p);
   }
   return out;

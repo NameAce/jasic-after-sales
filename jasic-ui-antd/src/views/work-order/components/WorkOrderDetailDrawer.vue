@@ -24,8 +24,8 @@ import {
   uploadSystemFile
 } from '@/service/api';
 import { notifyOnceSuccessFromFlatResult } from '@/service/request/shared';
-import { adaptiveModalWidth } from '@/hooks/common/modal-form-layout';
 import { useAuthStore } from '@/store/modules/auth';
+import { adaptiveModalWidth } from '@/hooks/common/modal-form-layout';
 import { useAuth } from '@/hooks/business/auth';
 import type { WorkOrderListActionCode } from '../list-actions';
 
@@ -1013,10 +1013,8 @@ async function submitAssign() {
     const assignResult = await assignWorkOrder({ workOrderId: id.value, assignedUserId: chosenId });
     const selfId = Number(authStore.userInfo.userId);
     const fallback =
-      Number.isFinite(selfId) && selfId > 0 && chosenId === selfId
-        ? '已派单给自己，可在「待接单」中接单'
-        : '派单成功';
-    if (!notifyOnceSuccessFromFlatResult(assignResult, fallback)) return;
+      Number.isFinite(selfId) && selfId > 0 && chosenId === selfId ? '已派单给自己，可在「待接单」中接单' : '派单成功';
+    if (!notifyOnceSuccessFromFlatResult(assignResult, fallback)) return undefined;
     assignOpen.value = false;
     await loadDetail();
     emit('success');
@@ -1509,7 +1507,7 @@ async function submitReview() {
         : undefined,
       otherImageFileIds: reviewForm.otherImageFileIds.length ? reviewForm.otherImageFileIds : undefined
     });
-    if (!notifyOnceSuccessFromFlatResult(reviewResult, '复检登记提交成功')) return;
+    if (!notifyOnceSuccessFromFlatResult(reviewResult, '复检登记提交成功')) return undefined;
     reviewOpen.value = false;
     await loadDetail();
     emit('success');
@@ -1605,7 +1603,7 @@ async function submitClose() {
     } else {
       closeResult = await closeWorkOrder(closePayload);
     }
-    if (!notifyOnceSuccessFromFlatResult(closeResult, '关闭工单提交成功')) return;
+    if (!notifyOnceSuccessFromFlatResult(closeResult, '关闭工单提交成功')) return undefined;
     pendingTechAcceptPayload.value = null;
     closeOpen.value = false;
     await loadDetail();
@@ -1868,21 +1866,11 @@ defineExpose({
         <ASpace wrap>
           <AButton v-if="showAssign" type="primary" size="small" @click="openAssign">派单</AButton>
           <AButton v-if="showAccept" type="primary" size="small" @click="openAccept">维修员接单</AButton>
-          <AButton
-            v-if="showTransfer"
-            size="small"
-            class="detail-mirror-table-action--warning"
-            @click="openTransfer"
-          >
+          <AButton v-if="showTransfer" size="small" class="detail-mirror-table-action--warning" @click="openTransfer">
             转单
           </AButton>
           <AButton v-if="showRepair" type="primary" size="small" @click="openRepair">维修登记</AButton>
-          <AButton
-            v-if="showReview"
-            size="small"
-            class="detail-mirror-table-action--warning"
-            @click="openReview"
-          >
+          <AButton v-if="showReview" size="small" class="detail-mirror-table-action--warning" @click="openReview">
             复检登记
           </AButton>
           <AButton v-if="showMail" type="primary" size="small" @click="openMail">上传寄件单号</AButton>
@@ -2026,10 +2014,7 @@ defineExpose({
                 preload="metadata"
                 class="pointer-events-none h-full w-full object-cover"
               />
-              <div
-                class="pointer-events-none absolute inset-0 flex items-center justify-center"
-                style="background-color: rgba(0, 0, 0, 0.32)"
-              >
+              <div class="pointer-events-none absolute inset-0 flex items-center justify-center bg-[rgba(0,0,0,0.32)]">
                 <svg
                   width="28"
                   height="28"
@@ -2037,7 +2022,7 @@ defineExpose({
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
                   aria-hidden="true"
-                  style="filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35))"
+                  class="drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]"
                 >
                   <path d="M9 7.2v9.6L16.2 12 9 7.2Z" fill="#ffffff" fill-opacity="0.96" />
                 </svg>
@@ -2487,12 +2472,7 @@ defineExpose({
           />
         </AFormItem>
         <AFormItem v-else label="维修说明" name="repairDesc" required>
-          <ATextarea
-            v-model:value="reviewForm.repairDesc"
-            :rows="3"
-            allow-clear
-            placeholder="请输入维修说明"
-          />
+          <ATextarea v-model:value="reviewForm.repairDesc" :rows="3" allow-clear placeholder="请输入维修说明" />
         </AFormItem>
         <AFormItem
           v-if="isOtherReviewSelected || !hasRepairFaultConfig"
@@ -2670,12 +2650,7 @@ defineExpose({
             ]"
           />
         </AFormItem>
-        <AFormItem
-          v-if="closeForm.returnMethod === '回寄'"
-          label="回寄凭证"
-          name="returnVoucherFileIds"
-          required
-        >
+        <AFormItem v-if="closeForm.returnMethod === '回寄'" label="回寄凭证" name="returnVoucherFileIds" required>
           <AUpload
             class="create-upload-picture-card"
             list-type="picture-card"

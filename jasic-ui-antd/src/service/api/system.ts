@@ -11,9 +11,9 @@ type Query = Record<string, unknown>;
 
 export interface SysUserQuery extends Query {
   /** 与 jasic-ui `views/system/user/index.vue` 的 `queryParams` 及后端列表一致
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   pageNum?: number;
   pageSize?: number;
   username?: string;
@@ -64,9 +64,9 @@ export interface SysUserVO {
 
 export interface SysRoleQuery extends Query {
   /** 与 jasic-ui `views/system/role/index.vue` 的 PageHelper 分页一致
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
   pageNum?: number;
   pageSize?: number;
   roleName?: string;
