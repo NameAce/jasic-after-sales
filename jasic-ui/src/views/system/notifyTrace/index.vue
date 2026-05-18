@@ -450,7 +450,8 @@ export default {
       targetTypeOptions: [
         { label: '站内消息', value: 'IN_APP_MESSAGE' },
         { label: '站内待办', value: 'IN_APP_TODO' },
-        { label: '小程序订阅消息', value: 'MP_SUBSCRIBE' }
+        { label: '小程序订阅消息(B端)', value: 'MP_SUBSCRIBE_B' },
+        { label: '小程序订阅消息(C端)', value: 'MP_SUBSCRIBE_C' }
       ],
       eventStatusOptions: [
         { label: '新建 / NEW', value: 'NEW' },
@@ -642,7 +643,8 @@ export default {
       const map = {
         IN_APP_MESSAGE: '站内消息',
         IN_APP_TODO: '站内待办',
-        MP_SUBSCRIBE: '小程序订阅消息',
+        MP_SUBSCRIBE_B: '小程序订阅消息(B端)',
+        MP_SUBSCRIBE_C: '小程序订阅消息(C端)',
         SMS: '短信',
         EMAIL: '邮件'
       }

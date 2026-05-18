@@ -5,6 +5,10 @@ import com.jasic.aftersales.system.notify.domain.dto.NotifyEvaluationInviteEvent
 import com.jasic.aftersales.system.notify.domain.dto.NotifyReadByBizDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoCompleteDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoInvalidateDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderAcceptEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderAcceptedEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderTransferInEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderTransferNoticeEventDTO;
 
 /**
  * Work order notification facade.
@@ -15,11 +19,39 @@ import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoInvalidateDTO;
 public interface WorkOrderNotifyFacade {
 
     /**
+     * 发布 B 端接单通知事件。
+     *
+     * @param dto 事件参数
+     */
+    void publishAcceptEvent(NotifyWorkOrderAcceptEventDTO dto);
+
+    /**
+     * 发布 B 端工单转入通知事件。
+     *
+     * @param dto 事件参数
+     */
+    void publishTransferInEvent(NotifyWorkOrderTransferInEventDTO dto);
+
+    /**
      * publishAssigned事件。
      *
      * @param dto 参数
      */
     void publishAssignedEvent(NotifyAssignedEventDTO dto);
+
+    /**
+     * 发布 C 端接单成功提醒事件。
+     *
+     * @param dto 事件参数
+     */
+    void publishAcceptedEvent(NotifyWorkOrderAcceptedEventDTO dto);
+
+    /**
+     * 发布 C 端网点转单通知事件。
+     *
+     * @param dto 事件参数
+     */
+    void publishTransferNoticeEvent(NotifyWorkOrderTransferNoticeEventDTO dto);
 
     /**
      * publish评价Invite事件。

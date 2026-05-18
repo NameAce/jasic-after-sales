@@ -100,7 +100,7 @@ public class WorkOrderEvaluationInviteNotifyEventHandler implements NotifyEventH
      * @return 场景编码
      */
     private String resolveSceneCode(SysNotifyEvent event) {
-        return StrUtil.blankToDefault(event.getSceneCode(), NotifySceneCode.WORK_ORDER_EVALUATION_INVITE_MP_C.getCode());
+        return StrUtil.blankToDefault(event.getSceneCode(), NotifySceneCode.WORK_ORDER_EVALUATION_INVITE.getCode());
     }
 
     /**
@@ -132,6 +132,9 @@ public class WorkOrderEvaluationInviteNotifyEventHandler implements NotifyEventH
         variables.put("customerOpenid", payload.getCustomerOpenid());
         variables.put("companyId", payload.getCompanyId());
         variables.put("companyName", payload.getCompanyName());
+        // 评价邀请模板中的联系电话统一解释为服务网点对外联系电话，
+        // 这里要把业务层已经按统一规则兜底后的电话快照写入变量，避免模板字段为空。
+        variables.put("companyPhone", payload.getCompanyPhone());
         variables.put("closedTime", payload.getClosedTime());
         return variables;
     }

@@ -846,7 +846,7 @@ export default {
         return false
       }
       if (typeof targetMetaOrType === 'string') {
-        return targetMetaOrType === 'MP_SUBSCRIBE' || targetMetaOrType.indexOf('MP_SUBSCRIBE_') === 0
+        return targetMetaOrType.indexOf('MP_SUBSCRIBE_') === 0
       }
       if (targetMetaOrType.channelType === 'MP_SUBSCRIBE') {
         return true

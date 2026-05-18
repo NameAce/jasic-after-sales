@@ -42,7 +42,7 @@ public class SysNotifyMessage extends BaseEntity {
     /** 通知目标类型 */
     private String targetType;
 
-    /** 兼容旧字段的模板身份编码，当前仍回填 sceneCode */
+    /** 模板标识字段，当前运行时统一回填命中的场景编码。 */
     private String templateCode;
 
     /** 业务类型 */
@@ -96,5 +96,3 @@ public class SysNotifyMessage extends BaseEntity {
     /** 扩展信息 */
     private String extJson;
 }
-
-

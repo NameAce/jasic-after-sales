@@ -9,12 +9,10 @@ import com.jasic.aftersales.system.notify.domain.dto.NotifyChannelFieldMappingDT
 import com.jasic.aftersales.system.notify.domain.enums.NotifyChannelSceneEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyChannelTypeEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyDispatchResultCodeEnum;
-import com.jasic.aftersales.system.notify.domain.enums.NotifyReceiverTypeEnum;
 import com.jasic.aftersales.system.notify.service.NotifyChannelSender;
 import com.jasic.aftersales.system.notify.support.NotifyChannelSendContext;
 import com.jasic.aftersales.system.notify.support.NotifyChannelSendResult;
 import com.jasic.aftersales.system.notify.support.NotifyDispatchPayload;
-import com.jasic.aftersales.system.notify.support.NotifySceneCode;
 import com.jasic.aftersales.system.notify.support.NotifyTemplateChannelConfig;
 import com.jasic.aftersales.system.service.WechatMiniProgramService;
 import org.springframework.stereotype.Service;
@@ -107,13 +105,8 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
                     "Mini program field mapping is missing"
             );
         }
-        // 当前正式口径优先使用配置中显式声明的小程序场景，
-        // 只有旧数据尚未补齐 `channelScene` 时，才回退到接收对象类型 / 历史 sceneCode 兼容推断。
-        WechatMiniProgramScene scene = resolveScene(
-                channelConfig.getChannelScene(),
-                payload.getSceneCode(),
-                context.getDispatch().getReceiverType()
-        );
+        // 小程序归属端必须来自场景目标配置，避免再次用接收人类型或旧 sceneCode 后缀猜测 B/C 端。
+        WechatMiniProgramScene scene = resolveScene(channelConfig.getChannelScene());
         if (scene == null) {
             return NotifyChannelSendResult.skipped(
                     NotifyDispatchResultCodeEnum.SKIPPED_CHANNEL_CONFIG_MISSING.getCode(),
@@ -187,29 +180,14 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
      * 解析场景。
      *
      * @param channelScene 配置中的小程序场景
-     * @param sceneCode 通知场景编码
-     * @param receiverType 接收对象类型
      * @return 处理结果
      */
-    private WechatMiniProgramScene resolveScene(String channelScene, String sceneCode, String receiverType) {
+    private WechatMiniProgramScene resolveScene(String channelScene) {
         NotifyChannelSceneEnum configuredScene = NotifyChannelSceneEnum.getByCode(channelScene);
         if (configuredScene != null) {
             return NotifyChannelSceneEnum.B.equals(configuredScene)
                     ? WechatMiniProgramScene.B
                     : WechatMiniProgramScene.C;
-        }
-        if (NotifyReceiverTypeEnum.REPAIRER.getCode().equals(receiverType)) {
-            return WechatMiniProgramScene.B;
-        }
-        if (NotifyReceiverTypeEnum.CUSTOMER.getCode().equals(receiverType)) {
-            return WechatMiniProgramScene.C;
-        }
-        if (NotifySceneCode.WORK_ORDER_EVALUATION_INVITE_MP_C.getCode().equals(sceneCode)
-                || StrUtil.endWithIgnoreCase(sceneCode, "_MP_C")) {
-            return WechatMiniProgramScene.C;
-        }
-        if (StrUtil.endWithIgnoreCase(sceneCode, "_MP_B")) {
-            return WechatMiniProgramScene.B;
         }
         return null;
     }

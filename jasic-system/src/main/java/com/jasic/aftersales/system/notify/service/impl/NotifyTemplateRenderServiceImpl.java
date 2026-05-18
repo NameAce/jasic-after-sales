@@ -3,7 +3,9 @@ package com.jasic.aftersales.system.notify.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jasic.aftersales.common.exception.ServiceException;
+import com.jasic.aftersales.system.notify.domain.entity.NotifyScene;
 import com.jasic.aftersales.system.notify.domain.entity.NotifySceneTarget;
+import com.jasic.aftersales.system.notify.mapper.NotifySceneMapper;
 import com.jasic.aftersales.system.notify.mapper.NotifySceneTargetMapper;
 import com.jasic.aftersales.system.notify.service.NotifyTemplateRenderService;
 import com.jasic.aftersales.system.notify.support.NotifySceneMeta;
@@ -23,10 +25,7 @@ import java.util.regex.Pattern;
 /**
  * 通知模板运行时渲染服务实现。
  *
- * <p>该实现服务于现有运行时链路，但底层数据源已经切换为 `notify_scene_target`。
- * 也就是说，事件消费方仍然可以调用“按场景编码渲染”的旧入口，
- * 但真正命中的已经是该场景下默认目标类型对应的目标配置。
- * 阶段二完成后，运行时将逐步切换为显式传入 `targetType`。</p>
+ * <p>当前运行时统一从 `notify_scene_target` 读取目标级模板配置，不再保留旧的单场景渲染入口。</p>
  *
  * @author Codex
  * @date 2026/05/16
@@ -41,23 +40,13 @@ public class NotifyTemplateRenderServiceImpl implements NotifyTemplateRenderServ
     private NotifySceneTargetMapper notifySceneTargetMapper;
 
     @Resource
+    private NotifySceneMapper notifySceneMapper;
+
+    @Resource
     private NotifySceneRegistry notifySceneRegistry;
 
     /**
-     * 按场景编码渲染默认通知目标。
-     *
-     * @param sceneCode 通知场景编码
-     * @param variables 模板变量
-     * @return 渲染结果
-     */
-    @Override
-    public NotifyTemplateRenderResult render(String sceneCode, Map<String, Object> variables) {
-        NotifySceneMeta sceneMeta = getRequiredScene(sceneCode);
-        return render(sceneMeta.getSceneCode(), sceneMeta.getDefaultTargetType(), variables);
-    }
-
-    /**
-     * 按场景编码和通知目标类型渲染指定目标。
+     * 按通知场景和通知目标类型渲染指定目标。
      *
      * @param sceneCode 通知场景编码
      * @param targetType 通知目标类型
@@ -74,8 +63,8 @@ public class NotifyTemplateRenderServiceImpl implements NotifyTemplateRenderServ
         NotifyTemplateRenderResult result = new NotifyTemplateRenderResult();
         result.setSceneCode(sceneMeta.getSceneCode());
         result.setSceneName(sceneMeta.getSceneName());
-        // 当前排障和运行时链路仍把 templateCode 视为“命中的业务场景编码”。
-        // 阶段一先保持该字段继续存 sceneCode，避免扩大 trace、dispatch 等模块的改动面。
+        // 当前运行时仍沿用 templateCode 字段承载命中的场景编码，
+        // 这样可以在不调整 trace / dispatch 结构的前提下保持链路口径一致。
         result.setTemplateCode(sceneMeta.getSceneCode());
 
         NotifySceneTarget target = getActiveTargetConfig(normalizedSceneCode, normalizedTargetType);
@@ -103,6 +92,10 @@ public class NotifyTemplateRenderServiceImpl implements NotifyTemplateRenderServ
      * @return 启用中的目标配置；不存在时返回 {@code null}
      */
     private NotifySceneTarget getActiveTargetConfig(String sceneCode, String targetType) {
+        // 场景一旦停用，则不再允许任何通知目标继续命中模板。
+        if (!isSceneEnabled(sceneCode)) {
+            return null;
+        }
         LambdaQueryWrapper<NotifySceneTarget> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(NotifySceneTarget::getSceneCode, sceneCode)
                 .eq(NotifySceneTarget::getTargetType, targetType)
@@ -131,9 +124,24 @@ public class NotifyTemplateRenderServiceImpl implements NotifyTemplateRenderServ
     }
 
     /**
+     * 判断通知场景是否启用。
+     *
+     * <p>场景主记录尚未落库时，允许继续按注册表元数据渲染，避免初始化时序问题阻断当前通知链路。</p>
+     *
+     * @param sceneCode 场景编码
+     * @return `true` 表示场景可用
+     */
+    private boolean isSceneEnabled(String sceneCode) {
+        NotifyScene scene = notifySceneMapper.selectOne(new LambdaQueryWrapper<NotifyScene>()
+                .eq(NotifyScene::getSceneCode, sceneCode)
+                .last("limit 1"));
+        return scene == null || Integer.valueOf(1).equals(scene.getStatus());
+    }
+
+    /**
      * 渲染文本模板。
      *
-     * <p>运行时缺变量时统一替换为空串，避免单个变量缺失直接打断整个通知事件消费。</p>
+     * <p>变量缺失时统一替换为空串，避免单个变量缺失直接中断整个通知事件消费。</p>
      *
      * @param template 模板文本
      * @param variables 模板变量

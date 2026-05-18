@@ -8,6 +8,10 @@ import com.jasic.aftersales.system.notify.domain.dto.NotifyEvaluationInviteEvent
 import com.jasic.aftersales.system.notify.domain.dto.NotifyReadByBizDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoCompleteDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoInvalidateDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderAcceptEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderAcceptedEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderTransferInEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderTransferNoticeEventDTO;
 import com.jasic.aftersales.system.notify.domain.entity.SysNotifyEvent;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyBizTypeEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyEventStatusEnum;
@@ -43,6 +47,52 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
     private NotifyEventService notifyEventService;
 
     /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void publishAcceptEvent(NotifyWorkOrderAcceptEventDTO dto) {
+        validateAcceptEvent(dto);
+        String eventKey = buildAcceptEventKey(dto);
+        if (notifyEventService.getByEventKey(eventKey) != null) {
+            return;
+        }
+        SysNotifyEvent notifyEvent = buildEvent(
+                eventKey,
+                NotifyEventTypeEnum.WORK_ORDER_ACCEPT.getCode(),
+                NotifySceneCode.WORK_ORDER_ACCEPT.getCode(),
+                dto.getWorkOrderId(),
+                dto.getOrderNo(),
+                null,
+                null,
+                JSONUtil.toJsonStr(dto)
+        );
+        createEventSafely(notifyEvent);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void publishTransferInEvent(NotifyWorkOrderTransferInEventDTO dto) {
+        validateTransferInEvent(dto);
+        String eventKey = buildTransferInEventKey(dto);
+        if (notifyEventService.getByEventKey(eventKey) != null) {
+            return;
+        }
+        SysNotifyEvent notifyEvent = buildEvent(
+                eventKey,
+                NotifyEventTypeEnum.WORK_ORDER_TRANSFER_IN.getCode(),
+                NotifySceneCode.WORK_ORDER_TRANSFER_IN.getCode(),
+                dto.getWorkOrderId(),
+                dto.getOrderNo(),
+                null,
+                null,
+                JSONUtil.toJsonStr(dto)
+        );
+        createEventSafely(notifyEvent);
+    }
+
+    /**
      * 处理publishAssignedEvent业务逻辑。
      *
      * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
@@ -64,7 +114,7 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
         SysNotifyEvent notifyEvent = buildEvent(
                 eventKey,
                 NotifyEventTypeEnum.WORK_ORDER_ASSIGNED.getCode(),
-                NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode(),
+                NotifySceneCode.WORK_ORDER_ASSIGNED.getCode(),
                 dto.getWorkOrderId(),
                 dto.getOrderNo(),
                 dto.getOperatorId(),
@@ -81,6 +131,54 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
      * @param dto 参数
      */
     @Override
+    public void publishAcceptedEvent(NotifyWorkOrderAcceptedEventDTO dto) {
+        validateAcceptedEvent(dto);
+        String eventKey = buildAcceptedEventKey(dto);
+        if (notifyEventService.getByEventKey(eventKey) != null) {
+            return;
+        }
+        SysNotifyEvent notifyEvent = buildEvent(
+                eventKey,
+                NotifyEventTypeEnum.WORK_ORDER_ACCEPTED.getCode(),
+                NotifySceneCode.WORK_ORDER_ACCEPTED.getCode(),
+                dto.getWorkOrderId(),
+                dto.getOrderNo(),
+                null,
+                dto.getCustomerId(),
+                JSONUtil.toJsonStr(dto)
+        );
+        createEventSafely(notifyEvent);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void publishTransferNoticeEvent(NotifyWorkOrderTransferNoticeEventDTO dto) {
+        validateTransferNoticeEvent(dto);
+        String eventKey = buildTransferNoticeEventKey(dto);
+        if (notifyEventService.getByEventKey(eventKey) != null) {
+            return;
+        }
+        SysNotifyEvent notifyEvent = buildEvent(
+                eventKey,
+                NotifyEventTypeEnum.WORK_ORDER_TRANSFER_NOTICE.getCode(),
+                NotifySceneCode.WORK_ORDER_TRANSFER_NOTICE.getCode(),
+                dto.getWorkOrderId(),
+                dto.getOrderNo(),
+                null,
+                dto.getCustomerId(),
+                JSONUtil.toJsonStr(dto)
+        );
+        createEventSafely(notifyEvent);
+    }
+
+    /**
+     * publish璇勪环Invite浜嬩欢銆?
+     *
+     * @param dto 鍙傛暟
+     */
+    @Override
     public void publishEvaluationInviteEvent(NotifyEvaluationInviteEventDTO dto) {
         // 说明：执行该步骤以保证业务流程正确。
         validateEvaluationInviteEvent(dto);
@@ -93,7 +191,7 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
         SysNotifyEvent notifyEvent = buildEvent(
                 eventKey,
                 NotifyEventTypeEnum.WORK_ORDER_EVALUATION_INVITE.getCode(),
-                NotifySceneCode.WORK_ORDER_EVALUATION_INVITE_MP_C.getCode(),
+                NotifySceneCode.WORK_ORDER_EVALUATION_INVITE.getCode(),
                 dto.getWorkOrderId(),
                 dto.getOrderNo(),
                 null,
@@ -168,7 +266,12 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
         // 调用setOperatorId方法，复用统一能力并保证业务规则一致。
         notifyEvent.setOperatorId(operatorId);
         // 调用setReceiverId方法，复用统一能力并保证业务规则一致。
-        notifyEvent.setReceiverId(receiverId);
+        // 兼容历史库里 `receiver_id NOT NULL` 约束：
+        // 对于“只表达业务事实、不依赖单一接收人”的事件，这里写入占位值，
+        // 避免代客户建单、转单等主事务因为通知事件落库失败而整体回滚。
+        notifyEvent.setReceiverId(receiverId == null
+                ? NotifyConstants.EVENT_RECEIVER_ID_PLACEHOLDER
+                : receiverId);
         // 调用setPayloadJson方法，复用统一能力并保证业务规则一致。
         notifyEvent.setPayloadJson(payloadJson);
         // 调用getCode方法，复用统一能力并保证业务规则一致。
@@ -197,6 +300,39 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
      *
      * @param dto 参数
      */
+    private void validateAcceptEvent(NotifyWorkOrderAcceptEventDTO dto) {
+        if (dto == null) {
+            throw new ServiceException("Accept event payload cannot be null");
+        }
+        if (dto.getWorkOrderId() == null) {
+            throw new ServiceException("Accept event missing workOrderId");
+        }
+        if (StrUtil.isBlank(dto.getOrderNo())) {
+            throw new ServiceException("Accept event missing orderNo");
+        }
+        if (dto.getCurrentAcceptCompanyId() == null) {
+            throw new ServiceException("Accept event missing currentAcceptCompanyId");
+        }
+    }
+
+    private void validateTransferInEvent(NotifyWorkOrderTransferInEventDTO dto) {
+        if (dto == null) {
+            throw new ServiceException("Transfer-in event payload cannot be null");
+        }
+        if (dto.getWorkOrderId() == null) {
+            throw new ServiceException("Transfer-in event missing workOrderId");
+        }
+        if (StrUtil.isBlank(dto.getOrderNo())) {
+            throw new ServiceException("Transfer-in event missing orderNo");
+        }
+        if (dto.getCurrentAcceptCompanyId() == null) {
+            throw new ServiceException("Transfer-in event missing currentAcceptCompanyId");
+        }
+        if (dto.getTransferCount() == null) {
+            throw new ServiceException("Transfer-in event missing transferCount");
+        }
+    }
+
     private void validateAssignedEvent(NotifyAssignedEventDTO dto) {
         if (dto == null) {
             throw new ServiceException("Assigned event payload cannot be null");
@@ -226,6 +362,39 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
      *
      * @param dto 参数
      */
+    private void validateAcceptedEvent(NotifyWorkOrderAcceptedEventDTO dto) {
+        if (dto == null) {
+            throw new ServiceException("Accepted event payload cannot be null");
+        }
+        if (dto.getWorkOrderId() == null) {
+            throw new ServiceException("Accepted event missing workOrderId");
+        }
+        if (StrUtil.isBlank(dto.getOrderNo())) {
+            throw new ServiceException("Accepted event missing orderNo");
+        }
+        if (dto.getCustomerId() == null) {
+            throw new ServiceException("Accepted event missing customerId");
+        }
+    }
+
+    private void validateTransferNoticeEvent(NotifyWorkOrderTransferNoticeEventDTO dto) {
+        if (dto == null) {
+            throw new ServiceException("Transfer-notice event payload cannot be null");
+        }
+        if (dto.getWorkOrderId() == null) {
+            throw new ServiceException("Transfer-notice event missing workOrderId");
+        }
+        if (StrUtil.isBlank(dto.getOrderNo())) {
+            throw new ServiceException("Transfer-notice event missing orderNo");
+        }
+        if (dto.getCustomerId() == null) {
+            throw new ServiceException("Transfer-notice event missing customerId");
+        }
+        if (dto.getTransferCount() == null) {
+            throw new ServiceException("Transfer-notice event missing transferCount");
+        }
+    }
+
     private void validateEvaluationInviteEvent(NotifyEvaluationInviteEventDTO dto) {
         if (dto == null) {
             throw new ServiceException("Evaluation invite event payload cannot be null");
@@ -247,6 +416,22 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
      * @param dto 参数
      * @return 处理结果
      */
+    private String buildAcceptEventKey(NotifyWorkOrderAcceptEventDTO dto) {
+        return String.format("%s:%s:%s",
+                NotifyConstants.EVENT_KEY_PREFIX_WORK_ORDER_ACCEPT,
+                dto.getWorkOrderId(),
+                dto.getCurrentAcceptCompanyId()
+        );
+    }
+
+    private String buildTransferInEventKey(NotifyWorkOrderTransferInEventDTO dto) {
+        return String.format("%s:%s:%s",
+                NotifyConstants.EVENT_KEY_PREFIX_WORK_ORDER_TRANSFER_IN,
+                dto.getWorkOrderId(),
+                dto.getTransferCount()
+        );
+    }
+
     private String buildAssignedEventKey(NotifyAssignedEventDTO dto) {
         return String.format("%s:%s:%s:%s",
                 NotifyConstants.EVENT_KEY_PREFIX_WORK_ORDER_ASSIGNED,
@@ -262,6 +447,21 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
      * @param dto 参数
      * @return 处理结果
      */
+    private String buildAcceptedEventKey(NotifyWorkOrderAcceptedEventDTO dto) {
+        return String.format("%s:%s",
+                NotifyConstants.EVENT_KEY_PREFIX_WORK_ORDER_ACCEPTED,
+                dto.getWorkOrderId()
+        );
+    }
+
+    private String buildTransferNoticeEventKey(NotifyWorkOrderTransferNoticeEventDTO dto) {
+        return String.format("%s:%s:%s",
+                NotifyConstants.EVENT_KEY_PREFIX_WORK_ORDER_TRANSFER_NOTICE,
+                dto.getWorkOrderId(),
+                dto.getTransferCount()
+        );
+    }
+
     private String buildEvaluationInviteEventKey(NotifyEvaluationInviteEventDTO dto) {
         return String.format("%s:%s",
                 NotifyConstants.EVENT_KEY_PREFIX_WORK_ORDER_EVALUATION_INVITE,

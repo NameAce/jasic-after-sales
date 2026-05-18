@@ -4,15 +4,14 @@
 
     <!--
       说明：
-      1. 阶段三开始，排障列表严格按事件主表分页，不再把“最新一条消息/分发”误当成全链路结果。
+      1. 阶段三开始，排障列表严格按事件主表分页，不再把“最新一条消息 / 分发”误当成全链路结果。
       2. SQL 只负责事件筛选；同事件下的站内消息、站内待办和外部分发任务由服务层统一聚合。
-      3. 为兼容阶段二之前的少量历史数据，scene_code 为空时仍允许回退 event_type 兜底定位。
     -->
     <select id="selectTracePage" resultType="com.jasic.aftersales.system.notify.domain.vo.NotifyTracePageVO">
         SELECT
             e.id AS eventId,
             e.event_type AS eventType,
-            COALESCE(NULLIF(e.scene_code, ''), e.event_type) AS sceneCode,
+            e.scene_code AS sceneCode,
             e.biz_type AS bizType,
             e.biz_id AS bizId,
             e.biz_no AS bizNo,
@@ -33,7 +32,7 @@
                 AND e.biz_no LIKE CONCAT('%', #{query.bizNo}, '%')
             </if>
             <if test="query.sceneCode != null and query.sceneCode != ''">
-                AND COALESCE(NULLIF(e.scene_code, ''), e.event_type) = #{query.sceneCode}
+                AND e.scene_code = #{query.sceneCode}
             </if>
             <if test="query.targetType != null and query.targetType != ''">
                 AND (

@@ -46,6 +46,14 @@ public class NotifyAssignedEventDTO implements Serializable {
     @ApiModelProperty(value = "派单类型（ASSIGN/TRANSFER）")
     private String assignType;
 
+    /** 客户名称快照 */
+    @ApiModelProperty(value = "客户名称快照")
+    private String customerName;
+
+    /** 客户联系电话快照 */
+    @ApiModelProperty(value = "客户联系电话快照")
+    private String customerMobile;
+
     /** 操作唯一标识 */
     @ApiModelProperty(value = "操作唯一标识")
     private String operationId;

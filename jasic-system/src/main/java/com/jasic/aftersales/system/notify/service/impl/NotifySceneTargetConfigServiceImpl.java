@@ -893,7 +893,17 @@ public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConf
      */
     private List<NotifyTemplateEnumOptionVO> buildTargetTypeOptions() {
         List<NotifyTemplateEnumOptionVO> options = new ArrayList<>();
-        for (NotifyTypeEnum notifyTypeEnum : NotifyTypeEnum.values()) {
+        Set<String> registeredTargetTypes = new LinkedHashSet<>();
+        for (NotifySceneMeta sceneMeta : notifySceneRegistry.listScenes()) {
+            for (NotifySceneTargetMeta targetMeta : sceneMeta.getTargetMetas()) {
+                registeredTargetTypes.add(targetMeta.getTargetType());
+            }
+        }
+        for (String targetType : registeredTargetTypes) {
+            NotifyTypeEnum notifyTypeEnum = NotifyTypeEnum.getByCode(targetType);
+            if (notifyTypeEnum == null) {
+                continue;
+            }
             NotifyTemplateEnumOptionVO optionVO = new NotifyTemplateEnumOptionVO();
             optionVO.setCode(notifyTypeEnum.getCode());
             optionVO.setDesc(notifyTypeEnum.getDesc());

@@ -6,18 +6,21 @@ import com.fasterxml.jackson.annotation.JsonValue;
 /**
  * 通知接收对象类型枚举。
  *
- * <p>该枚举只用于模板配置页展示和排障辅助，不直接决定实际接收人解析规则。
- * 实际接收对象仍由具体事件 handler 根据业务快照解析。</p>
+ * <p>该枚举用于描述“通知目标默认发给哪一类对象”，方便后台配置页展示和排障追踪。
+ * 实际接收人解析仍由具体事件处理器结合业务快照计算。</p>
  *
  * @author Codex
- * @date 2026/05/15
+ * @date 2026/05/16
  */
 public enum NotifyReceiverTypeEnum {
 
-    /** 维修员。 */
-    REPAIRER("REPAIRER", "维修员"),
+    /** 当前目标网点下可接单用户。 */
+    ACCEPT_USER("ACCEPT_USER", "B端接单用户"),
 
-    /** C端客户。 */
+    /** 被派单工程师本人。 */
+    REPAIRER("REPAIRER", "维修工程师"),
+
+    /** C 端客户本人。 */
     CUSTOMER("CUSTOMER", "C端客户");
 
     /**
@@ -67,7 +70,7 @@ public enum NotifyReceiverTypeEnum {
      * 按编码解析通知接收对象类型。
      *
      * @param code 接收对象类型编码
-     * @return 命中的接收对象类型；入参为 {@code null} 时返回 {@code null}
+     * @return 命中的接收对象类型；传入 {@code null} 时返回 {@code null}
      */
     @JsonCreator
     public static NotifyReceiverTypeEnum fromCode(String code) {

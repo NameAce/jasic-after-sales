@@ -30,5 +30,7 @@ public class NotifyEvaluationInviteEventDTO implements Serializable {
 
     private String companyName;
 
+    private String companyPhone;
+
     private LocalDateTime closedTime;
 }

@@ -83,7 +83,7 @@ public class NotifySceneTargetMeta {
     /**
      * 默认渠道配置。
      *
-     * <p>当前仅 `MP_SUBSCRIBE` 使用该字段。</p>
+     * <p>当前仅小程序订阅消息渠道使用该字段，目标类型仍按 `MP_SUBSCRIBE_B/C` 区分端侧。</p>
      */
     private final NotifyTemplateChannelConfig defaultChannelConfig;
 

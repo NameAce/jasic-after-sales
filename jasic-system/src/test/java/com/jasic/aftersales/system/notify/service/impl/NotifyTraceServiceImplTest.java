@@ -60,7 +60,7 @@ public class NotifyTraceServiceImplTest {
         SysNotifyDispatch dispatch = new SysNotifyDispatch();
         dispatch.setId(301L);
         dispatch.setEventId(100L);
-        dispatch.setTargetType("MP_SUBSCRIBE");
+        dispatch.setTargetType("MP_SUBSCRIBE_C");
         dispatch.setDispatchStatus("FAILED");
         dispatchMapperState.dispatches = Collections.singletonList(dispatch);
 

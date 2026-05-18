@@ -84,8 +84,6 @@ public final class CompanyDataPolicyRegistry {
                 "sys_dict_data",
                 "sys_dict_type",
                 "sys_menu",
-                "sys_notify_template",
-                "sys_notify_template_channel",
                 "sys_role_template",
                 "sys_role_template_menu",
                 "sys_type_code_menu",

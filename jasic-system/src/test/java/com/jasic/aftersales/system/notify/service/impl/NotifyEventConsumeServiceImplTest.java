@@ -8,6 +8,7 @@ import com.jasic.aftersales.system.domain.entity.SysUser;
 import com.jasic.aftersales.system.mapper.SysUserMapper;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyAssignedEventDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyEvaluationInviteEventDTO;
+import com.jasic.aftersales.system.notify.domain.entity.NotifyScene;
 import com.jasic.aftersales.system.notify.domain.entity.NotifySceneTarget;
 import com.jasic.aftersales.system.notify.domain.entity.SysNotifyDispatch;
 import com.jasic.aftersales.system.notify.domain.entity.SysNotifyEvent;
@@ -25,17 +26,21 @@ import com.jasic.aftersales.system.notify.domain.enums.NotifyTypeEnum;
 import com.jasic.aftersales.system.notify.domain.query.NotifyEventQuery;
 import com.jasic.aftersales.system.notify.domain.query.NotifyMessageQuery;
 import com.jasic.aftersales.system.notify.domain.vo.NotifyMessagePageVO;
+import com.jasic.aftersales.system.notify.mapper.NotifySceneMapper;
 import com.jasic.aftersales.system.notify.mapper.NotifySceneTargetMapper;
 import com.jasic.aftersales.system.notify.service.NotifyDispatchService;
 import com.jasic.aftersales.system.notify.service.NotifyEventService;
 import com.jasic.aftersales.system.notify.service.NotifyMessageLogService;
 import com.jasic.aftersales.system.notify.service.NotifyMessageService;
 import com.jasic.aftersales.system.notify.service.NotifyTemplateRenderService;
+import com.jasic.aftersales.system.notify.service.support.NotifyEventHandler;
 import com.jasic.aftersales.system.notify.service.support.NotifyEventHandlerRegistry;
 import com.jasic.aftersales.system.notify.service.support.WorkOrderAssignedNotifyEventHandler;
 import com.jasic.aftersales.system.notify.service.support.WorkOrderEvaluationInviteNotifyEventHandler;
 import com.jasic.aftersales.system.notify.support.NotifyConstants;
 import com.jasic.aftersales.system.notify.support.NotifyDispatchPayload;
+import com.jasic.aftersales.system.notify.support.NotifyEventExecutionContext;
+import com.jasic.aftersales.system.notify.support.NotifyReceiverSnapshot;
 import com.jasic.aftersales.system.notify.support.NotifySceneCode;
 import com.jasic.aftersales.system.notify.support.NotifySceneRegistry;
 import com.jasic.aftersales.system.notify.support.NotifyTemplateChannelConfig;
@@ -89,7 +94,7 @@ public class NotifyEventConsumeServiceImplTest {
         TargetMapperState targetState = new TargetMapperState();
         targetState.targets.add(buildInAppTarget(1L, NotifyTypeEnum.IN_APP_MESSAGE.getCode()));
         targetState.targets.add(buildInAppTarget(2L, NotifyTypeEnum.IN_APP_TODO.getCode()));
-        targetState.targets.add(buildMpTarget(3L, NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode()));
+        targetState.targets.add(buildMpTarget(3L, NotifySceneCode.WORK_ORDER_ASSIGNED.getCode()));
 
         SysNotifyEvent event = buildAssignedEvent(1L, 88L, 200L, 100L, NotifyConstants.ASSIGN_TYPE_ASSIGN, null, 200L);
         eventService.events.put(event.getId(), event);
@@ -114,15 +119,102 @@ public class NotifyEventConsumeServiceImplTest {
 
         SysNotifyDispatch dispatch = dispatchService.createdDispatches.get(0);
         Assert.assertEquals(NotifyDispatchStatusEnum.PENDING.getCode(), dispatch.getDispatchStatus());
-        Assert.assertEquals(NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode(), dispatch.getSceneCode());
+        Assert.assertEquals(NotifySceneCode.WORK_ORDER_ASSIGNED.getCode(), dispatch.getSceneCode());
         Assert.assertEquals(NotifyTypeEnum.MP_SUBSCRIBE_B.getCode(), dispatch.getTargetType());
         Assert.assertEquals(NotifyReceiverTypeEnum.REPAIRER.getCode(), dispatch.getReceiverType());
 
         NotifyDispatchPayload payload = JSONUtil.toBean(dispatch.getPayloadJson(), NotifyDispatchPayload.class);
-        Assert.assertEquals(NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode(), payload.getSceneCode());
+        Assert.assertEquals(NotifySceneCode.WORK_ORDER_ASSIGNED.getCode(), payload.getSceneCode());
         Assert.assertEquals(NotifyTypeEnum.MP_SUBSCRIBE_B.getCode(), payload.getTargetType());
         Assert.assertEquals("pages/order/detail?workOrderId=${workOrderId}", payload.getChannelConfig().getPagePathTemplate());
+        Assert.assertEquals("客户A", payload.getVariables().get("customerName"));
+        Assert.assertEquals("13800138000", payload.getVariables().get("customerMobile"));
         Assert.assertEquals(2, logService.logs.size());
+    }
+
+    /**
+     * B 端网点级通知命中多个可接单用户时，应为每个用户分别写入分发表。
+     *
+     * @throws Exception 反射异常
+     */
+    @Test
+    public void shouldCreateOneDispatchPerAcceptUserForCompanyLevelScene() throws Exception {
+        FakeNotifyEventService eventService = new FakeNotifyEventService();
+        FakeNotifyMessageService messageService = new FakeNotifyMessageService();
+        FakeNotifyMessageLogService logService = new FakeNotifyMessageLogService();
+        FakeNotifyDispatchService dispatchService = new FakeNotifyDispatchService();
+        TargetMapperState targetState = new TargetMapperState();
+        NotifySceneTarget target = buildMpTarget(1L, NotifySceneCode.WORK_ORDER_ACCEPT.getCode());
+        target.setTargetType(NotifyTypeEnum.MP_SUBSCRIBE_B.getCode());
+        targetState.targets.add(target);
+
+        SysNotifyEvent event = new SysNotifyEvent();
+        event.setId(6L);
+        event.setEventKey("event-6");
+        event.setEventType(NotifyEventTypeEnum.WORK_ORDER_ACCEPT.getCode());
+        event.setSceneCode(NotifySceneCode.WORK_ORDER_ACCEPT.getCode());
+        event.setBizType(NotifyBizTypeEnum.WORK_ORDER.getCode());
+        event.setBizId(96L);
+        event.setBizNo("WO-96");
+        event.setStatus(NotifyEventStatusEnum.NEW.getCode());
+        event.setRetryCount(0);
+        eventService.events.put(event.getId(), event);
+        eventService.pendingEventIds.add(event.getId());
+
+        NotifyEventConsumeServiceImpl service = createService(
+                eventService,
+                messageService,
+                logService,
+                dispatchService,
+                targetState,
+                buildUserMapper(null, null, null)
+        );
+        setField(service, "notifyEventHandlerRegistry", buildRegistryWithHandlers(Collections.singletonList(new NotifyEventHandler() {
+            @Override
+            public boolean supports(String eventType) {
+                return NotifyEventTypeEnum.WORK_ORDER_ACCEPT.getCode().equals(eventType);
+            }
+
+            @Override
+            public NotifyEventExecutionContext buildExecutionContext(SysNotifyEvent sourceEvent) {
+                NotifyEventExecutionContext context = new NotifyEventExecutionContext();
+                context.setSceneCode(NotifySceneCode.WORK_ORDER_ACCEPT.getCode());
+                context.setTemplateVariables(new LinkedHashMap<String, Object>() {{
+                    put("workOrderId", 96L);
+                    put("orderNo", "WO-96");
+                    put("customerName", "张三");
+                }});
+                context.addReceiverSnapshots(
+                        NotifyReceiverTypeEnum.ACCEPT_USER.getCode(),
+                        new ArrayList<NotifyReceiverSnapshot>() {{
+                            add(NotifyReceiverSnapshot.of(
+                                    NotifyReceiverTypeEnum.ACCEPT_USER.getCode(),
+                                    301L,
+                                    2002L,
+                                    "工程师A",
+                                    "openid-301"
+                            ));
+                            add(NotifyReceiverSnapshot.of(
+                                    NotifyReceiverTypeEnum.ACCEPT_USER.getCode(),
+                                    302L,
+                                    2002L,
+                                    "工程师B",
+                                    "openid-302"
+                            ));
+                        }}
+                );
+                return context;
+            }
+        })));
+
+        int successCount = service.consumePendingEvents();
+
+        Assert.assertEquals(1, successCount);
+        Assert.assertEquals(2, dispatchService.createdDispatches.size());
+        Assert.assertEquals(Long.valueOf(301L), dispatchService.createdDispatches.get(0).getReceiverId());
+        Assert.assertEquals("openid-301", dispatchService.createdDispatches.get(0).getReceiverAddress());
+        Assert.assertEquals(Long.valueOf(302L), dispatchService.createdDispatches.get(1).getReceiverId());
+        Assert.assertEquals("openid-302", dispatchService.createdDispatches.get(1).getReceiverAddress());
     }
 
     /**
@@ -178,7 +270,7 @@ public class NotifyEventConsumeServiceImplTest {
         FakeNotifyMessageLogService logService = new FakeNotifyMessageLogService();
         FakeNotifyDispatchService dispatchService = new FakeNotifyDispatchService();
         TargetMapperState targetState = new TargetMapperState();
-        targetState.targets.add(buildMpTarget(1L, NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode()));
+        targetState.targets.add(buildMpTarget(1L, NotifySceneCode.WORK_ORDER_ASSIGNED.getCode()));
 
         SysNotifyEvent event = buildAssignedEvent(3L, 90L, 202L, 102L, NotifyConstants.ASSIGN_TYPE_ASSIGN, null, 202L);
         eventService.events.put(event.getId(), event);
@@ -214,7 +306,7 @@ public class NotifyEventConsumeServiceImplTest {
         FakeNotifyMessageLogService logService = new FakeNotifyMessageLogService();
         FakeNotifyDispatchService dispatchService = new FakeNotifyDispatchService();
         TargetMapperState targetState = new TargetMapperState();
-        targetState.targets.add(buildMpTarget(1L, NotifySceneCode.WORK_ORDER_EVALUATION_INVITE_MP_C.getCode()));
+        targetState.targets.add(buildMpTarget(1L, NotifySceneCode.WORK_ORDER_EVALUATION_INVITE.getCode()));
 
         SysNotifyEvent event = buildEvaluationEvent(4L, 91L, 9001L);
         eventService.events.put(event.getId(), event);
@@ -238,7 +330,7 @@ public class NotifyEventConsumeServiceImplTest {
         Assert.assertEquals(NotifyReceiverTypeEnum.CUSTOMER.getCode(), dispatch.getReceiverType());
         Assert.assertEquals("openid-9001", dispatch.getReceiverAddress());
         NotifyDispatchPayload payload = JSONUtil.toBean(dispatch.getPayloadJson(), NotifyDispatchPayload.class);
-        Assert.assertEquals("客户评价邀请-MP_SUBSCRIBE", payload.getTemplateName());
+        Assert.assertEquals("客户评价邀请-MP_SUBSCRIBE_C", payload.getTemplateName());
     }
 
     /**
@@ -303,6 +395,7 @@ public class NotifyEventConsumeServiceImplTest {
         setField(service, "notifyEventHandlerRegistry",
                 buildRegistry(messageService, logService, userMapper));
         setField(service, "notifySceneTargetMapper", createTargetMapper(targetState));
+        setField(service, "notifySceneMapper", createSceneMapper());
         setField(service, "notifySceneRegistry", new NotifySceneRegistry());
         setField(service, "notifyTemplateRenderService", new FakeNotifyTemplateRenderService());
         setField(service, "notifyMessageService", messageService);
@@ -341,6 +434,19 @@ public class NotifyEventConsumeServiceImplTest {
     }
 
     /**
+     * 按指定 handler 列表构造事件处理器注册表。
+     *
+     * @param handlers handler 列表
+     * @return 注册表
+     * @throws Exception 反射异常
+     */
+    private NotifyEventHandlerRegistry buildRegistryWithHandlers(List<?> handlers) throws Exception {
+        NotifyEventHandlerRegistry registry = new NotifyEventHandlerRegistry();
+        setField(registry, "notifyEventHandlers", handlers);
+        return registry;
+    }
+
+    /**
      * 构造站内目标配置。
      *
      * @param id 主键
@@ -350,7 +456,7 @@ public class NotifyEventConsumeServiceImplTest {
     private NotifySceneTarget buildInAppTarget(Long id, String targetType) {
         NotifySceneTarget target = new NotifySceneTarget();
         target.setId(id);
-        target.setSceneCode(NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode());
+        target.setSceneCode(NotifySceneCode.WORK_ORDER_ASSIGNED.getCode());
         target.setTargetType(targetType);
         target.setEnabled(1);
         return target;
@@ -367,13 +473,14 @@ public class NotifyEventConsumeServiceImplTest {
         NotifySceneTarget target = new NotifySceneTarget();
         target.setId(id);
         target.setSceneCode(sceneCode);
-        target.setTargetType(sceneCode.equals(NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode())
+        target.setTargetType(sceneCode.equals(NotifySceneCode.WORK_ORDER_ASSIGNED.getCode())
                 ? NotifyTypeEnum.MP_SUBSCRIBE_B.getCode()
                 : NotifyTypeEnum.MP_SUBSCRIBE_C.getCode());
         target.setEnabled(1);
         NotifyTemplateChannelConfig config = new NotifyTemplateChannelConfig();
         config.setTemplateId("wx-template-001");
-        config.setPagePathTemplate(sceneCode.equals(NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode())
+        config.setChannelScene(sceneCode.equals(NotifySceneCode.WORK_ORDER_ASSIGNED.getCode()) ? "B" : "C");
+        config.setPagePathTemplate(sceneCode.equals(NotifySceneCode.WORK_ORDER_ASSIGNED.getCode())
                 ? "pages/order/detail?workOrderId=${workOrderId}"
                 : "pages/order/evaluate?workOrderId=${workOrderId}");
         config.setFieldMapping(Collections.singletonList(new com.jasic.aftersales.system.notify.domain.dto.NotifyChannelFieldMappingDTO() {{
@@ -406,13 +513,15 @@ public class NotifyEventConsumeServiceImplTest {
         payload.setReceiverCompanyId(2002L);
         payload.setOperatorId(operatorId);
         payload.setAssignType(assignType);
+        payload.setCustomerName("客户A");
+        payload.setCustomerMobile("13800138000");
         payload.setOperationId("op-" + eventId);
 
         SysNotifyEvent event = new SysNotifyEvent();
         event.setId(eventId);
         event.setEventKey("event-" + eventId);
         event.setEventType(NotifyEventTypeEnum.WORK_ORDER_ASSIGNED.getCode());
-        event.setSceneCode(NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode());
+        event.setSceneCode(NotifySceneCode.WORK_ORDER_ASSIGNED.getCode());
         event.setBizType(NotifyBizTypeEnum.WORK_ORDER.getCode());
         event.setBizId(bizId);
         event.setBizNo("WO-" + bizId);
@@ -440,6 +549,7 @@ public class NotifyEventConsumeServiceImplTest {
         payload.setCustomerMobile("13800138000");
         payload.setCustomerOpenid("openid-" + customerId);
         payload.setCompanyId(3001L);
+        payload.setCompanyPhone("0755-99990000");
         payload.setCompanyName("深圳南山服务网点");
         payload.setClosedTime(LocalDateTime.of(2026, 5, 16, 18, 0, 0));
 
@@ -447,7 +557,7 @@ public class NotifyEventConsumeServiceImplTest {
         event.setId(eventId);
         event.setEventKey("event-" + eventId);
         event.setEventType(NotifyEventTypeEnum.WORK_ORDER_EVALUATION_INVITE.getCode());
-        event.setSceneCode(NotifySceneCode.WORK_ORDER_EVALUATION_INVITE_MP_C.getCode());
+        event.setSceneCode(NotifySceneCode.WORK_ORDER_EVALUATION_INVITE.getCode());
         event.setBizType(NotifyBizTypeEnum.WORK_ORDER.getCode());
         event.setBizId(bizId);
         event.setBizNo("WO-" + bizId);
@@ -540,6 +650,30 @@ public class NotifyEventConsumeServiceImplTest {
         return (NotifySceneTargetMapper) Proxy.newProxyInstance(
                 NotifySceneTargetMapper.class.getClassLoader(),
                 new Class<?>[]{NotifySceneTargetMapper.class},
+                handler
+        );
+    }
+
+    /**
+     * 构造场景配置 Mapper 桩。
+     *
+     * <p>消费链路正式按 `notify_scene.status` 判断场景总开关，测试桩默认返回启用，
+     * 让用例聚焦目标拆分、接收人展开和分发落表。</p>
+     *
+     * @return Mapper桩
+     */
+    private NotifySceneMapper createSceneMapper() {
+        InvocationHandler handler = (proxy, method, args) -> {
+            if ("selectOne".equals(method.getName())) {
+                NotifyScene scene = new NotifyScene();
+                scene.setStatus(1);
+                return scene;
+            }
+            return defaultValue(method.getReturnType());
+        };
+        return (NotifySceneMapper) Proxy.newProxyInstance(
+                NotifySceneMapper.class.getClassLoader(),
+                new Class<?>[]{NotifySceneMapper.class},
                 handler
         );
     }
@@ -784,27 +918,19 @@ public class NotifyEventConsumeServiceImplTest {
     private static class FakeNotifyTemplateRenderService implements NotifyTemplateRenderService {
 
         @Override
-        public NotifyTemplateRenderResult render(String sceneCode, Map<String, Object> variables) {
-            return render(sceneCode, null, variables);
-        }
-
-        @Override
         public NotifyTemplateRenderResult render(String sceneCode, String targetType, Map<String, Object> variables) {
             NotifyTemplateRenderResult result = new NotifyTemplateRenderResult();
             result.setNotifyEnabled(true);
             result.setSceneCode(sceneCode);
-            if (NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode().equals(sceneCode)) {
+            if (NotifySceneCode.WORK_ORDER_ASSIGNED.getCode().equals(sceneCode)) {
                 result.setSceneName("工单派单");
-            } else if (NotifySceneCode.WORK_ORDER_EVALUATION_INVITE_MP_C.getCode().equals(sceneCode)) {
+            } else if (NotifySceneCode.WORK_ORDER_EVALUATION_INVITE.getCode().equals(sceneCode)) {
                 result.setSceneName("客户评价邀请");
             } else {
                 result.setSceneName(sceneCode);
             }
             result.setTemplateCode(sceneCode);
-            String templateTargetType = NotifyTypeEnum.isMiniProgramSubscribeTarget(targetType)
-                    ? "MP_SUBSCRIBE"
-                    : targetType;
-            result.setTemplateName(result.getSceneName() + "-" + templateTargetType);
+            result.setTemplateName(result.getSceneName() + "-" + targetType);
             result.setTitle("标题-" + targetType);
             result.setSummary("内容-" + variables.get("orderNo") + "-" + targetType);
             result.setRouteType(NotifyConstants.ROUTE_TYPE_WORK_ORDER_DETAIL);

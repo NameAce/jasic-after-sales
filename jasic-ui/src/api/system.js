@@ -156,35 +156,6 @@ export function refreshConfigCache() {
   return request({ url: '/system/config/refresh-cache', method: 'delete' })
 }
 
-// --- Notify Template ---
-export function listNotifyTemplate(params) {
-  return request({ url: '/system/notify/template/list', method: 'get', params })
-}
-export function getNotifyTemplateOptions() {
-  return request({ url: '/system/notify/template/options', method: 'get' })
-}
-export function getNotifyTemplate(id) {
-  return request({ url: `/system/notify/template/${id}`, method: 'get' })
-}
-export function createNotifyTemplate(data) {
-  return request({ url: '/system/notify/template', method: 'post', data })
-}
-export function updateNotifyTemplate(data) {
-  return request({ url: '/system/notify/template', method: 'put', data })
-}
-export function updateNotifyTemplateStatus(id, data) {
-  return request({ url: `/system/notify/template/${id}/status`, method: 'put', data })
-}
-export function listNotifyTemplateChannels(sceneCode) {
-  return request({ url: `/system/notify/template/${sceneCode}/channels`, method: 'get' })
-}
-export function saveNotifyTemplateChannels(sceneCode, data) {
-  return request({ url: `/system/notify/template/${sceneCode}/channels`, method: 'put', data })
-}
-export function previewNotifyTemplate(data) {
-  return request({ url: '/system/notify/template/preview', method: 'post', data })
-}
-
 // --- Notify Scene ---
 export function listNotifyScene(params) {
   return request({ url: '/system/notify/scene/list', method: 'get', params })

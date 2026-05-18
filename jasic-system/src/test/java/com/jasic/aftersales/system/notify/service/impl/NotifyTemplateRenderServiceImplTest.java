@@ -2,8 +2,10 @@ package com.jasic.aftersales.system.notify.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.jasic.aftersales.system.notify.domain.entity.NotifyScene;
 import com.jasic.aftersales.system.notify.domain.entity.NotifySceneTarget;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyTypeEnum;
+import com.jasic.aftersales.system.notify.mapper.NotifySceneMapper;
 import com.jasic.aftersales.system.notify.mapper.NotifySceneTargetMapper;
 import com.jasic.aftersales.system.notify.support.NotifySceneCode;
 import com.jasic.aftersales.system.notify.support.NotifySceneRegistry;
@@ -34,12 +36,12 @@ import java.util.Map;
 public class NotifyTemplateRenderServiceImplTest {
 
     @Test
-    public void shouldRenderDefaultTargetBySceneCode() throws Exception {
+    public void shouldRenderConfiguredTargetBySceneCodeAndTargetType() throws Exception {
         NotifyTemplateRenderServiceImpl service = buildService();
         RenderMapperState state = new RenderMapperState();
         state.targets.add(buildTarget(
                 2L,
-                NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode(),
+                NotifySceneCode.WORK_ORDER_ASSIGNED.getCode(),
                 NotifyTypeEnum.IN_APP_TODO.getCode(),
                 1
         ));
@@ -49,12 +51,13 @@ public class NotifyTemplateRenderServiceImplTest {
         variables.put("orderNo", "WO-20260516001");
         variables.put("workOrderId", 88L);
         NotifyTemplateRenderResult renderResult = service.render(
-                NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode(),
+                NotifySceneCode.WORK_ORDER_ASSIGNED.getCode(),
+                NotifyTypeEnum.IN_APP_TODO.getCode(),
                 variables
         );
 
         Assert.assertTrue(renderResult.isNotifyEnabled());
-        Assert.assertEquals(NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode(), renderResult.getTemplateCode());
+        Assert.assertEquals(NotifySceneCode.WORK_ORDER_ASSIGNED.getCode(), renderResult.getTemplateCode());
         Assert.assertEquals("工单WO-20260516001已派给您，请及时处理", renderResult.getSummary());
         Assert.assertEquals("88", renderResult.getRouteValue());
     }
@@ -65,19 +68,20 @@ public class NotifyTemplateRenderServiceImplTest {
         RenderMapperState state = new RenderMapperState();
         state.targets.add(buildTarget(
                 1L,
-                NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode(),
+                NotifySceneCode.WORK_ORDER_ASSIGNED.getCode(),
                 NotifyTypeEnum.IN_APP_TODO.getCode(),
                 0
         ));
         injectMapper(service, state);
 
         NotifyTemplateRenderResult renderResult = service.render(
-                NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode(),
+                NotifySceneCode.WORK_ORDER_ASSIGNED.getCode(),
+                NotifyTypeEnum.IN_APP_TODO.getCode(),
                 new LinkedHashMap<>()
         );
 
         Assert.assertFalse(renderResult.isNotifyEnabled());
-        Assert.assertEquals(NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode(), renderResult.getTemplateCode());
+        Assert.assertEquals(NotifySceneCode.WORK_ORDER_ASSIGNED.getCode(), renderResult.getTemplateCode());
         Assert.assertFalse(renderResult.getErrors().isEmpty());
     }
 
@@ -100,6 +104,30 @@ public class NotifyTemplateRenderServiceImplTest {
 
     private void injectMapper(NotifyTemplateRenderServiceImpl service, RenderMapperState state) throws Exception {
         setField(service, "notifySceneTargetMapper", createTargetMapperProxy(state));
+        setField(service, "notifySceneMapper", createSceneMapperProxy());
+    }
+
+    /**
+     * 构造场景 Mapper 桩。
+     *
+     * <p>渲染服务正式按场景总开关过滤目标配置，本测试默认返回启用状态，
+     * 让用例继续聚焦目标配置命中和模板变量渲染。</p>
+     *
+     * @return Mapper桩
+     */
+    private NotifySceneMapper createSceneMapperProxy() {
+        return (NotifySceneMapper) Proxy.newProxyInstance(
+                NotifySceneMapper.class.getClassLoader(),
+                new Class[]{NotifySceneMapper.class},
+                (proxy, method, args) -> {
+                    if ("selectOne".equals(method.getName())) {
+                        NotifyScene scene = new NotifyScene();
+                        scene.setStatus(1);
+                        return scene;
+                    }
+                    return defaultValue(method.getReturnType());
+                }
+        );
     }
 
     private NotifySceneTarget buildTarget(Long id, String sceneCode, String targetType, Integer enabled) {

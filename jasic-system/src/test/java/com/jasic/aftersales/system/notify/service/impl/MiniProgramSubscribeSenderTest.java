@@ -25,8 +25,8 @@ import java.util.Map;
 /**
  * 小程序 sender 测试。
  *
- * <p>阶段二开始，同一 `sceneCode` 下可能存在维修员和客户两类小程序目标，
- * 因此 sender 必须优先按接收对象类型选择 B/C 端，而不是继续依赖旧的场景编码后缀。</p>
+ * <p>小程序 B/C 端归属必须由场景目标配置中的 `channelScene` 明确声明，
+ * 避免发送阶段再次根据接收对象或旧场景后缀猜测目标小程序。</p>
  *
  * @author Codex
  * @date 2026/05/16
@@ -34,7 +34,7 @@ import java.util.Map;
 public class MiniProgramSubscribeSenderTest {
 
     /**
-     * 维修员通知应发送到 B 端小程序。
+     * 维修员通知应按显式渠道场景发送到 B 端小程序。
      *
      * @throws Exception 反射异常
      */
@@ -48,7 +48,7 @@ public class MiniProgramSubscribeSenderTest {
                 "WORK_ORDER_ASSIGNED",
                 NotifyReceiverTypeEnum.REPAIRER.getCode(),
                 "openid-repairer",
-                null
+                "B"
         ));
 
         Assert.assertEquals(NotifyDispatchStatusEnum.SUCCESS.getCode(), result.getDispatchStatus());
@@ -56,7 +56,7 @@ public class MiniProgramSubscribeSenderTest {
     }
 
     /**
-     * 客户通知应发送到 C 端小程序。
+     * 客户通知应按显式渠道场景发送到 C 端小程序。
      *
      * @throws Exception 反射异常
      */
@@ -70,7 +70,7 @@ public class MiniProgramSubscribeSenderTest {
                 "WORK_ORDER_EVALUATION_INVITE",
                 NotifyReceiverTypeEnum.CUSTOMER.getCode(),
                 "openid-customer",
-                null
+                "C"
         ));
 
         Assert.assertEquals(NotifyDispatchStatusEnum.SUCCESS.getCode(), result.getDispatchStatus());
@@ -78,7 +78,7 @@ public class MiniProgramSubscribeSenderTest {
     }
 
     /**
-     * 显式配置了小程序场景时，应优先按配置发送，而不是继续依赖接收对象类型推断。
+     * 显式配置了小程序场景时，应直接按配置发送。
      *
      * @throws Exception 反射异常
      */

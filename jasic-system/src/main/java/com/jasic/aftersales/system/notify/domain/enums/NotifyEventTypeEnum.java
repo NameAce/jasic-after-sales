@@ -4,32 +4,50 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
- * Notify event type enum.
+ * 通知事件类型枚举。
+ *
+ * <p>该枚举用于收口“工单通知场景”在事件主表中的业务事件编码。
+ * 阶段一先把 6 个保留的小程序订阅通知场景全部登记到统一事件白名单中，
+ * 便于后续阶段继续在同一套“通知场景 + 通知目标 + 统一分发”模型下补齐业务触发。</p>
  *
  * @author Codex
- * @date 2026/04/18
+ * @date 2026/05/16
  */
 public enum NotifyEventTypeEnum {
 
-    WORK_ORDER_ASSIGNED("WORK_ORDER_ASSIGNED", "Work order assigned"),
-    WORK_ORDER_EVALUATION_INVITE("WORK_ORDER_EVALUATION_INVITE", "Work order evaluation invite");
+    /** B 端接单通知。 */
+    WORK_ORDER_ACCEPT("WORK_ORDER_ACCEPT", "B端接单通知"),
+
+    /** B 端工单转入通知。 */
+    WORK_ORDER_TRANSFER_IN("WORK_ORDER_TRANSFER_IN", "B端工单转入通知"),
+
+    /** B 端工单派单通知。 */
+    WORK_ORDER_ASSIGNED("WORK_ORDER_ASSIGNED", "B端工单派单通知"),
+
+    /** C 端接单成功提醒。 */
+    WORK_ORDER_ACCEPTED("WORK_ORDER_ACCEPTED", "C端接单成功提醒"),
+
+    /** C 端网点转单通知。 */
+    WORK_ORDER_TRANSFER_NOTICE("WORK_ORDER_TRANSFER_NOTICE", "C端网点转单通知"),
+
+    /** C 端客户满意度评价通知。 */
+    WORK_ORDER_EVALUATION_INVITE("WORK_ORDER_EVALUATION_INVITE", "C端客户满意度评价通知");
 
     /**
-     * 通知事件类型编码。
-     *
-     * @param code 参数
-     * @param desc 参数
-     * @return 处理结果
+     * 事件类型编码。
      */
     private final String code;
 
+    /**
+     * 事件类型说明。
+     */
     private final String desc;
 
     /**
-     * 构造通知事件类型实例。
+     * 构造通知事件类型枚举。
      *
-     * @param code 参数
-     * @param desc 参数
+     * @param code 事件类型编码
+     * @param desc 事件类型说明
      */
     NotifyEventTypeEnum(String code, String desc) {
         this.code = code;
@@ -37,16 +55,15 @@ public enum NotifyEventTypeEnum {
     }
 
     /**
-     * 根据编码查询通知事件类型。
+     * 按编码查询通知事件类型。
      *
-     * @param code 参数
-     * @return 处理结果
+     * @param code 事件类型编码
+     * @return 命中的事件类型；未命中时返回 {@code null}
      */
     public static NotifyEventTypeEnum getByCode(String code) {
         if (code == null) {
             return null;
         }
-        // 调用trim方法，复用统一能力并保证业务规则一致。
         String normalizedCode = code.trim();
         if (normalizedCode.isEmpty()) {
             return null;
@@ -60,25 +77,24 @@ public enum NotifyEventTypeEnum {
     }
 
     /**
-     * 根据编码解析通知事件类型。
+     * 按编码解析通知事件类型。
      *
-     * @param code 参数
-     * @return 处理结果
+     * @param code 事件类型编码
+     * @return 命中的事件类型；传入 {@code null} 时返回 {@code null}
      */
     @JsonCreator
     public static NotifyEventTypeEnum fromCode(String code) {
-        // 调用getByCode方法，复用统一能力并保证业务规则一致。
         NotifyEventTypeEnum value = getByCode(code);
         if (value == null && code != null) {
-            throw new IllegalArgumentException("Unsupported notify event type: " + code);
+            throw new IllegalArgumentException("不支持的通知事件类型编码：" + code);
         }
         return value;
     }
 
     /**
-     * 获取通知事件类型编码。
+     * 获取事件类型编码。
      *
-     * @return 处理结果
+     * @return 事件类型编码
      */
     @JsonValue
     public String getCode() {
@@ -86,15 +102,11 @@ public enum NotifyEventTypeEnum {
     }
 
     /**
-     * 获取通知事件类型描述。
+     * 获取事件类型说明。
      *
-     * @return 处理结果
+     * @return 事件类型说明
      */
     public String getDesc() {
         return desc;
     }
 }
-
-
-
-

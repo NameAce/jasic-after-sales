@@ -85,7 +85,6 @@ const viewModules = {
   'system/dictType/index': () => import('@/views/system/dictType/index.vue'),
   'system/dictData/index': () => import('@/views/system/dictData/index.vue'),
   'system/config/index': () => import('@/views/system/config/index.vue'),
-  'system/notifyTemplate/index': () => import('@/views/system/notifyTemplate/index.vue'),
   'system/notifyScene/index': () => import('@/views/system/notifyScene/index.vue'),
   'system/notifyTrace/index': () => import('@/views/system/notifyTrace/index.vue'),
   'system/machineBarcode/index': () => import('@/views/system/machineBarcode/index.vue'),

@@ -25,14 +25,7 @@ public enum NotifyTypeEnum {
     MP_SUBSCRIBE_B("MP_SUBSCRIBE_B", "小程序订阅消息(B端)"),
 
     /** 小程序订阅消息(C端)。*/
-    MP_SUBSCRIBE_C("MP_SUBSCRIBE_C", "小程序订阅消息(C端)"),
-
-    /**
-     * 小程序订阅消息。
-     *
-     * <p>保留该枚举值用于兼容历史数据和旧测试，新的场景注册与配置不再使用。</p>
-     */
-    MP_SUBSCRIBE("MP_SUBSCRIBE", "小程序订阅消息");
+    MP_SUBSCRIBE_C("MP_SUBSCRIBE_C", "小程序订阅消息(C端)");
 
     /**
      * 通知类型编码。
@@ -80,7 +73,7 @@ public enum NotifyTypeEnum {
      * @return `true` 表示当前目标属于小程序订阅消息
      */
     public boolean isMiniProgramSubscribeTarget() {
-        return this == MP_SUBSCRIBE || this == MP_SUBSCRIBE_B || this == MP_SUBSCRIBE_C;
+        return this == MP_SUBSCRIBE_B || this == MP_SUBSCRIBE_C;
     }
 
     /**

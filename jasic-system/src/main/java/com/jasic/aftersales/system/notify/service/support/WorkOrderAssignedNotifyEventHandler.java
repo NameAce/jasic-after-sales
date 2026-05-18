@@ -197,7 +197,11 @@ public class WorkOrderAssignedNotifyEventHandler implements NotifyEventHandler {
      * @return 场景编码
      */
     private String resolveSceneCode(SysNotifyEvent event) {
-        return StrUtil.blankToDefault(event.getSceneCode(), NotifySceneCode.WORK_ORDER_ASSIGNED_TODO.getCode());
+        String sceneCode = event == null ? null : StrUtil.trimToNull(event.getSceneCode());
+        if (sceneCode == null) {
+            throw new ServiceException("工单派单通知事件缺少场景编码");
+        }
+        return sceneCode;
     }
 
     /**
@@ -241,6 +245,11 @@ public class WorkOrderAssignedNotifyEventHandler implements NotifyEventHandler {
         variables.put("oldAssignedUserId", payload.getOldAssignedUserId());
         variables.put("newAssignedUserId", payload.getNewAssignedUserId());
         variables.put("assignType", payload.getAssignType());
+        // 派单模板中的“用户名称、联系电话”本轮统一解释为客户信息，
+        // 因此这里要把业务层已固化好的客户展示名和客户联系电话一并写入变量快照，
+        // 避免 sender 渲染时再误读为工程师信息。
+        variables.put("customerName", payload.getCustomerName());
+        variables.put("customerMobile", payload.getCustomerMobile());
         variables.put("operationId", payload.getOperationId());
         return variables;
     }

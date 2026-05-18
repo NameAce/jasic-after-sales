@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jasic.aftersales.common.exception.ServiceException;
+import com.jasic.aftersales.system.notify.domain.entity.NotifyScene;
 import com.jasic.aftersales.system.notify.domain.entity.NotifySceneTarget;
 import com.jasic.aftersales.system.notify.domain.entity.SysNotifyDispatch;
 import com.jasic.aftersales.system.notify.domain.entity.SysNotifyEvent;
@@ -16,6 +17,7 @@ import com.jasic.aftersales.system.notify.domain.enums.NotifyEventStatusEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyTodoStatusEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyTypeEnum;
 import com.jasic.aftersales.system.notify.mapper.NotifySceneTargetMapper;
+import com.jasic.aftersales.system.notify.mapper.NotifySceneMapper;
 import com.jasic.aftersales.system.notify.service.NotifyDispatchService;
 import com.jasic.aftersales.system.notify.service.NotifyEventConsumeService;
 import com.jasic.aftersales.system.notify.service.NotifyEventService;
@@ -41,6 +43,7 @@ import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 通知事件消费服务。
@@ -68,6 +71,9 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
 
     @Resource
     private NotifySceneTargetMapper notifySceneTargetMapper;
+
+    @Resource
+    private NotifySceneMapper notifySceneMapper;
 
     @Resource
     private NotifySceneRegistry notifySceneRegistry;
@@ -172,14 +178,17 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
                 throw new ServiceException("不支持的通知目标类型：" + targetType);
             }
 
-            NotifyReceiverSnapshot receiverSnapshot = resolveReceiverSnapshot(context, targetMeta);
             if (targetTypeEnum.isInAppTarget()) {
+                NotifyReceiverSnapshot receiverSnapshot = resolveReceiverSnapshot(context, targetMeta);
                 createInAppMessage(event, targetTypeEnum, receiverSnapshot, context, renderResult);
                 continue;
             }
 
             if (targetMeta.isExternalTarget() || targetTypeEnum.isMiniProgramSubscribeTarget()) {
-                createDispatch(event, targetMeta, target, receiverSnapshot, context, renderResult);
+                List<NotifyReceiverSnapshot> receiverSnapshots = resolveReceiverSnapshots(context, targetMeta);
+                for (NotifyReceiverSnapshot receiverSnapshot : receiverSnapshots) {
+                    createDispatch(event, targetMeta, target, receiverSnapshot, context, renderResult);
+                }
                 continue;
             }
 
@@ -328,6 +337,11 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
      * @return 启用目标列表
      */
     private List<NotifySceneTarget> listEnabledTargets(String sceneCode) {
+        // 旧模板兼容接口把“模板总开关”映射到了 notify_scene.status，
+        // 这里先拦住已停用场景，避免场景被停用后仍继续消费并发出通知。
+        if (!isSceneEnabled(sceneCode)) {
+            return Collections.emptyList();
+        }
         LambdaQueryWrapper<NotifySceneTarget> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(NotifySceneTarget::getSceneCode, sceneCode)
                 .eq(NotifySceneTarget::getEnabled, 1)
@@ -409,10 +423,43 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
      */
     private NotifyReceiverSnapshot resolveReceiverSnapshot(NotifyEventExecutionContext context,
                                                            NotifySceneTargetMeta targetMeta) {
+        List<NotifyReceiverSnapshot> snapshots = resolveReceiverSnapshots(context, targetMeta);
+        return snapshots.isEmpty() ? null : snapshots.get(0);
+    }
+
+    /**
+     * 判断通知场景当前是否处于启用状态。
+     *
+     * <p>如果场景主记录还未落库，则保持兼容按启用处理，
+     * 避免历史数据或初始化时序问题把整条消费链路直接拦死。</p>
+     *
+     * @param sceneCode 场景编码
+     * @return `true` 表示允许继续消费
+     */
+    private boolean isSceneEnabled(String sceneCode) {
+        NotifyScene scene = notifySceneMapper.selectOne(new LambdaQueryWrapper<NotifyScene>()
+                .eq(NotifyScene::getSceneCode, sceneCode)
+                .last("limit 1"));
+        return scene == null || Objects.equals(scene.getStatus(), 1);
+    }
+
+    /**
+     * 按通知目标读取接收人快照列表。
+     *
+     * <p>阶段二开始，B 端网点级通知允许同一工单命中多个可接单用户。
+     * 因此消费层处理外部目标时，必须把 `receiverType` 对应的接收人列表全部展开，
+     * 为每个接收人分别创建分发表记录，再统一交给 sender 执行真实发送。</p>
+     *
+     * @param context 事件执行上下文
+     * @param targetMeta 目标元数据
+     * @return 接收人快照列表；未命中时返回空列表
+     */
+    private List<NotifyReceiverSnapshot> resolveReceiverSnapshots(NotifyEventExecutionContext context,
+                                                                  NotifySceneTargetMeta targetMeta) {
         if (context == null || targetMeta == null) {
-            return null;
+            return Collections.emptyList();
         }
-        return context.getReceiverSnapshot(targetMeta.getReceiverType());
+        return context.getReceiverSnapshots(targetMeta.getReceiverType());
     }
 
     /**

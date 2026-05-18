@@ -74,6 +74,10 @@ import com.jasic.aftersales.system.notify.domain.dto.NotifyEvaluationInviteEvent
 import com.jasic.aftersales.system.notify.domain.dto.NotifyReadByBizDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoCompleteDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoInvalidateDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderAcceptEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderAcceptedEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderTransferInEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderTransferNoticeEventDTO;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyBizTypeEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyInvalidReasonEnum;
 import com.jasic.aftersales.system.notify.service.WorkOrderNotifyFacade;
@@ -141,6 +145,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     private static final String WORKORDER_ACCEPT_PERMISSION = "workorder:accept";
     private static final String REGISTER_STAGE_REPAIR = "REPAIR";
     private static final String REGISTER_STAGE_RECHECK = "RECHECK";
+    private static final String CUSTOMER_TRANSFER_NOTIFY_TIP = "您的工单已转由其他网点继续处理，请留意后续联系。";
     private static final List<SysFileBizTypeEnum> WORK_ORDER_FILE_BIZ_TYPES = Arrays.asList(
             SysFileBizTypeEnum.WORK_ORDER_FAULT_IMAGE,
             SysFileBizTypeEnum.WORK_ORDER_FAULT_VIDEO,
@@ -809,6 +814,10 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         }
         // 调用getId方法，复用统一能力并保证业务规则一致。
         completeWorkOrderTodoByTechAccept(workOrder.getId());
+        // 这里在正式接单动作已经完成后，统一补发客户侧“接单成功提醒”事件。
+        // 之所以放在业务状态落库之后，是为了让通知事件固化到正式承接后的网点快照，
+        // 并保证后续如果再发生转单，只会进入转单通知，不会回退到接单成功提醒。
+        publishAcceptedNotifyEvent(workOrder);
         if (FAULT_JUDGE_NO_FAULT.equals(faultJudge)) {
             // 调用getCode方法，复用统一能力并保证业务规则一致。
             invalidateWorkOrderTodo(workOrder.getId(), NotifyInvalidReasonEnum.WORK_ORDER_CLOSED.getCode());
@@ -861,6 +870,10 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         workOrderParticipantService.transferParticipant(workOrder.getId(), fromCompanyId, fromSubjectType,
                 // 调用getTargetCompanyId方法，复用统一能力并保证业务规则一致。
                 dto.getTargetCompanyId(), targetSubjectType);
+        // 先通知新承接网点有哪些工单转入，再通知客户当前处理网点已经变化。
+        // 这样可以保证 B 端和 C 端都统一进入通知主链路，而不是业务层直接调用微信发送。
+        publishTransferInNotifyEvent(workOrder, fromCompanyId);
+        publishTransferNoticeNotifyEvent(workOrder);
     }
 
     /**
@@ -1980,8 +1993,15 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         eventDTO.setReceiverCompanyId(workOrder.getCurrentAcceptCompanyId());
         // 调用getCurrentUserId方法，复用统一能力并保证业务规则一致。
         eventDTO.setOperatorId(SecurityContext.getCurrentUserId());
+        eventDTO.setAssignType(assignType);
+        eventDTO.setCustomerName(resolveCustomerDisplayName(workOrder.getCustomerName(), workOrder.getCustomerMobile()));
         // 调用setAssignType方法，复用统一能力并保证业务规则一致。
         eventDTO.setAssignType(assignType);
+        // 派单模板中的“用户名称、联系电话”本轮统一解释为客户信息，
+        // 因此这里直接固化客户姓名兜底值和客户联系电话，避免渲染阶段再混入工程师字段。
+        eventDTO.setCustomerName(resolveCustomerDisplayName(workOrder.getCustomerName(), workOrder.getCustomerMobile()));
+        eventDTO.setCustomerMobile(normalizeNullableText(workOrder.getCustomerMobile()));
+        eventDTO.setOperationId(operationId);
         // 调用setOperationId方法，复用统一能力并保证业务规则一致。
         eventDTO.setOperationId(operationId);
         // 调用publishAssignedEvent方法，复用统一能力并保证业务规则一致。
@@ -1993,6 +2013,110 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
      *
      * @param workOrder 参数
      */
+    /**
+     * 发布 B 端接单通知事件。
+     *
+     * <p>该事件对应“工单进入目标承接网点待处理池”的时刻，
+     * 统一用于驱动网点级小程序订阅消息，不允许业务层绕过通知主链路直接发微信。</p>
+     *
+     * @param workOrder 工单快照
+     */
+    private void publishAcceptNotifyEvent(WorkOrder workOrder) {
+        if (workOrder == null || workOrder.getId() == null || workOrder.getCurrentAcceptCompanyId() == null) {
+            return;
+        }
+        SysCompany currentCompany = sysCompanyMapper.selectById(workOrder.getCurrentAcceptCompanyId());
+        NotifyWorkOrderAcceptEventDTO eventDTO = new NotifyWorkOrderAcceptEventDTO();
+        eventDTO.setWorkOrderId(workOrder.getId());
+        eventDTO.setOrderNo(workOrder.getOrderNo());
+        eventDTO.setCurrentAcceptCompanyId(workOrder.getCurrentAcceptCompanyId());
+        eventDTO.setCurrentAcceptCompanyName(currentCompany == null ? null : normalizeNullableText(currentCompany.getCompanyName()));
+        eventDTO.setCustomerName(resolveCustomerDisplayName(workOrder.getCustomerName(), workOrder.getCustomerMobile()));
+        workOrderNotifyFacade.publishAcceptEvent(eventDTO);
+    }
+
+    /**
+     * 发布 C 端接单成功提醒事件。
+     *
+     * <p>该事件只在第一次正式接单后发送一次。
+     * 幂等约束由通知事件键按工单维度控制，业务层只负责在“正式接单”动作完成后统一触发。</p>
+     *
+     * @param workOrder 工单快照
+     */
+    private void publishAcceptedNotifyEvent(WorkOrder workOrder) {
+        if (workOrder == null || workOrder.getId() == null || workOrder.getCustomerId() == null
+                || workOrder.getCurrentAcceptCompanyId() == null) {
+            return;
+        }
+        WorkOrderCustomer customer = workOrderCustomerMapper.selectById(workOrder.getCustomerId());
+        SysCompany currentCompany = sysCompanyMapper.selectById(workOrder.getCurrentAcceptCompanyId());
+        NotifyWorkOrderAcceptedEventDTO eventDTO = new NotifyWorkOrderAcceptedEventDTO();
+        eventDTO.setWorkOrderId(workOrder.getId());
+        eventDTO.setOrderNo(workOrder.getOrderNo());
+        eventDTO.setCustomerId(workOrder.getCustomerId());
+        eventDTO.setCustomerOpenid(customer == null ? null : normalizeNullableText(customer.getOpenid()));
+        eventDTO.setCompanyId(workOrder.getCurrentAcceptCompanyId());
+        eventDTO.setCompanyName(currentCompany == null ? null : normalizeNullableText(currentCompany.getCompanyName()));
+        eventDTO.setCompanyPhone(resolveCompanyPhone(currentCompany));
+        workOrderNotifyFacade.publishAcceptedEvent(eventDTO);
+    }
+
+    /**
+     * 发布 B 端工单转入通知事件。
+     *
+     * <p>该事件对应“转单后新网点接手待分配”的时刻，
+     * 用于把当前目标公司下所有满足口径的可接单用户统一收口到通知分发表。</p>
+     *
+     * @param workOrder 转单后的工单快照
+     * @param fromCompanyId 转出网点ID
+     */
+    private void publishTransferInNotifyEvent(WorkOrder workOrder, Long fromCompanyId) {
+        if (workOrder == null || workOrder.getId() == null || workOrder.getCurrentAcceptCompanyId() == null) {
+            return;
+        }
+        SysCompany currentCompany = sysCompanyMapper.selectById(workOrder.getCurrentAcceptCompanyId());
+        SysCompany fromCompany = fromCompanyId == null ? null : sysCompanyMapper.selectById(fromCompanyId);
+        NotifyWorkOrderTransferInEventDTO eventDTO = new NotifyWorkOrderTransferInEventDTO();
+        eventDTO.setWorkOrderId(workOrder.getId());
+        eventDTO.setOrderNo(workOrder.getOrderNo());
+        eventDTO.setCurrentAcceptCompanyId(workOrder.getCurrentAcceptCompanyId());
+        eventDTO.setCurrentAcceptCompanyName(currentCompany == null ? null : normalizeNullableText(currentCompany.getCompanyName()));
+        eventDTO.setCustomerName(resolveCustomerDisplayName(workOrder.getCustomerName(), workOrder.getCustomerMobile()));
+        eventDTO.setCustomerMobile(normalizeNullableText(workOrder.getCustomerMobile()));
+        eventDTO.setFromCompanyId(fromCompanyId);
+        eventDTO.setFromCompanyName(fromCompany == null ? null : normalizeNullableText(fromCompany.getCompanyName()));
+        eventDTO.setTransferCount(workOrder.getTransferCount());
+        workOrderNotifyFacade.publishTransferInEvent(eventDTO);
+    }
+
+    /**
+     * 发布 C 端网点转单通知事件。
+     *
+     * <p>转单后客户侧不再重复发送“接单成功提醒”，
+     * 而是统一改为告知当前处理网点已变化，并带上新的网点名称、联系电话和固定提示文案。</p>
+     *
+     * @param workOrder 转单后的工单快照
+     */
+    private void publishTransferNoticeNotifyEvent(WorkOrder workOrder) {
+        if (workOrder == null || workOrder.getId() == null || workOrder.getCustomerId() == null
+                || workOrder.getCurrentAcceptCompanyId() == null) {
+            return;
+        }
+        WorkOrderCustomer customer = workOrderCustomerMapper.selectById(workOrder.getCustomerId());
+        SysCompany currentCompany = sysCompanyMapper.selectById(workOrder.getCurrentAcceptCompanyId());
+        NotifyWorkOrderTransferNoticeEventDTO eventDTO = new NotifyWorkOrderTransferNoticeEventDTO();
+        eventDTO.setWorkOrderId(workOrder.getId());
+        eventDTO.setOrderNo(workOrder.getOrderNo());
+        eventDTO.setCustomerId(workOrder.getCustomerId());
+        eventDTO.setCustomerOpenid(customer == null ? null : normalizeNullableText(customer.getOpenid()));
+        eventDTO.setToCompanyId(workOrder.getCurrentAcceptCompanyId());
+        eventDTO.setToCompanyName(currentCompany == null ? null : normalizeNullableText(currentCompany.getCompanyName()));
+        eventDTO.setToCompanyPhone(resolveCompanyPhone(currentCompany));
+        eventDTO.setTransferTip(CUSTOMER_TRANSFER_NOTIFY_TIP);
+        eventDTO.setTransferCount(workOrder.getTransferCount());
+        workOrderNotifyFacade.publishTransferNoticeEvent(eventDTO);
+    }
+
     private void publishEvaluationInviteNotifyEvent(WorkOrder workOrder) {
         if (workOrder == null) {
             return;
@@ -2026,6 +2150,9 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         eventDTO.setCompanyId(workOrder.getCurrentAcceptCompanyId());
         // 调用getCompanyName方法，复用统一能力并保证业务规则一致。
         eventDTO.setCompanyName(company == null ? null : StrUtil.trim(company.getCompanyName()));
+        // 评价通知中的联系电话统一按“服务网点对外联系电话”解释，
+        // 因此这里按 service_phone -> contact_phone 的顺序做兜底。
+        eventDTO.setCompanyPhone(resolveCompanyPhone(company));
         // 调用getClosedTime方法，复用统一能力并保证业务规则一致。
         eventDTO.setClosedTime(workOrder.getClosedTime());
         // 调用publishEvaluationInviteEvent方法，复用统一能力并保证业务规则一致。
@@ -2038,6 +2165,58 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
      * @param oldAssignedUserId old Assigned User ID
      * @param newAssignedUserId new Assigned User ID
      * @return 处理结果
+     */
+    /**
+     * 统一解析模板中的“用户名称”展示值。
+     *
+     * <p>本轮通知口径明确要求按“客户姓名 -> 客户手机号 -> 客户”顺序兜底，
+     * 这样无论是 B 端派单通知还是 B 端接单类通知，都能稳定输出客户视角的展示名称。</p>
+     *
+     * @param customerName 客户姓名
+     * @param customerMobile 客户手机号
+     * @return 展示名称
+     */
+    private String resolveCustomerDisplayName(String customerName, String customerMobile) {
+        String normalizedCustomerName = normalizeNullableText(customerName);
+        if (normalizedCustomerName != null) {
+            return normalizedCustomerName;
+        }
+        String normalizedCustomerMobile = normalizeNullableText(customerMobile);
+        if (normalizedCustomerMobile != null) {
+            return normalizedCustomerMobile;
+        }
+        return "客户";
+    }
+
+    /**
+     * 统一解析服务网点联系电话。
+     *
+     * <p>本轮模板变量口径要求统一按 `sys_company.service_phone -> sys_company.contact_phone`
+     * 的顺序取值，避免不同场景出现联系电话来源不一致的问题。</p>
+     *
+     * @param company 公司快照
+     * @return 联系电话
+     */
+    private String resolveCompanyPhone(SysCompany company) {
+        if (company == null) {
+            return null;
+        }
+        String servicePhone = normalizeNullableText(company.getServicePhone());
+        if (servicePhone != null) {
+            return servicePhone;
+        }
+        return normalizeNullableText(company.getContactPhone());
+    }
+
+    /**
+     * 解析派单类型。
+     *
+     * <p>首派返回 `ASSIGN`，转派返回 `TRANSFER`，
+     * 如果前后工程师一致则不再重复发布派单通知事件。</p>
+     *
+     * @param oldAssignedUserId 旧工程师ID
+     * @param newAssignedUserId 新工程师ID
+     * @return 派单类型
      */
     private String resolveAssignType(Long oldAssignedUserId, Long newAssignedUserId) {
         if (newAssignedUserId == null) {
@@ -2375,6 +2554,9 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         saveFlow(entity.getId(), WorkOrderActionEnum.CREATE.getCode(), null, entity.getMainStatus(), null, targetCompanyId, currentCompanyId, null);
         // 调用resolveCreateCompanySubjectType方法，复用统一能力并保证业务规则一致。
         workOrderParticipantService.initParticipants(entity, resolveCreateCompanySubjectType(currentCompanyId));
+        // 建单成功后立即发布 B 端“接单通知”事件，
+        // 目的是把“工单已进入目标承接网点待处理池”这一事实统一交给通知模块分发表处理。
+        publishAcceptNotifyEvent(entity);
         return entity.getId();
     }
 

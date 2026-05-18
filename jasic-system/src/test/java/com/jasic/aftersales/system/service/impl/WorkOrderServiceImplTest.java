@@ -66,6 +66,10 @@ import com.jasic.aftersales.system.notify.domain.dto.NotifyEvaluationInviteEvent
 import com.jasic.aftersales.system.notify.domain.dto.NotifyReadByBizDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoCompleteDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoInvalidateDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderAcceptEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderAcceptedEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderTransferInEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderTransferNoticeEventDTO;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyBizTypeEnum;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyInvalidReasonEnum;
 import com.jasic.aftersales.system.notify.service.WorkOrderNotifyFacade;
@@ -75,6 +79,7 @@ import com.jasic.aftersales.system.service.ISysConfigService;
 import com.jasic.aftersales.system.service.WorkOrderParticipantService;
 import com.jasic.aftersales.system.service.WorkOrderPermissionService;
 import com.jasic.aftersales.system.service.WorkOrderUserParticipantService;
+import com.jasic.aftersales.system.service.support.WorkOrderNoGenerator;
 import org.junit.Assert;
 import org.junit.Test;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
@@ -346,6 +351,57 @@ public class WorkOrderServiceImplTest {
     }
 
     @Test
+    public void shouldBuildAcceptNotifyEventWithCustomerFallbackAndTargetCompanySnapshot() throws Exception {
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(15L);
+        workOrder.setOrderNo("WO-15");
+        workOrder.setCurrentAcceptCompanyId(2002L);
+        workOrder.setCustomerName("   ");
+        workOrder.setCustomerMobile("13800138000");
+
+        SysCompany company = buildCompany(2002L, "深圳南山服务网点", "SERVICE");
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        RecordingWorkOrderNotifyFacade notifyFacade = new RecordingWorkOrderNotifyFacade();
+        setField(service, "sysCompanyMapper", createSysCompanyMapperProxy(Collections.singletonList(company)));
+        setField(service, "workOrderNotifyFacade", notifyFacade);
+
+        invokePrivateMethod(service, "publishAcceptNotifyEvent", new Class<?>[]{WorkOrder.class}, workOrder);
+
+        Assert.assertEquals(1, notifyFacade.acceptEvents.size());
+        Assert.assertEquals(workOrder.getId(), notifyFacade.acceptEvents.get(0).getWorkOrderId());
+        Assert.assertEquals(workOrder.getOrderNo(), notifyFacade.acceptEvents.get(0).getOrderNo());
+        Assert.assertEquals(Long.valueOf(2002L), notifyFacade.acceptEvents.get(0).getCurrentAcceptCompanyId());
+        Assert.assertEquals("深圳南山服务网点", notifyFacade.acceptEvents.get(0).getCurrentAcceptCompanyName());
+        Assert.assertEquals("13800138000", notifyFacade.acceptEvents.get(0).getCustomerName());
+    }
+
+    /**
+     * 校验 B 端接单通知中的客户名称在姓名和手机号都为空时，最终兜底为“客户”。
+     */
+    @Test
+    public void shouldFallbackAcceptNotifyCustomerNameToLiteralCustomerWhenNameAndMobileBlank() throws Exception {
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(16L);
+        workOrder.setOrderNo("WO-16");
+        workOrder.setCurrentAcceptCompanyId(2002L);
+        workOrder.setCustomerName("   ");
+        workOrder.setCustomerMobile("   ");
+
+        SysCompany company = buildCompany(2002L, "深圳南山服务网点", "SERVICE");
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        RecordingWorkOrderNotifyFacade notifyFacade = new RecordingWorkOrderNotifyFacade();
+        setField(service, "sysCompanyMapper", createSysCompanyMapperProxy(Collections.singletonList(company)));
+        setField(service, "workOrderNotifyFacade", notifyFacade);
+
+        invokePrivateMethod(service, "publishAcceptNotifyEvent", new Class<?>[]{WorkOrder.class}, workOrder);
+
+        Assert.assertEquals(1, notifyFacade.acceptEvents.size());
+        Assert.assertEquals("客户", notifyFacade.acceptEvents.get(0).getCustomerName());
+    }
+
+    @Test
     public void shouldPublishTransferNotifyEventWhenReassigningToAnotherTechnician() throws Exception {
         WorkOrder workOrder = new WorkOrder();
         workOrder.setId(18L);
@@ -446,8 +502,18 @@ public class WorkOrderServiceImplTest {
     public void shouldTechAcceptFaultWorkOrderAndCreateQuote() throws Exception {
         WorkOrder workOrder = new WorkOrder();
         workOrder.setId(14L);
+        workOrder.setOrderNo("WO-14");
         workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT);
         workOrder.setCurrentAcceptCompanyId(3L);
+        workOrder.setCustomerId(9001L);
+        workOrder.setCustomerName("张三");
+        workOrder.setCustomerMobile("13800138000");
+
+        WorkOrderCustomer customer = new WorkOrderCustomer();
+        customer.setId(9001L);
+        customer.setOpenid("openid-9001");
+        SysCompany company = buildCompany(3L, "深圳南山服务网点", "SERVICE");
+        company.setServicePhone("0755-12345678");
 
         List<WorkOrderQuote> quotes = new ArrayList<>();
         List<WorkOrderQuote> insertedQuotes = new ArrayList<>();
@@ -465,6 +531,8 @@ public class WorkOrderServiceImplTest {
                 return true;
             }
         });
+        setField(service, "workOrderCustomerMapper", createWorkOrderCustomerMapperProxy(customer));
+        setField(service, "sysCompanyMapper", createSysCompanyMapperProxy(Collections.singletonList(company)));
         setField(service, "workOrderUserParticipantService", participantRecorder);
         setField(service, "workOrderNotifyFacade", notifyFacade);
 
@@ -497,6 +565,11 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(Long.valueOf(101L), notifyFacade.completedTodos.get(0).getReceiverId());
         Assert.assertEquals(workOrder.getCurrentAcceptCompanyId(), notifyFacade.completedTodos.get(0).getReceiverCompanyId());
         Assert.assertEquals(NotifyConstants.ACTION_TECH_ACCEPT, notifyFacade.completedTodos.get(0).getActionCode());
+        Assert.assertEquals(1, notifyFacade.acceptedEvents.size());
+        Assert.assertEquals(workOrder.getId(), notifyFacade.acceptedEvents.get(0).getWorkOrderId());
+        Assert.assertEquals("openid-9001", notifyFacade.acceptedEvents.get(0).getCustomerOpenid());
+        Assert.assertEquals("深圳南山服务网点", notifyFacade.acceptedEvents.get(0).getCompanyName());
+        Assert.assertEquals("0755-12345678", notifyFacade.acceptedEvents.get(0).getCompanyPhone());
     }
 
     @Test
@@ -839,6 +912,7 @@ public class WorkOrderServiceImplTest {
     public void shouldTransferSecondLevelWorkOrderAndRecordHistory() throws Exception {
         WorkOrder workOrder = new WorkOrder();
         workOrder.setId(3L);
+        workOrder.setOrderNo("WO-3");
         workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.IN_PROGRESS);
         workOrder.setCurrentAcceptCompanyId(2002L);
         workOrder.setCurrentAcceptSubjectType("SERVICE");
@@ -846,10 +920,18 @@ public class WorkOrderServiceImplTest {
         workOrder.setHasTransfer(0);
         workOrder.setTransferCount(0);
         workOrder.setHqCompanyId(900L);
+        workOrder.setCustomerId(9001L);
+        workOrder.setCustomerName("张三");
+        workOrder.setCustomerMobile("13800138000");
+
+        WorkOrderCustomer customer = new WorkOrderCustomer();
+        customer.setId(9001L);
+        customer.setOpenid("openid-9001");
 
         int[] updateCount = new int[1];
         List<WorkOrderFlow> insertedFlows = new ArrayList<>();
         TransferParticipantRecorder participantRecorder = new TransferParticipantRecorder();
+        RecordingWorkOrderNotifyFacade notifyFacade = new RecordingWorkOrderNotifyFacade();
 
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, updateCount));
@@ -870,7 +952,9 @@ public class WorkOrderServiceImplTest {
                 Collections.singletonList(buildRelation(1001L, 2002L))
         ));
         setField(service, "workOrderFlowMapper", createFlowMapperProxy(insertedFlows));
+        setField(service, "workOrderCustomerMapper", createWorkOrderCustomerMapperProxy(customer));
         setField(service, "workOrderParticipantService", participantRecorder);
+        setField(service, "workOrderNotifyFacade", notifyFacade);
 
         WorkOrderTransferDTO dto = new WorkOrderTransferDTO();
         dto.setWorkOrderId(workOrder.getId());
@@ -908,6 +992,15 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals("SERVICE", participantRecorder.fromSubjectType);
         Assert.assertEquals(Long.valueOf(1001L), participantRecorder.toCompanyId);
         Assert.assertEquals("SERVICE", participantRecorder.toSubjectType);
+        Assert.assertEquals(1, notifyFacade.transferInEvents.size());
+        Assert.assertEquals("二级网点", notifyFacade.transferInEvents.get(0).getFromCompanyName());
+        Assert.assertEquals("13800138000", notifyFacade.transferInEvents.get(0).getCustomerMobile());
+        Assert.assertEquals(Integer.valueOf(1), notifyFacade.transferInEvents.get(0).getTransferCount());
+        Assert.assertEquals(1, notifyFacade.transferNoticeEvents.size());
+        Assert.assertEquals("openid-9001", notifyFacade.transferNoticeEvents.get(0).getCustomerOpenid());
+        Assert.assertEquals("一级网点", notifyFacade.transferNoticeEvents.get(0).getToCompanyName());
+        Assert.assertEquals(Integer.valueOf(1), notifyFacade.transferNoticeEvents.get(0).getTransferCount());
+        Assert.assertEquals(0, notifyFacade.acceptedEvents.size());
     }
 
     @Test
@@ -1385,6 +1478,8 @@ public class WorkOrderServiceImplTest {
         customer.setOpenid("openid-9001");
         customer.setPhone("13800138000");
         SysCompany company = buildCompany(3L, "深圳南山服务网点", "SERVICE");
+        company.setServicePhone("0755-99990000");
+        company.setContactPhone("0755-88880000");
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         RecordingWorkOrderNotifyFacade notifyFacade = new RecordingWorkOrderNotifyFacade();
         setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, new int[1]));
@@ -1496,6 +1591,7 @@ public class WorkOrderServiceImplTest {
         customer.setOpenid("openid-9001");
         customer.setPhone("13800138000");
         SysCompany company = buildCompany(3L, "深圳南山服务网点", "SERVICE");
+        company.setServicePhone("0755-99990000");
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         RecordingWorkOrderNotifyFacade notifyFacade = new RecordingWorkOrderNotifyFacade();
         setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, new int[1]));
@@ -1535,6 +1631,67 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(Long.valueOf(9001L), notifyFacade.evaluationInviteEvents.get(0).getCustomerId());
         Assert.assertEquals("openid-9001", notifyFacade.evaluationInviteEvents.get(0).getCustomerOpenid());
         Assert.assertEquals("深圳南山服务网点", notifyFacade.evaluationInviteEvents.get(0).getCompanyName());
+        Assert.assertEquals("0755-99990000", notifyFacade.evaluationInviteEvents.get(0).getCompanyPhone());
+    }
+
+    /**
+     * 校验公司服务电话为空时，评价通知会回退使用联系人电话，避免 C 端模板出现空联系方式。
+     */
+    @Test
+    public void shouldFallbackEvaluationInviteCompanyPhoneToContactPhoneWhenServicePhoneBlank() throws Exception {
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(13L);
+        workOrder.setOrderNo("WO-13");
+        workOrder.setCustomerId(9002L);
+        workOrder.setCustomerMobile("13800138001");
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.COMPLETED);
+        workOrder.setCurrentAcceptCompanyId(4L);
+
+        WorkOrderQuote currentQuote = new WorkOrderQuote();
+        currentQuote.setWorkOrderId(workOrder.getId());
+        currentQuote.setFaultJudge("有故障");
+        currentQuote.setIsCurrentValid(1);
+
+        WorkOrderCustomer customer = new WorkOrderCustomer();
+        customer.setId(9002L);
+        customer.setOpenid("openid-9002");
+        customer.setPhone("13800138001");
+
+        SysCompany company = buildCompany(4L, "福田服务网点", "SERVICE");
+        company.setServicePhone("   ");
+        company.setContactPhone("0755-66668888");
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        RecordingWorkOrderNotifyFacade notifyFacade = new RecordingWorkOrderNotifyFacade();
+        setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, new int[1]));
+        setField(service, "workOrderQuoteMapper", createQuoteMapperProxy(Collections.singletonList(currentQuote)));
+        setField(service, "workOrderFlowMapper", createNoopProxy(WorkOrderFlowMapper.class, "insert"));
+        setField(service, "workOrderCustomerMapper", createWorkOrderCustomerMapperProxy(customer));
+        setField(service, "sysCompanyMapper", createSysCompanyMapperProxy(Collections.singletonList(company)));
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            @Override
+            public boolean canClose(WorkOrder target) {
+                return true;
+            }
+        });
+        setField(service, "sysFileService", createNoopProxy(com.jasic.aftersales.system.service.SysFileService.class, "replaceBizFiles"));
+        setField(service, "workOrderNotifyFacade", notifyFacade);
+
+        WorkOrderCloseDTO dto = new WorkOrderCloseDTO();
+        dto.setWorkOrderId(workOrder.getId());
+        dto.setReturnMethod("自提");
+        dto.setCloseReason("维修完成");
+
+        runWithLoginContext(101L, new ThrowingRunnable() {
+            @Override
+            public void run() throws Exception {
+                service.close(dto);
+            }
+        });
+
+        Assert.assertEquals(WorkOrderStatusConstants.EvaluateStatus.PENDING_EVALUATE, workOrder.getEvaluateStatus());
+        Assert.assertEquals(1, notifyFacade.evaluationInviteEvents.size());
+        Assert.assertEquals("0755-66668888", notifyFacade.evaluationInviteEvents.get(0).getCompanyPhone());
     }
 
     @Test
@@ -2300,15 +2457,39 @@ public class WorkOrderServiceImplTest {
 
     private static class RecordingWorkOrderNotifyFacade implements WorkOrderNotifyFacade {
 
+        private final List<NotifyWorkOrderAcceptEventDTO> acceptEvents = new ArrayList<>();
         private final List<NotifyAssignedEventDTO> publishedEvents = new ArrayList<>();
+        private final List<NotifyWorkOrderAcceptedEventDTO> acceptedEvents = new ArrayList<>();
+        private final List<NotifyWorkOrderTransferInEventDTO> transferInEvents = new ArrayList<>();
+        private final List<NotifyWorkOrderTransferNoticeEventDTO> transferNoticeEvents = new ArrayList<>();
         private final List<NotifyEvaluationInviteEventDTO> evaluationInviteEvents = new ArrayList<>();
         private final List<NotifyReadByBizDTO> readByBizRequests = new ArrayList<>();
         private final List<NotifyTodoCompleteDTO> completedTodos = new ArrayList<>();
         private final List<NotifyTodoInvalidateDTO> invalidatedTodos = new ArrayList<>();
 
         @Override
+        public void publishAcceptEvent(NotifyWorkOrderAcceptEventDTO dto) {
+            acceptEvents.add(dto);
+        }
+
+        @Override
+        public void publishTransferInEvent(NotifyWorkOrderTransferInEventDTO dto) {
+            transferInEvents.add(dto);
+        }
+
+        @Override
         public void publishAssignedEvent(NotifyAssignedEventDTO dto) {
             publishedEvents.add(dto);
+        }
+
+        @Override
+        public void publishAcceptedEvent(NotifyWorkOrderAcceptedEventDTO dto) {
+            acceptedEvents.add(dto);
+        }
+
+        @Override
+        public void publishTransferNoticeEvent(NotifyWorkOrderTransferNoticeEventDTO dto) {
+            transferNoticeEvents.add(dto);
         }
 
         @Override

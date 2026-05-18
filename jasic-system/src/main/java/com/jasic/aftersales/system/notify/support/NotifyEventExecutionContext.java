@@ -3,8 +3,10 @@ package com.jasic.aftersales.system.notify.support;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -72,7 +74,7 @@ public class NotifyEventExecutionContext implements Serializable {
      * <p>当同一个场景同时启用多个通知目标，且不同目标指向不同接收对象时，
      * 统一由该映射提供“按目标取接收人”的能力。</p>
      */
-    private Map<String, NotifyReceiverSnapshot> receiverSnapshots = new LinkedHashMap<>();
+    private Map<String, List<NotifyReceiverSnapshot>> receiverSnapshots = new LinkedHashMap<>();
 
     /**
      * 追加接收人快照。
@@ -83,10 +85,36 @@ public class NotifyEventExecutionContext implements Serializable {
         if (snapshot == null || snapshot.getReceiverType() == null) {
             return;
         }
+        addReceiverSnapshots(snapshot.getReceiverType(), Collections.singletonList(snapshot));
+    }
+
+    /**
+     * 按接收对象类型追加一组接收人快照。
+     *
+     * <p>阶段二开始，B 端网点级通知需要支持“一单多人”。
+     * 因此这里统一把同一 `receiverType` 下的多个接收人都固化到上下文中，
+     * 由消费层在创建分发表时逐个展开，避免业务层自行循环发送而绕过主链路。</p>
+     *
+     * @param receiverType 接收对象类型
+     * @param snapshots 接收人快照列表
+     */
+    public void addReceiverSnapshots(String receiverType, List<NotifyReceiverSnapshot> snapshots) {
+        if (receiverType == null || snapshots == null || snapshots.isEmpty()) {
+            return;
+        }
         if (receiverSnapshots == null) {
             receiverSnapshots = new LinkedHashMap<>();
         }
-        receiverSnapshots.put(snapshot.getReceiverType(), snapshot);
+        List<NotifyReceiverSnapshot> mergedSnapshots = receiverSnapshots.computeIfAbsent(
+                receiverType,
+                key -> new ArrayList<>()
+        );
+        for (NotifyReceiverSnapshot snapshot : snapshots) {
+            if (snapshot == null) {
+                continue;
+            }
+            mergedSnapshots.add(snapshot);
+        }
     }
 
     /**
@@ -102,9 +130,9 @@ public class NotifyEventExecutionContext implements Serializable {
         if (receiverType == null) {
             return null;
         }
-        NotifyReceiverSnapshot snapshot = receiverSnapshots == null ? null : receiverSnapshots.get(receiverType);
-        if (snapshot != null) {
-            return snapshot;
+        List<NotifyReceiverSnapshot> snapshots = getReceiverSnapshots(receiverType);
+        if (!snapshots.isEmpty()) {
+            return snapshots.get(0);
         }
         if (receiverType.equals(this.receiverType)) {
             return NotifyReceiverSnapshot.of(
@@ -119,14 +147,45 @@ public class NotifyEventExecutionContext implements Serializable {
     }
 
     /**
+     * 按接收对象类型读取接收人快照列表。
+     *
+     * <p>为兼容仍然只写入单接收人的旧 handler，
+     * 当多接收人映射未命中时，会尝试回退到上下文主接收人字段。</p>
+     *
+     * @param receiverType 接收对象类型
+     * @return 接收人快照列表；未命中时返回空列表
+     */
+    public List<NotifyReceiverSnapshot> getReceiverSnapshots(String receiverType) {
+        if (receiverType == null) {
+            return Collections.emptyList();
+        }
+        List<NotifyReceiverSnapshot> snapshots = receiverSnapshots == null ? null : receiverSnapshots.get(receiverType);
+        if (snapshots != null && !snapshots.isEmpty()) {
+            return Collections.unmodifiableList(snapshots);
+        }
+        NotifyReceiverSnapshot fallbackSnapshot = receiverType.equals(this.receiverType)
+                ? NotifyReceiverSnapshot.of(
+                this.receiverType,
+                this.receiverId,
+                this.receiverCompanyId,
+                this.receiverName,
+                this.receiverAddress
+        )
+                : null;
+        return fallbackSnapshot == null
+                ? Collections.emptyList()
+                : Collections.singletonList(fallbackSnapshot);
+    }
+
+    /**
      * 读取只读接收人快照映射。
      *
      * @return 接收人快照映射
      */
-    public Map<String, NotifyReceiverSnapshot> getReceiverSnapshots() {
+    public Map<String, List<NotifyReceiverSnapshot>> getReceiverSnapshots() {
         if (receiverSnapshots == null) {
             return Collections.emptyMap();
         }
-        return receiverSnapshots;
+        return Collections.unmodifiableMap(receiverSnapshots);
     }
 }
