@@ -13,12 +13,12 @@ import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-c
 import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 import { useTableScroll } from '@/hooks/common/table';
 import { useAuth } from '@/hooks/business/auth';
-import { estimateAntTableActionColWidth } from '@/utils/table-action-width';
+import { createAntTableActionColumn } from '@/utils/table-action-width';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
 import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
 import WorkOrderCreateModals from './components/WorkOrderCreateModals.vue';
 import WorkOrderDetailDrawer from './components/WorkOrderDetailDrawer.vue';
-import { ACTION_META, type WorkOrderListActionCode, getRowPrimaryActions } from './list-actions';
+import { getRowPrimaryActions } from './list-actions';
 
 type RowData = Record<string, any>;
 
@@ -156,19 +156,11 @@ const statusSegmentOptions = computed(() =>
 // 是否存在任一行的主操作按钮；有则显示「操作」列
 const hasAnyRowActionButtons = computed(() => rows.value.some(row => getRowPrimaryActions(row).length > 0));
 
-/** 操作列宽度：主操作区单行最多时取「文案最长的 6 个」按钮横排估算（与 ACTION_META 一致） */
-const WORK_ORDER_LIST_ACTION_COL_WIDTH = estimateAntTableActionColWidth(
-  (Object.keys(ACTION_META) as WorkOrderListActionCode[])
-    .map(code => ACTION_META[code].label)
-    .sort((a, b) => b.length - a.length)
-    .slice(0, 6)
+/** 本页常见 2 个链接按钮一排（如「维修员接单」「上传寄件单号」） */
+const WORK_ORDER_ACTION_COL_WIDTH = 200;
+const workOrderListTableScrollMinX = computed(
+  () => 180 + 140 + 120 + 140 + 140 + 120 + 180 + 140 + 140 + 90 + 180 + WORK_ORDER_ACTION_COL_WIDTH
 );
-
-/** 列宽之和（含操作列），随是否存在操作列变化，避免横向滚动不足 */
-const workOrderListTableScrollMinX = computed(() => {
-  const base = 180 + 140 + 120 + 140 + 140 + 120 + 180 + 140 + 140 + 90 + 180;
-  return base + (hasAnyRowActionButtons.value ? WORK_ORDER_LIST_ACTION_COL_WIDTH : 0);
-});
 const { tableWrapperRef, scrollConfig } = useTableScroll(workOrderListTableScrollMinX);
 
 // 表格列定义（按需追加操作列）
@@ -235,13 +227,12 @@ const columns = computed(() => {
     }
   ];
   if (hasAnyRowActionButtons.value) {
-    baseColumns.push({
-      title: '操作',
-      dataIndex: 'actions',
-      key: 'actions',
-      width: WORK_ORDER_LIST_ACTION_COL_WIDTH,
-      fixed: 'right' as const
-    });
+    baseColumns.push(
+      createAntTableActionColumn({
+        dataIndex: 'actions',
+        width: WORK_ORDER_ACTION_COL_WIDTH
+      })
+    );
   }
   return baseColumns;
 });
@@ -636,7 +627,6 @@ watch(
         :data-source="rows"
         :loading="loading"
         :locale="tableListLocale"
-        bordered
         class="work-order-table h-full"
         :scroll="scrollConfig"
         :pagination="{

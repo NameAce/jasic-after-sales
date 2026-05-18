@@ -24,12 +24,11 @@ import {
   splitFullAddressToRegionAndDetail
 } from '@/utils/china-region';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
-import { estimateAntTableActionColWidth } from '@/utils/table-action-width';
+import { createAntTableActionColumn } from '@/utils/table-action-width';
 
 type RowData = Record<string, any>;
 
 /** 操作列：编辑 / 设为默认 / 删除 同一行最多时横排估算 */
-const COMPANY_ADDRESS_ACTION_COL_WIDTH = estimateAntTableActionColWidth(['编辑', '设为默认', '删除']);
 
 const pageMenuTitle = useRouteMenuTitle();
 
@@ -109,14 +108,13 @@ const columns = [
   { title: '地址详情', dataIndex: 'address', key: 'address', ellipsis: true },
   { title: '是否默认', dataIndex: 'isDefault', key: 'isDefault', width: 120 },
   { title: '联系人', dataIndex: 'contactName', key: 'contactName', width: 140 },
-  { title: '联系电话', dataIndex: 'contactPhone', key: 'contactPhone', width: 160 },
   {
-    title: '操作',
-    dataIndex: 'actions',
-    key: 'actions',
-    width: COMPANY_ADDRESS_ACTION_COL_WIDTH,
-    fixed: 'right' as const
-  }
+    title: '联系电话',
+    dataIndex: 'contactPhone',
+    key: 'contactPhone',
+    width: 160
+  },
+  createAntTableActionColumn({ dataIndex: 'actions', width: 200 })
 ];
 
 /**

@@ -221,20 +221,56 @@ export function getFlatErrorMsg(flatResult: unknown, fallback = ''): string {
 }
 
 /**
- * 作用：扁平请求 `request()` 成功后弹一次 `success`，**优先接口返回的 `msg` / `message`**；失败时不弹（错误已在 `onBackendFail` 中通过 `showErrorMsg` 提示）。
+ * 作用：判断 `createFlatRequest` 返回值是否为业务/网络失败。
+ */
+export function isFlatRequestFailed(flatResult: unknown): boolean {
+  if (isNil(flatResult) || typeof flatResult !== 'object') {
+    return false;
+  }
+  const r = flatResult as { error?: unknown };
+  return !isNil(r.error) && r.error !== false;
+}
+
+function parseEnvCodeList(raw: string | undefined) {
+  return (raw?.split(',') || []).map(c => c.trim()).filter(Boolean);
+}
+
+/**
+ * 作用：失败结果是否会由请求层跳转 403/404/500 异常页（此类不关弹窗也可，由路由接管）。
+ */
+export function isFlatRequestExceptionPageError(flatResult: unknown): boolean {
+  if (!isFlatRequestFailed(flatResult)) {
+    return false;
+  }
+  const o = flatResult as { response?: { data?: Record<string, unknown>; status?: number } };
+  const responseData = o.response?.data;
+  const businessCode = responseData && typeof responseData === 'object' ? String(responseData.code ?? '') : '';
+  const forbiddenCodes = parseEnvCodeList(import.meta.env.VITE_SERVICE_FORBIDDEN_CODES ?? 'A0200');
+  const serverErrorCodes = parseEnvCodeList(import.meta.env.VITE_SERVICE_SERVER_ERROR_CODES ?? 'A0500');
+  if (forbiddenCodes.includes(businessCode) || serverErrorCodes.includes(businessCode)) {
+    return true;
+  }
+  const httpStatus = o.response?.status;
+  if (httpStatus === 403 || httpStatus === 404) {
+    return true;
+  }
+  return typeof httpStatus === 'number' && httpStatus >= 500;
+}
+
+/**
+ * 作用：操作弹窗/抽屉提交结果处理：成功则 `success` 并返回 true；失败返回 false（**不关弹窗**）。
+ * 非 403/404/500 的错误文案由 `onBackendFail` / `onError` 全局 `showErrorMsg` 提示。
  *
  * @param result - `await request(...)` 的返回值 `{ data, error, response }`
- * @param fallback - 接口未带文案时的兜底
- * @returns {boolean} 是否成功（无 `error`）；可用于失败后不再关抽屉/刷新
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @param fallback - 接口未带文案时的兜底成功提示
+ * @returns {boolean} 是否成功
  */
 export function notifyOnceSuccessFromFlatResult(result: unknown, fallback: string): boolean {
+  if (isFlatRequestFailed(result)) {
+    return false;
+  }
   if (!isNil(result) && typeof result === 'object') {
-    const r = result as { error?: unknown; response?: unknown };
-    if (!isNil(r.error) && r.error !== false) {
-      return false;
-    }
+    const r = result as { response?: unknown };
     if (!isNil(r.response) && typeof r.response === 'object') {
       const text = getResponseMsg(r.response, '').trim();
       window.$message?.success?.(text || fallback);

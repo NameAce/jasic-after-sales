@@ -15,7 +15,28 @@
  *
  * 列表「进详情」入口文字：.table-list-entry-link（主色 + 下划线），见文件末尾。
  * 详情抽屉/弹窗内与上表同语义的 default 按钮浅色底：见文件末尾 .detail-mirror-table-action--*。
+ *
+ * 操作列宽度：各页面 createAntTableActionColumn({ width: 像素 }) 手写，一排展示即可（勿用 auto）。
  */
+
+.ant-table-thead > tr > th.table-action-col,
+.ant-table-tbody > tr > td.table-action-col {
+  white-space: nowrap;
+}
+
+.ant-table .table-action-col .ant-space {
+  flex-wrap: nowrap;
+}
+
+.ant-table .table-action-col .ant-btn.ant-btn-link {
+  padding-inline: 4px;
+}
+
+/* 固定列勿用 width:auto，避免撑满剩余横向空间 */
+.ant-table-cell.table-action-col.ant-table-cell-fix-right,
+.ant-table-cell.table-action-col.ant-table-cell-fix-left {
+  min-width: unset;
+}
 
 /* 提高优先级 + !important，覆盖 Ant Design 默认 .ant-btn-link 颜色 */
 .ant-table .ant-btn.ant-btn-link:not(.ant-btn-dangerous):not([class*='table-action-link--']) {

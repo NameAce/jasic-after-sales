@@ -80,11 +80,11 @@ export function normalizeRowActionCodes(row: Record<string, unknown>): WorkOrder
 }
 
 /**
- * 作用：将行可用动作拆成主按钮区与「更多」区（当前策略为主区尽量展示全部）。
+ * 作用：将行可用动作拆成主按钮区与 more 区（列表全部横排展示，more 恒为空）。
  * @param row - 表格行对象
- * @returns primary：优先顺序排列的主操作；more：剩余动作
+ * @returns primary：全部主操作；more：保留结构，当前不使用
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-15
  */
 export function splitRowActions(row: Record<string, unknown>): {
   primary: RowActionButton[];

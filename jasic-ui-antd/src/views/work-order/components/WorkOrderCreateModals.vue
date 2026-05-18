@@ -28,9 +28,10 @@ import {
   getUpstreamHqCreateBarcodeInfo,
   listUpstreamFirstCreateTargetOptions
 } from '@/service/api';
-import { getFlatResponseMsg } from '@/service/request/shared';
+import { isFlatRequestFailed, notifyOnceSuccessFromFlatResult } from '@/service/request/shared';
 import { useAuthStore } from '@/store/modules/auth';
 import { adaptiveModalWidth } from '@/hooks/common/modal-form-layout';
+import { createAntTableActionColumn } from '@/utils/table-action-width';
 import {
   type RegionCascaderOption,
   composeAddressWithRegion,
@@ -39,7 +40,6 @@ import {
   loadRegionCascaderData,
   splitFullAddressToRegionAndDetail
 } from '@/utils/china-region';
-import { estimateAntTableActionColWidth } from '@/utils/table-action-width';
 import {
   CREATE_ENTRY_PROXY,
   CREATE_ENTRY_UPSTREAM_FIRST,
@@ -63,7 +63,6 @@ import {
 } from '../create-work-order-form';
 
 /** 地址簿子表操作列：设为默认 / 编辑 / 删除 横排估算（选择与管理模式一致） */
-const CREATE_MODAL_COMPANY_ADDRESS_ACTION_COL_W = estimateAntTableActionColWidth(['设为默认', '编辑', '删除']);
 
 const emit = defineEmits<{
   (e: 'created'): void;
@@ -250,12 +249,7 @@ const companyAddressColumns = computed(() => {
     { title: '联系人', dataIndex: 'contactName', key: 'contactName', width: 120 },
     { title: '联系电话', dataIndex: 'contactPhone', key: 'contactPhone', width: 140 },
     { title: '详细地址', dataIndex: 'address', key: 'address', ellipsis: true },
-    {
-      title: '操作',
-      key: 'actions',
-      width: CREATE_MODAL_COMPANY_ADDRESS_ACTION_COL_W,
-      fixed: 'right' as const
-    }
+    createAntTableActionColumn({ width: 200 })
   ];
   if (companyAddressDialogMode.value === 'select') {
     return [{ title: '', key: 'pick', width: 48, align: 'center' as const }, ...rest];
@@ -510,11 +504,13 @@ async function queryCreateBarcodeInfo(options: { preserveTargetSelection?: boole
   resetCreateQueryState({ preserveTargetSelection: Boolean(options.preserveTargetSelection) });
   try {
     const res = await req;
+    if (isFlatRequestFailed(res)) {
+      return;
+    }
     const body = (res?.data || {}) as Record<string, unknown>;
     applyCreateBarcodeInfo(body, barcode);
     if (!options.silentSuccess) {
-      const msg = getFlatResponseMsg(res, '');
-      if (msg) window.$message?.success(msg);
+      notifyOnceSuccessFromFlatResult(res, '查询成功');
     }
   } catch {
     Object.assign(createForm, {
@@ -674,15 +670,10 @@ async function submitCompanyAddress() {
   };
   companyAddressSubmitting.value = true;
   try {
-    if (companyAddressForm.id) {
-      const res = await updateCompanyAddress({ id: companyAddressForm.id, ...payload });
-      const msg = getFlatResponseMsg(res, '');
-      if (msg) window.$message?.success(msg);
-    } else {
-      const res = await createCompanyAddress(payload);
-      const msg = getFlatResponseMsg(res, '');
-      if (msg) window.$message?.success(msg);
-    }
+    const res = companyAddressForm.id
+      ? await updateCompanyAddress({ id: companyAddressForm.id, ...payload })
+      : await createCompanyAddress(payload);
+    if (!notifyOnceSuccessFromFlatResult(res, '已保存')) return;
     companyAddressFormVisible.value = false;
     await loadCompanyAddressList({ preserveSelection: true });
   } finally {
@@ -703,8 +694,7 @@ async function handleDeleteCompanyAddress(row: CompanyAddressVO) {
     cancelText: '取消',
     onOk: async () => {
       const res = await deleteCompanyAddress(row.id);
-      const msg = getFlatResponseMsg(res, '');
-      if (msg) window.$message?.success(msg);
+      if (!notifyOnceSuccessFromFlatResult(res, '已删除')) return;
       await loadCompanyAddressList({ preserveSelection: true });
     }
   });
@@ -717,8 +707,7 @@ async function handleDeleteCompanyAddress(row: CompanyAddressVO) {
 async function handleSetDefaultCompanyAddress(row: CompanyAddressVO) {
   if (!row?.id || row.isDefault === 1) return;
   const res = await setDefaultCompanyAddress(row.id);
-  const msg = getFlatResponseMsg(res, '');
-  if (msg) window.$message?.success(msg);
+  if (!notifyOnceSuccessFromFlatResult(res, '已设为默认')) return;
   await loadCompanyAddressList({ preserveSelection: true });
 }
 
@@ -857,8 +846,7 @@ async function submitCreate() {
     createSubmitting.value = true;
     try {
       const res = await request;
-      const msg = getFlatResponseMsg(res, '');
-      if (msg) window.$message?.success(msg);
+      if (!notifyOnceSuccessFromFlatResult(res, '创建成功')) return;
       createDrawerOpen.value = false;
       emit('created');
     } finally {

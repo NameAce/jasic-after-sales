@@ -6,14 +6,13 @@ import { onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getNotifyTodoCount, getNotifyTodoPage, markNotifyMessageRead } from '@/service/api';
 import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
-import { estimateAntTableActionColWidth } from '@/utils/table-action-width';
+import { createAntTableActionColumn } from '@/utils/table-action-width';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
 
 type RowData = Record<string, any>;
 type TabKey = 'TODO' | 'HISTORY';
 
 /** 操作列：待办行「标记已读」单按钮横排估算 */
-const NOTIFY_LIST_ACTION_COL_WIDTH = estimateAntTableActionColWidth(['标记已读']);
 
 // 列表加载中
 const loading = ref(false);
@@ -88,7 +87,7 @@ const columns = [
   },
   { title: '状态', dataIndex: 'todoStatus', key: 'todoStatus', width: 100 },
   { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 170 },
-  { title: '操作', dataIndex: 'actions', key: 'actions', width: NOTIFY_LIST_ACTION_COL_WIDTH }
+  createAntTableActionColumn({ fixed: false, dataIndex: 'actions', width: 100 })
 ];
 
 /**

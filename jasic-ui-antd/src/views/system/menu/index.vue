@@ -21,16 +21,15 @@ import { useAuth } from '@/hooks/business/auth';
 import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 import { adaptiveModalWidth } from '@/hooks/common/modal-form-layout';
 import { useTableScroll } from '@/hooks/common/table';
-import { estimateAntTableActionColWidth } from '@/utils/table-action-width';
+import { createAntTableActionColumn } from '@/utils/table-action-width';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
 
 type RowData = Record<string, any>;
 const { hasAuth } = useAuth();
 const pageMenuTitle = useRouteMenuTitle();
 
-/** 操作列：编辑 / 新增子级 / 发布 / 删除 横排估算 */
-const MENU_LIST_ACTION_COL_WIDTH = estimateAntTableActionColWidth(['编辑', '新增子级', '发布', '删除']);
-const menuTreeTableScrollMinX = computed(() => 1090 + MENU_LIST_ACTION_COL_WIDTH);
+const MENU_ACTION_COL_WIDTH = 280;
+const menuTreeTableScrollMinX = computed(() => 1090 + MENU_ACTION_COL_WIDTH);
 const { tableWrapperRef, scrollConfig } = useTableScroll(menuTreeTableScrollMinX);
 
 const loading = ref(false);
@@ -156,12 +155,7 @@ const columns = computed(() => [
   { title: '类型', dataIndex: 'menuType', key: 'menuType', width: 90 },
   { title: '可见', dataIndex: 'isVisible', key: 'isVisible', width: 80 },
   { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-  {
-    title: '操作',
-    key: 'actions',
-    width: MENU_LIST_ACTION_COL_WIDTH,
-    fixed: 'right' as const
-  }
+  createAntTableActionColumn({ width: MENU_ACTION_COL_WIDTH })
 ]);
 
 const menuFormRules = {

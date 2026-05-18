@@ -23,7 +23,7 @@ import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 import { ADAPTIVE_MODAL_FORM_WIDE_MIN_COUNT, adaptiveModalWidth } from '@/hooks/common/modal-form-layout';
 import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
 import { useTableScroll } from '@/hooks/common/table';
-import { estimateAntTableActionColWidth } from '@/utils/table-action-width';
+import { createAntTableActionColumn } from '@/utils/table-action-width';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
 import { computeExpandedKeysForCheckedMenuTree } from '@/utils/tree-expand-keys';
 import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
@@ -40,9 +40,8 @@ const authStore = useAuthStore();
 const { hasAuth } = useAuth();
 const pageMenuTitle = useRouteMenuTitle();
 
-/** 操作列：编辑 / 分配菜单 / 删除 横排估算 */
-const ROLE_LIST_ACTION_COL_WIDTH = estimateAntTableActionColWidth(['编辑', '分配菜单', '删除']);
-const roleListTableScrollMinX = computed(() => 890 + ROLE_LIST_ACTION_COL_WIDTH);
+const ROLE_ACTION_COL_WIDTH = 200;
+const roleListTableScrollMinX = computed(() => 890 + ROLE_ACTION_COL_WIDTH);
 const { tableWrapperRef, scrollConfig } = useTableScroll(roleListTableScrollMinX);
 const loading = ref(false);
 const rows = ref<RowData[]>([]);
@@ -119,7 +118,7 @@ const columns = computed(() => [
   { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
   { title: '系统角色', dataIndex: 'isSystem', key: 'isSystem', width: 100 },
   { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 170 },
-  { title: '操作', key: 'actions', width: ROLE_LIST_ACTION_COL_WIDTH, fixed: 'right' as const }
+  createAntTableActionColumn({ width: ROLE_ACTION_COL_WIDTH })
 ]);
 
 /**

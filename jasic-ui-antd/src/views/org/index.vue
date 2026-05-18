@@ -44,7 +44,7 @@ import { adaptiveModalWidth } from '@/hooks/common/modal-form-layout';
 import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
 import { useTableScroll } from '@/hooks/common/table';
 import { computeExpandedKeysForCheckedMenuTree } from '@/utils/tree-expand-keys';
-import { estimateAntTableActionColWidth } from '@/utils/table-action-width';
+import { createAntTableActionColumn } from '@/utils/table-action-width';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
 import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
 
@@ -427,19 +427,6 @@ function formatCompanyRegion(record: RowData) {
 // 是否为签约相关 Tab（总部一级 / 一级二级）
 const isContractPageTab = computed(() => activeTab.value === 'hqFirst' || activeTab.value === 'firstSecond');
 
-// 各 Tab 列表操作列宽度：按「该行最多操作按钮」文案横排估算
-const ORG_LIST_ACTION_COL_WIDTH = {
-  company: estimateAntTableActionColWidth(['编辑', '删除']),
-  hqFirst: estimateAntTableActionColWidth(['编辑', '删除']),
-  firstSecond: estimateAntTableActionColWidth(['删除']),
-  external: estimateAntTableActionColWidth(['导入预览']),
-  area: estimateAntTableActionColWidth(['编辑', '删除']),
-  companyType: estimateAntTableActionColWidth(['编辑', '分配菜单', '删除'])
-} as const;
-
-/** CRM 导入建议列表：单行仅「选择」 */
-const COMPANY_CRM_IMPORT_LIST_ACTION_COL_WIDTH = estimateAntTableActionColWidth(['选择']);
-
 // 按当前 Tab 切换表格列定义
 const columns = computed(() => {
   switch (activeTab.value) {
@@ -527,13 +514,7 @@ const columns = computed(() => {
           key: 'createTime',
           width: 160
         },
-        {
-          title: '操作',
-          dataIndex: 'actions',
-          key: 'actions',
-          width: ORG_LIST_ACTION_COL_WIDTH.company,
-          fixed: 'right' as const
-        }
+        orgActionColumn('company')
       ];
     case 'hqFirst':
       return [
@@ -569,13 +550,7 @@ const columns = computed(() => {
           key: 'createTime',
           width: 170
         },
-        {
-          title: '操作',
-          dataIndex: 'actions',
-          key: 'actions',
-          width: ORG_LIST_ACTION_COL_WIDTH.hqFirst,
-          fixed: 'right' as const
-        }
+        orgActionColumn('hqFirst')
       ];
     case 'firstSecond':
       return [
@@ -598,13 +573,7 @@ const columns = computed(() => {
           key: 'createTime',
           width: 170
         },
-        {
-          title: '操作',
-          dataIndex: 'actions',
-          key: 'actions',
-          width: ORG_LIST_ACTION_COL_WIDTH.firstSecond,
-          fixed: 'right' as const
-        }
+        orgActionColumn('firstSecond')
       ];
     case 'external':
       return [
@@ -633,13 +602,7 @@ const columns = computed(() => {
           width: 140
         },
         { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-        {
-          title: '操作',
-          dataIndex: 'actions',
-          key: 'actions',
-          width: ORG_LIST_ACTION_COL_WIDTH.external,
-          fixed: 'right' as const
-        }
+        orgActionColumn('external')
       ];
     case 'area':
       return [
@@ -663,13 +626,7 @@ const columns = computed(() => {
           key: 'createTime',
           width: 160
         },
-        {
-          title: '操作',
-          dataIndex: 'actions',
-          key: 'actions',
-          width: ORG_LIST_ACTION_COL_WIDTH.area,
-          fixed: 'right' as const
-        }
+        orgActionColumn('area')
       ];
     case 'companyType':
       return [
@@ -692,13 +649,7 @@ const columns = computed(() => {
           width: 120
         },
         { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
-        {
-          title: '操作',
-          dataIndex: 'actions',
-          key: 'actions',
-          width: ORG_LIST_ACTION_COL_WIDTH.companyType,
-          fixed: 'right' as const
-        }
+        orgActionColumn('companyType')
       ];
     default:
       return [];
@@ -815,23 +766,41 @@ const crmFsImportColumns = [
 // 主表格当前展示的列（与 columns 同步）
 const displayColumns = computed(() => columns.value);
 
+/** 各 Tab 操作列宽（本 Tab 按钮一排展示即可） */
+const ORG_TAB_ACTION_COL_WIDTH: Record<TabKey, number> = {
+  company: 120,
+  hqFirst: 120,
+  firstSecond: 72,
+  external: 88,
+  area: 120,
+  companyType: 220
+};
+
+function orgActionColumn(tab: TabKey) {
+  return createAntTableActionColumn({
+    dataIndex: 'actions',
+    width: ORG_TAB_ACTION_COL_WIDTH[tab]
+  });
+}
+
 // 主表格横向滚动宽度估计值
 const crmTableScrollX = computed(() => {
+  const actionW = ORG_TAB_ACTION_COL_WIDTH[activeTab.value] ?? 120;
   switch (activeTab.value) {
     case 'company':
-      return 2252;
+      return 2252 + actionW;
     case 'hqFirst':
-      return 1152;
+      return 1152 + actionW;
     case 'firstSecond':
-      return 676;
+      return 676 + actionW;
     case 'external':
-      return 824;
+      return 824 + actionW;
     case 'area':
-      return 852;
+      return 852 + actionW;
     case 'companyType':
-      return 846;
+      return 846 + actionW;
     default:
-      return 1100;
+      return 1100 + actionW;
   }
 });
 
@@ -3151,7 +3120,7 @@ onMounted(() => {
             key: 'address',
             ellipsis: true
           },
-          { title: '操作', key: 'actions', width: COMPANY_CRM_IMPORT_LIST_ACTION_COL_WIDTH, fixed: 'right' }
+          createAntTableActionColumn({ width: 72 })
         ]"
       >
         <template #bodyCell="{ column, record }">

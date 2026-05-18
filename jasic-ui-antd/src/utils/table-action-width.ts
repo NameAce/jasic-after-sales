@@ -1,37 +1,52 @@
 /**
- * 作用：估算 Ant Design Vue「小号 + type=link」按钮单行横排时的总宽度，用于表格操作列 `width`。
- * @remarks 按中文等宽近似（每字约 14px）+ 左右留白；与 `ASpace` 默认间距叠加。
+ * 作用：列表表格「操作」列统一定义（各页面自行传入固定 width，一排展示即可）。
+ * @remarks 配合 `list-table-unify.css` 中 `.table-action-col`；`scroll.x` 需累加同一 width。
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-15
  */
 
-/**
- * 作用：单个小号 link 按钮的估算宽度（像素）。
- * @param label 按钮可见文案
- * @returns {number} 估算宽度，含最小点击宽度
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
- */
-function estimateLinkActionButtonWidth(label: string): number {
-  // 小号 link：左右留白 + 按字符数估算文本宽，并保证最小可点区域
-  const charCount = [...String(label || '')].length;
-  const textPx = 10 + charCount * 14;
-  return Math.max(48, Math.ceil(textPx));
-}
+/** 操作列单元格 class */
+export const ANT_TABLE_ACTION_COL_CLASS = 'table-action-col';
+
+export type AntTableActionColumnOptions = {
+  /** 是否固定在右侧，默认 `right` */
+  fixed?: 'right' | false;
+  title?: string;
+  /** 列 key，默认 `actions` */
+  key?: string;
+  /** 与列 `dataIndex` 一致时使用，默认不写 */
+  dataIndex?: string;
+  /** 列宽（像素），由当前页按实际按钮一排展示需要填写 */
+  width: number;
+};
 
 /**
- * 作用：按一行内可能出现的全部操作按钮文案，估算操作列最小宽度（横排不换行）。
- * @param labels 同一行内「最多」会同时出现的按钮文案（与模板中 `AButton` 文案一致，含最长组合）
- * @param gapPx 按钮间距（与 `ASpace :size` 接近时可取 6~10）
- * @returns {number} 建议写入表格列 `width` 的像素值（已向上取整并留少量余量）
- * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * 作用：生成 Ant Design Vue 表格操作列配置（固定 `width`，不使用 auto）。
  */
-export function estimateAntTableActionColWidth(labels: readonly string[], gapPx = 8): number {
-  if (!labels.length) return 80;
-  // 各按钮宽度之和
-  const sumBtn = labels.reduce((acc, t) => acc + estimateLinkActionButtonWidth(t), 0);
-  // 按钮间隙：n 个按钮有 n-1 段间距；再留 8px 边距防止字体渲染差异裁切
-  const gaps = Math.max(0, labels.length - 1) * gapPx;
-  return Math.ceil(sumBtn + gaps + 8);
+export function createAntTableActionColumn(options: AntTableActionColumnOptions) {
+  const { fixed = 'right', title = '操作', key = 'actions', dataIndex, width } = options;
+
+  const col: {
+    title: string;
+    key: string;
+    className: string;
+    width: number;
+    align: 'left';
+    fixed?: 'right';
+    dataIndex?: string;
+  } = {
+    title,
+    key,
+    className: ANT_TABLE_ACTION_COL_CLASS,
+    width,
+    align: 'left'
+  };
+
+  if (dataIndex) {
+    col.dataIndex = dataIndex;
+  }
+  if (fixed) {
+    col.fixed = fixed;
+  }
+  return col;
 }

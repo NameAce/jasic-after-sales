@@ -1062,7 +1062,8 @@ async function submitAccept() {
       openClose({ fromNoFaultTechAccept: true });
       return undefined;
     }
-    await techAcceptWorkOrder(payload);
+    const acceptResult = await techAcceptWorkOrder(payload);
+    if (!notifyOnceSuccessFromFlatResult(acceptResult, '接单成功')) return undefined;
     techAcceptOpen.value = false;
     await loadDetail();
     emit('success');
@@ -1151,10 +1152,11 @@ async function submitRepairProductModel() {
   }
   repairProductModelSubmitting.value = true;
   try {
-    await updateRepairProductModel({
+    const modelResult = await updateRepairProductModel({
       workOrderId: id.value,
       productModel: normalizeText(repairProductModelForm.productModel)
     });
+    if (!notifyOnceSuccessFromFlatResult(modelResult, '机型补录成功')) return;
     const nextAction = repairProductModelPendingAction.value;
     repairProductModelOpen.value = false;
     repairProductModelPendingAction.value = '';
@@ -1377,11 +1379,12 @@ async function submitTransfer() {
   }
   transferSubmitting.value = true;
   try {
-    await transferWorkOrder({
+    const transferResult = await transferWorkOrder({
       workOrderId: id.value,
       targetCompanyId: transferForm.companyId as number,
       remark: transferForm.remark || undefined
     });
+    if (!notifyOnceSuccessFromFlatResult(transferResult, '转单成功')) return undefined;
     transferOpen.value = false;
     await loadDetail();
     emit('success');
@@ -1431,7 +1434,7 @@ async function submitRepair() {
   }
   repairSubmitting.value = true;
   try {
-    await repairWorkOrder({
+    const repairResult = await repairWorkOrder({
       workOrderId: id.value,
       quoteAmount: repairForm.quoteAmount,
       quoteDesc: repairForm.quoteDesc || undefined,
@@ -1449,6 +1452,7 @@ async function submitRepair() {
         : undefined,
       otherImageFileIds: repairForm.otherImageFileIds.length ? repairForm.otherImageFileIds : undefined
     });
+    if (!notifyOnceSuccessFromFlatResult(repairResult, '维修登记提交成功')) return undefined;
     repairOpen.value = false;
     await loadDetail();
     emit('success');
@@ -1542,10 +1546,11 @@ async function submitMail() {
   }
   mailSubmitting.value = true;
   try {
-    await updateWorkOrderSendExpress({
+    const mailResult = await updateWorkOrderSendExpress({
       workOrderId: id.value,
       senderVoucherFileIds: mailForm.senderVoucherFileIds
     });
+    if (!notifyOnceSuccessFromFlatResult(mailResult, '寄件凭证提交成功')) return undefined;
     mailOpen.value = false;
     await loadDetail();
     emit('success');

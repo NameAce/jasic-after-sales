@@ -26,23 +26,15 @@ import { useAuth } from '@/hooks/business/auth';
 import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
 import { useTableScroll } from '@/hooks/common/table';
-import { estimateAntTableActionColWidth } from '@/utils/table-action-width';
+import { createAntTableActionColumn } from '@/utils/table-action-width';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
 import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
 
 type RowData = Record<string, any>;
 
-/** 操作列：权限全开时一行最多 6 个 link 按钮横排估算 */
-const USER_LIST_ACTION_COL_WIDTH = estimateAntTableActionColWidth([
-  '编辑',
-  '分配角色',
-  '绑定大区',
-  '重置密码',
-  '强制下线',
-  '删除'
-]);
-
-const userListTableScrollMinX = computed(() => 1040 + USER_LIST_ACTION_COL_WIDTH);
+/** 操作列宽：本页 6 个链接按钮一排展示 */
+const USER_ACTION_COL_WIDTH = 520;
+const userListTableScrollMinX = computed(() => 1040 + USER_ACTION_COL_WIDTH);
 // 表格区域滚动 Hook
 const { tableWrapperRef, scrollConfig } = useTableScroll(userListTableScrollMinX);
 const pageMenuTitle = useRouteMenuTitle();
@@ -143,10 +135,16 @@ const columns = computed(() => [
   { title: '用户名', dataIndex: 'username', key: 'username', width: 160 },
   { title: '姓名', dataIndex: 'realName', key: 'realName', width: 160 },
   { title: '手机号', dataIndex: 'phone', key: 'phone', width: 140 },
-  { title: '邮箱', dataIndex: 'email', key: 'email', width: 220, ellipsis: true },
+  {
+    title: '邮箱',
+    dataIndex: 'email',
+    key: 'email',
+    width: 220,
+    ellipsis: true
+  },
   { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
   { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 180 },
-  { title: '操作', key: 'actions', width: USER_LIST_ACTION_COL_WIDTH, fixed: 'right' as const }
+  createAntTableActionColumn({ width: USER_ACTION_COL_WIDTH })
 ]);
 
 /**
@@ -217,7 +215,12 @@ async function ensureAssignOptions() {
     roleOpts.value = list
       .map((r: RowData) => {
         const id = Number(r.id ?? r.roleId ?? r.value);
-        return Number.isFinite(id) ? { value: id, label: String(r.roleName ?? r.label ?? r.roleKey ?? id) } : null;
+        return Number.isFinite(id)
+          ? {
+              value: id,
+              label: String(r.roleName ?? r.label ?? r.roleKey ?? id)
+            }
+          : null;
       })
       .filter(Boolean) as Array<{ label: string; value: number }>;
   }

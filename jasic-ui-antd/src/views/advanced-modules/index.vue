@@ -64,7 +64,7 @@ import { useAuth } from '@/hooks/business/auth';
 import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
 import { useTableScroll } from '@/hooks/common/table';
 import { computeExpandedKeysForCheckedMenuTree } from '@/utils/tree-expand-keys';
-import { estimateAntTableActionColWidth } from '@/utils/table-action-width';
+import { createAntTableActionColumn } from '@/utils/table-action-width';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
 import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
 
@@ -104,40 +104,37 @@ const {
 // 通用分页
 const pageQuery = reactive({ pageNum: 1, pageSize: 10 });
 
-/** 各子模块操作列宽度：按「当前表格该行最多操作按钮」文案横排估算 */
-const ADV_MODULE_ACTION_COL_WIDTH = {
-  dict: estimateAntTableActionColWidth(['编辑', '删除']),
-  config: estimateAntTableActionColWidth(['编辑', '删除']),
-  notifyTemplate: estimateAntTableActionColWidth(['预览', '渠道配置', '编辑', '删除']),
-  syncTask: estimateAntTableActionColWidth(['编辑', '执行', '日志']),
-  fault: estimateAntTableActionColWidth(['编辑']),
-  roleTemplate: estimateAntTableActionColWidth(['编辑', '分配菜单', '全量同步到公司', '删除']),
-  region: estimateAntTableActionColWidth(['编辑', '删除'])
-} as const;
+/** 各 Tab 操作列宽（本页一排展示，与 createAntTableActionColumn 的 width 一致） */
+const ADV_MODULE_ACTION_WIDTH: Partial<Record<ModuleKey, number>> = {
+  dict: 120,
+  config: 120,
+  notifyTemplate: 400,
+  syncTask: 200,
+  fault: 72,
+  roleTemplate: 380,
+  region: 120
+};
 
-/** 通知模板渠道弹窗内「字段映射」子表：单行仅「删除」 */
-const NOTIFY_FIELD_MAPPING_ACTION_COL_W = estimateAntTableActionColWidth(['删除']);
-
-/** 与当前 Tab 列宽之和匹配的最小 scroll.x，避免固定操作列被挤压、需横向拖动才能点全按钮 */
+/** 与当前 Tab 列宽之和 + 操作列 width 匹配的最小 scroll.x */
 function advancedModuleTableMinScrollX(key: ModuleKey): number {
-  const w = ADV_MODULE_ACTION_COL_WIDTH;
+  const actionW = ADV_MODULE_ACTION_WIDTH[key] ?? 120;
   switch (key) {
     case 'dict':
-      return 160 + 180 + 90 + 140 + w.dict;
+      return 160 + 180 + 90 + 140 + actionW;
     case 'config':
-      return 160 + 180 + 220 + 90 + 140 + w.config;
+      return 160 + 180 + 220 + 90 + 140 + actionW;
     case 'notifyTemplate':
-      return 200 + 180 + 110 + 100 + 100 + 160 + 140 + 140 + 170 + w.notifyTemplate;
+      return 200 + 180 + 110 + 100 + 100 + 160 + 140 + 140 + 170 + actionW;
     case 'barcode':
       return 180 + 140 + 160 + 120 + 120 + 120 + 160 + 140 + 140 + 90 + 170;
     case 'syncTask':
-      return 160 + 180 + 140 + 160 + 90 + 100 + 170 + 170 + w.syncTask;
+      return 160 + 180 + 140 + 160 + 90 + 100 + 170 + 170 + actionW;
     case 'fault':
-      return 180 + 140 + 140 + 160 + 90 + 170 + w.fault;
+      return 180 + 140 + 140 + 160 + 90 + 170 + actionW;
     case 'roleTemplate':
-      return 180 + 160 + 140 + 90 + 140 + 160 + 170 + w.roleTemplate;
+      return 180 + 160 + 140 + 90 + 140 + 160 + 170 + actionW;
     case 'region':
-      return 140 + 200 + 120 + 170 + w.region;
+      return 140 + 200 + 120 + 170 + actionW;
     default:
       return 960;
   }
@@ -145,6 +142,12 @@ function advancedModuleTableMinScrollX(key: ModuleKey): number {
 
 const tableScrollMinX = computed(() => advancedModuleTableMinScrollX(activeKey.value));
 const { tableWrapperRef, scrollConfig } = useTableScroll(tableScrollMinX);
+
+const notifyFieldMappingColumns = [
+  { title: '模板字段名', dataIndex: 'field', key: 'field' },
+  { title: '变量表达式', dataIndex: 'value', key: 'value' },
+  createAntTableActionColumn({ width: 120 })
+];
 
 const tableListLocale = createAntTableListLocale(listFetchErrorMsg, listEmptyBackendMsg, rows);
 
@@ -575,13 +578,7 @@ function loadByModule() {
 
 // 当前子模块表格列定义
 const columns = computed(() => {
-  const aw = ADV_MODULE_ACTION_COL_WIDTH;
-  const actionCol = (width: number) => ({
-    title: '操作',
-    key: 'actions',
-    width,
-    fixed: 'right' as const
-  });
+  const actionCol = (width: number) => createAntTableActionColumn({ width });
   switch (activeKey.value) {
     case 'dict':
       return [
@@ -599,7 +596,7 @@ const columns = computed(() => {
         },
         { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
         { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
-        actionCol(aw.dict)
+        actionCol(120)
       ];
     case 'config':
       return [
@@ -623,7 +620,7 @@ const columns = computed(() => {
         },
         { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
         { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
-        actionCol(aw.config)
+        actionCol(120)
       ];
     case 'notifyTemplate':
       return [
@@ -681,7 +678,7 @@ const columns = computed(() => {
           key: 'updateTime',
           width: 170
         },
-        actionCol(aw.notifyTemplate)
+        actionCol(400)
       ];
     case 'barcode':
       return [
@@ -783,7 +780,7 @@ const columns = computed(() => {
           key: 'nextFireTime',
           width: 170
         },
-        actionCol(aw.syncTask)
+        actionCol(200)
       ];
     case 'fault':
       return [
@@ -818,7 +815,7 @@ const columns = computed(() => {
           key: 'updateTime',
           width: 170
         },
-        actionCol(aw.fault)
+        actionCol(72)
       ];
     case 'roleTemplate':
       return [
@@ -849,7 +846,7 @@ const columns = computed(() => {
           key: 'createTime',
           width: 170
         },
-        actionCol(aw.roleTemplate)
+        actionCol(380)
       ];
     case 'region':
       return [
@@ -872,7 +869,7 @@ const columns = computed(() => {
           key: 'createTime',
           width: 170
         },
-        actionCol(aw.region)
+        actionCol(120)
       ];
     default:
       return [];
@@ -3585,16 +3582,7 @@ onMounted(async () => {
             </ASpace>
           </div>
           <ATable
-            :columns="[
-              { title: '模板字段名', dataIndex: 'field', key: 'field' },
-              { title: '变量表达式', dataIndex: 'value', key: 'value' },
-              {
-                title: '操作',
-                key: 'actions',
-                width: NOTIFY_FIELD_MAPPING_ACTION_COL_W,
-                fixed: 'right' as const
-              }
-            ]"
+            :columns="notifyFieldMappingColumns"
             :data-source="item.fieldMapping || []"
             :pagination="false"
             :scroll="{ x: 'max-content' }"
