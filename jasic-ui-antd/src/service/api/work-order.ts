@@ -56,6 +56,10 @@ export interface WorkOrderListVO {
   hasTransfer?: number;
   transferCount?: number;
   quoteAmount?: number;
+  /** 当前列表项可执行动作编码（viewScope=CURRENT 时由后端计算） */
+  availableActions?: string[];
+  /** 无可执行动作时的只读说明 */
+  readonlyReason?: string;
   createTime?: string;
 }
 

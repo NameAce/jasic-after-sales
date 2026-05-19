@@ -1,18 +1,21 @@
 /**
  * 列表页搜索区：筛选项在左、重置/查询在右，中间留白分离。
  * 用法：<div class="page-search-toolbar"><div class="page-search-toolbar__filters">…ARow…</div><div class="page-search-toolbar__actions">…</div></div>
+ *
+ * 布局说明：操作区固定在首行右侧；展开更多筛选项时仅左侧筛选项区域增高，查询/重置/展开按钮位置不变。
  */
 .page-search-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px 32px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 32px;
+  row-gap: 16px;
+  align-items: start;
   width: 100%;
 }
 
 .page-search-toolbar__filters {
-  flex: 1 1 auto;
+  grid-column: 1;
+  grid-row: 1;
   min-width: 0;
 }
 
@@ -25,41 +28,100 @@
   display: none !important;
 }
 
+/** 固定在网格首行右侧，展开筛选时不随左侧多行内容下移或换行 */
 .page-search-toolbar__actions {
-  flex: 0 0 auto;
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+  flex-shrink: 0;
   display: inline-flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
+  white-space: nowrap;
 }
 
 @media (max-width: 767px) {
+  .page-search-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .page-search-toolbar__filters {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
   .page-search-toolbar__actions {
+    grid-column: 1;
+    grid-row: 2;
     width: 100%;
   }
 }
 
+/**
+ * layout="inline" 的弹窗内筛选：筛选项可换行，操作按钮组固定右上角。
+ * 仅一项时不要用 margin-left:auto，否则单独的状态等筛选项会被挤到最右侧（应靠左）。
+ */
 .page-search-toolbar--inline.ant-form,
 form.page-search-toolbar--inline.ant-form-inline {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   gap: 8px 16px;
   width: 100%;
+  box-sizing: border-box;
+  /* 为右侧固定按钮组预留宽度，避免展开后筛选项与按钮重叠 */
+  padding-right: var(--page-search-inline-actions-width, 220px);
 }
 
-/**
- * layout="inline" 的弹窗内筛选：最后一项（通常为按钮组）靠右。
- * 仅一项时不要用 margin-left:auto，否则单独的状态等筛选项会被挤到最右侧（应靠左）。
- */
 .page-search-toolbar--inline.ant-form > .ant-form-item:last-child:not(:only-child),
 form.page-search-toolbar--inline.ant-form-inline > .ant-form-item:last-child:not(:only-child) {
-  margin-left: auto;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  margin-left: 0 !important;
   margin-bottom: 0;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .page-search-toolbar--inline.ant-form > .ant-form-item,
 form.page-search-toolbar--inline.ant-form-inline > .ant-form-item {
   margin-bottom: 0;
+}
+
+/**
+ * 弹窗内筛选项较少、需强制单行展示（如公司「从 CRM 导入」）：不换行，按钮组靠右跟随同行。
+ */
+.page-search-toolbar--inline.page-search-toolbar--inline-nowrap.ant-form,
+form.page-search-toolbar--inline.page-search-toolbar--inline-nowrap.ant-form-inline {
+  flex-wrap: nowrap;
+  padding-right: 0;
+}
+
+.page-search-toolbar--inline.page-search-toolbar--inline-nowrap.ant-form > .ant-form-item:not(:last-child),
+form.page-search-toolbar--inline.page-search-toolbar--inline-nowrap.ant-form-inline
+  > .ant-form-item:not(:last-child) {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.page-search-toolbar--inline.page-search-toolbar--inline-nowrap.ant-form
+  > .ant-form-item:not(:last-child)
+  .ant-form-item-control-input,
+form.page-search-toolbar--inline.page-search-toolbar--inline-nowrap.ant-form-inline
+  > .ant-form-item:not(:last-child)
+  .ant-form-item-control-input {
+  width: 100%;
+}
+
+.page-search-toolbar--inline.page-search-toolbar--inline-nowrap.ant-form > .ant-form-item:last-child:not(:only-child),
+form.page-search-toolbar--inline.page-search-toolbar--inline-nowrap.ant-form-inline
+  > .ant-form-item:last-child:not(:only-child) {
+  position: static;
+  flex: 0 0 auto;
+  margin-left: auto;
 }

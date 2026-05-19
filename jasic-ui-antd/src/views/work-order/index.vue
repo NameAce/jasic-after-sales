@@ -18,7 +18,7 @@ import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-
 import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
 import WorkOrderCreateModals from './components/WorkOrderCreateModals.vue';
 import WorkOrderDetailDrawer from './components/WorkOrderDetailDrawer.vue';
-import { getRowPrimaryActions } from './list-actions';
+import { getRowPrimaryActions, shouldShowReadonlyReason } from './list-actions';
 
 type RowData = Record<string, any>;
 
@@ -153,8 +153,8 @@ const statusSegmentOptions = computed(() =>
   }))
 );
 
-// 是否存在任一行的主操作按钮；有则显示「操作」列
-const hasAnyRowActionButtons = computed(() => rows.value.some(row => getRowPrimaryActions(row).length > 0));
+// 「当前处理」视图展示操作列（按钮来自 availableActions，无动作时展示 readonlyReason）
+const showOperationColumn = computed(() => query.viewScope === 'CURRENT');
 
 /** 本页常见 2 个链接按钮一排（如「维修员接单」「上传寄件单号」） */
 const WORK_ORDER_ACTION_COL_WIDTH = 200;
@@ -226,7 +226,7 @@ const columns = computed(() => {
       width: 180
     }
   ];
-  if (hasAnyRowActionButtons.value) {
+  if (showOperationColumn.value) {
     baseColumns.push(
       createAntTableActionColumn({
         dataIndex: 'actions',
@@ -664,7 +664,10 @@ watch(
           </template>
           <template v-else-if="column.key === 'actions'">
             <div class="work-order-actions-cell">
-              <div class="work-order-actions-cell__row work-order-actions-cell__row--primary">
+              <div
+                v-if="query.viewScope === 'CURRENT'"
+                class="work-order-actions-cell__row work-order-actions-cell__row--primary"
+              >
                 <AButton
                   v-for="item in getRowPrimaryActions(record)"
                   :key="`${record.id}-${item.action}`"
@@ -680,6 +683,12 @@ watch(
                 >
                   {{ item.label }}
                 </AButton>
+              </div>
+              <div
+                v-if="shouldShowReadonlyReason(record, query.viewScope === 'CURRENT')"
+                class="work-order-actions-cell__reason"
+              >
+                {{ record.readonlyReason }}
               </div>
             </div>
           </template>

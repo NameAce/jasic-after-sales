@@ -88,7 +88,6 @@ const pageMenuTitle = useRouteMenuTitle();
 
 const companySearchFilter = usePageSearchFilterCollapse(3);
 const externalSearchFilter = usePageSearchFilterCollapse(1);
-const hqCrmImportSearchFilter = usePageSearchFilterCollapse(5);
 
 // 路由 name 与子 Tab 映射
 const ROUTE_NAME_TO_TAB_KEY: Record<string, TabKey> = {
@@ -236,6 +235,12 @@ const companyCrmImportQuery = reactive({
   companyName: '',
   custState: undefined as number | undefined
 });
+/** CRM 公司导入表格当前勾选行（仅保留最后一项，与单行「选择」语义一致） */
+const selectedCompanyCrmImportRowKeys = ref<(string | number)[]>([]);
+/** 「选择 CRM 公司」抽屉宽度（略宽于默认，便于 SAP 编码等 label 与输入框并排） */
+const companyCrmImportDrawerWidth = 1280;
+/** 「从 CRM 导入签约」抽屉宽度（筛选项单行并排展示） */
+const contractCrmImportDrawerWidth = 1360;
 // 外部公司状态选项
 const externalStateOptions = [
   { value: 0, label: '待审核' },
@@ -1900,6 +1905,7 @@ async function onCompanyCityChange(code?: any) {
  */
 async function prefillCompanyByCrm() {
   companyCrmImportOpen.value = true;
+  selectedCompanyCrmImportRowKeys.value = [];
   companyCrmImportQuery.pageNum = 1;
   await loadCompanyCrmImportList();
 }
@@ -1909,6 +1915,7 @@ async function prefillCompanyByCrm() {
  */
 async function loadCompanyCrmImportList() {
   companyCrmListMsgs.clearListMsgs();
+  selectedCompanyCrmImportRowKeys.value = [];
   companyCrmImportLoading.value = true;
   try {
     const flat = await listExternalCompany({
@@ -1955,6 +1962,45 @@ function resetCompanyCrmImportSearch() {
   companyCrmImportQuery.custState = undefined;
   loadCompanyCrmImportList();
 }
+
+/**
+ * 作用：解析 CRM 导入公司表格行主键（与 row-key、勾选一致）。
+ * @param record - 外部公司行
+ * @returns 行主键
+ */
+function resolveCompanyCrmImportRowKey(record: RowData) {
+  return (record.id ?? record.custId) as string | number;
+}
+
+/**
+ * 作用：CRM 公司导入表格勾选变更；行为与操作列「选择」一致，选中即触发导入预览/回填。
+ * @param keys - 当前勾选主键列表
+ * @param selectedRows - 当前勾选行数据
+ */
+function onCompanyCrmImportRowSelectChange(keys: (string | number)[], selectedRows: RowData[]) {
+  if (!keys.length) {
+    selectedCompanyCrmImportRowKeys.value = [];
+    return;
+  }
+  const key = keys[keys.length - 1]!;
+  selectedCompanyCrmImportRowKeys.value = [key];
+  const row =
+    selectedRows.find(item => resolveCompanyCrmImportRowKey(item) === key) ??
+    companyCrmImportRows.value.find(item => resolveCompanyCrmImportRowKey(item) === key);
+  if (row) {
+    void useCompanyCrmImportRow(row);
+  }
+}
+
+/** CRM 公司导入表格行选择：复选框展示，禁用规则与原「选择」按钮一致 */
+const companyCrmImportRowSelection = computed(() => ({
+  selectedRowKeys: selectedCompanyCrmImportRowKeys.value,
+  hideSelectAll: true,
+  onChange: onCompanyCrmImportRowSelectChange,
+  getCheckboxProps: (record: RowData) => ({
+    disabled: !record.canImport && !record.existingCompanyId
+  })
+}));
 
 /**
  * 作用：选中 CRM 一行后预览并带入公司表单或提示不可导入。
@@ -2510,21 +2556,16 @@ onMounted(() => {
       </ATable>
     </ACard>
 
-    <ADrawer v-model:open="hqCrmImportOpen" title="从CRM导入签约" :width="1180">
-      <AForm :model="crmHqQuery" layout="inline" class="page-search-toolbar--inline mb-12px">
-        <AFormItem
-          label="总部公司"
-          :class="{
-            'page-search-toolbar__filter-col--collapsed': hqCrmImportSearchFilter.isSearchFilterHidden(0)
-          }"
-        >
+    <ADrawer v-model:open="hqCrmImportOpen" title="从CRM导入签约" :width="contractCrmImportDrawerWidth">
+      <AForm :model="crmHqQuery" layout="inline" class="company-crm-import-search mb-12px">
+        <AFormItem label="总部公司">
           <ASelect
             v-model:value="crmHqQuery.hqCompanyId"
             allow-clear
             show-search
             option-filter-prop="label"
             placeholder="请选择总部公司"
-            class="min-w-180px"
+            class="min-w-160px w-full"
             :options="
               hqCompanyOptions.map(c => ({
                 label: c.companyName,
@@ -2534,19 +2575,14 @@ onMounted(() => {
             @change="onCrmHqCompanyChange"
           />
         </AFormItem>
-        <AFormItem
-          label="一级公司"
-          :class="{
-            'page-search-toolbar__filter-col--collapsed': hqCrmImportSearchFilter.isSearchFilterHidden(1)
-          }"
-        >
+        <AFormItem label="一级公司">
           <ASelect
             v-model:value="crmHqQuery.firstCompanyId"
             allow-clear
             show-search
             option-filter-prop="label"
             placeholder="全部"
-            class="min-w-160px"
+            class="min-w-140px w-full"
             :options="
               firstCompanyOptions.map(c => ({
                 label: c.companyName,
@@ -2555,19 +2591,14 @@ onMounted(() => {
             "
           />
         </AFormItem>
-        <AFormItem
-          label="大区"
-          :class="{
-            'page-search-toolbar__filter-col--collapsed': hqCrmImportSearchFilter.isSearchFilterHidden(2)
-          }"
-        >
+        <AFormItem label="大区">
           <ASelect
             v-model:value="crmHqQuery.regionId"
             allow-clear
             show-search
             option-filter-prop="label"
             placeholder="全部"
-            class="min-w-160px"
+            class="min-w-140px w-full"
             :options="
               crmImportRegionOptions.map(r => ({
                 label: `${r.regionName || '-'}${r.regionCode ? `（${r.regionCode}）` : ''}`,
@@ -2576,35 +2607,21 @@ onMounted(() => {
             "
           />
         </AFormItem>
-        <AFormItem
-          label="客户编码"
-          :class="{
-            'page-search-toolbar__filter-col--collapsed': hqCrmImportSearchFilter.isSearchFilterHidden(3)
-          }"
-        >
+        <AFormItem label="客户编码">
           <AInput
             v-model:value="crmHqQuery.kunnr"
             allow-clear
+            class="min-w-140px"
             placeholder="请输入客户编码"
             @press-enter="handleCrmHqSearch"
           />
         </AFormItem>
-        <AFormItem
-          :class="{
-            'page-search-toolbar__filter-col--collapsed': hqCrmImportSearchFilter.isSearchFilterHidden(4)
-          }"
-        >
+        <AFormItem class="company-crm-import-search__checkbox">
           <ACheckbox v-model:checked="crmHqQuery.showAbnormal">查看异常数据</ACheckbox>
         </AFormItem>
         <AFormItem>
           <AButton type="primary" :loading="loading" @click="handleCrmHqSearch">搜索</AButton>
           <AButton class="ml-8px" :loading="loading" @click="resetHqCrmQuery">重置</AButton>
-          <PageSearchExpandButton
-            v-if="hqCrmImportSearchFilter.showSearchFilterExpandToggle"
-            class="ml-8px"
-            :expanded="hqCrmImportSearchFilter.searchFilterExpanded"
-            @click="hqCrmImportSearchFilter.toggleSearchFilterExpand"
-          />
         </AFormItem>
       </AForm>
       <ATable
@@ -2899,14 +2916,15 @@ onMounted(() => {
           </AFormItem>
         </div>
         <ARow :gutter="[16, 0]">
-          <ACol :span="24" :md="12">
-            <AFormItem v-if="!companyForm.id" label="管理员用户名" name="adminUsername" required>
-              <AInput v-model:value="companyForm.adminUsername" placeholder="新增公司时必填，用于创建默认管理员账号" />
+          <!-- 销售组织放左侧；编辑时无管理员用户名列，避免空列占位把销售组织挤到右侧 -->
+          <ACol v-if="isCompanyHqType(companyForm.typeCode)" :span="24" :md="12">
+            <AFormItem label="销售组织" name="salesOrg" required>
+              <AInput v-model:value="companyForm.salesOrg" placeholder="请输入销售组织" />
             </AFormItem>
           </ACol>
-          <ACol :span="24" :md="12">
-            <AFormItem v-if="isCompanyHqType(companyForm.typeCode)" label="销售组织" name="salesOrg" required>
-              <AInput v-model:value="companyForm.salesOrg" placeholder="请输入销售组织" />
+          <ACol v-if="!companyForm.id" :span="24" :md="12">
+            <AFormItem label="管理员用户名" name="adminUsername" required>
+              <AInput v-model:value="companyForm.adminUsername" placeholder="新增公司时必填，用于创建默认管理员账号" />
             </AFormItem>
           </ACol>
           <ACol :span="24">
@@ -3033,9 +3051,9 @@ onMounted(() => {
       </template>
     </ADrawer>
 
-    <ADrawer v-model:open="companyCrmImportOpen" title="选择 CRM 公司" :width="1100">
-      <AForm layout="inline" class="page-search-toolbar--inline mb-12px">
-        <AFormItem label="SAP 公司编码">
+    <ADrawer v-model:open="companyCrmImportOpen" title="选择 CRM 公司" :width="companyCrmImportDrawerWidth">
+      <AForm layout="inline" class="company-crm-import-search mb-12px">
+        <AFormItem label="SAP 公司编码" class="company-crm-import-search__sap-code">
           <AInput v-model:value="companyCrmImportQuery.companyCode" allow-clear placeholder="请输入 SAP 公司编码" />
         </AFormItem>
         <AFormItem label="公司名称">
@@ -3064,7 +3082,8 @@ onMounted(() => {
         :loading="companyCrmImportLoading"
         :locale="companyCrmTableLocale"
         :data-source="companyCrmImportRows"
-        row-key="id"
+        :row-key="resolveCompanyCrmImportRowKey"
+        :row-selection="companyCrmImportRowSelection"
         size="small"
         :pagination="{
           current: companyCrmImportQuery.pageNum,
@@ -3119,23 +3138,12 @@ onMounted(() => {
             dataIndex: 'address',
             key: 'address',
             ellipsis: true
-          },
-          createAntTableActionColumn({ width: 72 })
+          }
         ]"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'typeCode'">
             {{ record.typeCode || '-' }}
-          </template>
-          <template v-else-if="column.key === 'actions'">
-            <AButton
-              type="link"
-              size="small"
-              class="table-action-link--processing"
-              @click="useCompanyCrmImportRow(record)"
-            >
-              选择
-            </AButton>
           </template>
         </template>
       </ATable>
@@ -3166,5 +3174,64 @@ onMounted(() => {
 
 .company-address-block__detail {
   margin-bottom: 8px;
+}
+
+/**
+ * CRM 公司导入抽屉搜索：单行排列，表单项 label 与输入框横向并排（避免 SAP 公司编码 label 被挤到上方）。
+ */
+.company-crm-import-search.ant-form-inline {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px 16px;
+  width: 100%;
+}
+
+.company-crm-import-search.ant-form-inline :deep(.ant-form-item) {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-bottom: 0;
+  margin-inline-end: 0;
+  display: inline-flex;
+  flex-flow: row nowrap;
+  align-items: center;
+}
+
+.company-crm-import-search.ant-form-inline :deep(.ant-form-item-label) {
+  flex: none;
+  max-width: none;
+  padding-bottom: 0;
+}
+
+.company-crm-import-search.ant-form-inline :deep(.ant-form-item-label > label) {
+  height: 32px;
+  line-height: 32px;
+  white-space: nowrap;
+}
+
+.company-crm-import-search.ant-form-inline :deep(.ant-form-item-control) {
+  flex: 1 1 auto;
+  min-width: 120px;
+}
+
+.company-crm-import-search.ant-form-inline :deep(.ant-form-item:last-child) {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.company-crm-import-search.ant-form-inline :deep(.ant-form-item-control-input) {
+  width: 100%;
+}
+
+/* SAP 公司编码 label 较长，单独保证 label 与输入框并排且不被压窄 */
+.company-crm-import-search.ant-form-inline :deep(.company-crm-import-search__sap-code) {
+  flex: 1 1 240px;
+  min-width: 240px;
+}
+
+/* 签约 CRM 导入：无 label 的复选框项保持横向对齐 */
+.company-crm-import-search.ant-form-inline :deep(.company-crm-import-search__checkbox) {
+  flex: 0 0 auto;
+  min-width: auto;
 }
 </style>

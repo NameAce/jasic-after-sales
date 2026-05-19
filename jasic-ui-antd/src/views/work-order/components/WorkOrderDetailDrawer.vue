@@ -26,7 +26,6 @@ import {
 import { notifyOnceSuccessFromFlatResult } from '@/service/request/shared';
 import { useAuthStore } from '@/store/modules/auth';
 import { adaptiveModalWidth } from '@/hooks/common/modal-form-layout';
-import { useAuth } from '@/hooks/business/auth';
 import type { WorkOrderListActionCode } from '../list-actions';
 
 // 维修登记 / 复检「故障处图片」每格最多张数（与建单页 picture-card 逻辑一致）
@@ -58,8 +57,6 @@ const previewType = ref<'image' | 'video'>('image');
 const previewUrl = ref('');
 // 预览弹窗标题
 const previewTitle = ref('');
-// 按钮级权限判断
-const { hasAuth } = useAuth();
 const authStore = useAuthStore();
 
 // 派单子弹层
@@ -253,23 +250,8 @@ function hasAction(action: WorkOrderListActionCode) {
   return availableActionCodes.value.includes(action);
 }
 
-/**
- * 无 ASSIGN 动作但具备派单权限、待派单且未指派、当前公司为受理方时，展示派单入口兜底。
- *
- * @returns {boolean} 是否展示派单兜底入口
- */
-function shouldShowAssignFallback() {
-  if (!detail.value || typeof detail.value !== 'object') return false;
-  if (hasAction('ASSIGN')) return false;
-  if (!hasAuth('workorder:assign')) return false;
-  const d = detail.value as Record<string, unknown>;
-  if (String(d.mainStatus || '') !== 'PENDING_ASSIGN') return false;
-  if (d.assignedUserId !== undefined && d.assignedUserId !== null && String(d.assignedUserId) !== '') return false;
-  return String(d.currentAcceptCompanyId || '') === String(authStore.userInfo.currentCompanyId || '');
-}
-
-// 是否展示「派单」主按钮（含兜底）
-const showAssign = computed(() => hasAction('ASSIGN') || shouldShowAssignFallback());
+// 是否展示「派单」主按钮（仅依据详情接口 availableActions）
+const showAssign = computed(() => hasAction('ASSIGN'));
 // 是否展示「维修员接单」
 const showAccept = computed(() => hasAction('TECH_ACCEPT'));
 // 是否展示「转单」

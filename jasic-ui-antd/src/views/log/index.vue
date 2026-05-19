@@ -223,17 +223,18 @@ onMounted(loadList);
 <template>
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
     <ACard :bordered="false" class="card-wrapper">
-      <AForm :model="queryParams" :label-col="{ span: 5, md: 7 }">
+      <AForm :model="queryParams" :label-col="{ span: 5, md: 7 }" class="oper-log-search-form">
         <div class="page-search-toolbar">
           <div class="page-search-toolbar__filters">
-            <ARow :gutter="[16, 16]" wrap>
+            <!-- 首行 4 个筛选项各占 1 格（lg=6）；展开后操作日期单独换行，宽度与操作模块一致（lg=6） -->
+            <ARow :gutter="[16, 16]" wrap class="oper-log-search-row">
               <ACol
                 :span="24"
                 :md="12"
                 :lg="6"
                 :class="{ 'page-search-toolbar__filter-col--collapsed': logSearchFilter.isSearchFilterHidden(0) }"
               >
-                <AFormItem label="操作模块" class="m-0">
+                <AFormItem label="操作模块" class="oper-log-search-form-item m-0">
                   <AInput v-model:value="queryParams.title" allow-clear placeholder="请输入操作模块" />
                 </AFormItem>
               </ACol>
@@ -243,7 +244,7 @@ onMounted(loadList);
                 :lg="6"
                 :class="{ 'page-search-toolbar__filter-col--collapsed': logSearchFilter.isSearchFilterHidden(1) }"
               >
-                <AFormItem label="操作人" class="m-0">
+                <AFormItem label="操作人" class="oper-log-search-form-item m-0">
                   <AInput v-model:value="queryParams.operUserName" allow-clear placeholder="请输入操作人" />
                 </AFormItem>
               </ACol>
@@ -253,7 +254,7 @@ onMounted(loadList);
                 :lg="6"
                 :class="{ 'page-search-toolbar__filter-col--collapsed': logSearchFilter.isSearchFilterHidden(2) }"
               >
-                <AFormItem label="操作类型" class="m-0">
+                <AFormItem label="操作类型" class="oper-log-search-form-item m-0">
                   <ASelect
                     v-model:value="queryParams.operType"
                     allow-clear
@@ -275,7 +276,7 @@ onMounted(loadList);
                 :lg="6"
                 :class="{ 'page-search-toolbar__filter-col--collapsed': logSearchFilter.isSearchFilterHidden(3) }"
               >
-                <AFormItem label="操作状态" class="m-0">
+                <AFormItem label="操作状态" class="oper-log-search-form-item m-0">
                   <ASelect
                     v-model:value="queryParams.status"
                     allow-clear
@@ -291,10 +292,10 @@ onMounted(loadList);
               <ACol
                 :span="24"
                 :md="12"
-                :lg="12"
+                :lg="6"
                 :class="{ 'page-search-toolbar__filter-col--collapsed': logSearchFilter.isSearchFilterHidden(4) }"
               >
-                <AFormItem label="操作日期" class="m-0">
+                <AFormItem label="操作日期" class="oper-log-search-form-item m-0">
                   <ARangePicker
                     v-model:value="dateRange"
                     value-format="YYYY-MM-DD"
@@ -418,3 +419,10 @@ onMounted(loadList);
     </ADrawer>
   </div>
 </template>
+
+<style scoped>
+/** 操作日志搜索：控件区域占满各自栅格列宽度 */
+.oper-log-search-form :deep(.oper-log-search-form-item .ant-form-item-control-input-content) {
+  width: 100%;
+}
+</style>

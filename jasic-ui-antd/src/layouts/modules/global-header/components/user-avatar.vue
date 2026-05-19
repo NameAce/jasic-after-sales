@@ -19,14 +19,19 @@ function loginOrRegister() {
   toLogin();
 }
 
-/** 退出登录前二次确认 */
+/**
+ * 退出登录前二次确认。
+ * onOk 不返回 logout 的 Promise：若交给 Modal 等待异步结束，resetStore 内 Modal.destroyAll 会拆掉当前确认框，易导致遮罩残留、页面卡住。
+ */
 function logout() {
   Modal.confirm({
     title: $t('common.tip'),
     content: $t('common.logoutConfirm'),
     okText: $t('common.confirm'),
     cancelText: $t('common.cancel'),
-    onOk: () => authStore.logout()
+    onOk() {
+      void authStore.logout();
+    }
   });
 }
 </script>
