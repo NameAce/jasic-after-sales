@@ -28,6 +28,7 @@ public class NotifyTemplatePresetRegistryTest {
     @Test
     public void shouldResolvePhaseOneEnums() {
         Assert.assertEquals("工单", NotifyBizTypeEnum.fromCode("WORK_ORDER").getDesc());
+        Assert.assertEquals("B端派单用户", NotifyReceiverTypeEnum.fromCode("ASSIGN_USER").getDesc());
         Assert.assertEquals("B端接单用户", NotifyReceiverTypeEnum.fromCode("ACCEPT_USER").getDesc());
         Assert.assertEquals("小程序订阅消息(B端)", NotifyTypeEnum.fromCode("MP_SUBSCRIBE_B").getDesc());
         Assert.assertEquals("小程序订阅消息", NotifyChannelTypeEnum.fromCode("MP_SUBSCRIBE").getDesc());
@@ -52,17 +53,44 @@ public class NotifyTemplatePresetRegistryTest {
     }
 
     /**
-     * 校验 B 端接单通知默认配置。
+     * 系统级目标池应返回“系统支持的全量目标候选项”，而不是继续按单个场景裁剪。
+     */
+    @Test
+    public void shouldExposeSystemLevelTargetPool() {
+        NotifySceneRegistry registry = new NotifySceneRegistry();
+
+        List<NotifySceneTargetMeta> targetMetas = registry.listSystemTargetMetas();
+        Assert.assertEquals(4, targetMetas.size());
+
+        NotifySceneTargetMeta inAppMessage = registry.getRequiredSystemTargetMeta(NotifyTypeEnum.IN_APP_MESSAGE.getCode());
+        Assert.assertEquals(NotifyReceiverTypeEnum.REPAIRER.getCode(), inAppMessage.getReceiverType());
+        Assert.assertNull(inAppMessage.getChannelType());
+
+        NotifySceneTargetMeta mpSubscribeB = registry.getRequiredSystemTargetMeta(NotifyTypeEnum.MP_SUBSCRIBE_B.getCode());
+        Assert.assertNull(mpSubscribeB.getReceiverType());
+        Assert.assertEquals(NotifyChannelTypeEnum.MP_SUBSCRIBE.getCode(), mpSubscribeB.getChannelType());
+        Assert.assertNull(mpSubscribeB.getDefaultContentTemplate());
+        Assert.assertNull(mpSubscribeB.getDefaultChannelConfig());
+
+        NotifySceneTargetMeta mpSubscribeC = registry.getRequiredSystemTargetMeta(NotifyTypeEnum.MP_SUBSCRIBE_C.getCode());
+        Assert.assertEquals(NotifyReceiverTypeEnum.CUSTOMER.getCode(), mpSubscribeC.getReceiverType());
+        Assert.assertEquals(NotifyChannelTypeEnum.MP_SUBSCRIBE.getCode(), mpSubscribeC.getChannelType());
+        Assert.assertNull(mpSubscribeC.getDefaultContentTemplate());
+        Assert.assertNull(mpSubscribeC.getDefaultChannelConfig());
+    }
+
+    /**
+     * 校验 B 端待派单通知默认配置。
      */
     private void assertAcceptScene(NotifySceneMeta sceneMeta) {
-        Assert.assertEquals("B端接单通知", sceneMeta.getSceneName());
+        Assert.assertEquals("B端待派单通知", sceneMeta.getSceneName());
         Assert.assertEquals(NotifyTypeEnum.MP_SUBSCRIBE_B.getCode(), sceneMeta.getDefaultTargetType());
         Assert.assertTrue(containsVariable(sceneMeta, "customerName", "客户姓名 -> 客户手机号 -> “客户”"));
 
         NotifySceneTargetMeta targetMeta = sceneMeta.getTargetMeta(NotifyTypeEnum.MP_SUBSCRIBE_B.getCode());
-        Assert.assertEquals(NotifyReceiverTypeEnum.ACCEPT_USER.getCode(), targetMeta.getReceiverType());
+        Assert.assertEquals(NotifyReceiverTypeEnum.ASSIGN_USER.getCode(), targetMeta.getReceiverType());
         Assert.assertEquals(Integer.valueOf(1), targetMeta.getDefaultEnabled());
-        Assert.assertEquals("新工单 ${orderNo} 已进入当前网点待处理，请及时接单或安排处理", targetMeta.getDefaultContentTemplate());
+        Assert.assertEquals("新工单 ${orderNo} 已进入当前网点待派单池，请及时派单处理", targetMeta.getDefaultContentTemplate());
         Assert.assertEquals("WORK_ORDER_DETAIL", targetMeta.getDefaultRouteType());
         Assert.assertEquals("${workOrderId}", targetMeta.getDefaultRouteValueTemplate());
         Assert.assertEquals(NotifyChannelSceneEnum.B.getCode(), targetMeta.getDefaultChannelConfig().getChannelScene());
@@ -92,10 +120,10 @@ public class NotifyTemplatePresetRegistryTest {
     }
 
     /**
-     * 校验 B 端工单派单通知默认配置。
+     * 校验 B 端维修员接单通知默认配置。
      */
     private void assertAssignedScene(NotifySceneMeta sceneMeta) {
-        Assert.assertEquals("B端工单派单通知", sceneMeta.getSceneName());
+        Assert.assertEquals("B端维修员接单通知", sceneMeta.getSceneName());
         Assert.assertEquals(NotifyTypeEnum.IN_APP_TODO.getCode(), sceneMeta.getDefaultTargetType());
         Assert.assertTrue(containsVariable(sceneMeta, "customerMobile", "客户联系电话"));
 

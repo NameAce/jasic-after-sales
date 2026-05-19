@@ -7,12 +7,12 @@ import lombok.Data;
 import java.io.Serializable;
 
 /**
- * 工单派单通知事件参数。
+ * 维修员接单通知事件参数。
  *
  * @author Codex
  * @date 2026/04/18
  */
-@ApiModel(description = "工单派单通知事件参数")
+@ApiModel(description = "维修员接单通知事件参数")
 @Data
 public class NotifyAssignedEventDTO implements Serializable {
 

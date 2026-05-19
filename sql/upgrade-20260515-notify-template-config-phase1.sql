@@ -285,11 +285,11 @@ INSERT INTO `notify_scene`
 VALUES
 (
   'WORK_ORDER_ACCEPT',
-  'B端接单通知',
+  'B端待派单通知',
   'WORK_ORDER',
   'WORK_ORDER_ACCEPT',
   1,
-  '阶段一初始化场景：工单进入目标承接网点待处理池后，通知当前网点符合口径的可接单用户，仅开放 B 端小程序订阅通知目标',
+  '阶段一初始化场景：工单进入目标承接网点待派单池后，通知当前网点符合口径的可派单用户，仅开放 B 端小程序订阅通知目标',
   NOW(),
   NOW()
 ),
@@ -305,7 +305,7 @@ VALUES
 ),
 (
   'WORK_ORDER_ASSIGNED',
-  'B端工单派单通知',
+  'B端维修员接单通知',
   'WORK_ORDER',
   'WORK_ORDER_ASSIGNED',
   1,
@@ -339,7 +339,7 @@ VALUES
   'WORK_ORDER',
   'WORK_ORDER_EVALUATION_INVITE',
   1,
-  '阶段一初始化场景：客户评价邀请，仅开放 C 端小程序订阅通知目标',
+  '阶段一初始化场景：工单关闭且允许评价后，向客户发起评价邀请，仅开放 C 端小程序订阅通知目标',
   NOW(),
   NOW()
 );
@@ -352,12 +352,12 @@ VALUES
   'WORK_ORDER_ACCEPT',
   'MP_SUBSCRIBE_B',
   1,
-  'B端接单通知',
-  '新工单 ${orderNo} 已进入当前网点待处理，请及时接单或安排处理',
+  'B端待派单通知',
+  '新工单 ${orderNo} 已进入当前网点待派单池，请及时派单处理',
   'WORK_ORDER_DETAIL',
   '${workOrderId}',
   '{"templateId":"JEO-zVGuWBQPIhU0ck7e3I97Tlr1tNk1ouxbbLovCCE","channelScene":"B","pagePathTemplate":"pages/order/detail?workOrderId=${workOrderId}","fieldMapping":[{"field":"character_string14","value":"${orderNo}"},{"field":"thing15","value":"${customerName}"}]}',
-  '阶段一初始化目标：B端接单小程序订阅通知，客户名称需按“客户姓名 -> 客户手机号 -> 客户”兜底',
+  '阶段一初始化目标：B端建单待派单小程序订阅通知，客户名称需按“客户姓名 -> 客户手机号 -> 客户”兜底',
   NOW(),
   NOW()
 ),
@@ -404,7 +404,7 @@ VALUES
   'WORK_ORDER_ASSIGNED',
   'MP_SUBSCRIBE_B',
   1,
-  'B端工单派单通知',
+  'B端维修员接单通知',
   '工单 ${orderNo} 已派给您，请及时联系客户并处理',
   'WORK_ORDER_DETAIL',
   '${workOrderId}',
@@ -448,7 +448,7 @@ VALUES
   'WORK_ORDER_EVALUATE',
   '${workOrderId}',
   '{"templateId":"01ZBgiyxkgui_wKWFtYsETnkSySMxeANaK2SoShvXkM","channelScene":"C","pagePathTemplate":"pages/order/evaluate?workOrderId=${workOrderId}","fieldMapping":[{"field":"character_string1","value":"${orderNo}"},{"field":"phone_number2","value":"${companyPhone}"},{"field":"thing3","value":"${companyName}"},{"field":"time4","value":"${closedTime}"}]}',
-  '阶段一初始化目标：C端客户满意度评价通知，联系电话按服务电话优先、联系电话兜底规则取值',
+  '阶段一初始化目标：C端客户满意度评价通知在工单关闭且允许评价后发送，联系电话按服务电话优先、联系电话兜底规则取值',
   NOW(),
   NOW()
 );

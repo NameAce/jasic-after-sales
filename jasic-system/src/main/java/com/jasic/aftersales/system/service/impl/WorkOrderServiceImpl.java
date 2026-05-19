@@ -2014,14 +2014,17 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
      * @param workOrder 参数
      */
     /**
-     * 发布 B 端接单通知事件。
+     * 发布 B 端待派单通知事件。
      *
-     * <p>该事件对应“工单进入目标承接网点待处理池”的时刻，
-     * 统一用于驱动网点级小程序订阅消息，不允许业务层绕过通知主链路直接发微信。</p>
+     * <p>该事件对应“工单进入目标承接网点待派单池”的时刻，
+     * 统一用于驱动网点级小程序订阅消息，并收口到当前网点下具备派单权限的用户，
+     * 不允许业务层绕过通知主链路直接发微信。</p>
      *
      * @param workOrder 工单快照
      */
     private void publishAcceptNotifyEvent(WorkOrder workOrder) {
+        // 该事件当前对应“建单后进入待派单池”的通知语义，
+        // 用于提醒当前承接网点下具备派单权限的用户尽快处理派单动作。
         if (workOrder == null || workOrder.getId() == null || workOrder.getCurrentAcceptCompanyId() == null) {
             return;
         }
@@ -2554,8 +2557,10 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         saveFlow(entity.getId(), WorkOrderActionEnum.CREATE.getCode(), null, entity.getMainStatus(), null, targetCompanyId, currentCompanyId, null);
         // 调用resolveCreateCompanySubjectType方法，复用统一能力并保证业务规则一致。
         workOrderParticipantService.initParticipants(entity, resolveCreateCompanySubjectType(currentCompanyId));
-        // 建单成功后立即发布 B 端“接单通知”事件，
-        // 目的是把“工单已进入目标承接网点待处理池”这一事实统一交给通知模块分发表处理。
+        // 建单成功后立即发布 B 端“待派单通知”事件，
+        // 目的是把“工单已进入目标承接网点待派单池”这一事实统一交给通知模块分发表处理。
+        // 这里补充强调：建单后当前工单默认处于待派单状态，
+        // 因此该通知的接收人按“当前网点下具备派单权限的用户”统一收口。
         publishAcceptNotifyEvent(entity);
         return entity.getId();
     }

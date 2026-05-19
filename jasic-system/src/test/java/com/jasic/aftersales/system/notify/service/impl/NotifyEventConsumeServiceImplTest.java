@@ -138,7 +138,7 @@ public class NotifyEventConsumeServiceImplTest {
      * @throws Exception 反射异常
      */
     @Test
-    public void shouldCreateOneDispatchPerAcceptUserForCompanyLevelScene() throws Exception {
+    public void shouldCreateOneDispatchPerAssignUserForCreateScene() throws Exception {
         FakeNotifyEventService eventService = new FakeNotifyEventService();
         FakeNotifyMessageService messageService = new FakeNotifyMessageService();
         FakeNotifyMessageLogService logService = new FakeNotifyMessageLogService();
@@ -185,17 +185,17 @@ public class NotifyEventConsumeServiceImplTest {
                     put("customerName", "张三");
                 }});
                 context.addReceiverSnapshots(
-                        NotifyReceiverTypeEnum.ACCEPT_USER.getCode(),
+                        NotifyReceiverTypeEnum.ASSIGN_USER.getCode(),
                         new ArrayList<NotifyReceiverSnapshot>() {{
                             add(NotifyReceiverSnapshot.of(
-                                    NotifyReceiverTypeEnum.ACCEPT_USER.getCode(),
+                                    NotifyReceiverTypeEnum.ASSIGN_USER.getCode(),
                                     301L,
                                     2002L,
                                     "工程师A",
                                     "openid-301"
                             ));
                             add(NotifyReceiverSnapshot.of(
-                                    NotifyReceiverTypeEnum.ACCEPT_USER.getCode(),
+                                    NotifyReceiverTypeEnum.ASSIGN_USER.getCode(),
                                     302L,
                                     2002L,
                                     "工程师B",

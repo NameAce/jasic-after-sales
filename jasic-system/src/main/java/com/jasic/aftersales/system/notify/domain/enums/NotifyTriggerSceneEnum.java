@@ -14,14 +14,14 @@ import com.fasterxml.jackson.annotation.JsonValue;
  */
 public enum NotifyTriggerSceneEnum {
 
-    /** B 端接单通知。 */
-    WORK_ORDER_ACCEPT("WORK_ORDER_ACCEPT", "B端接单通知"),
+    /** B 端待派单通知。 */
+    WORK_ORDER_ACCEPT("WORK_ORDER_ACCEPT", "B端待派单通知"),
 
     /** B 端工单转入通知。 */
     WORK_ORDER_TRANSFER_IN("WORK_ORDER_TRANSFER_IN", "B端工单转入通知"),
 
-    /** B 端工单派单通知。 */
-    WORK_ORDER_ASSIGNED("WORK_ORDER_ASSIGNED", "B端工单派单通知"),
+    /** B 端维修员接单通知。 */
+    WORK_ORDER_ASSIGNED("WORK_ORDER_ASSIGNED", "B端维修员接单通知"),
 
     /** C 端接单成功提醒。 */
     WORK_ORDER_ACCEPTED("WORK_ORDER_ACCEPTED", "C端接单成功提醒"),

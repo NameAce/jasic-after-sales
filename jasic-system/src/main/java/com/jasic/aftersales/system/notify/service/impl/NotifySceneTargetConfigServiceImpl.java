@@ -165,8 +165,15 @@ public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConf
         detailVO.setVariables(sceneMeta.getVariables());
 
         List<NotifySceneTargetConfigVO> targetConfigs = new ArrayList<>();
-        for (NotifySceneTargetMeta targetMeta : sceneMeta.getTargetMetas()) {
-            targetConfigs.add(toTargetConfigVO(targetMeta, targetMap.get(targetMeta.getTargetType())));
+        // 详情页现在统一展示系统级目标池，
+        // 避免前端再按场景裁剪可选目标，真正是否启用仍以场景自己的配置行为准。
+        for (NotifySceneTargetMeta targetMeta : notifySceneRegistry.listSystemTargetMetas()) {
+            NotifySceneTargetMeta sceneTargetMeta = sceneMeta.getTargetMeta(targetMeta.getTargetType());
+            targetConfigs.add(toTargetConfigVO(
+                    sceneTargetMeta == null ? targetMeta : sceneTargetMeta,
+                    targetMap.get(targetMeta.getTargetType()),
+                    sceneTargetMeta != null
+            ));
         }
         detailVO.setTargetConfigs(targetConfigs);
         return detailVO;
@@ -200,9 +207,12 @@ public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConf
         Map<String, NotifySceneTarget> existingTargetMap = existingTargets.stream()
                 .collect(Collectors.toMap(NotifySceneTarget::getTargetType, item -> item, (left, right) -> left, LinkedHashMap::new));
         Map<String, NotifySceneTargetConfigDTO> requestTargetMap = buildRequestTargetMap(dto.getTargetConfigs());
+        List<NotifySceneTargetMeta> systemTargetMetas = notifySceneRegistry.listSystemTargetMetas();
+        validateRequestedTargetTypes(requestTargetMap.keySet(), systemTargetMetas);
 
-        // 按注册表逐个保存目标配置，避免前端漏传某个目标时把不支持的目标误落库。
-        for (NotifySceneTargetMeta targetMeta : sceneMeta.getTargetMetas()) {
+        // 保存时统一按系统级目标池遍历，
+        // 这样前端展示哪些候选目标，后端就能完整接收并落库，不再受单场景注册列表限制。
+        for (NotifySceneTargetMeta targetMeta : systemTargetMetas) {
             NotifySceneTargetConfigDTO targetDTO = requestTargetMap.get(targetMeta.getTargetType());
             NotifySceneTarget entity = existingTargetMap.get(targetMeta.getTargetType());
             if (entity == null) {
@@ -216,8 +226,8 @@ public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConf
             }
         }
 
-        // 如果注册表已经收口某些旧目标，这里同步清理脏数据，避免后台继续展示无效目标配置。
-        Set<String> supportedTargetTypes = sceneMeta.getTargetMetas().stream()
+        // 如果系统级目标池已经收口某些旧目标，这里同步清理脏数据，避免后台继续展示无效目标配置。
+        Set<String> supportedTargetTypes = systemTargetMetas.stream()
                 .map(NotifySceneTargetMeta::getTargetType)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         for (NotifySceneTarget existingTarget : existingTargets) {
@@ -437,7 +447,9 @@ public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConf
         if (targets != null) {
             Map<String, NotifySceneTarget> targetMap = targets.stream()
                     .collect(Collectors.toMap(NotifySceneTarget::getTargetType, item -> item, (left, right) -> left, LinkedHashMap::new));
-            for (NotifySceneTargetMeta targetMeta : sceneMeta.getTargetMetas()) {
+            // 列表页的“已启用目标”也按系统级目标池映射描述，
+            // 这样即使某个场景后来补配了新的系统目标，列表页也能正确展示。
+            for (NotifySceneTargetMeta targetMeta : notifySceneRegistry.listSystemTargetMetas()) {
                 NotifySceneTarget target = targetMap.get(targetMeta.getTargetType());
                 if (target != null && Integer.valueOf(1).equals(target.getEnabled())) {
                     enabledTargetTypes.add(targetMeta.getTargetType());
@@ -465,33 +477,42 @@ public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConf
         optionVO.setEventCode(sceneMeta.getEventCode());
         optionVO.setVariables(sceneMeta.getVariables());
 
-        List<NotifySceneTargetMetaVO> targetMetas = new ArrayList<>();
-        for (NotifySceneTargetMeta targetMeta : sceneMeta.getTargetMetas()) {
-            NotifySceneTargetMetaVO targetMetaVO = new NotifySceneTargetMetaVO();
-            targetMetaVO.setTargetType(targetMeta.getTargetType());
-            targetMetaVO.setTargetTypeDesc(targetMeta.getTargetTypeDesc());
-            targetMetaVO.setReceiverType(targetMeta.getReceiverType());
-            targetMetaVO.setReceiverTypeDesc(targetMeta.getReceiverTypeDesc());
-            targetMetaVO.setReceiverDesc(targetMeta.getReceiverDesc());
-            targetMetaVO.setDefaultEnabled(targetMeta.getDefaultEnabled());
-            targetMetaVO.setDefaultTemplateName(targetMeta.getDefaultTemplateName());
-            targetMetaVO.setDefaultTitleTemplate(targetMeta.getDefaultTitleTemplate());
-            targetMetaVO.setDefaultContentTemplate(targetMeta.getDefaultContentTemplate());
-            targetMetaVO.setDefaultRouteType(targetMeta.getDefaultRouteType());
-            targetMetaVO.setDefaultRouteValueTemplate(targetMeta.getDefaultRouteValueTemplate());
-            targetMetaVO.setChannelType(targetMeta.getChannelType());
-            targetMetaVO.setChannelTypeDesc(targetMeta.getChannelTypeDesc());
-            if (targetMeta.getDefaultChannelConfig() != null) {
-                targetMetaVO.setTemplateId(targetMeta.getDefaultChannelConfig().getTemplateId());
-                targetMetaVO.setChannelScene(targetMeta.getDefaultChannelConfig().getChannelScene());
-                targetMetaVO.setChannelSceneDesc(resolveChannelSceneDesc(targetMeta.getDefaultChannelConfig().getChannelScene()));
-                targetMetaVO.setPagePathTemplate(targetMeta.getDefaultChannelConfig().getPagePathTemplate());
-                targetMetaVO.setFieldMapping(copyFieldMappings(targetMeta.getDefaultChannelConfig().getFieldMapping()));
-            }
-            targetMetas.add(targetMetaVO);
-        }
+        List<NotifySceneTargetMetaVO> targetMetas = notifySceneRegistry.listSystemTargetMetas().stream()
+                .map(this::buildTargetMetaVO)
+                .collect(Collectors.toList());
         optionVO.setTargetMetas(targetMetas);
         return optionVO;
+    }
+
+    /**
+     * 把系统级目标元数据转换为前端选项对象。
+     *
+     * @param targetMeta 系统级目标元数据
+     * @return 目标元数据选项
+     */
+    private NotifySceneTargetMetaVO buildTargetMetaVO(NotifySceneTargetMeta targetMeta) {
+        NotifySceneTargetMetaVO targetMetaVO = new NotifySceneTargetMetaVO();
+        targetMetaVO.setTargetType(targetMeta.getTargetType());
+        targetMetaVO.setTargetTypeDesc(targetMeta.getTargetTypeDesc());
+        targetMetaVO.setReceiverType(targetMeta.getReceiverType());
+        targetMetaVO.setReceiverTypeDesc(targetMeta.getReceiverTypeDesc());
+        targetMetaVO.setReceiverDesc(targetMeta.getReceiverDesc());
+        targetMetaVO.setDefaultEnabled(targetMeta.getDefaultEnabled());
+        targetMetaVO.setDefaultTemplateName(targetMeta.getDefaultTemplateName());
+        targetMetaVO.setDefaultTitleTemplate(targetMeta.getDefaultTitleTemplate());
+        targetMetaVO.setDefaultContentTemplate(targetMeta.getDefaultContentTemplate());
+        targetMetaVO.setDefaultRouteType(targetMeta.getDefaultRouteType());
+        targetMetaVO.setDefaultRouteValueTemplate(targetMeta.getDefaultRouteValueTemplate());
+        targetMetaVO.setChannelType(targetMeta.getChannelType());
+        targetMetaVO.setChannelTypeDesc(targetMeta.getChannelTypeDesc());
+        if (targetMeta.getDefaultChannelConfig() != null) {
+            targetMetaVO.setTemplateId(targetMeta.getDefaultChannelConfig().getTemplateId());
+            targetMetaVO.setChannelScene(targetMeta.getDefaultChannelConfig().getChannelScene());
+            targetMetaVO.setChannelSceneDesc(resolveChannelSceneDesc(targetMeta.getDefaultChannelConfig().getChannelScene()));
+            targetMetaVO.setPagePathTemplate(targetMeta.getDefaultChannelConfig().getPagePathTemplate());
+            targetMetaVO.setFieldMapping(copyFieldMappings(targetMeta.getDefaultChannelConfig().getFieldMapping()));
+        }
+        return targetMetaVO;
     }
 
     /**
@@ -501,7 +522,9 @@ public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConf
      * @param entity 目标实体
      * @return 详情对象
      */
-    private NotifySceneTargetConfigVO toTargetConfigVO(NotifySceneTargetMeta targetMeta, NotifySceneTarget entity) {
+    private NotifySceneTargetConfigVO toTargetConfigVO(NotifySceneTargetMeta targetMeta,
+                                                       NotifySceneTarget entity,
+                                                       boolean useSceneDefaultWhenMissing) {
         NotifySceneTargetConfigVO configVO = new NotifySceneTargetConfigVO();
         configVO.setTargetType(targetMeta.getTargetType());
         configVO.setTargetTypeDesc(targetMeta.getTargetTypeDesc());
@@ -511,7 +534,12 @@ public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConf
         configVO.setChannelType(targetMeta.getChannelType());
         configVO.setChannelTypeDesc(targetMeta.getChannelTypeDesc());
 
-        NotifySceneTarget actualEntity = entity == null ? buildDefaultTargetEntity(null, targetMeta) : entity;
+        // 详情页现在会展示系统级目标池。
+        // 对于“仅作为候选项展示、但当前场景尚未真正配置过”的目标，不能再套用系统默认启用值，
+        // 否则前端会误以为该目标已经启用。
+        NotifySceneTarget actualEntity = entity == null
+                ? (useSceneDefaultWhenMissing ? buildDefaultTargetEntity(null, targetMeta) : buildEmptyTargetEntity(targetMeta))
+                : entity;
         configVO.setEnabled(actualEntity.getEnabled());
         configVO.setTitleTemplate(actualEntity.getTitleTemplate());
         configVO.setContentTemplate(actualEntity.getContentTemplate());
@@ -528,6 +556,29 @@ public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConf
             configVO.setFieldMapping(copyFieldMappings(channelConfig.getFieldMapping()));
         }
         return configVO;
+    }
+
+    /**
+     * 构造一个“仅作为候选项展示”的空目标配置实体。
+     *
+     * <p>当系统级目标池扩展到某个场景尚未真正配置的目标时，
+     * 详情页应先按未启用、空模板展示，等待管理员主动勾选并填写配置。</p>
+     *
+     * @param targetMeta 目标元数据
+     * @return 空目标配置实体
+     */
+    private NotifySceneTarget buildEmptyTargetEntity(NotifySceneTargetMeta targetMeta) {
+        NotifySceneTarget entity = new NotifySceneTarget();
+        entity.setSceneCode(null);
+        entity.setTargetType(targetMeta.getTargetType());
+        entity.setEnabled(0);
+        entity.setTitleTemplate(null);
+        entity.setContentTemplate(null);
+        entity.setRouteType(null);
+        entity.setRouteValueTemplate(null);
+        entity.setConfigJson(null);
+        entity.setRemark(null);
+        return entity;
     }
 
     /**
@@ -565,6 +616,27 @@ public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConf
             }
         }
         return requestTargetMap;
+    }
+
+    /**
+     * 校验前端提交的目标类型是否都属于系统级目标池。
+     *
+     * @param requestTargetTypes 前端提交的目标类型集合
+     * @param supportedTargetMetas 系统级目标元数据列表
+     */
+    private void validateRequestedTargetTypes(Collection<String> requestTargetTypes,
+                                              List<NotifySceneTargetMeta> supportedTargetMetas) {
+        if (requestTargetTypes == null || requestTargetTypes.isEmpty()) {
+            return;
+        }
+        Set<String> supportedTargetTypes = supportedTargetMetas.stream()
+                .map(NotifySceneTargetMeta::getTargetType)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        for (String requestTargetType : requestTargetTypes) {
+            if (!supportedTargetTypes.contains(requestTargetType)) {
+                throw new ServiceException("提交了系统未注册的通知目标：" + requestTargetType);
+            }
+        }
     }
 
     /**

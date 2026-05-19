@@ -20,24 +20,25 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * B 端接单类通知接收人解析器。
+ * B 端待派单通知接收人解析器。
  *
- * <p>当前阶段统一负责“网点级通知”的接收人筛选口径：
+ * <p>该解析器专门服务“工单创建后进入待派单池”的网点级通知场景，
+ * 当前统一按照以下口径收口接收人：
  * 1. 当前目标公司下的启用用户
- * 2. 具备 `workorder:accept` 权限
+ * 2. 具备 `workorder:assign` 权限
  * 3. 已绑定小程序 openid
  *
- * <p>由于当前后端还没有模板订阅授权持久化记录，
- * 因此这里无法在事件发布前进一步预筛“已完成模板订阅授权”的用户。
- * 真实发送时如果微信返回用户未订阅，仍由 sender 统一跳过并留痕。</p>
+ * <p>由于后端当前仍未单独持久化“用户已授权订阅模板”的结果，
+ * 因此这里只负责收口“谁有资格作为待派单通知接收人”，
+ * 真实发送时如果微信返回未订阅，仍由 sender 统一记跳过结果。</p>
  *
  * @author Codex
- * @date 2026/05/16
+ * @date 2026/05/18
  */
 @Component
-public class WorkOrderAcceptUserResolver {
+public class WorkOrderAssignUserResolver {
 
-    private static final String WORKORDER_ACCEPT_PERMISSION = "workorder:accept";
+    private static final String WORKORDER_ASSIGN_PERMISSION = "workorder:assign";
 
     @Resource
     private SysUserCompanyMapper sysUserCompanyMapper;
@@ -52,17 +53,17 @@ public class WorkOrderAcceptUserResolver {
     private CompanyDataAccessContext companyDataAccessContext;
 
     /**
-     * 解析指定公司下满足当前阶段通知口径的接收人快照列表。
+     * 解析指定公司下满足当前待派单通知口径的接收人快照列表。
      *
      * @param companyId 目标公司ID
      * @return 接收人快照列表
      */
-    public List<NotifyReceiverSnapshot> resolveAcceptUserSnapshots(Long companyId) {
+    public List<NotifyReceiverSnapshot> resolveAssignUserSnapshots(Long companyId) {
         if (companyId == null) {
             return Collections.emptyList();
         }
-        // 转单转入通知同样走异步消费，权限查询必须显式绑定目标网点公司上下文，
-        // 避免租户拦截器回退读取当前请求登录态，导致非 Web 线程下抛错。
+        // 接收人解析运行在通知事件异步消费链路里，不能再依赖当前登录请求上下文。
+        // 这里显式压入目标网点公司上下文，确保角色权限查询命中正确的 company_id 隔离条件。
         return companyDataAccessContext.runWithTargetCompany(companyId, () -> {
             Set<Long> userIds = listCompanyUserIds(companyId);
             if (userIds.isEmpty()) {
@@ -76,11 +77,11 @@ public class WorkOrderAcceptUserResolver {
                     .filter(user -> user != null
                             && user.getId() != null
                             && Integer.valueOf(1).equals(user.getStatus())
-                            && hasCompanyPermission(user.getId(), companyId, WORKORDER_ACCEPT_PERMISSION)
+                            && hasCompanyPermission(user.getId(), companyId, WORKORDER_ASSIGN_PERMISSION)
                             && StrUtil.isNotBlank(StrUtil.trim(user.getOpenid())))
                     .sorted(java.util.Comparator.comparing(SysUser::getId))
                     .map(user -> NotifyReceiverSnapshot.of(
-                            NotifyReceiverTypeEnum.ACCEPT_USER.getCode(),
+                            NotifyReceiverTypeEnum.ASSIGN_USER.getCode(),
                             user.getId(),
                             companyId,
                             resolveUserName(user),

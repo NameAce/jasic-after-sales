@@ -459,7 +459,13 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
         if (context == null || targetMeta == null) {
             return Collections.emptyList();
         }
-        return context.getReceiverSnapshots(targetMeta.getReceiverType());
+        // 系统级目标池允许某些目标在不同场景下复用同一个 targetType，
+        // 这类全局目标元数据不会再强行固化场景专属 receiverType。
+        // 因此这里优先取目标自身声明的接收人类型，未声明时回退到事件上下文主接收人类型。
+        String receiverType = StrUtil.isNotBlank(targetMeta.getReceiverType())
+                ? targetMeta.getReceiverType()
+                : context.getReceiverType();
+        return context.getReceiverSnapshots(receiverType);
     }
 
     /**

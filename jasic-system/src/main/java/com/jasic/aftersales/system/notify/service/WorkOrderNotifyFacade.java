@@ -19,7 +19,7 @@ import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderTransferNoti
 public interface WorkOrderNotifyFacade {
 
     /**
-     * 发布 B 端接单通知事件。
+     * 发布 B 端待派单通知事件。
      *
      * @param dto 事件参数
      */

@@ -43,7 +43,7 @@ public class NotifyTemplateSeedSqlTest {
         Assert.assertTrue(sql.contains("'WORK_ORDER_EVALUATE'"));
         Assert.assertTrue(sql.contains("'${workOrderId}'"));
 
-        Assert.assertTrue(sql.contains("新工单 ${orderNo} 已进入当前网点待处理，请及时接单或安排处理"));
+        Assert.assertTrue(sql.contains("新工单 ${orderNo} 已进入当前网点待派单池，请及时派单处理"));
         Assert.assertTrue(sql.contains("工单 ${orderNo} 已转入当前网点，请继续跟进处理"));
         Assert.assertTrue(sql.contains("工单 ${orderNo} 已派给您，请及时联系客户并处理"));
         Assert.assertTrue(sql.contains("您的工单 ${orderNo} 已有工程师接单，当前网点将继续为您处理"));

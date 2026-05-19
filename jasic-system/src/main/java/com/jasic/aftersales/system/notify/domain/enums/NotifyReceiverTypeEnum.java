@@ -14,6 +14,9 @@ import com.fasterxml.jackson.annotation.JsonValue;
  */
 public enum NotifyReceiverTypeEnum {
 
+    /** 当前目标网点下可派单用户。*/
+    ASSIGN_USER("ASSIGN_USER", "B端派单用户"),
+
     /** 当前目标网点下可接单用户。 */
     ACCEPT_USER("ACCEPT_USER", "B端接单用户"),
 

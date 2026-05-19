@@ -377,7 +377,7 @@ public class WorkOrderServiceImplTest {
     }
 
     /**
-     * 校验 B 端接单通知中的客户名称在姓名和手机号都为空时，最终兜底为“客户”。
+     * 校验 B 端待派单通知中的客户名称在姓名和手机号都为空时，最终兜底为“客户”。
      */
     @Test
     public void shouldFallbackAcceptNotifyCustomerNameToLiteralCustomerWhenNameAndMobileBlank() throws Exception {

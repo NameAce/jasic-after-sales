@@ -17,7 +17,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * B 端接单通知事件处理器。
+ * B 端待派单通知事件处理器。
  *
  * @author Codex
  * @date 2026/05/16
@@ -26,7 +26,7 @@ import java.util.Objects;
 public class WorkOrderAcceptNotifyEventHandler implements NotifyEventHandler {
 
     @Resource
-    private WorkOrderAcceptUserResolver workOrderAcceptUserResolver;
+    private WorkOrderAssignUserResolver workOrderAssignUserResolver;
 
     /**
      * {@inheritDoc}
@@ -45,10 +45,10 @@ public class WorkOrderAcceptNotifyEventHandler implements NotifyEventHandler {
 
         NotifyEventExecutionContext context = new NotifyEventExecutionContext();
         context.setSceneCode(resolveSceneCode(event));
-        context.setReceiverType(NotifyReceiverTypeEnum.ACCEPT_USER.getCode());
+        context.setReceiverType(NotifyReceiverTypeEnum.ASSIGN_USER.getCode());
         context.addReceiverSnapshots(
-                NotifyReceiverTypeEnum.ACCEPT_USER.getCode(),
-                workOrderAcceptUserResolver.resolveAcceptUserSnapshots(payload.getCurrentAcceptCompanyId())
+                NotifyReceiverTypeEnum.ASSIGN_USER.getCode(),
+                workOrderAssignUserResolver.resolveAssignUserSnapshots(payload.getCurrentAcceptCompanyId())
         );
         context.setTemplateVariables(buildTemplateVariables(payload));
         context.setMessageExtJson(null);

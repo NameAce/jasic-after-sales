@@ -738,11 +738,15 @@ export default {
           this.$message.error(`${targetMeta.targetTypeDesc}启用时必须选择发送小程序`)
           return null
         }
+        // 系统级候选目标里，未实际配置的小程序目标会保留一行空白占位。
+        // 提交时需要先过滤纯空行，避免后端把它识别成“字段和值都为空”的非法映射。
         const fieldMapping = Array.isArray(targetForm.fieldMapping) && targetForm.fieldMapping.length
-          ? targetForm.fieldMapping.map(item => ({
-            field: this.trimValue(item.field) || '',
-            value: this.trimValue(item.value) || ''
-          }))
+          ? targetForm.fieldMapping
+            .map(item => ({
+              field: this.trimValue(item.field) || '',
+              value: this.trimValue(item.value) || ''
+            }))
+            .filter(item => item.field || item.value)
           : []
         targetConfigs.push({
           targetType: targetMeta.targetType,
@@ -816,10 +820,12 @@ export default {
         templateId: this.trimValue(this.previewDialog.templateId),
         channelScene: this.trimValue(this.previewDialog.channelScene),
         pagePathTemplate: this.trimValue(this.previewDialog.pagePathTemplate),
-        fieldMapping: (this.previewDialog.fieldMapping || []).map(item => ({
-          field: this.trimValue(item.field),
-          value: this.trimValue(item.value)
-        })),
+        fieldMapping: (this.previewDialog.fieldMapping || [])
+          .map(item => ({
+            field: this.trimValue(item.field),
+            value: this.trimValue(item.value)
+          }))
+          .filter(item => item.field || item.value),
         variables
       }).then(res => {
         if (!res) {

@@ -1,5 +1,6 @@
 package com.jasic.aftersales.system.mapper;
 
+import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.jasic.aftersales.system.domain.entity.SysMenu;
 import org.apache.ibatis.annotations.Mapper;
@@ -24,6 +25,7 @@ public interface SysMenuMapper extends BaseMapper<SysMenu> {
      * @param companyId 公司ID
      * @return 权限标识集合
      */
+    @InterceptorIgnore(tenantLine = "true")
     Set<String> selectPermsByUserIdAndCompanyId(@Param("userId") Long userId, @Param("companyId") Long companyId);
 
     /**
@@ -33,6 +35,7 @@ public interface SysMenuMapper extends BaseMapper<SysMenu> {
      * @param companyId 公司ID
      * @return 权限项列表
      */
+    @InterceptorIgnore(tenantLine = "true")
     List<SysMenu> selectPermissionMenusByUserIdAndCompanyId(@Param("userId") Long userId,
                                                             @Param("companyId") Long companyId);
 
@@ -43,5 +46,6 @@ public interface SysMenuMapper extends BaseMapper<SysMenu> {
      * @param companyId 公司ID
      * @return 菜单列表
      */
+    @InterceptorIgnore(tenantLine = "true")
     List<SysMenu> selectMenuTreeByUserIdAndCompanyId(@Param("userId") Long userId, @Param("companyId") Long companyId);
 }

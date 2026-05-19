@@ -38,7 +38,7 @@ import java.util.Map;
 public class NotifySceneRegistry {
 
     /**
-     * B 端接单通知模板 ID。
+     * B 端待派单通知模板 ID。
      */
     private static final String TEMPLATE_ID_WORK_ORDER_ACCEPT_B = "JEO-zVGuWBQPIhU0ck7e3I97Tlr1tNk1ouxbbLovCCE";
 
@@ -48,7 +48,7 @@ public class NotifySceneRegistry {
     private static final String TEMPLATE_ID_WORK_ORDER_TRANSFER_IN_B = "mw7ebqsdXbJxdQf-A_9161z0CdEVRGSi_I-gQY3dONw";
 
     /**
-     * B 端工单派单通知模板 ID。
+     * B 端维修员接单通知模板 ID。
      */
     private static final String TEMPLATE_ID_WORK_ORDER_ASSIGNED_B = "hhXhuNSWE4r98FbVMX8MfveAzBq3h7-QtfAMVOB2fTg";
 
@@ -98,12 +98,29 @@ public class NotifySceneRegistry {
     private final Map<String, NotifySceneMeta> sceneMetaMap;
 
     /**
+     * 系统级通知目标元数据池。
+     *
+     * <p>该列表用于后台配置页展示“系统当前支持哪些通知目标”。
+     * 它不再按场景裁剪，但会在合并过程中清空存在场景差异的默认配置字段，
+     * 避免把某个场景专属的接收人或默认模板误展示到其它场景上。</p>
+     */
+    private final List<NotifySceneTargetMeta> systemTargetMetas;
+
+    /**
+     * 按 `targetType` 索引的系统级通知目标映射。
+     */
+    private final Map<String, NotifySceneTargetMeta> systemTargetMetaMap;
+
+    /**
      * 构造通知场景注册表。
      */
     public NotifySceneRegistry() {
         List<NotifySceneMeta> metas = buildSceneMetaList();
         this.sceneMetas = Collections.unmodifiableList(metas);
         this.sceneMetaMap = Collections.unmodifiableMap(buildSceneMetaMap(metas));
+        List<NotifySceneTargetMeta> supportedTargetMetas = buildSystemTargetMetaList(metas);
+        this.systemTargetMetas = Collections.unmodifiableList(supportedTargetMetas);
+        this.systemTargetMetaMap = Collections.unmodifiableMap(buildSystemTargetMetaMap(supportedTargetMetas));
     }
 
     /**
@@ -113,6 +130,18 @@ public class NotifySceneRegistry {
      */
     public List<NotifySceneMeta> listScenes() {
         return sceneMetas;
+    }
+
+    /**
+     * 查询系统级通知目标元数据池。
+     *
+     * <p>该方法返回的是“系统当前支持的目标候选项”，
+     * 主要用于后台配置页展示启用目标勾选项，不再按单个场景做裁剪。</p>
+     *
+     * @return 系统级通知目标元数据列表
+     */
+    public List<NotifySceneTargetMeta> listSystemTargetMetas() {
+        return systemTargetMetas;
     }
 
     /**
@@ -153,7 +182,39 @@ public class NotifySceneRegistry {
         NotifySceneMeta sceneMeta = getRequiredScene(sceneCode);
         NotifySceneTargetMeta targetMeta = sceneMeta.getTargetMeta(targetType);
         if (targetMeta == null) {
+            // 后台配置页现在允许按系统级目标池为场景补充新的目标类型，
+            // 因此这里先优先读取场景注册元数据，未命中时再回退到系统级目标池。
+            targetMeta = getSystemTargetMeta(targetType);
+        }
+        if (targetMeta == null) {
             throw new ServiceException("当前场景不支持该通知目标：" + targetType);
+        }
+        return targetMeta;
+    }
+
+    /**
+     * 按通知目标类型查询系统级目标元数据。
+     *
+     * @param targetType 通知目标类型
+     * @return 命中的目标元数据；未命中时返回 {@code null}
+     */
+    public NotifySceneTargetMeta getSystemTargetMeta(String targetType) {
+        if (targetType == null) {
+            return null;
+        }
+        return systemTargetMetaMap.get(targetType.trim());
+    }
+
+    /**
+     * 强校验读取系统级目标元数据。
+     *
+     * @param targetType 通知目标类型
+     * @return 命中的目标元数据
+     */
+    public NotifySceneTargetMeta getRequiredSystemTargetMeta(String targetType) {
+        NotifySceneTargetMeta targetMeta = getSystemTargetMeta(targetType);
+        if (targetMeta == null) {
+            throw new ServiceException("不支持的通知目标：" + targetType);
         }
         return targetMeta;
     }
@@ -189,25 +250,179 @@ public class NotifySceneRegistry {
     }
 
     /**
-     * 构造 B 端接单通知场景。
+     * 构造系统级通知目标元数据池。
      *
-     * <p>该场景对应“新工单进入目标承接网点待处理池”后的网点级通知，
+     * <p>同一个 `targetType` 可能在不同场景下复用，但接收人语义、默认模板或默认渠道配置不一定一致。
+     * 这里按 `targetType` 聚合后，只保留所有场景都一致的字段；
+     * 一旦发现存在差异，就把对应默认字段清空，交由场景实际配置兜底。</p>
+     *
+     * @param metas 场景元数据列表
+     * @return 系统级目标元数据列表
+     */
+    private List<NotifySceneTargetMeta> buildSystemTargetMetaList(List<NotifySceneMeta> metas) {
+        Map<String, NotifySceneTargetMeta> map = new LinkedHashMap<>();
+        for (NotifySceneMeta sceneMeta : metas) {
+            for (NotifySceneTargetMeta targetMeta : sceneMeta.getTargetMetas()) {
+                NotifySceneTargetMeta existing = map.get(targetMeta.getTargetType());
+                if (existing == null) {
+                    map.put(targetMeta.getTargetType(), targetMeta);
+                    continue;
+                }
+                map.put(targetMeta.getTargetType(), mergeSystemTargetMeta(existing, targetMeta));
+            }
+        }
+        return new ArrayList<>(map.values());
+    }
+
+    /**
+     * 构造系统级目标映射。
+     *
+     * @param metas 系统级目标元数据列表
+     * @return 按目标类型索引的映射
+     */
+    private Map<String, NotifySceneTargetMeta> buildSystemTargetMetaMap(List<NotifySceneTargetMeta> metas) {
+        Map<String, NotifySceneTargetMeta> map = new LinkedHashMap<>();
+        for (NotifySceneTargetMeta meta : metas) {
+            map.put(meta.getTargetType(), meta);
+        }
+        return map;
+    }
+
+    /**
+     * 合并两个同类型的场景目标元数据，生成系统级目标元数据。
+     *
+     * <p>目标类型、目标描述和渠道语义属于系统能力本身，按一致值保留；
+     * 接收人描述、默认模板、默认跳转和默认渠道配置一旦出现差异，就清空为 `null`，
+     * 避免系统级目标池误把某个场景专属默认值带到其它场景。</p>
+     *
+     * @param left 已合并的系统级目标元数据
+     * @param right 当前场景目标元数据
+     * @return 合并后的系统级目标元数据
+     */
+    private NotifySceneTargetMeta mergeSystemTargetMeta(NotifySceneTargetMeta left, NotifySceneTargetMeta right) {
+        return new NotifySceneTargetMeta(
+                left.getTargetType(),
+                resolveSameValue(left.getTargetTypeDesc(), right.getTargetTypeDesc()),
+                resolveSameValue(left.getReceiverType(), right.getReceiverType()),
+                resolveSameValue(left.getReceiverTypeDesc(), right.getReceiverTypeDesc()),
+                resolveSameValue(left.getReceiverDesc(), right.getReceiverDesc()),
+                resolveSameValue(left.getDefaultEnabled(), right.getDefaultEnabled()),
+                resolveSameValue(left.getDefaultTemplateName(), right.getDefaultTemplateName()),
+                resolveSameValue(left.getDefaultTitleTemplate(), right.getDefaultTitleTemplate()),
+                resolveSameValue(left.getDefaultContentTemplate(), right.getDefaultContentTemplate()),
+                resolveSameValue(left.getDefaultRouteType(), right.getDefaultRouteType()),
+                resolveSameValue(left.getDefaultRouteValueTemplate(), right.getDefaultRouteValueTemplate()),
+                resolveSameValue(left.getChannelType(), right.getChannelType()),
+                resolveSameValue(left.getChannelTypeDesc(), right.getChannelTypeDesc()),
+                resolveSameChannelConfig(left.getDefaultChannelConfig(), right.getDefaultChannelConfig())
+        );
+    }
+
+    /**
+     * 仅当两个值完全一致时才保留，否则返回 {@code null}。
+     *
+     * @param left 左值
+     * @param right 右值
+     * @param <T> 值类型
+     * @return 一致值或 {@code null}
+     */
+    private <T> T resolveSameValue(T left, T right) {
+        if (left == null && right == null) {
+            return null;
+        }
+        return left != null && left.equals(right) ? left : null;
+    }
+
+    /**
+     * 比较两个默认渠道配置是否完全一致。
+     *
+     * @param left 左配置
+     * @param right 右配置
+     * @return 一致时返回配置对象，否则返回 {@code null}
+     */
+    private NotifyTemplateChannelConfig resolveSameChannelConfig(NotifyTemplateChannelConfig left,
+                                                                 NotifyTemplateChannelConfig right) {
+        if (left == null && right == null) {
+            return null;
+        }
+        if (left == null || right == null) {
+            return null;
+        }
+        if (!equalsNullable(left.getTemplateId(), right.getTemplateId())
+                || !equalsNullable(left.getChannelScene(), right.getChannelScene())
+                || !equalsNullable(left.getPagePathTemplate(), right.getPagePathTemplate())
+                || !isSameFieldMapping(left.getFieldMapping(), right.getFieldMapping())) {
+            return null;
+        }
+        return left;
+    }
+
+    /**
+     * 比较两个字段映射列表是否一致。
+     *
+     * @param left 左映射列表
+     * @param right 右映射列表
+     * @return `true` 表示一致
+     */
+    private boolean isSameFieldMapping(List<NotifyChannelFieldMappingDTO> left,
+                                       List<NotifyChannelFieldMappingDTO> right) {
+        if (left == null || left.isEmpty()) {
+            return right == null || right.isEmpty();
+        }
+        if (right == null || left.size() != right.size()) {
+            return false;
+        }
+        for (int i = 0; i < left.size(); i++) {
+            NotifyChannelFieldMappingDTO leftItem = left.get(i);
+            NotifyChannelFieldMappingDTO rightItem = right.get(i);
+            if (leftItem == null || rightItem == null) {
+                if (leftItem != rightItem) {
+                    return false;
+                }
+                continue;
+            }
+            if (!equalsNullable(leftItem.getField(), rightItem.getField())
+                    || !equalsNullable(leftItem.getValue(), rightItem.getValue())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 比较两个可空字符串是否一致。
+     *
+     * @param left 左值
+     * @param right 右值
+     * @return `true` 表示一致
+     */
+    private boolean equalsNullable(String left, String right) {
+        if (left == null) {
+            return right == null;
+        }
+        return left.equals(right);
+    }
+
+    /**
+     * 构造 B 端待派单通知场景。
+     *
+     * <p>该场景对应“新工单进入目标承接网点待派单池”后的网点级通知，
      * 默认只开放 B 端小程序订阅通知目标。</p>
      *
-     * @return B 端接单通知场景元数据
+     * @return B 端待派单通知场景元数据
      */
     private NotifySceneMeta buildWorkOrderAcceptScene() {
         List<NotifySceneTargetMeta> targetMetas = new ArrayList<>();
         targetMetas.add(buildMiniProgramTargetMeta(
                 NotifyTypeEnum.MP_SUBSCRIBE_B.getCode(),
                 NotifyTypeEnum.MP_SUBSCRIBE_B.getDesc(),
-                NotifyReceiverTypeEnum.ACCEPT_USER.getCode(),
-                NotifyReceiverTypeEnum.ACCEPT_USER.getDesc(),
-                "当前目标网点下已启用、具备接单权限且已订阅模板的用户",
+                NotifyReceiverTypeEnum.ASSIGN_USER.getCode(),
+                NotifyReceiverTypeEnum.ASSIGN_USER.getDesc(),
+                "当前目标网点下已启用、具备派单权限且已订阅模板的用户",
                 1,
-                "B端接单通知",
-                "B端接单通知",
-                "新工单 ${orderNo} 已进入当前网点待处理，请及时接单或安排处理",
+                "B端待派单通知",
+                "B端待派单通知",
+                "新工单 ${orderNo} 已进入当前网点待派单池，请及时派单处理",
                 NotifyConstants.ROUTE_TYPE_WORK_ORDER_DETAIL,
                 "${workOrderId}",
                 buildMiniProgramConfig(
@@ -273,12 +488,12 @@ public class NotifySceneRegistry {
     }
 
     /**
-     * 构造 B 端工单派单通知场景。
+     * 构造 B 端维修员接单通知场景。
      *
      * <p>该场景继续保留现有站内消息、站内待办和 B 端小程序订阅通知三类目标。
      * 其中小程序模板字段中的“用户名称、联系电话”统一解释为客户信息。</p>
      *
-     * @return B 端工单派单通知场景元数据
+     * @return B 端维修员接单通知场景元数据
      */
     private NotifySceneMeta buildWorkOrderAssignedScene() {
         List<NotifySceneTargetMeta> targetMetas = new ArrayList<>();
@@ -321,8 +536,8 @@ public class NotifySceneRegistry {
                 NotifyReceiverTypeEnum.REPAIRER.getDesc(),
                 "被派单工程师本人",
                 1,
-                "B端工单派单通知",
-                "B端工单派单通知",
+                "B端维修员接单通知",
+                "B端维修员接单通知",
                 "工单 ${orderNo} 已派给您，请及时联系客户并处理",
                 NotifyConstants.ROUTE_TYPE_WORK_ORDER_DETAIL,
                 "${workOrderId}",
@@ -473,7 +688,7 @@ public class NotifySceneRegistry {
     }
 
     /**
-     * 构造 B 端接单通知变量列表。
+     * 构造 B 端待派单通知变量列表。
      *
      * @return 变量元数据列表
      */
@@ -506,7 +721,7 @@ public class NotifySceneRegistry {
     }
 
     /**
-     * 构造 B 端工单派单通知变量列表。
+     * 构造 B 端维修员接单通知变量列表。
      *
      * @return 变量元数据列表
      */
