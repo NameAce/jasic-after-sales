@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onMounted, watch } from 'vue';
+import { nextTick, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { useElementSize } from '@vueuse/core';
 import { getNotifyTodoPage, listWorkOrder } from '@/service/api';
 import { useAppStore } from '@/store/modules/app';
 import { useEcharts } from '@/hooks/common/echarts';
@@ -13,6 +14,12 @@ defineOptions({
 
 const appStore = useAppStore();
 const router = useRouter();
+
+const trendPayload = ref<{ dayKeys: string[]; orderData: number[]; todoData: number[] }>({
+  dayKeys: [],
+  orderData: [],
+  todoData: []
+});
 
 const { domRef, updateOptions } = useEcharts(() => ({
   title: {
@@ -111,6 +118,8 @@ const { domRef, updateOptions } = useEcharts(() => ({
   ]
 }));
 
+const { width, height } = useElementSize(domRef);
+
 /**
  * 作用：将时间字符串截断为 yyyy-MM-dd 作为统计键。
  * @param input - 任意时间表示
@@ -181,11 +190,21 @@ async function loadRealData() {
     if (key in todoCountMap) todoCountMap[key] += 1;
   }
 
+  trendPayload.value = {
+    dayKeys,
+    orderData: dayKeys.map(key => orderCountMap[key] || 0),
+    todoData: dayKeys.map(key => todoCountMap[key] || 0)
+  };
+  await applyTrendData();
+}
+
+async function applyTrendData() {
+  await nextTick();
+  const { dayKeys, orderData, todoData } = trendPayload.value;
   updateOptions(opts => {
     opts.xAxis.data = dayKeys.map(toAxisLabel);
-    opts.series[0].data = dayKeys.map(key => orderCountMap[key] || 0);
-    opts.series[1].data = dayKeys.map(key => todoCountMap[key] || 0);
-
+    opts.series[0].data = orderData;
+    opts.series[1].data = todoData;
     return opts;
   });
 }
@@ -238,6 +257,16 @@ watch(
  * @param 无
  * @returns {void} 无
  */
+watch(
+  () => [width.value, height.value, trendPayload.value],
+  () => {
+    if (width.value > 0 && height.value > 0 && trendPayload.value.dayKeys.length) {
+      applyTrendData();
+    }
+  },
+  { flush: 'post', deep: true }
+);
+
 onMounted(() => {
   init();
 });

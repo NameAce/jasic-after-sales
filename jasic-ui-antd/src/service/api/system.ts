@@ -691,7 +691,7 @@ export function syncRoleTemplate(templateId: IdLike) {
  * @修改人 黄碧莲
  * @修改时间 2026-05-14
  */
-export function listRegion(targetCompanyId: IdLike, params?: Query) {
+export function listRegion(targetCompanyId?: IdLike, params?: Query) {
   return request<Query[] | PageResult<Query>>({
     url: '/system/region/list',
     method: 'get',

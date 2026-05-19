@@ -63,8 +63,6 @@ async function safeGetTotal(enabled: boolean, requester: () => Promise<any>, ext
 
 /**
  * 作用：根据权限加载用户/角色或待办/消息汇总并刷新图表。
- * @param 无
- * @returns 返回 Promise，汇总与图表更新后结束
  */
 async function loadSummary() {
   try {
@@ -109,19 +107,12 @@ async function loadSummary() {
   }
 }
 
-/**
- * 作用：挂载后拉取汇总数据。
- * @param 无
- * @returns {void} 无
- */
 onMounted(() => {
   loadSummary();
 });
 
 /**
  * 作用：点击柱状图条目跳转对应管理页或消息中心。
- * @param key - 条目 key
- * @returns {void} 无
  */
 function openSummaryPage(key: string) {
   if (key === 'user') {
@@ -204,8 +195,6 @@ const { domRef, updateOptions } = useEcharts(
 
 /**
  * 作用：将 summary/chartItems 同步到图表配置。
- * @param 无
- * @returns {void} 无
  */
 function updateChart() {
   updateOptions(opts => {

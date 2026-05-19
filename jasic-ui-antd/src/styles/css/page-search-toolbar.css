@@ -103,8 +103,7 @@ form.page-search-toolbar--inline.page-search-toolbar--inline-nowrap.ant-form-inl
 }
 
 .page-search-toolbar--inline.page-search-toolbar--inline-nowrap.ant-form > .ant-form-item:not(:last-child),
-form.page-search-toolbar--inline.page-search-toolbar--inline-nowrap.ant-form-inline
-  > .ant-form-item:not(:last-child) {
+form.page-search-toolbar--inline.page-search-toolbar--inline-nowrap.ant-form-inline > .ant-form-item:not(:last-child) {
   flex: 1 1 0;
   min-width: 0;
 }

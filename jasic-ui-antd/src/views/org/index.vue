@@ -46,6 +46,7 @@ import { useTableScroll } from '@/hooks/common/table';
 import { computeExpandedKeysForCheckedMenuTree } from '@/utils/tree-expand-keys';
 import { createAntTableActionColumn } from '@/utils/table-action-width';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
+import { applyDateTimeColumnRender } from '@/utils/datetime';
 import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
 
 type RowData = Record<string, any>;
@@ -434,231 +435,234 @@ const isContractPageTab = computed(() => activeTab.value === 'hqFirst' || active
 
 // 按当前 Tab 切换表格列定义
 const columns = computed(() => {
-  switch (activeTab.value) {
-    case 'company':
-      return [
-        { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
-        {
-          title: '公司名称',
-          dataIndex: 'companyName',
-          key: 'companyName',
-          width: 200
-        },
-        {
-          title: '公司简称',
-          dataIndex: 'companyShortName',
-          key: 'companyShortName',
-          width: 140
-        },
-        {
-          title: '公司编码',
-          dataIndex: 'companyCode',
-          key: 'companyCode',
-          width: 140
-        },
-        {
-          title: '公司类型',
-          dataIndex: 'typeCode',
-          key: 'typeCode',
-          width: 120
-        },
-        {
-          title: '主体类型',
-          dataIndex: 'subjectType',
-          key: 'subjectType',
-          width: 100
-        },
-        {
-          title: '来源',
-          dataIndex: 'sourceType',
-          key: 'sourceType',
-          width: 90
-        },
-        {
-          title: '联系人',
-          dataIndex: 'contactName',
-          key: 'contactName',
-          width: 120
-        },
-        {
-          title: '联系电话',
-          dataIndex: 'contactPhone',
-          key: 'contactPhone',
-          width: 140
-        },
-        {
-          title: '客服电话',
-          dataIndex: 'servicePhone',
-          key: 'servicePhone',
-          width: 140
-        },
-        {
-          title: '销售组织',
-          dataIndex: 'salesOrg',
-          key: 'salesOrg',
-          width: 120
-        },
-        { title: '地区', dataIndex: 'region', key: 'region', width: 180 },
-        {
-          title: '详细地址',
-          dataIndex: 'detailAddress',
-          key: 'detailAddress',
-          ellipsis: true,
-          width: 220
-        },
-        {
-          title: '地理解析',
-          dataIndex: 'geocodeStatus',
-          key: 'geocodeStatus',
-          width: 100
-        },
-        { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-        {
-          title: '创建时间',
-          dataIndex: 'createTime',
-          key: 'createTime',
-          width: 160
-        },
-        orgActionColumn('company')
-      ];
-    case 'hqFirst':
-      return [
-        { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
-        {
-          title: '总部',
-          dataIndex: 'hqCompanyName',
-          key: 'hqCompanyName',
-          width: 180
-        },
-        {
-          title: '一级网点',
-          dataIndex: 'firstCompanyName',
-          key: 'firstCompanyName',
-          width: 180
-        },
-        {
-          title: '大区',
-          dataIndex: 'regionName',
-          key: 'regionName',
-          width: 140
-        },
-        { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-        {
-          title: '签约时间',
-          dataIndex: 'contractTime',
-          key: 'contractTime',
-          width: 170
-        },
-        {
-          title: '创建时间',
-          dataIndex: 'createTime',
-          key: 'createTime',
-          width: 170
-        },
-        orgActionColumn('hqFirst')
-      ];
-    case 'firstSecond':
-      return [
-        { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
-        {
-          title: '一级',
-          dataIndex: 'firstCompanyName',
-          key: 'firstCompanyName',
-          width: 180
-        },
-        {
-          title: '二级',
-          dataIndex: 'secondCompanyName',
-          key: 'secondCompanyName',
-          width: 180
-        },
-        {
-          title: '创建时间',
-          dataIndex: 'createTime',
-          key: 'createTime',
-          width: 170
-        },
-        orgActionColumn('firstSecond')
-      ];
-    case 'external':
-      return [
-        {
-          title: '名称',
-          dataIndex: 'companyName',
-          key: 'companyName',
-          width: 200
-        },
-        {
-          title: '编码',
-          dataIndex: 'companyCode',
-          key: 'companyCode',
-          width: 140
-        },
-        {
-          title: '联系人',
-          dataIndex: 'contactName',
-          key: 'contactName',
-          width: 120
-        },
-        {
-          title: '电话',
-          dataIndex: 'contactPhone',
-          key: 'contactPhone',
-          width: 140
-        },
-        { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-        orgActionColumn('external')
-      ];
-    case 'area':
-      return [
-        { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
-        {
-          title: '大区编码',
-          dataIndex: 'regionCode',
-          key: 'regionCode',
-          width: 120
-        },
-        {
-          title: '大区名称',
-          dataIndex: 'regionName',
-          key: 'regionName',
-          width: 200
-        },
-        { title: '备注', dataIndex: 'remark', key: 'remark' },
-        {
-          title: '创建时间',
-          dataIndex: 'createTime',
-          key: 'createTime',
-          width: 160
-        },
-        orgActionColumn('area')
-      ];
-    case 'companyType':
-      return [
-        {
-          title: '类型名称',
-          dataIndex: 'typeName',
-          key: 'typeName',
-          width: 200
-        },
-        {
-          title: '类型编码',
-          dataIndex: 'typeCode',
-          key: 'typeCode',
-          width: 160
-        },
-        {
-          title: '主体类型',
-          dataIndex: 'subjectType',
-          key: 'subjectType',
-          width: 120
-        },
-        { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
-        orgActionColumn('companyType')
-      ];
-    default:
-      return [];
-  }
+  const rawColumns = (() => {
+    switch (activeTab.value) {
+      case 'company':
+        return [
+          { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
+          {
+            title: '公司名称',
+            dataIndex: 'companyName',
+            key: 'companyName',
+            width: 200
+          },
+          {
+            title: '公司简称',
+            dataIndex: 'companyShortName',
+            key: 'companyShortName',
+            width: 140
+          },
+          {
+            title: '公司编码',
+            dataIndex: 'companyCode',
+            key: 'companyCode',
+            width: 140
+          },
+          {
+            title: '公司类型',
+            dataIndex: 'typeCode',
+            key: 'typeCode',
+            width: 120
+          },
+          {
+            title: '主体类型',
+            dataIndex: 'subjectType',
+            key: 'subjectType',
+            width: 100
+          },
+          {
+            title: '来源',
+            dataIndex: 'sourceType',
+            key: 'sourceType',
+            width: 90
+          },
+          {
+            title: '联系人',
+            dataIndex: 'contactName',
+            key: 'contactName',
+            width: 120
+          },
+          {
+            title: '联系电话',
+            dataIndex: 'contactPhone',
+            key: 'contactPhone',
+            width: 140
+          },
+          {
+            title: '客服电话',
+            dataIndex: 'servicePhone',
+            key: 'servicePhone',
+            width: 140
+          },
+          {
+            title: '销售组织',
+            dataIndex: 'salesOrg',
+            key: 'salesOrg',
+            width: 120
+          },
+          { title: '地区', dataIndex: 'region', key: 'region', width: 180 },
+          {
+            title: '详细地址',
+            dataIndex: 'detailAddress',
+            key: 'detailAddress',
+            ellipsis: true,
+            width: 220
+          },
+          {
+            title: '地理解析',
+            dataIndex: 'geocodeStatus',
+            key: 'geocodeStatus',
+            width: 100
+          },
+          { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
+          {
+            title: '创建时间',
+            dataIndex: 'createTime',
+            key: 'createTime',
+            width: 160
+          },
+          orgActionColumn('company')
+        ];
+      case 'hqFirst':
+        return [
+          { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
+          {
+            title: '总部',
+            dataIndex: 'hqCompanyName',
+            key: 'hqCompanyName',
+            width: 180
+          },
+          {
+            title: '一级网点',
+            dataIndex: 'firstCompanyName',
+            key: 'firstCompanyName',
+            width: 180
+          },
+          {
+            title: '大区',
+            dataIndex: 'regionName',
+            key: 'regionName',
+            width: 140
+          },
+          { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
+          {
+            title: '签约时间',
+            dataIndex: 'contractTime',
+            key: 'contractTime',
+            width: 170
+          },
+          {
+            title: '创建时间',
+            dataIndex: 'createTime',
+            key: 'createTime',
+            width: 170
+          },
+          orgActionColumn('hqFirst')
+        ];
+      case 'firstSecond':
+        return [
+          { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
+          {
+            title: '一级',
+            dataIndex: 'firstCompanyName',
+            key: 'firstCompanyName',
+            width: 180
+          },
+          {
+            title: '二级',
+            dataIndex: 'secondCompanyName',
+            key: 'secondCompanyName',
+            width: 180
+          },
+          {
+            title: '创建时间',
+            dataIndex: 'createTime',
+            key: 'createTime',
+            width: 170
+          },
+          orgActionColumn('firstSecond')
+        ];
+      case 'external':
+        return [
+          {
+            title: '名称',
+            dataIndex: 'companyName',
+            key: 'companyName',
+            width: 200
+          },
+          {
+            title: '编码',
+            dataIndex: 'companyCode',
+            key: 'companyCode',
+            width: 140
+          },
+          {
+            title: '联系人',
+            dataIndex: 'contactName',
+            key: 'contactName',
+            width: 120
+          },
+          {
+            title: '电话',
+            dataIndex: 'contactPhone',
+            key: 'contactPhone',
+            width: 140
+          },
+          { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
+          orgActionColumn('external')
+        ];
+      case 'area':
+        return [
+          { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
+          {
+            title: '大区编码',
+            dataIndex: 'regionCode',
+            key: 'regionCode',
+            width: 120
+          },
+          {
+            title: '大区名称',
+            dataIndex: 'regionName',
+            key: 'regionName',
+            width: 200
+          },
+          { title: '备注', dataIndex: 'remark', key: 'remark' },
+          {
+            title: '创建时间',
+            dataIndex: 'createTime',
+            key: 'createTime',
+            width: 160
+          },
+          orgActionColumn('area')
+        ];
+      case 'companyType':
+        return [
+          {
+            title: '类型名称',
+            dataIndex: 'typeName',
+            key: 'typeName',
+            width: 200
+          },
+          {
+            title: '类型编码',
+            dataIndex: 'typeCode',
+            key: 'typeCode',
+            width: 160
+          },
+          {
+            title: '主体类型',
+            dataIndex: 'subjectType',
+            key: 'subjectType',
+            width: 120
+          },
+          { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
+          orgActionColumn('companyType')
+        ];
+      default:
+        return [];
+    }
+  })();
+  return applyDateTimeColumnRender(rawColumns);
 });
 
 /** 与 jasic-ui `contract/index.vue` 总部一级 CRM 导入表列一致 */
@@ -699,7 +703,7 @@ const crmHqImportColumns = [
 ];
 
 /** 与 jasic-ui 一级二级 CRM 导入表列一致 */
-const crmFsImportColumns = [
+const crmFsImportColumns = applyDateTimeColumnRender([
   {
     title: '一级CRM ID',
     dataIndex: 'firstCustId',
@@ -766,7 +770,7 @@ const crmFsImportColumns = [
     ellipsis: true,
     width: 220
   }
-];
+]);
 
 // 主表格当前展示的列（与 columns 同步）
 const displayColumns = computed(() => columns.value);
@@ -910,6 +914,7 @@ async function loadList() {
         break;
       }
       case 'hqFirst': {
+        // 签约列表必须带总部公司筛选，未选时不发请求（进入页面前会先默认选中第一项）
         if (!hqFirstQuery.hqCompanyId) {
           rows.value = [];
           total.value = 0;
@@ -918,8 +923,8 @@ async function loadList() {
         const flat = await listHqFirstContract({
           pageNum: hqFirstQuery.pageNum,
           pageSize: hqFirstQuery.pageSize,
-          targetCompanyId: hqFirstQuery.hqCompanyId,
-          hqCompanyId: hqFirstQuery.hqCompanyId
+          hqCompanyId: hqFirstQuery.hqCompanyId,
+          targetCompanyId: hqFirstQuery.hqCompanyId
         });
         if (consumeFlatError(flat)) {
           rows.value = [];
@@ -973,6 +978,7 @@ async function loadList() {
         break;
       }
       case 'area': {
+        // 大区列表必须带总部公司筛选，未选时不发请求（进入页面前会先默认选中第一项）
         if (!regionQueryCompanyId.value) {
           rows.value = [];
           total.value = 0;
@@ -1011,12 +1017,46 @@ async function loadList() {
 }
 
 /**
- * 作用：大区 Tab 下触发刷新列表。
- * @param 无
- * @returns {void} 无
+ * 作用：大区 Tab 下总部筛选变更时刷新列表（筛选项不可清空，始终带总部公司 ID 请求）。
  */
 function handleRegionSearch() {
   loadList();
+}
+
+/**
+ * 作用：大区筛选项「总部公司」未选时默认第一项（仅路由进入大区 Tab 时调用，保证首屏请求带公司 ID）。
+ */
+function applyDefaultRegionCompanyFilter() {
+  if (regionQueryCompanyId.value != null) return;
+  const list = hqCompanyOptions.value;
+  if (!list.length) return;
+  regionQueryCompanyId.value = Number(list[0].id);
+}
+
+/**
+ * 作用：加载总部下拉并应用大区筛选项默认值，供首屏列表请求使用。
+ */
+async function ensureRegionQueryCompanyReady() {
+  await loadCompanyOptionsForCrm();
+  applyDefaultRegionCompanyFilter();
+}
+
+/**
+ * 作用：总部一级签约筛选项「总部公司」未选时默认第一项（仅路由进入该 Tab 时调用，保证首屏请求带公司 ID）。
+ */
+function applyDefaultHqFirstCompanyFilter() {
+  if (hqFirstQuery.hqCompanyId != null) return;
+  const list = hqCompanyOptions.value;
+  if (!list.length) return;
+  hqFirstQuery.hqCompanyId = Number(list[0].id);
+}
+
+/**
+ * 作用：加载总部下拉并应用签约筛选项默认值，供首屏列表请求使用。
+ */
+async function ensureHqFirstQueryCompanyReady() {
+  await loadCompanyOptionsForCrm();
+  applyDefaultHqFirstCompanyFilter();
 }
 
 /**
@@ -1278,8 +1318,16 @@ function applyActiveTabByRoute(tab: TabKey) {
   if (tab === 'company') {
     companyQuery.pageNum = 1;
   }
-  if (tab === 'hqFirst' || tab === 'firstSecond') {
+  if (tab === 'hqFirst') {
     hqFirstQuery.pageNum = 1;
+    skipImmediateLoadList = true;
+    ensureHqFirstQueryCompanyReady().then(() => {
+      if (hqFirstQuery.hqCompanyId) {
+        loadList();
+      }
+    });
+  }
+  if (tab === 'firstSecond') {
     firstSecondQuery.pageNum = 1;
     skipImmediateLoadList = true;
     loadCompanyOptionsForCrm().then(() => {
@@ -1290,9 +1338,10 @@ function applyActiveTabByRoute(tab: TabKey) {
     externalQuery.pageNum = 1;
   }
   if (tab === 'area') {
-    loadCompanyOptionsForCrm().then(() => {
-      if (!regionQueryCompanyId.value && hqCompanyOptions.value.length) {
-        regionQueryCompanyId.value = Number(hqCompanyOptions.value[0].id);
+    // 须先就绪总部筛选项再拉列表，避免首屏请求缺少 targetCompanyId
+    skipImmediateLoadList = true;
+    ensureRegionQueryCompanyReady().then(() => {
+      if (regionQueryCompanyId.value) {
         loadList();
       }
     });
@@ -1338,7 +1387,7 @@ function resetExternalQuery() {
 }
 
 /**
- * 作用：总部一级签约列表筛选变更触发刷新。
+ * 作用：总部一级签约列表总部筛选变更时刷新（筛选项不可清空，始终带总部公司 ID 请求）。
  */
 function handleHqFirstSearch() {
   hqFirstQuery.pageNum = 1;
@@ -1988,7 +2037,7 @@ function onCompanyCrmImportRowSelectChange(keys: (string | number)[], selectedRo
     selectedRows.find(item => resolveCompanyCrmImportRowKey(item) === key) ??
     companyCrmImportRows.value.find(item => resolveCompanyCrmImportRowKey(item) === key);
   if (row) {
-    void useCompanyCrmImportRow(row);
+    useCompanyCrmImportRow(row).catch(() => undefined);
   }
 }
 
@@ -2258,10 +2307,9 @@ onMounted(() => {
                 <AFormItem label="总部公司" class="m-0">
                   <ASelect
                     v-model:value="hqFirstQuery.hqCompanyId"
-                    allow-clear
                     show-search
                     option-filter-prop="label"
-                    placeholder="全部"
+                    placeholder="请选择总部"
                     class="w-full"
                     :options="
                       hqCompanyOptions.map(c => ({
@@ -2270,7 +2318,6 @@ onMounted(() => {
                       }))
                     "
                     @change="handleHqFirstSearch"
-                    @clear="handleHqFirstSearch"
                   />
                 </AFormItem>
               </ACol>
@@ -2369,15 +2416,14 @@ onMounted(() => {
                 <AFormItem label="总部公司" class="m-0">
                   <ASelect
                     v-model:value="regionQueryCompanyId"
-                    allow-clear
                     show-search
                     option-filter-prop="label"
-                    placeholder="请选择"
+                    placeholder="请选择总部"
                     class="w-full"
                     :options="
                       hqCompanyOptions.map(c => ({
                         label: c.companyName,
-                        value: c.id
+                        value: Number(c.id)
                       }))
                     "
                     @change="handleRegionSearch"

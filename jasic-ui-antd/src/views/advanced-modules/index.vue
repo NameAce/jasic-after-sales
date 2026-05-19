@@ -66,6 +66,7 @@ import { useTableScroll } from '@/hooks/common/table';
 import { computeExpandedKeysForCheckedMenuTree } from '@/utils/tree-expand-keys';
 import { createAntTableActionColumn } from '@/utils/table-action-width';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
+import { applyDateTimeColumnRender, mapDetailRowsDateTime } from '@/utils/datetime';
 import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
 
 type RowData = Record<string, any>;
@@ -253,7 +254,7 @@ const barcodeDetailRows = computed(() => {
   const detail = barcodeDetail.value || {};
   const statusValue = Number(detail.status);
   const statusLabel = statusValue === 1 ? '启用' : statusValue === 0 ? '停用' : '-';
-  return [
+  return mapDetailRowsDateTime([
     { key: 'barcode', label: '条码', value: detail.barcode || '-' },
     {
       key: 'deliverNumber',
@@ -298,7 +299,7 @@ const barcodeDetailRows = computed(() => {
     },
     { key: 'status', label: '状态', value: statusLabel },
     { key: 'remark', label: '备注', value: detail.remark || '-' }
-  ];
+  ]);
 });
 
 // 通知模板：列表查看抽屉与关联行
@@ -579,302 +580,353 @@ function loadByModule() {
 // 当前子模块表格列定义
 const columns = computed(() => {
   const actionCol = (width: number) => createAntTableActionColumn({ width });
-  switch (activeKey.value) {
-    case 'dict':
-      return [
-        {
-          title: '字典名称',
-          dataIndex: 'dictName',
-          key: 'dictName',
-          width: 160
-        },
-        {
-          title: '字典类型',
-          dataIndex: 'dictType',
-          key: 'dictType',
-          width: 180
-        },
-        { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
-        { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
-        actionCol(120)
-      ];
-    case 'config':
-      return [
-        {
-          title: '参数名称',
-          dataIndex: 'configName',
-          key: 'configName',
-          width: 160
-        },
-        {
-          title: '参数键',
-          dataIndex: 'configKey',
-          key: 'configKey',
-          width: 180
-        },
-        {
-          title: '参数值',
-          dataIndex: 'configValue',
-          key: 'configValue',
-          ellipsis: true
-        },
-        { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
-        { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
-        actionCol(120)
-      ];
-    case 'notifyTemplate':
-      return [
-        {
-          title: '模板编码',
-          dataIndex: 'templateCode',
-          key: 'templateCode',
-          width: 200
-        },
-        {
-          title: '模板名称',
-          dataIndex: 'templateName',
-          key: 'templateName',
-          width: 180
-        },
-        {
-          title: '模板来源',
-          dataIndex: 'templateSource',
-          key: 'templateSource',
-          width: 110
-        },
-        {
-          title: '通知开关',
-          dataIndex: 'notifyEnabled',
-          key: 'notifyEnabled',
-          width: 100
-        },
-        {
-          title: '覆盖开关',
-          dataIndex: 'overrideEnabled',
-          key: 'overrideEnabled',
-          width: 100
-        },
-        {
-          title: '路由类型',
-          dataIndex: 'routeType',
-          key: 'routeType',
-          width: 160
-        },
-        {
-          title: '标题模板',
-          dataIndex: 'titleTemplate',
-          key: 'titleTemplate',
-          ellipsis: true
-        },
-        {
-          title: '摘要模板',
-          dataIndex: 'summaryTemplate',
-          key: 'summaryTemplate',
-          ellipsis: true
-        },
-        {
-          title: '更新时间',
-          dataIndex: 'updateTime',
-          key: 'updateTime',
-          width: 170
-        },
-        actionCol(400)
-      ];
-    case 'barcode':
-      return [
-        { title: '条码', dataIndex: 'barcode', key: 'barcode', width: 180 },
-        {
-          title: '发货单号',
-          dataIndex: 'deliverNumber',
-          key: 'deliverNumber',
-          width: 140
-        },
-        {
-          title: '归属总部',
-          dataIndex: 'hqCompanyName',
-          key: 'hqCompanyName',
-          width: 160
-        },
-        { title: 'CRM公司ID', dataIndex: 'custId', key: 'custId', width: 120 },
-        {
-          title: '销售组织',
-          dataIndex: 'salesOrg',
-          key: 'salesOrg',
-          width: 120
-        },
-        {
-          title: '物料编码',
-          dataIndex: 'productCode',
-          key: 'productCode',
-          width: 120
-        },
-        {
-          title: '商品名称',
-          dataIndex: 'productName',
-          key: 'productName',
-          width: 160,
-          ellipsis: true
-        },
-        {
-          title: '产品型号',
-          dataIndex: 'productModel',
-          key: 'productModel',
-          width: 140
-        },
-        {
-          title: '机器小号',
-          dataIndex: 'machineNo',
-          key: 'machineNo',
-          width: 140
-        },
-        { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
-        {
-          title: '更新时间',
-          dataIndex: 'updateTime',
-          key: 'updateTime',
-          width: 170
-        }
-      ];
-    case 'syncTask':
-      return [
-        {
-          title: '任务编码',
-          dataIndex: 'taskCode',
-          key: 'taskCode',
-          width: 160
-        },
-        {
-          title: '任务名称',
-          dataIndex: 'taskName',
-          key: 'taskName',
-          width: 180
-        },
-        {
-          title: '处理器',
-          dataIndex: 'handlerName',
-          key: 'handlerName',
-          width: 140
-        },
-        {
-          title: 'Cron',
-          dataIndex: 'cronExpression',
-          key: 'cronExpression',
-          width: 160
-        },
-        { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
-        {
-          title: '最近状态',
-          dataIndex: 'lastStatus',
-          key: 'lastStatus',
-          width: 100
-        },
-        {
-          title: '最近结束',
-          dataIndex: 'lastEndTime',
-          key: 'lastEndTime',
-          width: 170
-        },
-        {
-          title: '下次触发',
-          dataIndex: 'nextFireTime',
-          key: 'nextFireTime',
-          width: 170
-        },
-        actionCol(200)
-      ];
-    case 'fault':
-      return [
-        {
-          title: '归属总部',
-          dataIndex: 'companyName',
-          key: 'companyName',
-          width: 180
-        },
-        {
-          title: '物料编码',
-          dataIndex: 'productCode',
-          key: 'productCode',
-          width: 140
-        },
-        {
-          title: '产品型号',
-          dataIndex: 'productModel',
-          key: 'productModel',
-          width: 140
-        },
-        {
-          title: '故障摘要',
-          dataIndex: 'faultDescSummary',
-          key: 'faultDescSummary',
-          ellipsis: true
-        },
-        { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
-        {
-          title: '更新时间',
-          dataIndex: 'updateTime',
-          key: 'updateTime',
-          width: 170
-        },
-        actionCol(72)
-      ];
-    case 'roleTemplate':
-      return [
-        {
-          title: '角色名称',
-          dataIndex: 'roleName',
-          key: 'roleName',
-          width: 180
-        },
-        { title: '角色标识', dataIndex: 'roleKey', key: 'roleKey', width: 160 },
-        {
-          title: '所属类型',
-          dataIndex: 'typeCode',
-          key: 'typeCode',
-          width: 140
-        },
-        { title: '管理员', dataIndex: 'isAdmin', key: 'isAdmin', width: 90 },
-        {
-          title: '数据范围',
-          dataIndex: 'dataScope',
-          key: 'dataScope',
-          width: 140
-        },
-        { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
-        {
-          title: '创建时间',
-          dataIndex: 'createTime',
-          key: 'createTime',
-          width: 170
-        },
-        actionCol(380)
-      ];
-    case 'region':
-      return [
-        {
-          title: '大区编码',
-          dataIndex: 'regionCode',
-          key: 'regionCode',
-          width: 140
-        },
-        {
-          title: '大区名称',
-          dataIndex: 'regionName',
-          key: 'regionName',
-          width: 200
-        },
-        { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
-        {
-          title: '创建时间',
-          dataIndex: 'createTime',
-          key: 'createTime',
-          width: 170
-        },
-        actionCol(120)
-      ];
-    default:
-      return [];
-  }
+  const rawColumns = (() => {
+    switch (activeKey.value) {
+      case 'dict':
+        return [
+          {
+            title: '字典名称',
+            dataIndex: 'dictName',
+            key: 'dictName',
+            width: 160
+          },
+          {
+            title: '字典类型',
+            dataIndex: 'dictType',
+            key: 'dictType',
+            width: 180
+          },
+          { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
+          { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
+          actionCol(120)
+        ];
+      case 'config':
+        return [
+          {
+            title: '参数名称',
+            dataIndex: 'configName',
+            key: 'configName',
+            width: 160
+          },
+          {
+            title: '参数键',
+            dataIndex: 'configKey',
+            key: 'configKey',
+            width: 180
+          },
+          {
+            title: '参数值',
+            dataIndex: 'configValue',
+            key: 'configValue',
+            ellipsis: true
+          },
+          { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
+          { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
+          actionCol(120)
+        ];
+      case 'notifyTemplate':
+        return [
+          {
+            title: '模板编码',
+            dataIndex: 'templateCode',
+            key: 'templateCode',
+            width: 200
+          },
+          {
+            title: '模板名称',
+            dataIndex: 'templateName',
+            key: 'templateName',
+            width: 180
+          },
+          {
+            title: '模板来源',
+            dataIndex: 'templateSource',
+            key: 'templateSource',
+            width: 110
+          },
+          {
+            title: '通知开关',
+            dataIndex: 'notifyEnabled',
+            key: 'notifyEnabled',
+            width: 100
+          },
+          {
+            title: '覆盖开关',
+            dataIndex: 'overrideEnabled',
+            key: 'overrideEnabled',
+            width: 100
+          },
+          {
+            title: '路由类型',
+            dataIndex: 'routeType',
+            key: 'routeType',
+            width: 160
+          },
+          {
+            title: '标题模板',
+            dataIndex: 'titleTemplate',
+            key: 'titleTemplate',
+            ellipsis: true
+          },
+          {
+            title: '摘要模板',
+            dataIndex: 'summaryTemplate',
+            key: 'summaryTemplate',
+            ellipsis: true
+          },
+          {
+            title: '更新时间',
+            dataIndex: 'updateTime',
+            key: 'updateTime',
+            width: 170
+          },
+          actionCol(400)
+        ];
+      case 'barcode':
+        return [
+          { title: '条码', dataIndex: 'barcode', key: 'barcode', width: 180 },
+          {
+            title: '发货单号',
+            dataIndex: 'deliverNumber',
+            key: 'deliverNumber',
+            width: 140
+          },
+          {
+            title: '归属总部',
+            dataIndex: 'hqCompanyName',
+            key: 'hqCompanyName',
+            width: 160
+          },
+          { title: 'CRM公司ID', dataIndex: 'custId', key: 'custId', width: 120 },
+          {
+            title: '销售组织',
+            dataIndex: 'salesOrg',
+            key: 'salesOrg',
+            width: 120
+          },
+          {
+            title: '物料编码',
+            dataIndex: 'productCode',
+            key: 'productCode',
+            width: 120
+          },
+          {
+            title: '商品名称',
+            dataIndex: 'productName',
+            key: 'productName',
+            width: 160,
+            ellipsis: true
+          },
+          {
+            title: '产品型号',
+            dataIndex: 'productModel',
+            key: 'productModel',
+            width: 140
+          },
+          {
+            title: '机器小号',
+            dataIndex: 'machineNo',
+            key: 'machineNo',
+            width: 140
+          },
+          { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
+          {
+            title: '更新时间',
+            dataIndex: 'updateTime',
+            key: 'updateTime',
+            width: 170
+          }
+        ];
+      case 'syncTask':
+        return [
+          {
+            title: '任务编码',
+            dataIndex: 'taskCode',
+            key: 'taskCode',
+            width: 160
+          },
+          {
+            title: '任务名称',
+            dataIndex: 'taskName',
+            key: 'taskName',
+            width: 180
+          },
+          {
+            title: '处理器',
+            dataIndex: 'handlerName',
+            key: 'handlerName',
+            width: 140
+          },
+          {
+            title: 'Cron',
+            dataIndex: 'cronExpression',
+            key: 'cronExpression',
+            width: 160
+          },
+          { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
+          {
+            title: '最近状态',
+            dataIndex: 'lastStatus',
+            key: 'lastStatus',
+            width: 100
+          },
+          {
+            title: '最近结束',
+            dataIndex: 'lastEndTime',
+            key: 'lastEndTime',
+            width: 170
+          },
+          {
+            title: '下次触发',
+            dataIndex: 'nextFireTime',
+            key: 'nextFireTime',
+            width: 170
+          },
+          actionCol(200)
+        ];
+      case 'fault':
+        return [
+          {
+            title: '归属总部',
+            dataIndex: 'companyName',
+            key: 'companyName',
+            width: 180
+          },
+          {
+            title: '物料编码',
+            dataIndex: 'productCode',
+            key: 'productCode',
+            width: 140
+          },
+          {
+            title: '产品型号',
+            dataIndex: 'productModel',
+            key: 'productModel',
+            width: 140
+          },
+          {
+            title: '故障摘要',
+            dataIndex: 'faultDescSummary',
+            key: 'faultDescSummary',
+            ellipsis: true
+          },
+          { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
+          {
+            title: '更新时间',
+            dataIndex: 'updateTime',
+            key: 'updateTime',
+            width: 170
+          },
+          actionCol(72)
+        ];
+      case 'roleTemplate':
+        return [
+          {
+            title: '角色名称',
+            dataIndex: 'roleName',
+            key: 'roleName',
+            width: 180
+          },
+          { title: '角色标识', dataIndex: 'roleKey', key: 'roleKey', width: 160 },
+          {
+            title: '所属类型',
+            dataIndex: 'typeCode',
+            key: 'typeCode',
+            width: 140
+          },
+          { title: '管理员', dataIndex: 'isAdmin', key: 'isAdmin', width: 90 },
+          {
+            title: '数据范围',
+            dataIndex: 'dataScope',
+            key: 'dataScope',
+            width: 140
+          },
+          { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
+          {
+            title: '创建时间',
+            dataIndex: 'createTime',
+            key: 'createTime',
+            width: 170
+          },
+          actionCol(380)
+        ];
+      case 'region':
+        return [
+          {
+            title: '大区编码',
+            dataIndex: 'regionCode',
+            key: 'regionCode',
+            width: 140
+          },
+          {
+            title: '大区名称',
+            dataIndex: 'regionName',
+            key: 'regionName',
+            width: 200
+          },
+          { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
+          {
+            title: '创建时间',
+            dataIndex: 'createTime',
+            key: 'createTime',
+            width: 170
+          },
+          actionCol(120)
+        ];
+      default:
+        return [];
+    }
+  })();
+  return applyDateTimeColumnRender(rawColumns);
 });
+
+/** 同步任务执行日志表格列（时间字段统一格式化） */
+const syncTaskLogColumns = applyDateTimeColumnRender([
+  { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
+  {
+    title: '触发类型',
+    dataIndex: 'triggerType',
+    key: 'triggerType',
+    width: 120
+  },
+  {
+    title: '触发人',
+    dataIndex: 'triggerUserId',
+    key: 'triggerUserId',
+    width: 140
+  },
+  {
+    title: '开始时间',
+    dataIndex: 'startTime',
+    key: 'startTime',
+    width: 176
+  },
+  {
+    title: '结束时间',
+    dataIndex: 'endTime',
+    key: 'endTime',
+    width: 176
+  },
+  {
+    title: '数据开始时间',
+    dataIndex: 'dataStartTime',
+    key: 'dataStartTime',
+    width: 176
+  },
+  {
+    title: '数据结束时间',
+    dataIndex: 'dataEndTime',
+    key: 'dataEndTime',
+    width: 176
+  },
+  {
+    title: '执行信息',
+    dataIndex: 'message',
+    key: 'message',
+    width: 420,
+    ellipsis: { showTitle: true }
+  }
+]);
 
 // 字典/参数模块是否展示行内编辑删除
 const hasDictConfigRowActions = computed(() => activeKey.value === 'dict' || activeKey.value === 'config');
@@ -3706,52 +3758,7 @@ onMounted(async () => {
         </AFormItem>
       </AForm>
       <ATable
-        :columns="[
-          { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
-          {
-            title: '触发类型',
-            dataIndex: 'triggerType',
-            key: 'triggerType',
-            width: 120
-          },
-          {
-            title: '触发人',
-            dataIndex: 'triggerUserId',
-            key: 'triggerUserId',
-            width: 140
-          },
-          {
-            title: '开始时间',
-            dataIndex: 'startTime',
-            key: 'startTime',
-            width: 176
-          },
-          {
-            title: '结束时间',
-            dataIndex: 'endTime',
-            key: 'endTime',
-            width: 176
-          },
-          {
-            title: '数据开始时间',
-            dataIndex: 'dataStartTime',
-            key: 'dataStartTime',
-            width: 176
-          },
-          {
-            title: '数据结束时间',
-            dataIndex: 'dataEndTime',
-            key: 'dataEndTime',
-            width: 176
-          },
-          {
-            title: '执行信息',
-            dataIndex: 'message',
-            key: 'message',
-            width: 420,
-            ellipsis: { showTitle: true }
-          }
-        ]"
+        :columns="syncTaskLogColumns"
         :data-source="logRows"
         :loading="logLoading"
         size="small"

@@ -26,6 +26,7 @@ import { useTableScroll } from '@/hooks/common/table';
 import { createAntTableActionColumn } from '@/utils/table-action-width';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
 import { computeExpandedKeysForCheckedMenuTree } from '@/utils/tree-expand-keys';
+import { applyDateTimeColumnRender } from '@/utils/datetime';
 import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
 
 type RowData = Record<string, any>;
@@ -105,21 +106,23 @@ const roleFormOperateColSpan = computed(() =>
 );
 
 // 角色列表表格列
-const columns = computed(() => [
-  { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
-  { title: '角色名称', dataIndex: 'roleName', key: 'roleName', width: 160 },
-  { title: '角色标识', dataIndex: 'roleKey', key: 'roleKey', width: 160 },
-  {
-    title: '数据范围',
-    dataIndex: 'dataScope',
-    key: 'dataScope',
-    minWidth: 140
-  },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
-  { title: '系统角色', dataIndex: 'isSystem', key: 'isSystem', width: 100 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 170 },
-  createAntTableActionColumn({ width: ROLE_ACTION_COL_WIDTH })
-]);
+const columns = computed(() =>
+  applyDateTimeColumnRender([
+    { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
+    { title: '角色名称', dataIndex: 'roleName', key: 'roleName', width: 160 },
+    { title: '角色标识', dataIndex: 'roleKey', key: 'roleKey', width: 160 },
+    {
+      title: '数据范围',
+      dataIndex: 'dataScope',
+      key: 'dataScope',
+      minWidth: 140
+    },
+    { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
+    { title: '系统角色', dataIndex: 'isSystem', key: 'isSystem', width: 100 },
+    { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 170 },
+    createAntTableActionColumn({ width: ROLE_ACTION_COL_WIDTH })
+  ])
+);
 
 /**
  * 作用：从分页或数组结构中解析表格行数据。

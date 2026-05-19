@@ -74,6 +74,20 @@ export interface WorkOrderStatusCountVO {
   countNum: number;
 }
 
+/** 总部网点工单汇总（`GET /system/work-order/hq-site-summary`） */
+export interface WorkOrderHqSiteSummaryVO {
+  siteCompanyId?: number;
+  siteCompanyName?: string;
+  totalCount?: number;
+  waitAcceptCount?: number;
+  inProgressCount?: number;
+  completedCount?: number;
+}
+
+export interface WorkOrderHqSiteSummaryQuery {
+  siteName?: string;
+}
+
 export interface WorkOrderProxyCreateDTO {
   customerName?: string;
   customerMobile: string;
@@ -157,6 +171,14 @@ export function listWorkOrder(params?: WorkOrderQuery) {
 
 export function countWorkOrderStatus(params?: WorkOrderStatusCountQuery) {
   return request<WorkOrderStatusCountVO[]>({ url: '/system/work-order/status-count', method: 'get', params });
+}
+
+/**
+ * 查询总部网点工单汇总（按承修方公司聚合，供总部看板图表使用）。
+ * 数据范围由服务端按当前登录总部上下文注入；`HQ SELF` 可能返回空列表。
+ */
+export function listHqSiteSummary(params?: WorkOrderHqSiteSummaryQuery) {
+  return request<WorkOrderHqSiteSummaryVO[]>({ url: '/system/work-order/hq-site-summary', method: 'get', params });
 }
 
 export function getWorkOrder(workOrderId: IdLike) {

@@ -8,6 +8,7 @@ import { getNotifyTodoCount, getNotifyTodoPage, markNotifyMessageRead } from '@/
 import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 import { createAntTableActionColumn } from '@/utils/table-action-width';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
+import { applyDateTimeColumnRender } from '@/utils/datetime';
 
 type RowData = Record<string, any>;
 type TabKey = 'TODO' | 'HISTORY';
@@ -63,7 +64,7 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
 };
 
 // 消息中心表格列配置
-const columns = [
+const columns = applyDateTimeColumnRender([
   {
     title: '标题',
     dataIndex: 'title',
@@ -88,7 +89,7 @@ const columns = [
   { title: '状态', dataIndex: 'todoStatus', key: 'todoStatus', width: 100 },
   { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 170 },
   createAntTableActionColumn({ fixed: false, dataIndex: 'actions', width: 100 })
-];
+]);
 
 /**
  * 作用：从分页响应中取出消息行数组。

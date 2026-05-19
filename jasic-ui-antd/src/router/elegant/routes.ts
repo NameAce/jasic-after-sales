@@ -417,6 +417,24 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       },
       {
+        name: 'system_notify-scene',
+        path: '/system/notify-scene',
+        component: 'view.system_notify-scene',
+        meta: {
+          title: 'system_notify-scene',
+          i18nKey: 'route.system_notify-scene'
+        }
+      },
+      {
+        name: 'system_notify-trace',
+        path: '/system/notify-trace',
+        component: 'view.system_notify-trace',
+        meta: {
+          title: 'system_notify-trace',
+          i18nKey: 'route.system_notify-trace'
+        }
+      },
+      {
         name: 'system_role',
         path: '/system/role',
         component: 'view.system_role',

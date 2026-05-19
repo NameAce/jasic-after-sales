@@ -120,7 +120,7 @@
 }
 
 /**
- * 表格分页条留白：缩小分页自身 margin，并压低含表格的 Card body 默认下内边距（否则分页下仍有一大块白底）。
+ * 表格分页条留白：缩小分页与表格间距；Card body 保留下内边距，避免分页贴卡片底边过紧。
  */
 .ant-table-wrapper .ant-table-pagination,
 .ant-table-wrapper .ant-pagination {
@@ -128,9 +128,9 @@
   margin-block-start: 8px !important;
 }
 
-/* 列表页「表格卡」：去掉 body 底部内边距，分页贴卡片底边 */
+/* 列表页「表格卡」：统一为含表格的 Card body 增加底部内边距（全项目列表表格生效） */
 .ant-card .ant-card-body:has(.ant-table-wrapper) {
-  padding-bottom: 0 !important;
+  padding-bottom: var(--ant-padding-lg, 16px) !important;
 }
 
 /**

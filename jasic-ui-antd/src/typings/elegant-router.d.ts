@@ -65,6 +65,8 @@ declare module "@elegant-router/types" {
     "org": "/org";
     "system": "/system";
     "system_menu": "/system/menu";
+    "system_notify-scene": "/system/notify-scene";
+    "system_notify-trace": "/system/notify-trace";
     "system_role": "/system/role";
     "system_user": "/system/user";
     "user-center": "/user-center";
@@ -178,6 +180,8 @@ declare module "@elegant-router/types" {
     | "notify"
     | "org"
     | "system_menu"
+    | "system_notify-scene"
+    | "system_notify-trace"
     | "system_role"
     | "system_user"
     | "user-center"

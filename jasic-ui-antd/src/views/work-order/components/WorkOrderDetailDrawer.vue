@@ -26,6 +26,7 @@ import {
 import { notifyOnceSuccessFromFlatResult } from '@/service/request/shared';
 import { useAuthStore } from '@/store/modules/auth';
 import { adaptiveModalWidth } from '@/hooks/common/modal-form-layout';
+import { applyDateTimeColumnRender, formatDisplayValue } from '@/utils/datetime';
 import type { WorkOrderListActionCode } from '../list-actions';
 
 // 维修登记 / 复检「故障处图片」每格最多张数（与建单页 picture-card 逻辑一致）
@@ -790,17 +791,17 @@ const visibleRepairs = computed(() =>
 );
 
 // 参与方表格列
-const participantsColumns = [
+const participantsColumns = applyDateTimeColumnRender([
   { title: '公司', dataIndex: 'companyName', key: 'companyName' },
   { title: '主体类型', dataIndex: 'subjectType', key: 'subjectType' },
   { title: '参与类型', dataIndex: 'participateType', key: 'participateType' },
   { title: '当前处理方', dataIndex: 'isCurrentHandler', key: 'isCurrentHandler' },
   { title: '首次参与时间', dataIndex: 'firstParticipateTime', key: 'firstParticipateTime' },
   { title: '最后参与时间', dataIndex: 'lastParticipateTime', key: 'lastParticipateTime' }
-];
+]);
 
 // 流转历史表格列
-const flowsColumns = [
+const flowsColumns = applyDateTimeColumnRender([
   { title: '动作', dataIndex: 'actionName', key: 'actionName' },
   { title: '前状态', dataIndex: 'beforeStatusName', key: 'beforeStatusName' },
   { title: '后状态', dataIndex: 'afterStatusName', key: 'afterStatusName' },
@@ -810,10 +811,10 @@ const flowsColumns = [
   { title: '操作人', dataIndex: 'operatorUserName', key: 'operatorUserName' },
   { title: '备注', dataIndex: 'remark', key: 'remark' },
   { title: '创建时间', dataIndex: 'createTime', key: 'createTime' }
-];
+]);
 
 // 报价记录表格列
-const quotesColumns = [
+const quotesColumns = applyDateTimeColumnRender([
   { title: '报价公司', dataIndex: 'companyName', key: 'companyName' },
   { title: '报价人', dataIndex: 'quotedByName', key: 'quotedByName' },
   { title: '故障判断', dataIndex: 'faultJudge', key: 'faultJudge' },
@@ -821,10 +822,10 @@ const quotesColumns = [
   { title: '报价说明', dataIndex: 'quoteDesc', key: 'quoteDesc' },
   { title: '当前有效', dataIndex: 'isCurrentValid', key: 'isCurrentValid' },
   { title: '创建时间', dataIndex: 'createTime', key: 'createTime' }
-];
+]);
 
 // 故障点历史表格列
-const faultPointColumns = [
+const faultPointColumns = applyDateTimeColumnRender([
   { title: '登记阶段', dataIndex: 'registerStageLabel', key: 'registerStageLabel' },
   { title: '故障点', dataIndex: 'faultDesc', key: 'faultDesc' },
   { title: '其它故障说明', dataIndex: 'faultRemark', key: 'faultRemark' },
@@ -832,7 +833,7 @@ const faultPointColumns = [
   { title: '其他维修说明', dataIndex: 'otherDesc', key: 'otherDesc' },
   { title: '登记人', dataIndex: 'createdByName', key: 'createdByName' },
   { title: '登记时间', dataIndex: 'createTime', key: 'createTime' }
-];
+]);
 
 /**
  * 将任意值格式化为展示字符串，空则用占位符。
@@ -842,8 +843,7 @@ const faultPointColumns = [
  * @returns {string} 展示文本
  */
 function textValue(value: unknown, empty = '-') {
-  const text = String(value ?? '').trim();
-  return text || empty;
+  return formatDisplayValue(value, empty);
 }
 
 /**

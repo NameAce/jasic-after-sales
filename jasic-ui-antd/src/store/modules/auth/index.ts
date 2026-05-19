@@ -3,10 +3,9 @@
  * @修改人 黄碧莲
  * @修改时间 2026-05-14
  */
-import { computed, nextTick, reactive, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { defineStore } from 'pinia';
-import { Modal } from 'ant-design-vue';
 import { useLoading } from '@sa/hooks';
 import { router } from '@/router';
 import {
@@ -215,30 +214,57 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
   }
 
   /**
+   * 将 setup store 中的鉴权相关响应式状态清回初始值。
+   * Pinia 3 的 setup store 不会自动生成 `$reset`，必须手动还原，否则 `token` / `userInfo` 等会残留上一次登录态。
+   *
+   * @returns {void} 无返回值
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-19
+   */
+  function resetAuthState() {
+    token.value = '';
+    companyOptions.value = [];
+    needChooseCompany.value = false;
+    // userInfo 是 reactive 对象，直接整体覆盖以保持响应式引用不变
+    Object.assign(userInfo, {
+      userId: '',
+      userName: '',
+      roles: [],
+      buttons: [],
+      currentCompanyId: undefined,
+      currentCompanyName: undefined,
+      currentTypeCode: undefined,
+      currentSubjectType: undefined
+    });
+  }
+
+  /**
    * 清空登录态与本地凭证，并按需跳转登录、重置路由与标签缓存。
-   * 末尾 `Modal.destroyAll` 须在导航完成之后执行，避免在「退出确认」onOk 执行过程中拆掉当前 Modal 导致界面卡死。
+   *
+   * 历史上这里末尾会再补一刀 `Modal.destroyAll()` 兜底清理「退出确认」弹窗，
+   * 但 ant-design-vue 4.x 的 Modal 在 `onOk` 返回后会走 200~300ms 的 leave 过渡才真正卸载，
+   * 若在过渡期间又 destroyAll，会和内部 `useScrollLocker` 计数错乱，
+   * 导致 `<body>` 上的 `overflow:hidden` / `width` / `padding-right` 没被还原，
+   * 表现为「页面被透明遮罩锁住，必须重开窗口才能恢复」。
+   * 因此退出确认 Modal 的关闭由调用方负责（自然 leave 或 onOk 返回 Promise），这里不再手动 destroyAll。
    *
    * @returns {Promise<void>} 无返回值
    * @修改人 黄碧莲
-   * @修改时间 2026-05-14
+   * @修改时间 2026-05-19
    */
   async function resetStore() {
-    const authStore = useAuthStore();
-
     clearAuthStorage();
 
-    authStore.$reset();
-
-    if (!route.meta.constant) {
-      await toLogin();
-    }
+    // setup store 里 $reset 默认是 no-op，必须手动把 token / userInfo 等还原
+    resetAuthState();
 
     tabStore.cacheTabs();
+    // 先重置动态路由并重新挂载登录等常量路由，再跳转登录页，避免卸载后 `toLogin` 找不到 login 记录
     await routeStore.resetStore();
 
-    // 须在导航与路由重置之后执行：若在「退出确认」的 onOk 链路内过早 destroyAll，会拆掉当前 Modal 实例，易导致 AntDV 卡死
-    await nextTick();
-    Modal.destroyAll();
+    if (route.name !== 'login') {
+      await toLogin();
+    }
   }
 
   /**

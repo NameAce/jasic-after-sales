@@ -21,16 +21,25 @@ function loginOrRegister() {
 
 /**
  * 退出登录前二次确认。
- * onOk 不返回 logout 的 Promise：若交给 Modal 等待异步结束，resetStore 内 Modal.destroyAll 会拆掉当前确认框，易导致遮罩残留、页面卡住。
+ *
+ * 关键时序约束：
+ * 1. 弹确认框前先 `Modal.destroyAll()`，把页面上可能残留的其它 imperative Modal（如业务弹窗）清理掉。
+ *    这一刀只针对「打开退出确认」这一刻执行，不会和「退出确认」自身的 leave 过渡竞态。
+ * 2. `onOk` 返回 logout 的 Promise，由 ant-design-vue 在 logout 完成后再触发 leave 过渡 → 自然卸载，
+ *    避免在 leave 过渡期间再调 destroyAll 导致 useScrollLocker 计数错乱，进而 `<body>` 的 overflow 锁屏样式残留、整页点不动。
  */
 function logout() {
+  // 清理可能存在的其它 imperative Modal，避免它们叠在退出流程上造成遮罩残留
+  Modal.destroyAll();
+
   Modal.confirm({
     title: $t('common.tip'),
     content: $t('common.logoutConfirm'),
     okText: $t('common.confirm'),
     cancelText: $t('common.cancel'),
-    onOk() {
-      void authStore.logout();
+    async onOk() {
+      // 返回 Promise 让 Modal 自身的 visible 状态在 logout 完成后再切换，由 ant-design-vue 接管 leave 过渡与卸载
+      await authStore.logout();
     }
   });
 }

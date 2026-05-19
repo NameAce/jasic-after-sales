@@ -5,8 +5,51 @@
  */
 import { useRouter } from 'vue-router';
 import type { RouteLocationRaw } from 'vue-router';
-import type { RouteKey } from '@elegant-router/types';
+import type { RouteKey, RoutePath } from '@elegant-router/types';
 import { router as globalRouter } from '@/router';
+import { getRouteName, getRoutePath } from '@/router/elegant/transform';
+
+/**
+ * 登录页在 elegant-router 中会被拆成「父 path 带 :module + 子 name=login」的嵌套路由，
+ * 通过 `name: login` + `params.module` 跳转时 Vue Router 无法解析，需改用 path。
+ *
+ * @param module - 登录子模块
+ * @returns 可匹配的登录 path
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-19
+ */
+function buildLoginPath(module: UnionKey.LoginModule) {
+  return module === 'pwd-login' ? '/login' : `/login/${module}`;
+}
+
+/**
+ * 构造登录页 redirect query，规则与 `router/guard/route.ts` 中 `getRouteQueryOfLoginRoute` 保持一致。
+ *
+ * @param redirect - 回跳地址（一般为当前 fullPath）
+ * @returns 登录页 query；无需 redirect 时返回空对象
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-19
+ */
+function buildLoginRedirectQuery(redirect: string): Record<string, string> {
+  if (!redirect || redirect.startsWith('/login')) {
+    return {};
+  }
+
+  const routeHome = (import.meta.env.VITE_ROUTE_HOME || 'home') as RouteKey;
+  const [redirectPath, redirectQuery] = redirect.split('?');
+  const redirectName = getRouteName(redirectPath as RoutePath);
+  const isRedirectHome = routeHome === redirectName || redirectPath === '/' || redirectPath === getRoutePath(routeHome);
+
+  if (!isRedirectHome) {
+    return { redirect };
+  }
+
+  if (redirectQuery) {
+    return { redirect: `/?${redirectQuery}` };
+  }
+
+  return {};
+}
 
 /**
  * 作用：封装常用路由跳转（按 name、登录模块、首页等），可选择在 setup 内或外使用全局 router。
@@ -73,33 +116,23 @@ export function useRouterPush(inSetup = true) {
    */
   async function toLogin(loginModule?: UnionKey.LoginModule, redirectUrl?: string) {
     const module = loginModule || 'pwd-login';
-
-    const options: RouterPushOptions = {
-      params: {
-        module
-      }
-    };
-
     const redirect = redirectUrl || route.value.fullPath;
+    const query = buildLoginRedirectQuery(redirect);
 
-    options.query = {
-      redirect
-    };
-
-    return routerPushByKey('login', options);
+    return routerPush({ path: buildLoginPath(module), query }).catch(() => {});
   }
 
   /**
-   * 作用：留在登录路由仅切换 query 中的 module 参数。
+   * 作用：留在登录路由仅切换 path 中的 module 段，并保留现有 query（如 redirect）。
    * @param module 登录模块名
    * @returns {Promise}
    * @修改人 黄碧莲
-   * @修改时间 2026-05-14
+   * @修改时间 2026-05-19
    */
   async function toggleLoginModule(module: UnionKey.LoginModule) {
     const query = route.value.query as Record<string, string>;
 
-    return routerPushByKey('login', { query, params: { module } });
+    return routerPush({ path: buildLoginPath(module), query }).catch(() => {});
   }
 
   /**

@@ -15,6 +15,7 @@ import { useTableScroll } from '@/hooks/common/table';
 import { useAuth } from '@/hooks/business/auth';
 import { createAntTableActionColumn } from '@/utils/table-action-width';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
+import { applyDateTimeColumnRender } from '@/utils/datetime';
 import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
 import WorkOrderCreateModals from './components/WorkOrderCreateModals.vue';
 import WorkOrderDetailDrawer from './components/WorkOrderDetailDrawer.vue';
@@ -234,7 +235,7 @@ const columns = computed(() => {
       })
     );
   }
-  return baseColumns;
+  return applyDateTimeColumnRender(baseColumns);
 });
 
 /**
@@ -464,9 +465,13 @@ function openDetailByRouteQuery() {
 function applyFiltersFromRouteQuery() {
   const routeViewScope = String(route.query.viewScope || '').toUpperCase();
   const routeMainStatus = String(route.query.mainStatus || '').toUpperCase();
+  const routeHasTransfer = String(route.query.hasTransfer ?? '');
 
   query.viewScope = (VIEW_SCOPE_SET.has(routeViewScope) ? routeViewScope : 'CURRENT') as WorkOrderQuery['viewScope'];
   query.mainStatus = MAIN_STATUS_SET.has(routeMainStatus) ? routeMainStatus : '';
+  if (routeHasTransfer === '1') query.hasTransfer = 1;
+  else if (routeHasTransfer === '0') query.hasTransfer = 0;
+  else query.hasTransfer = undefined;
   query.pageNum = 1;
 }
 
@@ -478,7 +483,7 @@ onMounted(() => {
 
 // 路由 query 中视图范围或主状态变化时同步筛选并刷新列表
 watch(
-  () => [route.query.viewScope, route.query.mainStatus],
+  () => [route.query.viewScope, route.query.mainStatus, route.query.hasTransfer],
   () => {
     applyFiltersFromRouteQuery();
     loadData();

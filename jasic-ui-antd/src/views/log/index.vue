@@ -2,17 +2,20 @@
 /**
  * 操作日志：分页查询、条件筛选与清理/删除；详情以右侧抽屉展示（对接 log 域接口）。
  */
-import { onMounted, reactive, ref } from 'vue';
+import { onMounted, reactive, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { tagColorEnabled } from '@/constants/list-status-tag';
 import { type OperLogQuery, cleanOperLog, deleteOperLog, listOperLog } from '@/service/api';
 import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
 import { useTableScroll } from '@/hooks/common/table';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
+import { applyDateTimeColumnRender, formatDateTime, getRecentDateRange, toOperLogQueryTime } from '@/utils/datetime';
 import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
 
 type RowData = Record<string, any>;
 
+const route = useRoute();
 const { tableWrapperRef, scrollConfig } = useTableScroll(1200);
 const pageMenuTitle = useRouteMenuTitle();
 
@@ -60,19 +63,34 @@ const operTypeMap: Record<number, string> = {
   99: '其他'
 };
 
-// 表格列定义
-const columns = [
+// 表格列定义（操作时间等字段统一格式化展示）
+const columns = applyDateTimeColumnRender([
   { title: '日志ID', dataIndex: 'id', key: 'id', width: 80 },
   { title: '操作模块', dataIndex: 'title', key: 'title', width: 150 },
   { title: '操作类型', dataIndex: 'operType', key: 'operType', width: 100 },
-  { title: '请求方式', dataIndex: 'requestMethod', key: 'requestMethod', width: 90 },
-  { title: '操作人', dataIndex: 'operUserName', key: 'operUserName', width: 110 },
+  {
+    title: '请求方式',
+    dataIndex: 'requestMethod',
+    key: 'requestMethod',
+    width: 90
+  },
+  {
+    title: '操作人',
+    dataIndex: 'operUserName',
+    key: 'operUserName',
+    width: 110
+  },
   { title: 'IP地址', dataIndex: 'ip', key: 'ip', width: 130 },
-  { title: '请求URL', dataIndex: 'requestUrl', key: 'requestUrl', ellipsis: true },
+  {
+    title: '请求URL',
+    dataIndex: 'requestUrl',
+    key: 'requestUrl',
+    ellipsis: true
+  },
   { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
   { title: '耗时(ms)', dataIndex: 'costTime', key: 'costTime', width: 100 },
   { title: '操作时间', dataIndex: 'operTime', key: 'operTime', width: 170 }
-];
+]);
 
 // 详情抽屉开关与当前行数据
 const detailOpen = ref(false);
@@ -97,13 +115,38 @@ function pickRows(data: any) {
 function buildListParams(): OperLogQuery {
   const p = { ...queryParams };
   if (dateRange.value?.length === 2) {
-    p.beginTime = dateRange.value[0];
-    p.endTime = dateRange.value[1];
+    p.beginTime = toOperLogQueryTime(dateRange.value[0], 'start');
+    p.endTime = toOperLogQueryTime(dateRange.value[1], 'end');
   } else {
     p.beginTime = undefined;
     p.endTime = undefined;
   }
   return p;
+}
+
+/**
+ * 从路由 query 同步筛选：支持 status、beginDate/endDate（或 beginTime/endTime）。
+ * 首页「近7日失败操作」跳转约定：status=0 且近 7 日日期。
+ */
+function applyFiltersFromRouteQuery() {
+  const statusRaw = route.query.status;
+  if (statusRaw !== undefined && statusRaw !== '') {
+    const statusNum = Number(statusRaw);
+    queryParams.status = statusNum === 0 || statusNum === 1 ? (statusNum as 0 | 1) : undefined;
+  }
+
+  const begin = route.query.beginDate ?? route.query.beginTime;
+  const end = route.query.endDate ?? route.query.endTime;
+  if (begin && end) {
+    dateRange.value = [String(begin).slice(0, 10), String(end).slice(0, 10)];
+    return;
+  }
+
+  if (route.query.preset === 'last7Failed') {
+    queryParams.status = 0;
+    const range = getRecentDateRange(7);
+    dateRange.value = [range.beginDate, range.endDate];
+  }
 }
 
 /**
@@ -212,12 +255,26 @@ async function cleanAll() {
   loadList();
 }
 
-/**
- * 作用：挂载后首次加载日志列表。
- * @param 无
- * @returns {void} 无
- */
-onMounted(loadList);
+onMounted(() => {
+  applyFiltersFromRouteQuery();
+  loadList();
+});
+
+watch(
+  () => [
+    route.query.status,
+    route.query.beginDate,
+    route.query.endDate,
+    route.query.beginTime,
+    route.query.endTime,
+    route.query.preset
+  ],
+  () => {
+    applyFiltersFromRouteQuery();
+    queryParams.pageNum = 1;
+    loadList();
+  }
+);
 </script>
 
 <template>
@@ -232,7 +289,9 @@ onMounted(loadList);
                 :span="24"
                 :md="12"
                 :lg="6"
-                :class="{ 'page-search-toolbar__filter-col--collapsed': logSearchFilter.isSearchFilterHidden(0) }"
+                :class="{
+                  'page-search-toolbar__filter-col--collapsed': logSearchFilter.isSearchFilterHidden(0)
+                }"
               >
                 <AFormItem label="操作模块" class="oper-log-search-form-item m-0">
                   <AInput v-model:value="queryParams.title" allow-clear placeholder="请输入操作模块" />
@@ -242,7 +301,9 @@ onMounted(loadList);
                 :span="24"
                 :md="12"
                 :lg="6"
-                :class="{ 'page-search-toolbar__filter-col--collapsed': logSearchFilter.isSearchFilterHidden(1) }"
+                :class="{
+                  'page-search-toolbar__filter-col--collapsed': logSearchFilter.isSearchFilterHidden(1)
+                }"
               >
                 <AFormItem label="操作人" class="oper-log-search-form-item m-0">
                   <AInput v-model:value="queryParams.operUserName" allow-clear placeholder="请输入操作人" />
@@ -252,7 +313,9 @@ onMounted(loadList);
                 :span="24"
                 :md="12"
                 :lg="6"
-                :class="{ 'page-search-toolbar__filter-col--collapsed': logSearchFilter.isSearchFilterHidden(2) }"
+                :class="{
+                  'page-search-toolbar__filter-col--collapsed': logSearchFilter.isSearchFilterHidden(2)
+                }"
               >
                 <AFormItem label="操作类型" class="oper-log-search-form-item m-0">
                   <ASelect
@@ -274,7 +337,9 @@ onMounted(loadList);
                 :span="24"
                 :md="12"
                 :lg="6"
-                :class="{ 'page-search-toolbar__filter-col--collapsed': logSearchFilter.isSearchFilterHidden(3) }"
+                :class="{
+                  'page-search-toolbar__filter-col--collapsed': logSearchFilter.isSearchFilterHidden(3)
+                }"
               >
                 <AFormItem label="操作状态" class="oper-log-search-form-item m-0">
                   <ASelect
@@ -293,7 +358,9 @@ onMounted(loadList);
                 :span="24"
                 :md="12"
                 :lg="6"
-                :class="{ 'page-search-toolbar__filter-col--collapsed': logSearchFilter.isSearchFilterHidden(4) }"
+                :class="{
+                  'page-search-toolbar__filter-col--collapsed': logSearchFilter.isSearchFilterHidden(4)
+                }"
               >
                 <AFormItem label="操作日期" class="oper-log-search-form-item m-0">
                   <ARangePicker
@@ -398,15 +465,19 @@ onMounted(loadList);
         <ADescriptionsItem label="IP地址">{{ detail.ip }}</ADescriptionsItem>
         <ADescriptionsItem label="请求URL">{{ detail.requestUrl }}</ADescriptionsItem>
         <ADescriptionsItem label="调用方法">{{ detail.method }}</ADescriptionsItem>
-        <ADescriptionsItem label="请求参数">
-          <div class="max-h-120px overflow-y-auto break-all">{{ detail.requestParam }}</div>
-        </ADescriptionsItem>
-        <ADescriptionsItem label="返回结果">
-          <div class="max-h-120px overflow-y-auto break-all">{{ detail.responseResult }}</div>
-        </ADescriptionsItem>
         <ADescriptionsItem label="状态">{{ detail.status === 1 ? '成功' : '失败' }}</ADescriptionsItem>
         <ADescriptionsItem label="耗时">{{ detail.costTime }} ms</ADescriptionsItem>
-        <ADescriptionsItem label="操作时间">{{ detail.operTime }}</ADescriptionsItem>
+        <ADescriptionsItem label="请求参数" :span="2">
+          <div class="max-h-120px overflow-y-auto break-all">
+            {{ detail.requestParam }}
+          </div>
+        </ADescriptionsItem>
+        <ADescriptionsItem label="返回结果" :span="2">
+          <div class="max-h-120px overflow-y-auto break-all">
+            {{ detail.responseResult }}
+          </div>
+        </ADescriptionsItem>
+        <ADescriptionsItem label="操作时间">{{ formatDateTime(detail.operTime) }}</ADescriptionsItem>
         <ADescriptionsItem v-if="detail.errorMsg" label="错误信息">
           <span class="text-red-500">{{ detail.errorMsg }}</span>
         </ADescriptionsItem>

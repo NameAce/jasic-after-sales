@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onMounted, watch } from 'vue';
+import { nextTick, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { useElementSize } from '@vueuse/core';
 import { countWorkOrderStatus } from '@/service/api';
 import { useAppStore } from '@/store/modules/app';
 import { useEcharts } from '@/hooks/common/echarts';
@@ -13,6 +14,8 @@ defineOptions({
 
 const appStore = useAppStore();
 const router = useRouter();
+
+const chartData = ref<{ name: string; value: number }[]>([]);
 
 const { domRef, updateOptions } = useEcharts(() => ({
   title: {
@@ -58,6 +61,8 @@ const { domRef, updateOptions } = useEcharts(() => ({
   ]
 }));
 
+const { width, height } = useElementSize(domRef);
+
 // 工单主状态枚举 → 中文展示（接口无 displayStatus 时兜底）
 const STATUS_LABEL_MAP: Record<string, string> = {
   PENDING_ASSIGN: '待派单',
@@ -73,7 +78,8 @@ const STATUS_LABEL_MAP: Record<string, string> = {
  * @returns 返回 Promise，更新图表后结束
  */
 async function loadRealData() {
-  const res = await countWorkOrderStatus({ viewScope: 'CURRENT' });
+  // 首页饼图展示全网（权限范围内）状态结构，便于总部纵览；网点账号由服务端数据范围收敛
+  const res = await countWorkOrderStatus({ viewScope: 'ALL' });
   const rows = Array.isArray(res.data) ? res.data : [];
   const data = rows
     .filter(item => item?.mainStatus && item.mainStatus !== 'ALL')
@@ -82,9 +88,14 @@ async function loadRealData() {
       value: Number(item.countNum || 0)
     }));
 
-  updateOptions(opts => {
-    opts.series[0].data = data;
+  chartData.value = data;
+  await applyChartData();
+}
 
+async function applyChartData() {
+  await nextTick();
+  updateOptions(opts => {
+    opts.series[0].data = chartData.value;
     return opts;
   });
 }
@@ -133,6 +144,16 @@ watch(
  * @param 无
  * @returns {void} 无
  */
+watch(
+  () => [width.value, height.value, chartData.value],
+  () => {
+    if (width.value > 0 && height.value > 0 && chartData.value.length) {
+      applyChartData();
+    }
+  },
+  { flush: 'post', deep: true }
+);
+
 onMounted(() => {
   init();
 });
@@ -143,7 +164,7 @@ onMounted(() => {
  * @returns {void} 无
  */
 function goWorkOrderStatusPage() {
-  router.push({ name: 'after-sales_work-order', query: { viewScope: 'CURRENT' } });
+  router.push({ name: 'after-sales_work-order', query: { viewScope: 'ALL' } });
 }
 </script>
 

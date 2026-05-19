@@ -28,6 +28,7 @@ import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-c
 import { useTableScroll } from '@/hooks/common/table';
 import { createAntTableActionColumn } from '@/utils/table-action-width';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
+import { applyDateTimeColumnRender } from '@/utils/datetime';
 import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
 
 type RowData = Record<string, any>;
@@ -130,22 +131,24 @@ const resetPwdRules = {
 };
 
 // 用户管理表格列定义
-const columns = computed(() => [
-  { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
-  { title: '用户名', dataIndex: 'username', key: 'username', width: 160 },
-  { title: '姓名', dataIndex: 'realName', key: 'realName', width: 160 },
-  { title: '手机号', dataIndex: 'phone', key: 'phone', width: 140 },
-  {
-    title: '邮箱',
-    dataIndex: 'email',
-    key: 'email',
-    width: 220,
-    ellipsis: true
-  },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 180 },
-  createAntTableActionColumn({ width: USER_ACTION_COL_WIDTH })
-]);
+const columns = computed(() =>
+  applyDateTimeColumnRender([
+    { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
+    { title: '用户名', dataIndex: 'username', key: 'username', width: 160 },
+    { title: '姓名', dataIndex: 'realName', key: 'realName', width: 160 },
+    { title: '手机号', dataIndex: 'phone', key: 'phone', width: 140 },
+    {
+      title: '邮箱',
+      dataIndex: 'email',
+      key: 'email',
+      width: 220,
+      ellipsis: true
+    },
+    { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
+    { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 180 },
+    createAntTableActionColumn({ width: USER_ACTION_COL_WIDTH })
+  ])
+);
 
 /**
  * 作用：从接口响应中提取列表数组（兼容数组或 records 包装）。

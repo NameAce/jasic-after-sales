@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { getNotifyTodoPage } from '@/service/api';
 import { useAuth } from '@/hooks/business/auth';
+import { formatDateTime } from '@/utils/datetime';
 import { $t } from '@/locales';
 
 defineOptions({
@@ -60,7 +61,7 @@ async function loadNews() {
     newses.value = rows.map((row: Record<string, any>) => ({
       id: row.id || row.messageId || `${row.bizType || ''}-${row.bizId || ''}`,
       content: buildContent(row),
-      time: String(row.createTime || ''),
+      time: formatDateTime(row.createTime, ''),
       workOrderId: hasAuth('workorder:list') ? Number(row.routeValue || row.bizId || 0) || undefined : undefined
     }));
   } finally {
