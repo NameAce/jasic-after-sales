@@ -39,11 +39,10 @@
           <text class="empty-desc">可通过上方「从微信导入」或「手动填写」添加</text>
         </view>
 
-        <view v-if="isSelectMode && addresses.length > 0">
+        <view v-if="isSelectMode && addresses.length > 0" class="addr-swipe-item">
           <view
             v-for="item in visibleAddresses"
             :key="item.id"
-            class="addr-swipe-item"
             @click="selectAddressForRepair(item)"
           >
             <view class="addr-card">
@@ -61,36 +60,37 @@
           </view>
         </view>
 
-        <!-- 地址卡片：左滑露出删除 -->
+        <!-- 地址卡片：左滑露出删除（与 mp/aftersale 一致：外层原生 view + flex-column-gap 排列多条 swipe-item） -->
         <uni-swipe-action v-if="!isSelectMode && addresses.length > 0">
-          <uni-swipe-action-item
-            v-for="item in visibleAddresses"
-            :key="item.id"
-            class="addr-swipe-item"
-            :right-options="swipeDeleteOptions"
-            @click="onSwipeItemClick($event, item.id)"
-          >
-            <view class="addr-card" @click="goEdit(item.id)">
-              <view class="addr-top">
-                <view class="addr-top-left">
-                  <text class="addr-name">{{ item.name }}</text>
-                  <text class="addr-phone">{{ item.phone }}</text>
+          <view class="addr-swipe-item">
+            <uni-swipe-action-item
+              v-for="item in visibleAddresses"
+              :key="item.id"
+              :right-options="swipeDeleteOptions"
+              @click="onSwipeItemClick($event, item.id)"
+            >
+              <view class="addr-card" @click="goEdit(item.id)">
+                <view class="addr-top">
+                  <view class="addr-top-left">
+                    <text class="addr-name">{{ item.name }}</text>
+                    <text class="addr-phone">{{ item.phone }}</text>
+                  </view>
+                  <view class="addr-top-right">
+                    <text v-if="item.isDefault === 1" class="default-badge">默认</text>
+                  </view>
                 </view>
-                <view class="addr-top-right">
-                  <text v-if="item.isDefault === 1" class="default-badge">默认</text>
+                <view class="addr-top">
+                  <text class="addr-line addr-top-left">{{ fullAddress(item) }}</text>
+                  <view class="addr-edit-btn addr-top-right" @click.stop="goEdit(item.id)">
+                    <uni-icons type="compose" size="20" :color="themeColor.textLabel" />
+                  </view>
+                </view>
+                <view v-if="item.isDefault !== 1" class="addr-actions" @click.stop>
+                  <text class="link-primary" @click="setAsDefault(item.id)">设为默认</text>
                 </view>
               </view>
-              <view class="addr-top">
-                <text class="addr-line addr-top-left">{{ fullAddress(item) }}</text>
-                <view class="addr-edit-btn addr-top-right" @click.stop="goEdit(item.id)">
-                  <uni-icons type="compose" size="20" :color="themeColor.textLabel" />
-                </view>
-              </view>
-              <view v-if="item.isDefault !== 1" class="addr-actions" @click.stop>
-                <text class="link-primary" @click="setAsDefault(item.id)">设为默认</text>
-              </view>
-            </view>
-          </uni-swipe-action-item>
+            </uni-swipe-action-item>
+          </view>
         </uni-swipe-action>
 
         <ListNoMore v-if="visibleAddresses.length > 0 && hasLoadedAllAddresses" />
@@ -436,6 +436,10 @@
     }
   }
 
+  /**
+   * 已保存地址列表：与 mp/aftersale 相同，用原生 view 包住多条子项，
+   * 再通过 flex-column-gap 在兄弟节点之间留出间距（自定义组件外壳不参与 gap 时需落在原生容器上）。
+   */
   .addr-swipe-item {
     @include flex-column-gap;
   }
@@ -443,6 +447,9 @@
   .addr-card {
     @include white-card;
     padding: 28rpx $space-lg;
+    /* 与 mp/aftersale 一致：浅色描边便于区分相邻白卡片 */
+    border: 2rpx solid $bg-hover;
+    box-sizing: border-box;
 
     .addr-top {
       @include flex-row;

@@ -10,10 +10,7 @@ import {
   type WorkOrderStatusCountVO,
   type WorkOrderStatusTabCounts,
 } from '@/api/workOrder'
-import {
-  canCurrentSiteOperateTransferredOrder,
-  hasInboundTransferFromSite
-} from '@/utils/orderTransfer'
+import { hasInboundTransferFromSite } from '@/utils/orderTransfer'
 import { ORDER_STATUS_TEXT_MAP, isPendingMainStatus } from '@/utils/orderStatus'
 import { Perms } from '@/utils/permissions'
 import { isWorkOrderPendingTechAcceptMainStatus } from '@/utils/workOrderMainStatus'
@@ -168,13 +165,6 @@ export function useIndexWorkbench() {
     return hqRefreshInFlight
   }
 
-  const canEngineerAcceptOrder = (order: OrderListItem) =>
-    canCurrentSiteOperateTransferredOrder(
-      !!order.transferred,
-      order.transferFromSite,
-      userStore.currentNetworkName
-    )
-
   const statusTextMap = computed<Record<WorkOrderMainStatus, string>>(() => {
     const pendingLabel = userStore.hasPermission(Perms.WORKORDER_ASSIGN) ? '待派单' : '待接单'
     return {
@@ -183,25 +173,6 @@ export function useIndexWorkbench() {
       PENDING_TECH_ACCEPT: pendingLabel,
     }
   })
-
-  const showDispatchOrderButton = (order: OrderListItem) => {
-    if (!userStore.hasPermission(Perms.WORKORDER_ASSIGN)) return false
-    if (
-      userStore.hasPermission(Perms.WORKORDER_ACCEPT) &&
-      order.status === 'PENDING_TECH_ACCEPT'
-    )
-      return false
-    return true
-  }
-
-  const showAcceptOrderButton = (order: OrderListItem) => {
-    if (!userStore.hasPermission(Perms.WORKORDER_ACCEPT)) return false
-    if (!canEngineerAcceptOrder(order)) return false
-    if (userStore.hasPermission(Perms.WORKORDER_ASSIGN)) {
-      return order.status === 'PENDING_TECH_ACCEPT'
-    }
-    return true
-  }
 
   const getOrderListStatusText = (order: OrderListItem) => {
     if (!isPendingMainStatus(order.status)) return statusTextMap.value[order.status]
@@ -257,8 +228,6 @@ export function useIndexWorkbench() {
     hqNetworkStats,
     hqTransferredCount,
     getOrderListStatusText,
-    showDispatchOrderButton,
-    showAcceptOrderButton,
     workbenchListTitle,
     workbenchEmptyTitle,
     workbenchEmptyDesc,

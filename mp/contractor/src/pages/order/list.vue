@@ -238,19 +238,13 @@
   import { ORDER_STATUS_TEXT_MAP, isPendingMainStatus } from '@/utils/orderStatus'
   import { Perms } from '@/utils/permissions'
   import { getApiMessage } from '@/utils/http'
+  import { requestWorkOrderSubscribe } from '@/utils/requestWorkOrderSubscribe'
   import { takeSelectedShippingAddress } from '@/utils/addressStorage'
   import { storeIcon } from '@/svgs'
   import { useScrollRefresher } from '@/utils/useScrollRefresher'
   import { isWorkOrderPendingTechAcceptMainStatus } from '@/utils/workOrderMainStatus'
-  import {
-    normalizeAvailableActions,
-    sortWorkOrderActionsForDisplay,
-    type WorkOrderActionKey
-  } from '@/constants/orderActions'
-  import {
-    ENABLE_LEGACY_STATUS_ACTION_FALLBACK,
-    auditLegacyStatusFallbackHit
-  } from '@/constants/orderActionFallback'
+  import type { WorkOrderActionKey } from '@/constants/orderActions'
+  import { useWorkOrderVisibleActions } from '@/composables/useWorkOrderVisibleActions'
 
   type PrimaryTab = 'untransferred' | 'transferred'
   type SecondaryTab = 'all' | 'pending' | 'pending_accept' | 'processing' | 'completed' | 'closed'
@@ -565,8 +559,8 @@
       pageNum: targetPageNum,
       pageSize,
       companyId: userStore.userInfo?.currentCompanyId,
-      // 总部「总部处理」：仅当前网点可见范围，与首页工作台 count 口径一致
-      viewScope: isHqProcessView.value ? 'CURRENT' : 'ALL',
+      // 与后端约定：仅 viewScope=CURRENT 时列表项才填充 availableActions
+      viewScope: 'CURRENT',
       hasTransfer: primary === 'transferred' ? 1 : 0
     }
 
@@ -805,6 +799,9 @@
       return
     }
 
+    // 与「提交报价」一致：校验通过后、业务请求前弹出工单订阅消息授权（仍在用户点击链路内）
+    await requestWorkOrderSubscribe()
+
     uni.showLoading({ title: '正在提交...' })
     try {
       const res = await transferWorkOrder({
@@ -997,20 +994,6 @@
   }
 
   /**
-   * 派单权限用户：工单已指派给他人（assignedUserId 与当前账号 id 不一致）时仅可查看，不可操作
-   */
-  const isDispatcherOrderAssignedToOther = (order: OrderListItem) => {
-    if (!userStore.hasPermission(Perms.WORKORDER_ASSIGN)) return false
-    const aid = order.assignedUserId
-    if (aid === undefined || aid === null) return false
-    const assigned = Number(aid)
-    if (!Number.isFinite(assigned) || assigned <= 0) return false
-    const selfId = userStore.userInfo?.id
-    if (!Number.isFinite(selfId)) return false
-    return assigned !== Number(selfId)
-  }
-
-  /**
    * 派单员侧操作条（「总部处理/未转单」一级 Tab）
    * - 有派单权限：待接单/派单、维修中（有转单权时）、已完成（复检/转单按权限）
    * - 仅有转单权限：维修中、已完成仍展示转单按钮
@@ -1061,164 +1044,16 @@
     return getOperatorActions('COMPLETED').some((a) => a.key === 'REVIEW')
   }
 
-  /**
-   * 与详情页 `availableActions` 含 ASSIGN 时优先派单一致：待派单/待接单子态下互斥展示。
-   * @param keys 已归一化的动作 key
-   * @param order 工单
-   */
-  const applyAssignTechExclusion = (
-    keys: WorkOrderActionKey[],
-    order: OrderListItem
-  ): WorkOrderActionKey[] => {
-    if (keys.length < 2) return keys
-    if (!keys.includes('ASSIGN') || !keys.includes('TECH_ACCEPT')) return keys
-    if (isOrderPendingAssign(order)) return keys.filter((k) => k !== 'TECH_ACCEPT')
-    if (isOrderPendingTechAccept(order)) return keys.filter((k) => k !== 'ASSIGN')
-    return keys
-  }
-
-  /** 承修方端暂不展示「上传寄件单号」（与详情页一致；后端仍可能下发 UPLOAD_SEND_EXPRESS） */
-  const getOrderAvailableActions = (order: OrderListItem): WorkOrderActionKey[] => {
-    const base = normalizeAvailableActions(
-      (order as OrderListItem & { availableActions?: unknown }).availableActions
-    ).filter((key) => key !== 'UPLOAD_SEND_EXPRESS')
-    return applyAssignTechExclusion(base, order)
-  }
-
-  const getOrderRoleForRegression = (
-    order: OrderListItem
-  ): 'hq' | 'dispatcher' | 'engineer' | 'unknown' => {
-    if (isHqProcessView.value) return 'hq'
-    if (userStore.hasPermission(Perms.WORKORDER_ASSIGN)) return 'dispatcher'
-    if (
-      userStore.hasPermission(Perms.WORKORDER_ACCEPT) ||
-      userStore.hasPermission(Perms.WORKORDER_REPAIR) ||
-      userStore.hasPermission(Perms.WORKORDER_REVIEW)
-    ) {
-      return 'engineer'
-    }
-    if (order.transferred) return 'engineer'
-    return 'unknown'
-  }
-
-  const getActionLabel = (actionKey: WorkOrderActionKey) => {
-    if (actionKey === 'ASSIGN') return '派单'
-    if (actionKey === 'TECH_ACCEPT') return '接单'
-    if (actionKey === 'TRANSFER') return '转单'
-    if (actionKey === 'REPAIR_FINISH') return '维修登记'
-    if (actionKey === 'REVIEW') return '复检登记'
-    if (actionKey === 'CLOSE') return '机器返回方式'
-    return ''
-  }
-
-  const getActionClassName = (actionKey: WorkOrderActionKey): OperatorAction['className'] =>
-    actionKey === 'CLOSE' ? 'outline' : 'primary'
-
-  /**
-   * 基于权限与业务兜底过滤动作：
-   * - 权限二次过滤（防后端误下发）
-   * - 派给他人只可查看
-   * - 转出网点不可操作
-   */
-  const isActionAllowed = (order: OrderListItem, actionKey: WorkOrderActionKey) => {
-    if (primaryTab.value === 'transferred') return false
-    if (!isOrderAcceptedByCurrentCompany(order)) return false
-    if (isDispatcherOrderAssignedToOther(order)) return false
-
-    if (actionKey === 'ASSIGN') return userStore.hasPermission(Perms.WORKORDER_ASSIGN)
-    if (actionKey === 'TECH_ACCEPT')
-      return (
-        userStore.hasPermission(Perms.WORKORDER_ACCEPT) &&
-        canCurrentSiteOperateTransferredOrder(
-          !!order.transferred,
-          order.transferFromSite,
-          userStore.currentNetworkName
-        )
-      )
-    if (actionKey === 'TRANSFER') return userStore.hasPermission(Perms.WORKORDER_TRANSFER)
-    if (actionKey === 'REPAIR_FINISH')
-      return (
-        (userStore.hasPermission(Perms.WORKORDER_REPAIR) || isHqProcessView.value) &&
-        canCurrentSiteOperateTransferredOrder(
-          !!order.transferred,
-          order.transferFromSite,
-          userStore.currentNetworkName
-        )
-      )
-    if (actionKey === 'REVIEW')
-      return userStore.hasPermission(Perms.WORKORDER_REVIEW) || isHqProcessView.value
-    if (actionKey === 'CLOSE')
-      return (
-        userStore.hasPermission(Perms.WORKORDER_CLOSE) &&
-        (userStore.hasPermission(Perms.WORKORDER_ACCEPT) || isHqProcessView.value)
-      )
-    return false
-  }
-
-  const getActionButtons = (actionKeys: WorkOrderActionKey[]): OperatorAction[] =>
-    actionKeys.map((key) => ({
-      key,
-      label: getActionLabel(key),
-      className: getActionClassName(key)
-    }))
-
-  /**
-   * 状态回退逻辑：当接口未返回 availableActions 时，沿用原先状态驱动按钮。
-   * 仅用于过渡期兜底，后续接口稳定后回收（保留审计埋点）。
-   */
-  const getFallbackStatusActions = (order: OrderListItem): WorkOrderActionKey[] => {
-    const actionKeys: WorkOrderActionKey[] = []
-    const pushUnique = (actionKey: WorkOrderActionKey) => {
-      if (!actionKeys.includes(actionKey)) actionKeys.push(actionKey)
-    }
-
-    if (showDispatcherActionBlock(order)) {
-      if (isOrderPendingAssign(order)) pushUnique('ASSIGN')
-      else if (isOrderPendingTechAccept(order)) pushUnique('TECH_ACCEPT')
-      else if (
-        order.status === 'IN_PROGRESS' &&
-        userStore.hasPermission(Perms.WORKORDER_TRANSFER)
-      ) {
-        pushUnique('TRANSFER')
-      } else if (order.status === 'COMPLETED') {
-        if (userStore.hasPermission(Perms.WORKORDER_REVIEW) && !operatorShowsRecheck(order))
-          pushUnique('REVIEW')
-        if (userStore.hasPermission(Perms.WORKORDER_TRANSFER)) pushUnique('TRANSFER')
-      }
-    }
-
-    if (showOperatorActions(order)) {
-      getOperatorActions(order.status).forEach((action) => {
-        pushUnique(action.key)
-      })
-    }
-
-    return actionKeys
-  }
-
-  /**
-   * 列表按钮渲染优先级：
-   * 1. 有 availableActions 时按后端动作渲染；
-   * 2. 前端再做权限二次过滤；
-   * 3. 无 availableActions 时才回退旧状态逻辑（过渡期）。
-   */
-  const getVisibleActions = (order: OrderListItem): OperatorAction[] => {
-    const availableActionKeys = getOrderAvailableActions(order)
-    let candidateActionKeys = availableActionKeys
-    if (!availableActionKeys.length && ENABLE_LEGACY_STATUS_ACTION_FALLBACK) {
-      candidateActionKeys = getFallbackStatusActions(order)
-      auditLegacyStatusFallbackHit({
-        orderId: order.id,
-        role: getOrderRoleForRegression(order),
-        status: order.status,
-        primaryTab: primaryTab.value,
-        secondaryTab: secondaryTab.value,
-        fallbackActions: candidateActionKeys
-      })
-    }
-    const allowedKeys = candidateActionKeys.filter((key) => isActionAllowed(order, key))
-    return getActionButtons(sortWorkOrderActionsForDisplay(allowedKeys))
-  }
+  const { getVisibleActions, isDispatcherOrderAssignedToOther } = useWorkOrderVisibleActions({
+    primaryTab,
+    isHqProcessView,
+    isOrderAcceptedByCurrentCompany,
+    secondaryTab,
+    showDispatcherActionBlock,
+    showOperatorActions,
+    getOperatorActions,
+    operatorShowsRecheck
+  })
 
   /**
    * 接单：进入详情填写故障判定与维修报价，用户提交后再调接单接口（与首页一致）

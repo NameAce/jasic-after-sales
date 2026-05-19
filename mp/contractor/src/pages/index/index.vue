@@ -29,14 +29,12 @@
         :show-no-more="showSiteWorkbenchNoMore"
         :order-list="orderList"
         :get-order-list-status-text="getOrderListStatusText"
-        :show-accept-order-button="showAcceptOrderButton"
-        :show-dispatch-order-button="showDispatchOrderButton"
+        :get-visible-actions="getVisibleActions"
         :show-inbound-transfer-tag="showInboundTransferTag"
         :show-transferred-tag="showTransferredTag"
         @stat-tap="goToOrderListTab"
         @order-click="onOrderClick"
-        @accept-order="onAcceptOrder"
-        @dispatch-order="openAssignModal"
+        @work-order-action="dispatchWorkbenchAction"
       />
 
       <!-- 总部工作台 -->
@@ -64,6 +62,10 @@
 
 <script setup lang="ts">
   import { ref, computed, nextTick } from 'vue'
+  import type { OrderListItem } from '@/models/order'
+  import type { WorkOrderActionKey } from '@/constants/orderActions'
+  import { useWorkOrderVisibleActions } from '@/composables/useWorkOrderVisibleActions'
+  import { navigateWorkOrderAction } from '@/utils/workOrderActionNavigation'
   import { onShow, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
   import { useAppStore, useUserStore } from '@/stores'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
@@ -72,7 +74,6 @@
   } from '@/components/AssignTechnicianModal/AssignTechnicianModal.vue'
   import SiteWorkbench from './components/SiteWorkbench.vue'
   import HqWorkbench from './components/HqWorkbench.vue'
-  import type { OrderListItem } from '@/models/order'
   import { formatTimeHHMM } from '@/utils/format'
   import { Perms } from '@/utils/permissions'
   import { hqMenuIcon, personPinCircleIcon } from '@/svgs'
@@ -98,8 +99,6 @@
     hqNetworkStats,
     hqTransferredCount,
     getOrderListStatusText,
-    showDispatchOrderButton,
-    showAcceptOrderButton,
     workbenchListTitle,
     workbenchEmptyTitle,
     workbenchEmptyDesc,
@@ -109,6 +108,41 @@
     loadMoreSiteWorkbench,
     showSiteWorkbenchNoMore
   } = useIndexWorkbench()
+
+  const workbenchPrimaryTab = ref<'untransferred'>('untransferred')
+  const workbenchIsHqProcessView = computed(() => false)
+
+  const isWorkbenchOrderAcceptedByCurrentCompany = (order: OrderListItem) => {
+    const acceptName = String(order.siteName ?? '').trim()
+    const myName = String(userStore.currentNetworkName ?? '').trim()
+    if (!acceptName || !myName) return true
+    return acceptName === myName
+  }
+
+  const { getVisibleActions } = useWorkOrderVisibleActions({
+    primaryTab: workbenchPrimaryTab,
+    isHqProcessView: workbenchIsHqProcessView,
+    isOrderAcceptedByCurrentCompany: isWorkbenchOrderAcceptedByCurrentCompany
+  })
+
+  /**
+   * 工作台行内操作：ASSIGN 打开派单弹窗，其余动作与工单库列表一致跳转详情
+   */
+  const dispatchWorkbenchAction = (actionKey: WorkOrderActionKey, orderId: string) => {
+    if (actionKey === 'ASSIGN') {
+      openAssignModal(orderId)
+      return
+    }
+    if (actionKey === 'TRANSFER') {
+      appStore.setOrderListNavTarget({
+        primaryTab: 'untransferred',
+        secondaryTab: 'processing'
+      })
+      uni.switchTab({ url: '/pages/order/list' })
+      return
+    }
+    navigateWorkOrderAction(actionKey, orderId)
+  }
 
   /** 总部更新时间 */
   const hqUpdatedAt = ref(formatTimeHHMM())

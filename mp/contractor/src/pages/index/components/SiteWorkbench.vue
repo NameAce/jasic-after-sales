@@ -32,20 +32,14 @@
       @order-click="(o) => emit('order-click', o)"
     >
       <template #actions="{ order }">
-        <view class="action-wrap">
+        <view v-if="getVisibleActions(order).length > 0" class="action-wrap">
           <button
-            v-if="showAcceptOrderButton(order)"
-            class="btn-action primary"
-            @tap.stop="emit('accept-order', order.id)"
+            v-for="action in getVisibleActions(order)"
+            :key="`${order.id}-${action.key}`"
+            :class="`btn-action ${action.className}`"
+            @tap.stop="emit('work-order-action', action.key, order.id)"
           >
-            一键接单
-          </button>
-          <button
-            v-if="showDispatchOrderButton(order)"
-            class="btn-action primary"
-            @tap.stop="emit('dispatch-order', order.id)"
-          >
-            一键派单
+            {{ action.label }}
           </button>
         </view>
       </template>
@@ -56,6 +50,8 @@
 <script setup lang="ts">
   import OrderCardList from '@/components/OrderCardList/OrderCardList.vue'
   import type { OrderListItem } from '@/models/order'
+  import type { WorkOrderActionKey } from '@/constants/orderActions'
+  import type { WorkOrderVisibleAction } from '@/composables/useWorkOrderVisibleActions'
 
   const props = withDefaults(
     defineProps<{
@@ -79,8 +75,7 @@
       showNoMore?: boolean
       orderList: OrderListItem[]
       getOrderListStatusText: (order: OrderListItem) => string
-      showAcceptOrderButton: (order: OrderListItem) => boolean
-      showDispatchOrderButton: (order: OrderListItem) => boolean
+      getVisibleActions: (order: OrderListItem) => WorkOrderVisibleAction[]
       showInboundTransferTag: (order: OrderListItem) => boolean
       showTransferredTag: (order: OrderListItem) => boolean
     }>(),
@@ -90,8 +85,7 @@
   const emit = defineEmits<{
     (e: 'stat-tap', tab: 'pending' | 'processing' | 'completed'): void
     (e: 'order-click', order: OrderListItem): void
-    (e: 'accept-order', orderId: string): void
-    (e: 'dispatch-order', orderId: string): void
+    (e: 'work-order-action', actionKey: WorkOrderActionKey, orderId: string): void
   }>()
 </script>
 

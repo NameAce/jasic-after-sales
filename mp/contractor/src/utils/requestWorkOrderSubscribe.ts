@@ -37,7 +37,7 @@ const requestSubscribeByTemplateIds = (templateIds: string[]): Promise<Subscribe
 
 /**
  * 请求工单相关订阅消息授权。
- * contractor 端在「提交报价」「维修完成」点击且校验通过后、`await` 调用（仍在用户点击链路内）。
+ * contractor 端在「提交报价」「转单确认」「维修完成」等点击且校验通过后、`await` 调用（仍在用户点击链路内）。
  * 失败或拒绝不抛错，不阻塞后续业务流程。
  */
 export function requestWorkOrderSubscribe(): Promise<SubscribeResult | void> {
