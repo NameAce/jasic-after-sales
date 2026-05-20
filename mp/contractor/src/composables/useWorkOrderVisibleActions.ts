@@ -5,11 +5,10 @@ import {
   getContractorListActionClassName,
   getContractorListActionLabel,
   normalizeAvailableActions,
+  sortWorkOrderActionsForDisplay,
   type WorkOrderActionKey
 } from '@/constants/orderActions'
 import { canCurrentSiteOperateTransferredOrder } from '@/utils/orderTransfer'
-import { Perms } from '@/utils/permissions'
-import { isWorkOrderPendingTechAcceptMainStatus } from '@/utils/workOrderMainStatus'
 
 /** 列表/工作台行内操作按钮 */
 export type WorkOrderVisibleAction = {
@@ -29,50 +28,22 @@ export type UseWorkOrderVisibleActionsOptions = {
 
 /**
  * 工单列表/工作台行内按钮：仅依据接口 `availableActions` 渲染。
- * 前端仅做承修方必守的展示层过滤（已转单 Tab、受理主体、指派他人、转单网点约束等）。
+ * 前端仅做承修方必守的展示层过滤（已转单 Tab、受理主体、转单网点约束等）。
  */
 export function useWorkOrderVisibleActions(options: UseWorkOrderVisibleActionsOptions) {
   const userStore = useUserStore()
 
-  const isOrderPendingTechAccept = (order: OrderListItem) => order.status === 'PENDING_TECH_ACCEPT'
-
-  const isOrderPendingAssign = (order: OrderListItem) =>
-    order.status === 'PENDING_ASSIGN' && !isWorkOrderPendingTechAcceptMainStatus(order.mainStatus)
-
   /**
-   * 派单员：工单已指派给他人时仅可查看（防止接口异常时误展示按钮）
+   * 从列表项解析可展示动作（与后端 `WorkOrderPermissionService.listAvailableActions` 对齐）。
+   * - 仅 `viewScope=CURRENT` 时列表接口会填充 `availableActions`；
+   * - `RETURN_METHOD` 在 normalize 阶段映射为 `CLOSE`（列表统一展示「机器返回方式」）；
+   * - 承修方小程序列表暂不展示「上传寄件单号」。
    */
-  const isDispatcherOrderAssignedToOther = (order: OrderListItem) => {
-    if (!userStore.hasPermission(Perms.WORKORDER_ASSIGN)) return false
-    const aid = order.assignedUserId
-    if (aid === undefined || aid === null) return false
-    const assigned = Number(aid)
-    if (!Number.isFinite(assigned) || assigned <= 0) return false
-    const selfId = userStore.userInfo?.id
-    if (!Number.isFinite(selfId)) return false
-    return assigned !== Number(selfId)
-  }
-
-  /**
-   * 待派单/待接单同时存在时，与详情页一致做互斥展示
-   */
-  const applyAssignTechExclusion = (
-    keys: WorkOrderActionKey[],
-    order: OrderListItem
-  ): WorkOrderActionKey[] => {
-    if (keys.length < 2) return keys
-    if (!keys.includes('ASSIGN') || !keys.includes('TECH_ACCEPT')) return keys
-    if (isOrderPendingAssign(order)) return keys.filter((k) => k !== 'TECH_ACCEPT')
-    if (isOrderPendingTechAccept(order)) return keys.filter((k) => k !== 'ASSIGN')
-    return keys
-  }
-
-  /** 承修方端暂不展示「上传寄件单号」 */
   const getOrderAvailableActions = (order: OrderListItem): WorkOrderActionKey[] => {
-    const base = normalizeAvailableActions(order.availableActions).filter(
+    const normalized = normalizeAvailableActions(order.availableActions).filter(
       (key) => key !== 'UPLOAD_SEND_EXPRESS'
     )
-    return applyAssignTechExclusion(base, order)
+    return sortWorkOrderActionsForDisplay(normalized)
   }
 
   /**
@@ -81,7 +52,6 @@ export function useWorkOrderVisibleActions(options: UseWorkOrderVisibleActionsOp
   const isActionAllowed = (order: OrderListItem, actionKey: WorkOrderActionKey) => {
     if (options.primaryTab.value === 'transferred') return false
     if (!options.isOrderAcceptedByCurrentCompany(order)) return false
-    if (isDispatcherOrderAssignedToOther(order)) return false
 
     if (actionKey === 'TECH_ACCEPT' || actionKey === 'REPAIR_FINISH') {
       return canCurrentSiteOperateTransferredOrder(
@@ -101,7 +71,7 @@ export function useWorkOrderVisibleActions(options: UseWorkOrderVisibleActionsOp
     }))
 
   /**
-   * 解析当前行应展示的操作按钮（严格按接口 `availableActions` 顺序）
+   * 解析当前行应展示的操作按钮（与后端 `DETAIL_ACTION_ORDER` 一致）
    */
   const getVisibleActions = (order: OrderListItem): WorkOrderVisibleAction[] => {
     const allowedKeys = getOrderAvailableActions(order).filter((key) =>
@@ -110,11 +80,15 @@ export function useWorkOrderVisibleActions(options: UseWorkOrderVisibleActionsOp
     return toActionButtons(allowedKeys)
   }
 
+  /** 当前行是否包含指定动作（用于点击前二次校验，避免列表刷新滞后） */
+  const hasVisibleAction = (order: OrderListItem, actionKey: WorkOrderActionKey) =>
+    getOrderAvailableActions(order).some(
+      (key) => key === actionKey && isActionAllowed(order, key)
+    )
+
   return {
     getVisibleActions,
     getOrderAvailableActions,
-    isDispatcherOrderAssignedToOther,
-    isOrderPendingAssign,
-    isOrderPendingTechAccept
+    hasVisibleAction
   }
 }

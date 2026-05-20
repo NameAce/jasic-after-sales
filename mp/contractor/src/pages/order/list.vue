@@ -142,11 +142,11 @@
             <text class="value">{{ order.transferNetwork }}</text>
           </view>
         </template>
-        <!-- 操作：仅当 availableActions 非空时展示按钮，为空则不占位 -->
+        <!-- 操作：按接口 availableActions（viewScope=CURRENT）渲染，无动作时不占位 -->
         <template #actions="{ order }">
-          <view v-if="getVisibleActions(order).length > 0" class="action-wrap">
+          <view v-if="resolveListRowActions(order).length > 0" class="action-wrap">
             <button
-              v-for="action in getVisibleActions(order)"
+              v-for="action in resolveListRowActions(order)"
               :key="`${order.id}-${action.key}`"
               :class="`btn-action ${action.className}`"
               @tap.stop="dispatchWorkOrderAction(action.key, order.id)"
@@ -929,10 +929,13 @@
     })
   }
 
-  const { getVisibleActions } = useWorkOrderVisibleActions({
+  const { getVisibleActions, hasVisibleAction } = useWorkOrderVisibleActions({
     primaryTab,
     isOrderAcceptedByCurrentCompany
   })
+
+  /** 列表行内操作按钮（避免模板内重复调用 getVisibleActions） */
+  const resolveListRowActions = (order: OrderListItem) => getVisibleActions(order)
 
   /**
    * 接单：进入详情填写故障判定与维修报价，用户提交后再调接单接口（与首页一致）
@@ -1168,6 +1171,10 @@
     const orderRow = orderList.value.find((o) => o.id === id)
     if (orderRow && !isOrderAcceptedByCurrentCompany(orderRow)) {
       uni.showToast({ title: '受理方非您所在主体，仅可查看', icon: 'none' })
+      return
+    }
+    if (orderRow && !hasVisibleAction(orderRow, actionKey)) {
+      uni.showToast({ title: '当前工单状态已变更，请刷新后重试', icon: 'none' })
       return
     }
     if (!(actionKey in workOrderActionHandlers)) {

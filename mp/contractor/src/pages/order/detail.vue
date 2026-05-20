@@ -317,9 +317,7 @@
     type DetailEntryAction
   } from './useOrderDetailPage'
   import type { WorkOrderActionKey } from '@/constants/orderActions'
-  import {
-    requestWorkOrderSubscribe
-  } from '@/utils/requestWorkOrderSubscribe'
+  import { requestWorkOrderSubscribe } from '@/utils/requestWorkOrderSubscribe'
 
   const appStore = useAppStore()
   const userStore = useUserStore()
