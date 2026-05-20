@@ -12,7 +12,7 @@
       <!-- 维修登记：在维修信息内编辑报价（复检不提交报价字段） -->
       <template v-if="quoteEditable">
         <view class="meta-quote-field">
-          <text class="info-label">维修报价 <text class="text-red">*</text></text>
+          <text class="info-label">维修报价</text>
           <view class="meta-quote-input-wrap">
             <text class="meta-quote-currency">¥</text>
             <input

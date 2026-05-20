@@ -1293,32 +1293,25 @@
     const repairDescForApi = hasOtherRepairDesc ? (otherRepairDesc.value || '').trim() : ''
 
     /**
-     * 与 POST `/api/system/work-order/repair` 的 WorkOrderRepairDTO 一致；未改价时从详情回退当前有效报价，避免误传 0。
+     * 维修登记报价选填：仅当用户填写了金额或说明时才随 repair 提交；
+     * 未填写时不传 quote 字段，避免详情缺省 0.00 被误当成改价。
      */
-    let repairQuoteForSubmit: { quoteAmount: number; quoteDesc: string } | undefined
+    let repairQuoteForSubmit: { quoteAmount?: number; quoteDesc?: string } | undefined
     if (!isRecheck) {
       const quoteDescTrim = (quoteDescInput.value || '').trim()
-      const fromDetailDesc = String(order.value.repair?.quoteDesc ?? '').trim()
       const qFromInput = parseOptionalRepairQuoteAmount(String(repairQuoteInput.value || '').trim())
       if (!qFromInput.ok) {
         uni.showToast({ title: '维修报价格式不正确', icon: 'none' })
         return
       }
-      const qFromOrder = parseOptionalRepairQuoteAmount(
-        String(order.value.repair?.quoteAmount ?? '')
-      )
-      if (!qFromOrder.ok) {
-        uni.showToast({ title: '维修报价格式不正确', icon: 'none' })
-        return
+      const hasInputAmount = qFromInput.value !== undefined
+      const hasInputDesc = !!quoteDescTrim
+      if (hasInputAmount || hasInputDesc) {
+        repairQuoteForSubmit = {
+          ...(hasInputAmount ? { quoteAmount: qFromInput.value } : {}),
+          ...(hasInputDesc ? { quoteDesc: quoteDescTrim } : {})
+        }
       }
-      const amount =
-        qFromInput.value !== undefined
-          ? qFromInput.value
-          : qFromOrder.value !== undefined
-            ? qFromOrder.value
-            : 0
-      const desc = quoteDescTrim || fromDetailDesc
-      repairQuoteForSubmit = { quoteAmount: amount, quoteDesc: desc }
     }
 
     uni.showLoading({ title: '提交中...' })
@@ -1360,8 +1353,7 @@
               partName: r.part,
               partQty: r.qty
             })),
-            quoteAmount: repairQuoteForSubmit!.quoteAmount,
-            quoteDesc: repairQuoteForSubmit!.quoteDesc,
+            ...(repairQuoteForSubmit ?? {}),
             repairDesc: repairDescForApi,
             repairItems,
             workOrderId: wid
