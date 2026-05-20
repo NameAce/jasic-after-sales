@@ -110,7 +110,6 @@
   } = useIndexWorkbench()
 
   const workbenchPrimaryTab = ref<'untransferred'>('untransferred')
-  const workbenchIsHqProcessView = computed(() => false)
 
   const isWorkbenchOrderAcceptedByCurrentCompany = (order: OrderListItem) => {
     const acceptName = String(order.siteName ?? '').trim()
@@ -121,7 +120,6 @@
 
   const { getVisibleActions } = useWorkOrderVisibleActions({
     primaryTab: workbenchPrimaryTab,
-    isHqProcessView: workbenchIsHqProcessView,
     isOrderAcceptedByCurrentCompany: isWorkbenchOrderAcceptedByCurrentCompany
   })
 

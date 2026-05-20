@@ -362,6 +362,7 @@ function mapWorkOrderToListItem(vo: WorkOrderListVO): OrderListItem {
   ).trim()
   const assignedUserName = String(vo.assignedUserName ?? '').trim()
   const availableActions = normalizeAvailableActions(vo.availableActions)
+  const readonlyReason = String(vo.readonlyReason ?? '').trim() || undefined
   const createTime = String(vo.createTime ?? '').trim()
   const transferCountRaw = vo.transferCount
   const parsedTransferCount =
@@ -393,6 +394,7 @@ function mapWorkOrderToListItem(vo: WorkOrderListVO): OrderListItem {
     faultDesc: faultDesc || undefined,
     transferred: Number.isFinite(hasTransferNum) && hasTransferNum !== 0,
     availableActions,
+    readonlyReason,
     siteName: vo.currentAcceptCompanyName,
     sitePhone: String(vo.currentAcceptCompanyPhone ?? '').trim() || undefined,
     repairPriceText,

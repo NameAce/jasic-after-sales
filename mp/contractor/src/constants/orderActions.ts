@@ -78,3 +78,17 @@ export const sortWorkOrderActionsForDisplay = (keys: WorkOrderActionKey[]): Work
   }
   return [...keys].sort((a, b) => rank(a) - rank(b))
 }
+
+/**
+ * 承修方小程序列表按钮文案。
+ * CLOSE / RETURN_METHOD 在列表统一展示为「机器返回方式」，与详情底栏一致。
+ */
+export const getContractorListActionLabel = (key: WorkOrderActionKey): string => {
+  if (key === 'CLOSE') return '机器返回方式'
+  return ACTION_META[key].label
+}
+
+/** 承修方小程序列表按钮样式：关闭/返回方式使用 outline，其余 primary */
+export const getContractorListActionClassName = (
+  key: WorkOrderActionKey
+): 'primary' | 'outline' => (key === 'CLOSE' ? 'outline' : 'primary')

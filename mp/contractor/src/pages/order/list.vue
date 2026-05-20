@@ -142,7 +142,7 @@
             <text class="value">{{ order.transferNetwork }}</text>
           </view>
         </template>
-        <!-- 操作 -->
+        <!-- 操作：仅当 availableActions 非空时展示按钮，为空则不占位 -->
         <template #actions="{ order }">
           <view v-if="getVisibleActions(order).length > 0" class="action-wrap">
             <button
@@ -228,13 +228,9 @@
     getReturnMethodInitialMail,
     type BranchItem,
     type OrderDetail,
-    type OrderListItem,
-    type WorkOrderMainStatus
+    type OrderListItem
   } from '@/models/order'
-  import {
-    canCurrentSiteOperateTransferredOrder,
-    hasInboundTransferFromSite
-  } from '@/utils/orderTransfer'
+  import { hasInboundTransferFromSite } from '@/utils/orderTransfer'
   import { ORDER_STATUS_TEXT_MAP, isPendingMainStatus } from '@/utils/orderStatus'
   import { Perms } from '@/utils/permissions'
   import { getApiMessage } from '@/utils/http'
@@ -280,24 +276,6 @@
 
   // 是否为总部"总部处理"视图
   const isHqProcessView = computed(() => isHqUser.value && primaryTab.value === 'untransferred')
-  // 接单权限用户：已转单且当前网点为转出方时不展示接单/登记等按钮
-  const canOperateOrder = computed(
-    () => userStore.hasPermission(Perms.WORKORDER_ACCEPT) || isHqProcessView.value
-  )
-
-  /**
-   * 维修工程师：已转单且当前网点为转出方时不展示接单/登记等按钮
-   * @param order 工单
-   * @returns 是否可以操作
-   */
-  const canEngineerOperateTransferredOrder = (order: OrderListItem) => {
-    if (!userStore.hasPermission(Perms.WORKORDER_ACCEPT)) return true
-    return canCurrentSiteOperateTransferredOrder(
-      !!order.transferred,
-      order.transferFromSite,
-      userStore.currentNetworkName
-    )
-  }
 
   /**
    * 列表 `currentAcceptCompanyName`（映射为 `siteName`）与当前登录主体公司名一致时，
@@ -560,8 +538,11 @@
       pageSize,
       companyId: userStore.userInfo?.currentCompanyId,
       // 与后端约定：仅 viewScope=CURRENT 时列表项才填充 availableActions
-      viewScope: 'CURRENT',
-      hasTransfer: primary === 'transferred' ? 1 : 0
+      viewScope: 'CURRENT'
+    }
+    // 仅「已转派/网点工单」tab 需要按转派维度筛选；未转派列表不传 hasTransfer，避免后端按 hasTransfer=0 收窄结果
+    if (primary === 'transferred') {
+      query.hasTransfer = 1
     }
 
     // 与接口约定一致：含中文→客户姓名模糊；长数字→条码；否则工单号模糊（避免多条件 AND 同时传）
@@ -921,30 +902,6 @@
     }
   }
 
-  // ==================== 维修工程师 & 总部操作 ====================
-
-  // 操作按钮（操作按钮键、操作按钮标签、操作按钮类名）
-  type OperatorAction = {
-    key: WorkOrderActionKey
-    label: string
-    className: 'primary' | 'outline'
-  }
-
-  /**
-   * 操作按钮映射
-   * @returns 操作按钮映射（根据工单状态）
-   */
-  const operatorActionMap: Record<WorkOrderMainStatus, OperatorAction[]> = {
-    PENDING_ASSIGN: [{ key: 'TECH_ACCEPT', label: '接单', className: 'primary' }],
-    PENDING_TECH_ACCEPT: [{ key: 'TECH_ACCEPT', label: '接单', className: 'primary' }],
-    IN_PROGRESS: [{ key: 'REPAIR_FINISH', label: '维修登记', className: 'primary' }],
-    COMPLETED: [
-      { key: 'CLOSE', label: '机器返回方式', className: 'outline' },
-      { key: 'REVIEW', label: '复检登记', className: 'primary' }
-    ],
-    CLOSED: []
-  }
-
   /**
    * 跳转到工单详情（仅查看；故障点登记需通过「维修登记」「复检登记」按钮进入并带 action）
    * @param order 工单
@@ -972,87 +929,9 @@
     })
   }
 
-  /**
-   * 获取操作按钮（按细粒度权限过滤；总部处理视图保留完整操作能力）
-   * @param status 工单状态
-   * @returns 操作按钮（操作按钮键、操作按钮标签、操作按钮类名）
-   */
-  const getOperatorActions = (status: WorkOrderMainStatus): OperatorAction[] => {
-    const base = operatorActionMap[status] ?? []
-    const hq = isHqProcessView.value
-    return base.filter((a) => {
-      if (a.key === 'TECH_ACCEPT') return userStore.hasPermission(Perms.WORKORDER_ACCEPT)
-      if (a.key === 'REPAIR_FINISH') return userStore.hasPermission(Perms.WORKORDER_REPAIR) || hq
-      if (a.key === 'CLOSE')
-        return (
-          userStore.hasPermission(Perms.WORKORDER_CLOSE) &&
-          (userStore.hasPermission(Perms.WORKORDER_ACCEPT) || hq)
-        )
-      if (a.key === 'REVIEW') return userStore.hasPermission(Perms.WORKORDER_REVIEW) || hq
-      return true
-    })
-  }
-
-  /**
-   * 派单员侧操作条（「总部处理/未转单」一级 Tab）
-   * - 有派单权限：待接单/派单、维修中（有转单权时）、已完成（复检/转单按权限）
-   * - 仅有转单权限：维修中、已完成仍展示转单按钮
-   * @param order 工单
-   * @returns 是否展示派单员侧操作条
-   */
-  const showDispatcherActionBlock = (order: OrderListItem) => {
-    if (primaryTab.value !== 'untransferred') return false
-    if (isDispatcherOrderAssignedToOther(order)) return false
-    const hasAssign = userStore.hasPermission(Perms.WORKORDER_ASSIGN)
-    const hasTransfer = userStore.hasPermission(Perms.WORKORDER_TRANSFER)
-    if (hasAssign) {
-      return (
-        isPendingMainStatus(order.status) ||
-        (order.status === 'IN_PROGRESS' && hasTransfer) ||
-        order.status === 'COMPLETED'
-      )
-    }
-    if (hasTransfer) {
-      return order.status === 'IN_PROGRESS' || order.status === 'COMPLETED'
-    }
-    return false
-  }
-
-  /**
-   * 是否展示工程师/总部操作条（有可用按钮时才展示）
-   * @param order 工单
-   * @returns 是否展示工程师/总部操作条（工程师/总部操作条：选此项表示派单给自己，进入「待接单」）
-   */
-  const showOperatorActions = (order: OrderListItem) => {
-    if (primaryTab.value === 'transferred') return false
-    if (isDispatcherOrderAssignedToOther(order)) return false
-    if (!canOperateOrder.value || !canEngineerOperateTransferredOrder(order)) return false
-    // 派单员 pending 仅走上方按钮区：待派单只显示「派单」、待接单只显示「接单」，不与工程师条重复
-    if (userStore.hasPermission(Perms.WORKORDER_ASSIGN) && isPendingMainStatus(order.status))
-      return false
-    return getOperatorActions(order.status).length > 0
-  }
-
-  /**
-   * 工程师条是否会显示「复检登记」（用于避免与派单条重复）
-   * @param order 工单
-   * @returns 是否显示「复检登记」（用于避免与派单条重复）
-   */
-  const operatorShowsRecheck = (order: OrderListItem) => {
-    if (order.status !== 'COMPLETED') return false
-    if (!showOperatorActions(order)) return false
-    return getOperatorActions('COMPLETED').some((a) => a.key === 'REVIEW')
-  }
-
-  const { getVisibleActions, isDispatcherOrderAssignedToOther } = useWorkOrderVisibleActions({
+  const { getVisibleActions } = useWorkOrderVisibleActions({
     primaryTab,
-    isHqProcessView,
-    isOrderAcceptedByCurrentCompany,
-    secondaryTab,
-    showDispatcherActionBlock,
-    showOperatorActions,
-    getOperatorActions,
-    operatorShowsRecheck
+    isOrderAcceptedByCurrentCompany
   })
 
   /**

@@ -81,6 +81,8 @@ export type WorkOrderListVO = {
   brandTypeLabel?: string
   /** 后端可执行动作（原始返回，映射层会再做合法 key 过滤） */
   availableActions?: unknown[]
+  /** 当前列表项只读原因（viewScope=CURRENT 且无可用动作时由后端填充） */
+  readonlyReason?: string
 }
 
 /** 后端工单列表分页 */
@@ -360,6 +362,8 @@ export type OrderListItem = {
   transferFromSite?: string
   /** 后端可执行动作（优先用于列表按钮渲染） */
   availableActions?: WorkOrderActionKey[]
+  /** 无可用动作时的只读提示（与 jasic-ui-antd 列表一致） */
+  readonlyReason?: string
   /** 所属网点/服务站名称 */
   siteName?: string
   /** 所属网点/服务站联系电话（受理公司 contact_phone） */
