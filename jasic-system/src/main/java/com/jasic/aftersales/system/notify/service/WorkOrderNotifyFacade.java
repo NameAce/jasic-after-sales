@@ -7,6 +7,7 @@ import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoCompleteDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoInvalidateDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderAcceptEventDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderAcceptedEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderEvaluatedEventDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderTransferInEventDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderTransferNoticeEventDTO;
 
@@ -59,6 +60,13 @@ public interface WorkOrderNotifyFacade {
      * @param dto 参数
      */
     void publishEvaluationInviteEvent(NotifyEvaluationInviteEventDTO dto);
+
+    /**
+     * 发布 B 端客户评价完成通知事件。
+     *
+     * @param dto 事件参数
+     */
+    void publishEvaluatedEvent(NotifyWorkOrderEvaluatedEventDTO dto);
 
     /**
      * 标记读取By业务。

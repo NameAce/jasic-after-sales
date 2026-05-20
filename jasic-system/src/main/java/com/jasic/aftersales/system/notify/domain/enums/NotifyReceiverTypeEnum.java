@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
  */
 public enum NotifyReceiverTypeEnum {
 
-    /** 当前目标网点下可派单用户。*/
+    /** 当前目标网点下可派单用户。 */
     ASSIGN_USER("ASSIGN_USER", "B端派单用户"),
 
     /** 当前目标网点下可接单用户。 */
@@ -23,8 +23,11 @@ public enum NotifyReceiverTypeEnum {
     /** 被派单工程师本人。 */
     REPAIRER("REPAIRER", "维修工程师"),
 
-    /** C 端客户本人。 */
-    CUSTOMER("CUSTOMER", "C端客户");
+    /** C端客户本人。 */
+    CUSTOMER("CUSTOMER", "C端客户"),
+
+    /** B端客户评价完成提醒接收人。 */
+    EVALUATED_B_USER("EVALUATED_B_USER", "B端评价提醒接收人");
 
     /**
      * 接收对象类型编码。

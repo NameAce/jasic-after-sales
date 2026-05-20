@@ -10,6 +10,7 @@ import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoCompleteDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoInvalidateDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderAcceptEventDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderAcceptedEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderEvaluatedEventDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderTransferInEventDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderTransferNoticeEventDTO;
 import com.jasic.aftersales.system.notify.domain.entity.SysNotifyEvent;
@@ -199,6 +200,29 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
                 JSONUtil.toJsonStr(dto)
         );
         // 调用createEventSafely方法，复用统一能力并保证业务规则一致。
+        createEventSafely(notifyEvent);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void publishEvaluatedEvent(NotifyWorkOrderEvaluatedEventDTO dto) {
+        validateEvaluatedEvent(dto);
+        String eventKey = buildEvaluatedEventKey(dto);
+        if (notifyEventService.getByEventKey(eventKey) != null) {
+            return;
+        }
+        SysNotifyEvent notifyEvent = buildEvent(
+                eventKey,
+                NotifyEventTypeEnum.WORK_ORDER_EVALUATED.getCode(),
+                NotifySceneCode.WORK_ORDER_EVALUATED.getCode(),
+                dto.getWorkOrderId(),
+                dto.getOrderNo(),
+                dto.getCustomerId(),
+                dto.getAssignedUserId(),
+                JSONUtil.toJsonStr(dto)
+        );
         createEventSafely(notifyEvent);
     }
 
@@ -411,6 +435,26 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
     }
 
     /**
+     * 校验 B 端客户评价完成通知事件。
+     *
+     * @param dto 事件参数
+     */
+    private void validateEvaluatedEvent(NotifyWorkOrderEvaluatedEventDTO dto) {
+        if (dto == null) {
+            throw new ServiceException("Evaluated event payload cannot be null");
+        }
+        if (dto.getWorkOrderId() == null) {
+            throw new ServiceException("Evaluated event missing workOrderId");
+        }
+        if (StrUtil.isBlank(dto.getOrderNo())) {
+            throw new ServiceException("Evaluated event missing orderNo");
+        }
+        if (dto.getAssignedUserId() == null) {
+            throw new ServiceException("Evaluated event missing assignedUserId");
+        }
+    }
+
+    /**
      * 构建Assigned事件Key。
      *
      * @param dto 参数
@@ -465,6 +509,19 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
     private String buildEvaluationInviteEventKey(NotifyEvaluationInviteEventDTO dto) {
         return String.format("%s:%s",
                 NotifyConstants.EVENT_KEY_PREFIX_WORK_ORDER_EVALUATION_INVITE,
+                dto.getWorkOrderId()
+        );
+    }
+
+    /**
+     * 构建 B 端客户评价完成通知事件幂等键。
+     *
+     * @param dto 事件参数
+     * @return 事件幂等键
+     */
+    private String buildEvaluatedEventKey(NotifyWorkOrderEvaluatedEventDTO dto) {
+        return String.format("%s:%s",
+                NotifyConstants.EVENT_KEY_PREFIX_WORK_ORDER_EVALUATED,
                 dto.getWorkOrderId()
         );
     }

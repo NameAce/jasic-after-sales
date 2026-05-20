@@ -12,7 +12,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 工单列表视图
+ * 工单列表视图。
+ *
+ * <p>该对象同时承担列表展示和当前处理视图下的动作判定快照能力，
+ * 因此除了页面直接展示的字段，还需要保留权限计算依赖的总部归属、建单公司等上下文字段。</p>
  *
  * @author Codex
  * @date 2026/03/26
@@ -54,7 +57,7 @@ public class WorkOrderListVO implements Serializable {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime lastOutDate;
 
-    @ApiModelProperty(value = "Warranty status", allowableValues = "IN_WARRANTY,OUT_OF_WARRANTY")
+    @ApiModelProperty(value = "保修状态", allowableValues = "IN_WARRANTY,OUT_OF_WARRANTY")
     private String warrantyStatus;
 
     @ApiModelProperty(value = "机器型号")
@@ -87,6 +90,12 @@ public class WorkOrderListVO implements Serializable {
     @ApiModelProperty(value = "当前维修员姓名")
     private String assignedUserName;
 
+    @ApiModelProperty(value = "建单来源公司ID")
+    private Long createCompanyId;
+
+    @ApiModelProperty(value = "归属总部ID")
+    private Long hqCompanyId;
+
     @ApiModelProperty(value = "是否发生过转单")
     private Integer hasTransfer;
 
@@ -106,5 +115,3 @@ public class WorkOrderListVO implements Serializable {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createTime;
 }
-
-

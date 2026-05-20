@@ -314,6 +314,29 @@ VALUES
   NOW()
 ),
 (
+  'WORK_ORDER_EVALUATED',
+  'B绔瘎浠锋彁閱?',
+  'WORK_ORDER',
+  'WORK_ORDER_EVALUATED',
+  1,
+  '闃舵涓€鍒濆鍖栧満鏅細瀹㈡埛鎻愪氦璇勪环鎴愬姛鍚庯紝閫氱煡褰撳墠璐ｄ换缁翠慨鍛樸€佹渶鍚庢淳鍗曚汉鍜屾渶缁堝鐞嗗叕鍙镐富璐﹀彿锛屼粎寮€鏀?B 绔皬绋嬪簭璁㈤槄閫氱煡鐩爣',
+  NOW(),
+  NOW()
+),
+(
+  'WORK_ORDER_EVALUATED',
+  'MP_SUBSCRIBE_B',
+  1,
+  '璇勪环鎻愰啋',
+  '缁翠慨宸ュ崟 ${orderNo} 宸叉敹鍒板鎴锋弧鎰忓害璇勪环锛岃鍙婃椂鏌ョ湅璇︽儏',
+  'WORK_ORDER_DETAIL',
+  '${workOrderId}',
+  '{"templateId":"aW97dc0OyW40-vGbO9ekIT9DFfyS6JvR9UhPkPuaW_Q","channelScene":"B","pagePathTemplate":"pages/order/detail?workOrderId=${workOrderId}","fieldMapping":[{"field":"character_string8","value":"${orderNo}"},{"field":"thing9","value":"${customerName}"},{"field":"phone_number10","value":"${customerMobile}"},{"field":"thing11","value":"${assignedUserName}"}]}',
+  '闃舵涓€鍒濆鍖栫洰鏍囷細B绔鎴疯瘎浠锋彁閱掑皬绋嬪簭璁㈤槄閫氱煡锛屾帴鍗曚汉瀛楁鍥哄畾灞曠ず瀹㈡埛璇勪环鏃剁殑鏈€缁堣矗浠荤淮淇憳',
+  NOW(),
+  NOW()
+),
+(
   'WORK_ORDER_ACCEPTED',
   'C端接单成功提醒',
   'WORK_ORDER',

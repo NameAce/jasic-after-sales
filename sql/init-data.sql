@@ -33,8 +33,8 @@ INSERT INTO `sys_user` (`id`, `username`, `password`, `real_name`, `phone`, `sta
 -- -------------------------------------------
 -- 4. 平台管理员关联平台公司
 -- -------------------------------------------
-INSERT INTO `sys_user_company` (`id`, `user_id`, `company_id`, `is_default`, `create_time`, `update_time`) VALUES
-(1, 1, 1, 1, NOW(), NOW());
+INSERT INTO `sys_user_company` (`id`, `user_id`, `company_id`, `is_default`, `is_primary_account`, `create_time`, `update_time`) VALUES
+(1, 1, 1, 1, 1, NOW(), NOW());
 
 -- -------------------------------------------
 -- 5. 初始化平台角色

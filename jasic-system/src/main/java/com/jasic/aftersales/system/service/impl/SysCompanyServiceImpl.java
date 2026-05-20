@@ -345,6 +345,8 @@ public class SysCompanyServiceImpl implements ISysCompanyService {
         userCompany.setCompanyId(companyId);
         // 调用setIsDefault方法，复用统一能力并保证业务规则一致。
         userCompany.setIsDefault(1);
+        // 公司创建时生成的默认管理员账号即该公司的主账号，后续通知等场景统一按该标记快速定位。
+        userCompany.setIsPrimaryAccount(1);
         // 调用insert方法，复用统一能力并保证业务规则一致。
         sysUserCompanyMapper.insert(userCompany);
 

@@ -103,6 +103,8 @@
             cac.contact_phone AS currentAcceptCompanyPhone,
             w.assigned_user_id AS assignedUserId,
             su.real_name AS assignedUserName,
+            w.create_company_id AS createCompanyId,
+            w.hq_company_id AS hqCompanyId,
             w.has_transfer AS hasTransfer,
             w.transfer_count AS transferCount,
             w.create_time AS createTime
@@ -536,6 +538,8 @@
             cac.contact_phone AS currentAcceptCompanyPhone,
             w.assigned_user_id AS assignedUserId,
             su.real_name AS assignedUserName,
+            w.create_company_id AS createCompanyId,
+            w.hq_company_id AS hqCompanyId,
             w.has_transfer AS hasTransfer,
             w.transfer_count AS transferCount,
             w.create_time AS createTime

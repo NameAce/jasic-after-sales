@@ -53,6 +53,11 @@ public class NotifySceneRegistry {
     private static final String TEMPLATE_ID_WORK_ORDER_ASSIGNED_B = "hhXhuNSWE4r98FbVMX8MfveAzBq3h7-QtfAMVOB2fTg";
 
     /**
+     * B端客户评价完成提醒模板 ID。
+     */
+    private static final String TEMPLATE_ID_WORK_ORDER_EVALUATED_B = "aW97dc0OyW40-vGbO9ekIT9DFfyS6JvR9UhPkPuaW_Q";
+
+    /**
      * C 端接单成功提醒模板 ID。
      */
     private static final String TEMPLATE_ID_WORK_ORDER_ACCEPTED_C = "_p97aAe9-FJ2c6lCcZjVMQgxDnvBz8q6IRdFnnjIyWg";
@@ -229,6 +234,7 @@ public class NotifySceneRegistry {
         metas.add(buildWorkOrderAcceptScene());
         metas.add(buildWorkOrderTransferInScene());
         metas.add(buildWorkOrderAssignedScene());
+        metas.add(buildWorkOrderEvaluatedScene());
         metas.add(buildWorkOrderAcceptedScene());
         metas.add(buildWorkOrderTransferNoticeScene());
         metas.add(buildWorkOrderEvaluationInviteScene());
@@ -569,6 +575,47 @@ public class NotifySceneRegistry {
      *
      * @return C 端接单成功提醒场景元数据
      */
+    /**
+     * 该场景在客户评价提交成功后触发，默认通知当前责任维修员、最后派单人和最终处理公司的主账号。
+     */
+    private NotifySceneMeta buildWorkOrderEvaluatedScene() {
+        List<NotifySceneTargetMeta> targetMetas = new ArrayList<>();
+        targetMetas.add(buildMiniProgramTargetMeta(
+                NotifyTypeEnum.MP_SUBSCRIBE_B.getCode(),
+                NotifyTypeEnum.MP_SUBSCRIBE_B.getDesc(),
+                NotifyReceiverTypeEnum.EVALUATED_B_USER.getCode(),
+                NotifyReceiverTypeEnum.EVALUATED_B_USER.getDesc(),
+                "当前责任维修员、最后派单人和最终处理公司主账号",
+                1,
+                "评价提醒",
+                "评价提醒",
+                "维修工单 ${orderNo} 已收到客户满意度评价，请及时查看详情",
+                NotifyConstants.ROUTE_TYPE_WORK_ORDER_DETAIL,
+                "${workOrderId}",
+                buildMiniProgramConfig(
+                        TEMPLATE_ID_WORK_ORDER_EVALUATED_B,
+                        NotifyChannelSceneEnum.B.getCode(),
+                        PAGE_PATH_WORK_ORDER_DETAIL_B,
+                        buildFieldMapping("character_string8", "${orderNo}"),
+                        buildFieldMapping("thing9", "${customerName}"),
+                        buildFieldMapping("phone_number10", "${customerMobile}"),
+                        buildFieldMapping("thing11", "${assignedUserName}")
+                )
+        ));
+        return new NotifySceneMeta(
+                NotifySceneCode.WORK_ORDER_EVALUATED.getCode(),
+                NotifySceneCode.WORK_ORDER_EVALUATED.getDesc(),
+                NotifyBizTypeEnum.WORK_ORDER.getCode(),
+                NotifyEventTypeEnum.WORK_ORDER_EVALUATED.getCode(),
+                NotifyTypeEnum.MP_SUBSCRIBE_B.getCode(),
+                buildWorkOrderEvaluatedVariables(),
+                targetMetas
+        );
+    }
+
+    /**
+     * 该场景只用于客户感知“已有工程师正式接单”，联系电话统一取当前服务网点对外电话。
+     */
     private NotifySceneMeta buildWorkOrderAcceptedScene() {
         List<NotifySceneTargetMeta> targetMetas = new ArrayList<>();
         targetMetas.add(buildMiniProgramTargetMeta(
@@ -746,6 +793,24 @@ public class NotifySceneRegistry {
      *
      * @return 变量元数据列表
      */
+    /**
+     * 该变量集合固定当前模板需要的工单号、客户信息和最终责任维修员信息。
+     */
+    private List<NotifyTemplateVariableMeta> buildWorkOrderEvaluatedVariables() {
+        List<NotifyTemplateVariableMeta> variables = new ArrayList<>();
+        variables.add(buildVariableMeta("workOrderId", "工单ID", "94"));
+        variables.add(buildVariableMeta("orderNo", "维修工单号", "JSWX20251205_00001"));
+        variables.add(buildVariableMeta("customerId", "客户ID", "9002"));
+        variables.add(buildCustomerNameVariable());
+        variables.add(buildVariableMeta("customerMobile", "客户联系电话", "18112345678"));
+        variables.add(buildVariableMeta("assignedUserId", "当前责任维修员ID", "200"));
+        variables.add(buildVariableMeta("assignedUserName",
+                "接单人姓名，统一解释为客户评价时工单上的最终责任维修员展示名称",
+                "李四"));
+        variables.add(buildVariableMeta("currentAcceptCompanyId", "客户评价时工单的最终处理公司ID", "3003"));
+        return variables;
+    }
+
     private List<NotifyTemplateVariableMeta> buildWorkOrderAcceptedVariables() {
         List<NotifyTemplateVariableMeta> variables = new ArrayList<>();
         variables.add(buildVariableMeta("workOrderId", "工单ID", "91"));

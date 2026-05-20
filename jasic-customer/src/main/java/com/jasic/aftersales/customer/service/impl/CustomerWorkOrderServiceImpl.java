@@ -67,6 +67,8 @@ import com.jasic.aftersales.system.mapper.WorkOrderFlowMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderQuoteMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderRepairMapper;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderEvaluatedEventDTO;
+import com.jasic.aftersales.system.notify.service.WorkOrderNotifyFacade;
 import com.jasic.aftersales.system.service.IFaultRepairConfigService;
 import com.jasic.aftersales.system.service.WorkOrderParticipantService;
 import com.jasic.aftersales.system.service.SysFileService;
@@ -187,6 +189,9 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
 
     @Resource
     private WorkOrderNoGenerator workOrderNoGenerator;
+
+    @Resource
+    private WorkOrderNotifyFacade workOrderNotifyFacade;
 
     /**
      * 创建我的工单
@@ -789,6 +794,78 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         // 调用insert方法，复用统一能力并保证业务规则一致。
         workOrderFlowMapper.insert(flow);
 
+        // 客户评价成功后，需要把最终责任链路快照固化成独立通知事件，
+        // 供后续 B 端评价提醒统一按“责任维修员 + 最后派单人 + 公司主账号”规则分发。
+        publishWorkOrderEvaluatedNotifyEvent(workOrder, customerId);
+
+    }
+
+    /**
+     * 发布 B 端客户评价完成通知事件。
+     *
+     * <p>该事件只在工单仍保留最终责任维修员快照时才发布。
+     * 如果责任维修员为空，说明责任链路本身异常，此时不再继续发送评价提醒，避免模板里的“接单人”字段失真。</p>
+     *
+     * @param workOrder 已更新评价状态后的工单快照
+     * @param customerId 当前评价客户ID
+     */
+    private void publishWorkOrderEvaluatedNotifyEvent(WorkOrder workOrder, Long customerId) {
+        if (workOrder == null || workOrder.getAssignedUserId() == null) {
+            return;
+        }
+        NotifyWorkOrderEvaluatedEventDTO notifyEvent = new NotifyWorkOrderEvaluatedEventDTO();
+        notifyEvent.setWorkOrderId(workOrder.getId());
+        notifyEvent.setOrderNo(workOrder.getOrderNo());
+        notifyEvent.setCustomerId(customerId);
+        notifyEvent.setCustomerName(resolveCustomerDisplayNameForNotify(workOrder));
+        notifyEvent.setCustomerMobile(normalizeText(workOrder.getCustomerMobile()));
+        notifyEvent.setAssignedUserId(workOrder.getAssignedUserId());
+        notifyEvent.setAssignedUserName(resolveSystemUserDisplayName(workOrder.getAssignedUserId()));
+        notifyEvent.setCurrentAcceptCompanyId(workOrder.getCurrentAcceptCompanyId());
+        workOrderNotifyFacade.publishEvaluatedEvent(notifyEvent);
+    }
+
+    /**
+     * 解析评价提醒里的客户展示名称。
+     *
+     * <p>模板要求展示“用户名”，这里统一沿用工单快照中的客户姓名，
+     * 缺失时再回退到工单手机号，最后兜底成固定文案“客户”。</p>
+     *
+     * @param workOrder 工单快照
+     * @return 客户展示名称
+     */
+    private String resolveCustomerDisplayNameForNotify(WorkOrder workOrder) {
+        String customerName = normalizeText(workOrder == null ? null : workOrder.getCustomerName());
+        if (customerName != null) {
+            return customerName;
+        }
+        String customerMobile = normalizeText(workOrder == null ? null : workOrder.getCustomerMobile());
+        return customerMobile != null ? customerMobile : "客户";
+    }
+
+    /**
+     * 解析系统用户展示名称。
+     *
+     * <p>评价提醒模板里的“接单人”固定展示最终责任维修员，
+     * 因此这里在发布事件前就固化姓名快照，避免后续人员资料变化导致同一事件重试文案漂移。</p>
+     *
+     * @param userId 用户ID
+     * @return 用户展示名称
+     */
+    private String resolveSystemUserDisplayName(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        SysUser user = sysUserMapper.selectById(userId);
+        if (user == null) {
+            return String.valueOf(userId);
+        }
+        String realName = normalizeText(user.getRealName());
+        if (realName != null) {
+            return realName;
+        }
+        String username = normalizeText(user.getUsername());
+        return username != null ? username : String.valueOf(userId);
     }
 
     /**

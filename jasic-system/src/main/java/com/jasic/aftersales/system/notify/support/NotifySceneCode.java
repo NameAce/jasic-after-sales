@@ -6,30 +6,32 @@ import com.fasterxml.jackson.annotation.JsonValue;
 /**
  * 通知场景编码枚举。
  *
- * <p>该枚举只描述“发生了什么业务通知场景”，不再把 B/C 端渠道类型直接编码进场景值本身。
- * 当前只保留方案确认的 6 个正式场景编码，不再暴露旧页面时期的派生常量名。</p>
+ * <p>该枚举只描述“发生了什么业务通知场景”，不再把 B/C 端渠道类型直接编码进场景值本身。</p>
  *
  * @author Codex
  * @date 2026/05/16
  */
 public enum NotifySceneCode {
 
-    /** B 端待派单通知。 */
+    /** B端待派单通知。 */
     WORK_ORDER_ACCEPT("WORK_ORDER_ACCEPT", "B端待派单通知"),
 
-    /** B 端工单转入通知。 */
+    /** B端工单转入通知。 */
     WORK_ORDER_TRANSFER_IN("WORK_ORDER_TRANSFER_IN", "B端工单转入通知"),
 
-    /** B 端维修员接单通知。 */
+    /** B端维修员接单通知。 */
     WORK_ORDER_ASSIGNED("WORK_ORDER_ASSIGNED", "B端维修员接单通知"),
 
-    /** C 端接单成功提醒。 */
+    /** B端客户评价完成提醒。 */
+    WORK_ORDER_EVALUATED("WORK_ORDER_EVALUATED", "B端评价提醒"),
+
+    /** C端接单成功提醒。 */
     WORK_ORDER_ACCEPTED("WORK_ORDER_ACCEPTED", "C端接单成功提醒"),
 
-    /** C 端网点转单通知。 */
+    /** C端网点转单通知。 */
     WORK_ORDER_TRANSFER_NOTICE("WORK_ORDER_TRANSFER_NOTICE", "C端网点转单通知"),
 
-    /** C 端客户满意度评价通知。 */
+    /** C端客户满意度评价通知。 */
     WORK_ORDER_EVALUATION_INVITE("WORK_ORDER_EVALUATION_INVITE", "C端客户满意度评价通知");
 
     /**

@@ -23,6 +23,8 @@ public final class NotifyConstants {
 
     public static final String EVENT_KEY_PREFIX_WORK_ORDER_EVALUATION_INVITE = "WORK_ORDER_EVALUATION_INVITE";
 
+    public static final String EVENT_KEY_PREFIX_WORK_ORDER_EVALUATED = "WORK_ORDER_EVALUATED";
+
     public static final String MESSAGE_TYPE_TODO = "TODO";
 
     public static final String ROUTE_TYPE_WORK_ORDER_DETAIL = "WORK_ORDER_DETAIL";

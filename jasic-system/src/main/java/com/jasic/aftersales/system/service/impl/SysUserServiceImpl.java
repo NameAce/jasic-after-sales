@@ -607,6 +607,8 @@ public class SysUserServiceImpl implements ISysUserService {
             uc.setCompanyId(companyIds.get(i));
             // 调用setIsDefault方法，复用统一能力并保证业务规则一致。
             uc.setIsDefault(i == 0 ? 1 : 0);
+            // 通过用户管理新增的账号统一视为子账号；只有公司创建时自动生成的默认管理员账号才标记为主账号。
+            uc.setIsPrimaryAccount(0);
             // 说明：执行该步骤以保证业务流程正确。
             sysUserCompanyMapper.insert(uc);
         }

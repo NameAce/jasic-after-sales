@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jasic.aftersales.common.constant.WorkOrderCreateEntryConstants;
 import com.jasic.aftersales.common.constant.WorkOrderReportSubjectConstants;
@@ -862,7 +863,13 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         // 调用getTransferCount方法，复用统一能力并保证业务规则一致。
         workOrder.setTransferCount(workOrder.getTransferCount() == null ? 1 : workOrder.getTransferCount() + 1);
         // 说明：执行该步骤以保证业务流程正确。
-        workOrderMapper.updateById(workOrder);
+//        workOrderMapper.updateById(workOrder);
+        workOrderMapper.update(
+                workOrder,
+                Wrappers.<WorkOrder>lambdaUpdate()
+                        .eq(WorkOrder::getId, workOrder.getId())
+                        .set(WorkOrder::getAssignedUserId, null)
+        );
 
         saveFlow(workOrder.getId(), WorkOrderActionEnum.TRANSFER.getCode(), beforeStatus, workOrder.getMainStatus(),
                 // 调用getRemark方法，复用统一能力并保证业务规则一致。
@@ -4084,6 +4091,10 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         snapshot.setAssignedUserId(target.getAssignedUserId());
         // 调用getServiceMode方法，复用统一能力并保证业务规则一致。
         snapshot.setServiceMode(target.getServiceMode());
+        // 总部当前处理视图在计算动作时，需要同时拿到工单归属总部和建单公司快照，
+        // 否则总部/大区权限判断会把本应可派单的待派单工单误判成只读。
+        snapshot.setCreateCompanyId(target.getCreateCompanyId());
+        snapshot.setHqCompanyId(target.getHqCompanyId());
         return snapshot;
     }
 

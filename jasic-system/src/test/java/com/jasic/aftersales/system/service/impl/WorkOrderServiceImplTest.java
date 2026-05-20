@@ -68,6 +68,7 @@ import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoCompleteDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoInvalidateDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderAcceptEventDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderAcceptedEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderEvaluatedEventDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderTransferInEventDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderTransferNoticeEventDTO;
 import com.jasic.aftersales.system.notify.domain.enums.NotifyBizTypeEnum;
@@ -194,6 +195,34 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(0, new BigDecimal("188.50").compareTo(holder[0].getRecords().get(0).getQuoteAmount()));
         Assert.assertEquals(Collections.singletonList("ASSIGN"), holder[0].getRecords().get(0).getAvailableActions());
         Assert.assertNull(holder[0].getRecords().get(0).getReadonlyReason());
+    }
+
+    @Test
+    public void shouldKeepHqPermissionFieldsWhenBuildingWorkOrderSnapshot() throws Exception {
+        WorkOrderListVO record = new WorkOrderListVO();
+        record.setId(199L);
+        record.setMainStatus(WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN);
+        record.setCurrentAcceptCompanyId(900L);
+        record.setAssignedUserId(null);
+        record.setCreateCompanyId(1001L);
+        record.setHqCompanyId(900L);
+        record.setServiceMode("STORE");
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+
+        WorkOrder snapshot = (WorkOrder) invokePrivateMethod(
+                service,
+                "buildWorkOrderSnapshot",
+                new Class<?>[]{WorkOrderListVO.class},
+                record
+        );
+
+        Assert.assertNotNull(snapshot);
+        Assert.assertEquals(Long.valueOf(199L), snapshot.getId());
+        Assert.assertEquals(Long.valueOf(900L), snapshot.getCurrentAcceptCompanyId());
+        Assert.assertEquals(Long.valueOf(1001L), snapshot.getCreateCompanyId());
+        Assert.assertEquals(Long.valueOf(900L), snapshot.getHqCompanyId());
+        Assert.assertEquals("STORE", snapshot.getServiceMode());
     }
 
     @Test
@@ -2463,6 +2492,7 @@ public class WorkOrderServiceImplTest {
         private final List<NotifyWorkOrderTransferInEventDTO> transferInEvents = new ArrayList<>();
         private final List<NotifyWorkOrderTransferNoticeEventDTO> transferNoticeEvents = new ArrayList<>();
         private final List<NotifyEvaluationInviteEventDTO> evaluationInviteEvents = new ArrayList<>();
+        private final List<NotifyWorkOrderEvaluatedEventDTO> evaluatedEvents = new ArrayList<>();
         private final List<NotifyReadByBizDTO> readByBizRequests = new ArrayList<>();
         private final List<NotifyTodoCompleteDTO> completedTodos = new ArrayList<>();
         private final List<NotifyTodoInvalidateDTO> invalidatedTodos = new ArrayList<>();
@@ -2495,6 +2525,11 @@ public class WorkOrderServiceImplTest {
         @Override
         public void publishEvaluationInviteEvent(NotifyEvaluationInviteEventDTO dto) {
             evaluationInviteEvents.add(dto);
+        }
+
+        @Override
+        public void publishEvaluatedEvent(NotifyWorkOrderEvaluatedEventDTO dto) {
+            evaluatedEvents.add(dto);
         }
 
         @Override

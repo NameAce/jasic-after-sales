@@ -227,11 +227,13 @@ CREATE TABLE `sys_user_company` (
   `user_id`     bigint unsigned  NOT NULL                COMMENT '鐢ㄦ埛ID',
   `company_id`  bigint unsigned  NOT NULL                COMMENT '鍏徃ID',
   `is_default`  tinyint unsigned DEFAULT 0               COMMENT '閺勵垰鎯佹妯款吇閸忣剙寰冮敍?=閺勵垽绱?=閸氾讣绱?,
+  `is_primary_account` tinyint unsigned DEFAULT 0        COMMENT '鏄惁鍏徃涓昏处鍙凤紙1=鏄紝0=鍚︼級',
   `create_time` datetime         NOT NULL                COMMENT '鍒涘缓鏃堕棿',
   `update_time` datetime         NOT NULL                COMMENT '鏇存柊鏃堕棿',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_user_company` (`user_id`, `company_id`),
-  KEY `idx_company_id` (`company_id`)
+  KEY `idx_company_id` (`company_id`),
+  KEY `idx_company_primary_account` (`company_id`, `is_primary_account`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='閻劍鍩?閸忣剙寰冮崗瀹犱粓鐞?;
 
 -- -------------------------------------------

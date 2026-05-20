@@ -5,9 +5,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.system.domain.entity.SysUser;
+import com.jasic.aftersales.system.mapper.SysUserCompanyMapper;
 import com.jasic.aftersales.system.mapper.SysUserMapper;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyAssignedEventDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyEvaluationInviteEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderEvaluatedEventDTO;
 import com.jasic.aftersales.system.notify.domain.entity.NotifyScene;
 import com.jasic.aftersales.system.notify.domain.entity.NotifySceneTarget;
 import com.jasic.aftersales.system.notify.domain.entity.SysNotifyDispatch;
@@ -28,6 +30,7 @@ import com.jasic.aftersales.system.notify.domain.query.NotifyMessageQuery;
 import com.jasic.aftersales.system.notify.domain.vo.NotifyMessagePageVO;
 import com.jasic.aftersales.system.notify.mapper.NotifySceneMapper;
 import com.jasic.aftersales.system.notify.mapper.NotifySceneTargetMapper;
+import com.jasic.aftersales.system.notify.mapper.SysNotifyEventMapper;
 import com.jasic.aftersales.system.notify.service.NotifyDispatchService;
 import com.jasic.aftersales.system.notify.service.NotifyEventService;
 import com.jasic.aftersales.system.notify.service.NotifyMessageLogService;
@@ -36,6 +39,7 @@ import com.jasic.aftersales.system.notify.service.NotifyTemplateRenderService;
 import com.jasic.aftersales.system.notify.service.support.NotifyEventHandler;
 import com.jasic.aftersales.system.notify.service.support.NotifyEventHandlerRegistry;
 import com.jasic.aftersales.system.notify.service.support.WorkOrderAssignedNotifyEventHandler;
+import com.jasic.aftersales.system.notify.service.support.WorkOrderEvaluatedNotifyEventHandler;
 import com.jasic.aftersales.system.notify.service.support.WorkOrderEvaluationInviteNotifyEventHandler;
 import com.jasic.aftersales.system.notify.support.NotifyConstants;
 import com.jasic.aftersales.system.notify.support.NotifyDispatchPayload;
@@ -338,6 +342,61 @@ public class NotifyEventConsumeServiceImplTest {
      *
      * @throws Exception 反射异常
      */
+    /**
+     * B 端客户评价完成提醒应按责任维修员、最后派单人和公司主账号分别生成分发表。
+     *
+     * @throws Exception 反射异常
+     */
+    @Test
+    public void shouldCreateOneDispatchPerResolvedReceiverForEvaluatedScene() throws Exception {
+        FakeNotifyEventService eventService = new FakeNotifyEventService();
+        FakeNotifyMessageService messageService = new FakeNotifyMessageService();
+        FakeNotifyMessageLogService logService = new FakeNotifyMessageLogService();
+        FakeNotifyDispatchService dispatchService = new FakeNotifyDispatchService();
+        TargetMapperState targetState = new TargetMapperState();
+        targetState.targets.add(buildMpTarget(1L, NotifySceneCode.WORK_ORDER_EVALUATED.getCode()));
+
+        SysNotifyEvent event = buildEvaluatedEvent(7L, 93L, 9002L, 501L, 3003L);
+        eventService.events.put(event.getId(), event);
+        eventService.pendingEventIds.add(event.getId());
+
+        SysNotifyEvent latestAssignedEvent = new SysNotifyEvent();
+        latestAssignedEvent.setOperatorId(601L);
+
+        Map<Long, SysUser> users = new LinkedHashMap<>();
+        users.put(501L, buildUserSnapshot(501L, "李四", "openid-501"));
+        users.put(601L, buildUserSnapshot(601L, "派单员甲", "openid-601"));
+        users.put(701L, buildUserSnapshot(701L, "主账号", "openid-701"));
+
+        NotifyEventConsumeServiceImpl service = createService(
+                eventService,
+                messageService,
+                logService,
+                dispatchService,
+                targetState,
+                buildUserMapper(users),
+                buildNotifyEventMapper(latestAssignedEvent),
+                buildPrimaryAccountMapper(701L)
+        );
+
+        int successCount = service.consumePendingEvents();
+
+        Assert.assertEquals(1, successCount);
+        Assert.assertEquals(3, dispatchService.createdDispatches.size());
+        Assert.assertEquals(Long.valueOf(501L), dispatchService.createdDispatches.get(0).getReceiverId());
+        Assert.assertEquals(Long.valueOf(601L), dispatchService.createdDispatches.get(1).getReceiverId());
+        Assert.assertEquals(Long.valueOf(701L), dispatchService.createdDispatches.get(2).getReceiverId());
+        Assert.assertEquals("openid-701", dispatchService.createdDispatches.get(2).getReceiverAddress());
+        Assert.assertEquals(NotifyReceiverTypeEnum.EVALUATED_B_USER.getCode(),
+                dispatchService.createdDispatches.get(0).getReceiverType());
+
+        NotifyDispatchPayload payload = JSONUtil.toBean(dispatchService.createdDispatches.get(0).getPayloadJson(),
+                NotifyDispatchPayload.class);
+        Assert.assertEquals(NotifySceneCode.WORK_ORDER_EVALUATED.getCode(), payload.getSceneCode());
+        Assert.assertEquals("李四", payload.getVariables().get("assignedUserName"));
+        Assert.assertEquals("张三", payload.getVariables().get("customerName"));
+    }
+
     @Test
     public void shouldMarkEventFailedWhenContextBuildThrows() throws Exception {
         FakeNotifyEventService eventService = new FakeNotifyEventService();
@@ -390,10 +449,44 @@ public class NotifyEventConsumeServiceImplTest {
                                                         FakeNotifyDispatchService dispatchService,
                                                         TargetMapperState targetState,
                                                         SysUserMapper userMapper) throws Exception {
+        return createService(
+                eventService,
+                messageService,
+                logService,
+                dispatchService,
+                targetState,
+                userMapper,
+                buildNotifyEventMapper(null),
+                buildPrimaryAccountMapper(null)
+        );
+    }
+
+    /**
+     * 构造待测服务，并注入评价提醒处理器所需的额外依赖。
+     *
+     * @param eventService 事件服务桩
+     * @param messageService 消息服务桩
+     * @param logService 日志服务桩
+     * @param dispatchService 分发服务桩
+     * @param targetState 目标配置桩
+     * @param userMapper 用户 Mapper 桩
+     * @param notifyEventMapper 通知事件 Mapper 桩
+     * @param userCompanyMapper 用户公司关系 Mapper 桩
+     * @return 待测服务
+     * @throws Exception 反射异常
+     */
+    private NotifyEventConsumeServiceImpl createService(FakeNotifyEventService eventService,
+                                                        FakeNotifyMessageService messageService,
+                                                        FakeNotifyMessageLogService logService,
+                                                        FakeNotifyDispatchService dispatchService,
+                                                        TargetMapperState targetState,
+                                                        SysUserMapper userMapper,
+                                                        SysNotifyEventMapper notifyEventMapper,
+                                                        SysUserCompanyMapper userCompanyMapper) throws Exception {
         NotifyEventConsumeServiceImpl service = new NotifyEventConsumeServiceImpl();
         setField(service, "notifyEventService", eventService);
         setField(service, "notifyEventHandlerRegistry",
-                buildRegistry(messageService, logService, userMapper));
+                buildRegistry(messageService, logService, userMapper, notifyEventMapper, userCompanyMapper));
         setField(service, "notifySceneTargetMapper", createTargetMapper(targetState));
         setField(service, "notifySceneMapper", createSceneMapper());
         setField(service, "notifySceneRegistry", new NotifySceneRegistry());
@@ -417,17 +510,24 @@ public class NotifyEventConsumeServiceImplTest {
      */
     private NotifyEventHandlerRegistry buildRegistry(FakeNotifyMessageService messageService,
                                                      FakeNotifyMessageLogService logService,
-                                                     SysUserMapper userMapper) throws Exception {
+                                                     SysUserMapper userMapper,
+                                                     SysNotifyEventMapper notifyEventMapper,
+                                                     SysUserCompanyMapper userCompanyMapper) throws Exception {
         WorkOrderAssignedNotifyEventHandler assignedHandler = new WorkOrderAssignedNotifyEventHandler();
         setField(assignedHandler, "notifyMessageService", messageService);
         setField(assignedHandler, "notifyMessageLogService", logService);
         setField(assignedHandler, "sysUserMapper", userMapper);
 
         WorkOrderEvaluationInviteNotifyEventHandler evaluationHandler = new WorkOrderEvaluationInviteNotifyEventHandler();
+        WorkOrderEvaluatedNotifyEventHandler evaluatedHandler = new WorkOrderEvaluatedNotifyEventHandler();
+        setField(evaluatedHandler, "sysUserMapper", userMapper);
+        setField(evaluatedHandler, "sysNotifyEventMapper", notifyEventMapper);
+        setField(evaluatedHandler, "sysUserCompanyMapper", userCompanyMapper);
 
         NotifyEventHandlerRegistry registry = new NotifyEventHandlerRegistry();
         setField(registry, "notifyEventHandlers", new ArrayList<Object>() {{
             add(assignedHandler);
+            add(evaluatedHandler);
             add(evaluationHandler);
         }});
         return registry;
@@ -473,14 +573,16 @@ public class NotifyEventConsumeServiceImplTest {
         NotifySceneTarget target = new NotifySceneTarget();
         target.setId(id);
         target.setSceneCode(sceneCode);
-        target.setTargetType(sceneCode.equals(NotifySceneCode.WORK_ORDER_ASSIGNED.getCode())
+        boolean bSideScene = NotifySceneCode.WORK_ORDER_ASSIGNED.getCode().equals(sceneCode)
+                || NotifySceneCode.WORK_ORDER_EVALUATED.getCode().equals(sceneCode);
+        target.setTargetType(bSideScene
                 ? NotifyTypeEnum.MP_SUBSCRIBE_B.getCode()
                 : NotifyTypeEnum.MP_SUBSCRIBE_C.getCode());
         target.setEnabled(1);
         NotifyTemplateChannelConfig config = new NotifyTemplateChannelConfig();
         config.setTemplateId("wx-template-001");
-        config.setChannelScene(sceneCode.equals(NotifySceneCode.WORK_ORDER_ASSIGNED.getCode()) ? "B" : "C");
-        config.setPagePathTemplate(sceneCode.equals(NotifySceneCode.WORK_ORDER_ASSIGNED.getCode())
+        config.setChannelScene(bSideScene ? "B" : "C");
+        config.setPagePathTemplate(bSideScene
                 ? "pages/order/detail?workOrderId=${workOrderId}"
                 : "pages/order/evaluate?workOrderId=${workOrderId}");
         config.setFieldMapping(Collections.singletonList(new com.jasic.aftersales.system.notify.domain.dto.NotifyChannelFieldMappingDTO() {{
@@ -577,6 +679,60 @@ public class NotifyEventConsumeServiceImplTest {
      * @param todoStatus 待办状态
      * @return 旧待办
      */
+    /**
+     * 构造 B 端客户评价完成提醒事件。
+     *
+     * @param eventId 事件ID
+     * @param bizId 工单ID
+     * @param customerId 客户ID
+     * @param assignedUserId 责任维修员ID
+     * @param companyId 最终处理公司ID
+     * @return 事件
+     */
+    private SysNotifyEvent buildEvaluatedEvent(Long eventId, Long bizId, Long customerId,
+                                               Long assignedUserId, Long companyId) {
+        NotifyWorkOrderEvaluatedEventDTO payload = new NotifyWorkOrderEvaluatedEventDTO();
+        payload.setWorkOrderId(bizId);
+        payload.setOrderNo("WO-" + bizId);
+        payload.setCustomerId(customerId);
+        payload.setCustomerName("张三");
+        payload.setCustomerMobile("18100005610");
+        payload.setAssignedUserId(assignedUserId);
+        payload.setAssignedUserName("李四");
+        payload.setCurrentAcceptCompanyId(companyId);
+
+        SysNotifyEvent event = new SysNotifyEvent();
+        event.setId(eventId);
+        event.setEventKey("event-" + eventId);
+        event.setEventType(NotifyEventTypeEnum.WORK_ORDER_EVALUATED.getCode());
+        event.setSceneCode(NotifySceneCode.WORK_ORDER_EVALUATED.getCode());
+        event.setBizType(NotifyBizTypeEnum.WORK_ORDER.getCode());
+        event.setBizId(bizId);
+        event.setBizNo("WO-" + bizId);
+        event.setReceiverId(assignedUserId);
+        event.setPayloadJson(JSONUtil.toJsonStr(payload));
+        event.setStatus(NotifyEventStatusEnum.NEW.getCode());
+        event.setRetryCount(0);
+        return event;
+    }
+
+    /**
+     * 构造用户快照。
+     *
+     * @param userId 用户ID
+     * @param realName 用户姓名
+     * @param openid 用户 openid
+     * @return 用户快照
+     */
+    private SysUser buildUserSnapshot(Long userId, String realName, String openid) {
+        SysUser user = new SysUser();
+        user.setId(userId);
+        user.setRealName(realName);
+        user.setOpenid(openid);
+        user.setStatus(1);
+        return user;
+    }
+
     private SysNotifyMessage buildActiveTodo(Long id, Long bizId, Long receiverId, String todoStatus) {
         SysNotifyMessage message = new SysNotifyMessage();
         message.setId(id);
@@ -600,22 +756,75 @@ public class NotifyEventConsumeServiceImplTest {
      * @return Mapper桩
      */
     private SysUserMapper buildUserMapper(Long userId, String realName, String openid) {
+        Map<Long, SysUser> users = new LinkedHashMap<>();
+        if (userId != null) {
+            SysUser user = new SysUser();
+            user.setId(userId);
+            user.setRealName(realName);
+            user.setOpenid(openid);
+            user.setStatus(1);
+            users.put(userId, user);
+        }
+        return buildUserMapper(users);
+    }
+
+    /**
+     * 构造支持多用户查询的用户 Mapper 桩。
+     *
+     * @param users 用户快照映射
+     * @return Mapper 桩
+     */
+    private SysUserMapper buildUserMapper(Map<Long, SysUser> users) {
         InvocationHandler handler = (proxy, method, args) -> {
             if ("selectById".equals(method.getName())) {
-                if (userId == null) {
-                    return null;
-                }
-                SysUser user = new SysUser();
-                user.setId(userId);
-                user.setRealName(realName);
-                user.setOpenid(openid);
-                return user;
+                Long id = args == null || args.length == 0 ? null : (Long) args[0];
+                return users == null ? null : users.get(id);
             }
             return null;
         };
         return (SysUserMapper) Proxy.newProxyInstance(
                 SysUserMapper.class.getClassLoader(),
                 new Class<?>[]{SysUserMapper.class},
+                handler
+        );
+    }
+
+    /**
+     * 构造通知事件 Mapper 桩。
+     *
+     * @param latestAssignedEvent 最后一条派单事件快照
+     * @return Mapper 桩
+     */
+    private SysNotifyEventMapper buildNotifyEventMapper(SysNotifyEvent latestAssignedEvent) {
+        InvocationHandler handler = (proxy, method, args) -> {
+            if ("selectOne".equals(method.getName())) {
+                return latestAssignedEvent;
+            }
+            return defaultValue(method.getReturnType());
+        };
+        return (SysNotifyEventMapper) Proxy.newProxyInstance(
+                SysNotifyEventMapper.class.getClassLoader(),
+                new Class<?>[]{SysNotifyEventMapper.class},
+                handler
+        );
+    }
+
+    /**
+     * 构造公司主账号查询 Mapper 桩。
+     *
+     * @param primaryAccountUserId 公司主账号用户ID
+     * @return Mapper 桩
+     */
+    private SysUserCompanyMapper buildPrimaryAccountMapper(Long primaryAccountUserId) {
+        InvocationHandler handler = (proxy, method, args) -> {
+            if ("selectPrimaryAccountUserIdByCompanyId".equals(method.getName())) {
+                return primaryAccountUserId;
+            }
+            return defaultValue(method.getReturnType());
+        };
+        return (SysUserCompanyMapper) Proxy.newProxyInstance(
+                SysUserCompanyMapper.class.getClassLoader(),
+                new Class<?>[]{SysUserCompanyMapper.class},
                 handler
         );
     }
@@ -924,6 +1133,8 @@ public class NotifyEventConsumeServiceImplTest {
             result.setSceneCode(sceneCode);
             if (NotifySceneCode.WORK_ORDER_ASSIGNED.getCode().equals(sceneCode)) {
                 result.setSceneName("工单派单");
+            } else if (NotifySceneCode.WORK_ORDER_EVALUATED.getCode().equals(sceneCode)) {
+                result.setSceneName("评价提醒");
             } else if (NotifySceneCode.WORK_ORDER_EVALUATION_INVITE.getCode().equals(sceneCode)) {
                 result.setSceneName("客户评价邀请");
             } else {

@@ -2,10 +2,12 @@ package com.jasic.aftersales.system.notify.service.impl;
 
 import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderAcceptEventDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderAcceptedEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderEvaluatedEventDTO;
 import com.jasic.aftersales.system.notify.domain.entity.SysNotifyEvent;
 import com.jasic.aftersales.system.notify.service.NotifyEventService;
 import com.jasic.aftersales.system.notify.service.NotifyMessageService;
 import com.jasic.aftersales.system.notify.support.NotifyConstants;
+import com.jasic.aftersales.system.notify.support.NotifySceneCode;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -65,6 +67,30 @@ public class WorkOrderNotifyFacadeImplTest {
 
         Assert.assertNotNull(eventServiceState.createdEvent);
         Assert.assertEquals(Long.valueOf(9001L), eventServiceState.createdEvent.getReceiverId());
+    }
+
+    /**
+     * B 端客户评价完成通知虽然会扩展成多接收人，但事件主表仍应固化当前责任维修员作为主接收快照。
+     *
+     * @throws Exception 反射异常
+     */
+    @Test
+    public void shouldUseAssignedUserAsPrimaryReceiverWhenPublishingEvaluatedEvent() throws Exception {
+        WorkOrderNotifyFacadeImpl facade = new WorkOrderNotifyFacadeImpl();
+        EventServiceState eventServiceState = new EventServiceState();
+        setField(facade, "notifyEventService", createNotifyEventServiceProxy(eventServiceState));
+        setField(facade, "notifyMessageService", createNotifyMessageServiceProxy());
+
+        NotifyWorkOrderEvaluatedEventDTO dto = new NotifyWorkOrderEvaluatedEventDTO();
+        dto.setWorkOrderId(103L);
+        dto.setOrderNo("GD202605180003");
+        dto.setAssignedUserId(3001L);
+
+        facade.publishEvaluatedEvent(dto);
+
+        Assert.assertNotNull(eventServiceState.createdEvent);
+        Assert.assertEquals(Long.valueOf(3001L), eventServiceState.createdEvent.getReceiverId());
+        Assert.assertEquals(NotifySceneCode.WORK_ORDER_EVALUATED.getCode(), eventServiceState.createdEvent.getSceneCode());
     }
 
     /**

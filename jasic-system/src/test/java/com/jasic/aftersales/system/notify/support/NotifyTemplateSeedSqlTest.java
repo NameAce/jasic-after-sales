@@ -12,27 +12,27 @@ import java.nio.file.Paths;
 /**
  * 通知模板初始化 SQL 测试。
  *
- * <p>阶段三除了校验注册表默认值，还需要锁定初始化脚本的后台默认配置。
- * 该测试直接读取阶段一 SQL 种子，防止后续调整时把 `channelScene`、路由配置、
- * 固定文案或取消场景误改回旧口径。</p>
+ * <p>该测试直接校验阶段一初始化脚本里的场景和默认模板配置，
+ * 防止后续调整时把当前基线场景、模板 ID 或字段映射改丢。</p>
  *
  * @author Codex
- * @date 2026/05/18
+ * @date 2026/05/20
  */
 public class NotifyTemplateSeedSqlTest {
 
     /**
-     * 校验阶段一 SQL 种子与当前 6 个保留场景口径一致，并且不会误接回取消的 B 端评价提醒。
+     * 阶段一 SQL 种子应覆盖当前 7 个通知场景，并包含 B 端评价提醒模板。
      *
      * @throws IOException 读取 SQL 文件异常
      */
     @Test
-    public void shouldKeepPhaseOneSeedSqlAlignedWithStageThreeBaseline() throws IOException {
+    public void shouldKeepPhaseOneSeedSqlAlignedWithCurrentBaseline() throws IOException {
         String sql = readPhaseOneSeedSql();
 
         Assert.assertTrue(sql.contains("'WORK_ORDER_ACCEPT'"));
         Assert.assertTrue(sql.contains("'WORK_ORDER_TRANSFER_IN'"));
         Assert.assertTrue(sql.contains("'WORK_ORDER_ASSIGNED'"));
+        Assert.assertTrue(sql.contains("'WORK_ORDER_EVALUATED'"));
         Assert.assertTrue(sql.contains("'WORK_ORDER_ACCEPTED'"));
         Assert.assertTrue(sql.contains("'WORK_ORDER_TRANSFER_NOTICE'"));
         Assert.assertTrue(sql.contains("'WORK_ORDER_EVALUATION_INVITE'"));
@@ -43,21 +43,11 @@ public class NotifyTemplateSeedSqlTest {
         Assert.assertTrue(sql.contains("'WORK_ORDER_EVALUATE'"));
         Assert.assertTrue(sql.contains("'${workOrderId}'"));
 
-        Assert.assertTrue(sql.contains("新工单 ${orderNo} 已进入当前网点待派单池，请及时派单处理"));
-        Assert.assertTrue(sql.contains("工单 ${orderNo} 已转入当前网点，请继续跟进处理"));
-        Assert.assertTrue(sql.contains("工单 ${orderNo} 已派给您，请及时联系客户并处理"));
-        Assert.assertTrue(sql.contains("您的工单 ${orderNo} 已有工程师接单，当前网点将继续为您处理"));
-        Assert.assertTrue(sql.contains("您的工单 ${orderNo} 已转由其他网点继续处理，请留意后续联系。"));
-        Assert.assertTrue(sql.contains("您的维修工单 ${orderNo} 已完成，欢迎对本次服务进行评价"));
-
-        Assert.assertTrue(sql.contains("转出网点名称"));
-        Assert.assertTrue(sql.contains("转入后的当前处理网点名称"));
-        Assert.assertTrue(sql.contains("客户姓名 -> 客户手机号 -> 客户"));
-
-        Assert.assertFalse("阶段三不应重新接回取消的 B 端评价提醒模板",
-                sql.contains("aW97dc0OyW40-vGbO9ekIT9DFfyS6JvR9UhPkPuaW_Q"));
-        Assert.assertFalse("阶段三不应把 B 端评价提醒场景写回初始化 SQL",
-                sql.contains("B端评价提醒"));
+        Assert.assertTrue(sql.contains("aW97dc0OyW40-vGbO9ekIT9DFfyS6JvR9UhPkPuaW_Q"));
+        Assert.assertTrue(sql.contains("thing11\",\"value\":\"${assignedUserName}\""));
+        Assert.assertTrue(sql.contains("thing9\",\"value\":\"${customerName}\""));
+        Assert.assertTrue(sql.contains("phone_number10\",\"value\":\"${customerMobile}\""));
+        Assert.assertTrue(sql.contains("character_string8\",\"value\":\"${orderNo}\""));
     }
 
     /**

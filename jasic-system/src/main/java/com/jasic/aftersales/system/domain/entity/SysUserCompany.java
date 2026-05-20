@@ -32,4 +32,7 @@ public class SysUserCompany extends BaseEntity {
 
     /** 是否默认公司（1=是，0=否） */
     private Integer isDefault;
+
+    /** 是否公司主账号（1=是，0=否） */
+    private Integer isPrimaryAccount;
 }
