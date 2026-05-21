@@ -213,12 +213,14 @@ INSERT INTO `sys_dict_data` (`id`, `dict_type`, `dict_label`, `dict_value`, `dic
 -- -------------------------------------------
 -- 12. 初始化参数设置
 -- -------------------------------------------
-INSERT INTO `sys_config` (`id`, `config_name`, `config_key`, `config_value`, `config_type`, `remark`, `create_time`, `update_time`) VALUES
-(1, '公司管理员初始密码', 'org.company.adminInitPassword', 'Jasic@123', 1, '创建公司时默认管理员账号的初始密码', NOW(), NOW()),
-(2, 'B端小程序AppID', 'wechat.mp.b.appid', '', 0, 'S8.3 真实微信登录链路配置，默认留空', NOW(), NOW()),
-(3, 'B端小程序Secret', 'wechat.mp.b.secret', '', 0, 'S8.3 真实微信登录链路配置，默认留空', NOW(), NOW()),
-(4, 'C端小程序AppID', 'wechat.mp.c.appid', '', 0, 'S8.3 真实微信登录链路配置，默认留空', NOW(), NOW()),
-(5, 'C端小程序Secret', 'wechat.mp.c.secret', '', 0, 'S8.3 真实微信登录链路配置，默认留空', NOW(), NOW());
+INSERT INTO `sys_config` (`id`, `config_name`, `config_key`, `config_value`, `config_type`, `group_key`, `remark`, `create_time`, `update_time`) VALUES
+(1, '公司管理员初始密码', 'org.company.adminInitPassword', 'Jasic@123', 1, 'org', '创建公司时默认管理员账号的初始密码', NOW(), NOW()),
+(2, 'B端小程序AppID', 'wechat.mp.b.appid', '', 0, 'wechat', 'S8.3 真实微信登录链路配置，默认留空', NOW(), NOW()),
+(3, 'B端小程序Secret', 'wechat.mp.b.secret', '', 0, 'wechat', 'S8.3 真实微信登录链路配置，默认留空', NOW(), NOW()),
+(4, 'C端小程序AppID', 'wechat.mp.c.appid', '', 0, 'wechat', 'S8.3 真实微信登录链路配置，默认留空', NOW(), NOW()),
+(5, 'C端小程序Secret', 'wechat.mp.c.secret', '', 0, 'wechat', 'S8.3 真实微信登录链路配置，默认留空', NOW(), NOW()),
+(6, 'B端微信绑定页路径', 'wechat.mp.b.bind.pagePath', '', 0, 'wechat', 'B端微信绑定二维码或绑定链接使用的小程序页面路径，默认留空，由具体环境按需配置', NOW(), NOW()),
+(7, '默认归属总部ID', 'default.hq.company.id', '', 0, 'work_order', '非佳士无码报修等场景下的默认归属总部ID，默认留空，由具体环境按需配置', NOW(), NOW());
 -- -------------------------------------------
 -- 13. 条码档案菜单与权限
 -- -------------------------------------------
