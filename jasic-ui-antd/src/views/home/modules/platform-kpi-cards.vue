@@ -77,7 +77,8 @@ function handleClick(key: string) {
     return;
   }
   if (key === 'notifyScene') {
-    router.push({ path: '/system/notify-scene' });
+    // 与后端菜单 path=notifyScene 一致，完整路由为 /system/notifyScene
+    router.push({ path: '/system/notifyScene' });
     return;
   }
   const { beginDate, endDate } = getRecentDateRange(7);
