@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 工单看板 KPI：有网点汇总时展示网点维度，否则展示全网状态统计维度。
+ * 工单看板 KPI：有网点汇总时展示 siteSummary 全量指标，否则展示全网状态统计维度。
  */
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
@@ -21,32 +21,82 @@ interface KpiItem {
   icon: string;
 }
 
-const kpiList = computed<KpiItem[]>(() => [
-  {
-    key: 'site',
-    title: hasSiteData.value ? '承修网点' : '工单总量',
-    color: { start: '#5da8ff', end: '#3d7ee8' },
-    icon: hasSiteData.value ? 'mdi:store-marker-outline' : 'mdi:file-document-multiple-outline'
-  },
-  {
-    key: 'wait',
-    title: hasSiteData.value ? '待接单合计' : '待处理合计',
-    color: { start: '#fcbc25', end: '#f68057' },
-    icon: 'mdi:clipboard-clock-outline'
-  },
-  {
-    key: 'progress',
-    title: '维修中合计',
-    color: { start: '#8e9dff', end: '#6b7fe8' },
-    icon: 'mdi:tools'
-  },
-  {
-    key: 'transfer',
-    title: '转单工单',
-    color: { start: '#ec4786', end: '#b955a4' },
-    icon: 'mdi:swap-horizontal'
+/** 按接口返回维度生成 KPI 卡片（网点模式含 totalCount、completedCount） */
+const kpiList = computed<KpiItem[]>(() => {
+  if (hasSiteData.value) {
+    return [
+      {
+        key: 'site',
+        title: '承修网点',
+        color: { start: '#5da8ff', end: '#3d7ee8' },
+        icon: 'mdi:store-marker-outline'
+      },
+      {
+        key: 'total',
+        title: '工单总量',
+        color: { start: '#2dcf95', end: '#1ea97a' },
+        icon: 'mdi:file-document-multiple-outline'
+      },
+      {
+        key: 'wait',
+        title: '待接单合计',
+        color: { start: '#fcbc25', end: '#f68057' },
+        icon: 'mdi:clipboard-clock-outline'
+      },
+      {
+        key: 'progress',
+        title: '维修中合计',
+        color: { start: '#8e9dff', end: '#6b7fe8' },
+        icon: 'mdi:tools'
+      },
+      {
+        key: 'completed',
+        title: '已完成合计',
+        color: { start: '#26deca', end: '#1ab394' },
+        icon: 'mdi:check-circle-outline'
+      },
+      {
+        key: 'transfer',
+        title: '转单工单',
+        color: { start: '#ec4786', end: '#b955a4' },
+        icon: 'mdi:swap-horizontal'
+      }
+    ];
   }
-]);
+
+  return [
+    {
+      key: 'site',
+      title: '工单总量',
+      color: { start: '#5da8ff', end: '#3d7ee8' },
+      icon: 'mdi:file-document-multiple-outline'
+    },
+    {
+      key: 'wait',
+      title: '待处理合计',
+      color: { start: '#fcbc25', end: '#f68057' },
+      icon: 'mdi:clipboard-clock-outline'
+    },
+    {
+      key: 'progress',
+      title: '维修中合计',
+      color: { start: '#8e9dff', end: '#6b7fe8' },
+      icon: 'mdi:tools'
+    },
+    {
+      key: 'completed',
+      title: '已完成',
+      color: { start: '#26deca', end: '#1ab394' },
+      icon: 'mdi:check-circle-outline'
+    },
+    {
+      key: 'transfer',
+      title: '转单工单',
+      color: { start: '#ec4786', end: '#b955a4' },
+      icon: 'mdi:swap-horizontal'
+    }
+  ];
+});
 
 interface GradientBgProps {
   gradientColor: string;
@@ -58,11 +108,14 @@ function getGradientColor(color: KpiItem['color']) {
   return `linear-gradient(to bottom right, ${color.start}, ${color.end})`;
 }
 
+/** 从 kpis 解析各卡片展示值（字段与 `/dashboard/hq/home` 对齐） */
 function resolveValue(key: string) {
   const k = kpis.value;
   if (key === 'site') return hasSiteData.value ? k.siteCount : k.totalCount;
+  if (key === 'total') return k.totalCount;
   if (key === 'wait') return k.waitAcceptCount;
   if (key === 'progress') return k.inProgressCount;
+  if (key === 'completed') return k.completedCount;
   return k.transferCount;
 }
 
@@ -76,6 +129,10 @@ function openWorkOrderList(query?: Record<string, string>) {
 function handleClick(key: string) {
   if (key === 'transfer') {
     openWorkOrderList({ hasTransfer: '1' });
+    return;
+  }
+  if (key === 'completed') {
+    openWorkOrderList({ mainStatus: 'COMPLETED' });
     return;
   }
   if (key === 'progress') {
@@ -102,7 +159,14 @@ function handleClick(key: string) {
     </DefineGradientBg>
 
     <ARow :gutter="[16, 16]">
-      <ACol v-for="item in kpiList" :key="item.key" :span="24" :sm="12" :lg="6">
+      <ACol
+        v-for="item in kpiList"
+        :key="item.key"
+        :span="24"
+        :sm="12"
+        :lg="hasSiteData ? 8 : 6"
+        :xl="hasSiteData ? 4 : 6"
+      >
         <GradientBg
           :gradient-color="getGradientColor(item.color)"
           class="flex-1 cursor-pointer"

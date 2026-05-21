@@ -1,24 +1,32 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useElementSize } from '@vueuse/core';
-import { getNotifyTodoPage, listWorkOrder } from '@/service/api';
 import { useAppStore } from '@/store/modules/app';
 import { useEcharts } from '@/hooks/common/echarts';
 import { $t } from '@/locales';
+import { toAxisDayLabel, toDashboardCount } from '../composables/dashboard-helpers';
+import { useBusinessHomeDashboard } from '../composables/use-business-home-dashboard';
 
-// 应用语言与 ECharts 封装（工单与待办趋势折线）
 defineOptions({
   name: 'LineChart'
 });
 
 const appStore = useAppStore();
 const router = useRouter();
+const { loading, loaded, trend7d } = useBusinessHomeDashboard();
 
-const trendPayload = ref<{ dayKeys: string[]; orderData: number[]; todoData: number[] }>({
-  dayKeys: [],
-  orderData: [],
-  todoData: []
+const trendPayload = computed(() => {
+  const trend = trend7d.value;
+  const dayKeys = Array.isArray(trend?.dayKeys) ? trend.dayKeys : [];
+  const orderCounts = Array.isArray(trend?.createdWorkOrderCounts) ? trend.createdWorkOrderCounts : [];
+  const todoCounts = Array.isArray(trend?.activeTodoCounts) ? trend.activeTodoCounts : [];
+
+  return {
+    dayKeys,
+    orderData: dayKeys.map((_, index) => toDashboardCount(orderCounts[index])),
+    todoData: dayKeys.map((_, index) => toDashboardCount(todoCounts[index]))
+  };
 });
 
 const { domRef, updateOptions } = useEcharts(() => ({
@@ -69,20 +77,12 @@ const { domRef, updateOptions } = useEcharts(() => ({
           x2: 0,
           y2: 1,
           colorStops: [
-            {
-              offset: 0.25,
-              color: '#8e9dff'
-            },
-            {
-              offset: 1,
-              color: '#fff'
-            }
+            { offset: 0.25, color: '#8e9dff' },
+            { offset: 1, color: '#fff' }
           ]
         }
       },
-      emphasis: {
-        focus: 'series'
-      },
+      emphasis: { focus: 'series' },
       data: [] as number[]
     },
     {
@@ -99,121 +99,30 @@ const { domRef, updateOptions } = useEcharts(() => ({
           x2: 0,
           y2: 1,
           colorStops: [
-            {
-              offset: 0.25,
-              color: '#26deca'
-            },
-            {
-              offset: 1,
-              color: '#fff'
-            }
+            { offset: 0.25, color: '#26deca' },
+            { offset: 1, color: '#fff' }
           ]
         }
       },
-      emphasis: {
-        focus: 'series'
-      },
-      data: []
+      emphasis: { focus: 'series' },
+      data: [] as number[]
     }
   ]
 }));
 
 const { width, height } = useElementSize(domRef);
 
-/**
- * 作用：将时间字符串截断为 yyyy-MM-dd 作为统计键。
- * @param input - 任意时间表示
- * @returns 日期键或空串
- */
-function toDateKey(input: unknown) {
-  const text = String(input || '');
-  return text.length >= 10 ? text.slice(0, 10) : '';
-}
-
-/**
- * 作用：生成向前连续若干天的日期键（yyyy-MM-dd）。
- * @param size - 天数，默认 7
- * @returns 日期键数组（从早到晚）
- */
-function buildDayKeys(size = 7) {
-  const result: string[] = [];
-  const now = new Date();
-  for (let i = size - 1; i >= 0; i -= 1) {
-    const d = new Date(now);
-    d.setDate(now.getDate() - i);
-    const y = d.getFullYear();
-    const m = `${d.getMonth() + 1}`.padStart(2, '0');
-    const day = `${d.getDate()}`.padStart(2, '0');
-    result.push(`${y}-${m}-${day}`);
-  }
-  return result;
-}
-
-/**
- * 作用：将完整日期键格式化为坐标轴短标签（MM-DD）。
- * @param dayKey - yyyy-MM-dd
- * @returns 短标签
- */
-function toAxisLabel(dayKey: string) {
-  return dayKey.slice(5);
-}
-
-/**
- * 作用：统计近 7 日建单数与待办通知数并更新折线图。
- * @param 无
- * @returns 返回 Promise，图表更新后结束
- */
-async function loadRealData() {
-  const dayKeys = buildDayKeys(7);
-  const orderCountMap: Record<string, number> = {};
-  const todoCountMap: Record<string, number> = {};
-
-  for (const key of dayKeys) {
-    orderCountMap[key] = 0;
-    todoCountMap[key] = 0;
-  }
-
-  const [orderRes, todoRes] = await Promise.all([
-    listWorkOrder({ pageNum: 1, pageSize: 200, viewScope: 'ALL' }),
-    getNotifyTodoPage({ box: 'TODO', pageNum: 1, pageSize: 200 })
-  ]);
-
-  const orderRows = Array.isArray(orderRes.data?.records) ? orderRes.data.records : [];
-  for (const row of orderRows) {
-    const key = toDateKey(row?.createTime);
-    if (key in orderCountMap) orderCountMap[key] += 1;
-  }
-
-  const todoRows = Array.isArray(todoRes.data?.records) ? todoRes.data.records : [];
-  for (const row of todoRows) {
-    const key = toDateKey(row?.createTime);
-    if (key in todoCountMap) todoCountMap[key] += 1;
-  }
-
-  trendPayload.value = {
-    dayKeys,
-    orderData: dayKeys.map(key => orderCountMap[key] || 0),
-    todoData: dayKeys.map(key => todoCountMap[key] || 0)
-  };
-  await applyTrendData();
-}
-
 async function applyTrendData() {
   await nextTick();
   const { dayKeys, orderData, todoData } = trendPayload.value;
   updateOptions(opts => {
-    opts.xAxis.data = dayKeys.map(toAxisLabel);
+    opts.xAxis.data = dayKeys.map(toAxisDayLabel);
     opts.series[0].data = orderData;
     opts.series[1].data = todoData;
     return opts;
   });
 }
 
-/**
- * 作用：语言切换时同步图例与系列名称文案。
- * @param 无
- * @returns {void} 无
- */
 function updateLocale() {
   updateOptions((opts, factory) => {
     const originOpts = factory();
@@ -221,30 +130,10 @@ function updateLocale() {
     opts.legend.data = originOpts.legend.data;
     opts.series[0].name = originOpts.series[0].name;
     opts.series[1].name = originOpts.series[1].name;
-
     return opts;
   });
 }
 
-/**
- * 作用：挂载时加载折线数据，失败则清空坐标与系列。
- * @param 无
- * @returns 返回 Promise，初始化结束后结束
- */
-async function init() {
-  try {
-    await loadRealData();
-  } catch {
-    updateOptions(opts => {
-      opts.xAxis.data = [];
-      opts.series[0].data = [];
-      opts.series[1].data = [];
-      return opts;
-    });
-  }
-}
-
-// 语言变更时刷新图表文案
 watch(
   () => appStore.locale,
   () => {
@@ -252,13 +141,8 @@ watch(
   }
 );
 
-/**
- * 作用：挂载后拉取折线图数据。
- * @param 无
- * @returns {void} 无
- */
 watch(
-  () => [width.value, height.value, trendPayload.value],
+  () => [width.value, height.value, trendPayload.value, loaded.value],
   () => {
     if (width.value > 0 && height.value > 0 && trendPayload.value.dayKeys.length) {
       applyTrendData();
@@ -267,22 +151,13 @@ watch(
   { flush: 'post', deep: true }
 );
 
-onMounted(() => {
-  init();
-});
-
-/**
- * 作用：跳转工单列表（全部视角）。
- * @param 无
- * @returns {void} 无
- */
 function goWorkOrderPage() {
   router.push({ name: 'after-sales_work-order', query: { viewScope: 'ALL' } });
 }
 </script>
 
 <template>
-  <ACard :bordered="false" class="card-wrapper">
+  <ACard :bordered="false" class="card-wrapper" :loading="loading">
     <template #extra>
       <a class="text-primary" href="javascript:;" @click.prevent="goWorkOrderPage">工单列表</a>
     </template>

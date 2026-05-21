@@ -3,15 +3,16 @@
  * 总部（subjectType=HQ）工作台首页：网点汇总、待接单排行等总部运营看板。
  * 工单统计卡片与图表仅在具备 `workorder:list` 权限时展示。
  */
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useAuth } from '@/hooks/business/auth';
+import { useBusinessHomeDashboard } from './composables/use-business-home-dashboard';
+import { useHqDashboard } from './composables/use-hq-dashboard';
 import HeaderBanner from './modules/header-banner.vue';
 import HqDashboardSection from './modules/hq-dashboard-section.vue';
 import HqSiteBarChart from './modules/hq-site-bar-chart.vue';
 import LineChart from './modules/line-chart.vue';
 import PieChart from './modules/pie-chart.vue';
 import ProjectNews from './modules/project-news.vue';
-import { useHqDashboard } from './composables/use-hq-dashboard';
 
 defineOptions({
   name: 'HqHomeIndex'
@@ -23,6 +24,12 @@ const { hasAuth } = useAuth();
 const canViewWorkOrder = computed(() => hasAuth('workorder:list'));
 
 const { hasSiteData } = useHqDashboard();
+const { loadBusinessHomeDashboard } = useBusinessHomeDashboard();
+
+/** 进入总部首页时拉取 `/dashboard/hq/home`，供横幅、看板与图表共用 */
+onMounted(() => {
+  loadBusinessHomeDashboard();
+});
 // 是否展示网点待接单图（与动态并排，占左侧列）
 const showSiteWaitChart = computed(() => canViewWorkOrder.value && hasSiteData.value);
 </script>

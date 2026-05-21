@@ -406,6 +406,26 @@ export function listSystemConfig(params?: Query) {
   return request<PageResult<Query>>({ url: '/system/config/list', method: 'get', params });
 }
 
+/** 配置分组 VO：与后端 SysConfigGroupVO 对齐。 */
+export type SysConfigGroupVO = {
+  groupKey: string;
+  groupName?: string;
+  legacy?: boolean;
+  configs?: Query[];
+};
+
+/**
+ * 查询配置分组及各分组下全部配置项（新参数配置页一次性加载）。
+ * @param params.includeLegacy - 是否包含 legacy 历史分组，默认 false
+ */
+export function listSystemConfigGrouped(params?: { includeLegacy?: boolean }) {
+  return request<SysConfigGroupVO[]>({
+    url: '/system/config/grouped',
+    method: 'get',
+    params
+  });
+}
+
 /** 与 jasic-ui `GET /system/config/:id`
  * @修改人 黄碧莲
  * @修改时间 2026-05-14

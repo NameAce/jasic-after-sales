@@ -1,17 +1,10 @@
 import { computed, reactive, ref } from 'vue';
-import {
-  type SysCompanyType,
-  listCompany,
-  listCompanyType,
-  listNotifyScene,
-  listOperLog,
-  listRole,
-  listUser
-} from '@/service/api';
+import { getPlatformDashboardHome } from '@/service/api';
+import { toDashboardCount } from './dashboard-helpers';
 
 /**
- * 平台超管看板共享数据：组织规模、操作日志趋势。
- * 仅用于 subjectType=PLATFORM 的首页，与总部工单看板 composable 隔离。
+ * 平台超管看板共享数据：组织规模、主体类型分布、操作日志趋势。
+ * 数据来自 `/dashboard/platform/home`，不再由前端拼装分页列表二次统计。
  */
 const state = reactive({
   loaded: false,
@@ -20,7 +13,6 @@ const state = reactive({
   companyEnabled: 0,
   userTotal: 0,
   roleTotal: 0,
-  /** 通知场景配置总数 */
   notifySceneTotal: 0,
   subjectCounts: { PLATFORM: 0, HQ: 0, SERVICE: 0 } as Record<string, number>,
   operLogDayKeys: [] as string[],
@@ -28,38 +20,7 @@ const state = reactive({
   operLogFailedCount: 0
 });
 
-function toCount(value: unknown) {
-  const n = Number(value);
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
-}
-
-/**
- * 生成向前连续若干天的日期键（yyyy-MM-dd）。
- */
-function buildDayKeys(size = 7) {
-  const result: string[] = [];
-  const now = new Date();
-  for (let i = size - 1; i >= 0; i -= 1) {
-    const d = new Date(now);
-    d.setDate(now.getDate() - i);
-    const y = d.getFullYear();
-    const m = `${d.getMonth() + 1}`.padStart(2, '0');
-    const day = `${d.getDate()}`.padStart(2, '0');
-    result.push(`${y}-${m}-${day}`);
-  }
-  return result;
-}
-
-function toDateKey(input: unknown) {
-  const text = String(input || '');
-  return text.length >= 10 ? text.slice(0, 10) : '';
-}
-
-function formatRangeEnd(dayKey: string) {
-  return `${dayKey} 23:59:59`;
-}
-
-/** 组织规模等指标拉取失败时重置为 0 */
+/** 平台看板拉取失败时重置组织类指标 */
 function resetPlatformOrgMetrics() {
   state.companyTotal = 0;
   state.companyEnabled = 0;
@@ -69,73 +30,37 @@ function resetPlatformOrgMetrics() {
   state.subjectCounts = { PLATFORM: 0, HQ: 0, SERVICE: 0 };
 }
 
-/**
- * 拉取并写入平台看板组织规模相关指标。
- */
-async function fetchPlatformOrgMetrics() {
-  const [companyTypeRes, companyRes, userRes, roleRes, notifySceneRes] = await Promise.all([
-    listCompanyType(),
-    listCompany({ pageNum: 1, pageSize: 500 }),
-    listUser({ pageNum: 1, pageSize: 1 }),
-    listRole({ pageNum: 1, pageSize: 1 }),
-    listNotifyScene({ pageNum: 1, pageSize: 1 })
-  ]);
-
-  const typeRows = Array.isArray(companyTypeRes.data) ? companyTypeRes.data : [];
-  const typeSubjectMap: Record<string, string> = {};
-  for (const row of typeRows as SysCompanyType[]) {
-    if (row?.typeCode && row.subjectType) {
-      typeSubjectMap[row.typeCode] = row.subjectType;
-    }
-  }
-
-  const companyRows = Array.isArray(companyRes.data?.records) ? companyRes.data.records : [];
-  state.companyTotal = toCount(companyRes.data?.total) || companyRows.length;
-  state.companyEnabled = companyRows.filter(row => Number(row?.status) === 1).length;
-
-  const subjectCounts: Record<string, number> = { PLATFORM: 0, HQ: 0, SERVICE: 0 };
-  for (const row of companyRows) {
-    const subject = typeSubjectMap[String(row?.typeCode || '')] || 'SERVICE';
-    if (subject in subjectCounts) {
-      subjectCounts[subject] += 1;
-    }
-  }
-  state.subjectCounts = subjectCounts;
-
-  state.userTotal = toCount(userRes.data?.total);
-  state.roleTotal = toCount(roleRes.data?.total);
-  state.notifySceneTotal = toCount(notifySceneRes.data?.total);
-}
-
-/**
- * 拉取近 7 日操作日志并写入趋势与失败数。
- */
-async function fetchPlatformOperLogMetrics(dayKeys: string[]) {
-  const operCountMap: Record<string, number> = {};
-  for (const key of dayKeys) {
-    operCountMap[key] = 0;
-  }
-
-  const beginTime = `${dayKeys[0]} 00:00:00`;
-  const endTime = formatRangeEnd(dayKeys[dayKeys.length - 1]);
-  const operRes = await listOperLog({ pageNum: 1, pageSize: 500, beginTime, endTime });
-  const operRows = Array.isArray(operRes.data?.records) ? operRes.data.records : [];
-  let failed = 0;
-  for (const row of operRows) {
-    const key = toDateKey(row?.operTime);
-    if (key in operCountMap) operCountMap[key] += 1;
-    if (Number(row?.status) === 0) failed += 1;
-  }
-  state.operLogDayKeys = dayKeys;
-  state.operLogDailyCounts = dayKeys.map(key => operCountMap[key] || 0);
-  state.operLogFailedCount = failed;
-}
-
-/** 操作日志拉取失败时仅清空趋势数据 */
-function resetPlatformOperLogMetrics(dayKeys: string[]) {
-  state.operLogDayKeys = dayKeys;
-  state.operLogDailyCounts = dayKeys.map(() => 0);
+/** 操作日志趋势拉取失败时清空图表数据 */
+function resetPlatformOperLogMetrics() {
+  state.operLogDayKeys = [];
+  state.operLogDailyCounts = [];
   state.operLogFailedCount = 0;
+}
+
+/**
+ * 将平台首页接口响应写入共享 state。
+ */
+function applyPlatformHomeData(data: Awaited<ReturnType<typeof getPlatformDashboardHome>>['data']) {
+  const overview = data?.overview;
+  state.companyTotal = toDashboardCount(overview?.companyTotal);
+  state.companyEnabled = toDashboardCount(overview?.enabledCompanyTotal);
+  state.userTotal = toDashboardCount(overview?.userTotal);
+  state.roleTotal = toDashboardCount(overview?.roleTotal);
+  state.notifySceneTotal = toDashboardCount(overview?.notifySceneTotal);
+
+  const distribution = data?.subjectTypeDistribution;
+  state.subjectCounts = {
+    PLATFORM: toDashboardCount(distribution?.platformCount),
+    HQ: toDashboardCount(distribution?.hqCount),
+    SERVICE: toDashboardCount(distribution?.serviceCount)
+  };
+
+  const operTrend = data?.operLogTrend7d;
+  const dayKeys = Array.isArray(operTrend?.dayKeys) ? operTrend.dayKeys : [];
+  const counts = Array.isArray(operTrend?.operLogCounts) ? operTrend.operLogCounts : [];
+  state.operLogDayKeys = dayKeys;
+  state.operLogDailyCounts = dayKeys.map((_, index) => toDashboardCount(counts[index]));
+  state.operLogFailedCount = toDashboardCount(operTrend?.failedCount);
 }
 
 export function usePlatformDashboard() {
@@ -166,6 +91,9 @@ export function usePlatformDashboard() {
       .filter(item => item.value > 0);
   });
 
+  /**
+   * 拉取平台首页聚合数据；同一会话内默认只请求一次，force 可强制刷新。
+   */
   async function loadPlatformDashboard(force = false) {
     if (state.loading) return;
     if (state.loaded && !force) return;
@@ -173,23 +101,17 @@ export function usePlatformDashboard() {
     state.loading = true;
     loadError.value = false;
 
-    const dayKeys = buildDayKeys(7);
-
     try {
-      await fetchPlatformOrgMetrics();
+      const res = await getPlatformDashboardHome();
+      applyPlatformHomeData(res.data);
     } catch {
       resetPlatformOrgMetrics();
+      resetPlatformOperLogMetrics();
       loadError.value = true;
+    } finally {
+      state.loaded = true;
+      state.loading = false;
     }
-
-    try {
-      await fetchPlatformOperLogMetrics(dayKeys);
-    } catch {
-      resetPlatformOperLogMetrics(dayKeys);
-    }
-
-    state.loaded = true;
-    state.loading = false;
   }
 
   return {

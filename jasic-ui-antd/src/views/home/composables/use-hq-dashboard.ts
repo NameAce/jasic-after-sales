@@ -1,117 +1,129 @@
 import { computed, reactive, ref } from 'vue';
 import {
-  type WorkOrderHqSiteSummaryVO,
-  type WorkOrderStatusCountVO,
-  countWorkOrderStatus,
-  listHqSiteSummary
+  type DashboardHistoryTodoVO,
+  type DashboardSiteRankVO,
+  type DashboardSiteSummaryVO,
+  type DashboardTrend7dVO,
+  type DashboardWorkOrderStatusVO,
+  type HqDashboardOverviewVO,
+  getHqDashboardHome
 } from '@/service/api';
+import { buildStatusChartItems, toDashboardCount } from './dashboard-helpers';
 
 /**
- * 总部看板共享数据：网点汇总、状态统计与转单量。
- * 总部账号优先用 hq-site-summary；否则或接口不可用时降级为 status-count。
+ * 总部看板共享数据：网点汇总、状态统计、趋势与动态。
+ * 数据来自 `/dashboard/hq/home`，不再由前端拼装多个旧接口。
  */
 const state = reactive({
   loaded: false,
   loading: false,
-  sites: [] as WorkOrderHqSiteSummaryVO[],
-  statusRows: [] as WorkOrderStatusCountVO[],
-  transferCount: 0,
-  /** 是否成功拉取网点汇总（总部且接口未因非总部被拒） */
-  hasSiteSummary: false
+  overview: null as HqDashboardOverviewVO | null,
+  workOrderStatus: null as DashboardWorkOrderStatusVO | null,
+  trend7d: null as DashboardTrend7dVO | null,
+  siteSummary: null as DashboardSiteSummaryVO | null,
+  siteWaitAcceptRank: [] as DashboardSiteRankVO[],
+  latestHistoryTodos: [] as DashboardHistoryTodoVO[]
 });
 
-function toCount(value: unknown) {
-  const n = Number(value);
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+/** 拉取失败时重置为安全空值 */
+function resetHqDashboardState() {
+  state.overview = {
+    activeTodoCount: 0,
+    historyTodoCount: 0,
+    workOrderTotal: 0,
+    transferCount: 0
+  };
+  state.workOrderStatus = {
+    all: 0,
+    pendingAssign: 0,
+    pendingTechAccept: 0,
+    inProgress: 0,
+    completed: 0,
+    closed: 0
+  };
+  state.trend7d = {
+    dayKeys: [],
+    createdWorkOrderCounts: [],
+    activeTodoCounts: []
+  };
+  state.siteSummary = {
+    siteCount: 0,
+    totalCount: 0,
+    waitAcceptCount: 0,
+    inProgressCount: 0,
+    completedCount: 0
+  };
+  state.siteWaitAcceptRank = [];
+  state.latestHistoryTodos = [];
 }
 
-function buildStatusMap(rows: WorkOrderStatusCountVO[]) {
-  const map: Record<string, number> = {};
-  for (const row of rows) {
-    if (row?.mainStatus) {
-      map[row.mainStatus] = toCount(row.countNum);
-    }
-  }
-  return map;
-}
-
-function getStatusCount(map: Record<string, number>, key: string) {
-  return map[key] ?? 0;
+/**
+ * 将总部首页接口响应写入共享 state，并对缺失节点做安全兜底。
+ */
+function applyHqHomeData(data: Awaited<ReturnType<typeof getHqDashboardHome>>['data']) {
+  state.overview = data?.overview ?? null;
+  state.workOrderStatus = data?.workOrderStatus ?? null;
+  state.trend7d = data?.trend7d ?? null;
+  state.siteSummary = data?.siteSummary ?? null;
+  state.siteWaitAcceptRank = Array.isArray(data?.siteWaitAcceptRank) ? data.siteWaitAcceptRank : [];
+  state.latestHistoryTodos = Array.isArray(data?.latestHistoryTodos) ? data.latestHistoryTodos : [];
 }
 
 export function useHqDashboard() {
   const loadError = ref(false);
 
-  const statusMap = computed(() => buildStatusMap(state.statusRows));
+  const overview = computed(() => state.overview);
+  const workOrderStatus = computed(() => state.workOrderStatus);
+  const trend7d = computed(() => state.trend7d);
+  const siteSummary = computed(() => state.siteSummary);
+  const latestHistoryTodos = computed(() => state.latestHistoryTodos);
 
-  const hasSiteData = computed(() => state.hasSiteSummary && state.sites.length > 0);
+  const hasSiteData = computed(() => toDashboardCount(state.siteSummary?.siteCount) > 0);
 
-  /** 有网点数据或状态统计即可展示看板区 */
+  /** 有网点汇总或工单状态数据即可展示看板区 */
   const showDashboard = computed(() => {
     if (!state.loaded) return false;
-    return hasSiteData.value || state.statusRows.length > 0;
+    return hasSiteData.value || toDashboardCount(state.workOrderStatus?.all) > 0;
   });
 
   const kpis = computed(() => {
-    if (hasSiteData.value) {
-      let waitAcceptCount = 0;
-      let inProgressCount = 0;
-      let totalCount = 0;
-
-      for (const site of state.sites) {
-        totalCount += toCount(site.totalCount);
-        waitAcceptCount += toCount(site.waitAcceptCount);
-        inProgressCount += toCount(site.inProgressCount);
-      }
-
+    if (hasSiteData.value && state.siteSummary) {
       return {
         mode: 'site' as const,
-        siteCount: state.sites.length,
-        totalCount,
-        waitAcceptCount,
-        inProgressCount,
-        transferCount: state.transferCount
+        siteCount: toDashboardCount(state.siteSummary.siteCount),
+        totalCount: toDashboardCount(state.siteSummary.totalCount),
+        waitAcceptCount: toDashboardCount(state.siteSummary.waitAcceptCount),
+        inProgressCount: toDashboardCount(state.siteSummary.inProgressCount),
+        completedCount: toDashboardCount(state.siteSummary.completedCount),
+        transferCount: toDashboardCount(state.overview?.transferCount)
       };
     }
 
-    const map = statusMap.value;
+    const status = state.workOrderStatus;
     return {
       mode: 'status' as const,
       siteCount: 0,
-      totalCount: getStatusCount(map, 'ALL'),
-      waitAcceptCount: getStatusCount(map, 'PENDING_ASSIGN') + getStatusCount(map, 'PENDING_TECH_ACCEPT'),
-      inProgressCount: getStatusCount(map, 'IN_PROGRESS'),
-      transferCount: state.transferCount
+      totalCount: toDashboardCount(status?.all),
+      waitAcceptCount: toDashboardCount(status?.pendingAssign) + toDashboardCount(status?.pendingTechAccept),
+      inProgressCount: toDashboardCount(status?.inProgress),
+      completedCount: toDashboardCount(status?.completed),
+      transferCount: toDashboardCount(state.overview?.transferCount)
     };
   });
 
-  const sitesByWaitAccept = computed(() =>
-    [...state.sites].sort((a, b) => toCount(b.waitAcceptCount) - toCount(a.waitAcceptCount))
+  /** 网点待接单排行（接口已按待接单数排序） */
+  const sitesByWaitAccept = computed(() => [...state.siteWaitAcceptRank]);
+
+  const sitesByTotal = computed(() =>
+    [...state.siteWaitAcceptRank].sort((a, b) => toDashboardCount(b.totalCount) - toDashboardCount(a.totalCount))
   );
 
-  const sitesByTotal = computed(() => [...state.sites].sort((a, b) => toCount(b.totalCount) - toCount(a.totalCount)));
+  /** 无网点汇总时降级展示的状态分布图数据 */
+  const statusChartItems = computed(() => buildStatusChartItems(state.workOrderStatus));
 
-  /** 供降级柱状图使用的状态分布（排除 ALL） */
-  const statusChartItems = computed(() => {
-    const labels: Record<string, string> = {
-      PENDING_ASSIGN: '待派单',
-      PENDING_TECH_ACCEPT: '待接单',
-      IN_PROGRESS: '维修中',
-      COMPLETED: '已完成',
-      CLOSED: '已关闭'
-    };
-    const order = ['PENDING_ASSIGN', 'PENDING_TECH_ACCEPT', 'IN_PROGRESS', 'COMPLETED', 'CLOSED'];
-    const map = statusMap.value;
-
-    return order
-      .map(key => ({
-        key,
-        label: labels[key] || key,
-        value: getStatusCount(map, key)
-      }))
-      .filter(item => item.value > 0);
-  });
-
+  /**
+   * 拉取总部首页聚合数据；同一会话内默认只请求一次，force 可强制刷新。
+   */
   async function loadHqDashboard(force = false) {
     if (state.loading) return;
     if (state.loaded && !force) return;
@@ -120,31 +132,11 @@ export function useHqDashboard() {
     loadError.value = false;
 
     try {
-      const [statusRes, transferRes] = await Promise.all([
-        countWorkOrderStatus({ viewScope: 'ALL' }),
-        countWorkOrderStatus({ viewScope: 'CURRENT', hasTransfer: 1 })
-      ]);
-
-      state.statusRows = Array.isArray(statusRes.data) ? statusRes.data : [];
-
-      const transferRows = Array.isArray(transferRes.data) ? transferRes.data : [];
-      state.transferCount = transferRows.reduce((sum, row) => {
-        if (row?.mainStatus === 'ALL') return sum + toCount(row.countNum);
-        return sum;
-      }, 0);
+      const res = await getHqDashboardHome();
+      applyHqHomeData(res.data);
     } catch {
-      state.statusRows = [];
-      state.transferCount = 0;
+      resetHqDashboardState();
       loadError.value = true;
-    }
-
-    try {
-      const siteRes = await listHqSiteSummary();
-      state.sites = Array.isArray(siteRes.data) ? siteRes.data : [];
-      state.hasSiteSummary = state.sites.length > 0;
-    } catch {
-      state.sites = [];
-      state.hasSiteSummary = false;
     } finally {
       state.loaded = true;
       state.loading = false;
@@ -158,8 +150,12 @@ export function useHqDashboard() {
     loaded: computed(() => state.loaded),
     showDashboard,
     hasSiteData,
+    overview,
+    workOrderStatus,
+    trend7d,
+    siteSummary,
+    latestHistoryTodos,
     kpis,
-    statusMap,
     statusChartItems,
     sitesByWaitAccept,
     sitesByTotal,

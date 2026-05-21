@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
  * 高级/运维配置聚合页：字典、参数、通知模板、角色模板、同步任务等多 Tab（对接 system 等接口）。
+ * 参数配置通过 GET /system/config/grouped 分组表单维护，不再提供表格列表模式。
  */
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
@@ -41,7 +42,6 @@ import {
   listSyncTask,
   listSyncTaskHandlerOptions,
   listSyncTaskLog,
-  listSystemConfig,
   previewNotifyTemplate,
   refreshConfigCache,
   refreshDictTypeCache,
@@ -73,6 +73,7 @@ import { createAntTableActionColumn } from '@/utils/table-action-width';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
 import { applyDateTimeColumnRender, mapDetailRowsDateTime } from '@/utils/datetime';
 import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
+import ConfigFormPanel from './config-form-panel.vue';
 
 type RowData = Record<string, any>;
 type DataScopeOption = {
@@ -88,7 +89,6 @@ const pageMenuTitle = useRouteMenuTitle();
 const { hasAuth } = useAuth();
 
 const dictSearchFilter = usePageSearchFilterCollapse(3);
-const configSearchFilter = usePageSearchFilterCollapse(3);
 const notifySearchFilter = usePageSearchFilterCollapse(3);
 const barcodeSearchFilter = usePageSearchFilterCollapse(7);
 const syncTaskSearchFilter = usePageSearchFilterCollapse(4);
@@ -152,8 +152,6 @@ function advancedModuleTableMinScrollX(key: ModuleKey, showAction: boolean): num
   switch (key) {
     case 'dict':
       return 160 + 180 + 90 + 140 + actionW;
-    case 'config':
-      return 160 + 180 + 220 + 90 + 140 + actionW;
     case 'notifyTemplate':
       return 200 + 180 + 110 + 100 + 100 + 160 + 140 + 140 + 170 + actionW;
     case 'barcode':
@@ -189,13 +187,6 @@ const dictQuery = reactive({
   dictName: '',
   dictType: '',
   status: undefined as number | undefined
-});
-
-// 参数配置筛选
-const configQuery = reactive({
-  configName: '',
-  configKey: '',
-  configType: undefined as number | undefined
 });
 
 // 通知模板筛选
@@ -557,13 +548,6 @@ function loadByModule() {
         dictType: dictQuery.dictType || undefined,
         status: dictQuery.status
       });
-    case 'config':
-      return listSystemConfig({
-        ...p,
-        configName: configQuery.configName || undefined,
-        configKey: configQuery.configKey || undefined,
-        configType: configQuery.configType
-      });
     case 'notifyTemplate':
       return listNotifyTemplate({
         ...p,
@@ -630,30 +614,6 @@ const columns = computed(() => {
             dataIndex: 'dictType',
             key: 'dictType',
             width: 180
-          },
-          { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
-          { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
-          ...maybeActionCol(120)
-        ];
-      case 'config':
-        return [
-          {
-            title: '参数名称',
-            dataIndex: 'configName',
-            key: 'configName',
-            width: 160
-          },
-          {
-            title: '参数键',
-            dataIndex: 'configKey',
-            key: 'configKey',
-            width: 180
-          },
-          {
-            title: '参数值',
-            dataIndex: 'configValue',
-            key: 'configValue',
-            ellipsis: true
           },
           { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
           { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
@@ -732,7 +692,12 @@ const columns = computed(() => {
             key: 'hqCompanyName',
             width: 160
           },
-          { title: 'CRM公司ID', dataIndex: 'custId', key: 'custId', width: 120 },
+          {
+            title: 'CRM公司ID',
+            dataIndex: 'custId',
+            key: 'custId',
+            width: 120
+          },
           {
             title: '销售组织',
             dataIndex: 'salesOrg',
@@ -862,7 +827,12 @@ const columns = computed(() => {
             key: 'roleName',
             width: 180
           },
-          { title: '角色标识', dataIndex: 'roleKey', key: 'roleKey', width: 160 },
+          {
+            title: '角色标识',
+            dataIndex: 'roleKey',
+            key: 'roleKey',
+            width: 160
+          },
           {
             title: '所属类型',
             dataIndex: 'typeCode',
@@ -963,8 +933,8 @@ const syncTaskLogColumns = applyDateTimeColumnRender([
   }
 ]);
 
-// 字典/参数模块是否展示行内编辑删除
-const hasDictConfigRowActions = computed(() => activeKey.value === 'dict' || activeKey.value === 'config');
+// 字典模块是否展示行内编辑删除与顶部「新增」
+const hasDictRowActions = computed(() => activeKey.value === 'dict');
 
 /**
  * 作用：为表格行生成稳定 key。
@@ -980,6 +950,10 @@ function resolveRowKey(r: RowData) {
  * @returns 无
  */
 async function loadList() {
+  // 参数配置由 ConfigFormPanel 调用 grouped 接口拉取，不走表格列表请求。
+  if (activeKey.value === 'config') {
+    return;
+  }
   loading.value = true;
   clearListMsgs();
   try {
@@ -1067,11 +1041,6 @@ function resetSearch() {
       dictQuery.dictName = '';
       dictQuery.dictType = '';
       dictQuery.status = undefined;
-      break;
-    case 'config':
-      configQuery.configName = '';
-      configQuery.configKey = '';
-      configQuery.configType = undefined;
       break;
     case 'notifyTemplate':
       notifyQuery.templateCode = '';
@@ -2456,7 +2425,8 @@ onMounted(async () => {
 
 <template>
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
-    <ACard :bordered="false" class="card-wrapper">
+    <!-- 参数配置无筛选区，不渲染顶部空 card-wrapper 卡片 -->
+    <ACard v-if="activeKey !== 'config'" :bordered="false" class="card-wrapper">
       <div class="flex flex-col gap-12px">
         <AForm v-if="activeKey === 'dict'" :model="dictQuery" :label-col="{ span: 5, md: 7 }">
           <div class="page-search-toolbar">
@@ -2516,69 +2486,6 @@ onMounted(async () => {
                 v-if="dictSearchFilter.showSearchFilterExpandToggle"
                 :expanded="dictSearchFilter.searchFilterExpanded"
                 @click="dictSearchFilter.toggleSearchFilterExpand"
-              />
-            </div>
-          </div>
-        </AForm>
-
-        <AForm v-if="activeKey === 'config'" :model="configQuery" :label-col="{ span: 5, md: 7 }">
-          <div class="page-search-toolbar">
-            <div class="page-search-toolbar__filters">
-              <ARow :gutter="[16, 16]" wrap>
-                <ACol
-                  :span="24"
-                  :md="12"
-                  :lg="6"
-                  :class="{
-                    'page-search-toolbar__filter-col--collapsed': configSearchFilter.isSearchFilterHidden(0)
-                  }"
-                >
-                  <AFormItem label="参数名称" class="m-0">
-                    <AInput v-model:value="configQuery.configName" allow-clear placeholder="请输入参数名称" />
-                  </AFormItem>
-                </ACol>
-                <ACol
-                  :span="24"
-                  :md="12"
-                  :lg="6"
-                  :class="{
-                    'page-search-toolbar__filter-col--collapsed': configSearchFilter.isSearchFilterHidden(1)
-                  }"
-                >
-                  <AFormItem label="参数键名" class="m-0">
-                    <AInput v-model:value="configQuery.configKey" allow-clear placeholder="请输入参数键名" />
-                  </AFormItem>
-                </ACol>
-                <ACol
-                  :span="24"
-                  :md="12"
-                  :lg="6"
-                  :class="{
-                    'page-search-toolbar__filter-col--collapsed': configSearchFilter.isSearchFilterHidden(2)
-                  }"
-                >
-                  <AFormItem label="是否内置" class="m-0">
-                    <ASelect
-                      v-model:value="configQuery.configType"
-                      allow-clear
-                      placeholder="全部"
-                      class="w-full"
-                      :options="[
-                        { label: '是', value: 1 },
-                        { label: '否', value: 0 }
-                      ]"
-                    />
-                  </AFormItem>
-                </ACol>
-              </ARow>
-            </div>
-            <div class="page-search-toolbar__actions">
-              <AButton type="primary" @click="handleSearch">查询</AButton>
-              <AButton @click="resetSearch">重置</AButton>
-              <PageSearchExpandButton
-                v-if="configSearchFilter.showSearchFilterExpandToggle"
-                :expanded="configSearchFilter.searchFilterExpanded"
-                @click="configSearchFilter.toggleSearchFilterExpand"
               />
             </div>
           </div>
@@ -3015,14 +2922,13 @@ onMounted(async () => {
       <template #extra>
         <ASpace wrap>
           <AButton v-if="activeKey === 'dict'" @click="onRefreshCache">刷新字典缓存</AButton>
-          <AButton v-if="activeKey === 'config'" @click="onRefreshCache">刷新参数缓存</AButton>
           <AButton v-if="activeKey === 'notifyTemplate'" @click="onRefreshCache">刷新模板缓存</AButton>
           <AButton v-if="activeKey === 'barcode'" type="primary" ghost :loading="loading" @click="onFullSyncBarcode">
             执行同步任务
           </AButton>
           <AButton v-if="activeKey === 'syncTask'" type="primary" ghost @click="openSyncForm()">新增任务</AButton>
           <AButton
-            v-if="hasDictConfigRowActions || activeKey === 'fault' || activeKey === 'roleTemplate'"
+            v-if="hasDictRowActions || activeKey === 'fault' || activeKey === 'roleTemplate'"
             type="primary"
             @click="openForm(undefined, '新增')"
           >
@@ -3033,7 +2939,9 @@ onMounted(async () => {
           </AButton>
         </ASpace>
       </template>
+      <ConfigFormPanel v-if="activeKey === 'config'" class="h-full min-h-0 flex-1 overflow-hidden" />
       <ATable
+        v-else
         ref="tableWrapperRef"
         :columns="columns"
         :data-source="rows"
@@ -3217,7 +3125,7 @@ onMounted(async () => {
               </APopconfirm>
             </ASpace>
           </template>
-          <template v-else-if="column.key === 'actions' && hasDictConfigRowActions">
+          <template v-else-if="column.key === 'actions' && hasDictRowActions">
             <ASpace :wrap="false">
               <AButton type="link" size="small" class="table-action-link--primary" @click="openForm(record, '编辑')">
                 编辑

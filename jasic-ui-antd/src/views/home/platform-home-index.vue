@@ -2,6 +2,7 @@
 /**
  * 平台超级管理员（subjectType=PLATFORM）专属首页：组织治理与运维监控，不含工单业务看板。
  */
+import { onMounted } from 'vue';
 import PlatformDashboardSection from './modules/platform-dashboard-section.vue';
 import PlatformHeaderBanner from './modules/platform-header-banner.vue';
 import PlatformOperLogChart from './modules/platform-oper-log-chart.vue';
@@ -12,7 +13,12 @@ defineOptions({
   name: 'PlatformHomeIndex'
 });
 
-const { showDashboard } = usePlatformDashboard();
+const { showDashboard, loadPlatformDashboard } = usePlatformDashboard();
+
+/** 进入平台首页时拉取聚合接口，供顶部横幅与看板区共用 */
+onMounted(() => {
+  loadPlatformDashboard();
+});
 </script>
 
 <template>

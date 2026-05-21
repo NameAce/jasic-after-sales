@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { getNotifyTodoCount, getNotifyTodoPage, listRole, listUser } from '@/service/api';
+import { listRole, listUser } from '@/service/api';
 import { useAppStore } from '@/store/modules/app';
 import { useAuth } from '@/hooks/business/auth';
 import { useEcharts } from '@/hooks/common/echarts';
 import { $t } from '@/locales';
+import { toDashboardCount } from '../composables/dashboard-helpers';
+import { useBusinessHomeDashboard } from '../composables/use-business-home-dashboard';
 
 defineOptions({
   name: 'CreativityBanner'
@@ -14,6 +16,7 @@ defineOptions({
 const router = useRouter();
 const appStore = useAppStore();
 const { hasAuth } = useAuth();
+const { overview, loaded } = useBusinessHomeDashboard();
 // 可按用户列表权限查看用户汇总
 const canViewUser = computed(() => hasAuth('system:user:list'));
 // 可按角色列表权限查看角色汇总
@@ -82,20 +85,10 @@ async function loadSummary() {
       summary.userTotal = userTotal;
       summary.roleTotal = roleTotal;
     } else {
-      const [todoTotal, messageTotal] = await Promise.all([
-        safeGetTotal(
-          true,
-          () => getNotifyTodoCount(),
-          res => res.data?.count
-        ),
-        safeGetTotal(
-          true,
-          () => getNotifyTodoPage({ box: 'HISTORY', pageNum: 1, pageSize: 1 }),
-          res => res.data?.total
-        )
-      ]);
-      summary.todoTotal = todoTotal;
-      summary.messageTotal = messageTotal;
+      // 待办/消息汇总直接复用首页接口 overview，避免再调通知分页接口
+      const ov = overview.value;
+      summary.todoTotal = toDashboardCount(ov?.activeTodoCount);
+      summary.messageTotal = toDashboardCount(ov?.historyTodoCount);
     }
     updateChart();
   } catch {
@@ -110,6 +103,19 @@ async function loadSummary() {
 onMounted(() => {
   loadSummary();
 });
+
+/** 首页接口加载完成后刷新待办/消息汇总图 */
+watch(
+  () => [loaded.value, overview.value, useOrgSummary.value],
+  () => {
+    if (!useOrgSummary.value && loaded.value) {
+      const ov = overview.value;
+      summary.todoTotal = toDashboardCount(ov?.activeTodoCount);
+      summary.messageTotal = toDashboardCount(ov?.historyTodoCount);
+      updateChart();
+    }
+  }
+);
 
 /**
  * 作用：点击柱状图条目跳转对应管理页或消息中心。
