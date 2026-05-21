@@ -64,6 +64,7 @@ declare module "@elegant-router/types" {
     "notify": "/notify";
     "org": "/org";
     "system": "/system";
+    "system_branch": "/system/branch";
     "system_menu": "/system/menu";
     "system_notify-scene": "/system/notify-scene";
     "system_notify-trace": "/system/notify-trace";
@@ -179,6 +180,7 @@ declare module "@elegant-router/types" {
     | "multi-menu_second_child_home"
     | "notify"
     | "org"
+    | "system_branch"
     | "system_menu"
     | "system_notify-scene"
     | "system_notify-trace"

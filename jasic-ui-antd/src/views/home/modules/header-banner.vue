@@ -58,7 +58,10 @@ const statisticData = computed<StatisticData[]>(() => {
 /** 点击统计项跳转对应业务页 */
 function handleStatisticClick(key: StatisticData['key']) {
   if (key === 'project') {
-    router.push({ name: 'after-sales_work-order', query: { viewScope: 'CURRENT' } });
+    router.push({
+      name: 'after-sales_work-order',
+      query: { viewScope: 'CURRENT' }
+    });
     return;
   }
   if (key === 'todo') {
@@ -80,15 +83,21 @@ function openUserCenter() {
         <div class="flex-y-center cursor-pointer" @click="openUserCenter">
           <div class="size-72px shrink-0 overflow-hidden rd-1/2">
             <img
-              src="/@fs/D:/companyProject/售后/jasic-after-sales/mp/aftersale/static/images/default-avatar.jpg"
+              src="https://jasic-after.oss-cn-shenzhen.aliyuncs.com/uniapp/contractor/default-avatar.jpg"
               class="size-full object-cover"
             />
           </div>
           <div class="pl-12px">
             <h3 class="text-18px font-semibold">
-              {{ $t('page.home.greeting', { userName: authStore.userInfo.userName }) }}
+              {{
+                $t('page.home.greeting', {
+                  userName: authStore.userInfo.userName
+                })
+              }}
             </h3>
-            <p class="text-#999 leading-30px">{{ $t('page.home.weatherDesc') }}</p>
+            <p class="text-#999 leading-30px">
+              {{ $t('page.home.weatherDesc') }}
+            </p>
           </div>
         </div>
       </ACol>

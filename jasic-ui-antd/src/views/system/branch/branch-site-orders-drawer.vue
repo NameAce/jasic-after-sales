@@ -1,0 +1,267 @@
+<script setup lang="ts">
+/**
+ * 网点管理 — 承修方网点工单只读列表抽屉（`GET /system/work-order/hq-site-orders`）。
+ * 由网点汇总表点击承修网点名称打开，支持状态筛选与工单号/客户/条码关键词检索。
+ */
+import { computed, reactive, ref, watch } from 'vue';
+import { workOrderMainStatusTagColor } from '@/constants/list-status-tag';
+import type { WorkOrderHqSiteOrdersDisplayStatus, WorkOrderHqSiteOrdersQuery } from '@/service/api';
+import { listHqSiteOrders } from '@/service/api';
+import { useTableScroll } from '@/hooks/common/table';
+import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
+import { applyDateTimeColumnRender } from '@/utils/datetime';
+import WorkOrderDetailDrawer from '@/views/work-order/components/WorkOrderDetailDrawer.vue';
+
+type RowData = Record<string, any>;
+
+const drawerOpen = ref(false);
+const siteCompanyId = ref<number | undefined>();
+const siteCompanyName = ref('');
+
+const loading = ref(false);
+const rows = ref<RowData[]>([]);
+const total = ref(0);
+
+const {
+  listFetchErrorMsg,
+  listEmptyBackendMsg,
+  clearListMsgs,
+  consumeFlatError,
+  refreshEmptySuccessMsg,
+  setMsgFromCatch
+} = useListRequestTableMsgs();
+const tableListLocale = createAntTableListLocale(listFetchErrorMsg, listEmptyBackendMsg, rows);
+
+const displayStatus = ref<WorkOrderHqSiteOrdersDisplayStatus>('ALL');
+const searchKeyword = ref('');
+
+const orderQuery = reactive({
+  pageNum: 1,
+  pageSize: 10
+});
+
+const statusSegmentOptions = [
+  { label: '全部', value: 'ALL' as const },
+  { label: '待接单', value: 'WAIT_ACCEPT' as const },
+  { label: '维修中', value: 'IN_PROGRESS' as const },
+  { label: '已完成', value: 'COMPLETED' as const },
+  { label: '已关闭', value: 'CLOSED' as const }
+];
+
+const drawerTitle = computed(() => {
+  const name = siteCompanyName.value || '承修网点';
+  return `${name} — 工单列表`;
+});
+
+const tableScrollMinX = computed(() => 980);
+const { scrollConfig } = useTableScroll(tableScrollMinX);
+
+const rawColumns = [
+  { title: '工单号', dataIndex: 'orderNo', key: 'orderNo', width: 180 },
+  { title: '客户', dataIndex: 'customerName', key: 'customerName', width: 120, ellipsis: true },
+  { title: '客户手机号', dataIndex: 'customerMobile', key: 'customerMobile', width: 120 },
+  { title: '条码', dataIndex: 'barcode', key: 'barcode', width: 140, ellipsis: true },
+  { title: '机型', dataIndex: 'productModel', key: 'productModel', width: 120, ellipsis: true },
+  { title: '状态', dataIndex: 'mainStatusLabel', key: 'mainStatusLabel', width: 100 },
+  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 170 }
+];
+const columns = applyDateTimeColumnRender(rawColumns);
+
+const detailOpen = ref(false);
+const detailWorkOrderId = ref<number | null>(null);
+
+function pickRows(data: unknown) {
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === 'object' && Array.isArray((data as { records?: unknown }).records)) {
+    return (data as { records: RowData[] }).records;
+  }
+  return [];
+}
+
+function pickTotal(data: unknown) {
+  if (data && typeof data === 'object' && 'total' in data) {
+    return Number((data as { total?: unknown }).total) || 0;
+  }
+  return 0;
+}
+
+/**
+ * 作用：将搜索框关键词映射为接口查询字段（与承修方小程序网点明细一致）。
+ */
+function applySearchKeywordToParams(params: WorkOrderHqSiteOrdersQuery) {
+  const q = searchKeyword.value.trim();
+  if (!q) return;
+  if (/[\u4E00-\u9FFF]/.test(q)) {
+    params.customerName = q;
+    return;
+  }
+  if (/^\d{8,}$/.test(q)) {
+    params.barcode = q;
+    return;
+  }
+  params.orderNo = q;
+}
+
+/**
+ * 作用：加载当前承修方网点下的只读工单分页列表。
+ */
+async function loadOrderList() {
+  const siteId = siteCompanyId.value;
+  if (!siteId) {
+    rows.value = [];
+    total.value = 0;
+    return;
+  }
+
+  clearListMsgs();
+  loading.value = true;
+  try {
+    const params: WorkOrderHqSiteOrdersQuery = {
+      siteCompanyId: siteId,
+      displayStatus: displayStatus.value,
+      pageNum: orderQuery.pageNum,
+      pageSize: orderQuery.pageSize
+    };
+    applySearchKeywordToParams(params);
+
+    const flat = await listHqSiteOrders(params);
+    if (consumeFlatError(flat)) {
+      rows.value = [];
+      total.value = 0;
+      return;
+    }
+    const data = (flat as { data?: unknown }).data;
+    rows.value = pickRows(data);
+    total.value = pickTotal(data);
+    refreshEmptySuccessMsg(flat, rows.value.length);
+  } catch (e: unknown) {
+    rows.value = [];
+    total.value = 0;
+    setMsgFromCatch(e);
+  } finally {
+    loading.value = false;
+  }
+}
+
+function handleSearch() {
+  orderQuery.pageNum = 1;
+  loadOrderList();
+}
+
+function handleResetSearch() {
+  searchKeyword.value = '';
+  handleSearch();
+}
+
+function handleStatusChange(val: string | number) {
+  displayStatus.value = String(val) as WorkOrderHqSiteOrdersDisplayStatus;
+  orderQuery.pageNum = 1;
+  loadOrderList();
+}
+
+function handleTableChange(page: number, pageSize?: number) {
+  orderQuery.pageNum = page;
+  if (pageSize) orderQuery.pageSize = pageSize;
+  loadOrderList();
+}
+
+/**
+ * 作用：打开工单详情抽屉（总部只读查看，不在此抽屉内执行列表操作）。
+ */
+function openOrderDetail(row: RowData) {
+  const wid = Number(row.id);
+  if (!Number.isFinite(wid) || wid <= 0) return;
+  detailWorkOrderId.value = wid;
+  detailOpen.value = true;
+}
+
+/**
+ * 作用：由网点汇总页传入行数据，打开本抽屉并加载该网点工单列表。
+ */
+function open(record: RowData) {
+  const siteId = Number(record.siteCompanyId);
+  if (!Number.isFinite(siteId) || siteId <= 0) {
+    window.$message?.warning?.('网点信息无效，无法查看工单');
+    return;
+  }
+  siteCompanyId.value = siteId;
+  siteCompanyName.value = String(record.siteCompanyName || '').trim();
+  displayStatus.value = 'ALL';
+  searchKeyword.value = '';
+  orderQuery.pageNum = 1;
+  drawerOpen.value = true;
+}
+
+watch(drawerOpen, openVal => {
+  if (openVal) {
+    loadOrderList();
+  } else {
+    rows.value = [];
+    total.value = 0;
+    detailOpen.value = false;
+    detailWorkOrderId.value = null;
+  }
+});
+
+defineExpose({ open });
+</script>
+
+<template>
+  <ADrawer v-model:open="drawerOpen" :title="drawerTitle" :width="1100" destroy-on-close>
+    <div class="flex-col-stretch gap-12px">
+      <ASegmented :value="displayStatus" :options="statusSegmentOptions" @change="handleStatusChange" />
+      <div class="page-search-toolbar">
+        <div class="page-search-toolbar__filters">
+          <AInput
+            v-model:value="searchKeyword"
+            allow-clear
+            class="max-w-360px"
+            placeholder="搜索工单号、客户姓名或条码"
+            @press-enter="handleSearch"
+          />
+        </div>
+        <div class="page-search-toolbar__actions">
+          <AButton type="primary" :loading="loading" @click="handleSearch">查询</AButton>
+          <AButton :loading="loading" @click="handleResetSearch">重置</AButton>
+        </div>
+      </div>
+      <ATable
+        :columns="columns"
+        :data-source="rows"
+        :loading="loading"
+        :locale="tableListLocale"
+        :pagination="{
+          current: orderQuery.pageNum,
+          pageSize: orderQuery.pageSize,
+          total,
+          showSizeChanger: true,
+          showTotal: (t: number) => `共 ${t} 条`,
+          onChange: handleTableChange
+        }"
+        row-key="id"
+        size="small"
+        :scroll="scrollConfig"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'orderNo'">
+            <span
+              class="table-list-entry-link"
+              role="button"
+              tabindex="0"
+              @click="openOrderDetail(record)"
+              @keydown.enter.prevent="openOrderDetail(record)"
+            >
+              {{ record.orderNo || '-' }}
+            </span>
+          </template>
+          <template v-else-if="column.key === 'mainStatusLabel'">
+            <ATag :color="workOrderMainStatusTagColor(String(record.mainStatus || ''))">
+              {{ record.mainStatusLabel || record.mainStatus || '-' }}
+            </ATag>
+          </template>
+        </template>
+      </ATable>
+    </div>
+    <WorkOrderDetailDrawer :open="detailOpen" :work-order-id="detailWorkOrderId" @update:open="v => (detailOpen = v)" />
+  </ADrawer>
+</template>

@@ -1789,19 +1789,12 @@ function removePartRow(target: Array<{ partName: string; partQty?: number }>, in
 }
 
 /**
- * 列表页传入动作码时：先刷新详情再打开派单/接单/转单/维修/复检/邮寄/关闭等子流程（与 jasic-ui 行为一致）。
+ * 执行工单动作子流程（派单/接单/转单/维修/复检/邮寄/关闭）；调用方需已保证 detail 已加载。
  *
- * @param action - 列表动作字符串
+ * @param code - 列表动作码
  * @returns {Promise<void>} 无返回值
  */
-async function openActionFromList(action: string) {
-  if (!id.value) return;
-  await loadDetail();
-  if (!detail.value || !Object.keys(detail.value).length) {
-    window.$message?.error('加载工单失败');
-    return;
-  }
-  const code = action as WorkOrderListActionCode;
+async function dispatchWorkOrderAction(code: WorkOrderListActionCode) {
   if (shouldSupplementRepairProductModel(code)) {
     await prepareRepairProductModelDialog(code);
     return;
@@ -1833,6 +1826,36 @@ async function openActionFromList(action: string) {
   }
 }
 
+/**
+ * 详情抽屉内点击操作按钮：与列表动作共用补录机型校验，不重复请求详情。
+ *
+ * @param action - 列表动作码
+ * @returns {Promise<void>} 无返回值
+ */
+async function openActionFromDetail(action: WorkOrderListActionCode) {
+  if (!id.value || !detail.value || !Object.keys(detail.value).length) {
+    window.$message?.error('加载工单失败');
+    return;
+  }
+  await dispatchWorkOrderAction(action);
+}
+
+/**
+ * 列表页传入动作码时：先刷新详情再打开派单/接单/转单/维修/复检/邮寄/关闭等子流程（与 jasic-ui 行为一致）。
+ *
+ * @param action - 列表动作字符串
+ * @returns {Promise<void>} 无返回值
+ */
+async function openActionFromList(action: string) {
+  if (!id.value) return;
+  await loadDetail();
+  if (!detail.value || !Object.keys(detail.value).length) {
+    window.$message?.error('加载工单失败');
+    return;
+  }
+  await dispatchWorkOrderAction(action as WorkOrderListActionCode);
+}
+
 // 暴露给父组件：从列表按动作码打开子流程
 defineExpose({
   openActionFromList
@@ -1856,8 +1879,15 @@ defineExpose({
           <AButton v-if="showTransfer" size="small" class="detail-mirror-table-action--warning" @click="openTransfer">
             转单
           </AButton>
-          <AButton v-if="showRepair" type="primary" size="small" @click="openRepair">维修登记</AButton>
-          <AButton v-if="showReview" size="small" class="detail-mirror-table-action--warning" @click="openReview">
+          <AButton v-if="showRepair" type="primary" size="small" @click="openActionFromDetail('REPAIR_FINISH')">
+            维修登记
+          </AButton>
+          <AButton
+            v-if="showReview"
+            size="small"
+            class="detail-mirror-table-action--warning"
+            @click="openActionFromDetail('REVIEW')"
+          >
             复检登记
           </AButton>
           <AButton v-if="showMail" type="primary" size="small" @click="openMail">上传寄件单号</AButton>

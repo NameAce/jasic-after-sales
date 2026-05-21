@@ -161,6 +161,38 @@ function backendFilePathToViewKey(filePath: string): string {
   return parts.map(p => p.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase()).join('_');
 }
 
+/**
+ * 解析后端菜单 path 段：叶子菜单 path 为空时从 component 推导（如 `system/branch/index` -> `branch`）。
+ * 避免子菜单落在父路径 `/system` 上与父级路由重名，导致点击「网点管理」无法进入页面。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-21
+ */
+function resolveBackendMenuPathSegment(routeRecord: Record<string, unknown>, hasChildren: boolean): string {
+  const explicit = String(routeRecord.path ?? '').trim();
+  if (explicit || hasChildren) return explicit;
+
+  const rawComponent = String(routeRecord.component ?? '').trim();
+  if (!rawComponent || isBackendLayoutPlaceholder(rawComponent)) return explicit;
+
+  let s = rawComponent.replace(/^@\//, '').replace(/^\.\//, '');
+  s = s
+    .replace(/^src\/views\//i, '')
+    .replace(/^views\//i, '')
+    .replace(/^\/+/, '');
+  s = s.replace(/\.vue$/i, '');
+  const parts = s.split('/').filter(Boolean);
+  if (parts.length && parts[parts.length - 1].toLowerCase() === 'index') {
+    parts.pop();
+  }
+  if (parts.length >= 2) {
+    return parts[parts.length - 1];
+  }
+  if (parts.length === 1) {
+    return parts[0];
+  }
+  return explicit;
+}
+
 function isBackendLayoutPlaceholder(raw: unknown): boolean {
   if (raw === null || raw === undefined) return true;
   const s = String(raw).trim();
@@ -266,8 +298,21 @@ export function normalizeAuthRoutesFromBackend(
           .filter(child => !isLegacyBackendRoute(child as BackendMenuRoute))
           .filter(child => String((child as Record<string, unknown>).menuType || '').toUpperCase() !== 'F')
       : [];
-    const absolutePath = resolveBackendAbsolutePath(parentAbsPath, String(route.path ?? routeRecord.path ?? ''));
+    const hasRawChildren = rawChildren.length > 0;
+    const pathSegment = resolveBackendMenuPathSegment(routeRecord, hasRawChildren);
+    const absolutePath = resolveBackendAbsolutePath(parentAbsPath, pathSegment);
     let routeName = pathToElegantRouteName(absolutePath);
+
+    const rawComponentStr = String(route.component ?? routeRecord.component ?? '').trim();
+    const parentAbs = parentAbsPath ? normalizeLeadingSlash(parentAbsPath) : '';
+    // path 仍与父级相同时，用 component 推导的 viewKey 作为路由名，避免与目录路由 `system` 冲突
+    if (parentAbs && absolutePath === parentAbs) {
+      const viewKeyFromComponent = backendFilePathToViewKey(rawComponentStr);
+      if (viewKeyFromComponent) {
+        routeName = viewKeyFromComponent;
+      }
+    }
+
     if (!routeName) {
       routeName =
         String(route.name || routeRecord.routeName || routeRecord.menuName || routeRecord.name || 'menu')

@@ -458,6 +458,21 @@ export function updateConfig(data: Query) {
   return request({ url: '/system/config', method: 'put', data });
 }
 
+/** 分组配置页批量保存：与后端 SysConfigGroupSaveDTO 对齐，一次提交同一分组下多条已修改配置。 */
+export type SysConfigGroupSaveDTO = {
+  groupKey: string;
+  configs: Query[];
+};
+
+/**
+ * 按分组批量保存系统配置（新参数配置页保存动作）。
+ * @param data.groupKey - 配置分组标识（org / wechat / work_order / legacy）
+ * @param data.configs - 同组待保存配置项，需携带 id、configName、configKey、configValue、configType 等字段
+ */
+export function saveSystemConfigGroup(data: SysConfigGroupSaveDTO) {
+  return request({ url: '/system/config/grouped', method: 'put', data });
+}
+
 /** 与 jasic-ui `DELETE /system/config/:id`
  * @修改人 黄碧莲
  * @修改时间 2026-05-14

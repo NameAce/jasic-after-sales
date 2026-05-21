@@ -1,11 +1,12 @@
 <script setup lang="ts">
 /**
  * 参数配置 — 表单模式面板：按后端 groupKey 分组展示 Tab，每组内编辑该分组下的参数项。
- * 数据来源：GET /system/config/grouped（一次性返回各分组及配置项，默认不含 legacy）。
+ * 数据来源：GET /system/config/grouped（一次性返回各分组及配置项，默认不含 legacy）；
+ * 保存动作：PUT /system/config/grouped（同组批量保存，事务内落库并在提交后刷新缓存）。
  */
 import { computed, reactive, ref, watch } from 'vue';
 import type { FormInstance } from 'ant-design-vue';
-import { listSystemConfigGrouped, refreshConfigCache, updateConfig } from '@/service/api';
+import { listSystemConfigGrouped, refreshConfigCache, saveSystemConfigGroup } from '@/service/api';
 import { notifyOnceSuccessFromFlatResult } from '@/service/request/shared';
 import { useAuth } from '@/hooks/business/auth';
 
@@ -170,26 +171,27 @@ async function loadFormData() {
 }
 
 /**
- * 顺序保存多条已修改配置；任一条失败则中止并返回 false。
- * @param items - 待保存配置行
+ * 将待保存配置行组装为分组批量保存入参（与后端 SysConfigGroupSaveDTO 对齐）。
+ * 分组保存仅允许更新已存在记录的配置值与备注，定义字段须与库中一致。
+ * @param groupKey - 当前 Tab 对应的分组标识
+ * @param items - 本组内已修改的配置行
  * @param model - 当前分组可编辑值
  */
-async function saveChangedConfigItems(items: RowData[], model: Record<string, string>) {
-  return items.reduce<Promise<boolean>>(async (accPromise, item) => {
-    const acc = await accPromise;
-    if (!acc) return false;
-
-    const configKey = String(item.configKey || '');
-    const flat = await updateConfig({
-      ...item,
-      id: item.id ?? item.configId,
-      configValue: model[configKey]
-    });
-    if (flat && typeof flat === 'object' && 'error' in flat && (flat as { error?: unknown }).error) {
-      return false;
-    }
-    return true;
-  }, Promise.resolve(true));
+function buildGroupSavePayload(groupKey: string, items: RowData[], model: Record<string, string>) {
+  return {
+    groupKey,
+    configs: items.map(item => {
+      const configKey = String(item.configKey || '');
+      return {
+        id: item.id ?? item.configId,
+        configName: item.configName,
+        configKey,
+        configValue: model[configKey],
+        configType: item.configType,
+        remark: item.remark
+      };
+    })
+  };
 }
 
 /**
@@ -215,8 +217,11 @@ async function submitCurrentGroup() {
   }
   submitting.value = true;
   try {
-    const allSaved = await saveChangedConfigItems(changed, model);
-    if (!allSaved) return;
+    // 一次提交当前分组全部变更，走后端分组事务保存，避免逐条 PUT 导致部分成功部分失败。
+    const flat = await saveSystemConfigGroup(buildGroupSavePayload(activeGroupKey.value, changed, model));
+    if (flat && typeof flat === 'object' && 'error' in flat && (flat as { error?: unknown }).error) {
+      return;
+    }
 
     window.$message?.success?.('已保存');
     await loadFormData();

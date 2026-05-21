@@ -88,6 +88,21 @@ export interface WorkOrderHqSiteSummaryQuery {
   siteName?: string;
 }
 
+/** 总部网点工单只读列表展示状态（`GET /system/work-order/hq-site-orders`） */
+export type WorkOrderHqSiteOrdersDisplayStatus = 'ALL' | 'WAIT_ACCEPT' | 'IN_PROGRESS' | 'COMPLETED' | 'CLOSED';
+
+/** 总部查看某承修方网点工单列表查询参数 */
+export interface WorkOrderHqSiteOrdersQuery {
+  siteCompanyId: number;
+  displayStatus?: WorkOrderHqSiteOrdersDisplayStatus;
+  orderNo?: string;
+  customerName?: string;
+  customerMobile?: string;
+  barcode?: string;
+  pageNum?: number;
+  pageSize?: number;
+}
+
 export interface WorkOrderProxyCreateDTO {
   customerName?: string;
   customerMobile: string;
@@ -179,6 +194,14 @@ export function countWorkOrderStatus(params?: WorkOrderStatusCountQuery) {
  */
 export function listHqSiteSummary(params?: WorkOrderHqSiteSummaryQuery) {
   return request<WorkOrderHqSiteSummaryVO[]>({ url: '/system/work-order/hq-site-summary', method: 'get', params });
+}
+
+/**
+ * 总部查看指定承修方网点的只读工单分页列表。
+ * 数据范围由服务端按当前总部登录上下文注入。
+ */
+export function listHqSiteOrders(params: WorkOrderHqSiteOrdersQuery) {
+  return request<WorkOrderPageResult>({ url: '/system/work-order/hq-site-orders', method: 'get', params });
 }
 
 export function getWorkOrder(workOrderId: IdLike) {

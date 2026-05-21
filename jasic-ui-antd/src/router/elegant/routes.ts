@@ -406,6 +406,15 @@ export const generatedRoutes: GeneratedRoute[] = [
     },
     children: [
       {
+        name: 'system_branch',
+        path: '/system/branch',
+        component: 'view.system_branch',
+        meta: {
+          title: 'system_branch',
+          i18nKey: 'route.system_branch'
+        }
+      },
+      {
         name: 'system_menu',
         path: '/system/menu',
         component: 'view.system_menu',

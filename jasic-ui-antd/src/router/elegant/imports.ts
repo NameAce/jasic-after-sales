@@ -43,6 +43,7 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   "multi-menu_second_child_home": () => import("@/views/multi-menu/second_child_home/index.vue"),
   notify: () => import("@/views/notify/index.vue"),
   org: () => import("@/views/org/index.vue"),
+  system_branch: () => import("@/views/system/branch/index.vue"),
   system_menu: () => import("@/views/system/menu/index.vue"),
   "system_notify-scene": () => import("@/views/system/notify-scene/index.vue"),
   "system_notify-trace": () => import("@/views/system/notify-trace/index.vue"),

@@ -42,7 +42,10 @@ const newses = computed<NewsItem[]>(() =>
 /** 点击动态项跳转工单或消息中心 */
 function openNewsItem(item: NewsItem) {
   if (item.workOrderId) {
-    router.push({ name: 'after-sales_work-order', query: { detailId: String(item.workOrderId), fromNotify: '1' } });
+    router.push({
+      name: 'after-sales_work-order',
+      query: { detailId: String(item.workOrderId), fromNotify: '1' }
+    });
     return;
   }
   router.push({ path: '/notify', query: { box: 'HISTORY' } });
@@ -63,7 +66,7 @@ function openNewsItem(item: NewsItem) {
           <AListItemMeta :title="item.content" :description="item.time">
             <template #avatar>
               <img
-                src="/@fs/D:/companyProject/售后/jasic-after-sales/mp/aftersale/static/images/worker.png"
+                src="https://jasic-after.oss-cn-shenzhen.aliyuncs.com/uniapp/contractor/worker.png"
                 class="size-48px rd-1/2 object-cover"
               />
             </template>
