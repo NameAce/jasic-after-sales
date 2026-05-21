@@ -2,23 +2,21 @@
 /**
  * 平台超级管理员（subjectType=PLATFORM）专属首页：组织治理与运维监控，不含工单业务看板。
  */
-import { onMounted } from 'vue';
 import PlatformDashboardSection from './modules/platform-dashboard-section.vue';
 import PlatformHeaderBanner from './modules/platform-header-banner.vue';
 import PlatformOperLogChart from './modules/platform-oper-log-chart.vue';
 import PlatformOrgPieChart from './modules/platform-org-pie-chart.vue';
+import { useHomeDashboardOnMount } from './composables/use-home-dashboard-on-mount';
 import { usePlatformDashboard } from './composables/use-platform-dashboard';
 
 defineOptions({
   name: 'PlatformHomeIndex'
 });
 
-const { showDashboard, loadPlatformDashboard } = usePlatformDashboard();
+const { showDashboard, loaded, loadPlatformDashboard } = usePlatformDashboard();
 
-/** 进入平台首页时拉取聚合接口，供顶部横幅与看板区共用 */
-onMounted(() => {
-  loadPlatformDashboard();
-});
+/** 进入平台首页时拉取聚合接口，供顶部横幅与看板区共用；页签刷新时 force 重拉 */
+useHomeDashboardOnMount(loadPlatformDashboard, loaded);
 </script>
 
 <template>

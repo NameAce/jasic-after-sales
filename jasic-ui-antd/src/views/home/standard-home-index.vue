@@ -3,8 +3,9 @@
  * 普通业务账号首页（网点等，非总部、非平台）：横幅、工单状态卡片、趋势图与通知动态。
  * 不含总部网点汇总看板（HqDashboardSection / HqSiteBarChart）。
  */
-import { computed, onMounted } from 'vue';
+import { computed } from 'vue';
 import { useAuth } from '@/hooks/business/auth';
+import { useHomeDashboardOnMount } from './composables/use-home-dashboard-on-mount';
 import { useServiceDashboard } from './composables/use-service-dashboard';
 import HeaderBanner from './modules/header-banner.vue';
 import CardData from './modules/card-data.vue';
@@ -18,14 +19,12 @@ defineOptions({
 });
 
 const { hasAuth } = useAuth();
-const { loadServiceDashboard } = useServiceDashboard();
+const { loaded, loadServiceDashboard } = useServiceDashboard();
 /** 是否具备工单列表权限（控制统计卡片与图表区域） */
 const canViewWorkOrder = computed(() => hasAuth('workorder:list'));
 
-/** 进入服务主体首页时拉取 `/dashboard/service/home` */
-onMounted(() => {
-  loadServiceDashboard();
-});
+/** 进入服务主体首页时拉取 `/dashboard/service/home`；页签刷新时 force 重拉 */
+useHomeDashboardOnMount(loadServiceDashboard, loaded);
 </script>
 
 <template>

@@ -62,7 +62,8 @@ export function useServiceDashboard() {
   const latestHistoryTodos = computed(() => state.latestHistoryTodos);
 
   /**
-   * 拉取服务主体首页聚合数据；同一会话内默认只请求一次，force 可强制刷新。
+   * 拉取服务主体首页聚合数据；同一会话内默认只请求一次。
+   * @param force 为 true 时忽略 loaded 缓存（页签栏刷新 remount 首页时须传 true）
    */
   async function loadServiceDashboard(force = false) {
     if (state.loading) return;
