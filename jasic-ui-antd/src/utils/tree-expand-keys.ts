@@ -14,10 +14,7 @@ function toMenuNumericId(raw: string | number): number {
  * @param includeHalfChecked - 是否合并半选父节点（非严格联动场景保存时可传 true）
  * @returns key 列表
  */
-export function toTreeCheckedKeyList(
-  checkedKeys: unknown,
-  includeHalfChecked = false
-): Array<string | number> {
+export function toTreeCheckedKeyList(checkedKeys: unknown, includeHalfChecked = false): Array<string | number> {
   if (Array.isArray(checkedKeys)) {
     return checkedKeys;
   }
@@ -114,35 +111,48 @@ export function buildLinkedTreeCheckedState(
     return true;
   }
 
+  /** 勾选节点时，将未在 idSet 中的祖先标为半选 */
+  function markAncestorHalfChecked(ancestors: Array<{ num: number; key: string | number }>): void {
+    for (const a of ancestors) {
+      if (!idSet.has(a.num)) {
+        halfSet.add(a.key);
+        checkedSet.delete(a.key);
+      }
+    }
+  }
+
+  /** 处理单个树节点：更新勾选/半选状态并递归子节点 */
+  function visitWalkNode(
+    node: Record<string, unknown>,
+    rawKey: unknown,
+    ancestors: Array<{ num: number; key: string | number }>
+  ): void {
+    const num = toMenuNumericId(rawKey as string | number);
+    if (Number.isNaN(num)) {
+      return;
+    }
+    const key = rawKey as string | number;
+    const path = [...ancestors, { num, key }];
+    const children = Array.isArray(node.children) ? node.children : [];
+
+    if (idSet.has(num)) {
+      if (children.length && !allDescendantsInSet(node)) {
+        halfSet.add(key);
+      } else {
+        checkedSet.add(key);
+      }
+      markAncestorHalfChecked(ancestors);
+    }
+
+    if (children.length) {
+      walk(children, path);
+    }
+  }
+
   function walk(list: unknown[], ancestors: Array<{ num: number; key: string | number }>): void {
     for (const raw of list || []) {
       const node = raw as Record<string, unknown>;
-      const rawKey = node[nodeKey];
-      const num = toMenuNumericId(rawKey as string | number);
-      if (Number.isNaN(num)) {
-        continue;
-      }
-      const key = rawKey as string | number;
-      const path = [...ancestors, { num, key }];
-      const children = Array.isArray(node.children) ? node.children : [];
-
-      if (idSet.has(num)) {
-        if (children.length && !allDescendantsInSet(node)) {
-          halfSet.add(key);
-        } else {
-          checkedSet.add(key);
-        }
-        for (const a of ancestors) {
-          if (!idSet.has(a.num)) {
-            halfSet.add(a.key);
-            checkedSet.delete(a.key);
-          }
-        }
-      }
-
-      if (children.length) {
-        walk(children, path);
-      }
+      visitWalkNode(node, node[nodeKey], ancestors);
     }
   }
 
@@ -196,13 +206,12 @@ export function resolveMenuTreeCheckedKeys(
   const seen = new Set<number>();
   for (const raw of menuIds) {
     const num = toMenuNumericId(raw);
-    if (Number.isNaN(num) || seen.has(num)) {
-      continue;
-    }
-    const treeKey = keyByNumericId.get(num);
-    if (treeKey !== undefined) {
-      seen.add(num);
-      resolved.push(treeKey);
+    if (!Number.isNaN(num) && !seen.has(num)) {
+      const treeKey = keyByNumericId.get(num);
+      if (treeKey !== undefined) {
+        seen.add(num);
+        resolved.push(treeKey);
+      }
     }
   }
   return resolved;
@@ -233,15 +242,14 @@ export function expandCheckedMenuIdsWithAncestors(
       const node = raw as Record<string, unknown>;
       const rawKey = node[nodeKey];
       const id = typeof rawKey === 'number' ? rawKey : Number(String(rawKey ?? ''));
-      if (Number.isNaN(id)) {
-        continue;
-      }
-      const children = Array.isArray(node.children) ? node.children : [];
-      if (checked.has(id)) {
-        ancestors.forEach(a => result.add(a));
-      }
-      if (children.length) {
-        walk(children, [...ancestors, id]);
+      if (!Number.isNaN(id)) {
+        const children = Array.isArray(node.children) ? node.children : [];
+        if (checked.has(id)) {
+          ancestors.forEach(a => result.add(a));
+        }
+        if (children.length) {
+          walk(children, [...ancestors, id]);
+        }
       }
     }
   }

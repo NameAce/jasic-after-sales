@@ -44,13 +44,13 @@ import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 import { adaptiveModalWidth } from '@/hooks/common/modal-form-layout';
 import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
 import { useTableScroll } from '@/hooks/common/table';
+import { useAuth } from '@/hooks/business/auth';
 import {
   buildLinkedTreeCheckedState,
   computeExpandedKeysForCheckedMenuTree,
   expandCheckedMenuIdsWithAncestors
 } from '@/utils/tree-expand-keys';
 import { createAntTableActionColumn, isTableActionColumnKey } from '@/utils/table-action-width';
-import { useAuth } from '@/hooks/business/auth';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
 import { applyDateTimeColumnRender } from '@/utils/datetime';
 import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
@@ -440,6 +440,36 @@ function formatCompanyRegion(record: RowData) {
 // 是否为签约相关 Tab（总部一级 / 一级二级）
 const isContractPageTab = computed(() => activeTab.value === 'hqFirst' || activeTab.value === 'firstSecond');
 
+/** 各 Tab 行内操作按钮权限（任一即可展示操作列） */
+const ORG_TAB_ROW_ACTION_AUTH: Record<TabKey, string[]> = {
+  company: ['org:company:update', 'org:company:remove'],
+  hqFirst: ['org:contract:update', 'org:contract:remove'],
+  firstSecond: ['org:contract:remove'],
+  external: ['org:company:add'],
+  area: ['system:region:update', 'system:region:remove'],
+  companyType: ['org:companyType:update', 'system:menu:update', 'org:companyType:remove']
+};
+
+/** 当前 Tab 是否展示行内操作列 */
+const showOrgTableActionColumn = computed(() => hasAuth(ORG_TAB_ROW_ACTION_AUTH[activeTab.value] || []));
+
+/** 各 Tab 操作列宽（本 Tab 按钮一排展示即可） */
+const ORG_TAB_ACTION_COL_WIDTH: Record<TabKey, number> = {
+  company: 120,
+  hqFirst: 120,
+  firstSecond: 72,
+  external: 88,
+  area: 120,
+  companyType: 220
+};
+
+function orgActionColumn(tab: TabKey) {
+  return createAntTableActionColumn({
+    dataIndex: 'actions',
+    width: ORG_TAB_ACTION_COL_WIDTH[tab]
+  });
+}
+
 // 按当前 Tab 切换表格列定义
 const columns = computed(() => {
   const rawColumns = (() => {
@@ -785,36 +815,6 @@ const crmFsImportColumns = applyDateTimeColumnRender([
 
 // 主表格当前展示的列（与 columns 同步）
 const displayColumns = computed(() => columns.value);
-
-/** 各 Tab 行内操作按钮权限（任一即可展示操作列） */
-const ORG_TAB_ROW_ACTION_AUTH: Record<TabKey, string[]> = {
-  company: ['org:company:update', 'org:company:remove'],
-  hqFirst: ['org:contract:update', 'org:contract:remove'],
-  firstSecond: ['org:contract:remove'],
-  external: ['org:company:add'],
-  area: ['system:region:update', 'system:region:remove'],
-  companyType: ['org:companyType:update', 'system:menu:update', 'org:companyType:remove']
-};
-
-/** 当前 Tab 是否展示行内操作列 */
-const showOrgTableActionColumn = computed(() => hasAuth(ORG_TAB_ROW_ACTION_AUTH[activeTab.value] || []));
-
-/** 各 Tab 操作列宽（本 Tab 按钮一排展示即可） */
-const ORG_TAB_ACTION_COL_WIDTH: Record<TabKey, number> = {
-  company: 120,
-  hqFirst: 120,
-  firstSecond: 72,
-  external: 88,
-  area: 120,
-  companyType: 220
-};
-
-function orgActionColumn(tab: TabKey) {
-  return createAntTableActionColumn({
-    dataIndex: 'actions',
-    width: ORG_TAB_ACTION_COL_WIDTH[tab]
-  });
-}
 
 // 主表格横向滚动宽度估计值
 const crmTableScrollX = computed(() => {
@@ -1892,10 +1892,10 @@ async function openCompanyTypeMenuAssign(record: RowData) {
     const rawMenuIds = Array.isArray(idsRes.data)
       ? (idsRes.data as unknown[]).map(x => Number(x)).filter(id => !Number.isNaN(id))
       : [];
-    companyTypeMenuCheckedKeys.value = buildLinkedTreeCheckedState(
-      companyTypeMenuTreeData.value,
-      rawMenuIds
-    ) as { checked: Key[]; halfChecked: Key[] };
+    companyTypeMenuCheckedKeys.value = buildLinkedTreeCheckedState(companyTypeMenuTreeData.value, rawMenuIds) as {
+      checked: Key[];
+      halfChecked: Key[];
+    };
     companyTypeMenuExpandedKeys.value = computeExpandedKeysForCheckedMenuTree(
       companyTypeMenuTreeData.value,
       companyTypeMenuCheckedKeys.value
@@ -1913,10 +1913,7 @@ async function submitCompanyTypeMenuAssign() {
   if (!companyTypeMenuTypeCode.value) return;
   companyTypeMenuSubmitting.value = true;
   try {
-    const menuIds = expandCheckedMenuIdsWithAncestors(
-      companyTypeMenuTreeData.value,
-      companyTypeMenuCheckedKeys.value
-    );
+    const menuIds = expandCheckedMenuIdsWithAncestors(companyTypeMenuTreeData.value, companyTypeMenuCheckedKeys.value);
     const r = await assignTypeCodeMenus(companyTypeMenuTypeCode.value, menuIds);
     if (!notifyOnceSuccessFromFlatResult(r, '菜单分配保存成功')) return;
     companyTypeMenuOpen.value = false;

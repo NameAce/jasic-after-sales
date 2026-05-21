@@ -110,53 +110,53 @@ const { tableWrapperRef, scrollConfig } = useTableScroll(notifyTraceTableScrollX
 const columns = computed(() =>
   withAntTableActionColumn<any>(
     applyDateTimeColumnRender([
-  {
-    title: '业务编号',
-    dataIndex: 'bizNo',
-    key: 'bizNo',
-    width: 140,
-    ellipsis: true
-  },
-  {
-    title: '通知场景',
-    dataIndex: 'sceneCode',
-    key: 'scene',
-    width: 190,
-    ellipsis: true
-  },
-  {
-    title: '事件状态',
-    dataIndex: 'eventStatus',
-    key: 'eventStatus',
-    width: 90
-  },
-  {
-    title: '站内产物',
-    dataIndex: 'messageCount',
-    key: 'messageSummary',
-    width: 240,
-    ellipsis: true
-  },
-  {
-    title: '外部分发',
-    dataIndex: 'dispatchCount',
-    key: 'dispatchSummary',
-    width: 240,
-    ellipsis: true
-  },
-  {
-    title: '最近错误',
-    dataIndex: 'eventErrorMessage',
-    key: 'eventErrorMessage',
-    width: 160,
-    ellipsis: true
-  },
-  {
-    title: '重试次数',
-    dataIndex: 'eventRetryCount',
-    key: 'eventRetryCount',
-    width: 80
-  },
+      {
+        title: '业务编号',
+        dataIndex: 'bizNo',
+        key: 'bizNo',
+        width: 140,
+        ellipsis: true
+      },
+      {
+        title: '通知场景',
+        dataIndex: 'sceneCode',
+        key: 'scene',
+        width: 190,
+        ellipsis: true
+      },
+      {
+        title: '事件状态',
+        dataIndex: 'eventStatus',
+        key: 'eventStatus',
+        width: 90
+      },
+      {
+        title: '站内产物',
+        dataIndex: 'messageCount',
+        key: 'messageSummary',
+        width: 240,
+        ellipsis: true
+      },
+      {
+        title: '外部分发',
+        dataIndex: 'dispatchCount',
+        key: 'dispatchSummary',
+        width: 240,
+        ellipsis: true
+      },
+      {
+        title: '最近错误',
+        dataIndex: 'eventErrorMessage',
+        key: 'eventErrorMessage',
+        width: 160,
+        ellipsis: true
+      },
+      {
+        title: '重试次数',
+        dataIndex: 'eventRetryCount',
+        key: 'eventRetryCount',
+        width: 80
+      },
       { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 154 }
     ]),
     showNotifyTraceTableActionColumn.value,

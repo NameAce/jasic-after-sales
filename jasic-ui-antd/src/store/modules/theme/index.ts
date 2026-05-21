@@ -48,6 +48,13 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
     return buildThemeStorageScopeId(uid, roleList);
   });
 
+  const initialScopeId = themeStorageScopeId.value;
+  migrateLegacyThemeToScoped(initialScopeId);
+
+  // 当前主题设置（布局、色板、水印等）；首次按当前分区 hydrate，登录角色变化时由 watch 再拉取
+  const settings = reactive<App.Theme.ThemeSetting>(resolveThemeSettingsForScope(initialScopeId));
+  persistActiveThemeScopeId(initialScopeId);
+
   /**
    * 从本地分区合并主题并写回内存；使用 reactive + Object.assign，保证切换角色后 toRefs 仍响应。
    *
@@ -60,13 +67,6 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
     Object.assign(settings, next);
     persistActiveThemeScopeId(scopeId);
   }
-
-  const initialScopeId = themeStorageScopeId.value;
-  migrateLegacyThemeToScoped(initialScopeId);
-
-  // 当前主题设置（布局、色板、水印等）；首次按当前分区 hydrate，登录角色变化时由 watch 再拉取
-  const settings = reactive<App.Theme.ThemeSetting>(resolveThemeSettingsForScope(initialScopeId));
-  persistActiveThemeScopeId(initialScopeId);
 
   /**
    * 将当前身份下的主题恢复为项目默认（清除该用户+角色分区的本地缓存）。

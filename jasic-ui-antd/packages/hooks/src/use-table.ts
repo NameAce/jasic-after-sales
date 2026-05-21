@@ -137,14 +137,13 @@ export default function useHookTable<A extends ApiFn, T, C>(config: TableConfig<
   function resetSearchParams() {
     const defaults = jsonClone(apiParams ?? {}) as Record<string, unknown>;
     const snapshot = searchParams as Record<string, unknown>;
-    for (const key of Object.keys(snapshot)) {
-      if (!(key in defaults)) {
-        delete snapshot[key];
-      }
+    const extraKeys = Object.keys(snapshot).filter(key => !(key in defaults));
+    for (let i = 0; i < extraKeys.length; i += 1) {
+      Reflect.deleteProperty(snapshot, extraKeys[i]);
     }
     Object.assign(searchParams, defaults);
     // 重置后按默认条件刷新列表，避免仅靠子组件重置而表格仍显示旧筛选结果。
-    void getData();
+    getData();
   }
 
   if (immediate) {

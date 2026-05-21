@@ -10,7 +10,12 @@ import { getRgbOfColor } from '@sa/utils';
 import { defu } from 'defu';
 import { toggleHtmlClass } from '@/utils/common';
 import { localStg } from '@/utils/storage';
-import { readLegacyThemeSettings, readScopedPublishOverrideFlag, readScopedThemeSettings, writeScopedPublishOverrideFlag } from '@/utils/theme-storage-scope';
+import {
+  readLegacyThemeSettings,
+  readScopedPublishOverrideFlag,
+  readScopedThemeSettings,
+  writeScopedPublishOverrideFlag
+} from '@/utils/theme-storage-scope';
 import { overrideThemeSettings, themeSettings } from '@/theme/settings';
 import { themeVars } from '@/theme/vars';
 

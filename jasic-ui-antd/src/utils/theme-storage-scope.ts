@@ -26,7 +26,7 @@ export function buildThemeStorageScopeId(userId: string, roleKeys: readonly stri
   const uid = String(userId || '').trim() || 'guest';
   const roles = Array.from(new Set(roleKeys.filter(Boolean))).sort();
   /** 选用 ASCII 分段符，降低与 roleKey 内容冲突的概率 */
-  return `${uid}\u001e${roles.join('\u001e')}`;
+  return `${uid}\u001E${roles.join('\u001E')}`;
 }
 
 /**
@@ -39,7 +39,7 @@ function encodeScopeKeySegment(scopeId: string): string {
   return btoa(unescape(encodeURIComponent(scopeId)))
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
-    .replace(/=+$/, '');
+    .replace(/[=]+$/, '');
 }
 
 /**
@@ -77,10 +77,7 @@ export function readScopedPublishOverrideFlag(scopeId: string): string | null {
  * @returns {void}
  */
 export function writeScopedPublishOverrideFlag(scopeId: string, buildTime: string): void {
-  localStorage.setItem(
-    scopedPhysicalKey('themePublishOverrideFlag', scopeId),
-    JSON.stringify(buildTime)
-  );
+  localStorage.setItem(scopedPhysicalKey('themePublishOverrideFlag', scopeId), JSON.stringify(buildTime));
 }
 
 /**

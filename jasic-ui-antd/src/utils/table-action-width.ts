@@ -16,7 +16,7 @@ export const TABLE_ACTION_COLUMN_KEYS = new Set(['actions', 'operate']);
  * @param key - 列 key
  */
 export function isTableActionColumnKey(key?: string | number) {
-  return key != null && TABLE_ACTION_COLUMN_KEYS.has(String(key));
+  return key !== undefined && key !== null && TABLE_ACTION_COLUMN_KEYS.has(String(key));
 }
 
 /**
@@ -25,11 +25,7 @@ export function isTableActionColumnKey(key?: string | number) {
  * @param visible - 是否展示操作列
  * @param actionColumn - 操作列配置
  */
-export function withAntTableActionColumn<T>(
-  columns: readonly T[],
-  visible: boolean,
-  actionColumn: T
-): T[] {
+export function withAntTableActionColumn<T>(columns: readonly T[], visible: boolean, actionColumn: T): T[] {
   const base = columns.filter(col => !isTableActionColumnKey((col as { key?: string | number }).key));
   return visible ? [...base, actionColumn] : base;
 }

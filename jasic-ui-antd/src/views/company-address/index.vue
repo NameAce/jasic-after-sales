@@ -15,6 +15,7 @@ import {
 } from '@/service/api';
 import { notifyOnceSuccessFromFlatResult } from '@/service/request/shared';
 import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
+import { useAuth } from '@/hooks/business/auth';
 import {
   type RegionCascaderOption,
   composeAddressWithRegion,
@@ -25,7 +26,6 @@ import {
 } from '@/utils/china-region';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
 import { createAntTableActionColumn, withAntTableActionColumn } from '@/utils/table-action-width';
-import { useAuth } from '@/hooks/business/auth';
 
 type RowData = Record<string, any>;
 

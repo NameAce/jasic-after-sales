@@ -43,6 +43,10 @@ const USER_ROW_ACTION_AUTH_CODES = [
   'system:user:remove'
 ];
 
+// 会话与 RBAC（列表按钮显隐）
+const authStore = useAuthStore();
+const { hasAuth } = useAuth();
+
 /** 当前角色是否具备任一用户行内操作权限（含总部绑定大区） */
 const showUserTableActionColumn = computed(
   () =>
@@ -104,9 +108,6 @@ const regionOpen = ref(false);
 const regionSubmitting = ref(false);
 const regionUserId = ref<number | undefined>(undefined);
 const regionValues = ref<number[]>([]);
-// 会话与 RBAC（列表按钮显隐）
-const authStore = useAuthStore();
-const { hasAuth } = useAuth();
 
 const systemUserSearchFilter = usePageSearchFilterCollapse(4);
 
