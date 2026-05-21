@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS `sys_config` (
   `config_key`   varchar(100)     NOT NULL                COMMENT '参数键名',
   `config_value` text             NOT NULL                COMMENT '参数键值',
   `config_type`  tinyint unsigned DEFAULT 0               COMMENT '是否内置（1=是，0=否）',
+  `group_key`    varchar(64)      NOT NULL DEFAULT 'org'  COMMENT '配置分组标识',
   `remark`       varchar(256)     DEFAULT NULL            COMMENT '备注',
   `create_time`  datetime         NOT NULL                COMMENT '创建时间',
   `update_time`  datetime         NOT NULL                COMMENT '更新时间',
@@ -399,7 +400,7 @@ WHERE NOT EXISTS (SELECT 1 FROM `sys_dict_data` WHERE `dict_type` = 'sys_oper_ty
 -- -------------------------------------------
 -- 11. 初始化参数
 -- -------------------------------------------
-INSERT INTO `sys_config` (`config_name`, `config_key`, `config_value`, `config_type`, `remark`, `create_time`, `update_time`)
-SELECT '公司管理员初始密码', 'org.company.adminInitPassword', 'Jasic@123', 1, '创建公司时默认管理员账号的初始密码', NOW(), NOW()
+INSERT INTO `sys_config` (`config_name`, `config_key`, `config_value`, `config_type`, `group_key`, `remark`, `create_time`, `update_time`)
+SELECT '公司管理员初始密码', 'org.company.adminInitPassword', 'Jasic@123', 1, 'org', '创建公司时默认管理员账号的初始密码', NOW(), NOW()
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM `sys_config` WHERE `config_key` = 'org.company.adminInitPassword');

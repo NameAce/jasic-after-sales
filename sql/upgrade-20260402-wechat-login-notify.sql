@@ -17,22 +17,22 @@ PREPARE stmt FROM @wechat_phone_sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
-INSERT INTO `sys_config` (`config_name`, `config_key`, `config_value`, `config_type`, `remark`, `create_time`, `update_time`)
-SELECT 'B端小程序AppID', 'wechat.mp.b.appid', '', 0, 'S8.3 真实微信登录链路配置，默认留空', NOW(), NOW()
+INSERT INTO `sys_config` (`config_name`, `config_key`, `config_value`, `config_type`, `group_key`, `remark`, `create_time`, `update_time`)
+SELECT 'B端小程序AppID', 'wechat.mp.b.appid', '', 0, 'wechat', 'S8.3 真实微信登录链路配置，默认留空', NOW(), NOW()
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM `sys_config` WHERE `config_key` = 'wechat.mp.b.appid');
 
-INSERT INTO `sys_config` (`config_name`, `config_key`, `config_value`, `config_type`, `remark`, `create_time`, `update_time`)
-SELECT 'B端小程序Secret', 'wechat.mp.b.secret', '', 0, 'S8.3 真实微信登录链路配置，默认留空', NOW(), NOW()
+INSERT INTO `sys_config` (`config_name`, `config_key`, `config_value`, `config_type`, `group_key`, `remark`, `create_time`, `update_time`)
+SELECT 'B端小程序Secret', 'wechat.mp.b.secret', '', 0, 'wechat', 'S8.3 真实微信登录链路配置，默认留空', NOW(), NOW()
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM `sys_config` WHERE `config_key` = 'wechat.mp.b.secret');
 
-INSERT INTO `sys_config` (`config_name`, `config_key`, `config_value`, `config_type`, `remark`, `create_time`, `update_time`)
-SELECT 'C端小程序AppID', 'wechat.mp.c.appid', '', 0, 'S8.3 真实微信登录链路配置，默认留空', NOW(), NOW()
+INSERT INTO `sys_config` (`config_name`, `config_key`, `config_value`, `config_type`, `group_key`, `remark`, `create_time`, `update_time`)
+SELECT 'C端小程序AppID', 'wechat.mp.c.appid', '', 0, 'wechat', 'S8.3 真实微信登录链路配置，默认留空', NOW(), NOW()
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM `sys_config` WHERE `config_key` = 'wechat.mp.c.appid');
 
-INSERT INTO `sys_config` (`config_name`, `config_key`, `config_value`, `config_type`, `remark`, `create_time`, `update_time`)
-SELECT 'C端小程序Secret', 'wechat.mp.c.secret', '', 0, 'S8.3 真实微信登录链路配置，默认留空', NOW(), NOW()
+INSERT INTO `sys_config` (`config_name`, `config_key`, `config_value`, `config_type`, `group_key`, `remark`, `create_time`, `update_time`)
+SELECT 'C端小程序Secret', 'wechat.mp.c.secret', '', 0, 'wechat', 'S8.3 真实微信登录链路配置，默认留空', NOW(), NOW()
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM `sys_config` WHERE `config_key` = 'wechat.mp.c.secret');

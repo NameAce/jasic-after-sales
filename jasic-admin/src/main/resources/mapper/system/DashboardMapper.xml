@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jasic.aftersales.system.mapper.DashboardMapper">
+
+    <sql id="TodoTargetFilter">
+        (
+            m.target_type = 'IN_APP_TODO'
+            OR m.message_type = 'IN_APP_TODO'
+            OR m.message_type = 'TODO'
+        )
+    </sql>
+
+    <sql id="RelatedCompanyScopeCondition">
+        (
+            w.create_company_id IN
+            <foreach collection="query.accessContext.relatedCompanyIds" item="companyId" open="(" separator="," close=")">
+                #{companyId}
+            </foreach>
+            OR w.current_accept_company_id IN
+            <foreach collection="query.accessContext.relatedCompanyIds" item="companyId" open="(" separator="," close=")">
+                #{companyId}
+            </foreach>
+            OR EXISTS (
+                SELECT 1
+                FROM work_order_participant rp
+                WHERE rp.work_order_id = w.id
+                  AND rp.company_id IN
+                  <foreach collection="query.accessContext.relatedCompanyIds" item="companyId" open="(" separator="," close=")">
+                      #{companyId}
+                  </foreach>
+            )
+        )
+    </sql>
+
+    <sql id="CurrentUserHistoryParticipationCondition">
+        EXISTS (
+            SELECT 1
+            FROM work_order_user_participant up
+            WHERE up.work_order_id = w.id
+              AND up.company_id = #{query.accessContext.currentCompanyId}
+              AND up.user_id = #{query.accessContext.currentUserId}
+        )
+    </sql>
+
+    <sql id="CurrentUserAllVisibilityCondition">
+        (
+            w.assigned_user_id = #{query.accessContext.currentUserId}
+            OR <include refid="CurrentUserHistoryParticipationCondition" />
+        )
+    </sql>
+
+    <sql id="WorkOrderVisibilityCondition">
+        <if test="query.accessContext.currentCompanyId != null">
+            <choose>
+                <when test="query.viewScope == 'HISTORY'">
+                    <choose>
+                        <when test="query.accessContext.subjectType == 'HQ'">
+                            AND w.hq_company_id = #{query.accessContext.currentCompanyId}
+                            AND w.current_accept_company_id &lt;&gt; #{query.accessContext.currentCompanyId}
+                            AND p.company_id = #{query.accessContext.currentCompanyId}
+                            AND p.is_current_handler = 0
+                            <if test="query.accessContext.dataScope == 'SELF'">
+                                <choose>
+                                    <when test="query.accessContext.currentUserId != null">
+                                        AND <include refid="CurrentUserHistoryParticipationCondition" />
+                                    </when>
+                                    <otherwise>
+                                        AND 1 = 0
+                                    </otherwise>
+                                </choose>
+                            </if>
+                            <choose>
+                                <when test="query.accessContext.dataScope == 'REGION'">
+                                    <choose>
+                                        <when test="query.accessContext.relatedCompanyIds != null and query.accessContext.relatedCompanyIds.size() > 0">
+                                            AND <include refid="RelatedCompanyScopeCondition" />
+                                        </when>
+                                        <otherwise>
+                                            AND 1 = 0
+                                        </otherwise>
+                                    </choose>
+                                </when>
+                                <otherwise>
+                                </otherwise>
+                            </choose>
+                        </when>
+                        <otherwise>
+                            AND p.company_id = #{query.accessContext.currentCompanyId}
+                            AND p.is_current_handler = 0
+                            <if test="query.accessContext.dataScope == 'SELF'">
+                                <choose>
+                                    <when test="query.accessContext.currentUserId != null">
+                                        AND <include refid="CurrentUserHistoryParticipationCondition" />
+                                    </when>
+                                    <otherwise>
+                                        AND 1 = 0
+                                    </otherwise>
+                                </choose>
+                            </if>
+                        </otherwise>
+                    </choose>
+                </when>
+                <when test="query.viewScope == 'ALL'">
+                    <choose>
+                        <when test="query.accessContext.subjectType == 'HQ'">
+                            <choose>
+                                <when test="query.accessContext.dataScope == 'REGION'">
+                                    <choose>
+                                        <when test="query.accessContext.relatedCompanyIds != null and query.accessContext.relatedCompanyIds.size() > 0">
+                                            AND w.hq_company_id = #{query.accessContext.currentCompanyId}
+                                            AND <include refid="RelatedCompanyScopeCondition" />
+                                        </when>
+                                        <otherwise>
+                                            AND 1 = 0
+                                        </otherwise>
+                                    </choose>
+                                </when>
+                                <otherwise>
+                                    AND (
+                                        w.hq_company_id = #{query.accessContext.currentCompanyId}
+                                        AND (
+                                        w.current_accept_company_id = #{query.accessContext.currentCompanyId}
+                                        OR p.company_id = #{query.accessContext.currentCompanyId}
+                                        )
+                                    )
+                                </otherwise>
+                            </choose>
+                        </when>
+                        <otherwise>
+                            AND (
+                                w.current_accept_company_id = #{query.accessContext.currentCompanyId}
+                                OR p.company_id = #{query.accessContext.currentCompanyId}
+                                <if test="query.accessContext.relatedCompanyIds != null and query.accessContext.relatedCompanyIds.size() > 0">
+                                    OR w.current_accept_company_id IN
+                                    <foreach collection="query.accessContext.relatedCompanyIds" item="companyId" open="(" separator="," close=")">
+                                        #{companyId}
+                                    </foreach>
+                                    OR EXISTS (
+                                        SELECT 1
+                                        FROM work_order_participant sp
+                                        WHERE sp.work_order_id = w.id
+                                          AND sp.company_id IN
+                                          <foreach collection="query.accessContext.relatedCompanyIds" item="companyId" open="(" separator="," close=")">
+                                              #{companyId}
+                                          </foreach>
+                                    )
+                                </if>
+                            )
+                        </otherwise>
+                    </choose>
+                </when>
+                <otherwise>
+                    AND w.current_accept_company_id = #{query.accessContext.currentCompanyId}
+                    <if test="query.accessContext.subjectType == 'HQ' and query.accessContext.dataScope == 'REGION'">
+                        <choose>
+                            <when test="query.accessContext.relatedCompanyIds != null and query.accessContext.relatedCompanyIds.size() > 0">
+                                AND w.hq_company_id = #{query.accessContext.currentCompanyId}
+                                AND <include refid="RelatedCompanyScopeCondition" />
+                            </when>
+                            <otherwise>
+                                AND 1 = 0
+                            </otherwise>
+                        </choose>
+                    </if>
+                </otherwise>
+            </choose>
+        </if>
+        <if test="query.hasTransfer != null">
+            AND w.has_transfer = #{query.hasTransfer}
+        </if>
+        <if test="query.accessContext.dataScope == 'SELF' and query.accessContext.currentUserId != null">
+            <choose>
+                <when test="query.viewScope == 'ALL'">
+                    AND <include refid="CurrentUserAllVisibilityCondition" />
+                </when>
+                <when test="query.viewScope != 'HISTORY'">
+                    AND w.assigned_user_id = #{query.accessContext.currentUserId}
+                </when>
+            </choose>
+        </if>
+    </sql>
+
+    <select id="selectTodoStats" resultType="com.jasic.aftersales.system.domain.vo.dashboard.DashboardTodoStatsVO">
+        SELECT
+            SUM(CASE WHEN m.todo_status IN ('PENDING', 'READ') THEN 1 ELSE 0 END) AS activeTodoCount,
+            SUM(CASE WHEN m.todo_status IN ('DONE', 'INVALID') THEN 1 ELSE 0 END) AS historyTodoCount
+        FROM sys_notify_message m
+        WHERE m.receiver_id = #{query.receiverId}
+          AND m.receiver_company_id = #{query.receiverCompanyId}
+          AND <include refid="TodoTargetFilter" />
+    </select>
+
+    <select id="selectActiveTodoTrend" resultType="com.jasic.aftersales.system.domain.vo.dashboard.DashboardCountByDayVO">
+        SELECT
+            DATE_FORMAT(m.create_time, '%Y-%m-%d') AS dayKey,
+            COUNT(1) AS countNum
+        FROM sys_notify_message m
+        WHERE m.receiver_id = #{query.receiverId}
+          AND m.receiver_company_id = #{query.receiverCompanyId}
+          AND <include refid="TodoTargetFilter" />
+          AND m.todo_status IN ('PENDING', 'READ')
+          AND m.create_time &gt;= #{query.startTime}
+          AND m.create_time &lt; #{query.endTime}
+        GROUP BY DATE_FORMAT(m.create_time, '%Y-%m-%d')
+        ORDER BY dayKey ASC
+    </select>
+
+    <select id="selectCreatedWorkOrderTrend" resultType="com.jasic.aftersales.system.domain.vo.dashboard.DashboardCountByDayVO">
+        SELECT
+            DATE_FORMAT(w.create_time, '%Y-%m-%d') AS dayKey,
+            COUNT(1) AS countNum
+        FROM work_order w
+        LEFT JOIN work_order_participant p
+            ON p.work_order_id = w.id
+            AND p.company_id = #{query.accessContext.currentCompanyId}
+        <where>
+            <include refid="WorkOrderVisibilityCondition" />
+            AND w.create_time &gt;= #{query.startTime}
+            AND w.create_time &lt; #{query.endTime}
+        </where>
+        GROUP BY DATE_FORMAT(w.create_time, '%Y-%m-%d')
+        ORDER BY dayKey ASC
+    </select>
+
+    <select id="selectPlatformOverviewStats" resultType="com.jasic.aftersales.system.domain.vo.dashboard.DashboardPlatformOverviewStatsVO">
+        SELECT
+            (SELECT COUNT(1) FROM sys_company) AS companyTotal,
+            (SELECT COUNT(1) FROM sys_company WHERE status = 1) AS enabledCompanyTotal,
+            (SELECT COUNT(1) FROM sys_user WHERE is_deleted = 0) AS userTotal,
+            (SELECT COUNT(1) FROM sys_role) AS roleTotal,
+            (SELECT COUNT(1) FROM notify_scene) AS notifySceneTotal
+    </select>
+
+    <select id="selectSubjectTypeDistribution" resultType="com.jasic.aftersales.system.domain.vo.dashboard.DashboardSubjectTypeCountVO">
+        SELECT
+            t.subject_type AS subjectType,
+            COUNT(1) AS countNum
+        FROM sys_company c
+        JOIN sys_company_type t ON t.type_code = c.type_code
+        GROUP BY t.subject_type
+    </select>
+
+    <select id="selectOperLogTrend" resultType="com.jasic.aftersales.system.domain.vo.dashboard.DashboardCountByDayVO">
+        SELECT
+            DATE_FORMAT(l.oper_time, '%Y-%m-%d') AS dayKey,
+            COUNT(1) AS countNum
+        FROM sys_oper_log l
+        WHERE l.oper_time &gt;= #{query.startTime}
+          AND l.oper_time &lt; #{query.endTime}
+        GROUP BY DATE_FORMAT(l.oper_time, '%Y-%m-%d')
+        ORDER BY dayKey ASC
+    </select>
+
+    <select id="selectOperLogFailedCount" resultType="java.lang.Long">
+        SELECT COUNT(1)
+        FROM sys_oper_log l
+        WHERE l.status = 0
+          AND l.oper_time &gt;= #{query.startTime}
+          AND l.oper_time &lt; #{query.endTime}
+    </select>
+
+</mapper>

@@ -423,6 +423,7 @@ CREATE TABLE `sys_config` (
   `config_key`   varchar(100)     NOT NULL                COMMENT '鍙傛暟閿悕',
   `config_value` text             NOT NULL                COMMENT '閸欏倹鏆熼柨顔尖偓?,
   `config_type`  tinyint unsigned DEFAULT 0               COMMENT '閺勵垰鎯侀崘鍛枂閿?=閺勵垽绱?=閸氾讣绱?,
+  `group_key`    varchar(64)      NOT NULL DEFAULT 'org'  COMMENT '配置分组标识',
   `remark`       varchar(256)     DEFAULT NULL            COMMENT '澶囨敞',
   `create_time`  datetime         NOT NULL                COMMENT '鍒涘缓鏃堕棿',
   `update_time`  datetime         NOT NULL                COMMENT '鏇存柊鏃堕棿',
