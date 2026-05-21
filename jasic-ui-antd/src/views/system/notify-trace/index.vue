@@ -2,7 +2,7 @@
 /**
  * 通知记录排障：按事件维度分页查询、查看事件/分发详情，支持人工重试与死信标记。
  */
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import {
   type NotifyTraceQuery,
   deadNotifyTraceDispatch,
@@ -18,7 +18,7 @@ import { useAuth } from '@/hooks/business/auth';
 import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
 import { useTableScroll } from '@/hooks/common/table';
-import { createAntTableActionColumn } from '@/utils/table-action-width';
+import { createAntTableActionColumn, withAntTableActionColumn } from '@/utils/table-action-width';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
 import { applyDateTimeColumnRender, formatDateTime } from '@/utils/datetime';
 import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
@@ -94,11 +94,22 @@ const dispatchStatusOptions = [
 
 /** 操作列仅保留「重试事件」「标记死信」，不再单独放「事件详情」入口 */
 const NOTIFY_TRACE_ACTION_WIDTH = 160;
-/** 列表列宽合计，尽量在常见屏宽下一屏横向看全 */
-const NOTIFY_TRACE_TABLE_SCROLL_X = 1358 + NOTIFY_TRACE_ACTION_WIDTH;
-const { tableWrapperRef, scrollConfig } = useTableScroll(NOTIFY_TRACE_TABLE_SCROLL_X);
+const NOTIFY_TRACE_DISPATCH_ACTION_WIDTH = 180;
 
-const columns = applyDateTimeColumnRender([
+/** 当前角色是否具备任一通知排障行内操作权限 */
+const showNotifyTraceTableActionColumn = computed(() =>
+  hasAuth(['system:notifyTrace:retry', 'system:notifyTrace:dead'])
+);
+
+/** 列表列宽合计，尽量在常见屏宽下一屏横向看全 */
+const notifyTraceTableScrollX = computed(
+  () => 1358 + (showNotifyTraceTableActionColumn.value ? NOTIFY_TRACE_ACTION_WIDTH : 0)
+);
+const { tableWrapperRef, scrollConfig } = useTableScroll(notifyTraceTableScrollX);
+
+const columns = computed(() =>
+  withAntTableActionColumn<any>(
+    applyDateTimeColumnRender([
   {
     title: '业务编号',
     dataIndex: 'bizNo',
@@ -146,12 +157,15 @@ const columns = applyDateTimeColumnRender([
     key: 'eventRetryCount',
     width: 80
   },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 154 },
-  createAntTableActionColumn({
-    width: NOTIFY_TRACE_ACTION_WIDTH,
-    fixed: 'right'
-  })
-]);
+      { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 154 }
+    ]),
+    showNotifyTraceTableActionColumn.value,
+    createAntTableActionColumn({
+      width: NOTIFY_TRACE_ACTION_WIDTH,
+      fixed: 'right'
+    })
+  )
+);
 
 const eventDrawerOpen = ref(false);
 const eventDrawerLoading = ref(false);
@@ -494,39 +508,44 @@ const eventMessageColumns = applyDateTimeColumnRender([
   { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 170 }
 ]);
 
-const eventDispatchColumns = [
-  { title: '分发ID', dataIndex: 'id', key: 'id', width: 80 },
-  { title: '目标', key: 'target', width: 120 },
-  { title: '渠道', key: 'channel', width: 110 },
-  {
-    title: '接收地址',
-    dataIndex: 'receiverAddress',
-    key: 'receiverAddress',
-    width: 180,
-    ellipsis: true
-  },
-  {
-    title: '状态',
-    dataIndex: 'dispatchStatus',
-    key: 'dispatchStatus',
-    width: 96
-  },
-  {
-    title: '结果编码',
-    dataIndex: 'resultCode',
-    key: 'resultCode',
-    width: 150,
-    ellipsis: true
-  },
-  {
-    title: '结果说明',
-    dataIndex: 'resultMessage',
-    key: 'resultMessage',
-    width: 200,
-    ellipsis: true
-  },
-  createAntTableActionColumn({ width: 180 })
-];
+const eventDispatchColumns = computed(() =>
+  withAntTableActionColumn<any>(
+    [
+      { title: '分发ID', dataIndex: 'id', key: 'id', width: 80 },
+      { title: '目标', key: 'target', width: 120 },
+      { title: '渠道', key: 'channel', width: 110 },
+      {
+        title: '接收地址',
+        dataIndex: 'receiverAddress',
+        key: 'receiverAddress',
+        width: 180,
+        ellipsis: true
+      },
+      {
+        title: '状态',
+        dataIndex: 'dispatchStatus',
+        key: 'dispatchStatus',
+        width: 96
+      },
+      {
+        title: '结果编码',
+        dataIndex: 'resultCode',
+        key: 'resultCode',
+        width: 150,
+        ellipsis: true
+      },
+      {
+        title: '结果说明',
+        dataIndex: 'resultMessage',
+        key: 'resultMessage',
+        width: 200,
+        ellipsis: true
+      }
+    ],
+    showNotifyTraceTableActionColumn.value,
+    createAntTableActionColumn({ width: NOTIFY_TRACE_DISPATCH_ACTION_WIDTH })
+  )
+);
 
 onMounted(loadList);
 </script>

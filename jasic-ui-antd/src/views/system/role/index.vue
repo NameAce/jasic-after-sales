@@ -4,6 +4,7 @@
  */
 import { computed, nextTick, onMounted, reactive, ref } from 'vue';
 import type { FormInstance } from 'ant-design-vue';
+import type { Key } from 'ant-design-vue/es/_util/type';
 import { tagColorEnabled } from '@/constants/list-status-tag';
 import {
   type SysRoleVO,
@@ -23,9 +24,13 @@ import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 import { ADAPTIVE_MODAL_FORM_WIDE_MIN_COUNT, adaptiveModalWidth } from '@/hooks/common/modal-form-layout';
 import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
 import { useTableScroll } from '@/hooks/common/table';
-import { createAntTableActionColumn } from '@/utils/table-action-width';
+import { createAntTableActionColumn, withAntTableActionColumn } from '@/utils/table-action-width';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
-import { computeExpandedKeysForCheckedMenuTree } from '@/utils/tree-expand-keys';
+import {
+  buildLinkedTreeCheckedState,
+  computeExpandedKeysForCheckedMenuTree,
+  expandCheckedMenuIdsWithAncestors
+} from '@/utils/tree-expand-keys';
 import { applyDateTimeColumnRender } from '@/utils/datetime';
 import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
 
@@ -42,7 +47,11 @@ const { hasAuth } = useAuth();
 const pageMenuTitle = useRouteMenuTitle();
 
 const ROLE_ACTION_COL_WIDTH = 200;
-const roleListTableScrollMinX = computed(() => 890 + ROLE_ACTION_COL_WIDTH);
+
+/** 当前角色是否具备任一角色行内操作权限 */
+const showRoleTableActionColumn = computed(() => hasAuth(['system:role:update', 'system:role:remove']));
+
+const roleListTableScrollMinX = computed(() => 930 + (showRoleTableActionColumn.value ? ROLE_ACTION_COL_WIDTH : 0));
 const { tableWrapperRef, scrollConfig } = useTableScroll(roleListTableScrollMinX);
 const loading = ref(false);
 const rows = ref<RowData[]>([]);
@@ -93,7 +102,8 @@ const formModel = reactive<RowData>({
 const menuOpen = ref(false);
 const menuSubmitting = ref(false);
 const menuTreeData = ref<any[]>([]);
-const menuCheckedKeys = ref<Array<string | number>>([]);
+/** 父子联动：v-model 为 { checked, halfChecked }，保存时合并半选父级并补全祖先 */
+const menuCheckedKeys = ref<Key[] | { checked: Key[]; halfChecked: Key[] }>([]);
 /** 分配菜单抽屉打开时，展开所有「已勾选节点」的祖先路径，便于直接看到选中项 */
 const menuExpandedKeys = ref<Array<string | number>>([]);
 const currentRoleId = ref<number | null>(null);
@@ -105,23 +115,26 @@ const roleFormOperateColSpan = computed(() =>
   ROLE_EDIT_FORM_FIELD_COUNT >= ADAPTIVE_MODAL_FORM_WIDE_MIN_COUNT ? 12 : 24
 );
 
-// 角色列表表格列
+// 角色列表表格列（无行内操作权限时不展示操作列）
 const columns = computed(() =>
-  applyDateTimeColumnRender([
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
-    { title: '角色名称', dataIndex: 'roleName', key: 'roleName', width: 160 },
-    { title: '角色标识', dataIndex: 'roleKey', key: 'roleKey', width: 160 },
-    {
-      title: '数据范围',
-      dataIndex: 'dataScope',
-      key: 'dataScope',
-      minWidth: 140
-    },
-    { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
-    { title: '系统角色', dataIndex: 'isSystem', key: 'isSystem', width: 100 },
-    { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 170 },
+  withAntTableActionColumn<any>(
+    applyDateTimeColumnRender([
+      { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
+      { title: '角色名称', dataIndex: 'roleName', key: 'roleName', width: 160 },
+      { title: '角色标识', dataIndex: 'roleKey', key: 'roleKey', width: 160 },
+      {
+        title: '数据范围',
+        dataIndex: 'dataScope',
+        key: 'dataScope',
+        minWidth: 140
+      },
+      { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
+      { title: '系统角色', dataIndex: 'isSystem', key: 'isSystem', width: 100 },
+      { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 170 }
+    ]),
+    showRoleTableActionColumn.value,
     createAntTableActionColumn({ width: ROLE_ACTION_COL_WIDTH })
-  ])
+  )
 );
 
 /**
@@ -414,9 +427,13 @@ async function openAssignMenu(record: RowData) {
   menuTreeData.value = pickRows(treeRes.data);
   const role = roleRes.data as SysRoleVO | undefined;
   const ids = role?.menuIds;
-  menuCheckedKeys.value = Array.isArray(ids)
+  const rawMenuIds = Array.isArray(ids)
     ? ids.map((id: unknown) => Number(id)).filter((id: number) => !Number.isNaN(id))
     : [];
+  menuCheckedKeys.value = buildLinkedTreeCheckedState(menuTreeData.value, rawMenuIds) as {
+    checked: Key[];
+    halfChecked: Key[];
+  };
   menuExpandedKeys.value = computeExpandedKeysForCheckedMenuTree(menuTreeData.value, menuCheckedKeys.value);
   await nextTick();
   menuOpen.value = true;
@@ -432,7 +449,9 @@ async function submitAssignMenu() {
 
   menuSubmitting.value = true;
   try {
-    const res = await assignRoleMenus(currentRoleId.value, menuCheckedKeys.value);
+    // 保存时补全上级目录/菜单，避免 sys_role_menu 仅有叶子导致登录侧栏建树挂不上父节点
+    const menuIds = expandCheckedMenuIdsWithAncestors(menuTreeData.value, menuCheckedKeys.value);
+    const res = await assignRoleMenus(currentRoleId.value, menuIds);
     if (!notifyOnceSuccessFromFlatResult(res, '分配成功')) return;
     menuOpen.value = false;
   } finally {

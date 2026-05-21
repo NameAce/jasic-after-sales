@@ -24,13 +24,19 @@ import {
   splitFullAddressToRegionAndDetail
 } from '@/utils/china-region';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
-import { createAntTableActionColumn } from '@/utils/table-action-width';
+import { createAntTableActionColumn, withAntTableActionColumn } from '@/utils/table-action-width';
+import { useAuth } from '@/hooks/business/auth';
 
 type RowData = Record<string, any>;
 
 /** 操作列：编辑 / 设为默认 / 删除 同一行最多时横排估算 */
+const COMPANY_ADDRESS_ACTION_COL_WIDTH = 200;
 
 const pageMenuTitle = useRouteMenuTitle();
+const { hasAuth } = useAuth();
+
+/** 当前角色是否具备地址簿行内管理权限 */
+const showCompanyAddressTableActionColumn = computed(() => hasAuth('companyAddress:manage'));
 
 // 省市区级联选项（懒加载子节点）
 const regionOptions = ref<RegionCascaderOption[]>([]);
@@ -102,20 +108,25 @@ const addressFormRules = computed(() => ({
   addressDetail: [{ required: true, message: '请填写详细地址', trigger: 'blur' }]
 }));
 
-// 表格列配置
-const columns = [
-  { title: '公司ID', dataIndex: 'companyId', key: 'companyId', width: 120 },
-  { title: '地址详情', dataIndex: 'address', key: 'address', ellipsis: true },
-  { title: '是否默认', dataIndex: 'isDefault', key: 'isDefault', width: 120 },
-  { title: '联系人', dataIndex: 'contactName', key: 'contactName', width: 140 },
-  {
-    title: '联系电话',
-    dataIndex: 'contactPhone',
-    key: 'contactPhone',
-    width: 160
-  },
-  createAntTableActionColumn({ dataIndex: 'actions', width: 200 })
-];
+// 表格列配置（无管理权限时不展示操作列）
+const columns = computed(() =>
+  withAntTableActionColumn(
+    [
+      { title: '公司ID', dataIndex: 'companyId', key: 'companyId', width: 120 },
+      { title: '地址详情', dataIndex: 'address', key: 'address', ellipsis: true },
+      { title: '是否默认', dataIndex: 'isDefault', key: 'isDefault', width: 120 },
+      { title: '联系人', dataIndex: 'contactName', key: 'contactName', width: 140 },
+      {
+        title: '联系电话',
+        dataIndex: 'contactPhone',
+        key: 'contactPhone',
+        width: 160
+      }
+    ],
+    showCompanyAddressTableActionColumn.value,
+    createAntTableActionColumn({ dataIndex: 'actions', width: COMPANY_ADDRESS_ACTION_COL_WIDTH })
+  )
+);
 
 /**
  * 作用：从接口分页对象中取出列表数组。

@@ -216,7 +216,7 @@ const local: App.I18n.Schema = {
     login: {
       common: {
         loginOrRegister: '登录 / 注册',
-        userNamePlaceholder: '请输入用户名',
+        userNamePlaceholder: '请输入用户名或手机号',
         phonePlaceholder: '请输入手机号',
         codePlaceholder: '请输入验证码',
         passwordPlaceholder: '请输入密码',
@@ -489,6 +489,16 @@ const local: App.I18n.Schema = {
     userName: {
       required: '请输入用户名',
       invalid: '用户名格式不正确'
+    },
+    /** 与 `LoginDTO` 字段 `username` 对应：可为系统用户名或手机号 */
+    loginUsername: {
+      required: '请输入用户名或手机号',
+      invalid: '请输入用户名或手机号'
+    },
+    /** 与 `LoginDTO` 字段 `password` 对应：仅非空，无固定格式 */
+    loginPassword: {
+      required: '请输入密码',
+      invalid: '请输入密码'
     },
     phone: {
       required: '请输入手机号',

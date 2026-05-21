@@ -5,6 +5,7 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import type { FormInstance } from 'ant-design-vue';
+import type { Key } from 'ant-design-vue/es/_util/type';
 import { tagColorEnabled, tagColorPositiveNeutral } from '@/constants/list-status-tag';
 import { notifyOnceSuccessFromFlatResult } from '@/service/request/shared';
 import {
@@ -63,7 +64,11 @@ import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 import { useAuth } from '@/hooks/business/auth';
 import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
 import { useTableScroll } from '@/hooks/common/table';
-import { computeExpandedKeysForCheckedMenuTree } from '@/utils/tree-expand-keys';
+import {
+  buildLinkedTreeCheckedState,
+  computeExpandedKeysForCheckedMenuTree,
+  expandCheckedMenuIdsWithAncestors
+} from '@/utils/tree-expand-keys';
 import { createAntTableActionColumn } from '@/utils/table-action-width';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
 import { applyDateTimeColumnRender, mapDetailRowsDateTime } from '@/utils/datetime';
@@ -105,6 +110,31 @@ const {
 // 通用分页
 const pageQuery = reactive({ pageNum: 1, pageSize: 10 });
 
+/** 各 Tab 行内操作按钮权限（任一即可展示操作列；barcode 无操作列） */
+const MODULE_ROW_ACTION_AUTH: Partial<Record<ModuleKey, string[]>> = {
+  dict: ['system:dictType:update', 'system:dictType:remove'],
+  config: ['system:config:update', 'system:config:remove'],
+  notifyTemplate: [
+    'system:notifyTemplate:preview',
+    'system:notifyTemplate:update',
+    'system:notifyTemplate:add',
+    'system:notifyTemplate:remove'
+  ],
+  syncTask: ['system:syncTask:update', 'system:syncTask:execute', 'system:syncTask:log'],
+  fault: ['system:faultRepairConfig:update'],
+  roleTemplate: ['system:roleTemplate:update', 'system:roleTemplate:sync', 'system:roleTemplate:remove'],
+  region: ['system:region:update', 'system:region:remove']
+};
+
+/** 当前 Tab 是否展示行内操作列 */
+const showAdvancedModuleTableActionColumn = computed(() => {
+  const codes = MODULE_ROW_ACTION_AUTH[activeKey.value];
+  if (!codes?.length) {
+    return false;
+  }
+  return hasAuth(codes);
+});
+
 /** 各 Tab 操作列宽（本页一排展示，与 createAntTableActionColumn 的 width 一致） */
 const ADV_MODULE_ACTION_WIDTH: Partial<Record<ModuleKey, number>> = {
   dict: 120,
@@ -117,8 +147,8 @@ const ADV_MODULE_ACTION_WIDTH: Partial<Record<ModuleKey, number>> = {
 };
 
 /** 与当前 Tab 列宽之和 + 操作列 width 匹配的最小 scroll.x */
-function advancedModuleTableMinScrollX(key: ModuleKey): number {
-  const actionW = ADV_MODULE_ACTION_WIDTH[key] ?? 120;
+function advancedModuleTableMinScrollX(key: ModuleKey, showAction: boolean): number {
+  const actionW = showAction ? (ADV_MODULE_ACTION_WIDTH[key] ?? 120) : 0;
   switch (key) {
     case 'dict':
       return 160 + 180 + 90 + 140 + actionW;
@@ -141,7 +171,9 @@ function advancedModuleTableMinScrollX(key: ModuleKey): number {
   }
 }
 
-const tableScrollMinX = computed(() => advancedModuleTableMinScrollX(activeKey.value));
+const tableScrollMinX = computed(() =>
+  advancedModuleTableMinScrollX(activeKey.value, showAdvancedModuleTableActionColumn.value)
+);
 const { tableWrapperRef, scrollConfig } = useTableScroll(tableScrollMinX);
 
 const notifyFieldMappingColumns = [
@@ -356,7 +388,7 @@ const menuAssignSubmitting = ref(false);
 const menuAssignTypeCode = ref('');
 const menuAssignTemplate = ref<RowData | null>(null);
 const menuTreeData = ref<any[]>([]);
-const menuCheckedKeys = ref<Array<string | number>>([]);
+const menuCheckedKeys = ref<Key[] | { checked: Key[]; halfChecked: Key[] }>([]);
 const menuExpandedKeys = ref<Array<string | number>>([]);
 
 // 系统大区表单抽屉
@@ -435,7 +467,7 @@ async function ensureFaultCompanyOptions() {
 }
 
 /**
- * 作用：故障维修配置在未选归属总部时默认选中选项第一项（**仅路由进入该子模块时调用**；用户清空归属总部后点查询不再回填，以按「未选总部」条件请求列表）。
+ * 说明：在用户点击「重置」清空归属字段后同样需要回到「默认第一项」，以保持与首次进入 Tab 一致的列表范围。
  * @returns 无
  */
 function applyDefaultFaultRepairCompanyFilter() {
@@ -456,7 +488,9 @@ async function ensureBarcodeHqOptions() {
 }
 
 /**
- * 作用：条码档案筛选项「归属总部」未选时默认第一项（**仅路由进入该子模块时调用**；用户清空后点查询不再回填）。
+ * 作用：条码档案筛选「归属总部」未选时默认可选列表第一项。
+ * 说明：进入子模块或通过「重置」清空归属后同样需要回到默认第一项，与初次进入该子模块一致。
+ * @returns 无
  */
 function applyDefaultBarcodeOwnerHqFilter() {
   if (barcodeQuery.ownerHqId != null) return;
@@ -580,6 +614,7 @@ function loadByModule() {
 // 当前子模块表格列定义
 const columns = computed(() => {
   const actionCol = (width: number) => createAntTableActionColumn({ width });
+  const maybeActionCol = (width: number) => (showAdvancedModuleTableActionColumn.value ? [actionCol(width)] : []);
   const rawColumns = (() => {
     switch (activeKey.value) {
       case 'dict':
@@ -598,7 +633,7 @@ const columns = computed(() => {
           },
           { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
           { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
-          actionCol(120)
+          ...maybeActionCol(120)
         ];
       case 'config':
         return [
@@ -622,7 +657,7 @@ const columns = computed(() => {
           },
           { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
           { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
-          actionCol(120)
+          ...maybeActionCol(120)
         ];
       case 'notifyTemplate':
         return [
@@ -680,7 +715,7 @@ const columns = computed(() => {
             key: 'updateTime',
             width: 170
           },
-          actionCol(400)
+          ...maybeActionCol(400)
         ];
       case 'barcode':
         return [
@@ -782,7 +817,7 @@ const columns = computed(() => {
             key: 'nextFireTime',
             width: 170
           },
-          actionCol(200)
+          ...maybeActionCol(200)
         ];
       case 'fault':
         return [
@@ -817,7 +852,7 @@ const columns = computed(() => {
             key: 'updateTime',
             width: 170
           },
-          actionCol(72)
+          ...maybeActionCol(72)
         ];
       case 'roleTemplate':
         return [
@@ -848,7 +883,7 @@ const columns = computed(() => {
             key: 'createTime',
             width: 170
           },
-          actionCol(380)
+          ...maybeActionCol(380)
         ];
       case 'region':
         return [
@@ -871,7 +906,7 @@ const columns = computed(() => {
             key: 'createTime',
             width: 170
           },
-          actionCol(120)
+          ...maybeActionCol(120)
         ];
       default:
         return [];
@@ -1051,6 +1086,7 @@ function resetSearch() {
       barcodeQuery.machineNo = '';
       barcodeQuery.productModel = '';
       barcodeQuery.status = undefined;
+      applyDefaultBarcodeOwnerHqFilter();
       break;
     case 'syncTask':
       syncTaskQuery.taskCode = '';
@@ -1064,12 +1100,16 @@ function resetSearch() {
       faultQuery.productModel = '';
       faultQuery.faultDesc = '';
       faultQuery.status = undefined;
+      applyDefaultFaultRepairCompanyFilter();
       break;
     case 'roleTemplate':
       roleTemplateTypeCode.value = undefined;
       break;
     case 'region':
       regionHqId.value = undefined;
+      if (hqCompanyOptions.value.length) {
+        regionHqId.value = hqCompanyOptions.value[0].id;
+      }
       break;
     default:
       break;
@@ -2230,8 +2270,13 @@ async function openRoleTemplateMenuAssign(record: RowData) {
   menuAssignOpen.value = true;
   const { data: treeData } = await typeCodeMenuTree(typeCode);
   menuTreeData.value = Array.isArray(treeData) ? treeData : pickRows(treeData);
-  const rawIds = Array.isArray(record.menuIds) ? record.menuIds : [];
-  menuCheckedKeys.value = (rawIds as unknown[]).map(x => Number(x)).filter(id => !Number.isNaN(id));
+  const rawMenuIds = Array.isArray(record.menuIds)
+    ? (record.menuIds as unknown[]).map(x => Number(x)).filter(id => !Number.isNaN(id))
+    : [];
+  menuCheckedKeys.value = buildLinkedTreeCheckedState(menuTreeData.value, rawMenuIds) as {
+    checked: Key[];
+    halfChecked: Key[];
+  };
   menuExpandedKeys.value = computeExpandedKeysForCheckedMenuTree(menuTreeData.value, menuCheckedKeys.value);
   await nextTick();
 }
@@ -2244,6 +2289,7 @@ async function submitRoleTemplateMenuAssign() {
   if (!menuAssignTypeCode.value || !menuAssignTemplate.value?.id) return;
   menuAssignSubmitting.value = true;
   try {
+    const menuIds = expandCheckedMenuIdsWithAncestors(menuTreeData.value, menuCheckedKeys.value);
     const r = await updateRoleTemplate({
       id: menuAssignTemplate.value.id,
       typeCode: menuAssignTemplate.value.typeCode,
@@ -2253,7 +2299,7 @@ async function submitRoleTemplateMenuAssign() {
       isAdmin: menuAssignTemplate.value.isAdmin === 1 ? 1 : 0,
       orderNum: menuAssignTemplate.value.orderNum,
       remark: menuAssignTemplate.value.remark,
-      menuIds: menuCheckedKeys.value
+      menuIds
     });
     if (!notifyOnceSuccessFromFlatResult(r, '模板菜单已分配')) return;
     menuAssignOpen.value = false;

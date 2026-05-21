@@ -1,49 +1,90 @@
 /**
  * 主题与外观：布局/色板/水印设置、antd 主题 token、暗色与灰度等辅助模式及本地持久化。
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-20
  */
-import { computed, effectScope, onScopeDispose, ref, toRefs, watch } from 'vue';
-import type { Ref } from 'vue';
+import { computed, effectScope, onScopeDispose, reactive, toRefs, watch } from 'vue';
 import { useEventListener, usePreferredColorScheme } from '@vueuse/core';
 import { defineStore } from 'pinia';
 import { getPaletteColorByNumber } from '@sa/color';
 import { localStg } from '@/utils/storage';
+import {
+  buildThemeStorageScopeId,
+  clearScopedThemeCache,
+  migrateLegacyThemeToScoped,
+  persistActiveThemeScopeId,
+  writeScopedThemeColor,
+  writeScopedThemeSettings
+} from '@/utils/theme-storage-scope';
+import { themeSettings as defaultThemeSettings } from '@/theme/settings';
 import { SetupStoreId } from '@/enum';
+import { useAuthStore } from '../auth';
 import {
   addThemeVarsToGlobal,
   createThemeToken,
   getAntdTheme,
-  initThemeSettings,
+  resolveThemeSettingsForScope,
   toggleAuxiliaryColorModes,
   toggleCssDarkMode
 } from './shared';
 
 export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
+  const authStore = useAuthStore();
   // 用于集中管理 watch，store 卸载时停止
   const scope = effectScope();
   // 操作系统偏好配色（用于 themeScheme 为 auto 时）
   const osTheme = usePreferredColorScheme();
 
-  // 当前主题设置（布局、色板、水印等）
-  const settings: Ref<App.Theme.ThemeSetting> = ref(initThemeSettings());
+  /**
+   * 与鉴权用户信息联动的存储分区：
+   * - `userId` 区分账号；
+   * - `roleKeys`（与路由权限同源）区分同一账号下登录角色集合；
+   * - 用户信息异步到达时 roleKeys 从空变为有值会触发重新 hydrate。
+   */
+  const themeStorageScopeId = computed(() => {
+    const uid = authStore.userInfo?.userId ?? '';
+    const roles = authStore.roleKeys;
+    const roleList = Array.isArray(roles) ? roles : [];
+    return buildThemeStorageScopeId(uid, roleList);
+  });
 
   /**
-   * 将主题 store 重置为初始状态。
+   * 从本地分区合并主题并写回内存；使用 reactive + Object.assign，保证切换角色后 toRefs 仍响应。
+   *
+   * @param scopeId - 当前存储分区
+   * @returns {void}
+   */
+  function hydrateThemeSettings(scopeId: string) {
+    migrateLegacyThemeToScoped(scopeId);
+    const next = resolveThemeSettingsForScope(scopeId);
+    Object.assign(settings, next);
+    persistActiveThemeScopeId(scopeId);
+  }
+
+  const initialScopeId = themeStorageScopeId.value;
+  migrateLegacyThemeToScoped(initialScopeId);
+
+  // 当前主题设置（布局、色板、水印等）；首次按当前分区 hydrate，登录角色变化时由 watch 再拉取
+  const settings = reactive<App.Theme.ThemeSetting>(resolveThemeSettingsForScope(initialScopeId));
+  persistActiveThemeScopeId(initialScopeId);
+
+  /**
+   * 将当前身份下的主题恢复为项目默认（清除该用户+角色分区的本地缓存）。
    *
    * @returns {void} 无返回值
    * @修改人 黄碧莲
-   * @修改时间 2026-05-14
+   * @修改时间 2026-05-20
    */
   function resetStore() {
-    const themeStore = useThemeStore();
-
-    themeStore.$reset();
+    const scopeId = themeStorageScopeId.value;
+    clearScopedThemeCache(scopeId);
+    Object.assign(settings, defaultThemeSettings);
+    cacheThemeSettings();
   }
 
   // 派生出的主题色板（主色、功能色、info 是否跟随主色）
   const themeColors = computed(() => {
-    const { themeColor, otherColor, isInfoFollowPrimary } = settings.value;
+    const { themeColor, otherColor, isInfoFollowPrimary } = settings;
     const colors: App.Theme.ThemeColor = {
       primary: themeColor,
       ...otherColor,
@@ -54,23 +95,23 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
 
   // 是否处于暗色界面（含跟随系统 auto）
   const darkMode = computed(() => {
-    if (settings.value.themeScheme === 'auto') {
+    if (settings.themeScheme === 'auto') {
       return osTheme.value === 'dark';
     }
-    return settings.value.themeScheme === 'dark';
+    return settings.themeScheme === 'dark';
   });
 
   // 是否开启灰度模式
-  const grayscaleMode = computed(() => settings.value.grayscale);
+  const grayscaleMode = computed(() => settings.grayscale);
 
   // 是否开启色弱模式
-  const colourWeaknessMode = computed(() => settings.value.colourWeakness);
+  const colourWeaknessMode = computed(() => settings.colourWeakness);
 
   // 供 Ant Design Vue ConfigProvider 使用的主题 token
   const antdTheme = computed(() => getAntdTheme(themeColors.value, darkMode.value));
 
   // 当前主题设置的 JSON 字符串（用于复制导出等）
-  const settingsJson = computed(() => JSON.stringify(settings.value));
+  const settingsJson = computed(() => JSON.stringify(settings));
 
   /**
    * 设置浅色 / 深色 / 跟随系统 的主题方案。
@@ -81,7 +122,7 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
    * @修改时间 2026-05-14
    */
   function setThemeScheme(themeScheme: UnionKey.ThemeScheme) {
-    settings.value.themeScheme = themeScheme;
+    settings.themeScheme = themeScheme;
   }
 
   /**
@@ -93,7 +134,7 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
    * @修改时间 2026-05-14
    */
   function setGrayscale(isGrayscale: boolean) {
-    settings.value.grayscale = isGrayscale;
+    settings.grayscale = isGrayscale;
   }
 
   /**
@@ -105,7 +146,7 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
    * @修改时间 2026-05-14
    */
   function setColourWeakness(isColourWeakness: boolean) {
-    settings.value.colourWeakness = isColourWeakness;
+    settings.colourWeakness = isColourWeakness;
   }
 
   /**
@@ -118,7 +159,7 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
   function toggleThemeScheme() {
     const themeSchemes: UnionKey.ThemeScheme[] = ['light', 'dark', 'auto'];
 
-    const index = themeSchemes.findIndex(item => item === settings.value.themeScheme);
+    const index = themeSchemes.findIndex(item => item === settings.themeScheme);
 
     const nextIndex = index === themeSchemes.length - 1 ? 0 : index + 1;
 
@@ -136,7 +177,7 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
    * @修改时间 2026-05-14
    */
   function setThemeLayout(mode: UnionKey.ThemeLayoutMode) {
-    settings.value.layout.mode = mode;
+    settings.layout.mode = mode;
   }
 
   /**
@@ -151,16 +192,14 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
   function updateThemeColors(key: App.Theme.ThemeColorKey, color: string) {
     let colorValue = color;
 
-    if (settings.value.recommendColor) {
-      // get a color palette by provided color and color name, and use the suitable color
-
+    if (settings.recommendColor) {
       colorValue = getPaletteColorByNumber(color, 500, true);
     }
 
     if (key === 'primary') {
-      settings.value.themeColor = colorValue;
+      settings.themeColor = colorValue;
     } else {
-      settings.value.otherColor[key] = colorValue;
+      settings.otherColor[key] = colorValue;
     }
   }
 
@@ -174,8 +213,8 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
   function setupThemeVarsToGlobal() {
     const { themeTokens, darkThemeTokens } = createThemeToken(
       themeColors.value,
-      settings.value.tokens,
-      settings.value.recommendColor
+      settings.tokens,
+      settings.recommendColor
     );
     addThemeVarsToGlobal(themeTokens, darkThemeTokens);
   }
@@ -189,30 +228,36 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
    * @修改时间 2026-05-14
    */
   function setLayoutReverseHorizontalMix(reverse: boolean) {
-    settings.value.layout.reverseHorizontalMix = reverse;
+    settings.layout.reverseHorizontalMix = reverse;
   }
 
   /**
-   * 生产环境下将当前主题设置持久化到本地存储。
+   * 将当前完整主题设置写入本地存储（按当前登录用户+角色分区）。
    *
    * @returns {void} 无返回值
    * @修改人 黄碧莲
-   * @修改时间 2026-05-14
+   * @修改时间 2026-05-20
    */
   function cacheThemeSettings() {
-    const isProd = import.meta.env.PROD;
-
-    if (!isProd) return;
-
-    localStg.set('themeSettings', settings.value);
+    const scopeId = themeStorageScopeId.value;
+    writeScopedThemeSettings(scopeId, JSON.parse(JSON.stringify(settings)) as App.Theme.ThemeSetting);
+    persistActiveThemeScopeId(scopeId);
   }
 
-  // 关闭或刷新页面前缓存主题
+  // 关闭或刷新页面前再次写入，避免极少数环境下 watch 未及时落盘
   useEventListener(window, 'beforeunload', () => {
     cacheThemeSettings();
   });
 
   scope.run(() => {
+    // 登录态 / 角色集合变化时切换分区，从本地重新合并该身份下的主题偏好
+    watch(themeStorageScopeId, scopeId => {
+      hydrateThemeSettings(scopeId);
+    });
+
+    // 任意主题项变更时立即持久化到当前角色分区
+    watch(settings, cacheThemeSettings, { deep: true });
+
     // 暗色开关变化时同步 html 上的 dark class
     watch(
       darkMode,
@@ -231,11 +276,13 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
       { immediate: true }
     );
 
-    // 主题色变化时刷新 CSS 变量并缓存主色
+    // 主题色变化时刷新 CSS 变量并缓存主色（分区 + 全局各写一份：全局供首屏 loading 等 Pinia 就绪前读取）
     watch(
       themeColors,
       val => {
         setupThemeVarsToGlobal();
+        const sid = themeStorageScopeId.value;
+        writeScopedThemeColor(sid, val.primary);
         localStg.set('themeColor', val.primary);
       },
       { immediate: true }
@@ -248,7 +295,7 @@ export const useThemeStore = defineStore(SetupStoreId.Theme, () => {
   });
 
   return {
-    ...toRefs(settings.value),
+    ...toRefs(settings),
     darkMode,
     themeColors,
     antdTheme,

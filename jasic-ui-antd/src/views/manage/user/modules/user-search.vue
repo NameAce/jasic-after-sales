@@ -2,7 +2,7 @@
 /**
  * 用户列表 — 搜索表单：状态、性别、关键词等，emit reset/search。
  */
-import { computed } from 'vue';
+import { computed, nextTick } from 'vue';
 import { enableStatusOptions, userGenderOptions } from '@/constants/business';
 import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
 import { useAntdForm, useFormRules } from '@/hooks/common/form';
@@ -24,7 +24,7 @@ const emit = defineEmits<Emits>();
 const manageUserSearchFilter = usePageSearchFilterCollapse(6);
 
 // 查询表单重置、搜索事件向父组件传递
-const { formRef, validate, resetFields } = useAntdForm();
+const { formRef, validate } = useAntdForm();
 
 // 双向绑定的查询条件模型
 const model = defineModel<Api.SystemManage.UserSearchParams>('model', { required: true });
@@ -42,13 +42,14 @@ const rules = computed<Record<RuleKey, App.Global.FormRule>>(() => {
 });
 
 /**
- * 作用：重置表单并通知父级执行查询重置。
- * @param 无
- * @returns 返回 Promise，重置完成后结束
+ * 作用：先交由父级恢复 `apiParams` 默认查询条件，再清理校验态。
+ * 说明：若先调用 Form `resetFields`，会按注册时快照回写，可能与父级默认值不一致，导致「重置后默认条件丢失」。
+ * @returns 返回 Promise，父级赋值与校验清理完成后结束
  */
 async function reset() {
-  await resetFields();
   emit('reset');
+  await nextTick();
+  formRef.value?.clearValidate();
 }
 
 /**

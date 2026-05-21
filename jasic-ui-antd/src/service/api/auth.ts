@@ -9,19 +9,19 @@ import { request } from '../request';
  */
 
 /**
- * 作用：用户名密码登录（PC 主链路）。
- * @param userName 登录名
- * @param password 密码
+ * 作用：用户名密码登录（PC 主链路），请求体对齐 `SysAuthController` 所接 `LoginDTO`（字段 `username` / `password`）。
+ * @param userName - 用户名或手机号，提交前会与后端一致做 trim
+ * @param password - 明文密码（后端仅校验非空，不做固定格式限制）
  * @returns {Promise} 请求封装结果
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-20
  */
 export function fetchLogin(userName: string, password: string) {
   return request<Api.Auth.LoginResponse>({
     url: '/auth/login',
     method: 'post',
     data: {
-      username: userName,
+      username: userName.trim(),
       password
     }
   });

@@ -97,6 +97,12 @@ const workOrderStatusSegmentedThumbBg = computed(() => {
     : transformColorWithOpacity(primary, 0.1, '#ffffff');
 });
 
+/**
+ * 重置筛选时若同步清理路由 query，会触发下方 watch；
+ * 设为 true 时由 resetQuery 自行 loadData，避免重复请求。
+ */
+const skipRouteFilterReload = ref(false);
+
 // 详情抽屉是否打开
 const detailOpen = ref(false);
 // 当前查看的工单 ID
@@ -388,6 +394,9 @@ function handleMainStatusChange() {
 
 /**
  * 作用：重置查询条件并重新加载。
+ * 说明：视图范围 / 主状态 / 是否转单可能来自路由 query；若只改本地 query 而不清路由，
+ * 刷新或从通知返回时仍会按旧 query 同步，表现为「默认 Tab、Segmented 未选中」。
+ * 因此重置时顺带去掉上述路由参数（由本页独占的筛选项），并保持只发起一次列表请求。
  */
 function resetQuery() {
   query.pageNum = 1;
@@ -399,6 +408,17 @@ function resetQuery() {
   query.barcode = '';
   query.mainStatus = '';
   query.hasTransfer = undefined;
+
+  const routeFilterKeys = ['viewScope', 'mainStatus', 'hasTransfer'] as const;
+  const hadRouteFilters = routeFilterKeys.some(k => k in route.query);
+  if (hadRouteFilters) {
+    const nextQuery = Object.fromEntries(
+      Object.entries(route.query).filter(([key]) => !routeFilterKeys.includes(key as (typeof routeFilterKeys)[number]))
+    );
+    skipRouteFilterReload.value = true;
+    router.replace({ query: nextQuery });
+  }
+
   loadData();
 }
 
@@ -486,6 +506,10 @@ watch(
   () => [route.query.viewScope, route.query.mainStatus, route.query.hasTransfer],
   () => {
     applyFiltersFromRouteQuery();
+    if (skipRouteFilterReload.value) {
+      skipRouteFilterReload.value = false;
+      return;
+    }
     loadData();
   }
 );

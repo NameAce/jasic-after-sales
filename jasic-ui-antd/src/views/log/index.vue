@@ -3,7 +3,7 @@
  * 操作日志：分页查询、条件筛选与清理/删除；详情以右侧抽屉展示（对接 log 域接口）。
  */
 import { onMounted, reactive, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { tagColorEnabled } from '@/constants/list-status-tag';
 import { type OperLogQuery, cleanOperLog, deleteOperLog, listOperLog } from '@/service/api';
 import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
@@ -16,6 +16,7 @@ import PageSearchExpandButton from '@/components/custom/page-search-expand-butto
 type RowData = Record<string, any>;
 
 const route = useRoute();
+const router = useRouter();
 const { tableWrapperRef, scrollConfig } = useTableScroll(1200);
 const pageMenuTitle = useRouteMenuTitle();
 
@@ -35,6 +36,11 @@ const {
   setMsgFromCatch
 } = useListRequestTableMsgs();
 const tableListLocale = createAntTableListLocale(listFetchErrorMsg, listEmptyBackendMsg, rows);
+
+/**
+ * 从路由带参进入后若用户点「重置」，需同步清理 URL 中的预设筛选，避免刷新仍回到旧条件（与工单列表 reset 策略一致）。
+ */
+const skipRouteLogPresetReload = ref(false);
 
 // 表格多选主键
 const selectedRowKeys = ref<(string | number)[]>([]);
@@ -202,6 +208,18 @@ function resetQuery() {
   queryParams.status = undefined;
   queryParams.beginTime = '';
   queryParams.endTime = '';
+
+  const ROUTE_LOG_FILTER_KEYS = ['preset', 'status', 'beginDate', 'endDate', 'beginTime', 'endTime'] as const;
+  if (ROUTE_LOG_FILTER_KEYS.some(k => k in route.query)) {
+    skipRouteLogPresetReload.value = true;
+    const nextQuery = Object.fromEntries(
+      Object.entries(route.query).filter(
+        ([key]) => !ROUTE_LOG_FILTER_KEYS.includes(key as (typeof ROUTE_LOG_FILTER_KEYS)[number])
+      )
+    );
+    router.replace({ query: nextQuery });
+  }
+
   loadList();
 }
 
@@ -272,6 +290,10 @@ watch(
   () => {
     applyFiltersFromRouteQuery();
     queryParams.pageNum = 1;
+    if (skipRouteLogPresetReload.value) {
+      skipRouteLogPresetReload.value = false;
+      return;
+    }
     loadList();
   }
 );

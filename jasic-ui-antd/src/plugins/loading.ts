@@ -1,17 +1,17 @@
 // @unocss-include
 import { getRgb } from '@sa/color';
-import { localStg } from '@/utils/storage';
+import { resolveThemeColorForBoot } from '@/utils/theme-storage-scope';
 import { $t } from '@/locales';
 
 /**
  * 作用：在 #app 挂载前注入全屏加载动画 HTML，使用本地存储中的主题主色与系统标题文案。
  * @returns {void}
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-20
  */
 export function setupLoading() {
-  // 与主题设置同步的主色（RGB），供 UnoCSS primary 工具类在首屏生效
-  const themeColor = localStg.get('themeColor') || '#646cff';
+  // 按上次登录用户+角色分区读取主色；Pinia 就绪后会由主题 store 再对齐当前分区
+  const themeColor = resolveThemeColorForBoot();
 
   const { r, g, b } = getRgb(themeColor);
 

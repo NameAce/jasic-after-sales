@@ -654,6 +654,8 @@ declare namespace App {
       form: {
         required: string;
         userName: FormMsg;
+        loginUsername: FormMsg;
+        loginPassword: FormMsg;
         phone: FormMsg;
         pwd: FormMsg;
         confirmPwd: FormMsg;

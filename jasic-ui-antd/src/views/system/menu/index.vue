@@ -21,7 +21,7 @@ import { useAuth } from '@/hooks/business/auth';
 import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 import { adaptiveModalWidth } from '@/hooks/common/modal-form-layout';
 import { useTableScroll } from '@/hooks/common/table';
-import { createAntTableActionColumn } from '@/utils/table-action-width';
+import { createAntTableActionColumn, withAntTableActionColumn } from '@/utils/table-action-width';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
 
 type RowData = Record<string, any>;
@@ -29,7 +29,13 @@ const { hasAuth } = useAuth();
 const pageMenuTitle = useRouteMenuTitle();
 
 const MENU_ACTION_COL_WIDTH = 280;
-const menuTreeTableScrollMinX = computed(() => 1090 + MENU_ACTION_COL_WIDTH);
+
+/** 当前角色是否具备任一菜单行内操作权限 */
+const showMenuTableActionColumn = computed(() =>
+  hasAuth(['system:menu:update', 'system:menu:add', 'system:menu:publish', 'system:menu:remove'])
+);
+
+const menuTreeTableScrollMinX = computed(() => 1090 + (showMenuTableActionColumn.value ? MENU_ACTION_COL_WIDTH : 0));
 const { tableWrapperRef, scrollConfig } = useTableScroll(menuTreeTableScrollMinX);
 
 const loading = ref(false);
@@ -139,24 +145,29 @@ const publishForm = reactive({
   syncExistingCompanies: true
 });
 
-// 菜单树表格列
-const columns = computed(() => [
-  { title: '菜单名称', dataIndex: 'menuName', key: 'menuName', width: 220 },
-  { title: '图标', dataIndex: 'icon', key: 'icon', width: 120 },
-  { title: '排序', dataIndex: 'orderNum', key: 'orderNum', width: 80 },
-  { title: '权限标识', dataIndex: 'perms', key: 'perms', width: 200 },
-  {
-    title: '组件路径',
-    dataIndex: 'component',
-    key: 'component',
-    width: 220,
-    ellipsis: true
-  },
-  { title: '类型', dataIndex: 'menuType', key: 'menuType', width: 90 },
-  { title: '可见', dataIndex: 'isVisible', key: 'isVisible', width: 80 },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-  createAntTableActionColumn({ width: MENU_ACTION_COL_WIDTH })
-]);
+// 菜单树表格列（无行内操作权限时不展示操作列）
+const columns = computed(() =>
+  withAntTableActionColumn<any>(
+    [
+      { title: '菜单名称', dataIndex: 'menuName', key: 'menuName', width: 220 },
+      { title: '图标', dataIndex: 'icon', key: 'icon', width: 120 },
+      { title: '排序', dataIndex: 'orderNum', key: 'orderNum', width: 80 },
+      { title: '权限标识', dataIndex: 'perms', key: 'perms', width: 200 },
+      {
+        title: '组件路径',
+        dataIndex: 'component',
+        key: 'component',
+        width: 220,
+        ellipsis: true
+      },
+      { title: '类型', dataIndex: 'menuType', key: 'menuType', width: 90 },
+      { title: '可见', dataIndex: 'isVisible', key: 'isVisible', width: 80 },
+      { title: '状态', dataIndex: 'status', key: 'status', width: 80 }
+    ],
+    showMenuTableActionColumn.value,
+    createAntTableActionColumn({ width: MENU_ACTION_COL_WIDTH })
+  )
+);
 
 const menuFormRules = {
   menuName: [{ required: true, message: '请输入菜单名称', trigger: 'blur' }],

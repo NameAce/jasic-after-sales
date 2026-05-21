@@ -5,6 +5,7 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import type { FormInstance } from 'ant-design-vue';
+import type { Key } from 'ant-design-vue/es/_util/type';
 import { tagColorEnabled, tagColorPositiveNeutral } from '@/constants/list-status-tag';
 import {
   addCompany,
@@ -43,8 +44,13 @@ import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 import { adaptiveModalWidth } from '@/hooks/common/modal-form-layout';
 import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
 import { useTableScroll } from '@/hooks/common/table';
-import { computeExpandedKeysForCheckedMenuTree } from '@/utils/tree-expand-keys';
-import { createAntTableActionColumn } from '@/utils/table-action-width';
+import {
+  buildLinkedTreeCheckedState,
+  computeExpandedKeysForCheckedMenuTree,
+  expandCheckedMenuIdsWithAncestors
+} from '@/utils/tree-expand-keys';
+import { createAntTableActionColumn, isTableActionColumnKey } from '@/utils/table-action-width';
+import { useAuth } from '@/hooks/business/auth';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
 import { applyDateTimeColumnRender } from '@/utils/datetime';
 import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
@@ -86,6 +92,7 @@ const tableListLocale = createAntTableListLocale(listFetchErrorMsg, listEmptyBac
 
 const route = useRoute();
 const pageMenuTitle = useRouteMenuTitle();
+const { hasAuth } = useAuth();
 
 const companySearchFilter = usePageSearchFilterCollapse(3);
 const externalSearchFilter = usePageSearchFilterCollapse(1);
@@ -301,7 +308,7 @@ const companyTypeMenuTitle = ref('');
 // 公司类型菜单树数据
 const companyTypeMenuTreeData = ref<any[]>([]);
 // 公司类型菜单选中键
-const companyTypeMenuCheckedKeys = ref<Array<string | number>>([]);
+const companyTypeMenuCheckedKeys = ref<Key[] | { checked: Key[]; halfChecked: Key[] }>([]);
 // 公司类型菜单展开键（分配菜单时展开到已勾选路径）
 const companyTypeMenuExpandedKeys = ref<Array<string | number>>([]);
 // 公司类型菜单类型编码
@@ -662,7 +669,11 @@ const columns = computed(() => {
         return [];
     }
   })();
-  return applyDateTimeColumnRender(rawColumns);
+  const cols = applyDateTimeColumnRender(rawColumns);
+  if (showOrgTableActionColumn.value) {
+    return cols;
+  }
+  return cols.filter(col => !isTableActionColumnKey((col as { key?: string | number }).key));
 });
 
 /** 与 jasic-ui `contract/index.vue` 总部一级 CRM 导入表列一致 */
@@ -775,6 +786,19 @@ const crmFsImportColumns = applyDateTimeColumnRender([
 // 主表格当前展示的列（与 columns 同步）
 const displayColumns = computed(() => columns.value);
 
+/** 各 Tab 行内操作按钮权限（任一即可展示操作列） */
+const ORG_TAB_ROW_ACTION_AUTH: Record<TabKey, string[]> = {
+  company: ['org:company:update', 'org:company:remove'],
+  hqFirst: ['org:contract:update', 'org:contract:remove'],
+  firstSecond: ['org:contract:remove'],
+  external: ['org:company:add'],
+  area: ['system:region:update', 'system:region:remove'],
+  companyType: ['org:companyType:update', 'system:menu:update', 'org:companyType:remove']
+};
+
+/** 当前 Tab 是否展示行内操作列 */
+const showOrgTableActionColumn = computed(() => hasAuth(ORG_TAB_ROW_ACTION_AUTH[activeTab.value] || []));
+
 /** 各 Tab 操作列宽（本 Tab 按钮一排展示即可） */
 const ORG_TAB_ACTION_COL_WIDTH: Record<TabKey, number> = {
   company: 120,
@@ -794,7 +818,7 @@ function orgActionColumn(tab: TabKey) {
 
 // 主表格横向滚动宽度估计值
 const crmTableScrollX = computed(() => {
-  const actionW = ORG_TAB_ACTION_COL_WIDTH[activeTab.value] ?? 120;
+  const actionW = showOrgTableActionColumn.value ? (ORG_TAB_ACTION_COL_WIDTH[activeTab.value] ?? 120) : 0;
   switch (activeTab.value) {
     case 'company':
       return 2252 + actionW;
@@ -1865,9 +1889,13 @@ async function openCompanyTypeMenuAssign(record: RowData) {
   try {
     const [treeRes, idsRes] = await Promise.all([typeCodeMenuTree(typeCode), typeCodeMenuIds(typeCode)]);
     companyTypeMenuTreeData.value = pickRows(treeRes.data);
-    companyTypeMenuCheckedKeys.value = Array.isArray(idsRes.data)
+    const rawMenuIds = Array.isArray(idsRes.data)
       ? (idsRes.data as unknown[]).map(x => Number(x)).filter(id => !Number.isNaN(id))
       : [];
+    companyTypeMenuCheckedKeys.value = buildLinkedTreeCheckedState(
+      companyTypeMenuTreeData.value,
+      rawMenuIds
+    ) as { checked: Key[]; halfChecked: Key[] };
     companyTypeMenuExpandedKeys.value = computeExpandedKeysForCheckedMenuTree(
       companyTypeMenuTreeData.value,
       companyTypeMenuCheckedKeys.value
@@ -1885,7 +1913,11 @@ async function submitCompanyTypeMenuAssign() {
   if (!companyTypeMenuTypeCode.value) return;
   companyTypeMenuSubmitting.value = true;
   try {
-    const r = await assignTypeCodeMenus(companyTypeMenuTypeCode.value, companyTypeMenuCheckedKeys.value);
+    const menuIds = expandCheckedMenuIdsWithAncestors(
+      companyTypeMenuTreeData.value,
+      companyTypeMenuCheckedKeys.value
+    );
+    const r = await assignTypeCodeMenus(companyTypeMenuTypeCode.value, menuIds);
     if (!notifyOnceSuccessFromFlatResult(r, '菜单分配保存成功')) return;
     companyTypeMenuOpen.value = false;
   } finally {

@@ -26,7 +26,7 @@ import { useAuth } from '@/hooks/business/auth';
 import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
 import { useTableScroll } from '@/hooks/common/table';
-import { createAntTableActionColumn } from '@/utils/table-action-width';
+import { createAntTableActionColumn, withAntTableActionColumn } from '@/utils/table-action-width';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
 import { applyDateTimeColumnRender } from '@/utils/datetime';
 import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
@@ -35,7 +35,22 @@ type RowData = Record<string, any>;
 
 /** 操作列宽：本页 6 个链接按钮一排展示 */
 const USER_ACTION_COL_WIDTH = 520;
-const userListTableScrollMinX = computed(() => 1040 + USER_ACTION_COL_WIDTH);
+/** 行内操作相关按钮权限（任一即可展示操作列） */
+const USER_ROW_ACTION_AUTH_CODES = [
+  'system:user:update',
+  'system:user:resetPwd',
+  'system:user:kickout',
+  'system:user:remove'
+];
+
+/** 当前角色是否具备任一用户行内操作权限（含总部绑定大区） */
+const showUserTableActionColumn = computed(
+  () =>
+    hasAuth(USER_ROW_ACTION_AUTH_CODES) ||
+    (authStore.userInfo.currentSubjectType === 'HQ' && hasAuth(['system:region:list', 'system:region:assign']))
+);
+
+const userListTableScrollMinX = computed(() => 1040 + (showUserTableActionColumn.value ? USER_ACTION_COL_WIDTH : 0));
 // 表格区域滚动 Hook
 const { tableWrapperRef, scrollConfig } = useTableScroll(userListTableScrollMinX);
 const pageMenuTitle = useRouteMenuTitle();
@@ -130,24 +145,27 @@ const resetPwdRules = {
   password: [{ required: true, message: '请输入新密码', trigger: 'blur' }]
 };
 
-// 用户管理表格列定义
+// 用户管理表格列定义（无行内操作权限时不展示操作列）
 const columns = computed(() =>
-  applyDateTimeColumnRender([
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
-    { title: '用户名', dataIndex: 'username', key: 'username', width: 160 },
-    { title: '姓名', dataIndex: 'realName', key: 'realName', width: 160 },
-    { title: '手机号', dataIndex: 'phone', key: 'phone', width: 140 },
-    {
-      title: '邮箱',
-      dataIndex: 'email',
-      key: 'email',
-      width: 220,
-      ellipsis: true
-    },
-    { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
-    { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 180 },
+  withAntTableActionColumn(
+    applyDateTimeColumnRender([
+      { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
+      { title: '用户名', dataIndex: 'username', key: 'username', width: 160 },
+      { title: '姓名', dataIndex: 'realName', key: 'realName', width: 160 },
+      { title: '手机号', dataIndex: 'phone', key: 'phone', width: 140 },
+      {
+        title: '邮箱',
+        dataIndex: 'email',
+        key: 'email',
+        width: 220,
+        ellipsis: true
+      },
+      { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
+      { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 180 }
+    ]),
+    showUserTableActionColumn.value,
     createAntTableActionColumn({ width: USER_ACTION_COL_WIDTH })
-  ])
+  )
 );
 
 /**

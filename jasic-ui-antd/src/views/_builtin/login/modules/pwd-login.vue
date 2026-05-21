@@ -9,7 +9,6 @@ defineOptions({
   name: 'PwdLogin'
 });
 
-// 会话 Store、登录切换与表单校验
 const authStore = useAuthStore();
 const { toggleLoginModule } = useRouterPush();
 const { formRef, validate } = useAntdForm();
@@ -24,14 +23,13 @@ const model: FormModel = reactive({
   password: ''
 });
 
-// 密码登录校验规则
+// 会话 Store、登录切换与表单校验；规则与后端 `LoginDTO`（`/auth/login`）一致 —— 用户名或手机号、`@NotBlank` 密码，不套用注册用户名的 REG_USER_NAME/REG_PWD
 const rules = computed<Record<keyof FormModel, App.Global.FormRule[]>>(() => {
-  // inside computed to make locale reactive, if not apply i18n, you can define it without computed
-  const { formRules, createRequiredRule } = useFormRules();
+  const { formRules } = useFormRules();
 
   return {
-    userName: formRules.userName,
-    password: [createRequiredRule($t('form.pwd.required'))]
+    userName: formRules.loginUsername,
+    password: formRules.loginPassword
   };
 });
 

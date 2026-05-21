@@ -18,7 +18,7 @@ import { useAuth } from '@/hooks/business/auth';
 import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
 import { useTableScroll } from '@/hooks/common/table';
-import { createAntTableActionColumn } from '@/utils/table-action-width';
+import { createAntTableActionColumn, withAntTableActionColumn } from '@/utils/table-action-width';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
 import { applyDateTimeColumnRender } from '@/utils/datetime';
 import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
@@ -66,10 +66,17 @@ const tableListLocale = createAntTableListLocale(listFetchErrorMsg, listEmptyBac
 
 /** 操作列仅保留「配置」，查看入口改由场景名称点击进入 */
 const NOTIFY_SCENE_ACTION_WIDTH = 72;
+
+/** 当前角色是否具备通知场景行内「配置」权限 */
+const showNotifySceneTableActionColumn = computed(() => hasAuth('system:notifyScene:update'));
+
 /** Tab 内表单项统一标签宽度（与标题模板等并排项一致），控件占满行内剩余宽度 */
 const TARGET_CARD_FORM_LABEL_COL = { style: { width: '108px', flex: '0 0 108px' } };
 const TARGET_CARD_FORM_WRAPPER_COL = { style: { flex: '1 1 0', minWidth: 0 } };
-const { tableWrapperRef, scrollConfig } = useTableScroll(1100 + NOTIFY_SCENE_ACTION_WIDTH);
+const notifySceneTableScrollX = computed(
+  () => 1100 + (showNotifySceneTableActionColumn.value ? NOTIFY_SCENE_ACTION_WIDTH : 0)
+);
+const { tableWrapperRef, scrollConfig } = useTableScroll(notifySceneTableScrollX);
 
 const options = reactive({
   sceneOptions: [] as RowData[],
@@ -143,35 +150,40 @@ const visibleTargetTabMetas = computed<TargetMeta[]>(() => {
   });
 });
 
-const columns = applyDateTimeColumnRender([
-  { title: '场景名称', dataIndex: 'sceneName', key: 'sceneName', width: 220 },
-  {
-    title: '场景编码',
-    dataIndex: 'sceneCode',
-    key: 'sceneCode',
-    width: 220,
-    ellipsis: true
-  },
-  {
-    title: '业务类型',
-    dataIndex: 'bizType',
-    key: 'bizType',
-    width: 140,
-    ellipsis: true
-  },
-  {
-    title: '已启用目标',
-    dataIndex: 'enabledTargetTypeDescs',
-    key: 'enabledTargets',
-    width: 220
-  },
-  { title: '场景状态', dataIndex: 'status', key: 'status', width: 100 },
-  { title: '更新时间', dataIndex: 'updateTime', key: 'updateTime', width: 170 },
-  createAntTableActionColumn({
-    width: NOTIFY_SCENE_ACTION_WIDTH,
-    fixed: 'right'
-  })
-]);
+const columns = computed(() =>
+  withAntTableActionColumn<any>(
+    applyDateTimeColumnRender([
+      { title: '场景名称', dataIndex: 'sceneName', key: 'sceneName', width: 220 },
+      {
+        title: '场景编码',
+        dataIndex: 'sceneCode',
+        key: 'sceneCode',
+        width: 220,
+        ellipsis: true
+      },
+      {
+        title: '业务类型',
+        dataIndex: 'bizType',
+        key: 'bizType',
+        width: 140,
+        ellipsis: true
+      },
+      {
+        title: '已启用目标',
+        dataIndex: 'enabledTargetTypeDescs',
+        key: 'enabledTargets',
+        width: 220
+      },
+      { title: '场景状态', dataIndex: 'status', key: 'status', width: 100 },
+      { title: '更新时间', dataIndex: 'updateTime', key: 'updateTime', width: 170 }
+    ]),
+    showNotifySceneTableActionColumn.value,
+    createAntTableActionColumn({
+      width: NOTIFY_SCENE_ACTION_WIDTH,
+      fixed: 'right'
+    })
+  )
+);
 
 /** 可用变量转置表：行维度（原表格列）定义 */
 const VARIABLE_TRANSPOSED_ROW_DEFS = [

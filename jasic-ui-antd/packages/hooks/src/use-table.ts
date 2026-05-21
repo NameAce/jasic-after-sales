@@ -129,9 +129,22 @@ export default function useHookTable<A extends ApiFn, T, C>(config: TableConfig<
     Object.assign(searchParams, params);
   }
 
-  /** reset search params */
+  /**
+   * 重置查询参数为 apiParams 快照。
+   * 说明：仅用 Object.assign 合并会遗留「运行期写入但不在 apiParams 声明里」的字段，
+   * 导致重置后接口仍带上旧筛选；这里先删掉多余键再写入默认值，保证与初次进入列表一致。
+   */
   function resetSearchParams() {
-    Object.assign(searchParams, jsonClone(apiParams));
+    const defaults = jsonClone(apiParams ?? {}) as Record<string, unknown>;
+    const snapshot = searchParams as Record<string, unknown>;
+    for (const key of Object.keys(snapshot)) {
+      if (!(key in defaults)) {
+        delete snapshot[key];
+      }
+    }
+    Object.assign(searchParams, defaults);
+    // 重置后按默认条件刷新列表，避免仅靠子组件重置而表格仍显示旧筛选结果。
+    void getData();
   }
 
   if (immediate) {

@@ -8,6 +8,32 @@
 /** 操作列单元格 class */
 export const ANT_TABLE_ACTION_COL_CLASS = 'table-action-col';
 
+/** 表格操作列常见 key（`actions` / `operate`） */
+export const TABLE_ACTION_COLUMN_KEYS = new Set(['actions', 'operate']);
+
+/**
+ * 作用：判断列配置是否为表格操作列。
+ * @param key - 列 key
+ */
+export function isTableActionColumnKey(key?: string | number) {
+  return key != null && TABLE_ACTION_COLUMN_KEYS.has(String(key));
+}
+
+/**
+ * 作用：按权限结果决定是否追加操作列（无权限时剔除已有操作列，避免空列占位）。
+ * @param columns - 原始列配置
+ * @param visible - 是否展示操作列
+ * @param actionColumn - 操作列配置
+ */
+export function withAntTableActionColumn<T>(
+  columns: readonly T[],
+  visible: boolean,
+  actionColumn: T
+): T[] {
+  const base = columns.filter(col => !isTableActionColumnKey((col as { key?: string | number }).key));
+  return visible ? [...base, actionColumn] : base;
+}
+
 export type AntTableActionColumnOptions = {
   /** 是否固定在右侧，默认 `right` */
   fixed?: 'right' | false;

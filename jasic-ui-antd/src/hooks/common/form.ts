@@ -1,7 +1,7 @@
 /**
  * 表单工具：`useFormRules` 常用校验规则与 `useAntdForm` 对 FormInstance 的封装。
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-20
  */
 import { ref, toValue } from 'vue';
 import type { ComputedRef, Ref } from 'vue';
@@ -44,7 +44,64 @@ export function useFormRules() {
     }
   } satisfies Record<string, App.Global.FormRule>;
 
+  /**
+   * 作用：创建必填校验规则。
+   *
+   * @param message 校验失败提示
+   * @returns {App.Global.FormRule}
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-14
+   */
+  function createRequiredRule(message: string) {
+    return {
+      required: true,
+      message
+    };
+  }
+
+  /**
+   * 作用：登录标识（用户名或手机号），与后端 `LoginDTO#username` 及 `trim` + `@NotBlank` 语义对齐，不在前端套用注册用户名正则。
+   *
+   * @param message - 失败提示文案
+   * @returns {App.Global.FormRule}
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-20
+   */
+  function createLoginIdentityRule(message: string): App.Global.FormRule {
+    return {
+      async validator(_rule, value: unknown) {
+        if (value === undefined || value === null || String(value).trim() === '') {
+          return Promise.reject(message);
+        }
+        return Promise.resolve();
+      },
+      trigger: 'blur'
+    };
+  }
+
+  /**
+   * 作用：登录密码必填，与后端 `LoginDTO#password` `@NotBlank` 对齐（不套用 `REG_PWD`，避免合法历史密码被拒）。
+   *
+   * @param message - 失败提示
+   * @returns {App.Global.FormRule}
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-20
+   */
+  function createLoginPasswordRule(message: string): App.Global.FormRule {
+    return {
+      async validator(_rule, value: unknown) {
+        if (value === undefined || value === null || String(value).length === 0) {
+          return Promise.reject(message);
+        }
+        return Promise.resolve();
+      },
+      trigger: 'blur'
+    };
+  }
+
   const formRules = {
+    loginUsername: [createLoginIdentityRule($t('form.loginUsername.required'))],
+    loginPassword: [createLoginPasswordRule($t('form.loginPassword.required'))],
     userName: [createRequiredRule($t('form.userName.required')), patternRules.userName],
     phone: [createRequiredRule($t('form.phone.required')), patternRules.phone],
     pwd: [createRequiredRule($t('form.pwd.required')), patternRules.pwd],
@@ -59,21 +116,8 @@ export function useFormRules() {
   const defaultRequiredRule = createRequiredRule($t('form.required'));
 
   /**
-   * 作用：创建必填校验规则。
-   * @param message 校验失败提示
-   * @returns {App.Global.FormRule}
-   * @修改人 黄碧莲
-   * @修改时间 2026-05-14
-   */
-  function createRequiredRule(message: string) {
-    return {
-      required: true,
-      message
-    };
-  }
-
-  /**
    * 作用：创建与主密码字段一致的确认密码校验规则。
+   *
    * @param pwd 主密码（ref/computed/字符串）
    * @returns {App.Global.FormRule[]}
    * @修改人 黄碧莲

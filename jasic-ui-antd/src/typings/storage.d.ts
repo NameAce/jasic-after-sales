@@ -20,8 +20,10 @@ declare namespace StorageType {
     refreshToken: string;
     /** The theme color */
     themeColor: string;
-    /** The theme settings */
+    /** The theme settings（运行时按用户+角色分区写入 `themeSettings__scope__*`，全局键仅作旧版兼容） */
     themeSettings: App.Theme.ThemeSetting;
+    /** 最近一次 hydrate 的主题分区（用户+角色），供首屏 loading 在 Pinia 就绪前读取主色 */
+    themeActiveScopeId: string;
     /**
      * The override theme flags
      *

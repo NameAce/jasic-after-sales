@@ -1,7 +1,7 @@
 /**
  * 主题 store 共享：默认设置合并、antd ConfigProvider token、CSS 变量与暗色 class 切换等。
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-20
  */
 import { theme as antdTheme } from 'ant-design-vue';
 import type { ConfigProviderProps } from 'ant-design-vue';
@@ -10,39 +10,45 @@ import { getRgbOfColor } from '@sa/utils';
 import { defu } from 'defu';
 import { toggleHtmlClass } from '@/utils/common';
 import { localStg } from '@/utils/storage';
+import { readLegacyThemeSettings, readScopedPublishOverrideFlag, readScopedThemeSettings, writeScopedPublishOverrideFlag } from '@/utils/theme-storage-scope';
 import { overrideThemeSettings, themeSettings } from '@/theme/settings';
 import { themeVars } from '@/theme/vars';
 
 const DARK_CLASS = 'dark';
 
 /**
- * 作用：读取并合并本地缓存的主题设置；生产环境在发版 BUILD_TIME 变化时叠加 overrideThemeSettings。
+ * 作用：按「用户 + 当前角色维度」读取并合并本地缓存的主题设置（分区键缺失时降级旧版全局 `themeSettings`，便于升级平滑）。
+ *
+ * - 开发与生产均在存在缓存时与 `themeSettings` 默认值合并；
+ * - 生产环境按存储分区写入 `themePublishOverrideFlag`，在构建版本 BUILD_TIME 变化时对**该分区**叠加 `overrideThemeSettings`；
+ * - 清空某分区可自行删除 localStorage 中 `themeSettings__scope__*` 与 `themePublishOverrideFlag__scope__*` 条目。
+ *
+ * @param scopeId - 由 {@link buildThemeStorageScopeId} 计算的存储分区标识
  * @returns {App.Theme.ThemeSetting} 生效的主题配置
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-20
  */
-export function initThemeSettings() {
+export function resolveThemeSettingsForScope(scopeId: string): App.Theme.ThemeSetting {
   const isProd = import.meta.env.PROD;
+  /** 优先读分区快照，兼容旧版本未分区的单个 `themeSettings` */
+  const localSettings = readScopedThemeSettings(scopeId) ?? readLegacyThemeSettings();
 
-  // if it is development mode, the theme settings will not be cached, by update `themeSettings` in `src/theme/settings.ts` to update theme settings
-  if (!isProd) return themeSettings;
+  if (!isProd) {
+    return localSettings ? defu(localSettings, themeSettings) : themeSettings;
+  }
 
-  // if it is production mode, the theme settings will be cached in localStorage
-  // if want to update theme settings when publish new version, please update `overrideThemeSettings` in `src/theme/settings.ts`
+  // 生产：合并缓存后对「当前分区」检查发版默认值；独立于全局旧的 overrideThemeFlag，避免切换身份 hydrate 时被其它分区提前置位干扰
+  let merged = defu(localSettings, themeSettings);
 
-  const localSettings = localStg.get('themeSettings');
-
-  let settings = defu(localSettings, themeSettings);
-
-  const isOverride = localStg.get('overrideThemeFlag') === BUILD_TIME;
-
-  if (!isOverride) {
-    settings = defu(overrideThemeSettings, settings);
-
+  const scopedPublish = readScopedPublishOverrideFlag(scopeId);
+  if (scopedPublish !== BUILD_TIME) {
+    merged = defu(overrideThemeSettings, merged);
+    writeScopedPublishOverrideFlag(scopeId, BUILD_TIME);
+    /** 与历史键对齐：仍存在读全局标记的运维/脚本时可见当前构建已过发版默认值流程 */
     localStg.set('overrideThemeFlag', BUILD_TIME);
   }
 
-  return settings;
+  return merged;
 }
 
 /**
