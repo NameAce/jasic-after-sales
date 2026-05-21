@@ -7,6 +7,7 @@ import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.common.core.domain.Result;
 import com.jasic.aftersales.common.enums.OperTypeEnum;
 import com.jasic.aftersales.system.domain.dto.SysConfigDTO;
+import com.jasic.aftersales.system.domain.dto.SysConfigGroupSaveDTO;
 import com.jasic.aftersales.system.domain.query.SysConfigQuery;
 import com.jasic.aftersales.system.domain.vo.SysConfigGroupVO;
 import com.jasic.aftersales.system.domain.vo.SysConfigVO;
@@ -115,6 +116,21 @@ public class SysConfigController extends BaseController {
     public Result<Void> update(@Validated @RequestBody SysConfigDTO dto) {
         // 调用update方法，复用统一能力并保证业务规则一致。
         configService.update(dto);
+        return Result.ok();
+    }
+
+    /**
+     * 按分组批量保存配置。
+     *
+     * @param dto 分组保存参数；要求同一次请求中的配置项都属于同一分组，避免跨组提交造成配置漂移
+     * @return 处理结果
+     */
+    @SaCheckPermission("system:config:update")
+    @OperLog(title = "参数设置", operType = OperTypeEnum.UPDATE)
+    @PutMapping("/grouped")
+    public Result<Void> saveGroup(@Validated @RequestBody SysConfigGroupSaveDTO dto) {
+        // 分组保存要交由服务层统一做同组校验、逐条持久化和缓存刷新，避免前端拆成多次单条调用后出现部分成功、部分失败。
+        configService.saveGroup(dto);
         return Result.ok();
     }
 

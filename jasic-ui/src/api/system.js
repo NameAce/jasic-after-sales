@@ -152,6 +152,9 @@ export function addConfig(data) {
 export function updateConfig(data) {
   return request({ url: '/system/config', method: 'put', data })
 }
+export function updateGroupedConfig(data) {
+  return request({ url: '/system/config/grouped', method: 'put', data })
+}
 export function deleteConfig(id) {
   return request({ url: `/system/config/${id}`, method: 'delete' })
 }

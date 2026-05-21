@@ -8,6 +8,7 @@ import com.jasic.aftersales.common.constant.CacheConstants;
 import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.system.domain.dto.SysConfigDTO;
+import com.jasic.aftersales.system.domain.dto.SysConfigGroupSaveDTO;
 import com.jasic.aftersales.system.domain.entity.SysConfig;
 import com.jasic.aftersales.system.domain.query.SysConfigQuery;
 import com.jasic.aftersales.system.domain.vo.SysConfigGroupVO;
@@ -16,6 +17,9 @@ import com.jasic.aftersales.system.mapper.SysConfigMapper;
 import com.jasic.aftersales.system.service.ISysConfigService;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
@@ -198,6 +202,32 @@ public class SysConfigServiceImpl implements ISysConfigService {
     }
 
     /**
+     * 按分组批量保存系统配置。
+     *
+     * <p>该方法服务新的分组配置页保存动作。前端一次提交一个分组，后端统一校验整组配置项是否同组、
+     * 是否都是已存在记录，再在一个事务内逐条落库。这样做可以避免前端自己拆成多次单条请求后，
+     * 出现“前几项已改成功、后一项失败”导致页面状态和数据库状态不一致的问题。</p>
+     *
+     * @param dto 分组保存参数
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void saveGroup(SysConfigGroupSaveDTO dto) {
+        // 先统一校验目标分组，避免无效分组进入后续逐条更新流程后才暴露问题。
+        String groupKey = normalizeExplicitGroupKey(dto.getGroupKey());
+        // 再校验整组配置项，提前拦截跨组混提、空列表和重复提交等错误，减少事务中途失败带来的排查成本。
+        validateGroupSaveRequest(groupKey, dto.getConfigs());
+        for (SysConfigDTO config : dto.getConfigs()) {
+            // 分组保存场景要求所有配置项都强制落到当前分组，避免前端带入旧值或脏值导致配置项漂移到错误分组。
+            config.setGroupKey(groupKey);
+            // 这里复用“仅更新数据库、不提前写缓存”的内部更新逻辑，确保整组保存全部成功后再统一刷新缓存。
+            updateGroupConfigWithoutCache(groupKey, config);
+        }
+        // 整组保存完成后统一刷新配置缓存，保证业务侧按 key 读取时看到的是同一次分组保存后的完整结果。
+        refreshCacheAfterCommit();
+    }
+
+    /**
      * 根据ID查询配置详情。
      *
      * @param id 参数设置主键
@@ -245,13 +275,8 @@ public class SysConfigServiceImpl implements ISysConfigService {
      */
     @Override
     public Long save(SysConfigDTO dto) {
-        // 新增前先校验配置 key 唯一，避免运行时按 key 读取配置时出现多条记录的歧义。
-        checkConfigKeyUnique(dto.getConfigKey(), null);
-        // 旧参数设置页不会提交 groupKey，因此复制属性后必须由服务层补齐分组，保证数据库非空约束可稳定通过。
-        SysConfig entity = BeanUtil.copyProperties(dto, SysConfig.class);
-        entity.setGroupKey(resolveGroupKey(dto.getGroupKey(), dto.getConfigKey(), null));
-        // 写入 sys_config 后，新增配置即可被旧页面和业务读取链路共同识别。
-        sysConfigMapper.insert(entity);
+        // 单条新增继续复用内部持久化逻辑，保证单条保存和分组保存对分组解析、唯一性校验的口径完全一致。
+        SysConfig entity = insertWithoutCache(dto);
         // 保存成功后立即刷新当前 key 的缓存，避免业务读取到旧值或空值。
         redisTemplate.opsForValue().set(getCacheKey(entity.getConfigKey()), entity.getConfigValue());
         return entity.getId();
@@ -264,31 +289,14 @@ public class SysConfigServiceImpl implements ISysConfigService {
      */
     @Override
     public void update(SysConfigDTO dto) {
-        if (dto.getId() == null) {
-            throw new ServiceException("参数ID不能为空");
-        }
-        // 先读取旧记录，用于判断配置是否存在、保留旧分组以及清理旧配置 key 的缓存。
-        SysConfig entity = sysConfigMapper.selectById(dto.getId());
-        if (entity == null) {
-            throw new ServiceException("参数不存在");
-        }
-        // 修改时仍要保证 configKey 唯一，否则按 key 获取配置会出现不可控结果。
-        checkConfigKeyUnique(dto.getConfigKey(), dto.getId());
-        // 记录旧 key 用于后续缓存清理，避免改名后旧 key 仍能命中历史缓存。
-        String oldConfigKey = entity.getConfigKey();
-        // 旧页面不传 groupKey 时按新 key 自动归组或保留旧分组，兼容新旧页面并存的过渡状态。
-        String resolvedGroupKey = resolveGroupKey(dto.getGroupKey(), dto.getConfigKey(), entity.getGroupKey());
-        // 复制普通可维护字段，随后回写归一化后的分组，避免空分组覆盖已有数据。
-        BeanUtil.copyProperties(dto, entity);
-        entity.setGroupKey(resolvedGroupKey);
-        // 持久化修改后的配置项，保证新增 groupKey 与参数值、备注等字段一起保存。
-        sysConfigMapper.updateById(entity);
-        if (!StrUtil.equals(oldConfigKey, entity.getConfigKey())) {
+        // 单条更新先走内部数据库更新逻辑，先保证记录存在、分组合法、唯一性通过，再做缓存同步。
+        String oldConfigKey = updateWithoutCache(dto);
+        if (!StrUtil.equals(oldConfigKey, dto.getConfigKey())) {
             // key 发生变化时删除旧缓存，不删除会导致业务继续通过旧 key 读到已改名配置。
             redisTemplate.delete(getCacheKey(oldConfigKey));
         }
         // 更新当前 key 缓存，保证保存成功后业务读取立即生效。
-        redisTemplate.opsForValue().set(getCacheKey(entity.getConfigKey()), entity.getConfigValue());
+        redisTemplate.opsForValue().set(getCacheKey(dto.getConfigKey()), dto.getConfigValue());
     }
 
     /**
@@ -330,6 +338,28 @@ public class SysConfigServiceImpl implements ISysConfigService {
     }
 
     /**
+     * 在事务提交之后刷新配置缓存。
+     *
+     * <p>分组保存会在一个事务内更新多条配置记录。如果在事务未提交时提前刷新 Redis，
+     * 后续一旦发生回滚，缓存就可能比数据库更早看到未生效的新值。这里通过事务同步回调，
+     * 把刷新缓存的时机延后到 afterCommit 阶段，确保只有真正提交成功的配置变更才会影响运行时读取。</p>
+     */
+    private void refreshCacheAfterCommit() {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            // 非事务场景下没有 afterCommit 回调机制，因此回退到立即刷新，保证该服务在测试或非代理调用下仍然可用。
+            refreshCache();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                // 只有事务真正提交成功后才刷新缓存，避免回滚后 Redis 和数据库出现不一致。
+                refreshCache();
+            }
+        });
+    }
+
+    /**
      * 清理全部参数缓存。
      *
      * <p>缓存 key 仍沿用 config:key:{configKey} 格式。清理时按统一前缀删除，确保保存或刷新缓存后
@@ -342,6 +372,97 @@ public class SysConfigServiceImpl implements ISysConfigService {
             // 只有存在参数缓存时才执行删除，减少空集合调用带来的无意义 Redis 操作。
             redisTemplate.delete(keys);
         }
+    }
+
+    /**
+     * 校验分组保存请求。
+     *
+     * @param groupKey 当前提交的目标分组
+     * @param configs 当前分组下待保存的配置项列表
+     */
+    private void validateGroupSaveRequest(String groupKey, List<SysConfigDTO> configs) {
+        if (configs == null || configs.isEmpty()) {
+            throw new ServiceException("分组配置项列表不能为空");
+        }
+        Set<Long> configIds = new HashSet<>();
+        Set<String> configKeys = new HashSet<>();
+        for (SysConfigDTO config : configs) {
+            validateGroupSaveItem(groupKey, config, configIds, configKeys);
+        }
+    }
+
+    /**
+     * 校验单个分组保存项。
+     *
+     * @param groupKey 当前提交的目标分组
+     * @param config 当前配置项
+     * @param configIds 本次请求中已出现的配置ID集合，用于拦截重复提交
+     * @param configKeys 本次请求中已出现的配置 key 集合，用于拦截同组内重复键名
+     */
+    private void validateGroupSaveItem(String groupKey, SysConfigDTO config, Set<Long> configIds, Set<String> configKeys) {
+        if (config == null) {
+            throw new ServiceException("分组配置项不能为空");
+        }
+        if (config.getId() == null) {
+            throw new ServiceException("分组保存只允许更新已存在的配置项");
+        }
+        if (!configIds.add(config.getId())) {
+            throw new ServiceException("分组保存请求中存在重复的配置ID");
+        }
+        if (!configKeys.add(config.getConfigKey())) {
+            throw new ServiceException("分组保存请求中存在重复的配置键名");
+        }
+        if (StrUtil.isNotBlank(config.getGroupKey())) {
+            String itemGroupKey = normalizeExplicitGroupKey(config.getGroupKey());
+            if (!StrUtil.equals(itemGroupKey, groupKey)) {
+                throw new ServiceException("分组保存请求中存在跨组配置项");
+            }
+        }
+        String mappedGroupKey = resolveGroupKeyByConfigKey(config.getConfigKey());
+        if (StrUtil.isNotBlank(mappedGroupKey) && !StrUtil.equals(mappedGroupKey, groupKey)) {
+            throw new ServiceException("配置键名与目标分组不匹配");
+        }
+    }
+
+    /**
+     * 执行分组保存专用的持久化更新。
+     *
+     * <p>分组保存只服务当前分组下既有配置项的批量维护。这个入口不负责维护配置定义，
+     * 因此不允许在保存时修改参数键名、参数名称、内置标识或分组归属，只允许更新配置值和备注。</p>
+     *
+     * @param groupKey 当前保存的目标分组
+     * @param dto 当前待保存的配置项入参
+     */
+    private void updateGroupConfigWithoutCache(String groupKey, SysConfigDTO dto) {
+        if (dto.getId() == null) {
+            throw new ServiceException("参数ID不能为空");
+        }
+        // 先按主键读取真实记录，防止前端仅凭传入 ID 就对其它分组的配置项做跨组更新。
+        SysConfig entity = sysConfigMapper.selectById(dto.getId());
+        if (entity == null) {
+            throw new ServiceException("参数不存在");
+        }
+        String persistedGroupKey = normalizeExplicitGroupKey(entity.getGroupKey());
+        if (!StrUtil.equals(persistedGroupKey, groupKey)) {
+            throw new ServiceException("分组保存不允许修改其它分组的配置项");
+        }
+        String mappedGroupKey = resolveGroupKeyByConfigKey(entity.getConfigKey());
+        if (StrUtil.isNotBlank(mappedGroupKey) && !StrUtil.equals(mappedGroupKey, groupKey)) {
+            throw new ServiceException("配置记录当前所属分组与配置键名不一致");
+        }
+        if (!StrUtil.equals(entity.getConfigKey(), dto.getConfigKey())) {
+            throw new ServiceException("分组保存不允许修改参数键名");
+        }
+        if (!StrUtil.equals(entity.getConfigName(), dto.getConfigName())) {
+            throw new ServiceException("分组保存不允许修改参数名称");
+        }
+        if (entity.getConfigType() == null ? dto.getConfigType() != null : !entity.getConfigType().equals(dto.getConfigType())) {
+            throw new ServiceException("分组保存不允许修改内置标识");
+        }
+        // 分组页面真正需要维护的是配置值和说明信息，其它定义字段保持不变。
+        entity.setConfigValue(dto.getConfigValue());
+        entity.setRemark(dto.getRemark());
+        sysConfigMapper.updateById(entity);
     }
 
     /**
@@ -358,6 +479,52 @@ public class SysConfigServiceImpl implements ISysConfigService {
         if (exists != null && (excludeId == null || !exists.getId().equals(excludeId))) {
             throw new ServiceException("参数键名已存在");
         }
+    }
+
+    /**
+     * 执行不带缓存写入的新增持久化。
+     *
+     * @param dto 参数设置新增入参
+     * @return 已完成分组归一化并落库后的配置实体
+     */
+    private SysConfig insertWithoutCache(SysConfigDTO dto) {
+        // 新增前先校验配置 key 唯一，避免运行时按 key 读取配置时出现多条记录的歧义。
+        checkConfigKeyUnique(dto.getConfigKey(), null);
+        // 旧参数设置页不会提交 groupKey，因此复制属性后必须由服务层补齐分组，保证数据库非空约束可稳定通过。
+        SysConfig entity = BeanUtil.copyProperties(dto, SysConfig.class);
+        entity.setGroupKey(resolveGroupKey(dto.getGroupKey(), dto.getConfigKey(), null));
+        // 写入 sys_config 后，新增配置即可被旧页面和业务读取链路共同识别。
+        sysConfigMapper.insert(entity);
+        return entity;
+    }
+
+    /**
+     * 执行不带缓存写入的更新持久化。
+     *
+     * @param dto 参数设置修改入参
+     * @return 更新前的旧配置 key，用于后续清理历史缓存
+     */
+    private String updateWithoutCache(SysConfigDTO dto) {
+        if (dto.getId() == null) {
+            throw new ServiceException("参数ID不能为空");
+        }
+        // 先读取旧记录，用于判断配置是否存在、保留旧分组以及清理旧配置 key 的缓存。
+        SysConfig entity = sysConfigMapper.selectById(dto.getId());
+        if (entity == null) {
+            throw new ServiceException("参数不存在");
+        }
+        // 修改时仍要保证 configKey 唯一，否则按 key 获取配置会出现不可控结果。
+        checkConfigKeyUnique(dto.getConfigKey(), dto.getId());
+        // 记录旧 key 用于后续缓存清理，避免改名后旧 key 仍能命中历史缓存。
+        String oldConfigKey = entity.getConfigKey();
+        // 旧页面不传 groupKey 时按新 key 自动归组或保留旧分组，兼容新旧页面并存的过渡状态。
+        String resolvedGroupKey = resolveGroupKey(dto.getGroupKey(), dto.getConfigKey(), entity.getGroupKey());
+        // 复制普通可维护字段，随后回写归一化后的分组，避免空分组覆盖已有数据。
+        BeanUtil.copyProperties(dto, entity);
+        entity.setGroupKey(resolvedGroupKey);
+        // 持久化修改后的配置项，保证新增 groupKey 与参数值、备注等字段一起保存。
+        sysConfigMapper.updateById(entity);
+        return oldConfigKey;
     }
 
     /**

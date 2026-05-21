@@ -2,6 +2,7 @@ package com.jasic.aftersales.system.service;
 
 import com.jasic.aftersales.common.core.domain.PageResult;
 import com.jasic.aftersales.system.domain.dto.SysConfigDTO;
+import com.jasic.aftersales.system.domain.dto.SysConfigGroupSaveDTO;
 import com.jasic.aftersales.system.domain.query.SysConfigQuery;
 import com.jasic.aftersales.system.domain.vo.SysConfigGroupVO;
 import com.jasic.aftersales.system.domain.vo.SysConfigVO;
@@ -37,6 +38,18 @@ public interface ISysConfigService {
     default List<SysConfigGroupVO> listGroups(Boolean includeLegacy) {
         // 默认实现用于兼容测试替身或非配置模块的轻量实现，真实业务由 SysConfigServiceImpl 覆盖。
         return Collections.emptyList();
+    }
+
+    /**
+     * 按分组批量保存系统配置。
+     *
+     * <p>该方法主要服务新的分组配置页保存动作。它只处理同一分组下的整组提交，
+     * 不替代旧参数设置页的单条新增、单条修改入口。</p>
+     *
+     * @param dto 分组保存参数
+     */
+    default void saveGroup(SysConfigGroupSaveDTO dto) {
+        // 默认实现仅用于兼容测试替身；真实业务由 SysConfigServiceImpl 覆盖。
     }
 
     /**
