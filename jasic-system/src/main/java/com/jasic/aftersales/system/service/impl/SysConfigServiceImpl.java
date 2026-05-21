@@ -10,6 +10,7 @@ import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.system.domain.dto.SysConfigDTO;
 import com.jasic.aftersales.system.domain.entity.SysConfig;
 import com.jasic.aftersales.system.domain.query.SysConfigQuery;
+import com.jasic.aftersales.system.domain.vo.SysConfigGroupVO;
 import com.jasic.aftersales.system.domain.vo.SysConfigVO;
 import com.jasic.aftersales.system.mapper.SysConfigMapper;
 import com.jasic.aftersales.system.service.ISysConfigService;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -63,10 +65,28 @@ public class SysConfigServiceImpl implements ISysConfigService {
             GROUP_LEGACY
     )));
 
+    /** 配置分组固定返回顺序，前端可直接按该顺序渲染 tab、分组块或折叠面板。 */
+    private static final List<String> CONFIG_GROUP_ORDER = Collections.unmodifiableList(Arrays.asList(
+            GROUP_ORG,
+            GROUP_WECHAT,
+            GROUP_WORK_ORDER,
+            GROUP_LEGACY
+    ));
+
+    /** 配置分组展示名称映射，避免前端硬编码分组中文名后和后端语义漂移。 */
+    private static final Map<String, String> CONFIG_GROUP_NAME_MAP;
+
     /** 固定配置 key 到业务分组的映射，覆盖当前已确认的真实配置项。 */
     private static final Map<String, String> CONFIG_KEY_GROUP_MAP;
 
     static {
+        Map<String, String> groupNameMap = new HashMap<>();
+        groupNameMap.put(GROUP_ORG, "组织配置");
+        groupNameMap.put(GROUP_WECHAT, "微信配置");
+        groupNameMap.put(GROUP_WORK_ORDER, "工单配置");
+        groupNameMap.put(GROUP_LEGACY, "历史配置");
+        CONFIG_GROUP_NAME_MAP = Collections.unmodifiableMap(groupNameMap);
+
         Map<String, String> groupMap = new HashMap<>();
         groupMap.put("org.company.adminInitPassword", GROUP_ORG);
         groupMap.put("wechat.mp.b.appid", GROUP_WECHAT);
@@ -137,6 +157,44 @@ public class SysConfigServiceImpl implements ISysConfigService {
                 .map(this::toVO)
                 .collect(Collectors.toList());
         return PageResult.of(records, result.getTotal(), query.getPageNum(), query.getPageSize());
+    }
+
+    /**
+     * 查询系统配置分组及各分组全部配置项。
+     *
+     * <p>旧分页列表只适合“参数设置”维护页，不适合前端一次性展示所有配置分组。
+     * 该方法返回固定分组容器，并在每个容器内放入当前分组的全部配置项，前端不需要循环拉取分页数据。</p>
+     *
+     * @param includeLegacy 是否包含 legacy 历史废弃分组；false 时用于新系统配置页，true 时用于历史配置排查
+     * @return 固定顺序的配置分组列表
+     */
+    @Override
+    public List<SysConfigGroupVO> listGroups(Boolean includeLegacy) {
+        LambdaQueryWrapper<SysConfig> wrapper = new LambdaQueryWrapper<>();
+        if (!Boolean.TRUE.equals(includeLegacy)) {
+            // 新配置页默认不展示 legacy，避免历史废弃通知配置被误认为当前正式配置入口。
+            wrapper.ne(SysConfig::getGroupKey, GROUP_LEGACY);
+        }
+        // 查询全部配置项后由服务层按固定分组顺序组装，避免前端受分页或数据库字典序影响。
+        wrapper.orderByAsc(SysConfig::getGroupKey, SysConfig::getId);
+        List<SysConfig> configs = sysConfigMapper.selectList(wrapper);
+        Map<String, List<SysConfigVO>> groupedConfigMap = configs.stream()
+                .collect(Collectors.groupingBy(SysConfig::getGroupKey, Collectors.mapping(this::toVO, Collectors.toList())));
+
+        List<SysConfigGroupVO> groups = new ArrayList<>();
+        for (String groupKey : CONFIG_GROUP_ORDER) {
+            if (GROUP_LEGACY.equals(groupKey) && !Boolean.TRUE.equals(includeLegacy)) {
+                // 未显式要求 legacy 时跳过历史分组，保持新系统配置页只展示当前有效配置域。
+                continue;
+            }
+            SysConfigGroupVO groupVO = new SysConfigGroupVO();
+            groupVO.setGroupKey(groupKey);
+            groupVO.setGroupName(CONFIG_GROUP_NAME_MAP.get(groupKey));
+            groupVO.setLegacy(GROUP_LEGACY.equals(groupKey));
+            groupVO.setConfigs(groupedConfigMap.getOrDefault(groupKey, Collections.emptyList()));
+            groups.add(groupVO);
+        }
+        return groups;
     }
 
     /**

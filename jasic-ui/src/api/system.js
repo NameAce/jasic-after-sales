@@ -137,6 +137,9 @@ export function deleteDictData(id) {
 export function listConfig(params) {
   return request({ url: '/system/config/list', method: 'get', params })
 }
+export function listGroupedConfig(params) {
+  return request({ url: '/system/config/grouped', method: 'get', params })
+}
 export function getConfig(id) {
   return request({ url: `/system/config/${id}`, method: 'get' })
 }

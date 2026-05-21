@@ -8,6 +8,7 @@ import com.jasic.aftersales.common.core.domain.Result;
 import com.jasic.aftersales.common.enums.OperTypeEnum;
 import com.jasic.aftersales.system.domain.dto.SysConfigDTO;
 import com.jasic.aftersales.system.domain.query.SysConfigQuery;
+import com.jasic.aftersales.system.domain.vo.SysConfigGroupVO;
 import com.jasic.aftersales.system.domain.vo.SysConfigVO;
 import com.jasic.aftersales.system.service.ISysConfigService;
 import org.springframework.validation.annotation.Validated;
@@ -18,14 +19,19 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
+import java.util.List;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 
 /**
- * 参数设置控制器
+ * 参数设置控制器。
+ *
+ * <p>该控制器保留旧参数设置页的分页维护接口，同时提供非分页分组查询接口给前端展示全部配置分组。
+ * 分组查询不替代旧列表，也不引入完整配置中心模型。</p>
  *
  * @author Codex
  * @date 2026/03/19
@@ -48,6 +54,18 @@ public class SysConfigController extends BaseController {
     @GetMapping("/list")
     public Result<PageResult<SysConfigVO>> list(SysConfigQuery query) {
         return Result.ok(configService.listPage(query));
+    }
+
+    /**
+     * 查询配置分组及各分组下全部配置项。
+     *
+     * @param includeLegacy 是否包含 legacy 历史废弃分组；默认 false，避免新配置页误展示废弃通知配置
+     * @return 固定顺序的配置分组列表
+     */
+    @SaCheckPermission("system:config:list")
+    @GetMapping("/grouped")
+    public Result<List<SysConfigGroupVO>> grouped(@RequestParam(defaultValue = "false") Boolean includeLegacy) {
+        return Result.ok(configService.listGroups(includeLegacy));
     }
 
     /**
