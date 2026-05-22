@@ -35,8 +35,10 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -135,6 +137,8 @@ public class SysUserServiceImpl implements ISysUserService {
         List<SysUserVO> voList = result.getRecords().stream()
                 .map(this::convertToVO)
                 .collect(Collectors.toList());
+        // 用户管理列表需要直接返回当前公司下的角色，避免前端逐行补查详情造成 N+1 请求。
+        fillUserRolesInCompany(voList, query.getTargetCompanyId());
 
         return PageResult.of(voList, result.getTotal(), query.getPageNum(), query.getPageSize());
     }
@@ -400,24 +404,90 @@ public class SysUserServiceImpl implements ISysUserService {
      * @return 业务处理结果
      */
     private List<SysRoleVO> listUserRolesInCompany(Long userId, Long companyId) {
+        Map<Long, List<SysRoleVO>> userRoleMap = listUserRolesMapInCompany(Collections.singletonList(userId), companyId);
+        return userRoleMap.getOrDefault(userId, Collections.emptyList());
+    }
+
+    /**
+     * 按当前目标公司批量回填用户角色，保证列表接口可直接返回展示所需的角色信息。
+     *
+     * @param userList  当前页用户列表
+     * @param companyId 当前目标公司ID
+     */
+    private void fillUserRolesInCompany(List<SysUserVO> userList, Long companyId) {
+        if (userList == null || userList.isEmpty()) {
+            return;
+        }
+        List<Long> userIds = userList.stream()
+                .map(SysUserVO::getId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<Long, List<SysRoleVO>> userRoleMap = listUserRolesMapInCompany(userIds, companyId);
+        for (SysUserVO user : userList) {
+            // 即使用户当前公司下没有角色，也明确返回空数组，避免前端再做空值兼容分支。
+            user.setRoles(userRoleMap.getOrDefault(user.getId(), Collections.emptyList()));
+        }
+    }
+
+    /**
+     * 批量查询指定公司下多名用户的角色，统一收口用户列表和详情页共用的角色装配逻辑。
+     *
+     * @param userIds   用户ID列表
+     * @param companyId 当前目标公司ID
+     * @return 用户ID到角色列表的映射
+     */
+    private Map<Long, List<SysRoleVO>> listUserRolesMapInCompany(List<Long> userIds, Long companyId) {
+        if (companyId == null || userIds == null || userIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
         List<Long> companyRoleIds = listRoleIdsByCompanyId(companyId);
         if (companyRoleIds.isEmpty()) {
-            return Collections.emptyList();
+            return Collections.emptyMap();
         }
+
         LambdaQueryWrapper<SysUserRole> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysUserRole::getUserId, userId)
+        wrapper.in(SysUserRole::getUserId, userIds)
                 .in(SysUserRole::getRoleId, companyRoleIds);
         List<SysUserRole> userRoles = sysUserRoleMapper.selectList(wrapper);
         if (userRoles == null || userRoles.isEmpty()) {
-            return Collections.emptyList();
+            return Collections.emptyMap();
         }
+
         List<Long> roleIds = userRoles.stream()
                 .map(SysUserRole::getRoleId)
+                .filter(Objects::nonNull)
                 .distinct()
                 .collect(Collectors.toList());
+        if (roleIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
         List<SysRole> roles = sysRoleMapper.selectBatchIds(roleIds);
-        return roles == null ? Collections.emptyList()
-                : roles.stream().map(this::convertRoleToVO).collect(Collectors.toList());
+        if (roles == null || roles.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        Map<Long, SysRoleVO> roleVoMap = new HashMap<>();
+        for (SysRole role : roles) {
+            if (role == null || role.getId() == null) {
+                continue;
+            }
+            roleVoMap.put(role.getId(), convertRoleToVO(role));
+        }
+
+        Map<Long, List<SysRoleVO>> userRoleMap = new HashMap<>();
+        for (SysUserRole userRole : userRoles) {
+            if (userRole == null || userRole.getUserId() == null || userRole.getRoleId() == null) {
+                continue;
+            }
+            SysRoleVO role = roleVoMap.get(userRole.getRoleId());
+            if (role == null) {
+                continue;
+            }
+            userRoleMap.computeIfAbsent(userRole.getUserId(), key -> new ArrayList<>()).add(role);
+        }
+        return userRoleMap;
     }
 
     /**
@@ -545,7 +615,6 @@ public class SysUserServiceImpl implements ISysUserService {
         return result;
     }
 }
-
 
 
 
