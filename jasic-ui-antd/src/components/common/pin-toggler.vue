@@ -20,8 +20,8 @@ const icon = computed(() => (props.pin ? 'mdi-pin-off' : 'mdi-pin'));
 </script>
 
 <template>
-  <!-- 通用组件：pin-toggler -->
   <ButtonIcon :tooltip-content="pin ? $t('icon.unpin') : $t('icon.pin')" tooltip-placement="bottomLeft" trigger-parent>
+    <!-- 通用组件：pin-toggler -->
     <SvgIcon :icon="icon" />
   </ButtonIcon>
 </template>

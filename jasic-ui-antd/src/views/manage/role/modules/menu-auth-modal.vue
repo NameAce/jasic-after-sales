@@ -211,8 +211,8 @@ watch(visible, val => {
 </script>
 
 <template>
-  <!-- 角色菜单权限分配弹窗 -->
   <ADrawer v-model:open="visible" :title="title" :width="480">
+    <!-- 角色菜单权限分配弹窗 -->
     <div class="flex-y-center gap-16px pb-12px">
       <div>{{ $t('page.manage.menu.home') }}</div>
       <ASelect :value="home" :options="pageSelectOptions" class="w-240px" @update:value="updateHome" />

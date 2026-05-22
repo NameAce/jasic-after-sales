@@ -257,8 +257,8 @@ defineExpose({ open });
 </script>
 
 <template>
-  <!-- 网点工单抽屉：按主状态 Segmented + 关键词筛选该网点下工单列表 -->
   <ADrawer v-model:open="drawerOpen" :title="drawerTitle" :width="1100" destroy-on-close>
+    <!-- 网点工单抽屉：按主状态 Segmented + 关键词筛选该网点下工单列表 -->
     <div class="flex-col-stretch gap-12px">
       <ASegmented :value="displayStatus" :options="statusSegmentOptions" @change="handleStatusChange" />
       <div class="page-search-toolbar">

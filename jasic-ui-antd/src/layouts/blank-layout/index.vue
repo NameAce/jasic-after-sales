@@ -12,7 +12,6 @@ defineOptions({
 </script>
 
 <template>
-  <!-- 空白布局：仅渲染路由子页面（登录等） -->
   <GlobalContent :show-padding="false" />
 </template>
 

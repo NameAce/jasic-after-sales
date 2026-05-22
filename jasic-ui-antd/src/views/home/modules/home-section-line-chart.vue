@@ -168,8 +168,8 @@ function openExtraLink() {
 </script>
 
 <template>
-  <!-- 首页区块折线图 -->
   <ACard :bordered="false" class="card-wrapper" :loading="loading">
+    <!-- 首页区块折线图 -->
     <template v-if="extraLinkText && extraLinkRoute" #extra>
       <a class="text-primary" href="javascript:;" @click.prevent="openExtraLink">{{ extraLinkText }}</a>
     </template>

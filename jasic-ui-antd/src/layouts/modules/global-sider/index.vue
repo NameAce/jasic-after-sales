@@ -29,8 +29,8 @@ const menuWrapperClass = computed(() => (showLogo.value ? 'flex-1-hidden' : 'h-f
 </script>
 
 <template>
-  <!-- 侧栏容器：菜单与折叠 -->
   <DarkModeContainer class="size-full flex-col-stretch shadow-sider" :inverted="darkMenu">
+    <!-- 侧栏容器：菜单与折叠 -->
     <GlobalLogo
       v-if="showLogo"
       :show-title="!appStore.siderCollapse"

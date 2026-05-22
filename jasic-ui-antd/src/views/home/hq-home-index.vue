@@ -54,8 +54,8 @@ const workOrderPoolWithTransfer = computed((): HomeSectionVO | null => {
 </script>
 
 <template>
-  <!-- 总部调度看板：横幅 + KPI（含已转出）+ 近七天趋势 / 承接池状态饼图 -->
   <div class="home-dashboard">
+    <!-- 总部调度看板：横幅 + KPI（含已转出）+ 近七天趋势 / 承接池状态饼图 -->
     <HomeWorkbenchHeader
       class="home-dashboard__shrink"
       :title="title"

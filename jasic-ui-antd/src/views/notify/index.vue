@@ -295,8 +295,8 @@ useRouteQueryFilterSync({
 </script>
 
 <template>
-  <!-- 站内通知：待办/历史 Tab、角标数量；行点击跳转业务，待办可标记已读 -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <!-- 站内通知：待办/历史 Tab、角标数量；行点击跳转业务，待办可标记已读 -->
     <ACard :title="pageMenuTitle" :bordered="false" class="flex-col-stretch card-wrapper sm:flex-1-hidden">
       <div class="mb-12px">待办通知数：{{ todoCount }}</div>
       <!-- 待处理 vs 历史记录：分页状态按 Tab 独立维护 -->

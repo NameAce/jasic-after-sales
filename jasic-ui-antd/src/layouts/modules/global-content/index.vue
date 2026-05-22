@@ -49,8 +49,8 @@ function resetScroll() {
 </script>
 
 <template>
-  <!-- 主内容区：路由视图与 keep-alive -->
   <RouterView v-slot="{ Component, route }">
+    <!-- 主内容区：路由视图与 keep-alive -->
     <Transition
       :name="transitionName"
       mode="out-in"

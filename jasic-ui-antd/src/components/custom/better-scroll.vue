@@ -56,8 +56,8 @@ defineExpose({ instance });
 </script>
 
 <template>
-  <!-- 通用组件：better-scroll -->
   <div ref="bsWrapper" class="h-full text-left">
+    <!-- 通用组件：better-scroll -->
     <div ref="bsContent" class="inline-block" :class="{ 'h-full': !isScrollY }">
       <slot></slot>
     </div>

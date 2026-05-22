@@ -52,8 +52,8 @@ function openHistoryItem() {
 </script>
 
 <template>
-  <!-- 历史工单入口卡片 -->
   <ACard :title="entry?.title || '历史参与'" :bordered="false" size="small" class="card-wrapper" :loading="loading">
+    <!-- 历史工单入口卡片 -->
     <AList :data-source="listItems" :locale="{ emptyText: $t('page.home.projectNews.empty') }">
       <template #renderItem="{ item }">
         <AListItem class="cursor-pointer" @click="openHistoryItem">

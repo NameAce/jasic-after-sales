@@ -40,8 +40,8 @@ function resetTabLabel() {
 </script>
 
 <template>
-  <!-- 功能演示页：tab/index.vue -->
   <ASpace direction="vertical" :size="16">
+    <!-- 功能演示页：tab/index.vue -->
     <ACard :title="$t('page.function.tab.tabOperate.title')" :bordered="false" size="small" class="card-wrapper">
       <ADivider orientation="left">{{ $t('page.function.tab.tabOperate.addTab') }}</ADivider>
       <AButton @click="routerPushByKey('home')">{{ $t('page.function.tab.tabOperate.addTabDesc') }}</AButton>

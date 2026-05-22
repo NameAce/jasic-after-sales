@@ -715,8 +715,8 @@ onMounted(loadList);
 </script>
 
 <template>
-  <!-- 通知追踪：事件/投递分页查询、重试与死信处理 -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <!-- 通知追踪：事件/投递分页查询、重试与死信处理 -->
     <!-- 筛选区：工单号、场景、目标类型、状态与时间范围 -->
     <ACard :bordered="false" class="card-wrapper">
       <AForm :model="queryParams" :label-col="{ span: 5, md: 7 }">

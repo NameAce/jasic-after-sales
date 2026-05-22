@@ -126,8 +126,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <!-- 总部网点柱状图 -->
   <ACard :bordered="false" class="card-wrapper" :loading="loading">
+    <!-- 总部网点柱状图 -->
     <template #extra>
       <a class="text-primary" href="javascript:;" @click.prevent="goWorkOrderPage">
         {{ $t('page.home.hqViewOrders') }}

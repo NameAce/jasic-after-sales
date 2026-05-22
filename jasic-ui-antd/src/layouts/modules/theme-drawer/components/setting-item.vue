@@ -21,8 +21,8 @@ defineProps<Props>();
 </script>
 
 <template>
-  <!-- 布局子模块：setting-item -->
   <div class="w-full flex-y-center justify-between">
+    <!-- 布局子模块：setting-item -->
     <div>
       <span class="pr-8px text-base-text">{{ label }}</span>
       <slot name="suffix"></slot>

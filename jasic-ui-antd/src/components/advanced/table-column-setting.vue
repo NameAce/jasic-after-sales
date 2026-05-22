@@ -17,8 +17,8 @@ const columns = defineModel<AntDesign.TableColumnCheck[]>('columns', {
 </script>
 
 <template>
-  <!-- 通用组件：table-column-setting -->
   <APopover placement="bottomRight" trigger="click">
+    <!-- 通用组件：table-column-setting -->
     <AButton size="small">
       <template #icon>
         <icon-ant-design-setting-outlined class="align-sub text-icon" />

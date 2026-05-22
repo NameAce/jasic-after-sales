@@ -49,8 +49,8 @@ function search() {
 </script>
 
 <template>
-  <!-- 角色列表搜索表单 -->
   <ACard :bordered="false" class="card-wrapper">
+    <!-- 角色列表搜索表单 -->
     <AForm :model="model" :label-width="80">
       <div class="page-search-toolbar">
         <div class="page-search-toolbar__filters">

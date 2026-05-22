@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { hasTemplateRootComment, insertTemplateRootComment } from './template-comment-placement.mjs';
 
 const META_LINES = [' * @修改人 黄碧莲', ' * @修改时间 2026-05-22'];
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '../src');
@@ -204,8 +205,8 @@ function processTemplate(rel) {
   const lines = fs.readFileSync(fp, 'utf8').replace(/\r\n/g, '\n').split('\n');
   const tplIdx = lines.findIndex(l => l.trim() === '<template>');
   if (tplIdx < 0) return;
-  if (lines.slice(tplIdx + 1, tplIdx + 6).some(l => l.trim().startsWith('<!--'))) return;
-  lines.splice(tplIdx + 1, 0, `  <!-- ${tplText(rel)} -->`);
+  if (hasTemplateRootComment(lines, tplIdx)) return;
+  insertTemplateRootComment(lines, tplIdx, tplText(rel));
   fs.writeFileSync(fp, lines.join('\n'), 'utf8');
   console.log(`Template ${rel}`);
 }

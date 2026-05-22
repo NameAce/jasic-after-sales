@@ -278,8 +278,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <!-- 公司地址簿：当前公司联系人地址列表、默认标记与增删改 -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <!-- 公司地址簿：当前公司联系人地址列表、默认标记与增删改 -->
     <!-- 列表区：新增入口 + 表格行操作（编辑/设为默认/删除） -->
     <ACard :title="pageMenuTitle" :bordered="false" class="flex-col-stretch card-wrapper sm:flex-1-hidden">
       <div class="mb-12px">

@@ -19,8 +19,8 @@ useHomeDashboardOnMount(loadPlatformDashboard, loaded);
 </script>
 
 <template>
-  <!-- 平台看板区块 -->
   <ASpin :spinning="loading && !loaded">
+    <!-- 平台看板区块 -->
     <PlatformKpiCards v-if="showDashboard" />
   </ASpin>
 </template>

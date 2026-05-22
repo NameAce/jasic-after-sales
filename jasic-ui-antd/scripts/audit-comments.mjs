@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { hasTemplateRootComment } from './template-comment-placement.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '../src');
 const SKIP = new Set(['router/elegant', 'node_modules']);
@@ -37,6 +38,7 @@ function topDir(rel) {
 const byDir = {};
 const fnMissFiles = [];
 const vueNoTpl = [];
+const templateSiblingComment = [];
 const noMetaFiles = [];
 const noScriptVue = [];
 
@@ -67,7 +69,14 @@ for (const rel of walk()) {
       noScriptVue.push(rel);
     }
     const tplIdx = lines.findIndex(l => l.trim() === '<template>');
-    const hasTpl = tplIdx >= 0 && lines.slice(tplIdx + 1, tplIdx + 8).some(l => l.trim().startsWith('<!--'));
+    if (tplIdx >= 0) {
+      let scan = tplIdx + 1;
+      while (scan < lines.length && lines[scan].trim() === '') scan += 1;
+      if (scan < lines.length && lines[scan].trim().startsWith('<!--')) {
+        templateSiblingComment.push(rel);
+      }
+    }
+    const hasTpl = tplIdx >= 0 && hasTemplateRootComment(lines, tplIdx);
     if (!hasTpl) {
       d.vueNoTpl++;
       vueNoTpl.push(rel);
@@ -132,8 +141,13 @@ if (fnMissFiles.length) {
   if (fnMissFiles.length > 30) console.log(`  ... 另有 ${fnMissFiles.length - 30} 处`);
 }
 
+if (templateSiblingComment.length) {
+  console.log('\n--- template 注释与根元素并列（会导致 dev 路由白屏，请移入根元素内）---');
+  templateSiblingComment.forEach(r => console.log(`  ${r}`));
+}
+
 if (vueNoTpl.length) {
-  console.log('\n--- 仍缺 template <!-- --> ---');
+  console.log('\n--- 仍缺 template 根内 <!-- --> ---');
   vueNoTpl.forEach(r => console.log(`  ${r}`));
 }
 

@@ -53,8 +53,8 @@ const icon = computed(() => iconMap[props.type]);
 </script>
 
 <template>
-  <!-- 通用组件：exception-base -->
-  <div class="size-full min-h-520px flex-col-center gap-24px overflow-hidden px-24px">
+  <div class="min-h-screen w-full flex-col-center gap-24px overflow-hidden px-24px">
+    <!-- 403/404/500 异常占位：视口高度铺满，不依赖 blank-layout 父级 height 传递 -->
     <div class="flex text-400px text-primary">
       <SvgIcon :local-icon="icon" />
     </div>

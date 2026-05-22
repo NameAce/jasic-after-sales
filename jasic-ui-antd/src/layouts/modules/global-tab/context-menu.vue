@@ -105,8 +105,8 @@ const dropdownAction: Record<App.Global.DropdownKey, () => void> = {
 </script>
 
 <template>
-  <!-- 布局子模块：context-menu -->
   <ADropdown :trigger="trigger" placement="bottom" destroy-popup-on-hide>
+    <!-- 布局子模块：context-menu -->
     <slot></slot>
     <template #overlay>
       <AMenu>

@@ -7,7 +7,6 @@
 </script>
 
 <template>
-  <!-- 内置页：404/index.vue -->
   <ExceptionBase type="404" />
 </template>
 

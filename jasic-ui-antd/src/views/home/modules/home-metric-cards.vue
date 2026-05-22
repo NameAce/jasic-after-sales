@@ -137,8 +137,7 @@ function openMetric(metric: (typeof metrics.value)[number]) {
 </script>
 
 <template>
-  <!-- 首页 KPI 渐变卡片：支持 fillRow 均分、routeOverrides 覆盖跳转 -->
-  <ACard
+    <ACard
     :bordered="false"
     size="small"
     class="card-wrapper"
@@ -149,6 +148,7 @@ function openMetric(metric: (typeof metrics.value)[number]) {
     :loading="loading"
     :body-style="compact ? { padding: '12px 16px' } : undefined"
   >
+      <!-- 首页 KPI 渐变卡片：支持 fillRow 均分、routeOverrides 覆盖跳转 -->
     <template v-if="showSectionTitle && section?.title" #title>
       {{ section.title }}
     </template>

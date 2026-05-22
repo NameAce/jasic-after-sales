@@ -10,8 +10,8 @@ defineOptions({
 </script>
 
 <template>
-  <!-- 通用组件：soybean-avatar -->
   <div class="size-72px overflow-hidden rd-1/2">
+    <!-- 通用组件：soybean-avatar -->
     <img
       src="https://jasic-after.oss-cn-shenzhen.aliyuncs.com/uniapp/contractor/default-avatar.jpg"
       class="size-full"

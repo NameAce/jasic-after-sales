@@ -276,8 +276,8 @@ init();
 </script>
 
 <template>
-  <!-- 管理端演示 — 菜单树表与操作弹窗 -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <!-- 管理端演示 — 菜单树表与操作弹窗 -->
     <ACard
       :title="pageMenuTitle"
       :bordered="false"

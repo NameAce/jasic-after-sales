@@ -616,8 +616,8 @@ onActivated(() => {
 </script>
 
 <template>
-  <!-- 工单列表：筛选 + 状态 Segmented + 表格（行操作来自 availableActions） -->
   <div class="work-order-page min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <!-- 工单列表：筛选 + 状态 Segmented + 表格（行操作来自 availableActions） -->
     <ACard :bordered="false" size="small" class="work-order-search-card card-wrapper">
       <AForm :model="query" :label-col="{ span: 5, md: 7 }" class="work-order-search-form">
         <!-- 一级视图：当前处理 vs 历史转出（历史仅只读 + 补寄件等例外操作） -->

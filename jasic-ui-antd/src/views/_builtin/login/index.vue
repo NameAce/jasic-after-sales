@@ -73,8 +73,8 @@ const systemTitle = computed(() => $t('system.title'));
 </script>
 
 <template>
-  <!-- 内置页：login/index.vue -->
-  <div class="relative size-full flex-center" :style="{ backgroundColor: bgColor }">
+  <div class="relative min-h-screen w-full flex-center" :style="{ backgroundColor: bgColor }">
+    <!-- 登录页：视口高度铺满，不依赖 blank-layout 父级 height 传递 -->
     <WaveBg :theme-color="bgThemeColor" />
     <ACard class="relative z-4">
       <div class="w-400px lt-sm:w-300px">

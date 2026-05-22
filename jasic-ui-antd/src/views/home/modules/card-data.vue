@@ -109,8 +109,8 @@ function openWorkOrderPage(status: CardData['key']) {
 </script>
 
 <template>
-  <!-- 卡片数据展示 -->
   <ACard :bordered="false" size="small" class="card-wrapper" :loading="loading">
+    <!-- 卡片数据展示 -->
     <DefineGradientBg v-slot="{ $slots, gradientColor }">
       <div class="rd-8px px-16px pb-4px pt-8px text-white" :style="{ backgroundImage: gradientColor }">
         <component :is="$slots.default" />

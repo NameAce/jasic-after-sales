@@ -18,8 +18,8 @@ defineProps<Props>();
 </script>
 
 <template>
-  <!-- 内置页：iframe-page/[url].vue -->
   <div class="h-full">
+    <!-- 内置页：iframe-page/[url].vue -->
     <iframe id="iframePage" class="size-full" :src="url"></iframe>
   </div>
 </template>

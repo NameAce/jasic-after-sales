@@ -10,8 +10,8 @@ defineOptions({
 </script>
 
 <template>
-  <!-- 页脚版权信息 -->
   <DarkModeContainer class="h-full flex-center">
+    <!-- 页脚版权信息 -->
     <a target="_blank" rel="noopener noreferrer">Copyright MIT © 2026 Jasic</a>
   </DarkModeContainer>
 </template>

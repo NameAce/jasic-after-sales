@@ -18,8 +18,8 @@ defineProps<Props>();
 </script>
 
 <template>
-  <!-- 通用组件：full-screen -->
   <ButtonIcon :key="String(full)" :tooltip-content="full ? $t('icon.fullscreenExit') : $t('icon.fullscreen')">
+    <!-- 通用组件：full-screen -->
     <icon-gridicons-fullscreen-exit v-if="full" />
     <icon-gridicons-fullscreen v-else />
   </ButtonIcon>

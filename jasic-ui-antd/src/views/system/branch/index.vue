@@ -212,8 +212,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <!-- 网点管理：承修方网点列表，网点名称可打开该网点工单抽屉 -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <!-- 网点管理：承修方网点列表，网点名称可打开该网点工单抽屉 -->
     <!-- 筛选区：网点名称 -->
     <ACard :bordered="false" class="card-wrapper">
       <AForm :model="query" :label-col="{ span: 5, md: 7 }" class="mb-0">

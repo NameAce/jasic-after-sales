@@ -642,8 +642,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <!-- 系统菜单：按主体类型加载树表，支持发布、拷贝与路由组件绑定 -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <!-- 系统菜单：按主体类型加载树表，支持发布、拷贝与路由组件绑定 -->
     <!-- 筛选区：主体类型（决定菜单树数据源） -->
     <ACard :bordered="false" class="card-wrapper">
       <AForm :label-col="{ span: 5, md: 7 }">

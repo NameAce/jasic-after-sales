@@ -932,8 +932,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <!-- 通知场景：场景定义、渠道/模板绑定与试发（多抽屉分步配置） -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <!-- 通知场景：场景定义、渠道/模板绑定与试发（多抽屉分步配置） -->
     <!-- 筛选区：场景名称、编码、业务类型、状态等 -->
     <ACard :bordered="false" class="card-wrapper">
       <AForm :model="queryParams" :label-col="{ span: 5, md: 7 }">

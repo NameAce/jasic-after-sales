@@ -22,8 +22,8 @@ const isHqAccount = computed(() => authStore.userInfo.currentSubjectType === 'HQ
 </script>
 
 <template>
-  <!-- 按 currentSubjectType 分流：平台治理 / 总部调度 / 网点服务工作台 -->
   <div class="home-page">
+    <!-- 按 currentSubjectType 分流：平台治理 / 总部调度 / 网点服务工作台 -->
     <PlatformHomeIndex v-if="isPlatformAdmin" />
     <HqHomeIndex v-else-if="isHqAccount" />
     <StandardHomeIndex v-else />

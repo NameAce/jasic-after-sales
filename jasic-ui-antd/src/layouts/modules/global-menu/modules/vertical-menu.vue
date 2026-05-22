@@ -53,8 +53,8 @@ function handleClickMenu(menuInfo: MenuInfo) {
 </script>
 
 <template>
-  <!-- 布局子模块：vertical-menu -->
   <Teleport :to="`#${GLOBAL_SIDER_MENU_ID}`">
+    <!-- 布局子模块：vertical-menu -->
     <SimpleScrollbar class="menu-wrapper" :class="{ 'select-menu': !darkTheme }">
       <AMenu
         mode="inline"

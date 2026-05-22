@@ -75,8 +75,8 @@ async function handleRepeatedModalError() {
 </script>
 
 <template>
-  <!-- 功能演示页：request/index.vue -->
   <ASpace direction="vertical" :size="16">
+    <!-- 功能演示页：request/index.vue -->
     <ACard :title="$t('request.logout')" :bordered="false" size="small" class="card-wrapper">
       <AButton @click="logout">{{ $t('common.trigger') }}</AButton>
     </ACard>

@@ -17,8 +17,8 @@ const { showDashboard, hasSiteData, loading, loaded } = useHqDashboard();
 </script>
 
 <template>
-  <!-- 总部看板区块 -->
   <ASpin :spinning="loading && !loaded">
+    <!-- 总部看板区块 -->
     <ASpace v-if="showDashboard" direction="vertical" :size="16" class="w-full">
       <HqKpiCards />
       <ARow v-if="!hasSiteData" :gutter="[16, 16]">

@@ -57,8 +57,8 @@ const currentPoolWithTransfer = computed((): HomeSectionVO | null => {
 </script>
 
 <template>
-  <!-- 服务工作台：横幅 + KPI（含已转出）+ 趋势/饼图 + 历史参与入口 -->
   <div class="home-dashboard">
+    <!-- 服务工作台：横幅 + KPI（含已转出）+ 趋势/饼图 + 历史参与入口 -->
     <HomeWorkbenchHeader
       class="home-dashboard__shrink"
       :title="title"

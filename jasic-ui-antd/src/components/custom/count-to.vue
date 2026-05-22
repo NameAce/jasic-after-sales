@@ -100,8 +100,8 @@ watch(
 </script>
 
 <template>
-  <!-- 通用组件：count-to -->
   <span>{{ value }}</span>
+    <!-- 通用组件：count-to -->
 </template>
 
 <style scoped></style>

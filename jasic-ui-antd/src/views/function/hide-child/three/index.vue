@@ -7,8 +7,8 @@
 </script>
 
 <template>
-  <!-- 功能演示页：hide-child/three/index.vue -->
   <div>three</div>
+    <!-- 功能演示页：hide-child/three/index.vue -->
 </template>
 
 <style scoped></style>

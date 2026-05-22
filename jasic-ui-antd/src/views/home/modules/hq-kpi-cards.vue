@@ -180,8 +180,8 @@ function handleClick(key: string) {
 </script>
 
 <template>
-  <!-- 总部 KPI 卡片 -->
   <ASpin :spinning="loading">
+    <!-- 总部 KPI 卡片 -->
     <DefineGradientBg v-slot="{ $slots, gradientColor }">
       <div class="rd-8px px-16px pb-4px pt-8px text-white" :style="{ backgroundImage: gradientColor }">
         <component :is="$slots.default" />

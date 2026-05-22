@@ -162,8 +162,8 @@ watch(visible, () => {
 </script>
 
 <template>
-  <!-- 用户新增/编辑抽屉表单 -->
   <ADrawer v-model:open="visible" :title="title" :width="360">
+    <!-- 用户新增/编辑抽屉表单 -->
     <AForm ref="formRef" layout="vertical" :model="model" :rules="rules">
       <AFormItem :label="$t('page.manage.user.userName')" name="userName" required>
         <AInput v-model:value="model.userName" :placeholder="$t('page.manage.user.form.userName')" />

@@ -7,6 +7,8 @@
 </script>
 
 <template>
-  <!-- 功能演示页：hide-child/index.vue -->
-  <RouterView />
+  <div>
+    <!-- 功能演示页：hide-child/index.vue -->
+    <RouterView />
+  </div>
 </template>

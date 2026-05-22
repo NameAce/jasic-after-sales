@@ -7,8 +7,10 @@
 </script>
 
 <template>
-  <!-- 功能演示页：hide-child/one/index.vue -->
-  <LookForward />
+  <div>
+    <!-- 功能演示页：hide-child/one/index.vue -->
+    <LookForward />
+  </div>
 </template>
 
 <style scoped></style>

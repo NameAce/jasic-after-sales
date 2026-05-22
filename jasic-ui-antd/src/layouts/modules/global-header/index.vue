@@ -47,8 +47,8 @@ const { isFullscreen, toggle } = useFullscreen();
 </script>
 
 <template>
-  <!-- 顶栏：Logo、面包屑、主题与用户菜单 -->
   <DarkModeContainer class="h-full flex-y-center px-12px shadow-header">
+    <!-- 顶栏：Logo、面包屑、主题与用户菜单 -->
     <GlobalLogo v-if="showLogo" class="h-full" :style="{ width: themeStore.sider.width + 'px' }" />
     <MenuToggler v-if="showMenuToggler" :collapsed="appStore.siderCollapse" @click="appStore.toggleSiderCollapse" />
     <div v-if="showMenu" :id="GLOBAL_HEADER_MENU_ID" class="h-full flex-y-center flex-1-hidden pb-1px"></div>

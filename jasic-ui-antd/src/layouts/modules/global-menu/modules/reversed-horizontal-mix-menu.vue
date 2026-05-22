@@ -69,8 +69,8 @@ function handleClickMenu(menuInfo: MenuInfo) {
 </script>
 
 <template>
-  <!-- 布局子模块：reversed-horizontal-mix-menu -->
   <Teleport :to="`#${GLOBAL_HEADER_MENU_ID}`">
+    <!-- 布局子模块：reversed-horizontal-mix-menu -->
     <AMenu
       mode="horizontal"
       :selected-keys="[activeFirstLevelMenuKey]"

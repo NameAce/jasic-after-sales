@@ -161,8 +161,8 @@ function goWorkOrderPage() {
 </script>
 
 <template>
-  <!-- 折线图封装 -->
   <ACard :bordered="false" class="card-wrapper" :loading="loading">
+    <!-- 折线图封装 -->
     <template #extra>
       <a class="text-primary" href="javascript:;" @click.prevent="goWorkOrderPage">工单列表</a>
     </template>

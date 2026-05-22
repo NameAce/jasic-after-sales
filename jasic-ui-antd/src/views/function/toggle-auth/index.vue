@@ -74,8 +74,8 @@ async function handleToggleAccount(account: Account) {
 </script>
 
 <template>
-  <!-- 功能演示页：toggle-auth/index.vue -->
   <ASpace direction="vertical" :size="16">
+    <!-- 功能演示页：toggle-auth/index.vue -->
     <ACard :title="$t('route.function_toggle-auth')" :bordered="false" size="small" class="card-wrapper">
       <ADescriptions layout="vertical" bordered size="small" :column="1">
         <ADescriptionsItem :label="$t('page.manage.user.userRole')">

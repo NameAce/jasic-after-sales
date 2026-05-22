@@ -96,8 +96,8 @@ function handleClickMenu(menuInfo: MenuInfo) {
 </script>
 
 <template>
-  <!-- 布局子模块：vertical-mix-menu -->
   <Teleport :to="`#${GLOBAL_SIDER_MENU_ID}`">
+    <!-- 布局子模块：vertical-mix-menu -->
     <div class="h-full flex" @mouseleave="handleResetActiveMenu">
       <FirstLevelMenu
         :menus="allMenus"

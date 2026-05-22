@@ -235,8 +235,7 @@ function openExtraLink() {
 </script>
 
 <template>
-  <!-- 分区饼图：workOrderPoolPie 时固定五态图例（含 0 值），扇区点击走 routeTarget -->
-  <ACard
+    <ACard
     :bordered="false"
     class="card-wrapper"
     :class="{
@@ -259,6 +258,7 @@ function openExtraLink() {
           : undefined
     "
   >
+      <!-- 分区饼图：workOrderPoolPie 时固定五态图例（含 0 值），扇区点击走 routeTarget -->
     <template v-if="extraLinkText && extraLinkRoute" #extra>
       <a class="text-primary" href="javascript:;" @click.prevent="openExtraLink">{{ extraLinkText }}</a>
     </template>

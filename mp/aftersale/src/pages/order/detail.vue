@@ -516,9 +516,9 @@
 
   /**
    * 安全解码路由参数中的中文状态，避免仍带 % 编码时首屏乱码闪现
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const safeDecodeQueryParam = (value: string) => {
     const s = value.trim()
     if (!s.includes('%')) return s
@@ -532,10 +532,10 @@
   const userStore = useUserStore()
 
   /**
- * 按状态同步默认 Tab：待接单看申请内容，其余看维修过程
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 按状态同步默认 Tab：待接单看申请内容，其余看维修过程
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const syncTabByStatus = () => {
     if (orderStatus.value === '待接单') {
       currentTab.value = 0
@@ -601,10 +601,10 @@
   })
 
   /**
- * `mainStatus === PENDING_ASSIGN` 时展示底部派单（需具备网点侧 token 才能调 system 接口）
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * `mainStatus === PENDING_ASSIGN` 时展示底部派单（需具备网点侧 token 才能调 system 接口）
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const showAssignDispatchBar = computed(
     () =>
       String(order.value.mainStatus ?? '')
@@ -614,18 +614,11 @@
   )
 
   /**
- * 待派单时标题显示「待派单」，否则用接口映射后的中文桶
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
-  const orderStatusBannerText = computed(() => {
-    const ms = String(order.value.mainStatus ?? '')
-      .trim()
-      .toUpperCase()
-      .replace(/-/g, '_')
-    if (ms === WORK_ORDER_MAIN_STATUS.PENDING_ASSIGN) return '待派单'
-    return orderStatus.value
-  })
+   * 详情顶栏状态标题：与列表「待接单」等 Tab 中文桶一致，不再单独展示「待派单」
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
+  const orderStatusBannerText = computed(() => orderStatus.value)
 
   const showAssignModal = ref(false)
   const assignTechnicianList = ref<Technician[]>([])
@@ -635,9 +628,9 @@
    * 页面加载
    * @param options - 选项
    * @returns void
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   onLoad((options: any) => {
     orderId.value = String(options?.id || options?.orderId || '')
 
@@ -650,10 +643,10 @@
   })
 
   /**
- * 每次进入页面拉取详情（含从评价页返回后展示最新评价）
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 每次进入页面拉取详情（含从评价页返回后展示最新评价）
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   onShow(() => {
     loadDetail()
   })
@@ -661,9 +654,9 @@
   /**
    * 加载工单详情
    * @returns void
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const loadDetail = async () => {
     if (!orderId.value) return
     try {
@@ -681,17 +674,17 @@
   }
 
   /**
- * 非空字符串（trim 后）
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 非空字符串（trim 后）
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const hasStr = (v: unknown) => v != null && String(v).trim().length > 0
 
   /**
- * 故障判定：有故障红标、无故障绿标（其余中性灰）
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 故障判定：有故障红标、无故障绿标（其余中性灰）
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const faultJudgeTagClass = computed(() => {
     const t = String(order.value.repair.faultJudge ?? '').trim()
     if (!t) return 'is-neutral'
@@ -701,10 +694,10 @@
   })
 
   /**
- * 商品信息卡片是否有任一可展示字段（不含品牌）
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 商品信息卡片是否有任一可展示字段（不含品牌）
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const hasProductInfoCard = computed(() => {
     const p = order.value.product
     return hasStr(p.model) || hasStr(p.barcode) || hasStr(p.serialNo) || hasStr(p.lastOutDate)
@@ -712,9 +705,9 @@
 
   /**
    * 将详情接口的语音时长文案解析为毫秒（与 VoiceInputField 元数据一致）
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const parseVoiceDurationToMs = (raw: string | undefined): number | undefined => {
     if (!raw) return undefined
     const s = String(raw)
@@ -735,10 +728,10 @@
   }
 
   /**
- * 工单详情语音条（与报修页 VoiceInputField 列表项对应，用于只读播放）
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 工单详情语音条（与报修页 VoiceInputField 列表项对应，用于只读播放）
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const faultVoicePlaybackItems = computed((): VoicePlaybackItem[] => {
     const f = order.value.fault
     const list = f.voiceList
@@ -759,36 +752,36 @@
   })
 
   /**
- * 是否展示「语音说明」分组（有时长文案或可播放地址）
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 是否展示「语音说明」分组（有时长文案或可播放地址）
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const showFaultVoiceSection = computed(
     () => faultVoicePlaybackItems.value.length > 0 || hasStr(order.value.fault.voiceDuration)
   )
 
   /**
- * 故障描述：与详情接口 `faultDesc` 一致，不做分隔符转换
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 故障描述：与详情接口 `faultDesc` 一致，不做分隔符转换
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const faultDescTrimmed = computed(() => String(order.value.faultDesc ?? '').trim())
 
   /**
- * 故障描述是否全等于「其它故障 / 其他故障」（不展示主描述，仅展示备注）
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 故障描述是否全等于「其它故障 / 其他故障」（不展示主描述，仅展示备注）
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const isFaultOtherExact = computed(() => {
     const d = faultDescTrimmed.value
     return d === '其它故障' || d === '其他故障'
   })
 
   /**
- * 故障描述中是否包含「其它故障 / 其他故障」（含全等时需展示备注说明）
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 故障描述中是否包含「其它故障 / 其他故障」（含全等时需展示备注说明）
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const faultDescContainsOtherFault = computed(() => {
     const d = faultDescTrimmed.value
     return d.includes('其它故障') || d.includes('其他故障')
@@ -803,10 +796,10 @@
   )
 
   /**
- * 工单基础信息是否有任一字段
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 工单基础信息是否有任一字段
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const hasBaseInfo = computed(() => {
     const b = order.value.base
     return (
@@ -818,10 +811,10 @@
   })
 
   /**
- * 故障图片预览地址：优先接口 `faultImageFiles`，否则兼容旧字段 `fault.images`
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 故障图片预览地址：优先接口 `faultImageFiles`，否则兼容旧字段 `fault.images`
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const faultImagePreviewUrls = computed(() => {
     const files = order.value.faultImageFiles
     if (files?.length) {
@@ -835,34 +828,34 @@
   })
 
   /**
- * 故障图片/视频是否有内容
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 故障图片/视频是否有内容
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const hasFaultMedia = computed(() => {
     const f = order.value.fault
     return faultImagePreviewUrls.value.length > 0 || hasStr(f.videoUrl) || hasStr(f.videoThumb)
   })
 
   /**
- * 是否有故障视频
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 是否有故障视频
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const hasFaultVideo = computed(() => hasStr(order.value.fault.videoUrl))
 
   /**
- * 判断一个 URL 是否更像“视频链接”而不是图片封面
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 判断一个 URL 是否更像“视频链接”而不是图片封面
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const isLikelyVideoUrl = (url: string) => /\.(mp4|mov|webm|m3u8|avi|mkv)(\?|#|$)/i.test(url)
 
   /**
- * 视频封面：优先后端封面，否则使用本地占位图
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 视频封面：优先后端封面，否则使用本地占位图
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const videoCoverSrc = computed(() => {
     const thumbRaw = String(order.value.fault.videoThumb ?? '').trim()
     if (thumbRaw && !isLikelyVideoUrl(thumbRaw)) return thumbRaw
@@ -870,10 +863,10 @@
   })
 
   /**
- * 故障面板（描述/语音/媒体）是否有可展示内容
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 故障面板（描述/语音/媒体）是否有可展示内容
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const hasFaultPanelContent = computed(() => {
     const f = order.value.fault
     const textOk =
@@ -887,10 +880,10 @@
   })
 
   /**
- * 维修过程 Tab 内「维修信息」是否有可展示字段
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 维修过程 Tab 内「维修信息」是否有可展示字段
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const hasRepairTabInfo = computed(() => {
     const r = order.value.repair
     const s = orderStatus.value
@@ -909,9 +902,9 @@
   /**
    * 维修过程 Tab 白底内是否有任一块 section（待接单·故障信息 / 非待接单·维修信息）
    * 与模板上两个 `section-box` 的 v-if 条件一致，用于与下方「外部卡片」衔接时抵消 content-wrap 的 gap
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const hasRepairProcessTabInner = computed(() => {
     const s = orderStatus.value
     if (s === '待接单') return hasFaultPanelContent.value
@@ -919,10 +912,10 @@
   })
 
   /**
- * 服务信息卡片是否有可展示字段
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 服务信息卡片是否有可展示字段
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const hasServiceInfo = computed(() => {
     const s = order.value.service
     if (hasStr(order.value.customerMobile)) return true
@@ -939,20 +932,20 @@
   })
 
   /**
- * 维修方式展示文案：优先新字段 serviceModeLabel，兼容旧字段 repairMethod
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 维修方式展示文案：优先新字段 serviceModeLabel，兼容旧字段 repairMethod
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const serviceModeLabel = computed(() => {
     const service = order.value.service as { serviceModeLabel?: string; repairMethod?: string }
     return String(service.serviceModeLabel ?? service.repairMethod ?? '').trim()
   })
 
   /**
- * 是否到店/送店类维修（与寄件信息互斥；兼容「送店维修」、STORE 等）
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 是否到店/送店类维修（与寄件信息互斥；兼容「送店维修」、STORE 等）
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const isInStoreRepair = computed(() => {
     const t = serviceModeLabel.value
     if (!t) return false
@@ -964,29 +957,29 @@
   /**
    * 维修过程「受理方信息」卡片：网点电话展示
    * 优先详情 `currentAcceptCompanyPhone`，兼容历史 `acceptor.sitePhone`。
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const acceptorOutletPhoneDisplay = computed(() => {
     const a = order.value.acceptor
     return String(a.currentAcceptCompanyPhone ?? a.sitePhone ?? '').trim()
   })
 
   /**
- * 受理方信息是否有可展示字段
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 受理方信息是否有可展示字段
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const hasAcceptorInfo = computed(() => {
     const a = order.value.acceptor
     return hasStr(acceptorOutletPhoneDisplay.value) || hasStr(a.acceptorName)
   })
 
   /**
- * 客户评价是否有可展示内容
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 客户评价是否有可展示内容
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const hasEvaluateContent = computed(() => {
     const e = order.value.evaluate
     if (!e) return false
@@ -998,9 +991,9 @@
 
   /**
    * 受理网点电话（用于「联系受理网点」拨号）：与接口 `currentAcceptCompanyPhone` 同源，勿用客户 `customerMobile`。
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const contactPhone = computed(() => {
     const fromOutlet = String(order.value.acceptor.currentAcceptCompanyPhone ?? '').trim()
     if (fromOutlet) return fromOutlet
@@ -1010,9 +1003,9 @@
   /**
    * 状态描述
    * @returns string
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const statusDesc = computed(() => {
     const ms = String(order.value.mainStatus ?? '')
       .trim()
@@ -1038,9 +1031,9 @@
   /**
    * 状态图标
    * @returns string
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const statusIconSrc = computed(() => {
     switch (orderStatus.value) {
       case '待接单':
@@ -1059,9 +1052,9 @@
   /**
    * 步骤索引
    * @returns number
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const stepIndex = computed(() => {
     switch (orderStatus.value) {
       case '待接单':
@@ -1080,17 +1073,17 @@
   /**
    * 步骤
    * @returns string[]
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const steps = computed(() => ['待接单', '维修中', '已完成', '已关闭'])
 
   /**
    * 故障点记录标签
    * @returns string
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const faultPointRecordLabel = computed(() => {
     const s = orderStatus.value
     return s === '待接单' || s === '维修中' ? '上次维修' : '当前维修'
@@ -1099,9 +1092,9 @@
   /**
    * 是否有故障点信息
    * @returns boolean
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const hasFaultPointInfo = computed(() => {
     const c = order.value.faultPoint?.current
     if (!c) return false
@@ -1113,9 +1106,9 @@
   /**
    * 是否显示评价 Tab：已有评价内容、仍可评价、或已关闭工单需查看/占位
    * 注意：接口在用户评价后常返回 canEvaluate=false，不能用 ?? 依赖该字段，否则 Tab 会消失
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const showEvaluateTab = computed(() => {
     if (hasEvaluateContent.value) return true
     if (order.value.canEvaluate === true) return true
@@ -1126,9 +1119,9 @@
    * 监听评价Tab显示状态
    * @param show - 是否显示
    * @returns void
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   watch(showEvaluateTab, (show) => {
     if (!show && currentTab.value === 2) {
       currentTab.value = 1
@@ -1138,9 +1131,9 @@
   /**
    * 跳转到故障点维修记录
    * @returns void
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const repairHistoryRecord = () => {
     const id = orderId.value
     if (!id) {
@@ -1163,9 +1156,9 @@
   /**
    * 跳转到联系受理网点
    * @returns void
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const goToContact = () => {
     const phone = contactPhone.value
     if (!phone) {
@@ -1250,9 +1243,9 @@
   /**
    * 预览故障图片
    * @param current - 当前图片地址
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const previewFaultImages = (current: string) => {
     const urls = faultImagePreviewUrls.value
     if (!urls.length || !hasStr(current)) return
@@ -1265,9 +1258,9 @@
   /**
    * 预览单张图片
    * @param url - 图片地址
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const previewSingleImage = (url: string) => {
     const current = String(url ?? '').trim()
     if (!current) return
@@ -1279,9 +1272,9 @@
 
   /**
    * 预览故障视频
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const previewFaultVideo = () => {
     const videoUrl = String(order.value.fault.videoUrl ?? '').trim()
     if (!videoUrl) {
@@ -1394,7 +1387,7 @@
   }
 
   .main-content.page-padding {
-    margin-top: -64rpx;
+    margin-top: -142rpx;
     position: relative;
     /* 低于 .top-section，上叠时透明区可透出状态/步骤，白底从 tab-container 起，避免 Tab 被挡 */
     z-index: 1;

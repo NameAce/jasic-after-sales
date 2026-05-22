@@ -57,8 +57,8 @@ function openTransferList() {
 </script>
 
 <template>
-  <!-- 工作台页头 -->
   <ACard :bordered="false" class="card-wrapper" :loading="loading">
+    <!-- 工作台页头 -->
     <ARow :gutter="[16, 16]">
       <ACol :span="24" :md="transferMetric ? 18 : 24">
         <div class="flex-y-center cursor-pointer" @click="openUserCenter">

@@ -105,8 +105,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <!-- 平台组织饼图 -->
   <ACard :bordered="false" class="card-wrapper" :loading="loading">
+    <!-- 平台组织饼图 -->
     <template #extra>
       <a class="text-primary" href="javascript:;" @click.prevent="goOrgPage">{{ $t('page.home.platformViewOrg') }}</a>
     </template>

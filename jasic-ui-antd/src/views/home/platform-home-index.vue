@@ -25,8 +25,8 @@ useHomeDashboardOnMount(loadPlatformDashboard, loaded);
 </script>
 
 <template>
-  <!-- 平台治理看板：横幅 + 基础配置四卡 + 组织饼图 / 账号条形图 -->
   <div class="home-dashboard">
+    <!-- 平台治理看板：横幅 + 基础配置四卡 + 组织饼图 / 账号条形图 -->
     <PlatformHeaderBanner class="home-dashboard__shrink" />
     <HomeMetricCards
       class="home-dashboard__shrink"

@@ -626,8 +626,8 @@ async function submitAssignRegions() {
 </script>
 
 <template>
-  <!-- 系统用户：分页列表、筛选与新增/编辑/角色/大区/重置密码 -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <!-- 系统用户：分页列表、筛选与新增/编辑/角色/大区/重置密码 -->
     <!-- 筛选区：用户名、姓名、手机号、状态等 -->
     <ACard :bordered="false" class="card-wrapper">
       <AForm :model="query" :label-col="{ span: 5, md: 7 }">

@@ -58,8 +58,8 @@ const latestBuildTime = BUILD_TIME;
 </script>
 
 <template>
-  <!-- 关于页 -->
   <ASpace direction="vertical" :size="16">
+    <!-- 关于页 -->
     <ACard :title="$t('page.about.title')" :bordered="false" size="small" class="card-wrapper">
       <p>{{ $t('page.about.introduction') }}</p>
     </ACard>

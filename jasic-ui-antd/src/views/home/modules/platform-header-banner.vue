@@ -52,8 +52,8 @@ function openUserCenter() {
 </script>
 
 <template>
-  <!-- 平台横幅 -->
   <ACard :bordered="false" class="card-wrapper" :loading="loading">
+    <!-- 平台横幅 -->
     <ARow :gutter="[16, 16]">
       <ACol :span="24" :md="statisticData.length ? 18 : 24">
         <div class="flex-y-center cursor-pointer" @click="openUserCenter">

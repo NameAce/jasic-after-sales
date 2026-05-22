@@ -146,8 +146,8 @@ function goCurrentPoolPage() {
 </script>
 
 <template>
-  <!-- 服务池饼图 -->
   <ACard :bordered="false" class="card-wrapper" :loading="loading">
+    <!-- 服务池饼图 -->
     <template #extra>
       <a class="text-primary" href="javascript:;" @click.prevent="goCurrentPoolPage">当前工单</a>
     </template>

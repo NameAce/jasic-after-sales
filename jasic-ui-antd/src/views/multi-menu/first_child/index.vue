@@ -7,8 +7,10 @@
 </script>
 
 <template>
-  <!-- 多级菜单演示：index -->
-  <LookForward />
+  <div>
+    <!-- 多级菜单演示：index -->
+    <LookForward />
+  </div>
 </template>
 
 <style scoped></style>

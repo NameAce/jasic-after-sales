@@ -26,8 +26,8 @@ function handleUpdateColor(color: string, key: App.Theme.ThemeColorKey) {
 </script>
 
 <template>
-  <!-- 布局子模块：theme-color -->
   <ADivider>{{ $t('theme.themeColor.title') }}</ADivider>
+    <!-- 布局子模块：theme-color -->
   <div class="flex-col-stretch gap-12px">
     <ATooltip placement="topLeft">
       <SettingItem key="recommend-color" :label="$t('theme.recommendColor')">

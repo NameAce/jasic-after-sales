@@ -14,8 +14,8 @@ defineProps<Props>();
 </script>
 
 <template>
-  <!-- 通用组件：dark-mode-container -->
   <div class="bg-container text-base-text transition-300" :class="{ 'bg-inverted text-#1f1f1f': inverted }">
+    <!-- 通用组件：dark-mode-container -->
     <slot></slot>
   </div>
 </template>

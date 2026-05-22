@@ -16,13 +16,13 @@ const appStore = useAppStore();
 </script>
 
 <template>
-  <!-- 布局子模块：theme-button -->
-  <ButtonIcon
+    <ButtonIcon
     icon="majesticons:color-swatch-line"
     :tooltip-content="$t('icon.themeConfig')"
     trigger-parent
     @click="appStore.openThemeDrawer"
   />
+      <!-- 布局子模块：theme-button -->
 </template>
 
 <style scoped></style>

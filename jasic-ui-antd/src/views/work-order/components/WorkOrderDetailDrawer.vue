@@ -2031,14 +2031,14 @@ defineExpose({
 </script>
 
 <template>
-  <!-- 工单详情主抽屉：只读信息区 + 顶部动作按钮 + 嵌套业务子弹层 -->
-  <ADrawer
+    <ADrawer
     :open="open"
     :width="1400"
     title="工单详情"
     destroy-on-close
     @update:open="(v: boolean) => emit('update:open', v)"
   >
+      <!-- 工单详情主抽屉：只读信息区 + 顶部动作按钮 + 嵌套业务子弹层 -->
     <ASpin :spinning="loading">
       <!-- 块级包裹：避免 ASpace(inline-flex) 上 margin 不生效 / 外边距折叠 -->
       <div class="w-full pb-16px">

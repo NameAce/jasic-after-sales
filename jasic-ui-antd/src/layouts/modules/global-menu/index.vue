@@ -49,8 +49,10 @@ const selectedBgColor = computed(() => {
 </script>
 
 <template>
-  <!-- 全局菜单容器（按布局模式切换子菜单） -->
-  <component :is="activeMenu" :key="reRenderVertical" />
+  <div>
+    <!-- 全局菜单容器（按布局模式切换子菜单） -->
+    <component :is="activeMenu" :key="reRenderVertical" />
+  </div>
 </template>
 
 <style>

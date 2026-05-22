@@ -25,8 +25,8 @@ const darkColor = computed(() => getColorPalette(props.themeColor, 6));
 </script>
 
 <template>
-  <!-- 通用组件：wave-bg -->
   <div class="absolute-lt z-1 size-full overflow-hidden">
+    <!-- 通用组件：wave-bg -->
     <div class="absolute -right-300px -top-900px lt-sm:(-right-100px -top-1170px)">
       <svg height="1337" width="1337">
         <defs>

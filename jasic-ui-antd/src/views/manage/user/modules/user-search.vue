@@ -70,8 +70,8 @@ async function search() {
 </script>
 
 <template>
-  <!-- 用户列表搜索表单 -->
   <ACard :bordered="false" class="card-wrapper">
+    <!-- 用户列表搜索表单 -->
     <AForm
       ref="formRef"
       :model="model"

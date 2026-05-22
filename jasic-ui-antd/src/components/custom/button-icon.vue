@@ -65,8 +65,8 @@ const DEFAULT_CLASS = 'h-[36px] text-icon';
 </script>
 
 <template>
-  <!-- 通用组件：button-icon -->
   <ATooltip :placement="tooltipPlacement" :get-popup-container="getPopupContainer" :title="tooltipContent">
+    <!-- 通用组件：button-icon -->
     <AButton type="text" :class="twMerge(DEFAULT_CLASS, props.class)" v-bind="$attrs">
       <div class="flex-center gap-8px">
         <slot>

@@ -383,8 +383,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <!-- 个人中心：资料、改密与微信绑定（左栏表单 + 右栏绑定状态/二维码） -->
   <div class="min-h-500px overflow-hidden lt-sm:overflow-auto">
+    <!-- 个人中心：资料、改密与微信绑定（左栏表单 + 右栏绑定状态/二维码） -->
     <ARow :gutter="[16, 16]">
       <ACol :xs="24" :lg="14">
         <!-- 基本信息：修改需校验当前密码 -->

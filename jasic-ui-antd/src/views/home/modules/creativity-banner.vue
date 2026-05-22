@@ -261,14 +261,14 @@ watch(
 </script>
 
 <template>
-  <!-- 创意横幅 -->
-  <ACard
+    <ACard
     :title="$t('page.home.summaryTitle')"
     :bordered="false"
     size="small"
     class="h-full flex-col-stretch card-wrapper"
     :body-style="{ flex: 1, overflow: 'hidden' }"
   >
+      <!-- 创意横幅 -->
     <div class="h-full">
       <div ref="domRef" class="h-230px"></div>
     </div>

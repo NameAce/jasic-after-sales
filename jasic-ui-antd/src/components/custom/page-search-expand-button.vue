@@ -21,8 +21,8 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <!-- 通用组件：page-search-expand-button -->
   <ATooltip placement="top" :title="expanded ? '收起筛选' : '展开筛选'">
+    <!-- 通用组件：page-search-expand-button -->
     <AButton
       type="text"
       shape="circle"

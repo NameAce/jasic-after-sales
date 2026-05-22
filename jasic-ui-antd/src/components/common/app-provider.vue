@@ -36,8 +36,8 @@ const ContextHolder = defineComponent({
 </script>
 
 <template>
-  <!-- 通用组件：app-provider -->
   <App class="h-full">
+    <!-- 通用组件：app-provider -->
     <ContextHolder />
     <slot></slot>
   </App>

@@ -2477,8 +2477,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <!-- 组织与客商：多 Tab（公司/类型/区域/合同/外部客户等）；筛选与列表随 activeTab 切换 -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <!-- 组织与客商：多 Tab（公司/类型/区域/合同/外部客户等）；筛选与列表随 activeTab 切换 -->
     <!-- 筛选区：合同子 Tab、公司/客户查询等（companyType Tab 无此卡片） -->
     <ACard v-if="activeTab !== 'companyType'" :bordered="false" class="card-wrapper">
       <ATabs

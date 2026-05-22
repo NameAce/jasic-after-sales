@@ -31,8 +31,8 @@ const isWrapperScrollMode = computed(() => themeStore.layout.scrollMode === 'wra
 </script>
 
 <template>
-  <!-- 布局子模块：page-fun -->
   <ADivider>{{ $t('theme.pageFunTitle') }}</ADivider>
+    <!-- 布局子模块：page-fun -->
   <TransitionGroup tag="div" name="setting-list" class="flex-col-stretch gap-12px">
     <SettingItem key="0" :label="$t('theme.resetCacheStrategy.title')">
       <ASelect v-model:value="themeStore.resetCacheStrategy">

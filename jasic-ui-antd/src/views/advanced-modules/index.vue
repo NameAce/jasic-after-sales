@@ -2597,8 +2597,8 @@ onActivated(async () => {
 </script>
 
 <template>
-  <!-- 高级/运维配置：字典/参数/通知/同步等多 Tab；config 仅渲染 ConfigFormPanel -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <!-- 高级/运维配置：字典/参数/通知/同步等多 Tab；config 仅渲染 ConfigFormPanel -->
     <!-- 筛选区：除参数 config 外各 Tab 的查询表单（参数 Tab 无顶部空卡片） -->
     <ACard v-if="activeKey !== 'config'" :bordered="false" class="card-wrapper">
       <div class="flex flex-col gap-12px">

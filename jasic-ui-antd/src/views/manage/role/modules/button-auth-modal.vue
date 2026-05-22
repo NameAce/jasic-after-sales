@@ -117,8 +117,8 @@ init();
 </script>
 
 <template>
-  <!-- 角色按钮权限分配弹窗 -->
   <ADrawer v-model:open="visible" :title="title" :width="480">
+    <!-- 角色按钮权限分配弹窗 -->
     <ATree v-model:checked-keys="checks" :tree-data="tree" checkable :height="280" class="h-280px" />
     <template #footer>
       <AButton size="small" class="mt-16px" @click="closeModal">

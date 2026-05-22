@@ -57,8 +57,8 @@ const renderLocalIcon = computed(() => props.localIcon || !props.icon);
 </script>
 
 <template>
-  <!-- 通用组件：svg-icon -->
   <template v-if="renderLocalIcon">
+    <!-- 通用组件：svg-icon -->
     <svg aria-hidden="true" width="1em" height="1em" v-bind="bindAttrs">
       <use :xlink:href="symbolId" fill="currentColor" />
     </svg>

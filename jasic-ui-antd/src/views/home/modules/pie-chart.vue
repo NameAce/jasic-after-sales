@@ -134,8 +134,8 @@ function goWorkOrderStatusPage() {
 </script>
 
 <template>
-  <!-- 饼图封装 -->
   <ACard :bordered="false" class="card-wrapper" :loading="loading">
+    <!-- 饼图封装 -->
     <template #extra>
       <a class="text-primary" href="javascript:;" @click.prevent="goWorkOrderStatusPage">状态明细</a>
     </template>

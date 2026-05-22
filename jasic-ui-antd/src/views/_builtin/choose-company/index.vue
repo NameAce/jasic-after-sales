@@ -66,8 +66,8 @@ async function handleChoose() {
 </script>
 
 <template>
-  <!-- 内置页：choose-company/index.vue -->
   <div class="choose-container">
+    <!-- 内置页：choose-company/index.vue -->
     <div class="choose-card">
       <h2>选择操作公司</h2>
       <p class="tip">您在多个公司中拥有账号，请选择要操作的公司</p>

@@ -163,8 +163,8 @@ init();
 </script>
 
 <template>
-  <!-- 多页签栏：切换、关闭与右键菜单 -->
   <DarkModeContainer class="size-full flex-y-center px-16px shadow-tab">
+    <!-- 多页签栏：切换、关闭与右键菜单 -->
     <div ref="bsWrapper" class="h-full flex-1-hidden">
       <BetterScroll ref="bsScroll" :options="{ scrollX: true, scrollY: false, click: !isPCFlag }" @click="removeFocus">
         <div

@@ -95,8 +95,8 @@ function handleChangeMode(mode: UnionKey.ThemeLayoutMode) {
 </script>
 
 <template>
-  <!-- 布局子模块：layout-mode-card -->
   <div class="flex-center flex-wrap gap-x-32px gap-y-16px">
+    <!-- 布局子模块：layout-mode-card -->
     <div
       v-for="(item, key) in layoutConfig"
       :key="key"

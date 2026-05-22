@@ -403,8 +403,8 @@ watch(
 </script>
 
 <template>
-  <!-- 菜单新增/编辑弹窗 -->
   <ADrawer v-model:open="visible" :title="title" :width="manageMenuDrawerWidth">
+    <!-- 菜单新增/编辑弹窗 -->
     <div class="h-480px">
       <SimpleScrollbar>
         <AForm ref="formRef" layout="vertical" :model="model" :rules="rules" class="pr-20px">

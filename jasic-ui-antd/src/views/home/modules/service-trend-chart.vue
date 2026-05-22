@@ -100,8 +100,8 @@ function goWorkOrderPage() {
 </script>
 
 <template>
-  <!-- 服务商趋势图 -->
   <ACard :bordered="false" class="card-wrapper" :loading="loading">
+    <!-- 服务商趋势图 -->
     <template #extra>
       <a class="text-primary" href="javascript:;" @click.prevent="goWorkOrderPage">工单列表</a>
     </template>

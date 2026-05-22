@@ -91,8 +91,8 @@ function openUserCenter() {
 </script>
 
 <template>
-  <!-- 遗留业务首页横幅：问候 + 工单/待办/消息统计（useBusinessHomeDashboard） -->
   <ACard :bordered="false" class="card-wrapper" :loading="loading">
+    <!-- 遗留业务首页横幅：问候 + 工单/待办/消息统计（useBusinessHomeDashboard） -->
     <ARow :gutter="[16, 16]">
       <ACol :span="24" :md="18">
         <div class="flex-y-center cursor-pointer" @click="openUserCenter">

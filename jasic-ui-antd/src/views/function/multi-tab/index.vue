@@ -18,8 +18,8 @@ const routeQuery = computed(() => JSON.stringify(route.query));
 </script>
 
 <template>
-  <!-- 功能演示页：multi-tab/index.vue -->
   <div>
+    <!-- 功能演示页：multi-tab/index.vue -->
     <LookForward>
       <div>
         <AButton @click="routerPushByKey('function_tab')">{{ $t('page.function.multiTab.backTab') }}</AButton>

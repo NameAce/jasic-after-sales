@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { hasTemplateRootComment, insertTemplateRootComment } from './template-comment-placement.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '../src');
 
@@ -42,16 +43,12 @@ function walk(rel) {
   return out;
 }
 
-function hasRootComment(lines, tplIdx) {
-  return lines.slice(tplIdx + 1, tplIdx + 6).some(l => l.trim().startsWith('<!--'));
-}
-
 for (const rel of [...walk('views/manage'), ...walk('layouts')]) {
   const filePath = path.join(ROOT, rel);
   const lines = fs.readFileSync(filePath, 'utf8').replace(/\r\n/g, '\n').split('\n');
   const tplIdx = lines.findIndex(l => l.trim() === '<template>');
   if (tplIdx < 0) continue;
-  if (hasRootComment(lines, tplIdx)) {
+  if (hasTemplateRootComment(lines, tplIdx)) {
     console.log(`${rel}: skip template`);
     continue;
   }
@@ -60,7 +57,7 @@ for (const rel of [...walk('views/manage'), ...walk('layouts')]) {
     (rel.startsWith('layouts/')
       ? `布局子模块：${path.basename(rel, '.vue')}`
       : `管理端子模块：${path.basename(rel, '.vue')}`);
-  lines.splice(tplIdx + 1, 0, `  <!-- ${text} -->`);
+  insertTemplateRootComment(lines, tplIdx, text);
   fs.writeFileSync(filePath, lines.join('\n'), 'utf8');
   console.log(`${rel}: +template`);
 }

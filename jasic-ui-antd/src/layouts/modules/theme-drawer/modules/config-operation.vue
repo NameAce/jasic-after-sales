@@ -66,8 +66,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <!-- 布局子模块：config-operation -->
   <div class="flex justify-between">
+    <!-- 布局子模块：config-operation -->
     <AButton danger @click="handleReset">{{ $t('theme.configOperation.resetConfig') }}</AButton>
     <div ref="domRef">
       <AButton type="primary">{{ $t('theme.configOperation.copyConfig') }}</AButton>

@@ -50,8 +50,8 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <!-- 内置页：login/modules/bind-wechat.vue -->
   <AForm ref="formRef" :model="model" :rules="rules" @keyup.enter="handleSubmit">
+    <!-- 内置页：login/modules/bind-wechat.vue -->
     <AFormItem name="bindTicket" required>
       <AInput v-model:value="model.bindTicket" size="large" placeholder="请输入绑定票据 bindTicket" />
     </AFormItem>

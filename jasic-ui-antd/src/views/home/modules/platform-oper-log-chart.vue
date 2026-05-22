@@ -120,8 +120,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <!-- 平台操作日志图 -->
   <ACard :bordered="false" class="card-wrapper" :loading="loading">
+    <!-- 平台操作日志图 -->
     <template #extra>
       <a class="text-primary" href="javascript:;" @click.prevent="goLogPage">{{ $t('page.home.platformViewLog') }}</a>
     </template>

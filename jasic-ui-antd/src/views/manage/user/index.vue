@@ -190,8 +190,8 @@ function edit(id: number) {
 </script>
 
 <template>
-  <!-- 管理端演示 — 用户列表：搜索区 + 表格 + 新增/编辑抽屉 -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <!-- 管理端演示 — 用户列表：搜索区 + 表格 + 新增/编辑抽屉 -->
     <UserSearch v-model:model="searchParams" @reset="resetSearchParams" @search="getDataByPage" />
     <ACard
       :title="pageMenuTitle"

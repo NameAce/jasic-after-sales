@@ -12,8 +12,8 @@ defineOptions({
 </script>
 
 <template>
-  <!-- 通用组件：look-forward -->
   <div class="size-full min-h-520px flex-col-center gap-24px overflow-hidden">
+    <!-- 通用组件：look-forward -->
     <div class="flex text-400px text-primary">
       <SvgIcon local-icon="expectation" />
     </div>

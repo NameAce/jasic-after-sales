@@ -488,8 +488,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <!-- 系统角色：列表维护、菜单权限分配与数据范围配置 -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <!-- 系统角色：列表维护、菜单权限分配与数据范围配置 -->
     <!-- 筛选区：角色名称、状态 -->
     <ACard :bordered="false" class="card-wrapper">
       <AForm :model="queryParams" :label-col="{ span: 5, md: 7 }">

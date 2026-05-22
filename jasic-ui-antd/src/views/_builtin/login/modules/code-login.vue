@@ -71,8 +71,8 @@ async function handleGetCaptcha() {
 </script>
 
 <template>
-  <!-- 内置页：login/modules/code-login.vue -->
   <AForm ref="formRef" :model="model" :rules="rules" @keyup.enter="handleSubmit">
+    <!-- 内置页：login/modules/code-login.vue -->
     <AFormItem name="phone" required>
       <AInput v-model:value="model.phone" size="large" :placeholder="$t('page.login.common.phonePlaceholder')" />
     </AFormItem>

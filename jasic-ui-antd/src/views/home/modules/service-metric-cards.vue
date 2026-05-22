@@ -71,8 +71,8 @@ function openMetric(metric: (typeof metrics.value)[number]) {
 </script>
 
 <template>
-  <!-- 服务商指标卡片 -->
   <ACard :bordered="false" size="small" class="card-wrapper" :loading="loading">
+    <!-- 服务商指标卡片 -->
     <template v-if="section?.title" #title>
       {{ section.title }}
     </template>

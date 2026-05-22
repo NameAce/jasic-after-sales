@@ -52,8 +52,8 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <!-- 内置页：login/modules/pwd-login.vue -->
   <AForm ref="formRef" :model="model" :rules="rules" @keyup.enter="handleSubmit">
+    <!-- 内置页：login/modules/pwd-login.vue -->
     <AFormItem name="userName" required>
       <AInput v-model:value="model.userName" size="large" :placeholder="$t('page.login.common.userNamePlaceholder')" />
     </AFormItem>

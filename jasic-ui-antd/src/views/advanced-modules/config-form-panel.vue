@@ -282,8 +282,8 @@ loadFormData();
 </script>
 
 <template>
-  <!-- 参数配置面板：按 groupKey 分 Tab，组内批量编辑后 PUT grouped 保存 -->
   <div class="config-form-panel">
+    <!-- 参数配置面板：按 groupKey 分 Tab，组内批量编辑后 PUT grouped 保存 -->
     <div class="config-form-panel__body">
       <ASpin :spinning="loading">
         <ATabs v-if="groupTabs.length" v-model:active-key="activeGroupKey" type="card">

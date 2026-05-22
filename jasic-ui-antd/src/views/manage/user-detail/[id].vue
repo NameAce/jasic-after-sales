@@ -13,8 +13,8 @@ defineProps<Props>();
 </script>
 
 <template>
-  <!-- 用户详情页（路由参数 id） -->
   <LookForward>
+    <!-- 用户详情页（路由参数 id） -->
     <p>{{ id }}</p>
   </LookForward>
 </template>

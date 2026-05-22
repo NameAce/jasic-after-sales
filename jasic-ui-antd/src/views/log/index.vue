@@ -298,8 +298,8 @@ useRouteQueryFilterSync({
 </script>
 
 <template>
-  <!-- 操作日志：条件筛选、分页列表与清理；详情右侧抽屉展示 -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <!-- 操作日志：条件筛选、分页列表与清理；详情右侧抽屉展示 -->
     <!-- 筛选区：模块/操作人/类型/状态/日期；支持路由 query 带入后重置清 URL -->
     <ACard :bordered="false" class="card-wrapper">
       <AForm :model="queryParams" :label-col="{ span: 5, md: 7 }" class="oper-log-search-form">

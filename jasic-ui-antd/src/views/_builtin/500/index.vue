@@ -7,7 +7,6 @@
 </script>
 
 <template>
-  <!-- 内置页：500/index.vue -->
   <ExceptionBase type="500" />
 </template>
 

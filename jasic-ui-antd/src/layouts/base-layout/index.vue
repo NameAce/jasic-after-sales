@@ -125,7 +125,6 @@ function getSiderCollapsedWidth() {
 </script>
 
 <template>
-  <!-- 主布局：顶栏 + 侧栏/混合菜单 + 内容区与页签 -->
   <AdminLayout
     v-model:sider-collapse="appStore.siderCollapse"
     :mode="layoutMode"
@@ -146,6 +145,7 @@ function getSiderCollapsedWidth() {
     :fixed-footer="themeStore.footer.fixed"
     :right-footer="themeStore.footer.right"
   >
+    <!-- 主布局：顶栏 + 侧栏/混合菜单 + 内容区与页签 -->
     <template #header>
       <GlobalHeader v-bind="headerProps" />
     </template>

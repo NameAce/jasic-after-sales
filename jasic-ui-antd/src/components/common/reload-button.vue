@@ -18,8 +18,8 @@ defineProps<Props>();
 </script>
 
 <template>
-  <!-- 通用组件：reload-button -->
   <ButtonIcon :tooltip-content="$t('icon.reload')">
+    <!-- 通用组件：reload-button -->
     <icon-ant-design-reload-outlined :class="{ 'animate-spin animate-duration-750': loading }" />
   </ButtonIcon>
 </template>

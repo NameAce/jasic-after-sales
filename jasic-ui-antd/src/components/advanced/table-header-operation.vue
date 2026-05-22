@@ -59,8 +59,8 @@ function refresh() {
 </script>
 
 <template>
-  <!-- 通用组件：table-header-operation -->
   <div class="flex flex-wrap justify-end gap-x-12px gap-y-8px lt-sm:(w-200px py-12px)">
+    <!-- 通用组件：table-header-operation -->
     <slot name="prefix"></slot>
     <slot name="default">
       <AButton size="small" ghost type="primary" @click="add">
