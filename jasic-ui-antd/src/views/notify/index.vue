@@ -2,13 +2,14 @@
 /**
  * 站内通知：待办与历史分页列表、角标数量与标记已读（对接 notify 接口）。
  */
-import { onMounted, reactive, ref } from 'vue';
+import { reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getNotifyTodoCount, getNotifyTodoPage, markNotifyMessageRead } from '@/service/api';
 import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
 import { createAntTableActionColumn } from '@/utils/table-action-width';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
 import { applyDateTimeColumnRender } from '@/utils/datetime';
+import { readRouteQueryString, useRouteQueryFilterSync } from '@/utils/route-query-filter-sync';
 
 type RowData = Record<string, any>;
 type TabKey = 'TODO' | 'HISTORY';
@@ -259,19 +260,18 @@ async function openMessage(row: RowData) {
   await loadPage();
 }
 
-/**
- * 作用：挂载时根据路由 query.box 预选 Tab 并加载数据。
- * @param 无
- * @returns {void} 无
- */
-onMounted(() => {
-  const box = String(route.query.box || '').toUpperCase();
-  if (box === 'HISTORY') {
-    activeTab.value = 'HISTORY';
-  } else if (box === 'TODO') {
-    activeTab.value = 'TODO';
-  }
-  loadPage();
+/** 首页通知动态等入口：按 query.box 回显待办/历史 Tab */
+function applyFiltersFromRouteQuery() {
+  if (!('box' in route.query)) return;
+  const box = readRouteQueryString(route.query, 'box').toUpperCase();
+  if (box === 'HISTORY') activeTab.value = 'HISTORY';
+  else if (box === 'TODO') activeTab.value = 'TODO';
+}
+
+useRouteQueryFilterSync({
+  apply: applyFiltersFromRouteQuery,
+  reload: loadPage,
+  watchQueryKeys: ['box']
 });
 </script>
 

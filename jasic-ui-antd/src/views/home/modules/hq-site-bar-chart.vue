@@ -76,7 +76,11 @@ async function syncChart() {
   updateOptions(opts => {
     opts.title = { text: $t('page.home.hqSiteWaitRank') };
     opts.series[0].name = $t('page.home.hqWaitAccept');
-    opts.yAxis = { type: 'category', data: [...labels].reverse(), axisTick: { show: false } };
+    opts.yAxis = {
+      type: 'category',
+      data: [...labels].reverse(),
+      axisTick: { show: false }
+    };
     opts.xAxis = { type: 'value', minInterval: 1 };
     opts.series[0].data = [...values].reverse().map(value => ({
       value,

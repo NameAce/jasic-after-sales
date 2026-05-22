@@ -3,7 +3,7 @@
  * 高级/运维配置聚合页：字典、参数、通知模板、角色模板、同步任务等多 Tab（对接 system 等接口）。
  * 参数配置通过 GET /system/config/grouped 分组表单维护，不再提供表格列表模式。
  */
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onActivated, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import type { FormInstance } from 'ant-design-vue';
 import type { Key } from 'ant-design-vue/es/_util/type';
@@ -261,6 +261,18 @@ const ROUTE_NAME_TO_MODULE_KEY: Record<string, ModuleKey> = {
   'system_sync-task': 'syncTask',
   'system_fault-repair-config': 'fault',
   system_region: 'region'
+};
+
+/** 首页治理看板 `advanced-modules?module=xxx` 与 Tab key 映射 */
+const MODULE_QUERY_TO_KEY: Record<string, ModuleKey> = {
+  dict: 'dict',
+  config: 'config',
+  notifyTemplate: 'notifyTemplate',
+  barcode: 'barcode',
+  syncTask: 'syncTask',
+  fault: 'fault',
+  roleTemplate: 'roleTemplate',
+  region: 'region'
 };
 
 // 字典/参数配置等通用表单抽屉
@@ -997,14 +1009,12 @@ async function loadList() {
 }
 
 /**
- * 作用：根据路由 name 切换 Tab 并触发列表加载。
- * @param routeName - 当前路由 name
+ * 作用：切换到指定高级配置子模块并加载列表。
+ * @param moduleKey - 子模块 key
  * @returns 是否发生了 Tab 切换
  */
-async function syncActiveModuleByRouteName(routeName: unknown): Promise<boolean> {
-  const key = String(routeName || '');
-  const moduleKey = ROUTE_NAME_TO_MODULE_KEY[key];
-  if (!moduleKey || moduleKey === activeKey.value) return false;
+async function activateModule(moduleKey: ModuleKey): Promise<boolean> {
+  if (moduleKey === activeKey.value) return false;
 
   activeKey.value = moduleKey;
   pageQuery.pageNum = 1;
@@ -1020,6 +1030,40 @@ async function syncActiveModuleByRouteName(routeName: unknown): Promise<boolean>
   }
   await loadList();
   return true;
+}
+
+/**
+ * 作用：根据路由 query.module 切换 Tab（平台首页基础配置卡片跳转）。
+ * @param module - query.module
+ * @returns 是否发生了 Tab 切换
+ */
+async function syncActiveModuleByQuery(module: unknown): Promise<boolean> {
+  const moduleKey = MODULE_QUERY_TO_KEY[String(module || '')];
+  if (!moduleKey) return false;
+  return activateModule(moduleKey);
+}
+
+/**
+ * 作用：根据路由 name 切换 Tab 并触发列表加载。
+ * @param routeName - 当前路由 name
+ * @returns 是否发生了 Tab 切换
+ */
+async function syncActiveModuleByRouteName(routeName: unknown): Promise<boolean> {
+  const moduleKey = ROUTE_NAME_TO_MODULE_KEY[String(routeName || '')];
+  if (!moduleKey) return false;
+  return activateModule(moduleKey);
+}
+
+/**
+ * 作用：按路由 name 或 query.module 同步当前 Tab（首页 routeTarget 跳转入口）。
+ */
+async function syncActiveModuleFromRoute(): Promise<boolean> {
+  const moduleQuery = route.query.module;
+  if (moduleQuery != null && String(moduleQuery) !== '') {
+    const changedByQuery = await syncActiveModuleByQuery(moduleQuery);
+    if (changedByQuery) return true;
+  }
+  return syncActiveModuleByRouteName(route.name);
 }
 
 /**
@@ -2404,11 +2448,11 @@ watch(regionHqId, () => {
   if (activeKey.value === 'region') loadList();
 });
 
-// 路由 name 变化时同步当前高级配置子模块 Tab
+// 路由 name / query.module 变化时同步当前高级配置子模块 Tab
 watch(
-  () => route.name,
-  name => {
-    syncActiveModuleByRouteName(name);
+  () => [route.name, route.query.module],
+  () => {
+    syncActiveModuleFromRoute();
   }
 );
 
@@ -2416,10 +2460,15 @@ watch(
  * 作用：挂载时按路由初始化 Tab；若路由未切换 Tab 则直接加载列表。
  */
 onMounted(async () => {
-  const changedByRoute = await syncActiveModuleByRouteName(route.name);
+  const changedByRoute = await syncActiveModuleFromRoute();
   if (!changedByRoute) {
     await loadList();
   }
+});
+
+/** KeepAlive 下从首页再次进入时同步 module Tab */
+onActivated(async () => {
+  await syncActiveModuleFromRoute();
 });
 </script>
 

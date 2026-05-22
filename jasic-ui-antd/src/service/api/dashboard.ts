@@ -59,9 +59,10 @@ export interface DashboardOperLogTrend7dVO {
 
 /** 平台首页 `/dashboard/platform/home` */
 export interface PlatformDashboardHomeVO {
-  overview?: PlatformDashboardOverviewVO;
-  subjectTypeDistribution?: DashboardSubjectTypeDistributionVO;
-  operLogTrend7d?: DashboardOperLogTrend7dVO;
+  title?: string;
+  organization?: HomeSectionVO;
+  account?: HomeSectionVO;
+  basicConfig?: HomeSectionVO;
 }
 
 /** 服务主体 / 总部首页概览（总部多 transferCount） */
@@ -94,22 +95,65 @@ export interface DashboardSiteRankVO {
   completedCount?: number;
 }
 
+/** 首页卡片跳转目标（与后端 HomeRouteTargetVO 对齐） */
+export interface HomeRouteTargetVO {
+  routeName?: string;
+  query?: Record<string, unknown>;
+}
+
+/** 首页指标卡片 */
+export interface HomeMetricVO {
+  code?: string;
+  title?: string;
+  value?: number;
+  unit?: string;
+  statCondition?: string;
+  listQueryCondition?: string;
+  routeTarget?: HomeRouteTargetVO;
+}
+
+/** 首页业务分区 */
+export interface HomeSectionVO {
+  title?: string;
+  metrics?: HomeMetricVO[];
+}
+
+/** 首页入口项（无数值，仅跳转） */
+export interface HomeEntryVO {
+  title?: string;
+  description?: string;
+  routeTarget?: HomeRouteTargetVO;
+}
+
+/** 首页趋势序列 */
+export interface HomeTrendSeriesVO {
+  code?: string;
+  name?: string;
+  values?: number[];
+}
+
+/** 首页近七天事件趋势 */
+export interface HomeTrendVO {
+  title?: string;
+  days?: string[];
+  series?: HomeTrendSeriesVO[];
+}
+
 /** 服务主体首页 `/dashboard/service/home` */
 export interface ServiceDashboardHomeVO {
-  overview?: ServiceDashboardOverviewVO;
-  workOrderStatus?: DashboardWorkOrderStatusVO;
-  trend7d?: DashboardTrend7dVO;
-  latestHistoryTodos?: DashboardHistoryTodoVO[];
+  title?: string;
+  currentPool?: HomeSectionVO;
+  transfer?: HomeSectionVO;
+  historyEntry?: HomeEntryVO;
+  trend?: HomeTrendVO;
 }
 
 /** 总部首页 `/dashboard/hq/home` */
 export interface HqDashboardHomeVO {
-  overview?: HqDashboardOverviewVO;
-  workOrderStatus?: DashboardWorkOrderStatusVO;
-  trend7d?: DashboardTrend7dVO;
-  siteSummary?: DashboardSiteSummaryVO;
-  siteWaitAcceptRank?: DashboardSiteRankVO[];
-  latestHistoryTodos?: DashboardHistoryTodoVO[];
+  title?: string;
+  workOrderPool?: HomeSectionVO;
+  transfer?: HomeSectionVO;
+  trend?: HomeTrendVO;
 }
 
 /** 查询平台超管首页总览 */

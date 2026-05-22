@@ -2,7 +2,7 @@
 /**
  * 售后工单列表：状态统计、表格筛选、创建/详情抽屉与行内主操作（对接 work-order 接口）。
  */
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onActivated, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { transformColorWithOpacity } from '@sa/utils';
 import { tagColorTransferTransferred, workOrderMainStatusTagColor } from '@/constants/list-status-tag';
@@ -16,6 +16,7 @@ import { useAuth } from '@/hooks/business/auth';
 import { createAntTableActionColumn } from '@/utils/table-action-width';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
 import { applyDateTimeColumnRender } from '@/utils/datetime';
+import { readRouteQueryString, useRouteQueryFilterSync } from '@/utils/route-query-filter-sync';
 import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
 import WorkOrderCreateModals from './components/WorkOrderCreateModals.vue';
 import WorkOrderDetailDrawer from './components/WorkOrderDetailDrawer.vue';
@@ -57,7 +58,9 @@ const query = reactive({
   customerMobile: '',
   barcode: '',
   mainStatus: '' as string,
-  hasTransfer: undefined as undefined | 0 | 1
+  hasTransfer: undefined as undefined | 0 | 1,
+  /** 转出方视角：OUT=当前公司为转出方（首页「已转出」）；与 hasTransfer 是不同 SQL 口径 */
+  transferDirection: undefined as WorkOrderQuery['transferDirection']
 });
 
 // 各主状态工单数量（用于状态 Segmented 角标）
@@ -267,6 +270,20 @@ function pickTotal(data: any, fallback: number) {
 }
 
 /**
+ * 作用：解析转单相关接口参数。
+ * 说明：首页「已转出」须传 transferDirection=OUT（转出方视角）；是否转单=是 时同步传 hasTransfer=1 与搜索区一致。
+ */
+function buildTransferApiParams(): Pick<WorkOrderQuery, 'hasTransfer' | 'transferDirection'> {
+  if (query.transferDirection === 'OUT') {
+    return {
+      transferDirection: 'OUT',
+      hasTransfer: query.hasTransfer === 1 ? 1 : undefined
+    };
+  }
+  return { hasTransfer: query.hasTransfer, transferDirection: undefined };
+}
+
+/**
  * 作用：构造状态统计接口参数，仅包含前端筛选字段。
  * @returns 状态统计查询参数
  */
@@ -277,7 +294,7 @@ function buildStatusCountParams(): WorkOrderStatusCountQuery {
     customerName: query.customerName || undefined,
     customerMobile: query.customerMobile || undefined,
     barcode: query.barcode || undefined,
-    hasTransfer: query.hasTransfer
+    ...buildTransferApiParams()
   };
 }
 
@@ -295,7 +312,7 @@ function buildListParams(): WorkOrderQuery {
     customerMobile: query.customerMobile || undefined,
     barcode: query.barcode || undefined,
     mainStatus: (query.mainStatus || undefined) as WorkOrderQuery['mainStatus'],
-    hasTransfer: query.hasTransfer
+    ...buildTransferApiParams()
   };
 }
 
@@ -408,8 +425,9 @@ function resetQuery() {
   query.barcode = '';
   query.mainStatus = '';
   query.hasTransfer = undefined;
+  query.transferDirection = undefined;
 
-  const routeFilterKeys = ['viewScope', 'mainStatus', 'hasTransfer'] as const;
+  const routeFilterKeys = ['viewScope', 'mainStatus', 'hasTransfer', 'transferDirection'] as const;
   const hadRouteFilters = routeFilterKeys.some(k => k in route.query);
   if (hadRouteFilters) {
     const nextQuery = Object.fromEntries(
@@ -480,39 +498,66 @@ function openDetailByRouteQuery() {
 }
 
 /**
- * 作用：从路由 query 同步视图范围与主状态到本地 query。
+ * 作用：从路由 query 同步到本地 query，并展开「是否转单」等折叠筛选项。
+ * 首页「已转出」仅下发 transferDirection=OUT 时，前端补 hasTransfer=1 回显；再由 useRouteQueryFilterSync 触发列表查询。
  */
 function applyFiltersFromRouteQuery() {
-  const routeViewScope = String(route.query.viewScope || '').toUpperCase();
-  const routeMainStatus = String(route.query.mainStatus || '').toUpperCase();
-  const routeHasTransfer = String(route.query.hasTransfer ?? '');
+  const q = route.query;
 
-  query.viewScope = (VIEW_SCOPE_SET.has(routeViewScope) ? routeViewScope : 'CURRENT') as WorkOrderQuery['viewScope'];
-  query.mainStatus = MAIN_STATUS_SET.has(routeMainStatus) ? routeMainStatus : '';
-  if (routeHasTransfer === '1') query.hasTransfer = 1;
-  else if (routeHasTransfer === '0') query.hasTransfer = 0;
-  else query.hasTransfer = undefined;
-  query.pageNum = 1;
+  if ('viewScope' in q) {
+    const routeViewScope = readRouteQueryString(q, 'viewScope').toUpperCase();
+    query.viewScope = (VIEW_SCOPE_SET.has(routeViewScope) ? routeViewScope : 'CURRENT') as WorkOrderQuery['viewScope'];
+  }
+  if ('mainStatus' in q) {
+    const routeMainStatus = readRouteQueryString(q, 'mainStatus').toUpperCase();
+    query.mainStatus = MAIN_STATUS_SET.has(routeMainStatus) ? routeMainStatus : '';
+  }
+  if ('transferDirection' in q) {
+    const routeTransferDirection = readRouteQueryString(q, 'transferDirection').toUpperCase();
+    query.transferDirection = routeTransferDirection === 'OUT' ? 'OUT' : undefined;
+  }
+  if ('hasTransfer' in q) {
+    const routeHasTransfer = readRouteQueryString(q, 'hasTransfer');
+    if (routeHasTransfer === '1') query.hasTransfer = 1;
+    else if (routeHasTransfer === '0') query.hasTransfer = 0;
+    else query.hasTransfer = undefined;
+  }
+  // 仅带 transferDirection=OUT 的旧链接：补全是否转单=是
+  if (query.transferDirection === 'OUT') {
+    query.hasTransfer = 1;
+  }
+  if (query.hasTransfer !== undefined || query.transferDirection === 'OUT') {
+    workOrderSearchFilter.searchFilterExpanded = true;
+  }
+
+  if (Object.keys(q).some(key => ['viewScope', 'mainStatus', 'hasTransfer', 'transferDirection'].includes(key))) {
+    query.pageNum = 1;
+  }
 }
 
+/**
+ * 作用：用户调整「是否转单」时，与 transferDirection=OUT（已转出）联动清理，避免 UI 与接口口径不一致。
+ */
+function handleHasTransferChange(value: 0 | 1 | undefined | null) {
+  if (value !== 1) {
+    query.transferDirection = undefined;
+  }
+}
+
+useRouteQueryFilterSync({
+  apply: applyFiltersFromRouteQuery,
+  reload: loadData,
+  watchQueryKeys: ['viewScope', 'mainStatus', 'hasTransfer', 'transferDirection'],
+  skipReloadRef: skipRouteFilterReload
+});
+
 onMounted(() => {
-  applyFiltersFromRouteQuery();
-  loadData();
   openDetailByRouteQuery();
 });
 
-// 路由 query 中视图范围或主状态变化时同步筛选并刷新列表
-watch(
-  () => [route.query.viewScope, route.query.mainStatus, route.query.hasTransfer],
-  () => {
-    applyFiltersFromRouteQuery();
-    if (skipRouteFilterReload.value) {
-      skipRouteFilterReload.value = false;
-      return;
-    }
-    loadData();
-  }
-);
+onActivated(() => {
+  openDetailByRouteQuery();
+});
 </script>
 
 <template>
@@ -616,6 +661,7 @@ watch(
                     placeholder="全部"
                     class="w-full"
                     :options="hasTransferOptions"
+                    @change="handleHasTransferChange"
                   />
                 </AFormItem>
               </ACol>

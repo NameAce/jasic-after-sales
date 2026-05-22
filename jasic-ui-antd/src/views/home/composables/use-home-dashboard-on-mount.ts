@@ -1,4 +1,4 @@
-import { onMounted, type Ref } from 'vue';
+import { type Ref, onMounted } from 'vue';
 
 /**
  * 首页看板挂载拉取：首次进入请求一次；页签栏「刷新」会 remount 当前页，
@@ -6,6 +6,6 @@ import { onMounted, type Ref } from 'vue';
  */
 export function useHomeDashboardOnMount(load: (force?: boolean) => Promise<void> | void, loaded: Ref<boolean>) {
   onMounted(() => {
-    void load(loaded.value);
+    Promise.resolve(load(loaded.value)).catch(() => undefined);
   });
 }

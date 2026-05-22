@@ -1,100 +1,48 @@
 import { computed, reactive, ref } from 'vue';
 import { getPlatformDashboardHome } from '@/service/api';
-import { toDashboardCount } from './dashboard-helpers';
+import type { HomeSectionVO } from '@/service/api';
 
 /**
- * 平台超管看板共享数据：组织规模、主体类型分布、操作日志趋势。
- * 数据来自 `/dashboard/platform/home`，不再由前端拼装分页列表二次统计。
+ * 平台超管看板共享数据：组织治理、账号治理、基础配置三块分区。
+ * 数据来自 `/dashboard/platform/home`，不含工单与操作日志趋势。
  */
 const state = reactive({
   loaded: false,
   loading: false,
-  companyTotal: 0,
-  companyEnabled: 0,
-  userTotal: 0,
-  roleTotal: 0,
-  notifySceneTotal: 0,
-  subjectCounts: { PLATFORM: 0, HQ: 0, SERVICE: 0 } as Record<string, number>,
-  operLogDayKeys: [] as string[],
-  operLogDailyCounts: [] as number[],
-  operLogFailedCount: 0
+  title: '治理看板',
+  organization: null as HomeSectionVO | null,
+  account: null as HomeSectionVO | null,
+  basicConfig: null as HomeSectionVO | null
 });
 
-/** 平台看板拉取失败时重置组织类指标 */
-function resetPlatformOrgMetrics() {
-  state.companyTotal = 0;
-  state.companyEnabled = 0;
-  state.userTotal = 0;
-  state.roleTotal = 0;
-  state.notifySceneTotal = 0;
-  state.subjectCounts = { PLATFORM: 0, HQ: 0, SERVICE: 0 };
+function resetPlatformDashboardState() {
+  state.title = '治理看板';
+  state.organization = { title: '组织治理', metrics: [] };
+  state.account = { title: '账号治理', metrics: [] };
+  state.basicConfig = { title: '基础配置', metrics: [] };
 }
 
-/** 操作日志趋势拉取失败时清空图表数据 */
-function resetPlatformOperLogMetrics() {
-  state.operLogDayKeys = [];
-  state.operLogDailyCounts = [];
-  state.operLogFailedCount = 0;
-}
-
-/**
- * 将平台首页接口响应写入共享 state。
- */
 function applyPlatformHomeData(data: Awaited<ReturnType<typeof getPlatformDashboardHome>>['data']) {
-  const overview = data?.overview;
-  state.companyTotal = toDashboardCount(overview?.companyTotal);
-  state.companyEnabled = toDashboardCount(overview?.enabledCompanyTotal);
-  state.userTotal = toDashboardCount(overview?.userTotal);
-  state.roleTotal = toDashboardCount(overview?.roleTotal);
-  state.notifySceneTotal = toDashboardCount(overview?.notifySceneTotal);
-
-  const distribution = data?.subjectTypeDistribution;
-  state.subjectCounts = {
-    PLATFORM: toDashboardCount(distribution?.platformCount),
-    HQ: toDashboardCount(distribution?.hqCount),
-    SERVICE: toDashboardCount(distribution?.serviceCount)
-  };
-
-  const operTrend = data?.operLogTrend7d;
-  const dayKeys = Array.isArray(operTrend?.dayKeys) ? operTrend.dayKeys : [];
-  const counts = Array.isArray(operTrend?.operLogCounts) ? operTrend.operLogCounts : [];
-  state.operLogDayKeys = dayKeys;
-  state.operLogDailyCounts = dayKeys.map((_, index) => toDashboardCount(counts[index]));
-  state.operLogFailedCount = toDashboardCount(operTrend?.failedCount);
+  state.title = data?.title || '治理看板';
+  state.organization = data?.organization ?? null;
+  state.account = data?.account ?? null;
+  state.basicConfig = data?.basicConfig ?? null;
 }
 
 export function usePlatformDashboard() {
   const loadError = ref(false);
 
-  const showDashboard = computed(() => state.loaded);
+  const title = computed(() => state.title);
+  const organization = computed(() => state.organization);
+  const account = computed(() => state.account);
+  const basicConfig = computed(() => state.basicConfig);
 
-  const kpis = computed(() => ({
-    companyTotal: state.companyTotal,
-    companyEnabled: state.companyEnabled,
-    userTotal: state.userTotal,
-    roleTotal: state.roleTotal,
-    notifySceneTotal: state.notifySceneTotal
-  }));
-
-  const subjectChartItems = computed(() => {
-    const labels: Record<string, string> = {
-      PLATFORM: '平台',
-      HQ: '总部',
-      SERVICE: '服务网点'
-    };
-    return (['PLATFORM', 'HQ', 'SERVICE'] as const)
-      .map(key => ({
-        key,
-        label: labels[key] || key,
-        value: state.subjectCounts[key] || 0
-      }))
-      .filter(item => item.value > 0);
+  /** 横幅快捷统计：取组织治理前两项指标 */
+  const bannerMetrics = computed(() => {
+    const metrics = state.organization?.metrics || [];
+    return metrics.slice(0, 2);
   });
 
-  /**
-   * 拉取平台首页聚合数据；同一会话内默认只请求一次。
-   * @param force 为 true 时忽略 loaded 缓存（页签栏刷新 remount 首页时须传 true）
-   */
   async function loadPlatformDashboard(force = false) {
     if (state.loading) return;
     if (state.loaded && !force) return;
@@ -106,8 +54,7 @@ export function usePlatformDashboard() {
       const res = await getPlatformDashboardHome();
       applyPlatformHomeData(res.data);
     } catch {
-      resetPlatformOrgMetrics();
-      resetPlatformOperLogMetrics();
+      resetPlatformDashboardState();
       loadError.value = true;
     } finally {
       state.loaded = true;
@@ -120,12 +67,11 @@ export function usePlatformDashboard() {
     loadError,
     loading: computed(() => state.loading),
     loaded: computed(() => state.loaded),
-    showDashboard,
-    kpis,
-    subjectChartItems,
-    operLogDayKeys: computed(() => state.operLogDayKeys),
-    operLogDailyCounts: computed(() => state.operLogDailyCounts),
-    operLogFailedCount: computed(() => state.operLogFailedCount),
+    title,
+    organization,
+    account,
+    basicConfig,
+    bannerMetrics,
     loadPlatformDashboard
   };
 }

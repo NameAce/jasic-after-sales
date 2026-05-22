@@ -1,4 +1,13 @@
-import type { DashboardWorkOrderStatusVO } from '@/service/api';
+import type { DashboardWorkOrderStatusVO, HomeMetricVO, HomeSectionVO } from '@/service/api';
+
+/** 承接池饼图图例项（固定五种主状态，含 0 值占位） */
+export interface WorkOrderPoolPieLegendItem {
+  code: string;
+  name: string;
+  value: number;
+  color: string;
+  routeTarget?: HomeMetricVO['routeTarget'];
+}
 
 /**
  * 首页看板通用数值兜底：将接口返回值转为非负整数。
@@ -64,4 +73,50 @@ export function buildStatusCountMap(status?: DashboardWorkOrderStatusVO | null) 
  */
 export function toAxisDayLabel(dayKey: string) {
   return dayKey.length >= 10 ? dayKey.slice(5) : dayKey;
+}
+
+/**
+ * 将 trend.series[].values 与 trend.days 按索引对齐（后端保证等长；前端按 days 长度逐日取值）。
+ */
+export function alignTrendValuesToDays(days: string[], values?: number[]) {
+  return days.map((_, index) => toDashboardCount(values?.[index]));
+}
+
+/**
+ * 总部/网点首页顶部 KPI 不展示的状态指标 code（仅前端过滤，不改后端接口）。
+ * 饼图等图表仍使用未过滤的承接池数据，保留待接单、已关闭分布。
+ */
+export const HOME_KPI_HIDDEN_METRIC_CODES = new Set(['PENDING_TECH_ACCEPT', 'CLOSED']);
+
+/**
+ * 过滤承接池指标：隐藏待接单、已关闭，供顶部 KPI 卡片使用。
+ */
+export function filterHomeKpiPoolMetrics(section: HomeSectionVO | null): HomeSectionVO | null {
+  if (!section) return null;
+  const metrics = (section.metrics ?? []).filter(item => !HOME_KPI_HIDDEN_METRIC_CODES.has(item.code || ''));
+  return { ...section, metrics };
+}
+
+/**
+ * 承接池状态分布饼图图例：按固定顺序补齐五种主状态。
+ * 接口未返回或数量为 0 的「待接单」等仍占位，避免图例缺项。
+ */
+export function buildWorkOrderPoolPieLegendItems(
+  section: HomeSectionVO | null | undefined,
+  colorByCode?: Record<string, string>,
+  fallbackColors: readonly string[] = []
+): WorkOrderPoolPieLegendItem[] {
+  const metricByCode = new Map((section?.metrics ?? []).map(item => [item.code || '', item]));
+
+  return WORK_ORDER_STATUS_ORDER.map((code, index) => {
+    const metric = metricByCode.get(code);
+    const color = colorByCode?.[code] || fallbackColors[index % (fallbackColors.length || 1)] || '#8c8c8c';
+    return {
+      code,
+      name: metric?.title || WORK_ORDER_STATUS_LABELS[code] || code,
+      value: toDashboardCount(metric?.value),
+      color,
+      routeTarget: metric?.routeTarget
+    };
+  });
 }

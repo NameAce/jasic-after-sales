@@ -2,7 +2,7 @@
 /**
  * 操作日志：分页查询、条件筛选与清理/删除；详情以右侧抽屉展示（对接 log 域接口）。
  */
-import { onMounted, reactive, ref, watch } from 'vue';
+import { reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { tagColorEnabled } from '@/constants/list-status-tag';
 import { type OperLogQuery, cleanOperLog, deleteOperLog, listOperLog } from '@/service/api';
@@ -11,6 +11,7 @@ import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-c
 import { useTableScroll } from '@/hooks/common/table';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
 import { applyDateTimeColumnRender, formatDateTime, getRecentDateRange, toOperLogQueryTime } from '@/utils/datetime';
+import { useRouteQueryFilterSync } from '@/utils/route-query-filter-sync';
 import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
 
 type RowData = Record<string, any>;
@@ -273,30 +274,15 @@ async function cleanAll() {
   loadList();
 }
 
-onMounted(() => {
-  applyFiltersFromRouteQuery();
-  loadList();
-});
-
-watch(
-  () => [
-    route.query.status,
-    route.query.beginDate,
-    route.query.endDate,
-    route.query.beginTime,
-    route.query.endTime,
-    route.query.preset
-  ],
-  () => {
+useRouteQueryFilterSync({
+  apply: () => {
     applyFiltersFromRouteQuery();
     queryParams.pageNum = 1;
-    if (skipRouteLogPresetReload.value) {
-      skipRouteLogPresetReload.value = false;
-      return;
-    }
-    loadList();
-  }
-);
+  },
+  reload: loadList,
+  watchQueryKeys: ['status', 'beginDate', 'endDate', 'beginTime', 'endTime', 'preset'],
+  skipReloadRef: skipRouteLogPresetReload
+});
 </script>
 
 <template>

@@ -56,7 +56,10 @@ async function syncChart() {
   const items = subjectChartItems.value;
   updateOptions(opts => {
     opts.title = { text: $t('page.home.platformOrgDistribution') };
-    opts.series[0].data = items.map(item => ({ name: item.label, value: item.value }));
+    opts.series[0].data = items.map(item => ({
+      name: item.label,
+      value: item.value
+    }));
     return opts;
   });
 }

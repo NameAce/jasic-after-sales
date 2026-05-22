@@ -6,6 +6,11 @@ import { useAppStore } from '@/store/modules/app';
 import { useEcharts } from '@/hooks/common/echarts';
 import { $t } from '@/locales';
 import { toAxisDayLabel, toDashboardCount } from '../composables/dashboard-helpers';
+import {
+  HOME_TREND_LINE_COLORS,
+  HOME_TREND_LINE_GRID,
+  buildTrendLineSeriesItem
+} from '../composables/home-chart-theme';
 import { useBusinessHomeDashboard } from '../composables/use-business-home-dashboard';
 
 defineOptions({
@@ -37,9 +42,7 @@ const { domRef, updateOptions } = useEcharts(() => ({
     trigger: 'axis',
     axisPointer: {
       type: 'cross',
-      label: {
-        backgroundColor: '#6a7985'
-      }
+      label: { backgroundColor: '#6a7985' }
     }
   },
   legend: {
@@ -47,13 +50,7 @@ const { domRef, updateOptions } = useEcharts(() => ({
     top: 28,
     right: 16
   },
-  grid: {
-    left: '3%',
-    right: '4%',
-    top: 88,
-    bottom: '8%',
-    containLabel: true
-  },
+  grid: { ...HOME_TREND_LINE_GRID },
   xAxis: {
     type: 'category',
     boundaryGap: false,
@@ -64,47 +61,21 @@ const { domRef, updateOptions } = useEcharts(() => ({
   },
   series: [
     {
-      color: '#8e9dff',
-      name: $t('page.home.createdWorkOrder'),
-      type: 'line',
-      smooth: true,
-      stack: 'Total',
-      areaStyle: {
-        color: {
-          type: 'linear',
-          x: 0,
-          y: 0,
-          x2: 0,
-          y2: 1,
-          colorStops: [
-            { offset: 0.25, color: '#8e9dff' },
-            { offset: 1, color: '#fff' }
-          ]
-        }
-      },
-      emphasis: { focus: 'series' },
+      ...buildTrendLineSeriesItem({
+        name: $t('page.home.createdWorkOrder'),
+        color: HOME_TREND_LINE_COLORS[1],
+        data: [],
+        stacked: true
+      }),
       data: [] as number[]
     },
     {
-      color: '#26deca',
-      name: $t('page.home.todoNotice'),
-      type: 'line',
-      smooth: true,
-      stack: 'Total',
-      areaStyle: {
-        color: {
-          type: 'linear',
-          x: 0,
-          y: 0,
-          x2: 0,
-          y2: 1,
-          colorStops: [
-            { offset: 0.25, color: '#26deca' },
-            { offset: 1, color: '#fff' }
-          ]
-        }
-      },
-      emphasis: { focus: 'series' },
+      ...buildTrendLineSeriesItem({
+        name: $t('page.home.todoNotice'),
+        color: HOME_TREND_LINE_COLORS[2],
+        data: [],
+        stacked: true
+      }),
       data: [] as number[]
     }
   ]
@@ -117,8 +88,18 @@ async function applyTrendData() {
   const { dayKeys, orderData, todoData } = trendPayload.value;
   updateOptions(opts => {
     opts.xAxis.data = dayKeys.map(toAxisDayLabel);
-    opts.series[0].data = orderData;
-    opts.series[1].data = todoData;
+    opts.series[0] = buildTrendLineSeriesItem({
+      name: $t('page.home.createdWorkOrder'),
+      color: HOME_TREND_LINE_COLORS[1],
+      data: orderData,
+      stacked: true
+    });
+    opts.series[1] = buildTrendLineSeriesItem({
+      name: $t('page.home.todoNotice'),
+      color: HOME_TREND_LINE_COLORS[2],
+      data: todoData,
+      stacked: true
+    });
     return opts;
   });
 }

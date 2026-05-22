@@ -1,45 +1,51 @@
 <script setup lang="ts">
 /**
- * 平台超管首页顶部：问候语 + 接口标题 + 组织治理快捷指标（来自 organization 分区）。
+ * 工单类首页顶部横幅：接口标题 + 用户问候 + 可选已转出快捷统计。
  */
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
+import type { HomeMetricVO } from '@/service/api';
 import { useAuthStore } from '@/store/modules/auth';
 import { $t } from '@/locales';
 import { navigateHomeRoute } from '../composables/home-route-helpers';
 import { toDashboardCount } from '../composables/dashboard-helpers';
-import { usePlatformDashboard } from '../composables/use-platform-dashboard';
 
 defineOptions({
-  name: 'PlatformHeaderBanner'
+  name: 'HomeWorkbenchHeader'
 });
+
+const props = withDefaults(
+  defineProps<{
+    title?: string;
+    loading?: boolean;
+    /** 已转出指标（总部/服务主体） */
+    transferMetric?: HomeMetricVO | null;
+  }>(),
+  {
+    title: '',
+    loading: false,
+    transferMetric: null
+  }
+);
 
 const authStore = useAuthStore();
 const router = useRouter();
-const { loading, title, bannerMetrics } = usePlatformDashboard();
 
-const statisticData = computed(() =>
-  bannerMetrics.value.map(metric => ({
-    key: metric.code || metric.title || '',
-    title: metric.title || '',
-    value: toDashboardCount(metric.value),
-    routeTarget: metric.routeTarget
-  }))
-);
-
-function handleStatisticClick(item: (typeof statisticData.value)[number]) {
-  navigateHomeRoute(router, item.routeTarget);
-}
+const transferCount = computed(() => toDashboardCount(props.transferMetric?.value));
 
 function openUserCenter() {
   router.push({ path: '/user-center' });
+}
+
+function openTransferList() {
+  navigateHomeRoute(router, props.transferMetric?.routeTarget);
 }
 </script>
 
 <template>
   <ACard :bordered="false" class="card-wrapper" :loading="loading">
     <ARow :gutter="[16, 16]">
-      <ACol :span="24" :md="statisticData.length ? 18 : 24">
+      <ACol :span="24" :md="transferMetric ? 18 : 24">
         <div class="flex-y-center cursor-pointer" @click="openUserCenter">
           <div class="size-72px shrink-0 overflow-hidden rd-1/2">
             <img
@@ -59,14 +65,14 @@ function openUserCenter() {
           </div>
         </div>
       </ACol>
-      <ACol v-if="statisticData.length" :span="24" :md="6">
-        <ASpace class="w-full justify-end" :size="32">
-          <ATooltip v-for="item in statisticData" :key="item.key" :title="item.title">
+      <ACol v-if="transferMetric" :span="24" :md="6">
+        <ASpace class="w-full justify-end" :size="24">
+          <ATooltip :title="transferMetric.statCondition">
             <AStatistic
-              class="home-banner-stat cursor-pointer whitespace-nowrap"
-              :title="item.title"
-              :value="item.value"
-              @click="handleStatisticClick(item)"
+              class="cursor-pointer whitespace-nowrap"
+              :title="transferMetric.title || '已转出'"
+              :value="transferCount"
+              @click="openTransferList"
             />
           </ATooltip>
         </ASpace>
@@ -75,15 +81,4 @@ function openUserCenter() {
   </ACard>
 </template>
 
-<style scoped>
-.home-banner-stat :deep(.ant-statistic-title) {
-  color: #8c8c8c;
-  font-size: 13px;
-}
-
-.home-banner-stat :deep(.ant-statistic-content-value) {
-  color: #1677ff;
-  font-size: 22px;
-  font-weight: 600;
-}
-</style>
+<style scoped></style>

@@ -20,6 +20,8 @@ export interface WorkOrderQuery extends Query {
   mainStatus?: 'PENDING_ASSIGN' | 'PENDING_TECH_ACCEPT' | 'IN_PROGRESS' | 'COMPLETED' | 'CLOSED';
   displayStatus?: 'ALL' | 'WAIT_ACCEPT' | 'IN_PROGRESS' | 'COMPLETED' | 'CLOSED';
   hasTransfer?: 0 | 1;
+  /** 转出方视角筛选（首页「已转出」卡片跳转传 OUT） */
+  transferDirection?: 'OUT';
 }
 
 /** `GET /system/work-order/status-count`：仅提交前端筛选字段，不提交权限上下文字段。
@@ -28,7 +30,7 @@ export interface WorkOrderQuery extends Query {
  */
 export type WorkOrderStatusCountQuery = Pick<
   WorkOrderQuery,
-  'viewScope' | 'orderNo' | 'customerName' | 'customerMobile' | 'barcode' | 'hasTransfer'
+  'viewScope' | 'orderNo' | 'customerName' | 'customerMobile' | 'barcode' | 'hasTransfer' | 'transferDirection'
 >;
 
 export interface WorkOrderListVO {

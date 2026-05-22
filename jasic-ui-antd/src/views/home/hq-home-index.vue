@@ -1,59 +1,120 @@
 <script setup lang="ts">
 /**
- * 总部（subjectType=HQ）工作台首页：网点汇总、待接单排行等总部运营看板。
- * 工单统计卡片与图表仅在具备 `workorder:list` 权限时展示。
+ * 总部（subjectType=HQ）首页「调度看板」：顶部 KPI 不展示待接单/已关闭（饼图保留），无分区标题、单行占满。
  */
 import { computed } from 'vue';
+import type { HomeSectionVO } from '@/service/api';
 import { useAuth } from '@/hooks/business/auth';
-import { useBusinessHomeDashboard } from './composables/use-business-home-dashboard';
+import { filterHomeKpiPoolMetrics } from './composables/dashboard-helpers';
 import { useHomeDashboardOnMount } from './composables/use-home-dashboard-on-mount';
 import { useHqDashboard } from './composables/use-hq-dashboard';
-import HeaderBanner from './modules/header-banner.vue';
-import HqDashboardSection from './modules/hq-dashboard-section.vue';
-import HqSiteBarChart from './modules/hq-site-bar-chart.vue';
-import LineChart from './modules/line-chart.vue';
-import PieChart from './modules/pie-chart.vue';
-import ProjectNews from './modules/project-news.vue';
+import { WORK_ORDER_METRIC_STYLES, WORK_ORDER_PIE_COLOR_BY_CODE } from './composables/home-metric-styles';
+import HomeWorkbenchHeader from './modules/home-workbench-header.vue';
+import HomeMetricCards from './modules/home-metric-cards.vue';
+import HomeTrendChart from './modules/home-trend-chart.vue';
+import HomeSectionPieChart from './modules/home-section-pie-chart.vue';
 
 defineOptions({
   name: 'HqHomeIndex'
 });
 
-// 权限判断（首页卡片与图表仅工单权限可见）
 const { hasAuth } = useAuth();
-// 是否具备工单列表权限（控制统计卡片与图表区域）
 const canViewWorkOrder = computed(() => hasAuth('workorder:list'));
 
-const { hasSiteData } = useHqDashboard();
-const { loaded, loadBusinessHomeDashboard } = useBusinessHomeDashboard();
+const { loaded, loading, loadHqDashboard, title, workOrderPool, transfer, trend, transferMetric } = useHqDashboard();
 
-/** 进入总部首页时拉取 `/dashboard/hq/home`；页签刷新时 force 重拉 */
-useHomeDashboardOnMount(loadBusinessHomeDashboard, loaded);
-// 是否展示网点待接单图（与动态并排，占左侧列）
-const showSiteWaitChart = computed(() => canViewWorkOrder.value && hasSiteData.value);
+useHomeDashboardOnMount(loadHqDashboard, loaded);
+
+const workOrderRoute = { name: 'after-sales_work-order', query: { viewScope: 'CURRENT' } };
+
+/** 承接池（已过滤）仅用于顶部 KPI 卡片 */
+const filteredWorkOrderPool = computed(() => filterHomeKpiPoolMetrics(workOrderPool.value));
+
+/**
+ * 承接工单池展示分区：在池内状态指标之后追加「已转出」，与承接卡同一行排列。
+ * 饼图仍使用原始 workOrderPool（含待接单、已关闭），避免转出数混入状态分布。
+ */
+const workOrderPoolWithTransfer = computed((): HomeSectionVO | null => {
+  const pool = filteredWorkOrderPool.value;
+  if (!pool) return null;
+  const transferMetrics = transfer.value?.metrics;
+  if (!Array.isArray(transferMetrics) || transferMetrics.length === 0) {
+    return pool;
+  }
+  return {
+    ...pool,
+    metrics: [...(pool.metrics ?? []), ...transferMetrics]
+  };
+});
 </script>
 
 <template>
-  <ASpace direction="vertical" :size="16">
-    <HeaderBanner />
-    <HqDashboardSection v-if="canViewWorkOrder" />
-    <ARow v-if="canViewWorkOrder" :gutter="[16, 16]">
-      <ACol :span="24" :lg="14">
-        <LineChart />
+  <div class="home-dashboard">
+    <HomeWorkbenchHeader
+      class="home-dashboard__shrink"
+      :title="title"
+      :loading="loading"
+      :transfer-metric="canViewWorkOrder ? transferMetric : null"
+    />
+    <HomeMetricCards
+      v-if="canViewWorkOrder"
+      class="home-dashboard__shrink"
+      :section="workOrderPoolWithTransfer"
+      :loading="loading"
+      :metric-styles="WORK_ORDER_METRIC_STYLES"
+      :show-section-title="false"
+      fill-row
+      compact
+    />
+    <ARow v-if="canViewWorkOrder" class="home-dashboard__charts" :gutter="[16, 16]">
+      <ACol :span="24" :lg="14" class="home-dashboard__chart-col">
+        <HomeTrendChart
+          :trend="trend"
+          :loading="loading"
+          :loaded="loaded"
+          extra-link-text="工单列表"
+          :extra-link-route="workOrderRoute"
+          fill-height
+        />
       </ACol>
-      <ACol :span="24" :lg="10">
-        <PieChart />
+      <ACol :span="24" :lg="10" class="home-dashboard__chart-col">
+        <HomeSectionPieChart
+          :section="workOrderPool"
+          :loading="loading"
+          :loaded="loaded"
+          chart-title="当前承接工单状态分布"
+          :show-card-title="false"
+          work-order-pool-pie
+          :color-by-code="WORK_ORDER_PIE_COLOR_BY_CODE"
+          extra-link-text="当前工单"
+          :extra-link-route="workOrderRoute"
+          fill-height
+        />
       </ACol>
     </ARow>
-    <ARow :gutter="[16, 16]">
-      <ACol v-if="showSiteWaitChart" :span="24" :lg="14">
-        <HqSiteBarChart />
-      </ACol>
-      <ACol :span="24" :lg="showSiteWaitChart ? 10 : 24">
-        <ProjectNews />
-      </ACol>
-    </ARow>
-  </ASpace>
+  </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+.home-dashboard {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 16px;
+}
+
+.home-dashboard__shrink {
+  flex-shrink: 0;
+}
+
+.home-dashboard__charts {
+  flex: 1;
+  min-height: 280px;
+}
+
+.home-dashboard__chart-col {
+  height: 100%;
+  min-height: 240px;
+}
+</style>

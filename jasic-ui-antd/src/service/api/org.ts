@@ -29,6 +29,8 @@ export interface SysCompanyQuery extends Query {
   typeCode?: string;
   category?: 'HQ' | 'FIRST_LEVEL' | 'SECOND_LEVEL';
   status?: 0 | 1;
+  /** 主体类型（PLATFORM/HQ/SERVICE），首页组织治理跳转筛选 */
+  subjectType?: 'PLATFORM' | 'HQ' | 'SERVICE';
 }
 
 export interface SysCompany {

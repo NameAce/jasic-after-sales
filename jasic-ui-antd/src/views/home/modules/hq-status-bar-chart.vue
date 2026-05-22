@@ -99,7 +99,11 @@ async function syncChart() {
     };
 
     if (isStack) {
-      opts.xAxis = { type: 'category', data: items.map(i => i.label), axisLabel: { interval: 0, rotate: 20 } };
+      opts.xAxis = {
+        type: 'category',
+        data: items.map(i => i.label),
+        axisLabel: { interval: 0, rotate: 20 }
+      };
       opts.yAxis = { type: 'value', minInterval: 1 };
       opts.series[0].data = items.map((item, idx) => ({
         value: item.value,
@@ -108,7 +112,11 @@ async function syncChart() {
     } else {
       const labels = items.map(i => i.label);
       const values = items.map(i => i.value);
-      opts.yAxis = { type: 'category', data: [...labels].reverse(), axisTick: { show: false } };
+      opts.yAxis = {
+        type: 'category',
+        data: [...labels].reverse(),
+        axisTick: { show: false }
+      };
       opts.xAxis = { type: 'value', minInterval: 1 };
       opts.series[0].data = [...values].reverse().map((value, idx) => ({
         value,

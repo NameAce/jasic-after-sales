@@ -36,14 +36,34 @@ const summary = reactive({
 const chartItems = computed(() => {
   if (useOrgSummary.value) {
     return [
-      { key: 'user', label: $t('page.home.summaryUser'), value: Number(summary.userTotal) || 0, color: '#5da8ff' },
-      { key: 'role', label: $t('page.home.summaryRole'), value: Number(summary.roleTotal) || 0, color: '#8e9dff' }
+      {
+        key: 'user',
+        label: $t('page.home.summaryUser'),
+        value: Number(summary.userTotal) || 0,
+        color: '#5da8ff'
+      },
+      {
+        key: 'role',
+        label: $t('page.home.summaryRole'),
+        value: Number(summary.roleTotal) || 0,
+        color: '#8e9dff'
+      }
     ];
   }
 
   return [
-    { key: 'todo', label: $t('page.home.todo'), value: Number(summary.todoTotal) || 0, color: '#5da8ff' },
-    { key: 'message', label: $t('page.home.message'), value: Number(summary.messageTotal) || 0, color: '#8e9dff' }
+    {
+      key: 'todo',
+      label: $t('page.home.todo'),
+      value: Number(summary.todoTotal) || 0,
+      color: '#5da8ff'
+    },
+    {
+      key: 'message',
+      label: $t('page.home.message'),
+      value: Number(summary.messageTotal) || 0,
+      color: '#8e9dff'
+    }
   ];
 });
 

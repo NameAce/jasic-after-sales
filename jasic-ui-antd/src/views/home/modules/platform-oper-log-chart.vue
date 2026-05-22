@@ -9,6 +9,7 @@ import { useAppStore } from '@/store/modules/app';
 import { useEcharts } from '@/hooks/common/echarts';
 import { $t } from '@/locales';
 import { usePlatformDashboard } from '../composables/use-platform-dashboard';
+import { HOME_LINE_PRIMARY_COLOR, HOME_SINGLE_LINE_GRID, buildLineAreaGradient } from '../composables/home-chart-theme';
 
 defineOptions({
   name: 'PlatformOperLogChart'
@@ -24,15 +25,12 @@ const { domRef, updateOptions } = useEcharts(() => ({
   },
   tooltip: {
     trigger: 'axis',
-    axisPointer: { type: 'cross' }
+    axisPointer: {
+      type: 'cross',
+      label: { backgroundColor: '#6a7985' }
+    }
   },
-  grid: {
-    left: '3%',
-    right: '4%',
-    top: 48,
-    bottom: '8%',
-    containLabel: true
-  },
+  grid: { ...HOME_SINGLE_LINE_GRID },
   xAxis: {
     type: 'category',
     boundaryGap: false,
@@ -44,23 +42,12 @@ const { domRef, updateOptions } = useEcharts(() => ({
   },
   series: [
     {
-      color: '#5da8ff',
+      color: HOME_LINE_PRIMARY_COLOR,
       name: $t('page.home.platformOperLogCount'),
       type: 'line',
       smooth: true,
-      areaStyle: {
-        color: {
-          type: 'linear',
-          x: 0,
-          y: 0,
-          x2: 0,
-          y2: 1,
-          colorStops: [
-            { offset: 0.25, color: '#5da8ff' },
-            { offset: 1, color: '#fff' }
-          ]
-        }
-      },
+      lineStyle: { width: 2, color: HOME_LINE_PRIMARY_COLOR },
+      areaStyle: { color: buildLineAreaGradient(HOME_LINE_PRIMARY_COLOR) },
       data: [] as number[]
     }
   ]

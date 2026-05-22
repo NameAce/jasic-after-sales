@@ -2,7 +2,8 @@
 /**
  * 系统管理 — 用户：分页列表、增删改、分配角色/区域、强退等（对接后端 system 域接口）。
  */
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import type { FormInstance } from 'ant-design-vue';
 import { tagColorEnabled } from '@/constants/list-status-tag';
 import {
@@ -29,6 +30,7 @@ import { useTableScroll } from '@/hooks/common/table';
 import { createAntTableActionColumn, withAntTableActionColumn } from '@/utils/table-action-width';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
 import { applyDateTimeColumnRender } from '@/utils/datetime';
+import { readRouteQueryNumber, useRouteQueryFilterSync } from '@/utils/route-query-filter-sync';
 import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
 
 type RowData = Record<string, any>;
@@ -108,6 +110,10 @@ const regionOpen = ref(false);
 const regionSubmitting = ref(false);
 const regionUserId = ref<number | undefined>(undefined);
 const regionValues = ref<number[]>([]);
+
+const route = useRoute();
+const router = useRouter();
+const skipRouteFilterReload = ref(false);
 
 const systemUserSearchFilter = usePageSearchFilterCollapse(4);
 
@@ -320,8 +326,30 @@ function resetQuery() {
   query.realName = '';
   query.phone = '';
   query.status = undefined;
+
+  if ('status' in route.query) {
+    skipRouteFilterReload.value = true;
+    const nextQuery = Object.fromEntries(Object.entries(route.query).filter(([key]) => key !== 'status'));
+    router.replace({ query: nextQuery });
+  }
+
   loadData();
 }
+
+/** 首页账号治理卡片跳转：将路由 status 回显到筛选区 */
+function applyFiltersFromRouteQuery() {
+  if (!('status' in route.query)) return;
+  const statusNum = readRouteQueryNumber(route.query, 'status');
+  query.status = statusNum === 0 || statusNum === 1 ? statusNum : undefined;
+  query.pageNum = 1;
+}
+
+useRouteQueryFilterSync({
+  apply: applyFiltersFromRouteQuery,
+  reload: loadData,
+  watchQueryKeys: ['status'],
+  skipReloadRef: skipRouteFilterReload
+});
 
 /**
  * 作用：分页或每页条数变化时刷新列表。
@@ -561,15 +589,6 @@ async function submitAssignRegions() {
     regionSubmitting.value = false;
   }
 }
-
-/**
- * 作用：挂载后首次加载用户列表。
- * @param 无
- * @returns {void} 无
- */
-onMounted(() => {
-  loadData();
-});
 </script>
 
 <template>

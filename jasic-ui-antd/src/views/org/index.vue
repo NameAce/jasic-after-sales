@@ -3,7 +3,7 @@
  * 组织与客商：公司/类型、区域、合同、客户导入等多 Tab 业务聚合页（对接 org 域接口）。
  */
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import type { FormInstance } from 'ant-design-vue';
 import type { Key } from 'ant-design-vue/es/_util/type';
 import { tagColorEnabled, tagColorPositiveNeutral } from '@/constants/list-status-tag';
@@ -53,6 +53,7 @@ import {
 import { createAntTableActionColumn, isTableActionColumnKey } from '@/utils/table-action-width';
 import { createAntTableListLocale, useListRequestTableMsgs } from '@/utils/list-table-empty-state';
 import { applyDateTimeColumnRender } from '@/utils/datetime';
+import { readRouteQueryNumber, readRouteQueryString, useRouteQueryFilterSync } from '@/utils/route-query-filter-sync';
 import PageSearchExpandButton from '@/components/custom/page-search-expand-button.vue';
 
 type RowData = Record<string, any>;
@@ -91,7 +92,9 @@ const {
 const tableListLocale = createAntTableListLocale(listFetchErrorMsg, listEmptyBackendMsg, rows);
 
 const route = useRoute();
+const router = useRouter();
 const pageMenuTitle = useRouteMenuTitle();
+const skipOrgRouteFilterReload = ref(false);
 const { hasAuth } = useAuth();
 
 const companySearchFilter = usePageSearchFilterCollapse(3);
@@ -112,7 +115,8 @@ const companyQuery = reactive<SysCompanyQuery>({
   companyName: undefined,
   typeCode: undefined,
   category: undefined,
-  status: undefined
+  status: undefined,
+  subjectType: undefined
 });
 
 // 总部-一级签约列表查询
@@ -924,7 +928,9 @@ async function loadList() {
           ...companyQuery,
           companyName: companyQuery.companyName || undefined,
           typeCode: companyQuery.typeCode || undefined,
-          status: companyQuery.status
+          category: companyQuery.category,
+          status: companyQuery.status,
+          subjectType: companyQuery.subjectType
         });
         if (consumeFlatError(flat)) {
           rows.value = [];
@@ -1391,8 +1397,55 @@ function resetCompanyQuery() {
   companyQuery.typeCode = undefined;
   companyQuery.category = undefined;
   companyQuery.status = undefined;
+  companyQuery.subjectType = undefined;
+
+  const routeFilterKeys = ['activeTab', 'status', 'subjectType'] as const;
+  if (routeFilterKeys.some(k => k in route.query)) {
+    skipOrgRouteFilterReload.value = true;
+    const nextQuery = Object.fromEntries(
+      Object.entries(route.query).filter(([key]) => !routeFilterKeys.includes(key as (typeof routeFilterKeys)[number]))
+    );
+    router.replace({ query: nextQuery });
+  }
+
   handleCompanySearch();
 }
+
+const ORG_ROUTE_TAB_KEYS = new Set<TabKey>(['company', 'companyType', 'hqFirst', 'firstSecond', 'external', 'area']);
+
+/**
+ * 首页组织治理卡片跳转：同步 Tab；公司 Tab 仅回显已有「状态」筛选项。
+ * subjectType 无对应搜索表单项，只写入查询参数供列表接口过滤。
+ */
+function applyFiltersFromRouteQuery() {
+  const tab = readRouteQueryString(route.query, 'activeTab') as TabKey;
+  if (ORG_ROUTE_TAB_KEYS.has(tab) && activeTab.value !== tab) {
+    applyActiveTabByRoute(tab);
+  }
+
+  if (activeTab.value !== 'company') return;
+
+  if ('status' in route.query) {
+    const statusNum = readRouteQueryNumber(route.query, 'status');
+    companyQuery.status = statusNum === 0 || statusNum === 1 ? (statusNum as 0 | 1) : undefined;
+    companyQuery.pageNum = 1;
+  }
+  if ('subjectType' in route.query) {
+    const st = readRouteQueryString(route.query, 'subjectType').toUpperCase();
+    if (st === 'HQ' || st === 'SERVICE' || st === 'PLATFORM') {
+      companyQuery.subjectType = st;
+      companyQuery.category = st === 'HQ' ? 'HQ' : undefined;
+      companyQuery.pageNum = 1;
+    }
+  }
+}
+
+useRouteQueryFilterSync({
+  apply: applyFiltersFromRouteQuery,
+  reload: loadList,
+  watchQueryKeys: ['activeTab', 'status', 'subjectType'],
+  skipReloadRef: skipOrgRouteFilterReload
+});
 
 /**
  * 作用：外部公司列表查询。
@@ -2235,7 +2288,7 @@ watch(
 
 onMounted(() => {
   const changedByRoute = syncActiveTabByRouteName(route.name);
-  if (!changedByRoute) {
+  if (!changedByRoute && !('activeTab' in route.query)) {
     loadList();
   }
 });

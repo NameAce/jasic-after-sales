@@ -1,65 +1,53 @@
 import { computed, reactive, ref } from 'vue';
-import {
-  type DashboardHistoryTodoVO,
-  type DashboardTrend7dVO,
-  type DashboardWorkOrderStatusVO,
-  type ServiceDashboardOverviewVO,
-  getServiceDashboardHome
-} from '@/service/api';
+import { type HomeEntryVO, type HomeSectionVO, type HomeTrendVO, getServiceDashboardHome } from '@/service/api';
+import { toDashboardCount } from './dashboard-helpers';
 
 /**
  * 服务主体（网点等）看板共享数据。
- * 数据来自 `/dashboard/service/home`，供标准业务首页各模块复用。
+ * 数据来自 `/dashboard/service/home`，供服务工作台首页各模块复用。
  */
 const state = reactive({
   loaded: false,
   loading: false,
-  overview: null as ServiceDashboardOverviewVO | null,
-  workOrderStatus: null as DashboardWorkOrderStatusVO | null,
-  trend7d: null as DashboardTrend7dVO | null,
-  latestHistoryTodos: [] as DashboardHistoryTodoVO[]
+  title: '服务工作台',
+  currentPool: null as HomeSectionVO | null,
+  transfer: null as HomeSectionVO | null,
+  historyEntry: null as HomeEntryVO | null,
+  trend: null as HomeTrendVO | null
 });
 
-/** 拉取失败时重置为安全空值 */
+/** 拉取失败时重置为安全空值，避免页面残留旧数据 */
 function resetServiceDashboardState() {
-  state.overview = {
-    activeTodoCount: 0,
-    historyTodoCount: 0,
-    workOrderTotal: 0
-  };
-  state.workOrderStatus = {
-    all: 0,
-    pendingAssign: 0,
-    pendingTechAccept: 0,
-    inProgress: 0,
-    completed: 0,
-    closed: 0
-  };
-  state.trend7d = {
-    dayKeys: [],
-    createdWorkOrderCounts: [],
-    activeTodoCounts: []
-  };
-  state.latestHistoryTodos = [];
+  state.title = '服务工作台';
+  state.currentPool = { title: '当前服务公司承接工单', metrics: [] };
+  state.transfer = { title: '已转出', metrics: [] };
+  state.historyEntry = null;
+  state.trend = { title: '近 7 天事件趋势', days: [], series: [] };
 }
 
 /**
  * 将服务主体首页接口响应写入共享 state。
  */
 function applyServiceHomeData(data: Awaited<ReturnType<typeof getServiceDashboardHome>>['data']) {
-  state.overview = data?.overview ?? null;
-  state.workOrderStatus = data?.workOrderStatus ?? null;
-  state.trend7d = data?.trend7d ?? null;
-  state.latestHistoryTodos = Array.isArray(data?.latestHistoryTodos) ? data.latestHistoryTodos : [];
+  state.title = data?.title || '服务工作台';
+  state.currentPool = data?.currentPool ?? null;
+  state.transfer = data?.transfer ?? null;
+  state.historyEntry = data?.historyEntry ?? null;
+  state.trend = data?.trend ?? null;
 }
 
 export function useServiceDashboard() {
   const loadError = ref(false);
 
-  const overview = computed(() => state.overview);
-  const workOrderStatus = computed(() => state.workOrderStatus);
-  const trend7d = computed(() => state.trend7d);
-  const latestHistoryTodos = computed(() => state.latestHistoryTodos);
+  const title = computed(() => state.title);
+  const currentPool = computed(() => state.currentPool);
+  const transfer = computed(() => state.transfer);
+  const historyEntry = computed(() => state.historyEntry);
+  const trend = computed(() => state.trend);
+
+  /** 已转出数量（取 transfer 分区首个指标，供横幅等轻量展示） */
+  const transferMetric = computed(() => state.transfer?.metrics?.[0]);
+  const transferOutCount = computed(() => toDashboardCount(transferMetric.value?.value));
 
   /**
    * 拉取服务主体首页聚合数据；同一会话内默认只请求一次。
@@ -89,10 +77,13 @@ export function useServiceDashboard() {
     loadError,
     loading: computed(() => state.loading),
     loaded: computed(() => state.loaded),
-    overview,
-    workOrderStatus,
-    trend7d,
-    latestHistoryTodos,
+    title,
+    currentPool,
+    transfer,
+    historyEntry,
+    trend,
+    transferMetric,
+    transferOutCount,
     loadServiceDashboard
   };
 }
