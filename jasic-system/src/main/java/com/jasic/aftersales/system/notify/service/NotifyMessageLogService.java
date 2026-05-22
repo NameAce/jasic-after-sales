@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * 通知消息日志 Service。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/18
  */
 public interface NotifyMessageLogService {

@@ -10,7 +10,7 @@ import lombok.EqualsAndHashCode;
 /**
  * 故障与维修配置故障项实体
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/01
  */
 @Data

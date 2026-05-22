@@ -21,22 +21,24 @@ import java.util.Date;
 /**
  * 阿里云 OSS 对象存储实现
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/07
  */
 @Service
 public class AliyunOssObjectStorageService implements ObjectStorageService {
 
+    /**ossProperties 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private OssProperties ossProperties;
 
+    /**lock 字段，用于当前类内部业务处理。*/
     private final Object lock = new Object();
 
     /**
      * OSS字段。
      *
-     * @param file 参数
-     * @return 处理结果
+     * @param file file，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private volatile OSS ossClient;
 
@@ -44,38 +46,29 @@ public class AliyunOssObjectStorageService implements ObjectStorageService {
      * 处理upload业务逻辑。
      *
      * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
-     * @param file 参数
-     * @param objectKey 参数
-     * @return 处理结果
+     * @param file file，当前业务处理所需的输入值。
+     * @param objectKey objectKey，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     @Override
     public ObjectStorageUploadResult upload(MultipartFile file, String objectKey) {
-        // 说明：执行该步骤以保证业务流程正确。
         validateConfig();
         if (file == null || file.isEmpty()) {
             throw new ServiceException("上传文件不能为空");
         }
-        // 调用normalizeObjectKey方法，复用统一能力并保证业务规则一致。
         String normalizedObjectKey = normalizeObjectKey(objectKey);
         try (InputStream inputStream = file.getInputStream()) {
-            // 调用ObjectMetadata方法，复用统一能力并保证业务规则一致。
             ObjectMetadata metadata = new ObjectMetadata();
-            // 调用getSize方法，复用统一能力并保证业务规则一致。
             metadata.setContentLength(file.getSize());
-            // 调用getContentType方法，复用统一能力并保证业务规则一致。
             metadata.setContentType(resolveContentType(file.getContentType()));
-            // 调用trim方法，复用统一能力并保证业务规则一致。
             getOssClient().putObject(ossProperties.getBucket().trim(), normalizedObjectKey, inputStream, metadata);
         } catch (ServiceException ex) {
             throw ex;
         } catch (Exception ex) {
             throw new ServiceException("文件上传失败");
         }
-        // 调用ObjectStorageUploadResult方法，复用统一能力并保证业务规则一致。
         ObjectStorageUploadResult result = new ObjectStorageUploadResult();
-        // 调用trim方法，复用统一能力并保证业务规则一致。
         result.setBucket(ossProperties.getBucket().trim());
-        // 调用setObjectKey方法，复用统一能力并保证业务规则一致。
         result.setObjectKey(normalizedObjectKey);
         return result;
     }
@@ -85,12 +78,9 @@ public class AliyunOssObjectStorageService implements ObjectStorageService {
      */
     @Override
     public void delete(String objectKey) {
-        // 说明：执行该步骤以保证业务流程正确。
         validateConfig();
-        // 调用normalizeObjectKey方法，复用统一能力并保证业务规则一致。
         String normalizedObjectKey = normalizeObjectKey(objectKey);
         try {
-            // 调用trim方法，复用统一能力并保证业务规则一致。
             getOssClient().deleteObject(ossProperties.getBucket().trim(), normalizedObjectKey);
         } catch (Exception ex) {
             throw new ServiceException("删除文件失败");
@@ -100,16 +90,13 @@ public class AliyunOssObjectStorageService implements ObjectStorageService {
     /**
      * generatePresigned预览Url。
      *
-     * @param expireSeconds 参数
-     * @return 处理结果
+     * @param expireSeconds expireSeconds，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     @Override
     public String generatePresignedPreviewUrl(String objectKey, long expireSeconds) {
-        // 说明：执行该步骤以保证业务流程正确。
         validateConfig();
-        // 调用normalizeObjectKey方法，复用统一能力并保证业务规则一致。
         String normalizedObjectKey = normalizeObjectKey(objectKey);
-        // 调用defaultPreviewExpireSeconds方法，复用统一能力并保证业务规则一致。
         long normalizedExpireSeconds = expireSeconds > 0 ? expireSeconds : defaultPreviewExpireSeconds();
         try {
             GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(
@@ -117,9 +104,7 @@ public class AliyunOssObjectStorageService implements ObjectStorageService {
                     normalizedObjectKey,
                     HttpMethod.GET
             );
-            // 调用currentTimeMillis方法，复用统一能力并保证业务规则一致。
             request.setExpiration(new Date(System.currentTimeMillis() + normalizedExpireSeconds * 1000));
-            // 调用generatePresignedUrl方法，复用统一能力并保证业务规则一致。
             URL url = getOssClient().generatePresignedUrl(request);
             if (url == null) {
                 throw new ServiceException("生成预览地址失败");
@@ -135,8 +120,8 @@ public class AliyunOssObjectStorageService implements ObjectStorageService {
     /**
      * calculateSha256。
      *
-     * @param file 参数
-     * @return 处理结果
+     * @param file file，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     @Override
     public String calculateSha256(MultipartFile file) {
@@ -153,11 +138,10 @@ public class AliyunOssObjectStorageService implements ObjectStorageService {
     /**
      * 获取Bucket。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @Override
     public String getBucket() {
-        // 调用validateConfig方法，复用统一能力并保证业务规则一致。
         validateConfig();
         return ossProperties.getBucket().trim();
     }
@@ -168,7 +152,6 @@ public class AliyunOssObjectStorageService implements ObjectStorageService {
     @PreDestroy
     public void shutdown() {
         if (ossClient != null) {
-            // 调用shutdown方法，复用统一能力并保证业务规则一致。
             ossClient.shutdown();
         }
     }
@@ -217,16 +200,12 @@ public class AliyunOssObjectStorageService implements ObjectStorageService {
      * @return 规范化后的对象键
      */
     private String normalizeObjectKey(String objectKey) {
-        // 调用trimToNull方法，复用统一能力并保证业务规则一致。
         String normalized = StrUtil.trimToNull(objectKey);
         if (normalized == null) {
             throw new ServiceException("对象键不能为空");
         }
-        // 调用replace方法，复用统一能力并保证业务规则一致。
         normalized = normalized.replace("\\", "/");
-        // 调用replaceAll方法，复用统一能力并保证业务规则一致。
         normalized = normalized.replaceAll("/+", "/");
-        // 调用replaceAll方法，复用统一能力并保证业务规则一致。
         normalized = normalized.replaceAll("^/+", "");
         if (normalized.isEmpty()) {
             throw new ServiceException("对象键不能为空");
@@ -250,7 +229,6 @@ public class AliyunOssObjectStorageService implements ObjectStorageService {
      * @return 预览地址有效秒数
      */
     private long defaultPreviewExpireSeconds() {
-        // 调用getPreviewExpireSeconds方法，复用统一能力并保证业务规则一致。
         Long previewExpireSeconds = ossProperties.getPreviewExpireSeconds();
         return previewExpireSeconds == null || previewExpireSeconds <= 0 ? 1800L : previewExpireSeconds;
     }

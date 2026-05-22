@@ -11,7 +11,7 @@ import java.util.List;
  * <p>负责外部通知分发任务的查询、发送、重试、死信和人工恢复，
  * 让具体渠道发送器只关注“如何发”，不承担读写状态机的职责。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/21
  */
 public interface NotifyDispatchService {

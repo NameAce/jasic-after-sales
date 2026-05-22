@@ -10,7 +10,7 @@ import java.util.List;
 /**
  * 字典数据 Service 接口
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/03/19
  */
 public interface ISysDictDataService {

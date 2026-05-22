@@ -9,7 +9,7 @@ import java.util.Map;
  *
  * <p>当前运行时只允许按“场景 + 目标”读取通知模板配置，避免再次回退到旧的单场景模板口径。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 public interface NotifyTemplateRenderService {

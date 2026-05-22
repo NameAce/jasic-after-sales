@@ -10,7 +10,7 @@ import java.io.Serializable;
 /**
  * 通知人工标记死信参数。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/14
  */
 @ApiModel(description = "通知人工标记死信参数")

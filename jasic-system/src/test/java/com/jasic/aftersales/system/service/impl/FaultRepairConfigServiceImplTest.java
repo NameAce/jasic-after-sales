@@ -43,11 +43,12 @@ import java.util.Map;
 /**
  * 故障与维修配置服务测试。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/01
  */
 public class FaultRepairConfigServiceImplTest {
 
+    /**setUp 处理逻辑，服务于当前类的业务编排和数据转换。*/
     @Before
     public void setUp() {
         SaManager.setSaTokenContext(new SaTokenContextForThreadLocal());
@@ -58,6 +59,7 @@ public class FaultRepairConfigServiceImplTest {
         SecurityContext.setCurrentTypeCode("PLATFORM");
     }
 
+    /**tearDown 处理逻辑，服务于当前类的业务编排和数据转换。*/
     @After
     public void tearDown() {
         try {
@@ -67,6 +69,7 @@ public class FaultRepairConfigServiceImplTest {
         }
     }
 
+    /**验证ReturnRepairFaultOptionsForExactProductMatch，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldReturnRepairFaultOptionsForExactProductMatch() throws Exception {
         FaultRepairConfigServiceImpl service = new FaultRepairConfigServiceImpl();
@@ -96,6 +99,7 @@ public class FaultRepairConfigServiceImplTest {
         Assert.assertEquals(Arrays.asList("更换电源板", "清洁接线"), result.get(0).getRepairOptions());
     }
 
+    /**验证ReturnEmptyRepairFaultOptionsWhenNoConfigMatched，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldReturnEmptyRepairFaultOptionsWhenNoConfigMatched() throws Exception {
         FaultRepairConfigServiceImpl service = new FaultRepairConfigServiceImpl();
@@ -107,6 +111,7 @@ public class FaultRepairConfigServiceImplTest {
         Assert.assertTrue(result.isEmpty());
     }
 
+    /**验证ReturnRepairFaultOptionsByBoundConfigId，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldReturnRepairFaultOptionsByBoundConfigId() throws Exception {
         FaultRepairConfigServiceImpl service = new FaultRepairConfigServiceImpl();
@@ -128,6 +133,7 @@ public class FaultRepairConfigServiceImplTest {
         Assert.assertEquals(Collections.singletonList("更换面板"), result.get(0).getRepairOptions());
     }
 
+    /**验证ListDistinctEnabledProductModelsByCompanyAndKeyword，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldListDistinctEnabledProductModelsByCompanyAndKeyword() throws Exception {
         FaultRepairConfigServiceImpl allOptionsService = new FaultRepairConfigServiceImpl();
@@ -151,6 +157,7 @@ public class FaultRepairConfigServiceImplTest {
         Assert.assertEquals(Collections.singletonList("M-300"), filteredOptions);
     }
 
+    /**验证FindLatestEnabledConfigIdByModelWhenProductCodeMissing，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldFindLatestEnabledConfigIdByModelWhenProductCodeMissing() throws Exception {
         FaultRepairConfigServiceImpl service = new FaultRepairConfigServiceImpl();
@@ -165,6 +172,7 @@ public class FaultRepairConfigServiceImplTest {
         Assert.assertEquals(Long.valueOf(5L), configId);
     }
 
+    /**验证DisableCurrentConfigAndInsertNewVersionWhenEditingEnabledConfig，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldDisableCurrentConfigAndInsertNewVersionWhenEditingEnabledConfig() throws Exception {
         FaultRepairConfigServiceImpl service = new FaultRepairConfigServiceImpl();
@@ -213,6 +221,7 @@ public class FaultRepairConfigServiceImplTest {
         Assert.assertEquals(2, insertedOptions.size());
     }
 
+    /**验证RejectEditingDisabledHistoryConfig，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectEditingDisabledHistoryConfig() throws Exception {
         FaultRepairConfigServiceImpl service = new FaultRepairConfigServiceImpl();
@@ -237,6 +246,7 @@ public class FaultRepairConfigServiceImplTest {
         }
     }
 
+    /**验证ForceHqSaveToCurrentCompanyAndFillLogCompanyName，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldForceHqSaveToCurrentCompanyAndFillLogCompanyName() throws Exception {
         switchCompanyContext(9L, SubjectTypeEnum.HQ.getCode(), "HQ_A");
@@ -270,6 +280,7 @@ public class FaultRepairConfigServiceImplTest {
         Assert.assertEquals(Long.valueOf(9L), insertedConfigs.get(0).getCompanyId());
     }
 
+    /**验证OnlyReturnCurrentHqCompanyOption，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldOnlyReturnCurrentHqCompanyOption() throws Exception {
         switchCompanyContext(9L, SubjectTypeEnum.HQ.getCode(), "HQ_A");
@@ -287,6 +298,7 @@ public class FaultRepairConfigServiceImplTest {
         Assert.assertEquals("总部A", result.get(0).getCompanyName());
     }
 
+    /**验证RejectReadingConfigOutsideCurrentHq，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectReadingConfigOutsideCurrentHq() throws Exception {
         switchCompanyContext(9L, SubjectTypeEnum.HQ.getCode(), "HQ_A");
@@ -307,6 +319,7 @@ public class FaultRepairConfigServiceImplTest {
         }
     }
 
+    /**验证RejectUpdatingConfigOutsideCurrentHq，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectUpdatingConfigOutsideCurrentHq() throws Exception {
         switchCompanyContext(9L, SubjectTypeEnum.HQ.getCode(), "HQ_A");
@@ -332,8 +345,16 @@ public class FaultRepairConfigServiceImplTest {
         }
     }
 
+    /**createConfigMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param configs 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private FaultRepairConfigMapper createConfigMapperProxy(List<FaultRepairConfig> configs) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectList".equals(method.getName())) {
@@ -357,9 +378,14 @@ public class FaultRepairConfigServiceImplTest {
         );
     }
 
+    /**createMutableConfigMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param configs 业务数据列表，用于批量处理或返回组装。
+@param insertedConfigs 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private FaultRepairConfigMapper createMutableConfigMapperProxy(List<FaultRepairConfig> configs,
                                                                    List<FaultRepairConfig> insertedConfigs) {
         InvocationHandler handler = new InvocationHandler() {
+            /**nextId 字段，用于当前类内部业务处理。*/
             private long nextId = configs.stream()
                     .map(FaultRepairConfig::getId)
                     .filter(id -> id != null)
@@ -367,6 +393,11 @@ public class FaultRepairConfigServiceImplTest {
                     .max()
                     .orElse(0L);
 
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectById".equals(method.getName()) && args != null && args.length > 0) {
@@ -412,8 +443,16 @@ public class FaultRepairConfigServiceImplTest {
         );
     }
 
+    /**createFaultMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param faults 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private FaultRepairConfigFaultMapper createFaultMapperProxy(List<FaultRepairConfigFault> faults) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectList".equals(method.getName())) {
@@ -429,10 +468,19 @@ public class FaultRepairConfigServiceImplTest {
         );
     }
 
+    /**createMutableFaultMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param insertedFaults 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private FaultRepairConfigFaultMapper createMutableFaultMapperProxy(List<FaultRepairConfigFault> insertedFaults) {
         InvocationHandler handler = new InvocationHandler() {
+            /**nextId 字段，用于当前类内部业务处理。*/
             private long nextId = 0L;
 
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("insert".equals(method.getName()) && args != null && args.length > 0) {
@@ -454,8 +502,16 @@ public class FaultRepairConfigServiceImplTest {
         );
     }
 
+    /**createOptionMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param options 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private FaultRepairConfigOptionMapper createOptionMapperProxy(List<FaultRepairConfigOption> options) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectList".equals(method.getName())) {
@@ -471,10 +527,19 @@ public class FaultRepairConfigServiceImplTest {
         );
     }
 
+    /**createMutableOptionMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param insertedOptions 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private FaultRepairConfigOptionMapper createMutableOptionMapperProxy(List<FaultRepairConfigOption> insertedOptions) {
         InvocationHandler handler = new InvocationHandler() {
+            /**nextId 字段，用于当前类内部业务处理。*/
             private long nextId = 0L;
 
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("insert".equals(method.getName()) && args != null && args.length > 0) {
@@ -496,8 +561,16 @@ public class FaultRepairConfigServiceImplTest {
         );
     }
 
+    /**createCompanyMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param companies 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private SysCompanyMapper createCompanyMapperProxy(List<SysCompany> companies) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectList".equals(method.getName())) {
@@ -521,6 +594,12 @@ public class FaultRepairConfigServiceImplTest {
         );
     }
 
+    /**buildConfig 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param id 主键ID。
+@param companyId 公司ID。
+@param productCode 业务编码，用于匹配枚举、配置或外部系统数据。
+@param productModel productModel 字段参数。
+@return 处理后的业务结果。*/
     private FaultRepairConfig buildConfig(Long id, Long companyId, String productCode, String productModel) {
         FaultRepairConfig config = new FaultRepairConfig();
         config.setId(id);
@@ -531,6 +610,11 @@ public class FaultRepairConfigServiceImplTest {
         return config;
     }
 
+    /**buildFault 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param id 主键ID。
+@param configId configId 字段。
+@param faultDesc faultDesc 字段参数。
+@return 处理后的业务结果。*/
     private FaultRepairConfigFault buildFault(Long id, Long configId, String faultDesc) {
         FaultRepairConfigFault fault = new FaultRepairConfigFault();
         fault.setId(id);
@@ -540,6 +624,11 @@ public class FaultRepairConfigServiceImplTest {
         return fault;
     }
 
+    /**buildOption 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param id 主键ID。
+@param faultId faultId 字段。
+@param repairDesc repairDesc 字段参数。
+@return 处理后的业务结果。*/
     private FaultRepairConfigOption buildOption(Long id, Long faultId, String repairDesc) {
         FaultRepairConfigOption option = new FaultRepairConfigOption();
         option.setId(id);
@@ -549,6 +638,10 @@ public class FaultRepairConfigServiceImplTest {
         return option;
     }
 
+    /**buildCompany 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param id 主键ID。
+@param companyName 名称文本，用于展示、匹配或保存业务对象名称。
+@return 处理后的业务结果。*/
     private SysCompany buildCompany(Long id, String companyName) {
         SysCompany company = new SysCompany();
         company.setId(id);
@@ -556,14 +649,23 @@ public class FaultRepairConfigServiceImplTest {
         return company;
     }
 
+    /**buildCompany 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param id 主键ID。
+@param companyName 名称文本，用于展示、匹配或保存业务对象名称。
+@param typeCode 业务编码，用于匹配枚举、配置或外部系统数据。
+@return 处理后的业务结果。*/
     private SysCompany buildCompany(Long id, String companyName, String typeCode) {
         SysCompany company = buildCompany(id, companyName);
         company.setTypeCode(typeCode);
         return company;
     }
 
+    /**createCompanyTypeServiceStub 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@return 新增或保存后的业务标识或处理结果。*/
     private ISysCompanyTypeService createCompanyTypeServiceStub() {
         return new ISysCompanyTypeService() {
+            /**listAll 业务数据，按查询条件和数据权限返回可见范围内的结果。
+@return 查询或组装后的业务数据集合。*/
             @Override
             public List<SysCompanyType> listAll() {
                 SysCompanyType type = new SysCompanyType();
@@ -573,38 +675,59 @@ public class FaultRepairConfigServiceImplTest {
                 return Collections.singletonList(type);
             }
 
+            /**getById 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param id 主键ID。
+@return 查询或解析得到的业务对象。*/
             @Override
             public SysCompanyType getById(Long id) {
                 return null;
             }
 
+            /**save 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param entity entity 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
             @Override
             public Long save(SysCompanyType entity) {
                 return null;
             }
 
+            /**update 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param entity entity 字段参数。*/
             @Override
             public void update(SysCompanyType entity) {
             }
 
+            /**remove 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param id 主键ID。*/
             @Override
             public void remove(Long id) {
             }
         };
     }
 
+    /**switchCompanyContext 处理逻辑，服务于当前类的业务编排和数据转换。
+@param companyId 公司ID。
+@param subjectType subjectType 字段参数。
+@param typeCode 业务编码，用于匹配枚举、配置或外部系统数据。*/
     private void switchCompanyContext(Long companyId, String subjectType, String typeCode) {
         SecurityContext.setCurrentCompanyId(companyId);
         SecurityContext.setCurrentSubjectType(subjectType);
         SecurityContext.setCurrentTypeCode(typeCode);
     }
 
+    /**setField 处理逻辑，服务于当前类的业务编排和数据转换。
+@param target target 字段参数。
+@param fieldName 名称文本，用于展示、匹配或保存业务对象名称。
+@param value value 字段参数。*/
     private void setField(Object target, String fieldName, Object value) throws Exception {
         Field field = FaultRepairConfigServiceImpl.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(target, value);
     }
 
+    /**defaultValue 处理逻辑，服务于当前类的业务编排和数据转换。
+@param returnType returnType 字段参数。
+@return 处理后的业务结果。*/
     private Object defaultValue(Class<?> returnType) {
         if (!returnType.isPrimitive()) {
             return null;
@@ -628,107 +751,169 @@ public class FaultRepairConfigServiceImplTest {
         return null;
     }
 
+    /**MockSaRequest 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class MockSaRequest implements SaRequest {
 
+        /**getSource 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public Object getSource() {
             return this;
         }
 
+        /**getParam 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getParam(String name) {
             return null;
         }
 
+        /**getParamNames 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或组装后的业务数据集合。*/
         @Override
         public List<String> getParamNames() {
             return new ArrayList<>();
         }
 
+        /**getParamMap 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或组装后的业务数据集合。*/
         @Override
         public Map<String, String> getParamMap() {
             return new LinkedHashMap<>();
         }
 
+        /**getHeader 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getHeader(String name) {
             return null;
         }
 
+        /**getCookieValue 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getCookieValue(String name) {
             return null;
         }
 
+        /**getRequestPath 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getRequestPath() {
             return "/";
         }
 
+        /**getUrl 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getUrl() {
             return "http://localhost/";
         }
 
+        /**getMethod 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getMethod() {
             return "GET";
         }
 
+        /**forward 处理逻辑，服务于当前类的业务编排和数据转换。
+@param path path 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public String forward(String path) {
             return path;
         }
     }
 
+    /**MockSaResponse 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class MockSaResponse implements SaResponse {
 
+        /**getSource 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public Object getSource() {
             return this;
         }
 
+        /**setStatus 处理逻辑，服务于当前类的业务编排和数据转换。
+@param sc sc 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaResponse setStatus(int sc) {
             return this;
         }
 
+        /**setHeader 处理逻辑，服务于当前类的业务编排和数据转换。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@param value value 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaResponse setHeader(String name, String value) {
             return this;
         }
 
+        /**addHeader 处理逻辑，服务于当前类的业务编排和数据转换。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@param value value 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaResponse addHeader(String name, String value) {
             return this;
         }
 
+        /**redirect 处理逻辑，服务于当前类的业务编排和数据转换。
+@param url url 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public Object redirect(String url) {
             return url;
         }
     }
 
+    /**MockSaStorage 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class MockSaStorage implements SaStorage {
 
+        /**data 字段，用于当前类内部业务处理。*/
         private final Map<String, Object> data = new LinkedHashMap<>();
 
+        /**getSource 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public Object getSource() {
             return this;
         }
 
+        /**get 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param key key 字段参数。
+@return 查询或解析得到的业务对象。*/
         @Override
         public Object get(String key) {
             return data.get(key);
         }
 
+        /**set 处理逻辑，服务于当前类的业务编排和数据转换。
+@param key key 字段参数。
+@param value value 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaStorage set(String key, Object value) {
             data.put(key, value);
             return this;
         }
 
+        /**delete 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param key key 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaStorage delete(String key) {
             data.remove(key);

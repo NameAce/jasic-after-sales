@@ -14,7 +14,7 @@ import io.swagger.annotations.ApiModelProperty;
  * <p>该 DTO 继续兼容旧“参数设置”页的入参结构。旧页面不会提交 groupKey 时，
  * 服务层会根据配置 key 自动归组或保留原分组，避免本次新增字段破坏现有新增、修改能力。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/03/19
  */
 @ApiModel(description = "参数设置新增/修改参数")

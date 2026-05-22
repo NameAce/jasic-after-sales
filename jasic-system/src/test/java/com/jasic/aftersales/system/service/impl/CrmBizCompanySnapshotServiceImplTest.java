@@ -13,11 +13,12 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 
-/**
- * CRM 公司快照服务测试
- */
+/*** CRM 公司快照服务测试
+
+@author Zoro*/
 public class CrmBizCompanySnapshotServiceImplTest {
 
+    /**验证BuildImportPreviewWithCompanyCodeAdminAndUserContact，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldBuildImportPreviewWithCompanyCodeAdminAndUserContact() throws Exception {
         CrmBizCompanySnapshotServiceImpl service = new CrmBizCompanySnapshotServiceImpl();
@@ -53,8 +54,16 @@ public class CrmBizCompanySnapshotServiceImplTest {
         Assert.assertEquals(Boolean.TRUE, preview.getCanImport());
     }
 
+    /**createSnapshotMapper 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param snapshot snapshot 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private CrmBizCompanySnapshotMapper createSnapshotMapper(CrmBizCompanySnapshot snapshot) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectOne".equals(method.getName())) {
@@ -70,8 +79,15 @@ public class CrmBizCompanySnapshotServiceImplTest {
         );
     }
 
+    /**createAreaService 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@return 新增或保存后的业务标识或处理结果。*/
     private ISysAreaService createAreaService() {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("matchRegion".equals(method.getName())) {
@@ -87,8 +103,15 @@ public class CrmBizCompanySnapshotServiceImplTest {
         );
     }
 
+    /**createCompanyMapper 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@return 新增或保存后的业务标识或处理结果。*/
     private SysCompanyMapper createCompanyMapper() {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectOne".equals(method.getName())) {
@@ -104,12 +127,19 @@ public class CrmBizCompanySnapshotServiceImplTest {
         );
     }
 
+    /**setField 处理逻辑，服务于当前类的业务编排和数据转换。
+@param target target 字段参数。
+@param fieldName 名称文本，用于展示、匹配或保存业务对象名称。
+@param value value 字段参数。*/
     private void setField(Object target, String fieldName, Object value) throws Exception {
         Field field = CrmBizCompanySnapshotServiceImpl.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(target, value);
     }
 
+    /**defaultValue 处理逻辑，服务于当前类的业务编排和数据转换。
+@param returnType returnType 字段参数。
+@return 处理后的业务结果。*/
     private Object defaultValue(Class<?> returnType) {
         if (!returnType.isPrimitive()) {
             return null;

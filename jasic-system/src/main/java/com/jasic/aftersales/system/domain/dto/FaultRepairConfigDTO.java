@@ -12,7 +12,7 @@ import io.swagger.annotations.ApiModelProperty;
 /**
  * 故障与维修配置新增修改参数
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/01
  */
 @ApiModel(description = "故障与维修配置新增修改参数")
@@ -30,6 +30,7 @@ public class FaultRepairConfigDTO implements Serializable {
     @NotNull(message = "归属总部不能为空")
     private Long companyId;
 
+    /**targetCompanyName 字段，由接口调用方提交并参与服务层业务校验。*/
     @ApiModelProperty(value = "目标总部名称", hidden = true)
     private String targetCompanyName;
 

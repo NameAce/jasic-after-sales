@@ -12,7 +12,7 @@ import java.io.Serializable;
  * <p>该对象只承载 Mapper 层返回的按天计数结果，
  * 由 Service 再按最近七天完整补齐缺失日期。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/20
  */
 @ApiModel(description = "首页按天聚合结果")

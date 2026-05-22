@@ -17,16 +17,18 @@ import java.time.LocalDateTime;
  *
  * <p>任务执行前会先恢复超时卡住的分发任务，确保 `PROCESSING` 状态不会永久占住发送队列。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/21
  */
 @Slf4j
 @DisallowConcurrentExecution
 public class NotifyDispatchSendJob implements Job {
 
+    /**notifyDispatchService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifyDispatchService notifyDispatchService;
 
+    /**dispatchProcessingTimeoutMinutes 字段，用于当前类内部业务处理。*/
     @Value("${jasic.notify.dispatch-processing-timeout-minutes:" + NotifyConstants.DISPATCH_PROCESSING_TIMEOUT_MINUTES + "}")
     private long dispatchProcessingTimeoutMinutes = NotifyConstants.DISPATCH_PROCESSING_TIMEOUT_MINUTES;
 

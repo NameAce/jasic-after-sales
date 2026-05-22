@@ -8,7 +8,7 @@ import com.jasic.aftersales.system.domain.model.WechatPhoneInfo;
 /**
  * 微信小程序能力服务
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/02
  */
 public interface WechatMiniProgramService {

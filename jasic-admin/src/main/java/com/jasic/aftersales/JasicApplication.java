@@ -14,6 +14,7 @@ import org.springframework.core.env.Environment;
 @SpringBootApplication
 public class JasicApplication {
 
+    /**SUCCESS_BANNER_TEMPLATE 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String SUCCESS_BANNER_TEMPLATE =
             "\n" +
             "==============================================================\n" +
@@ -45,9 +46,7 @@ public class JasicApplication {
      * @param args 启动参数
      */
     public static void main(String[] args) {
-        // 调用run方法，复用统一能力并保证业务规则一致。
         ConfigurableApplicationContext context = SpringApplication.run(JasicApplication.class, args);
-        // 调用getEnvironment方法，复用统一能力并保证业务规则一致。
         printSuccessBanner(context.getEnvironment());
     }
 
@@ -57,21 +56,14 @@ public class JasicApplication {
      * @param environment Spring 环境配置
      */
     private static void printSuccessBanner(Environment environment) {
-        // 调用getProperty方法，复用统一能力并保证业务规则一致。
         String applicationName = environment.getProperty("spring.application.name", "jasic-after-sales");
-        // 调用getActiveProfiles方法，复用统一能力并保证业务规则一致。
         String[] activeProfiles = environment.getActiveProfiles();
-        // 调用join方法，复用统一能力并保证业务规则一致。
         String profile = activeProfiles.length > 0 ? String.join(",", activeProfiles) : "default";
-        // 调用getProperty方法，复用统一能力并保证业务规则一致。
         String port = environment.getProperty("server.port", "8080");
-        // 调用getProperty方法，复用统一能力并保证业务规则一致。
         String contextPath = environment.getProperty("server.servlet.context-path", "");
-        // 调用equals方法，复用统一能力并保证业务规则一致。
         String normalizedContextPath = "/".equals(contextPath) ? "" : contextPath;
         String apiUrl = "http://localhost:" + port + normalizedContextPath;
         String docUrl = apiUrl + "/doc.html";
-        // 调用printf方法，复用统一能力并保证业务规则一致。
         System.out.printf(SUCCESS_BANNER_TEMPLATE, applicationName, profile, apiUrl, docUrl);
     }
 }

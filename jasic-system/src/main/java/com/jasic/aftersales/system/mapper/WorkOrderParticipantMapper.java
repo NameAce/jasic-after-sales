@@ -7,7 +7,7 @@ import org.apache.ibatis.annotations.Mapper;
 /**
  * 工单参与方快照 Mapper
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/03/26
  */
 @Mapper

@@ -9,7 +9,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
  * <p>该枚举只表达外部渠道所属的小程序端口。
  * 站内消息和站内待办不使用该枚举，模板上的 `channel_scene` 允许为空。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/15
  */
 public enum NotifyChannelSceneEnum {

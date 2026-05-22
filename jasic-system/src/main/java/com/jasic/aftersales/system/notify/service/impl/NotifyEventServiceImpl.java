@@ -23,15 +23,17 @@ import java.util.List;
  * <p>该实现负责事件状态机落库，包括自动消费抢占、失败重试、死信和超时恢复。
  * 业务 handler 不直接拼接更新 SQL，统一通过这里维护状态边界，避免不同线程写出不一致口径。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/18
  */
 @Service
 public class NotifyEventServiceImpl implements NotifyEventService {
 
+    /**sysNotifyEventMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysNotifyEventMapper sysNotifyEventMapper;
 
+    /**eventRetryMaxCount 字段，用于当前类内部业务处理。*/
     @Value("${jasic.notify.event-retry-max-count:" + NotifyConstants.EVENT_RETRY_MAX_COUNT + "}")
     private int eventRetryMaxCount = NotifyConstants.EVENT_RETRY_MAX_COUNT;
 

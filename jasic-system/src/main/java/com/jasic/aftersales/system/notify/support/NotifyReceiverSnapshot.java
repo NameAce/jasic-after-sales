@@ -12,7 +12,7 @@ import java.io.Serializable;
  * 该快照用于在事件消费阶段固化每一类接收人的身份、名称和外部地址，
  * 供后续目标分发时按 `receiverType` 精确选择。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 @Data

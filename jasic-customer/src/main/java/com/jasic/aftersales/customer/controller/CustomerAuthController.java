@@ -38,9 +38,11 @@ import io.swagger.annotations.ApiOperation;
 @RequestMapping("/customer/auth")
 public class CustomerAuthController {
 
+    /**cUserService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private ICUserService cUserService;
 
+    /**wechatMiniProgramService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private WechatMiniProgramService wechatMiniProgramService;
 
@@ -53,26 +55,18 @@ public class CustomerAuthController {
     @ApiOperation(value = "C端小程序登录")
     @PostMapping("/login")
     public Result<CustomerLoginVO> login(@Validated @RequestBody CustomerWechatLoginDTO dto) {
-        // 调用getCode方法，复用统一能力并保证业务规则一致。
         WechatAuthSession session = wechatMiniProgramService.code2Session(WechatMiniProgramScene.C, dto.getCode());
         String phone = null;
         if (StringUtils.hasText(dto.getPhoneCode())) {
-            // 调用getPhoneCode方法，复用统一能力并保证业务规则一致。
             WechatPhoneInfo phoneInfo = wechatMiniProgramService.getPhoneNumber(WechatMiniProgramScene.C, dto.getPhoneCode());
-            // 调用getPurePhoneNumber方法，复用统一能力并保证业务规则一致。
             phone = StringUtils.hasText(phoneInfo.getPhoneNumber()) ? phoneInfo.getPhoneNumber() : phoneInfo.getPurePhoneNumber();
         }
 
-        // 调用getOpenid方法，复用统一能力并保证业务规则一致。
         CUser user = cUserService.loginOrRegister(session.getOpenid(), phone);
-        // 调用getId方法，复用统一能力并保证业务规则一致。
         StpCustomerUtil.login(user.getId());
 
-        // 调用CustomerLoginVO方法，复用统一能力并保证业务规则一致。
         CustomerLoginVO vo = new CustomerLoginVO();
-        // 调用getTokenValue方法，复用统一能力并保证业务规则一致。
         vo.setToken(StpCustomerUtil.getTokenValue());
-        // 调用buildUserInfo方法，复用统一能力并保证业务规则一致。
         vo.setUserInfo(buildUserInfo(user));
         return Result.ok(vo);
     }
@@ -108,7 +102,6 @@ public class CustomerAuthController {
     @ApiOperation(value = "C端退出登录")
     @PostMapping("/logout")
     public Result<Void> logout() {
-        // 调用logout方法，复用统一能力并保证业务规则一致。
         StpCustomerUtil.logout();
         return Result.ok();
     }
@@ -116,21 +109,15 @@ public class CustomerAuthController {
     /**
      * 构建用户Info。
      *
-     * @param user 参数
-     * @return 处理结果
+     * @param user 用户业务对象或用户相关值，用于操作人或归属判断。
+     * @return 业务处理结果
      */
     private CustomerUserInfoVO buildUserInfo(CUser user) {
-        // 调用CustomerUserInfoVO方法，复用统一能力并保证业务规则一致。
         CustomerUserInfoVO vo = new CustomerUserInfoVO();
-        // 调用getId方法，复用统一能力并保证业务规则一致。
         vo.setUserId(user.getId());
-        // 调用getPhone方法，复用统一能力并保证业务规则一致。
         vo.setPhone(user.getPhone());
-        // 调用getNickname方法，复用统一能力并保证业务规则一致。
         vo.setNickname(user.getNickname());
-        // 调用getAvatar方法，复用统一能力并保证业务规则一致。
         vo.setAvatar(user.getAvatar());
-        // 调用getNickname方法，复用统一能力并保证业务规则一致。
         vo.setNeedProfileComplete(!StringUtils.hasText(user.getNickname()));
         return vo;
     }

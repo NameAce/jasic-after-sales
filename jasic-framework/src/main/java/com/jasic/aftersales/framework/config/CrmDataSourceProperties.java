@@ -6,7 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * CRM 数据源配置
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/12
  */
 @Data

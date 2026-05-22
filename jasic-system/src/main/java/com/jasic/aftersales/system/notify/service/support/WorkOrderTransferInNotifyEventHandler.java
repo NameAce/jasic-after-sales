@@ -19,12 +19,13 @@ import java.util.Objects;
 /**
  * B 端工单转入通知事件处理器。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 @Component
 public class WorkOrderTransferInNotifyEventHandler implements NotifyEventHandler {
 
+    /**workOrderAcceptUserResolver 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private WorkOrderAcceptUserResolver workOrderAcceptUserResolver;
 

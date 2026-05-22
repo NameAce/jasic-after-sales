@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 /**
  * 通知消息实体。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/18
  */
 @Data

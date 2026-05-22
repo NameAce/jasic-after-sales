@@ -3,7 +3,7 @@ package com.jasic.aftersales.common.constant;
 /**
  * 微信配置参数键常量
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/02
  */
 public class WechatConfigConstants {

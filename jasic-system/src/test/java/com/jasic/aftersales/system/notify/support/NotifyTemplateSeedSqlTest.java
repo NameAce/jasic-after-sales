@@ -15,7 +15,7 @@ import java.nio.file.Paths;
  * <p>该测试直接校验阶段一初始化脚本里的场景和默认模板配置，
  * 防止后续调整时把当前基线场景、模板 ID 或字段映射改丢。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/20
  */
 public class NotifyTemplateSeedSqlTest {

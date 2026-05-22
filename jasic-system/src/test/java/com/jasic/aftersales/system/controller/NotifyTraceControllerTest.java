@@ -6,11 +6,11 @@ import org.junit.Test;
 
 import java.lang.reflect.Method;
 
-/**
- * 通知记录排障控制器权限测试。
+/*** 通知记录排障控制器权限测试。
  *
  * <p>Phase 7 只验证接口权限边界是否仍挂在控制器入口，不启动 Web 容器。</p>
- */
+
+@author Zoro*/
 public class NotifyTraceControllerTest {
 
     /**

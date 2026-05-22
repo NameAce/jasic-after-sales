@@ -15,9 +15,13 @@ import java.util.List;
  */
 public class SecurityContext {
 
+    /**KEY_COMPANY_ID 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String KEY_COMPANY_ID = "currentCompanyId";
+    /**KEY_SUBJECT_TYPE 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String KEY_SUBJECT_TYPE = "currentSubjectType";
+    /**KEY_TYPE_CODE 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String KEY_TYPE_CODE = "currentTypeCode";
+    /**KEY_REGION_IDS 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String KEY_REGION_IDS = "currentRegionIds";
 
     /**
@@ -50,7 +54,6 @@ public class SecurityContext {
      * @param companyId 公司ID
      */
     public static void setCurrentCompanyId(Long companyId) {
-        // 调用set方法，复用统一能力并保证业务规则一致。
         getSession().set(KEY_COMPANY_ID, companyId);
     }
 
@@ -69,7 +72,6 @@ public class SecurityContext {
      * @param subjectType 主体类型编码
      */
     public static void setCurrentSubjectType(String subjectType) {
-        // 调用set方法，复用统一能力并保证业务规则一致。
         getSession().set(KEY_SUBJECT_TYPE, subjectType);
     }
 
@@ -88,7 +90,6 @@ public class SecurityContext {
      * @param typeCode 类型编码
      */
     public static void setCurrentTypeCode(String typeCode) {
-        // 调用set方法，复用统一能力并保证业务规则一致。
         getSession().set(KEY_TYPE_CODE, typeCode);
     }
 
@@ -99,7 +100,6 @@ public class SecurityContext {
      */
     @SuppressWarnings("unchecked")
     public static List<Long> getCurrentRegionIds() {
-        // 调用get方法，复用统一能力并保证业务规则一致。
         Object regionIds = getSession().get(KEY_REGION_IDS);
         if (regionIds instanceof List) {
             return (List<Long>) regionIds;
@@ -113,7 +113,6 @@ public class SecurityContext {
      * @param regionIds 大区ID列表
      */
     public static void setCurrentRegionIds(List<Long> regionIds) {
-        // 调用set方法，复用统一能力并保证业务规则一致。
         getSession().set(KEY_REGION_IDS, regionIds);
     }
 
@@ -132,7 +131,6 @@ public class SecurityContext {
      * @param dataScope 数据范围编码
      */
     public static void setEffectiveDataScope(String dataScope) {
-        // 调用set方法，复用统一能力并保证业务规则一致。
         getSession().set("effectiveDataScope", dataScope);
     }
 

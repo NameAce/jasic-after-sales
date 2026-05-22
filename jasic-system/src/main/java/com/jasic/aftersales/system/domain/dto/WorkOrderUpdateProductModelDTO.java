@@ -11,7 +11,7 @@ import java.io.Serializable;
 /**
  * 工单补录机器型号参数
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/16
  */
 @ApiModel(description = "工单补录机器型号参数")

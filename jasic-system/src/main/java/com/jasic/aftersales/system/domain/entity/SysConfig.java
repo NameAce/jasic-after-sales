@@ -13,7 +13,7 @@ import lombok.EqualsAndHashCode;
  * <p>该实体对应 sys_config 单表配置项，当前仍服务于旧“参数设置”页和各业务模块按 key 读取配置的能力。
  * 本轮分组改造仅在现有配置项上增加 groupKey，用于标识配置所属业务分组，不引入配置中心、分组表或复杂元数据。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/03/19
  */
 @Data

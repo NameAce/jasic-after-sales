@@ -12,7 +12,7 @@ import java.util.List;
 /**
  * 通知事件详情。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/14
  */
 @ApiModel(description = "通知事件详情")

@@ -33,18 +33,21 @@ import java.util.Objects;
  * 接收人固定收口为：当前责任维修员、最后一次把工单派给当前责任维修员的实际派单人、
  * 以及最终处理公司的主账号。接收人解析结果会在消费阶段固化为快照，避免后续重试时受人员关系变化影响。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/20
  */
 @Component
 public class WorkOrderEvaluatedNotifyEventHandler implements NotifyEventHandler {
 
+    /**sysUserMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysUserMapper sysUserMapper;
 
+    /**sysNotifyEventMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysNotifyEventMapper sysNotifyEventMapper;
 
+    /**sysUserCompanyMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysUserCompanyMapper sysUserCompanyMapper;
 

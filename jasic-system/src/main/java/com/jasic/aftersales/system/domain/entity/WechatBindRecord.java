@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 /**
  * 微信绑定记录实体
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/10
  */
 @Data

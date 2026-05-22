@@ -12,7 +12,7 @@ import java.io.Serializable;
  * <p>用于统一返回通知模板配置页所需的编码和中文说明，
  * 避免前端自行维护业务类型、触发场景、通知类型等常量表。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/15
  */
 @ApiModel(description = "通知模板枚举选项")

@@ -10,7 +10,7 @@ import io.swagger.annotations.ApiModelProperty;
 /**
  * 条码全量同步结果
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/07
  */
 @ApiModel(description = "条码全量同步结果")

@@ -8,7 +8,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
  *
  * <p>该枚举用于收口“工单通知场景”在事件主表中的业务事件编码。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 public enum NotifyEventTypeEnum {

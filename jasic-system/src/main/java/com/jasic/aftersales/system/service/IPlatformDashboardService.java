@@ -8,7 +8,7 @@ import com.jasic.aftersales.system.domain.vo.dashboard.PlatformDashboardHomeVO;
  * <p>该接口只负责平台“治理看板”聚合编排。
  * 本轮只返回组织治理、账号治理和基础配置三块，不混入工单、CRM 同步、消息治理或趋势图。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/20
  */
 public interface IPlatformDashboardService {

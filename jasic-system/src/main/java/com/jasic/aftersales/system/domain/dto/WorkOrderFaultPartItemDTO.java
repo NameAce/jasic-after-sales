@@ -9,7 +9,7 @@ import java.io.Serializable;
 /**
  * 工单故障点配件明细参数
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/15
  */
 @ApiModel(description = "工单故障点配件明细参数")

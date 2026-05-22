@@ -13,7 +13,7 @@ import java.util.List;
  * <p>该对象用于把 `notify_scene_target.config_json` 反序列化成结构化对象，
  * 便于后台编辑和分发任务构建复用相同字段定义。当前阶段主要服务小程序订阅消息渠道。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/15
  */
 @Data

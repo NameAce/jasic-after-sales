@@ -13,7 +13,7 @@ import java.util.List;
  * <p>该对象用于前端一次性展示系统配置分组。它只表达当前已经确认的轻量分组结果，
  * 不代表引入配置分组表、动态表单元数据或完整配置中心模型。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/21
  */
 @ApiModel(description = "系统配置分组返回对象")

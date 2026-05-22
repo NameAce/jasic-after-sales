@@ -6,7 +6,7 @@ import com.jasic.aftersales.system.domain.entity.SysFile;
 /**
  * 文件元数据 Mapper
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/07
  */
 public interface SysFileMapper extends BaseMapper<SysFile> {

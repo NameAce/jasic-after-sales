@@ -35,11 +35,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 公司管理服务测试
- */
+/*** 公司管理服务测试
+
+@author Zoro*/
 public class SysCompanyServiceImplTest {
 
+    /**验证RejectUnknownCompanyTypeWhenSaving，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectUnknownCompanyTypeWhenSaving() throws Exception {
         SysCompanyServiceImpl service = new SysCompanyServiceImpl();
@@ -57,6 +58,7 @@ public class SysCompanyServiceImplTest {
         }
     }
 
+    /**验证ResolveCoordinatesWhenSavingCompany，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldResolveCoordinatesWhenSavingCompany() throws Exception {
         SysCompanyServiceImpl service = createServiceWithBasicDeps(Collections.singletonList(buildCompanyType("SITE_FIRST", "SERVICE")));
@@ -80,6 +82,7 @@ public class SysCompanyServiceImplTest {
         Assert.assertEquals(1, userState.insertCount);
     }
 
+    /**验证AllowHqWithoutCompanyCodeWhenSaving，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldAllowHqWithoutCompanyCodeWhenSaving() throws Exception {
         SysCompanyServiceImpl service = createServiceWithBasicDeps(Collections.singletonList(buildCompanyType("HQ_A", "HQ")));
@@ -103,6 +106,7 @@ public class SysCompanyServiceImplTest {
         Assert.assertEquals("1000", companyState.insertedCompany.getSalesOrg());
     }
 
+    /**验证RejectSalesOrgForNonHqCompany，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectSalesOrgForNonHqCompany() throws Exception {
         SysCompanyServiceImpl service = createServiceWithBasicDeps(Collections.singletonList(buildCompanyType("SITE_FIRST", "SERVICE")));
@@ -125,6 +129,7 @@ public class SysCompanyServiceImplTest {
         }
     }
 
+    /**验证SaveFailedGeocodeStatusWhenAddressCannotBeResolved，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldSaveFailedGeocodeStatusWhenAddressCannotBeResolved() throws Exception {
         SysCompanyServiceImpl service = createServiceWithBasicDeps(Collections.singletonList(buildCompanyType("SITE_FIRST", "SERVICE")));
@@ -147,6 +152,9 @@ public class SysCompanyServiceImplTest {
         Assert.assertEquals(1, userState.insertCount);
     }
 
+    /**createServiceWithBasicDeps 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param companyTypes 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private SysCompanyServiceImpl createServiceWithBasicDeps(List<SysCompanyType> companyTypes) throws Exception {
         SysCompanyServiceImpl service = new SysCompanyServiceImpl();
         setField(service, "companyTypeService", createCompanyTypeService(companyTypes));
@@ -158,6 +166,8 @@ public class SysCompanyServiceImplTest {
         return service;
     }
 
+    /**buildCompanyDto 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@return 处理后的业务结果。*/
     private SysCompanyDTO buildCompanyDto() {
         SysCompanyDTO dto = new SysCompanyDTO();
         dto.setCompanyName("一级网点A");
@@ -174,6 +184,10 @@ public class SysCompanyServiceImplTest {
         return dto;
     }
 
+    /**buildCompanyType 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param typeCode 业务编码，用于匹配枚举、配置或外部系统数据。
+@param subjectType subjectType 字段参数。
+@return 处理后的业务结果。*/
     private SysCompanyType buildCompanyType(String typeCode, String subjectType) {
         SysCompanyType type = new SysCompanyType();
         type.setTypeCode(typeCode);
@@ -181,6 +195,8 @@ public class SysCompanyServiceImplTest {
         return type;
     }
 
+    /**createAreaService 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@return 新增或保存后的业务标识或处理结果。*/
     private ISysAreaService createAreaService() {
         SysArea province = buildArea("440000", "广东省", ISysAreaService.ROOT_PARENT_CODE, ISysAreaService.LEVEL_PROVINCE);
         SysArea city = buildArea("440300", "深圳市", "440000", ISysAreaService.LEVEL_CITY);
@@ -191,16 +207,25 @@ public class SysCompanyServiceImplTest {
         areaStore.put(district.getAreaCode(), district);
 
         return new ISysAreaService() {
+            /**listOptionsByParentCode 业务数据，按查询条件和数据权限返回可见范围内的结果。
+@param parentCode 业务编码，用于匹配枚举、配置或外部系统数据。
+@return 查询或组装后的业务数据集合。*/
             @Override
             public List<com.jasic.aftersales.system.domain.vo.SysAreaOptionVO> listOptionsByParentCode(String parentCode) {
                 return Collections.emptyList();
             }
 
+            /**getByAreaCode 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param areaCode 业务编码，用于匹配枚举、配置或外部系统数据。
+@return 查询或解析得到的业务对象。*/
             @Override
             public SysArea getByAreaCode(String areaCode) {
                 return areaStore.get(areaCode);
             }
 
+            /**getByAreaCodes 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param areaCodes 业务编码，用于匹配枚举、配置或外部系统数据。
+@return 查询或组装后的业务数据集合。*/
             @Override
             public Map<String, SysArea> getByAreaCodes(java.util.Collection<String> areaCodes) {
                 Map<String, SysArea> result = new LinkedHashMap<>();
@@ -213,6 +238,12 @@ public class SysCompanyServiceImplTest {
                 return result;
             }
 
+            /**matchRegion 处理逻辑，服务于当前类的业务编排和数据转换。
+@param provinceName 名称文本，用于展示、匹配或保存业务对象名称。
+@param cityName 名称文本，用于展示、匹配或保存业务对象名称。
+@param districtName 名称文本，用于展示、匹配或保存业务对象名称。
+@param detailAddress detailAddress 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public AreaMatchResult matchRegion(String provinceName, String cityName, String districtName, String detailAddress) {
                 return new AreaMatchResult(province, city, district);
@@ -220,6 +251,12 @@ public class SysCompanyServiceImplTest {
         };
     }
 
+    /**buildArea 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param areaCode 业务编码，用于匹配枚举、配置或外部系统数据。
+@param areaName 名称文本，用于展示、匹配或保存业务对象名称。
+@param parentCode 业务编码，用于匹配枚举、配置或外部系统数据。
+@param areaLevel areaLevel 字段参数。
+@return 处理后的业务结果。*/
     private SysArea buildArea(String areaCode, String areaName, String parentCode, String areaLevel) {
         SysArea area = new SysArea();
         area.setAreaCode(areaCode);
@@ -230,39 +267,66 @@ public class SysCompanyServiceImplTest {
         return area;
     }
 
+    /**createCompanyTypeService 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param companyTypes 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private ISysCompanyTypeService createCompanyTypeService(List<SysCompanyType> companyTypes) {
         return new ISysCompanyTypeService() {
+            /**listAll 业务数据，按查询条件和数据权限返回可见范围内的结果。
+@return 查询或组装后的业务数据集合。*/
             @Override
             public List<SysCompanyType> listAll() {
                 return companyTypes;
             }
 
+            /**getById 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param id 主键ID。
+@return 查询或解析得到的业务对象。*/
             @Override
             public SysCompanyType getById(Long id) {
                 return null;
             }
 
+            /**save 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param entity entity 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
             @Override
             public Long save(SysCompanyType entity) {
                 return null;
             }
 
+            /**update 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param entity entity 字段参数。*/
             @Override
             public void update(SysCompanyType entity) {
             }
 
+            /**remove 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param id 主键ID。*/
             @Override
             public void remove(Long id) {
             }
         };
     }
 
+    /**createGeoResolver 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param longitude longitude 字段参数。
+@param latitude latitude 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private ICompanyGeoResolver createGeoResolver(BigDecimal longitude, BigDecimal latitude) {
         return address -> new ICompanyGeoResolver.GeoLocation(longitude, latitude);
     }
 
+    /**createCompanyMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param state state 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private SysCompanyMapper createCompanyMapperProxy(CompanyMapperState state) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectCount".equals(method.getName())) {
@@ -293,8 +357,16 @@ public class SysCompanyServiceImplTest {
         );
     }
 
+    /**createRoleTemplateMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param count count 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private SysRoleTemplateMapper createRoleTemplateMapperProxy(Long count) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectCount".equals(method.getName())) {
@@ -317,8 +389,16 @@ public class SysCompanyServiceImplTest {
         );
     }
 
+    /**createUserMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param state state 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private SysUserMapper createUserMapperProxy(UserMapperState state) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectCount".equals(method.getName())) {
@@ -340,6 +420,9 @@ public class SysCompanyServiceImplTest {
         );
     }
 
+    /**createIdentityValidator 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param mapper 业务映射数据，用于提升后续组装或匹配效率。
+@return 新增或保存后的业务标识或处理结果。*/
     private SysUserIdentityValidator createIdentityValidator(SysUserMapper mapper) throws Exception {
         SysUserIdentityValidator validator = new SysUserIdentityValidator();
         Field field = SysUserIdentityValidator.class.getDeclaredField("sysUserMapper");
@@ -348,8 +431,16 @@ public class SysCompanyServiceImplTest {
         return validator;
     }
 
+    /**createNoopMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param mapperClass 业务映射数据，用于提升后续组装或匹配效率。
+@return 新增或保存后的业务标识或处理结果。*/
     private <T> T createNoopMapperProxy(Class<T> mapperClass) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 return defaultValue(method.getReturnType());
@@ -362,35 +453,56 @@ public class SysCompanyServiceImplTest {
         ));
     }
 
+    /**createRoleTemplateService 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@return 新增或保存后的业务标识或处理结果。*/
     private ISysRoleTemplateService createRoleTemplateService() {
         return new ISysRoleTemplateService() {
+            /**listByTypeCode 业务数据，按查询条件和数据权限返回可见范围内的结果。
+@param typeCode 业务编码，用于匹配枚举、配置或外部系统数据。
+@return 查询或组装后的业务数据集合。*/
             @Override
             public List<com.jasic.aftersales.system.domain.vo.SysRoleTemplateVO> listByTypeCode(String typeCode) {
                 return Collections.emptyList();
             }
 
+            /**getById 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param templateId templateId 字段。
+@return 查询或解析得到的业务对象。*/
             @Override
             public com.jasic.aftersales.system.domain.vo.SysRoleTemplateVO getById(Long templateId) {
                 return null;
             }
 
+            /**save 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param dto 业务请求参数，承载本次操作需要提交的字段。
+@return 新增或保存后的业务标识或处理结果。*/
             @Override
             public Long save(com.jasic.aftersales.system.domain.dto.SysRoleTemplateDTO dto) {
                 return null;
             }
 
+            /**update 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param dto 业务请求参数，承载本次操作需要提交的字段。*/
             @Override
             public void update(com.jasic.aftersales.system.domain.dto.SysRoleTemplateDTO dto) {
             }
 
+            /**remove 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param templateId templateId 字段。*/
             @Override
             public void remove(Long templateId) {
             }
 
+            /**syncToCompanies 处理逻辑，服务于当前类的业务编排和数据转换。
+@param templateId templateId 字段。*/
             @Override
             public void syncToCompanies(Long templateId) {
             }
 
+            /**initCompanyRoles 处理逻辑，服务于当前类的业务编排和数据转换。
+@param companyId 公司ID。
+@param typeCode 业务编码，用于匹配枚举、配置或外部系统数据。
+@return 处理后的业务结果。*/
             @Override
             public Long initCompanyRoles(Long companyId, String typeCode) {
                 return 11L;
@@ -398,48 +510,74 @@ public class SysCompanyServiceImplTest {
         };
     }
 
+    /**createConfigService 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@return 新增或保存后的业务标识或处理结果。*/
     private ISysConfigService createConfigService() {
         return new ISysConfigService() {
+            /**listPage 业务数据，按查询条件和数据权限返回可见范围内的结果。
+@param query 查询条件，包含分页、筛选和权限收口所需字段。
+@return 分页查询结果。*/
             @Override
             public com.jasic.aftersales.common.core.domain.PageResult<com.jasic.aftersales.system.domain.vo.SysConfigVO> listPage(com.jasic.aftersales.system.domain.query.SysConfigQuery query) {
                 return null;
             }
 
+            /**getById 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param id 主键ID。
+@return 查询或解析得到的业务对象。*/
             @Override
             public com.jasic.aftersales.system.domain.vo.SysConfigVO getById(Long id) {
                 return null;
             }
 
+            /**save 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param dto 业务请求参数，承载本次操作需要提交的字段。
+@return 新增或保存后的业务标识或处理结果。*/
             @Override
             public Long save(com.jasic.aftersales.system.domain.dto.SysConfigDTO dto) {
                 return null;
             }
 
+            /**update 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param dto 业务请求参数，承载本次操作需要提交的字段。*/
             @Override
             public void update(com.jasic.aftersales.system.domain.dto.SysConfigDTO dto) {
             }
 
+            /**remove 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param id 主键ID。*/
             @Override
             public void remove(Long id) {
             }
 
+            /**getValueByKey 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param configKey configKey 字段参数。
+@return 查询或解析得到的业务对象。*/
             @Override
             public String getValueByKey(String configKey) {
                 return null;
             }
 
+            /**refreshCache 处理逻辑，服务于当前类的业务编排和数据转换。*/
             @Override
             public void refreshCache() {
             }
         };
     }
 
+    /**setField 处理逻辑，服务于当前类的业务编排和数据转换。
+@param target target 字段参数。
+@param fieldName 名称文本，用于展示、匹配或保存业务对象名称。
+@param value value 字段参数。*/
     private void setField(Object target, String fieldName, Object value) throws Exception {
         Field field = SysCompanyServiceImpl.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(target, value);
     }
 
+    /**defaultValue 处理逻辑，服务于当前类的业务编排和数据转换。
+@param returnType returnType 字段参数。
+@return 处理后的业务结果。*/
     private Object defaultValue(Class<?> returnType) {
         if (!returnType.isPrimitive()) {
             return null;
@@ -463,14 +601,25 @@ public class SysCompanyServiceImplTest {
         return null;
     }
 
+    /**CompanyMapperState 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class CompanyMapperState {
+        /**nextId 字段，用于当前类内部业务处理。*/
         private long nextId = 1L;
+        /**insertedCompany 字段，用于当前类内部业务处理。*/
         private SysCompany insertedCompany;
+        /**companyStore 字段，用于当前类内部业务处理。*/
         private final Map<Long, SysCompany> companyStore = new LinkedHashMap<>();
     }
 
+    /**UserMapperState 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class UserMapperState {
+        /**nextId 字段，用于当前类内部业务处理。*/
         private long nextId = 1L;
+        /**insertCount 字段，用于当前类内部业务处理。*/
         private int insertCount;
     }
 }

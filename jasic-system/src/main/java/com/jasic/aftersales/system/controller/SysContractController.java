@@ -47,6 +47,7 @@ import io.swagger.annotations.ApiOperation;
 @RequestMapping("/org/contract")
 public class SysContractController extends BaseController {
 
+    /**contractService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private ISysContractService contractService;
 
@@ -60,7 +61,6 @@ public class SysContractController extends BaseController {
     @SaCheckPermission("org:contract:list")
     @GetMapping("/hq-first/list")
     public Result<PageResult<HqFirstContractVO>> listHqFirstPage(HqFirstContractQuery query) {
-        // 调用listHqFirstPage方法，复用统一能力并保证业务规则一致。
         PageResult<HqFirstContractVO> page = contractService.listHqFirstPage(query);
         return Result.ok(page);
     }
@@ -75,7 +75,6 @@ public class SysContractController extends BaseController {
     @SaCheckPermission("org:contract:add")
     @GetMapping("/hq-first/crm-import/list")
     public Result<PageResult<CrmHqFirstContractImportVO>> listCrmHqFirstImportPage(CrmHqFirstContractImportQuery query) {
-        // 调用listCrmHqFirstImportPage方法，复用统一能力并保证业务规则一致。
         PageResult<CrmHqFirstContractImportVO> page = contractService.listCrmHqFirstImportPage(query);
         return Result.ok(page);
     }
@@ -91,7 +90,6 @@ public class SysContractController extends BaseController {
     @OperLog(title = "签约管理", operType = OperTypeEnum.INSERT)
     @PostMapping("/hq-first")
     public Result<Long> saveHqFirst(@Validated @RequestBody HqFirstContractDTO dto) {
-        // 调用saveHqFirst方法，复用统一能力并保证业务规则一致。
         Long id = contractService.saveHqFirst(dto);
         return Result.ok(id);
     }
@@ -107,7 +105,6 @@ public class SysContractController extends BaseController {
     @OperLog(title = "签约管理", operType = OperTypeEnum.UPDATE)
     @PutMapping("/hq-first")
     public Result<Void> updateHqFirst(@Validated @RequestBody HqFirstContractDTO dto) {
-        // 调用updateHqFirst方法，复用统一能力并保证业务规则一致。
         contractService.updateHqFirst(dto);
         return Result.ok();
     }
@@ -139,7 +136,6 @@ public class SysContractController extends BaseController {
     @OperLog(title = "签约管理", operType = OperTypeEnum.INSERT)
     @PostMapping("/hq-first/crm-import")
     public Result<CrmHqFirstContractImportResultVO> importHqFirstFromCrm(@Validated @RequestBody CrmHqFirstContractImportDTO dto) {
-        // 调用importHqFirstFromCrm方法，复用统一能力并保证业务规则一致。
         CrmHqFirstContractImportResultVO result = contractService.importHqFirstFromCrm(dto);
         return Result.ok(result);
     }
@@ -154,7 +150,6 @@ public class SysContractController extends BaseController {
     @SaCheckPermission("org:contract:list")
     @GetMapping("/first-second/list")
     public Result<PageResult<FirstSecondRelationVO>> listFirstSecondPage(FirstSecondRelationQuery query) {
-        // 调用listFirstSecondPage方法，复用统一能力并保证业务规则一致。
         PageResult<FirstSecondRelationVO> page = contractService.listFirstSecondPage(query);
         return Result.ok(page);
     }
@@ -162,14 +157,13 @@ public class SysContractController extends BaseController {
     /**
      * 分页查询CRM一级二级Import分页列表。
      *
-     * @param query 参数
-     * @return 处理结果
+     * @param query 查询条件，包含分页、筛选和权限收口所需字段。
+     * @return 业务处理结果
      */
     @ApiOperation(value = "CRM一级二级关系导入分页列表")
     @SaCheckPermission("org:contract:add")
     @GetMapping("/first-second/crm-import/list")
     public Result<PageResult<CrmFirstSecondRelationImportVO>> listCrmFirstSecondImportPage(CrmFirstSecondRelationImportQuery query) {
-        // 调用listCrmFirstSecondImportPage方法，复用统一能力并保证业务规则一致。
         PageResult<CrmFirstSecondRelationImportVO> page = contractService.listCrmFirstSecondImportPage(query);
         return Result.ok(page);
     }
@@ -177,15 +171,14 @@ public class SysContractController extends BaseController {
     /**
      * import一级二级从CRM。
      *
-     * @param dto 参数
-     * @return 处理结果
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
+     * @return 业务处理结果
      */
     @ApiOperation(value = "从CRM来源快照导入一级二级关系")
     @SaCheckPermission("org:contract:add")
     @OperLog(title = "绛剧害绠＄悊", operType = OperTypeEnum.INSERT)
     @PostMapping("/first-second/crm-import")
     public Result<CrmFirstSecondRelationImportResultVO> importFirstSecondFromCrm(@Validated @RequestBody CrmFirstSecondRelationImportDTO dto) {
-        // 调用importFirstSecondFromCrm方法，复用统一能力并保证业务规则一致。
         CrmFirstSecondRelationImportResultVO result = contractService.importFirstSecondFromCrm(dto);
         return Result.ok(result);
     }
@@ -201,7 +194,6 @@ public class SysContractController extends BaseController {
     @OperLog(title = "签约管理", operType = OperTypeEnum.INSERT)
     @PostMapping("/first-second")
     public Result<Long> saveFirstSecond(@Validated @RequestBody FirstSecondRelationDTO dto) {
-        // 调用saveFirstSecond方法，复用统一能力并保证业务规则一致。
         Long id = contractService.saveFirstSecond(dto);
         return Result.ok(id);
     }

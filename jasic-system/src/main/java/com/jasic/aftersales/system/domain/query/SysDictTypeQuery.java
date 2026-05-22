@@ -9,7 +9,7 @@ import io.swagger.annotations.ApiModelProperty;
 /**
  * 字典类型查询参数
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/03/19
  */
 @ApiModel(description = "字典类型查询参数")

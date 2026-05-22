@@ -14,7 +14,7 @@ import lombok.EqualsAndHashCode;
  * 它统一承载站内消息、站内待办和小程序订阅消息的启停、模板、跳转与渠道专属参数。
  * 该实体不负责接收人规则解析，也不负责运行时发送。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 @Data

@@ -21,7 +21,7 @@ import lombok.Getter;
  * <p>2. 再解析工单关系标签集合。</p>
  * <p>3. 最后结合动作对应的基础权限点和工单状态做实例级放行。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/11
  */
 @Getter
@@ -83,8 +83,8 @@ public enum WorkOrderRelationTagEnum {
     /**
      * 构造工单关系标签实例。
      *
-     * @param code 参数
-     * @param desc 参数
+     * @param code 业务编码，用于匹配枚举、配置或外部系统数据。
+     * @param desc desc，当前业务处理所需的输入值。
      */
     WorkOrderRelationTagEnum(String code, String desc) {
         this.code = code;

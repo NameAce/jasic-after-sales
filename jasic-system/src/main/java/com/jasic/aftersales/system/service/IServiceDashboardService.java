@@ -8,7 +8,7 @@ import com.jasic.aftersales.system.domain.vo.dashboard.ServiceDashboardHomeVO;
  * <p>该接口只负责服务网点“服务工作台”聚合编排。
  * 一级网点和二级网点统一使用当前服务公司口径，不承载我的事项或一级管理二级专项首页。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/20
  */
 public interface IServiceDashboardService {

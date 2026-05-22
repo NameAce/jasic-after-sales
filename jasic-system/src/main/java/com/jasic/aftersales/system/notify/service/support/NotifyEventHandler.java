@@ -11,7 +11,7 @@ import com.jasic.aftersales.system.notify.support.NotifyEventExecutionContext;
  * 真正的模板渲染、目标分流、站内落库和外部分发创建，
  * 统一由事件消费编排层负责，避免不同业务事件重复实现同一套通知目标分流逻辑。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/14
  */
 public interface NotifyEventHandler {

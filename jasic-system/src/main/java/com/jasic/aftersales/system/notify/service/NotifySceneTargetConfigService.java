@@ -15,7 +15,7 @@ import com.jasic.aftersales.system.notify.domain.vo.NotifyScenePreviewVO;
  * <p>该服务是阶段一后台“通知场景配置”页面的唯一后端入口。
  * 它负责场景与目标配置的查询、保存和预览，不负责事件消费、站内落库和外部分发。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 public interface NotifySceneTargetConfigService {

@@ -9,7 +9,7 @@ import java.io.Serializable;
 /**
  * 按业务对象标记已读参数。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/18
  */
 @ApiModel(description = "按业务对象标记已读参数")

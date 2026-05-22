@@ -10,7 +10,7 @@ import java.io.Serializable;
 /**
  * 微信解绑参数
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/10
  */
 @ApiModel(description = "微信解绑参数")

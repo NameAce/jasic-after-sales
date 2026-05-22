@@ -104,12 +104,13 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 宸ュ崟涓氬姟鏈嶅姟娴嬭瘯銆? *
- * @author Codex
+ * 工单业务服务测试。
+ * @author Zoro
  * @date 2026/04/01
  */
 public class WorkOrderServiceImplTest {
 
+    /**验证ReturnFaultDescInWorkOrderListPage，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldReturnFaultDescInWorkOrderListPage() throws Exception {
         WorkOrderListVO record = new WorkOrderListVO();
@@ -139,6 +140,9 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderMapper", createPagedWorkOrderMapperProxy(Collections.singletonList(record)));
         setField(service, "workOrderQuoteMapper", createQuoteMapperProxy(Arrays.asList(olderValidQuote, invalidQuote, latestValidQuote)));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**buildScopedQuery 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param query 查询条件，包含分页、筛选和权限收口所需字段。
+@return 处理后的业务结果。*/
             @Override
             public WorkOrderScopedQuery buildScopedQuery(WorkOrderQuery query) {
                 WorkOrderScopedQuery scopedQuery = new WorkOrderScopedQuery();
@@ -149,6 +153,8 @@ public class WorkOrderServiceImplTest {
                 return scopedQuery;
             }
 
+            /**resolveAccessContext 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@return 查询或解析得到的业务对象。*/
             @Override
             public WorkOrderAccessContext resolveAccessContext() {
                 WorkOrderAccessContext context = new WorkOrderAccessContext();
@@ -160,11 +166,20 @@ public class WorkOrderServiceImplTest {
                 return context;
             }
 
+            /**listAvailableActions 业务数据，按查询条件和数据权限返回可见范围内的结果。
+@param workOrder workOrder 字段参数。
+@param context context 字段参数。
+@return 查询或组装后的业务数据集合。*/
             @Override
             public List<String> listAvailableActions(WorkOrder workOrder, WorkOrderAccessContext context) {
                 return Collections.singletonList("ASSIGN");
             }
 
+            /**getReadonlyReason 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param workOrder workOrder 字段参数。
+@param availableActions 业务数据列表，用于批量处理或返回组装。
+@param context context 字段参数。
+@return 查询或解析得到的业务对象。*/
             @Override
             public String getReadonlyReason(WorkOrder workOrder, List<String> availableActions,
                                             WorkOrderAccessContext context) {
@@ -178,6 +193,7 @@ public class WorkOrderServiceImplTest {
 
         final PageResult<WorkOrderListVO>[] holder = new PageResult[1];
         runWithLoginContext(101L, new ThrowingRunnable() {
+            /**run 处理逻辑，服务于当前类的业务编排和数据转换。*/
             @Override
             public void run() {
                 com.jasic.aftersales.framework.security.SecurityContext.setCurrentCompanyId(2002L);
@@ -198,6 +214,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertNull(holder[0].getRecords().get(0).getReadonlyReason());
     }
 
+    /**验证FillUploadSendExpressActionInHistoryListPage，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldFillUploadSendExpressActionInHistoryListPage() throws Exception {
         WorkOrderListVO record = new WorkOrderListVO();
@@ -211,6 +228,9 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderMapper", createPagedWorkOrderMapperProxy(Collections.singletonList(record)));
         setField(service, "workOrderQuoteMapper", createQuoteMapperProxy(Collections.emptyList()));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**buildScopedQuery 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param query 查询条件，包含分页、筛选和权限收口所需字段。
+@return 处理后的业务结果。*/
             @Override
             public WorkOrderScopedQuery buildScopedQuery(WorkOrderQuery query) {
                 WorkOrderScopedQuery scopedQuery = new WorkOrderScopedQuery();
@@ -221,6 +241,10 @@ public class WorkOrderServiceImplTest {
                 return scopedQuery;
             }
 
+            /**listAvailableActions 业务数据，按查询条件和数据权限返回可见范围内的结果。
+@param workOrder workOrder 字段参数。
+@param context context 字段参数。
+@return 查询或组装后的业务数据集合。*/
             @Override
             public List<String> listAvailableActions(WorkOrder workOrder, WorkOrderAccessContext context) {
                 return Collections.singletonList("UPLOAD_SEND_EXPRESS");
@@ -234,6 +258,7 @@ public class WorkOrderServiceImplTest {
 
         final PageResult<WorkOrderListVO>[] holder = new PageResult[1];
         runWithLoginContext(101L, new ThrowingRunnable() {
+            /**run 处理逻辑，服务于当前类的业务编排和数据转换。*/
             @Override
             public void run() {
                 com.jasic.aftersales.framework.security.SecurityContext.setCurrentCompanyId(2002L);
@@ -246,6 +271,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(Collections.singletonList("UPLOAD_SEND_EXPRESS"), holder[0].getRecords().get(0).getAvailableActions());
     }
 
+    /**验证KeepHqPermissionFieldsWhenBuildingWorkOrderSnapshot，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldKeepHqPermissionFieldsWhenBuildingWorkOrderSnapshot() throws Exception {
         WorkOrderListVO record = new WorkOrderListVO();
@@ -274,6 +300,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals("STORE", snapshot.getServiceMode());
     }
 
+    /**验证RejectTransferTargetQueryWhenTransferNotAllowed，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectTransferTargetQueryWhenTransferNotAllowed() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -284,11 +311,17 @@ public class WorkOrderServiceImplTest {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canView 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canView(WorkOrder target) {
                 return true;
             }
 
+            /**canTransfer 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canTransfer(WorkOrder target) {
                 return false;
@@ -303,6 +336,7 @@ public class WorkOrderServiceImplTest {
         }
     }
 
+    /**验证RejectEmptyRepairSubmission，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectEmptyRepairSubmission() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -313,6 +347,9 @@ public class WorkOrderServiceImplTest {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canSaveRepair 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canSaveRepair(WorkOrder target) {
                 return true;
@@ -330,6 +367,7 @@ public class WorkOrderServiceImplTest {
         }
     }
 
+    /**验证RejectUnsupportedFaultJudgeValue，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectUnsupportedFaultJudgeValue() throws Exception {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
@@ -346,6 +384,7 @@ public class WorkOrderServiceImplTest {
         }
     }
 
+    /**验证ListAdminUserWhenAdminHasAcceptPermission，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldListAdminUserWhenAdminHasAcceptPermission() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -359,6 +398,9 @@ public class WorkOrderServiceImplTest {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canAssign 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canAssign(WorkOrder target) {
                 return true;
@@ -377,6 +419,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals("老板账号", options.get(0).getRealName());
     }
 
+    /**验证AllowAssignToAdminWhenAdminHasAcceptPermission，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldAllowAssignToAdminWhenAdminHasAcceptPermission() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -389,6 +432,9 @@ public class WorkOrderServiceImplTest {
         RecordingWorkOrderNotifyFacade notifyFacade = new RecordingWorkOrderNotifyFacade();
         setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, new int[1]));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canAssign 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canAssign(WorkOrder target) {
                 return true;
@@ -409,6 +455,7 @@ public class WorkOrderServiceImplTest {
         dto.setAssignedUserId(101L);
 
         runWithLoginContext(101L, new ThrowingRunnable() {
+            /**run 处理逻辑，服务于当前类的业务编排和数据转换。*/
             @Override
             public void run() throws Exception {
                 service.assign(dto);
@@ -428,6 +475,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertNotNull(notifyFacade.publishedEvents.get(0).getOperationId());
     }
 
+    /**验证BuildAcceptNotifyEventWithCustomerFallbackAndTargetCompanySnapshot，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldBuildAcceptNotifyEventWithCustomerFallbackAndTargetCompanySnapshot() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -479,6 +527,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals("客户", notifyFacade.acceptEvents.get(0).getCustomerName());
     }
 
+    /**验证PublishTransferNotifyEventWhenReassigningToAnotherTechnician，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldPublishTransferNotifyEventWhenReassigningToAnotherTechnician() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -492,6 +541,9 @@ public class WorkOrderServiceImplTest {
         RecordingWorkOrderNotifyFacade notifyFacade = new RecordingWorkOrderNotifyFacade();
         setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, new int[1]));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canAssign 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canAssign(WorkOrder target) {
                 return true;
@@ -512,6 +564,7 @@ public class WorkOrderServiceImplTest {
         dto.setAssignedUserId(101L);
 
         runWithLoginContext(102L, new ThrowingRunnable() {
+            /**run 处理逻辑，服务于当前类的业务编排和数据转换。*/
             @Override
             public void run() throws Exception {
                 service.assign(dto);
@@ -527,6 +580,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(Long.valueOf(102L), notifyFacade.publishedEvents.get(0).getOperatorId());
     }
 
+    /**验证MarkTodoReadWhenViewingWorkOrderDetail，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldMarkTodoReadWhenViewingWorkOrderDetail() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -548,11 +602,17 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderFlowMapper", createFlowMapperProxy(Collections.emptyList()));
         setField(service, "workOrderEvaluationMapper", createNoopProxy(WorkOrderEvaluationMapper.class, "never"));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canView 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canView(WorkOrder target) {
                 return true;
             }
 
+            /**listAvailableActions 业务数据，按查询条件和数据权限返回可见范围内的结果。
+@param target target 字段参数。
+@return 查询或组装后的业务数据集合。*/
             @Override
             public List<String> listAvailableActions(WorkOrder target) {
                 return Collections.emptyList();
@@ -562,6 +622,7 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderNotifyFacade", notifyFacade);
 
         runWithLoginContext(101L, new ThrowingRunnable() {
+            /**run 处理逻辑，服务于当前类的业务编排和数据转换。*/
             @Override
             public void run() throws Exception {
                 com.jasic.aftersales.framework.security.SecurityContext.setCurrentCompanyId(workOrder.getCurrentAcceptCompanyId());
@@ -576,6 +637,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(workOrder.getCurrentAcceptCompanyId(), notifyFacade.readByBizRequests.get(0).getReceiverCompanyId());
     }
 
+    /**验证HideUploadSendExpressActionInWorkOrderDetail，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldHideUploadSendExpressActionInWorkOrderDetail() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -596,6 +658,10 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderFlowMapper", createFlowMapperProxy(Collections.emptyList()));
         setField(service, "workOrderEvaluationMapper", createNoopProxy(WorkOrderEvaluationMapper.class, "never"));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**listAvailableActions 业务数据，按查询条件和数据权限返回可见范围内的结果。
+@param target target 字段参数。
+@param context context 字段参数。
+@return 查询或组装后的业务数据集合。*/
             @Override
             public List<String> listAvailableActions(WorkOrder target, WorkOrderAccessContext context) {
                 return Arrays.asList("UPLOAD_SEND_EXPRESS", "ASSIGN");
@@ -610,6 +676,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertTrue(result.getAvailableActions().contains("ASSIGN"));
     }
 
+    /**验证UpdateSendExpressWithCurrentLoginCompanyAndReplaceVoucher，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldUpdateSendExpressWithCurrentLoginCompanyAndReplaceVoucher() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -625,6 +692,9 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderFlowMapper", createFlowMapperProxy(insertedFlows));
         setField(service, "sysFileService", createSenderVoucherFileServiceProxy(replacedFileIds));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canUpdateSendExpress 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canUpdateSendExpress(WorkOrder target) {
                 return true;
@@ -637,6 +707,7 @@ public class WorkOrderServiceImplTest {
         dto.setSenderVoucherFileIds(Arrays.asList(501L, 502L));
 
         runWithLoginContext(101L, new ThrowingRunnable() {
+            /**run 处理逻辑，服务于当前类的业务编排和数据转换。*/
             @Override
             public void run() throws Exception {
                 com.jasic.aftersales.framework.security.SecurityContext.setCurrentCompanyId(2002L);
@@ -654,6 +725,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(Long.valueOf(2002L), insertedFlows.get(0).getToCompanyId());
     }
 
+    /**验证TechAcceptFaultWorkOrderAndCreateQuote，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldTechAcceptFaultWorkOrderAndCreateQuote() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -682,6 +754,9 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderQuoteMapper", createMutableQuoteMapperProxy(quotes, insertedQuotes, new int[1]));
         setField(service, "workOrderFlowMapper", createFlowMapperProxy(insertedFlows));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canTechAccept 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canTechAccept(WorkOrder target) {
                 return true;
@@ -697,6 +772,7 @@ public class WorkOrderServiceImplTest {
         dto.setFaultJudge("有故障");
 
         runWithLoginContext(101L, new ThrowingRunnable() {
+            /**run 处理逻辑，服务于当前类的业务编排和数据转换。*/
             @Override
             public void run() throws Exception {
                 com.jasic.aftersales.framework.security.SecurityContext.setCurrentCompanyId(workOrder.getCurrentAcceptCompanyId());
@@ -728,6 +804,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals("0755-12345678", notifyFacade.acceptedEvents.get(0).getCompanyPhone());
     }
 
+    /**验证TechAcceptNoFaultWorkOrderAndCloseImmediately，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldTechAcceptNoFaultWorkOrderAndCloseImmediately() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -746,6 +823,9 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderQuoteMapper", createMutableQuoteMapperProxy(quotes, insertedQuotes, new int[1]));
         setField(service, "workOrderFlowMapper", createFlowMapperProxy(insertedFlows));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canTechAccept 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canTechAccept(WorkOrder target) {
                 return true;
@@ -767,6 +847,7 @@ public class WorkOrderServiceImplTest {
         dto.setCloseReason("检测无故障，客户自提");
 
         runWithLoginContext(101L, new ThrowingRunnable() {
+            /**run 处理逻辑，服务于当前类的业务编排和数据转换。*/
             @Override
             public void run() throws Exception {
                 service.techAccept(dto);
@@ -805,6 +886,7 @@ public class WorkOrderServiceImplTest {
                 notifyFacade.invalidatedTodos.get(0).getInvalidReason());
     }
 
+    /**验证TechAcceptNoFaultMailWorkOrderWithoutReturnExpressNo，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldTechAcceptNoFaultMailWorkOrderWithoutReturnExpressNo() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -823,6 +905,9 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderQuoteMapper", createMutableQuoteMapperProxy(quotes, insertedQuotes, new int[1]));
         setField(service, "workOrderFlowMapper", createFlowMapperProxy(insertedFlows));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canTechAccept 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canTechAccept(WorkOrder target) {
                 return true;
@@ -842,6 +927,7 @@ public class WorkOrderServiceImplTest {
         dto.setCloseReason("检测无故障，安排回寄");
 
         runWithLoginContext(101L, new ThrowingRunnable() {
+            /**run 处理逻辑，服务于当前类的业务编排和数据转换。*/
             @Override
             public void run() throws Exception {
                 service.techAccept(dto);
@@ -867,6 +953,7 @@ public class WorkOrderServiceImplTest {
                 notifyFacade.invalidatedTodos.get(0).getInvalidReason());
     }
 
+    /**验证LoadBarcodelessProxyCreateInfoFromDefaultHq，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldLoadBarcodelessProxyCreateInfoFromDefaultHq() throws Exception {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
@@ -880,6 +967,7 @@ public class WorkOrderServiceImplTest {
 
         final WorkOrderCreateBarcodeInfoVO[] holder = new WorkOrderCreateBarcodeInfoVO[1];
         runWithLoginContext(101L, new ThrowingRunnable() {
+            /**run 处理逻辑，服务于当前类的业务编排和数据转换。*/
             @Override
             public void run() {
                 com.jasic.aftersales.framework.security.SecurityContext.setCurrentCompanyId(900L);
@@ -895,6 +983,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(Collections.emptyList(), holder[0].getFaultOptions());
     }
 
+    /**验证ReadCreateBarcodeArchiveWithResolvedHqScope，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldReadCreateBarcodeArchiveWithResolvedHqScope() throws Exception {
         initMachineBarcodeTableInfo();
@@ -919,6 +1008,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertTrue("条码档案业务读取必须显式带总部过滤", sawHqFilter[0]);
     }
 
+    /**验证AllowEmptyFaultItemsForBarcodelessCreate，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldAllowEmptyFaultItemsForBarcodelessCreate() throws Exception {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
@@ -931,6 +1021,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertNull(invokeGetter(selection, "getFaultRemark"));
     }
 
+    /**验证AllowOtherFaultForBarcodelessCreateWhenRemarkProvided，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldAllowOtherFaultForBarcodelessCreateWhenRemarkProvided() throws Exception {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
@@ -943,6 +1034,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals("无码机器手工描述故障", invokeGetter(selection, "getFaultRemark"));
     }
 
+    /**验证FallbackCreateFaultOptionsToOtherFaultWhenProductConfigMissing，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldFallbackCreateFaultOptionsToOtherFaultWhenProductConfigMissing() throws Exception {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
@@ -956,6 +1048,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(Collections.singletonList("其它故障"), options);
     }
 
+    /**验证AllowOtherFaultForBarcodeCreateWhenProductConfigMissing，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldAllowOtherFaultForBarcodeCreateWhenProductConfigMissing() throws Exception {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
@@ -969,6 +1062,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals("有条码机器未维护配置时的故障说明", invokeGetter(selection, "getFaultRemark"));
     }
 
+    /**验证RequireRepairFaultItemsWhenRepairConfigExists，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRequireRepairFaultItemsWhenRepairConfigExists() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -992,6 +1086,7 @@ public class WorkOrderServiceImplTest {
     }
 
 
+    /**验证ResolveReviewFaultSelectionFromFirstRepairRecord，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldResolveReviewFaultSelectionFromFirstRepairRecord() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -1025,6 +1120,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(Collections.singletonList("主板故障，风扇故障"), invokeGetter(selection, "getFaultItems"));
     }
 
+    /**验证FallbackProxyCustomerNameToMobileWhenBlank，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldFallbackProxyCustomerNameToMobileWhenBlank() throws Exception {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
@@ -1038,6 +1134,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals("13800138000", invokeGetter(identity, "getCustomerMobile"));
     }
 
+    /**验证LeaveCustomerIdNullWhenProxyCustomerNotMatched，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldLeaveCustomerIdNullWhenProxyCustomerNotMatched() throws Exception {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
@@ -1049,6 +1146,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertNull(customerId);
     }
 
+    /**验证ResolveReportSubjectByCreateEntryType，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldResolveReportSubjectByCreateEntryType() throws Exception {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
@@ -1068,6 +1166,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(Long.valueOf(2002L), upstreamReportCompanyId);
     }
 
+    /**验证RejectUpstreamCreateWhenLoginPhoneMissing，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectUpstreamCreateWhenLoginPhoneMissing() throws Exception {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
@@ -1078,6 +1177,7 @@ public class WorkOrderServiceImplTest {
         setField(service, "sysUserMapper", createSysUserMapperProxy(currentUser));
 
         runWithLoginContext(101L, new ThrowingRunnable() {
+            /**run 处理逻辑，服务于当前类的业务编排和数据转换。*/
             @Override
             public void run() throws Exception {
                 try {
@@ -1091,6 +1191,7 @@ public class WorkOrderServiceImplTest {
         });
     }
 
+    /**验证TransferSecondLevelWorkOrderAndRecordHistory，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldTransferSecondLevelWorkOrderAndRecordHistory() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -1119,6 +1220,9 @@ public class WorkOrderServiceImplTest {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, updateCount));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canTransfer 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canTransfer(WorkOrder target) {
                 return true;
@@ -1145,6 +1249,7 @@ public class WorkOrderServiceImplTest {
         dto.setRemark("维修不了，转一级处理");
 
         runWithLoginContext(101L, new ThrowingRunnable() {
+            /**run 处理逻辑，服务于当前类的业务编排和数据转换。*/
             @Override
             public void run() throws Exception {
                 service.transfer(dto);
@@ -1186,6 +1291,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(0, notifyFacade.acceptedEvents.size());
     }
 
+    /**验证RejectTransferOutsideAllowedScopeForFirstLevelWorkOrder，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectTransferOutsideAllowedScopeForFirstLevelWorkOrder() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -1198,6 +1304,9 @@ public class WorkOrderServiceImplTest {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canTransfer 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canTransfer(WorkOrder target) {
                 return true;
@@ -1220,6 +1329,7 @@ public class WorkOrderServiceImplTest {
         }
     }
 
+    /**验证CreateQuoteRevisionWhenRepairUpdatesQuote，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldCreateQuoteRevisionWhenRepairUpdatesQuote() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -1252,6 +1362,9 @@ public class WorkOrderServiceImplTest {
         setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(Collections.emptyList()));
         setField(service, "sysFileService", createNoopProxy(com.jasic.aftersales.system.service.SysFileService.class, "replaceBizFiles"));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canSaveRepair 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canSaveRepair(WorkOrder target) {
                 return true;
@@ -1267,6 +1380,7 @@ public class WorkOrderServiceImplTest {
         fillRepairSubmission(dto, "更换主板", "主板", 1);
 
         runWithLoginContext(101L, new ThrowingRunnable() {
+            /**run 处理逻辑，服务于当前类的业务编排和数据转换。*/
             @Override
             public void run() throws Exception {
                 service.saveRepair(dto);
@@ -1286,6 +1400,7 @@ public class WorkOrderServiceImplTest {
                 notifyFacade.invalidatedTodos.get(0).getInvalidReason());
     }
 
+    /**验证CompleteWorkOrderWhenRepairSubmitted，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldCompleteWorkOrderWhenRepairSubmitted() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -1308,6 +1423,9 @@ public class WorkOrderServiceImplTest {
         setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(Collections.emptyList()));
         setField(service, "sysFileService", createNoopProxy(com.jasic.aftersales.system.service.SysFileService.class, "replaceBizFiles"));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canSaveRepair 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canSaveRepair(WorkOrder target) {
                 return true;
@@ -1321,6 +1439,7 @@ public class WorkOrderServiceImplTest {
         fillRepairSubmission(dto, "更换主板", "主板", 1);
 
         runWithLoginContext(101L, new ThrowingRunnable() {
+            /**run 处理逻辑，服务于当前类的业务编排和数据转换。*/
             @Override
             public void run() throws Exception {
                 service.saveRepair(dto);
@@ -1339,6 +1458,7 @@ public class WorkOrderServiceImplTest {
                 notifyFacade.invalidatedTodos.get(0).getInvalidReason());
     }
 
+    /**验证UpdateRepairProductModelFromEnabledOptions，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldUpdateRepairProductModelFromEnabledOptions() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -1354,6 +1474,9 @@ public class WorkOrderServiceImplTest {
         RecordingWorkOrderNotifyFacade notifyFacade = new RecordingWorkOrderNotifyFacade();
         setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, updateCount));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canSaveRepair 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canSaveRepair(WorkOrder target) {
                 return true;
@@ -1376,6 +1499,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(Long.valueOf(88L), workOrder.getFaultRepairConfigId());
     }
 
+    /**验证RejectRepairProductModelUpdateWhenAlreadyExists，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectRepairProductModelUpdateWhenAlreadyExists() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -1389,6 +1513,9 @@ public class WorkOrderServiceImplTest {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canSaveRepair 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canSaveRepair(WorkOrder target) {
                 return true;
@@ -1407,6 +1534,7 @@ public class WorkOrderServiceImplTest {
         }
     }
 
+    /**验证RequireProductModelBeforeRepairSubmissionForJasicWorkOrder，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRequireProductModelBeforeRepairSubmissionForJasicWorkOrder() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -1419,6 +1547,9 @@ public class WorkOrderServiceImplTest {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canSaveRepair 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canSaveRepair(WorkOrder target) {
                 return true;
@@ -1437,6 +1568,7 @@ public class WorkOrderServiceImplTest {
         }
     }
 
+    /**验证RequireProductModelBeforeReviewSubmissionForJasicWorkOrder，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRequireProductModelBeforeReviewSubmissionForJasicWorkOrder() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -1449,6 +1581,9 @@ public class WorkOrderServiceImplTest {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canReview 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canReview(WorkOrder target) {
                 return true;
@@ -1467,6 +1602,7 @@ public class WorkOrderServiceImplTest {
         }
     }
 
+    /**验证RequireFaultRepairConfigBindingBeforeRepairSubmissionForJasicWorkOrder，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRequireFaultRepairConfigBindingBeforeRepairSubmissionForJasicWorkOrder() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -1479,6 +1615,9 @@ public class WorkOrderServiceImplTest {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canSaveRepair 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canSaveRepair(WorkOrder target) {
                 return true;
@@ -1497,6 +1636,7 @@ public class WorkOrderServiceImplTest {
         }
     }
 
+    /**验证LazyBindFaultRepairConfigWhenListingRepairFaultOptions，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldLazyBindFaultRepairConfigWhenListingRepairFaultOptions() throws Exception {
         initWorkOrderTableInfo();
@@ -1525,6 +1665,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals("主板故障", options.get(0).getFaultDesc());
     }
 
+    /**验证LazyBindFaultRepairConfigBeforeRepairSubmission，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldLazyBindFaultRepairConfigBeforeRepairSubmission() throws Exception {
         initWorkOrderTableInfo();
@@ -1557,6 +1698,9 @@ public class WorkOrderServiceImplTest {
         ));
         setField(service, "sysFileService", createNoopProxy(com.jasic.aftersales.system.service.SysFileService.class, "replaceBizFiles"));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canSaveRepair 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canSaveRepair(WorkOrder target) {
                 return true;
@@ -1572,6 +1716,7 @@ public class WorkOrderServiceImplTest {
         fillRepairSubmission(dto, "更换主板", "主板", 1);
 
         runWithLoginContext(101L, new ThrowingRunnable() {
+            /**run 处理逻辑，服务于当前类的业务编排和数据转换。*/
             @Override
             public void run() throws Exception {
                 service.saveRepair(dto);
@@ -1585,6 +1730,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals("REPAIR_FINISH", insertedFlows.get(0).getActionType());
     }
 
+    /**验证RejectRepairQuoteRevisionWithoutCurrentQuote，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectRepairQuoteRevisionWithoutCurrentQuote() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -1597,6 +1743,9 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderQuoteMapper", createQuoteMapperProxy(Collections.emptyList()));
         setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(Collections.emptyList()));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canSaveRepair 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canSaveRepair(WorkOrder target) {
                 return true;
@@ -1616,6 +1765,7 @@ public class WorkOrderServiceImplTest {
         }
     }
 
+    /**验证RequireReturnVoucherWhenClosingByMail，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRequireReturnVoucherWhenClosingByMail() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -1626,6 +1776,9 @@ public class WorkOrderServiceImplTest {
         WorkOrderServiceImpl service = new WorkOrderServiceImpl();
         setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canClose 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canClose(WorkOrder target) {
                 return true;
@@ -1646,6 +1799,7 @@ public class WorkOrderServiceImplTest {
         }
     }
 
+    /**验证AllowBlankReturnExpressNoWhenClosingByMailWithVoucher，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldAllowBlankReturnExpressNoWhenClosingByMailWithVoucher() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -1671,6 +1825,9 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderCustomerMapper", createWorkOrderCustomerMapperProxy(customer));
         setField(service, "sysCompanyMapper", createSysCompanyMapperProxy(Collections.singletonList(company)));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canClose 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canClose(WorkOrder target) {
                 return true;
@@ -1687,6 +1844,7 @@ public class WorkOrderServiceImplTest {
         dto.setCloseReason("客户要求回寄");
 
         runWithLoginContext(101L, new ThrowingRunnable() {
+            /**run 处理逻辑，服务于当前类的业务编排和数据转换。*/
             @Override
             public void run() throws Exception {
                 service.close(dto);
@@ -1709,6 +1867,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals("客户要求回寄", workOrder.getCloseReason());
     }
 
+    /**验证CloseNoFaultWorkOrderAsNotOpenWithoutInvite，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldCloseNoFaultWorkOrderAsNotOpenWithoutInvite() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -1726,6 +1885,9 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderQuoteMapper", createQuoteMapperProxy(Collections.singletonList(currentQuote)));
         setField(service, "workOrderFlowMapper", createNoopProxy(WorkOrderFlowMapper.class, "insert"));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canClose 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canClose(WorkOrder target) {
                 return true;
@@ -1740,6 +1902,7 @@ public class WorkOrderServiceImplTest {
 
         setField(service, "workOrderNotifyFacade", notifyFacade);
         runWithLoginContext(101L, new ThrowingRunnable() {
+            /**run 处理逻辑，服务于当前类的业务编排和数据转换。*/
             @Override
             public void run() throws Exception {
                 service.close(dto);
@@ -1756,6 +1919,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals("无故障，客户自提", workOrder.getCloseReason());
     }
 
+    /**验证CloseFaultWorkOrderAsPendingEvaluateAndRecordInvite，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldCloseFaultWorkOrderAsPendingEvaluateAndRecordInvite() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -1783,6 +1947,9 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderCustomerMapper", createWorkOrderCustomerMapperProxy(customer));
         setField(service, "sysCompanyMapper", createSysCompanyMapperProxy(Collections.singletonList(company)));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canClose 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canClose(WorkOrder target) {
                 return true;
@@ -1797,6 +1964,7 @@ public class WorkOrderServiceImplTest {
 
         setField(service, "workOrderNotifyFacade", notifyFacade);
         runWithLoginContext(101L, new ThrowingRunnable() {
+            /**run 处理逻辑，服务于当前类的业务编排和数据转换。*/
             @Override
             public void run() throws Exception {
                 service.close(dto);
@@ -1852,6 +2020,9 @@ public class WorkOrderServiceImplTest {
         setField(service, "workOrderCustomerMapper", createWorkOrderCustomerMapperProxy(customer));
         setField(service, "sysCompanyMapper", createSysCompanyMapperProxy(Collections.singletonList(company)));
         setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            /**canClose 业务条件，用于决定后续流程是否允许继续执行。
+@param target target 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean canClose(WorkOrder target) {
                 return true;
@@ -1866,6 +2037,7 @@ public class WorkOrderServiceImplTest {
         dto.setCloseReason("维修完成");
 
         runWithLoginContext(101L, new ThrowingRunnable() {
+            /**run 处理逻辑，服务于当前类的业务编排和数据转换。*/
             @Override
             public void run() throws Exception {
                 service.close(dto);
@@ -1877,6 +2049,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals("0755-66668888", notifyFacade.evaluationInviteEvents.get(0).getCompanyPhone());
     }
 
+    /**验证SkipEvaluationInviteWhenCurrentQuoteIsNoFault，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldSkipEvaluationInviteWhenCurrentQuoteIsNoFault() throws Exception {
         WorkOrderQuote currentQuote = new WorkOrderQuote();
@@ -1895,8 +2068,16 @@ public class WorkOrderServiceImplTest {
         Assert.assertTrue(noFault);
     }
 
+    /**createWorkOrderMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param workOrder workOrder 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private WorkOrderMapper createWorkOrderMapperProxy(WorkOrder workOrder) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectById".equals(method.getName())) {
@@ -1912,8 +2093,16 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    /**createPagedWorkOrderMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param records 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private WorkOrderMapper createPagedWorkOrderMapperProxy(List<WorkOrderListVO> records) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectWorkOrderPage".equals(method.getName())) {
@@ -1932,8 +2121,17 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    /**createWorkOrderDetailMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param workOrder workOrder 字段参数。
+@param detail detail 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private WorkOrderMapper createWorkOrderDetailMapperProxy(WorkOrder workOrder, WorkOrderDetailVO detail) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectById".equals(method.getName())) {
@@ -1955,8 +2153,17 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    /**createMutableWorkOrderMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param workOrder workOrder 字段参数。
+@param updateCount updateCount 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private WorkOrderMapper createMutableWorkOrderMapperProxy(WorkOrder workOrder, int[] updateCount) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectById".equals(method.getName())) {
@@ -1980,8 +2187,16 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    /**createWorkOrderRepairMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param repairs 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private WorkOrderRepairMapper createWorkOrderRepairMapperProxy(List<WorkOrderRepair> repairs) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectList".equals(method.getName())) {
@@ -1997,8 +2212,16 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    /**createWorkOrderFaultMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param faults 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private com.jasic.aftersales.system.mapper.WorkOrderFaultMapper createWorkOrderFaultMapperProxy(List<WorkOrderFault> faults) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectList".equals(method.getName())) {
@@ -2014,8 +2237,16 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    /**createFaultPartMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param faultParts 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private WorkOrderFaultPartMapper createFaultPartMapperProxy(List<com.jasic.aftersales.system.domain.entity.WorkOrderFaultPart> faultParts) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectList".equals(method.getName())) {
@@ -2031,8 +2262,16 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    /**createWorkOrderCustomerMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param customers 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private WorkOrderCustomerMapper createWorkOrderCustomerMapperProxy(List<WorkOrderCustomer> customers) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectList".equals(method.getName())) {
@@ -2054,12 +2293,20 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    /**createCompanyMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param companies 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private SysCompanyMapper createCompanyMapperProxy(List<SysCompany> companies) {
         Map<Long, SysCompany> companyMap = new LinkedHashMap<>();
         for (SysCompany company : companies) {
             companyMap.put(company.getId(), company);
         }
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectById".equals(method.getName())) {
@@ -2086,8 +2333,16 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    /**createCompanyTypeMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param companyType companyType 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private SysCompanyTypeMapper createCompanyTypeMapperProxy(SysCompanyType companyType) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectOne".equals(method.getName())) {
@@ -2103,8 +2358,16 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    /**createRelationMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param relations 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private FirstSecondRelationMapper createRelationMapperProxy(List<FirstSecondRelation> relations) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectList".equals(method.getName())) {
@@ -2120,8 +2383,16 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    /**createContractMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param count count 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private HqFirstContractMapper createContractMapperProxy(Long count) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectCount".equals(method.getName())) {
@@ -2137,8 +2408,17 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    /**createMachineBarcodeMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param archive archive 字段参数。
+@param sawHqFilter sawHqFilter 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private MachineBarcodeMapper createMachineBarcodeMapperProxy(MachineBarcode archive, boolean[] sawHqFilter) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectOne".equals(method.getName())) {
@@ -2161,6 +2441,7 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    /**initMachineBarcodeTableInfo 处理逻辑，服务于当前类的业务编排和数据转换。*/
     private void initMachineBarcodeTableInfo() {
         if (TableInfoHelper.getTableInfo(MachineBarcode.class) != null) {
             return;
@@ -2172,6 +2453,7 @@ public class WorkOrderServiceImplTest {
         TableInfoHelper.initTableInfo(assistant, MachineBarcode.class);
     }
 
+    /**initWorkOrderTableInfo 处理逻辑，服务于当前类的业务编排和数据转换。*/
     private void initWorkOrderTableInfo() {
         if (TableInfoHelper.getTableInfo(WorkOrder.class) != null) {
             return;
@@ -2183,8 +2465,16 @@ public class WorkOrderServiceImplTest {
         TableInfoHelper.initTableInfo(assistant, WorkOrder.class);
     }
 
+    /**createFlowMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param insertedFlows 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private WorkOrderFlowMapper createFlowMapperProxy(List<WorkOrderFlow> insertedFlows) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectList".equals(method.getName())) {
@@ -2204,8 +2494,16 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    /**createSenderVoucherFileServiceProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param replacedFileIds 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private com.jasic.aftersales.system.service.SysFileService createSenderVoucherFileServiceProxy(List<Long> replacedFileIds) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             @SuppressWarnings("unchecked")
             public Object invoke(Object proxy, Method method, Object[] args) {
@@ -2230,8 +2528,16 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    /**createQuoteMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param quotes 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private WorkOrderQuoteMapper createQuoteMapperProxy(List<WorkOrderQuote> quotes) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectList".equals(method.getName())) {
@@ -2250,10 +2556,20 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    /**createMutableQuoteMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param quotes 业务数据列表，用于批量处理或返回组装。
+@param insertedQuotes 业务数据列表，用于批量处理或返回组装。
+@param updateCount updateCount 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private WorkOrderQuoteMapper createMutableQuoteMapperProxy(List<WorkOrderQuote> quotes,
                                                                List<WorkOrderQuote> insertedQuotes,
                                                                int[] updateCount) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectList".equals(method.getName())) {
@@ -2282,9 +2598,18 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    /**createNoopProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param type type 字段参数。
+@param successMethodName 名称文本，用于展示、匹配或保存业务对象名称。
+@return 新增或保存后的业务标识或处理结果。*/
     @SuppressWarnings("unchecked")
     private <T> T createNoopProxy(Class<T> type, String successMethodName) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if (successMethodName.equals(method.getName())) {
@@ -2296,19 +2621,36 @@ public class WorkOrderServiceImplTest {
         return (T) Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, handler);
     }
 
+    /**createFaultRepairConfigServiceProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param options 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private IFaultRepairConfigService createFaultRepairConfigServiceProxy(List<WorkOrderRepairFaultOptionVO> options) {
         return createFaultRepairConfigServiceProxy(options, Collections.emptyList(), null);
     }
 
+    /**createFaultRepairConfigServiceProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param options 业务数据列表，用于批量处理或返回组装。
+@param productModels 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private IFaultRepairConfigService createFaultRepairConfigServiceProxy(List<WorkOrderRepairFaultOptionVO> options,
                                                                           List<String> productModels) {
         return createFaultRepairConfigServiceProxy(options, productModels, null);
     }
 
+    /**createFaultRepairConfigServiceProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param options 业务数据列表，用于批量处理或返回组装。
+@param productModels 业务数据列表，用于批量处理或返回组装。
+@param matchedConfigId matchedConfigId 字段。
+@return 新增或保存后的业务标识或处理结果。*/
     private IFaultRepairConfigService createFaultRepairConfigServiceProxy(List<WorkOrderRepairFaultOptionVO> options,
                                                                           List<String> productModels,
                                                                           Long matchedConfigId) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("listRepairFaultOptionsForResolvedHq".equals(method.getName())) {
@@ -2333,8 +2675,16 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    /**createSysConfigServiceProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param defaultHqCompanyId defaultHqCompanyId 字段。
+@return 新增或保存后的业务标识或处理结果。*/
     private ISysConfigService createSysConfigServiceProxy(String defaultHqCompanyId) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("getValueByKey".equals(method.getName())
@@ -2353,16 +2703,27 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    /**createSysUserMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param currentUser currentUser 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private SysUserMapper createSysUserMapperProxy(SysUser currentUser) {
         return createSysUserMapperProxy(Collections.singletonList(currentUser));
     }
 
+    /**createSysUserMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param users 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private SysUserMapper createSysUserMapperProxy(List<SysUser> users) {
         Map<Long, SysUser> userMap = new LinkedHashMap<>();
         for (SysUser user : users) {
             userMap.put(user.getId(), user);
         }
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectById".equals(method.getName())) {
@@ -2389,8 +2750,16 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    /**createWorkOrderCustomerMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param customer customer 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private WorkOrderCustomerMapper createWorkOrderCustomerMapperProxy(WorkOrderCustomer customer) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectById".equals(method.getName())) {
@@ -2406,12 +2775,20 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    /**createSysCompanyMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param companies 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private SysCompanyMapper createSysCompanyMapperProxy(List<SysCompany> companies) {
         Map<Long, SysCompany> companyMap = new LinkedHashMap<>();
         for (SysCompany company : companies) {
             companyMap.put(company.getId(), company);
         }
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectById".equals(method.getName())) {
@@ -2438,6 +2815,10 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    /**createUserCompanyMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param companyId 公司ID。
+@param userIds 用户ID，用于定位操作人或业务归属人。
+@return 新增或保存后的业务标识或处理结果。*/
     private SysUserCompanyMapper createUserCompanyMapperProxy(Long companyId, List<Long> userIds) {
         List<SysUserCompany> userCompanies = new ArrayList<>();
         for (Long userId : userIds) {
@@ -2447,6 +2828,11 @@ public class WorkOrderServiceImplTest {
             userCompanies.add(userCompany);
         }
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectList".equals(method.getName())) {
@@ -2462,8 +2848,16 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    /**createSysMenuMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param userPermsMap 业务映射数据，用于提升后续组装或匹配效率。
+@return 新增或保存后的业务标识或处理结果。*/
     private SysMenuMapper createSysMenuMapperProxy(Map<Long, Set<String>> userPermsMap) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectPermsByUserIdAndCompanyId".equals(method.getName())) {
@@ -2481,18 +2875,32 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    /**invokePrivateMethod 处理逻辑，服务于当前类的业务编排和数据转换。
+@param target target 字段参数。
+@param methodName 名称文本，用于展示、匹配或保存业务对象名称。
+@param parameterTypes parameterTypes 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
     private Object invokePrivateMethod(Object target, String methodName, Class<?>[] parameterTypes, Object... args) throws Exception {
         Method method = target.getClass().getDeclaredMethod(methodName, parameterTypes);
         method.setAccessible(true);
         return method.invoke(target, args);
     }
 
+    /**invokeGetter 处理逻辑，服务于当前类的业务编排和数据转换。
+@param target target 字段参数。
+@param methodName 名称文本，用于展示、匹配或保存业务对象名称。
+@return 处理后的业务结果。*/
     private Object invokeGetter(Object target, String methodName) throws Exception {
         Method method = target.getClass().getDeclaredMethod(methodName);
         method.setAccessible(true);
         return method.invoke(target);
     }
 
+    /**buildRepairFaultOption 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param faultDesc faultDesc 字段参数。
+@param repairOptions 业务数据列表，用于批量处理或返回组装。
+@return 处理后的业务结果。*/
     private WorkOrderRepairFaultOptionVO buildRepairFaultOption(String faultDesc, List<String> repairOptions) {
         WorkOrderRepairFaultOptionVO option = new WorkOrderRepairFaultOptionVO();
         option.setFaultDesc(faultDesc);
@@ -2500,6 +2908,11 @@ public class WorkOrderServiceImplTest {
         return option;
     }
 
+    /**fillRepairSubmission 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param dto 业务请求参数，承载本次操作需要提交的字段。
+@param repairDesc repairDesc 字段参数。
+@param partName 名称文本，用于展示、匹配或保存业务对象名称。
+@param partQty partQty 字段参数。*/
     private void fillRepairSubmission(WorkOrderRepairDTO dto, String repairDesc, String partName, Integer partQty) {
         dto.setRepairDesc(repairDesc);
         WorkOrderFaultPartItemDTO partItem = new WorkOrderFaultPartItemDTO();
@@ -2508,6 +2921,11 @@ public class WorkOrderServiceImplTest {
         dto.setPartList(Collections.singletonList(partItem));
     }
 
+    /**buildCompany 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param companyId 公司ID。
+@param companyName 名称文本，用于展示、匹配或保存业务对象名称。
+@param typeCode 业务编码，用于匹配枚举、配置或外部系统数据。
+@return 处理后的业务结果。*/
     private SysCompany buildCompany(Long companyId, String companyName, String typeCode) {
         SysCompany company = new SysCompany();
         company.setId(companyId);
@@ -2517,6 +2935,12 @@ public class WorkOrderServiceImplTest {
         return company;
     }
 
+    /**buildUser 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param userId 用户ID。
+@param realName 名称文本，用于展示、匹配或保存业务对象名称。
+@param phone phone 字段参数。
+@param status 业务状态编码，用于判断或更新当前流程节点。
+@return 处理后的业务结果。*/
     private SysUser buildUser(Long userId, String realName, String phone, Integer status) {
         SysUser user = new SysUser();
         user.setId(userId);
@@ -2526,6 +2950,10 @@ public class WorkOrderServiceImplTest {
         return user;
     }
 
+    /**buildCompanyType 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param typeCode 业务编码，用于匹配枚举、配置或外部系统数据。
+@param subjectType subjectType 字段参数。
+@return 处理后的业务结果。*/
     private SysCompanyType buildCompanyType(String typeCode, String subjectType) {
         SysCompanyType companyType = new SysCompanyType();
         companyType.setTypeCode(typeCode);
@@ -2533,6 +2961,10 @@ public class WorkOrderServiceImplTest {
         return companyType;
     }
 
+    /**buildRelation 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param firstCompanyId firstCompanyId 字段。
+@param secondCompanyId secondCompanyId 字段。
+@return 处理后的业务结果。*/
     private FirstSecondRelation buildRelation(Long firstCompanyId, Long secondCompanyId) {
         FirstSecondRelation relation = new FirstSecondRelation();
         relation.setFirstCompanyId(firstCompanyId);
@@ -2541,6 +2973,8 @@ public class WorkOrderServiceImplTest {
         return relation;
     }
 
+    /**buildRepairWorkOrder 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@return 处理后的业务结果。*/
     private WorkOrder buildRepairWorkOrder() {
         WorkOrder workOrder = new WorkOrder();
         workOrder.setId(5L);
@@ -2550,12 +2984,19 @@ public class WorkOrderServiceImplTest {
         return workOrder;
     }
 
+    /**setField 处理逻辑，服务于当前类的业务编排和数据转换。
+@param target target 字段参数。
+@param fieldName 名称文本，用于展示、匹配或保存业务对象名称。
+@param value value 字段参数。*/
     private void setField(Object target, String fieldName, Object value) throws Exception {
         Field field = WorkOrderServiceImpl.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(target, value);
     }
 
+    /**defaultValue 处理逻辑，服务于当前类的业务编排和数据转换。
+@param returnType returnType 字段参数。
+@return 处理后的业务结果。*/
     private Object defaultValue(Class<?> returnType) {
         if (!returnType.isPrimitive()) {
             return null;
@@ -2579,6 +3020,9 @@ public class WorkOrderServiceImplTest {
         return null;
     }
 
+    /**runWithLoginContext 处理逻辑，服务于当前类的业务编排和数据转换。
+@param userId 用户ID。
+@param runnable runnable 字段参数。*/
     private void runWithLoginContext(Long userId, ThrowingRunnable runnable) throws Exception {
         SaManager.setSaTokenContext(new SaTokenContextForThreadLocal());
         SaTokenContextForThreadLocalStorage.setBox(new MockSaRequest(), new MockSaResponse(), new MockSaStorage());
@@ -2594,9 +3038,14 @@ public class WorkOrderServiceImplTest {
         }
     }
 
+    /**runWithDetailLoginContext 处理逻辑，服务于当前类的业务编排和数据转换。
+@param workOrder workOrder 字段参数。
+@param service service 字段参数。
+@return 处理后的业务结果。*/
     private WorkOrderDetailVO runWithDetailLoginContext(WorkOrder workOrder, WorkOrderServiceImpl service) throws Exception {
         final WorkOrderDetailVO[] result = new WorkOrderDetailVO[1];
         runWithLoginContext(101L, new ThrowingRunnable() {
+            /**run 处理逻辑，服务于当前类的业务编排和数据转换。*/
             @Override
             public void run() throws Exception {
                 com.jasic.aftersales.framework.security.SecurityContext.setCurrentCompanyId(workOrder.getCurrentAcceptCompanyId());
@@ -2606,12 +3055,21 @@ public class WorkOrderServiceImplTest {
         return result[0];
     }
 
+    /**ThrowingRunnable 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private interface ThrowingRunnable {
+        /**run 处理逻辑，服务于当前类的业务编排和数据转换。*/
         void run() throws Exception;
     }
 
+    /**AllowViewWorkOrderPermissionService 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class AllowViewWorkOrderPermissionService extends WorkOrderPermissionService {
 
+        /**resolveAccessContext 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@return 查询或解析得到的业务对象。*/
         @Override
         public WorkOrderAccessContext resolveAccessContext() {
             WorkOrderAccessContext context = new WorkOrderAccessContext();
@@ -2624,21 +3082,37 @@ public class WorkOrderServiceImplTest {
             return context;
         }
 
+        /**canView 业务条件，用于决定后续流程是否允许继续执行。
+@param workOrder workOrder 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
         @Override
         public boolean canView(WorkOrder workOrder) {
             return true;
         }
 
+        /**canView 业务条件，用于决定后续流程是否允许继续执行。
+@param workOrder workOrder 字段参数。
+@param context context 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
         @Override
         public boolean canView(WorkOrder workOrder, WorkOrderAccessContext context) {
             return true;
         }
 
+        /**listAvailableActions 业务数据，按查询条件和数据权限返回可见范围内的结果。
+@param workOrder workOrder 字段参数。
+@param context context 字段参数。
+@return 查询或组装后的业务数据集合。*/
         @Override
         public List<String> listAvailableActions(WorkOrder workOrder, WorkOrderAccessContext context) {
             return Collections.emptyList();
         }
 
+        /**getReadonlyReason 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param workOrder workOrder 字段参数。
+@param availableActions 业务数据列表，用于批量处理或返回组装。
+@param context context 字段参数。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getReadonlyReason(WorkOrder workOrder, List<String> availableActions,
                                         WorkOrderAccessContext context) {
@@ -2646,14 +3120,28 @@ public class WorkOrderServiceImplTest {
         }
     }
 
+    /**TransferParticipantRecorder 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class TransferParticipantRecorder extends WorkOrderParticipantService {
 
+        /**工单ID，用于当前类内部业务处理。*/
         private Long workOrderId;
+        /**fromCompanyId 字段，用于当前类内部业务处理。*/
         private Long fromCompanyId;
+        /**fromSubjectType 字段，用于当前类内部业务处理。*/
         private String fromSubjectType;
+        /**toCompanyId 字段，用于当前类内部业务处理。*/
         private Long toCompanyId;
+        /**toSubjectType 字段，用于当前类内部业务处理。*/
         private String toSubjectType;
 
+        /**transferParticipant 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param workOrderId 工单ID。
+@param fromCompanyId fromCompanyId 字段。
+@param fromSubjectType fromSubjectType 字段参数。
+@param toCompanyId toCompanyId 字段。
+@param toSubjectType toSubjectType 字段参数。*/
         @Override
         public void transferParticipant(Long workOrderId, Long fromCompanyId, String fromSubjectType,
                                         Long toCompanyId, String toSubjectType) {
@@ -2665,10 +3153,20 @@ public class WorkOrderServiceImplTest {
         }
     }
 
+    /**UserParticipantRecorder 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class UserParticipantRecorder extends WorkOrderUserParticipantService {
 
+        /**records 字段，用于当前类内部业务处理。*/
         private final List<String> records = new ArrayList<>();
 
+        /**recordAction 处理逻辑，服务于当前类的业务编排和数据转换。
+@param workOrderId 工单ID。
+@param companyId 公司ID。
+@param userId 用户ID。
+@param action action 字段参数。
+@param actionTime actionTime 字段参数。*/
         @Override
         public void recordAction(Long workOrderId, Long companyId, Long userId,
                                  WorkOrderUserParticipationActionEnum action, LocalDateTime actionTime) {
@@ -2676,171 +3174,266 @@ public class WorkOrderServiceImplTest {
         }
     }
 
+    /**RecordingWorkOrderNotifyFacade 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class RecordingWorkOrderNotifyFacade implements WorkOrderNotifyFacade {
 
+        /**acceptEvents 字段，用于当前类内部业务处理。*/
         private final List<NotifyWorkOrderAcceptEventDTO> acceptEvents = new ArrayList<>();
+        /**publishedEvents 字段，用于当前类内部业务处理。*/
         private final List<NotifyAssignedEventDTO> publishedEvents = new ArrayList<>();
+        /**acceptedEvents 字段，用于当前类内部业务处理。*/
         private final List<NotifyWorkOrderAcceptedEventDTO> acceptedEvents = new ArrayList<>();
+        /**transferInEvents 字段，用于当前类内部业务处理。*/
         private final List<NotifyWorkOrderTransferInEventDTO> transferInEvents = new ArrayList<>();
+        /**transferNoticeEvents 字段，用于当前类内部业务处理。*/
         private final List<NotifyWorkOrderTransferNoticeEventDTO> transferNoticeEvents = new ArrayList<>();
+        /**evaluationInviteEvents 字段，用于当前类内部业务处理。*/
         private final List<NotifyEvaluationInviteEventDTO> evaluationInviteEvents = new ArrayList<>();
+        /**evaluatedEvents 字段，用于当前类内部业务处理。*/
         private final List<NotifyWorkOrderEvaluatedEventDTO> evaluatedEvents = new ArrayList<>();
+        /**readByBizRequests 字段，用于当前类内部业务处理。*/
         private final List<NotifyReadByBizDTO> readByBizRequests = new ArrayList<>();
+        /**completedTodos 字段，用于当前类内部业务处理。*/
         private final List<NotifyTodoCompleteDTO> completedTodos = new ArrayList<>();
+        /**invalidatedTodos 字段，用于当前类内部业务处理。*/
         private final List<NotifyTodoInvalidateDTO> invalidatedTodos = new ArrayList<>();
 
+        /**publishAcceptEvent 通知或消息，保证业务动作完成后相关人员能够收到后续处理信息。
+@param dto 业务请求参数，承载本次操作需要提交的字段。*/
         @Override
         public void publishAcceptEvent(NotifyWorkOrderAcceptEventDTO dto) {
             acceptEvents.add(dto);
         }
 
+        /**publishTransferInEvent 通知或消息，保证业务动作完成后相关人员能够收到后续处理信息。
+@param dto 业务请求参数，承载本次操作需要提交的字段。*/
         @Override
         public void publishTransferInEvent(NotifyWorkOrderTransferInEventDTO dto) {
             transferInEvents.add(dto);
         }
 
+        /**publishAssignedEvent 通知或消息，保证业务动作完成后相关人员能够收到后续处理信息。
+@param dto 业务请求参数，承载本次操作需要提交的字段。*/
         @Override
         public void publishAssignedEvent(NotifyAssignedEventDTO dto) {
             publishedEvents.add(dto);
         }
 
+        /**publishAcceptedEvent 通知或消息，保证业务动作完成后相关人员能够收到后续处理信息。
+@param dto 业务请求参数，承载本次操作需要提交的字段。*/
         @Override
         public void publishAcceptedEvent(NotifyWorkOrderAcceptedEventDTO dto) {
             acceptedEvents.add(dto);
         }
 
+        /**publishTransferNoticeEvent 通知或消息，保证业务动作完成后相关人员能够收到后续处理信息。
+@param dto 业务请求参数，承载本次操作需要提交的字段。*/
         @Override
         public void publishTransferNoticeEvent(NotifyWorkOrderTransferNoticeEventDTO dto) {
             transferNoticeEvents.add(dto);
         }
 
+        /**publishEvaluationInviteEvent 通知或消息，保证业务动作完成后相关人员能够收到后续处理信息。
+@param dto 业务请求参数，承载本次操作需要提交的字段。*/
         @Override
         public void publishEvaluationInviteEvent(NotifyEvaluationInviteEventDTO dto) {
             evaluationInviteEvents.add(dto);
         }
 
+        /**publishEvaluatedEvent 通知或消息，保证业务动作完成后相关人员能够收到后续处理信息。
+@param dto 业务请求参数，承载本次操作需要提交的字段。*/
         @Override
         public void publishEvaluatedEvent(NotifyWorkOrderEvaluatedEventDTO dto) {
             evaluatedEvents.add(dto);
         }
 
+        /**markReadByBiz 处理逻辑，服务于当前类的业务编排和数据转换。
+@param dto 业务请求参数，承载本次操作需要提交的字段。*/
         @Override
         public void markReadByBiz(NotifyReadByBizDTO dto) {
             readByBizRequests.add(dto);
         }
 
+        /**completeTodoByBizAndReceiver 处理逻辑，服务于当前类的业务编排和数据转换。
+@param dto 业务请求参数，承载本次操作需要提交的字段。*/
         @Override
         public void completeTodoByBizAndReceiver(NotifyTodoCompleteDTO dto) {
             completedTodos.add(dto);
         }
 
+        /**invalidateTodoByBiz 处理逻辑，服务于当前类的业务编排和数据转换。
+@param dto 业务请求参数，承载本次操作需要提交的字段。*/
         @Override
         public void invalidateTodoByBiz(NotifyTodoInvalidateDTO dto) {
             invalidatedTodos.add(dto);
         }
     }
 
+    /**MockSaRequest 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class MockSaRequest implements SaRequest {
 
+        /**getSource 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public Object getSource() {
             return this;
         }
 
+        /**getParam 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getParam(String name) {
             return null;
         }
 
+        /**getParamNames 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或组装后的业务数据集合。*/
         @Override
         public List<String> getParamNames() {
             return Collections.emptyList();
         }
 
+        /**getParamMap 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或组装后的业务数据集合。*/
         @Override
         public Map<String, String> getParamMap() {
             return Collections.emptyMap();
         }
 
+        /**getHeader 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getHeader(String name) {
             return null;
         }
 
+        /**getCookieValue 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getCookieValue(String name) {
             return null;
         }
 
+        /**getRequestPath 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getRequestPath() {
             return "/";
         }
 
+        /**getUrl 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getUrl() {
             return "http://localhost/test";
         }
 
+        /**getMethod 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getMethod() {
             return "GET";
         }
 
+        /**forward 处理逻辑，服务于当前类的业务编排和数据转换。
+@param path path 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public Object forward(String path) {
             return null;
         }
     }
 
+    /**MockSaResponse 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class MockSaResponse implements SaResponse {
 
+        /**getSource 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public Object getSource() {
             return this;
         }
 
+        /**setStatus 处理逻辑，服务于当前类的业务编排和数据转换。
+@param sc sc 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaResponse setStatus(int sc) {
             return this;
         }
 
+        /**setHeader 处理逻辑，服务于当前类的业务编排和数据转换。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@param value value 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaResponse setHeader(String name, String value) {
             return this;
         }
 
+        /**addHeader 处理逻辑，服务于当前类的业务编排和数据转换。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@param value value 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaResponse addHeader(String name, String value) {
             return this;
         }
 
+        /**redirect 处理逻辑，服务于当前类的业务编排和数据转换。
+@param url url 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public Object redirect(String url) {
             return null;
         }
     }
 
+    /**MockSaStorage 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class MockSaStorage implements SaStorage {
 
+        /**values 字段，用于当前类内部业务处理。*/
         private final Map<String, Object> values = new LinkedHashMap<>();
 
+        /**getSource 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public Object getSource() {
             return this;
         }
 
+        /**get 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param key key 字段参数。
+@return 查询或解析得到的业务对象。*/
         @Override
         public Object get(String key) {
             return values.get(key);
         }
 
+        /**set 处理逻辑，服务于当前类的业务编排和数据转换。
+@param key key 字段参数。
+@param value value 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaStorage set(String key, Object value) {
             values.put(key, value);
             return this;
         }
 
+        /**delete 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param key key 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaStorage delete(String key) {
             values.remove(key);

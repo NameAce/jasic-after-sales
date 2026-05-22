@@ -24,8 +24,8 @@ public class StpInterfaceImpl implements StpInterface {
      * 对象模板依赖。
      *
      * @param loginId login ID
-     * @param loginType 参数
-     * @return 处理结果
+     * @param loginType loginType，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
@@ -39,21 +39,17 @@ public class StpInterfaceImpl implements StpInterface {
      */
     @Override
     public List<String> getPermissionList(Object loginId, String loginType) {
-        // 调用getCurrentCompanyId方法，复用统一能力并保证业务规则一致。
         Long companyId = SecurityContext.getCurrentCompanyId();
         if (companyId == null) {
             return Collections.emptyList();
         }
         String key = CacheConstants.USER_PERMS_KEY + loginId + ":" + companyId;
-        // 调用members方法，复用统一能力并保证业务规则一致。
         Set<Object> perms = redisTemplate.opsForSet().members(key);
         if (perms == null || perms.isEmpty()) {
             return Collections.emptyList();
         }
-        // 调用size方法，复用统一能力并保证业务规则一致。
         List<String> permList = new ArrayList<>(perms.size());
         for (Object perm : perms) {
-            // 调用toString方法，复用统一能力并保证业务规则一致。
             permList.add(perm.toString());
         }
         return permList;

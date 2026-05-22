@@ -9,7 +9,7 @@ import lombok.EqualsAndHashCode;
 /**
  * 通知记录排障查询参数。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/14
  */
 @ApiModel(description = "通知记录排障查询参数")

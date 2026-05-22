@@ -43,9 +43,11 @@ import io.swagger.annotations.ApiOperation;
 @RequestMapping("/org/company")
 public class SysCompanyController extends BaseController {
 
+    /**companyService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private ISysCompanyService companyService;
 
+    /**crmBizCompanySnapshotService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private ICrmBizCompanySnapshotService crmBizCompanySnapshotService;
 
@@ -59,7 +61,6 @@ public class SysCompanyController extends BaseController {
     @SaCheckPermission("org:company:list")
     @GetMapping("/list")
     public Result<PageResult<SysCompany>> list(SysCompanyQuery query) {
-        // 调用listPage方法，复用统一能力并保证业务规则一致。
         PageResult<SysCompany> page = companyService.listPage(query);
         return Result.ok(page);
     }
@@ -67,8 +68,8 @@ public class SysCompanyController extends BaseController {
     /**
      * 分页查询ExternalCompanies列表。
      *
-     * @param query 参数
-     * @return 处理结果
+     * @param query 查询条件，包含分页、筛选和权限收口所需字段。
+     * @return 业务处理结果
      */
     @ApiOperation(value = "分页查询 CRM 公司快照")
     @SaCheckPermission("org:company:add")
@@ -82,7 +83,7 @@ public class SysCompanyController extends BaseController {
      * 获取External公司Import预览。
      *
      * @param custId cust ID
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @ApiOperation(value = "查询 CRM 公司导入预览")
     @SaCheckPermission("org:company:add")
@@ -101,7 +102,6 @@ public class SysCompanyController extends BaseController {
     @ApiOperation(value = "根据ID查询公司")
     @GetMapping("/{id}")
     public Result<SysCompany> getById(@PathVariable Long id) {
-        // 调用getById方法，复用统一能力并保证业务规则一致。
         SysCompany entity = companyService.getById(id);
         return Result.ok(entity);
     }
@@ -117,7 +117,6 @@ public class SysCompanyController extends BaseController {
     @OperLog(title = "公司管理", operType = OperTypeEnum.INSERT)
     @PostMapping
     public Result<SysCompanySaveResultVO> save(@Validated @RequestBody SysCompanyDTO dto) {
-        // 调用save方法，复用统一能力并保证业务规则一致。
         Long id = companyService.save(dto);
         return Result.ok(buildSaveResult(companyService.getById(id)));
     }
@@ -133,7 +132,6 @@ public class SysCompanyController extends BaseController {
     @OperLog(title = "公司管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
     public Result<SysCompanySaveResultVO> update(@Validated @RequestBody SysCompanyDTO dto) {
-        // 调用update方法，复用统一能力并保证业务规则一致。
         companyService.update(dto);
         return Result.ok(buildSaveResult(companyService.getById(dto.getId())));
     }
@@ -149,7 +147,6 @@ public class SysCompanyController extends BaseController {
     @OperLog(title = "公司管理", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/{id}")
     public Result<Void> remove(@PathVariable Long id) {
-        // 调用remove方法，复用统一能力并保证业务规则一致。
         companyService.remove(id);
         return Result.ok();
     }
@@ -157,16 +154,13 @@ public class SysCompanyController extends BaseController {
     /**
      * 构建Save结果。
      *
-     * @param company 参数
-     * @return 处理结果
+     * @param company 公司业务对象或公司相关值，用于归属、权限或展示。
+     * @return 业务处理结果
      */
     private SysCompanySaveResultVO buildSaveResult(SysCompany company) {
-        // 调用SysCompanySaveResultVO方法，复用统一能力并保证业务规则一致。
         SysCompanySaveResultVO vo = new SysCompanySaveResultVO();
         if (company != null) {
-            // 调用getId方法，复用统一能力并保证业务规则一致。
             vo.setId(company.getId());
-            // 调用getGeocodeStatus方法，复用统一能力并保证业务规则一致。
             vo.setGeocodeStatus(company.getGeocodeStatus());
         }
         return vo;

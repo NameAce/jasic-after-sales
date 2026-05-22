@@ -14,7 +14,7 @@ import lombok.EqualsAndHashCode;
  * 场景名称、业务类型、事件编码由注册表给出，表中主要承载场景启停状态和后台备注。
  * 该实体不承载具体通知目标配置，也不负责运行时发送。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 @Data

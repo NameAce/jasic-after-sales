@@ -25,7 +25,6 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true)
-                // 调用maxAge方法，复用统一能力并保证业务规则一致。
                 .maxAge(3600);
     }
 }

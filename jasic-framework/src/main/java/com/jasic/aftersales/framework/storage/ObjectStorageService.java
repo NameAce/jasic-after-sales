@@ -5,7 +5,7 @@ import org.springframework.web.multipart.MultipartFile;
 /**
  * 对象存储服务
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/07
  */
 public interface ObjectStorageService {

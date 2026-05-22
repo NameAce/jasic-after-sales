@@ -29,27 +29,34 @@ import java.util.regex.Pattern;
 /**
  * 条码主数据同步 Service 实现
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/12
  */
 @Slf4j
 @Service
 public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService {
 
+    /**TABLE_NAME_PATTERN 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final Pattern TABLE_NAME_PATTERN = Pattern.compile("^[A-Za-z0-9_$.]+$");
+    /**CRM_BARCODE_TABLE 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String CRM_BARCODE_TABLE = "order_deliver_barcode";
+    /**CRM_PRODUCT_TABLE 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String CRM_PRODUCT_TABLE = "sap_product_info";
+    /**LOCAL_COMPANY_MAPPING_TABLE 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String LOCAL_COMPANY_MAPPING_TABLE = "crm_company_mapping";
+    /**DEFAULT_BATCH_SIZE 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final int DEFAULT_BATCH_SIZE = 1000;
+    /**PROGRESS_LOG_INTERVAL 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final int PROGRESS_LOG_INTERVAL = 10000;
 
+    /**jdbcTemplate 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource(name = "jdbcTemplate")
     private JdbcTemplate jdbcTemplate;
 
     /**
      * JDBC模板模板依赖。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @Resource(name = "crmJdbcTemplate")
     private JdbcTemplate crmJdbcTemplate;
@@ -58,18 +65,14 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
      * 处理fullSyncFromCrm业务逻辑。
      *
      * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @Override
     public MachineBarcodeSyncResultVO fullSyncFromCrm() {
-        // 调用getEarliestAddTime方法，复用统一能力并保证业务规则一致。
         LocalDateTime earliestAddTime = getEarliestAddTime();
         if (earliestAddTime == null) {
-            // 调用MachineBarcodeSyncResultVO方法，复用统一能力并保证业务规则一致。
             MachineBarcodeSyncResultVO result = new MachineBarcodeSyncResultVO();
-            // 调用now方法，复用统一能力并保证业务规则一致。
             result.setStartTime(LocalDateTime.now());
-            // 调用now方法，复用统一能力并保证业务规则一致。
             result.setEndTime(LocalDateTime.now());
             return result;
         }
@@ -79,18 +82,14 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
     /**
      * 获取EarliestAddTime。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @Override
     public LocalDateTime getEarliestAddTime() {
-        // 说明：执行该步骤以保证业务流程正确。
         JdbcTemplate crm = requireCrmJdbcTemplate();
-        // 调用validateTableName方法，复用统一能力并保证业务规则一致。
         String barcodeTable = validateTableName(CRM_BARCODE_TABLE, "CRM 主条码表");
         String sql = "SELECT MIN(add_time) FROM " + barcodeTable
-                // 调用TRIM方法，复用统一能力并保证业务规则一致。
                 + " WHERE barcode IS NOT NULL AND TRIM(barcode) <> '' AND add_time IS NOT NULL";
-        // 调用queryForObject方法，复用统一能力并保证业务规则一致。
         Timestamp timestamp = crm.queryForObject(sql, Timestamp.class);
         return timestamp == null ? null : timestamp.toLocalDateTime();
     }
@@ -98,54 +97,39 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
     /**
      * 同步ByAddTimeRange。
      *
-     * @param startInclusive 参数
-     * @param endExclusive 参数
-     * @return 处理结果
+     * @param startInclusive startInclusive，当前业务处理所需的输入值。
+     * @param endExclusive endExclusive，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     @Override
     public MachineBarcodeSyncResultVO syncByAddTimeRange(LocalDateTime startInclusive, LocalDateTime endExclusive) {
         if (startInclusive == null || endExclusive == null || !startInclusive.isBefore(endExclusive)) {
             throw new ServiceException("条码同步时间范围不合法");
         }
-        // 调用info方法，复用统一能力并保证业务规则一致。
         log.info("条码同步开始，数据范围=[{}, {})", startInclusive, endExclusive);
 
-        // 说明：执行该步骤以保证业务流程正确。
         JdbcTemplate crm = requireCrmJdbcTemplate();
-        // 调用validateTableName方法，复用统一能力并保证业务规则一致。
         String barcodeTable = validateTableName(CRM_BARCODE_TABLE, "CRM 主条码表");
-        // 调用validateTableName方法，复用统一能力并保证业务规则一致。
         String productTable = validateTableName(CRM_PRODUCT_TABLE, "SAP 物料表");
-        // 调用validateTableName方法，复用统一能力并保证业务规则一致。
         String companyMappingTable = validateTableName(LOCAL_COMPANY_MAPPING_TABLE, "CRM 公司映射表");
 
-        // 调用loadCompanyMappings方法，复用统一能力并保证业务规则一致。
         CompanyMappingSnapshot mappingSnapshot = loadCompanyMappings(companyMappingTable);
         log.info("条码同步已加载公司映射：custId映射 {} 条，salesOrg映射 {} 条",
                 mappingSnapshot.getSalesOrgByCustId().size(),
-                // 调用size方法，复用统一能力并保证业务规则一致。
                 mappingSnapshot.getHqCompanyIdBySalesOrg().size());
-        // 调用loadAllProductSnapshots方法，复用统一能力并保证业务规则一致。
         Map<ProductKey, ProductSnapshot> productSnapshotMap = loadAllProductSnapshots(crm, productTable);
-        // 调用size方法，复用统一能力并保证业务规则一致。
         log.info("条码同步已加载物料快照 {} 条", productSnapshotMap.size());
-        // 调用SyncSummary方法，复用统一能力并保证业务规则一致。
         SyncSummary summary = new SyncSummary();
-        // 调用now方法，复用统一能力并保证业务规则一致。
         summary.setStartTime(LocalDateTime.now());
 
         LocalDateTime current = startInclusive;
         while (current.isBefore(endExclusive)) {
-            // 调用nextMonthStart方法，复用统一能力并保证业务规则一致。
             LocalDateTime next = nextMonthStart(current);
             if (next.isAfter(endExclusive)) {
                 next = endExclusive;
             }
-            // 调用info方法，复用统一能力并保证业务规则一致。
             log.info("条码同步开始处理月切片，范围=[{}, {})", current, next);
-            // 调用syncBarcodeBase方法，复用统一能力并保证业务规则一致。
             SyncSummary sliceSummary = syncBarcodeBase(crm, barcodeTable, current, next, mappingSnapshot, productSnapshotMap);
-            // 调用mergeSummary方法，复用统一能力并保证业务规则一致。
             mergeSummary(summary, sliceSummary);
             log.info("条码同步完成月切片，范围=[{}, {})，处理 {} 条，新增 {} 条，跳过 {} 条，总部未匹配 {} 条，总部冲突 {} 条，物料未匹配 {} 条",
                     current,
@@ -155,11 +139,9 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
                     sliceSummary.getSkippedExistingCount(),
                     sliceSummary.getHqUnmatchedCount(),
                     sliceSummary.getHqConflictCount(),
-                    // 调用getProductUnmatchedCount方法，复用统一能力并保证业务规则一致。
                     sliceSummary.getProductUnmatchedCount());
             current = next;
         }
-        // 调用now方法，复用统一能力并保证业务规则一致。
         summary.setEndTime(LocalDateTime.now());
         log.info("条码同步结束，数据范围=[{}, {})，总处理 {} 条，新增 {} 条，跳过 {} 条，总部未匹配 {} 条，总部冲突 {} 条，物料未匹配 {} 条",
                 startInclusive,
@@ -169,30 +151,18 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
                 summary.getSkippedExistingCount(),
                 summary.getHqUnmatchedCount(),
                 summary.getHqConflictCount(),
-                // 调用getProductUnmatchedCount方法，复用统一能力并保证业务规则一致。
                 summary.getProductUnmatchedCount());
 
-        // 调用MachineBarcodeSyncResultVO方法，复用统一能力并保证业务规则一致。
         MachineBarcodeSyncResultVO result = new MachineBarcodeSyncResultVO();
-        // 调用getStartTime方法，复用统一能力并保证业务规则一致。
         result.setStartTime(summary.getStartTime());
-        // 调用getEndTime方法，复用统一能力并保证业务规则一致。
         result.setEndTime(summary.getEndTime());
-        // 调用getProcessedCount方法，复用统一能力并保证业务规则一致。
         result.setBarcodeProcessedCount(summary.getProcessedCount());
-        // 调用getInsertedCount方法，复用统一能力并保证业务规则一致。
         result.setInsertedCount(summary.getInsertedCount());
-        // 调用getSkippedExistingCount方法，复用统一能力并保证业务规则一致。
         result.setSkippedExistingCount(summary.getSkippedExistingCount());
-        // 调用getHqUnmatchedCount方法，复用统一能力并保证业务规则一致。
         result.setHqUnmatchedCount(summary.getHqUnmatchedCount());
-        // 调用getHqConflictCount方法，复用统一能力并保证业务规则一致。
         result.setHqConflictCount(summary.getHqConflictCount());
-        // 调用getProductUnmatchedCount方法，复用统一能力并保证业务规则一致。
         result.setProductUnmatchedCount(summary.getProductUnmatchedCount());
-        // 调用setDealerProcessedCount方法，复用统一能力并保证业务规则一致。
         result.setDealerProcessedCount(0);
-        // 调用setDealerUpdatedCount方法，复用统一能力并保证业务规则一致。
         result.setDealerUpdatedCount(0);
         return result;
     }
@@ -200,18 +170,17 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
     /**
      * 同步条码基础。
      *
-     * @param crm 参数
-     * @param barcodeTable 参数
-     * @param startInclusive 参数
-     * @param endExclusive 参数
-     * @param mappingSnapshot 参数
-     * @param productSnapshotMap 参数
-     * @return 处理结果
+     * @param crm crm，当前业务处理所需的输入值。
+     * @param barcodeTable 业务编码，用于匹配枚举、配置或外部系统数据。
+     * @param startInclusive startInclusive，当前业务处理所需的输入值。
+     * @param endExclusive endExclusive，当前业务处理所需的输入值。
+     * @param mappingSnapshot 业务映射数据，用于批量组装或快速查找。
+     * @param productSnapshotMap 业务映射数据，用于批量组装或快速查找。
+     * @return 业务处理结果
      */
     private SyncSummary syncBarcodeBase(JdbcTemplate crm, String barcodeTable, LocalDateTime startInclusive,
                                         LocalDateTime endExclusive, CompanyMappingSnapshot mappingSnapshot,
                                         Map<ProductKey, ProductSnapshot> productSnapshotMap) {
-        // 调用SyncSummary方法，复用统一能力并保证业务规则一致。
         SyncSummary summary = new SyncSummary();
         final LocalDateTime[] latestAddTimeHolder = new LocalDateTime[1];
         final String[] latestBarcodeHolder = new String[1];
@@ -222,36 +191,24 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
                 + "ORDER BY add_time ASC, barcode ASC";
 
         List<CrmBarcodeRow> batchRows = new ArrayList<>(DEFAULT_BATCH_SIZE);
-        // 调用now方法，复用统一能力并保证业务规则一致。
         LocalDateTime syncTime = LocalDateTime.now();
         crm.query(connection -> {
-            // 调用prepareStatement方法，复用统一能力并保证业务规则一致。
             PreparedStatement ps = connection.prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
-            // 调用setFetchSize方法，复用统一能力并保证业务规则一致。
             ps.setFetchSize(Integer.MIN_VALUE);
-            // 调用toTimestamp方法，复用统一能力并保证业务规则一致。
             ps.setTimestamp(1, toTimestamp(startInclusive));
-            // 调用toTimestamp方法，复用统一能力并保证业务规则一致。
             ps.setTimestamp(2, toTimestamp(endExclusive));
             return ps;
         }, rs -> {
             while (rs.next()) {
-                // 调用getRow方法，复用统一能力并保证业务规则一致。
                 CrmBarcodeRow row = CRM_BARCODE_ROW_MAPPER.mapRow(rs, rs.getRow());
                 if (row == null || StrUtil.isBlank(row.getBarcode())) {
                     continue;
                 }
-                // 调用addProcessedCount方法，复用统一能力并保证业务规则一致。
                 summary.addProcessedCount(1);
-                // 调用getAddTime方法，复用统一能力并保证业务规则一致。
                 latestAddTimeHolder[0] = row.getAddTime();
-                // 调用getBarcode方法，复用统一能力并保证业务规则一致。
                 latestBarcodeHolder[0] = row.getBarcode();
-                // 调用enrichCompanyMapping方法，复用统一能力并保证业务规则一致。
                 enrichCompanyMapping(row, mappingSnapshot, summary);
-                // 调用enrichProductInfo方法，复用统一能力并保证业务规则一致。
                 enrichProductInfo(row, productSnapshotMap, summary);
-                // 调用add方法，复用统一能力并保证业务规则一致。
                 batchRows.add(row);
                 if (summary.getProcessedCount() % PROGRESS_LOG_INTERVAL == 0) {
                     log.info("条码同步切片进行中，范围=[{}, {})，已处理 {} 条，当前 add_time={}，当前 barcode={}",
@@ -262,9 +219,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
                             latestBarcodeHolder[0]);
                 }
                 if (batchRows.size() >= DEFAULT_BATCH_SIZE) {
-                    // 调用batchInsertBarcodeRows方法，复用统一能力并保证业务规则一致。
                     batchInsertBarcodeRows(batchRows, syncTime, summary);
-                    // 调用clear方法，复用统一能力并保证业务规则一致。
                     batchRows.clear();
                 }
             }
@@ -272,7 +227,6 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         });
 
         if (CollUtil.isNotEmpty(batchRows)) {
-            // 调用batchInsertBarcodeRows方法，复用统一能力并保证业务规则一致。
             batchInsertBarcodeRows(batchRows, syncTime, summary);
         }
         return summary;
@@ -281,61 +235,49 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
     /**
      * mergeSummary。
      *
-     * @param target 参数
-     * @param source 参数
+     * @param target target，当前业务处理所需的输入值。
+     * @param source source，当前业务处理所需的输入值。
      */
     private void mergeSummary(SyncSummary target, SyncSummary source) {
-        // 调用getProcessedCount方法，复用统一能力并保证业务规则一致。
         target.addProcessedCount(source.getProcessedCount());
-        // 调用getInsertedCount方法，复用统一能力并保证业务规则一致。
         target.addInsertedCount(source.getInsertedCount());
-        // 调用getSkippedExistingCount方法，复用统一能力并保证业务规则一致。
         target.addSkippedExistingCount(source.getSkippedExistingCount());
-        // 调用getHqUnmatchedCount方法，复用统一能力并保证业务规则一致。
         target.addHqUnmatchedCount(source.getHqUnmatchedCount());
-        // 调用getHqConflictCount方法，复用统一能力并保证业务规则一致。
         target.addHqConflictCount(source.getHqConflictCount());
-        // 调用getProductUnmatchedCount方法，复用统一能力并保证业务规则一致。
         target.addProductUnmatchedCount(source.getProductUnmatchedCount());
     }
 
     /**
      * nextMonthStart。
      *
-     * @param current 参数
-     * @return 处理结果
+     * @param current current，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private LocalDateTime nextMonthStart(LocalDateTime current) {
         return current.toLocalDate()
                 .withDayOfMonth(1)
                 .plusMonths(1)
-                // 调用atStartOfDay方法，复用统一能力并保证业务规则一致。
                 .atStartOfDay();
     }
 
     /**
      * load公司Mappings。
      *
-     * @param tableName 参数
-     * @return 处理结果
+     * @param tableName tableName，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private CompanyMappingSnapshot loadCompanyMappings(String tableName) {
         String sql = "SELECT cust_id, sales_org, hq_company_id FROM " + tableName + " WHERE status = 1";
-        // 调用query方法，复用统一能力并保证业务规则一致。
         List<CompanyMappingRow> rows = jdbcTemplate.query(sql, COMPANY_MAPPING_ROW_MAPPER);
-        // 调用CompanyMappingSnapshot方法，复用统一能力并保证业务规则一致。
         CompanyMappingSnapshot snapshot = new CompanyMappingSnapshot();
         for (CompanyMappingRow row : rows) {
             if (StrUtil.isNotBlank(row.getCustId())) {
-                // 调用getSalesOrg方法，复用统一能力并保证业务规则一致。
                 snapshot.getSalesOrgByCustId().put(row.getCustId(), row.getSalesOrg());
                 if (row.getHqCompanyId() != null) {
-                    // 调用getHqCompanyId方法，复用统一能力并保证业务规则一致。
                     snapshot.getHqCompanyIdByCustId().put(row.getCustId(), row.getHqCompanyId());
                 }
             }
             if (StrUtil.isNotBlank(row.getSalesOrg()) && row.getHqCompanyId() != null) {
-                // 调用getHqCompanyId方法，复用统一能力并保证业务规则一致。
                 snapshot.getHqCompanyIdBySalesOrg().put(row.getSalesOrg(), row.getHqCompanyId());
             }
         }
@@ -345,23 +287,19 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
     /**
      * loadAllProductSnapshots。
      *
-     * @param crm 参数
-     * @param tableName 参数
-     * @return 处理结果
+     * @param crm crm，当前业务处理所需的输入值。
+     * @param tableName tableName，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private Map<ProductKey, ProductSnapshot> loadAllProductSnapshots(JdbcTemplate crm, String tableName) {
-        // 调用info方法，复用统一能力并保证业务规则一致。
         log.info("条码同步开始加载物料快照，来源表={}", tableName);
         String sql = "SELECT product_numeric, sales_org, product_name, product_model, product_trumpet "
                 + "FROM " + tableName
                 + " WHERE product_numeric IS NOT NULL AND TRIM(product_numeric) <> ''"
-                // 调用TRIM方法，复用统一能力并保证业务规则一致。
                 + " AND sales_org IS NOT NULL AND TRIM(sales_org) <> ''";
-        // 调用query方法，复用统一能力并保证业务规则一致。
         List<ProductSnapshot> snapshots = crm.query(sql, PRODUCT_SNAPSHOT_ROW_MAPPER);
         Map<ProductKey, ProductSnapshot> result = new HashMap<>();
         for (ProductSnapshot snapshot : snapshots) {
-            // 调用getSalesOrg方法，复用统一能力并保证业务规则一致。
             result.put(new ProductKey(snapshot.getProductCode(), snapshot.getSalesOrg()), snapshot);
         }
         return result;
@@ -370,35 +308,26 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
     /**
      * enrich公司Mapping。
      *
-     * @param row 参数
-     * @param mappingSnapshot 参数
-     * @param summary 参数
+     * @param row row，当前业务处理所需的输入值。
+     * @param mappingSnapshot 业务映射数据，用于批量组装或快速查找。
+     * @param summary summary，当前业务处理所需的输入值。
      */
     private void enrichCompanyMapping(CrmBarcodeRow row, CompanyMappingSnapshot mappingSnapshot, SyncSummary summary) {
-        // 调用getCustId方法，复用统一能力并保证业务规则一致。
         String salesOrg = normalizeNullableText(mappingSnapshot.getSalesOrgByCustId().get(row.getCustId()));
-        // 调用setSalesOrg方法，复用统一能力并保证业务规则一致。
         row.setSalesOrg(salesOrg);
 
-        // 调用getCustId方法，复用统一能力并保证业务规则一致。
         Long hqByCust = mappingSnapshot.getHqCompanyIdByCustId().get(row.getCustId());
-        // 调用get方法，复用统一能力并保证业务规则一致。
         Long hqBySalesOrg = StrUtil.isBlank(salesOrg) ? null : mappingSnapshot.getHqCompanyIdBySalesOrg().get(salesOrg);
         if (hqByCust != null && hqBySalesOrg != null && !Objects.equals(hqByCust, hqBySalesOrg)) {
-            // 调用setHqConflict方法，复用统一能力并保证业务规则一致。
             row.setHqConflict(true);
-            // 调用addHqConflictCount方法，复用统一能力并保证业务规则一致。
             summary.addHqConflictCount(1);
-            // 调用addHqUnmatchedCount方法，复用统一能力并保证业务规则一致。
             summary.addHqUnmatchedCount(1);
             return;
         }
 
         Long resolvedHqCompanyId = hqByCust != null ? hqByCust : hqBySalesOrg;
-        // 调用setHqCompanyId方法，复用统一能力并保证业务规则一致。
         row.setHqCompanyId(resolvedHqCompanyId);
         if (resolvedHqCompanyId == null) {
-            // 调用addHqUnmatchedCount方法，复用统一能力并保证业务规则一致。
             summary.addHqUnmatchedCount(1);
         }
     }
@@ -406,89 +335,68 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
     /**
      * enrichProductInfo。
      *
-     * @param row 参数
-     * @param productMap 参数
-     * @param summary 参数
+     * @param row row，当前业务处理所需的输入值。
+     * @param productMap 业务映射数据，用于批量组装或快速查找。
+     * @param summary summary，当前业务处理所需的输入值。
      */
     private void enrichProductInfo(CrmBarcodeRow row, Map<ProductKey, ProductSnapshot> productMap, SyncSummary summary) {
         if (StrUtil.isBlank(row.getProductCode()) || StrUtil.isBlank(row.getSalesOrg())) {
             if (StrUtil.isNotBlank(row.getProductCode())) {
-                // 调用addProductUnmatchedCount方法，复用统一能力并保证业务规则一致。
                 summary.addProductUnmatchedCount(1);
             }
             return;
         }
-        // 调用getSalesOrg方法，复用统一能力并保证业务规则一致。
         ProductSnapshot snapshot = productMap.get(new ProductKey(row.getProductCode(), row.getSalesOrg()));
         if (snapshot == null) {
-            // 调用addProductUnmatchedCount方法，复用统一能力并保证业务规则一致。
             summary.addProductUnmatchedCount(1);
             return;
         }
-        // 调用getProductName方法，复用统一能力并保证业务规则一致。
         row.setProductName(snapshot.getProductName());
-        // 调用getProductModel方法，复用统一能力并保证业务规则一致。
         row.setProductModel(snapshot.getProductModel());
-        // 调用getMachineNo方法，复用统一能力并保证业务规则一致。
         row.setMachineNo(snapshot.getMachineNo());
     }
 
     /**
      * batch新增条码Rows。
      *
-     * @param rows 参数
-     * @param syncTime 参数
-     * @param summary 参数
+     * @param rows rows，当前业务处理所需的输入值。
+     * @param syncTime 时间值，用于业务节点记录或时效判断。
+     * @param summary summary，当前业务处理所需的输入值。
      */
     private void batchInsertBarcodeRows(List<CrmBarcodeRow> rows, LocalDateTime syncTime, SyncSummary summary) {
         String sql = "INSERT IGNORE INTO machine_barcode ("
                 + "barcode, deliver_number, hq_company_id, cust_id, sales_org, product_code, "
                 + "product_name, machine_no, product_model, scan_date, crm_add_time, last_sync_time, status, create_time, update_time"
-                // 调用NOW方法，复用统一能力并保证业务规则一致。
                 + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
         int[] results = jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
             /**
      * setValues。
      *
-     * @param ps 参数
-     * @param i 参数
+     * @param ps ps，当前业务处理所需的输入值。
+     * @param i i，当前业务处理所需的输入值。
              */
             @Override
             public void setValues(PreparedStatement ps, int i) throws SQLException {
-                // 调用get方法，复用统一能力并保证业务规则一致。
                 CrmBarcodeRow row = rows.get(i);
-                // 调用getBarcode方法，复用统一能力并保证业务规则一致。
                 ps.setString(1, row.getBarcode());
-                // 调用getDeliverNumber方法，复用统一能力并保证业务规则一致。
                 ps.setString(2, row.getDeliverNumber());
-                // 调用getHqCompanyId方法，复用统一能力并保证业务规则一致。
                 ps.setObject(3, row.getHqCompanyId());
-                // 调用getCustId方法，复用统一能力并保证业务规则一致。
                 ps.setString(4, row.getCustId());
-                // 调用getSalesOrg方法，复用统一能力并保证业务规则一致。
                 ps.setString(5, row.getSalesOrg());
-                // 调用getProductCode方法，复用统一能力并保证业务规则一致。
                 ps.setString(6, row.getProductCode());
-                // 调用getProductName方法，复用统一能力并保证业务规则一致。
                 ps.setString(7, row.getProductName());
-                // 调用getMachineNo方法，复用统一能力并保证业务规则一致。
                 ps.setString(8, row.getMachineNo());
-                // 调用getProductModel方法，复用统一能力并保证业务规则一致。
                 ps.setString(9, row.getProductModel());
-                // 调用getScanDate方法，复用统一能力并保证业务规则一致。
                 ps.setTimestamp(10, toTimestamp(row.getScanDate()));
-                // 调用getAddTime方法，复用统一能力并保证业务规则一致。
                 ps.setTimestamp(11, toTimestamp(row.getAddTime()));
-                // 调用toTimestamp方法，复用统一能力并保证业务规则一致。
                 ps.setTimestamp(12, toTimestamp(syncTime));
-                // 调用setInt方法，复用统一能力并保证业务规则一致。
                 ps.setInt(13, 1);
             }
 
             /**
      * 获取BatchSize。
      *
-     * @return 处理结果
+     * @return 业务处理结果
              */
             @Override
             public int getBatchSize() {
@@ -498,10 +406,8 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
 
         for (int result : results) {
             if (result > 0) {
-                // 调用addInsertedCount方法，复用统一能力并保证业务规则一致。
                 summary.addInsertedCount(1);
             } else {
-                // 调用addSkippedExistingCount方法，复用统一能力并保证业务规则一致。
                 summary.addSkippedExistingCount(1);
             }
         }
@@ -510,7 +416,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
     /**
      * requireCRMJDBC模板。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     private JdbcTemplate requireCrmJdbcTemplate() {
         if (crmJdbcTemplate == null) {
@@ -522,12 +428,11 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
     /**
      * 校验表名称。
      *
-     * @param tableName 参数
-     * @param label 参数
-     * @return 处理结果
+     * @param tableName tableName，当前业务处理所需的输入值。
+     * @param label label，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private String validateTableName(String tableName, String label) {
-        // 调用trim方法，复用统一能力并保证业务规则一致。
         String normalized = StrUtil.trim(tableName);
         if (StrUtil.isBlank(normalized)) {
             throw new ServiceException(label + "未配置，请先完善条码同步参数");
@@ -541,8 +446,8 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
     /**
      * toTimestamp。
      *
-     * @param value 参数
-     * @return 处理结果
+     * @param value value，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private Timestamp toTimestamp(LocalDateTime value) {
         return value == null ? null : Timestamp.valueOf(value);
@@ -551,11 +456,10 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
     /**
      * 规范化NullableText。
      *
-     * @param value 参数
-     * @return 处理结果
+     * @param value value，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private String normalizeNullableText(String value) {
-        // 调用trim方法，复用统一能力并保证业务规则一致。
         String normalized = StrUtil.trim(value);
         return StrUtil.isBlank(normalized) ? null : normalized;
     }
@@ -563,16 +467,16 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
     /**
      * toLocalDateTime。
      *
-     * @param rs 参数
-     * @param column 参数
-     * @return 处理结果
+     * @param rs rs，当前业务处理所需的输入值。
+     * @param column column，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private static LocalDateTime toLocalDateTime(ResultSet rs, String column) throws SQLException {
-        // 调用getTimestamp方法，复用统一能力并保证业务规则一致。
         Timestamp value = rs.getTimestamp(column);
         return value == null ? null : value.toLocalDateTime();
     }
 
+    /**CRM_BARCODE_ROW_MAPPER 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final RowMapper<CrmBarcodeRow> CRM_BARCODE_ROW_MAPPER = (rs, rowNum) -> {
         CrmBarcodeRow row = new CrmBarcodeRow();
         row.setBarcode(StrUtil.trim(rs.getString("barcode")));
@@ -584,6 +488,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         return row;
     };
 
+    /**PRODUCT_SNAPSHOT_ROW_MAPPER 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final RowMapper<ProductSnapshot> PRODUCT_SNAPSHOT_ROW_MAPPER = (rs, rowNum) -> {
         ProductSnapshot snapshot = new ProductSnapshot();
         snapshot.setProductCode(StrUtil.trim(rs.getString("product_numeric")));
@@ -594,6 +499,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         return snapshot;
     };
 
+    /**COMPANY_MAPPING_ROW_MAPPER 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final RowMapper<CompanyMappingRow> COMPANY_MAPPING_ROW_MAPPER = (rs, rowNum) -> {
         CompanyMappingRow row = new CompanyMappingRow();
         row.setCustId(StrUtil.trim(rs.getString("cust_id")));
@@ -603,26 +509,36 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         return row;
     };
 
+    /**SyncSummary 服务实现，负责业务校验、状态流转、数据持久化和跨模块协同。
+
+@author Zoro*/
     private static class SyncSummary {
         /**
      * LocalDateTime字段。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         private LocalDateTime startTime;
+        /**endTime 字段，用于当前类内部业务处理。*/
         private LocalDateTime endTime;
+        /**processedCount 字段，用于当前类内部业务处理。*/
         private int processedCount;
+        /**insertedCount 字段，用于当前类内部业务处理。*/
         private int insertedCount;
+        /**skippedExistingCount 字段，用于当前类内部业务处理。*/
         private int skippedExistingCount;
+        /**hqUnmatchedCount 字段，用于当前类内部业务处理。*/
         private int hqUnmatchedCount;
+        /**hqConflictCount 字段，用于当前类内部业务处理。*/
         private int hqConflictCount;
+        /**productUnmatchedCount 字段，用于当前类内部业务处理。*/
         private int productUnmatchedCount;
 
         /**
          * 获取StartTime相关数据。
          *
          * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
-         * @return 处理结果
+         * @return 业务处理结果
          */
         public LocalDateTime getStartTime() {
             return startTime;
@@ -631,7 +547,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * setStartTime。
      *
-     * @param startTime 参数
+     * @param startTime 时间值，用于业务节点记录或时效判断。
          */
         public void setStartTime(LocalDateTime startTime) {
             this.startTime = startTime;
@@ -640,7 +556,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取EndTime。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public LocalDateTime getEndTime() {
             return endTime;
@@ -649,7 +565,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * setEndTime。
      *
-     * @param endTime 参数
+     * @param endTime 时间值，用于业务节点记录或时效判断。
          */
         public void setEndTime(LocalDateTime endTime) {
             this.endTime = endTime;
@@ -658,7 +574,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取ProcessedCount。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public int getProcessedCount() {
             return processedCount;
@@ -667,7 +583,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 新增ProcessedCount。
      *
-     * @param value 参数
+     * @param value value，当前业务处理所需的输入值。
          */
         public void addProcessedCount(int value) {
             this.processedCount += value;
@@ -676,7 +592,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取InsertedCount。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public int getInsertedCount() {
             return insertedCount;
@@ -685,7 +601,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 新增InsertedCount。
      *
-     * @param value 参数
+     * @param value value，当前业务处理所需的输入值。
          */
         public void addInsertedCount(int value) {
             this.insertedCount += value;
@@ -694,7 +610,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取SkippedExistingCount。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public int getSkippedExistingCount() {
             return skippedExistingCount;
@@ -703,7 +619,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 新增SkippedExistingCount。
      *
-     * @param value 参数
+     * @param value value，当前业务处理所需的输入值。
          */
         public void addSkippedExistingCount(int value) {
             this.skippedExistingCount += value;
@@ -712,7 +628,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取总部UnmatchedCount。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public int getHqUnmatchedCount() {
             return hqUnmatchedCount;
@@ -721,7 +637,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 新增总部UnmatchedCount。
      *
-     * @param value 参数
+     * @param value value，当前业务处理所需的输入值。
          */
         public void addHqUnmatchedCount(int value) {
             this.hqUnmatchedCount += value;
@@ -730,7 +646,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取总部ConflictCount。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public int getHqConflictCount() {
             return hqConflictCount;
@@ -739,7 +655,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 新增总部ConflictCount。
      *
-     * @param value 参数
+     * @param value value，当前业务处理所需的输入值。
          */
         public void addHqConflictCount(int value) {
             this.hqConflictCount += value;
@@ -748,7 +664,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取ProductUnmatchedCount。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public int getProductUnmatchedCount() {
             return productUnmatchedCount;
@@ -757,22 +673,28 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 新增ProductUnmatchedCount。
      *
-     * @param value 参数
+     * @param value value，当前业务处理所需的输入值。
          */
         public void addProductUnmatchedCount(int value) {
             this.productUnmatchedCount += value;
         }
     }
 
+    /**CompanyMappingSnapshot 服务实现，负责业务校验、状态流转、数据持久化和跨模块协同。
+
+@author Zoro*/
     private static class CompanyMappingSnapshot {
+        /**salesOrgByCustId 字段，用于当前类内部业务处理。*/
         private final Map<String, String> salesOrgByCustId = new LinkedHashMap<>();
+        /**hqCompanyIdByCustId 字段，用于当前类内部业务处理。*/
         private final Map<String, Long> hqCompanyIdByCustId = new LinkedHashMap<>();
+        /**hqCompanyIdBySalesOrg 字段，用于当前类内部业务处理。*/
         private final Map<String, Long> hqCompanyIdBySalesOrg = new LinkedHashMap<>();
 
         /**
      * 获取SalesOrgByCustID。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public Map<String, String> getSalesOrgByCustId() {
             return salesOrgByCustId;
@@ -781,7 +703,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取总部公司IDByCustID。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public Map<String, Long> getHqCompanyIdByCustId() {
             return hqCompanyIdByCustId;
@@ -790,28 +712,33 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取总部公司IDBySalesOrg。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public Map<String, Long> getHqCompanyIdBySalesOrg() {
             return hqCompanyIdBySalesOrg;
         }
     }
 
+    /**CompanyMappingRow 服务实现，负责业务校验、状态流转、数据持久化和跨模块协同。
+
+@author Zoro*/
     private static class CompanyMappingRow {
         /**
-     * String字段。
+     * 内部字段，用于保存当前流程需要复用的业务值。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         private String custId;
+        /**salesOrg 字段，用于当前类内部业务处理。*/
         private String salesOrg;
+        /**hqCompanyId 字段，用于当前类内部业务处理。*/
         private Long hqCompanyId;
 
         /**
          * 获取CustId相关数据。
          *
          * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
-         * @return 处理结果
+         * @return 业务处理结果
          */
         public String getCustId() {
             return custId;
@@ -829,7 +756,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取SalesOrg。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public String getSalesOrg() {
             return salesOrg;
@@ -838,7 +765,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * setSalesOrg。
      *
-     * @param salesOrg 参数
+     * @param salesOrg salesOrg，当前业务处理所需的输入值。
          */
         public void setSalesOrg(String salesOrg) {
             this.salesOrg = salesOrg;
@@ -847,7 +774,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取总部公司ID。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public Long getHqCompanyId() {
             return hqCompanyId;
@@ -863,30 +790,44 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         }
     }
 
+    /**CrmBarcodeRow 服务实现，负责业务校验、状态流转、数据持久化和跨模块协同。
+
+@author Zoro*/
     private static class CrmBarcodeRow {
         /**
-     * String字段。
+     * 内部字段，用于保存当前流程需要复用的业务值。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         private String barcode;
+        /**deliverNumber 字段，用于当前类内部业务处理。*/
         private String deliverNumber;
+        /**custId 字段，用于当前类内部业务处理。*/
         private String custId;
+        /**salesOrg 字段，用于当前类内部业务处理。*/
         private String salesOrg;
+        /**productCode 字段，用于当前类内部业务处理。*/
         private String productCode;
+        /**productName 字段，用于当前类内部业务处理。*/
         private String productName;
+        /**productModel 字段，用于当前类内部业务处理。*/
         private String productModel;
+        /**machineNo 字段，用于当前类内部业务处理。*/
         private String machineNo;
+        /**hqCompanyId 字段，用于当前类内部业务处理。*/
         private Long hqCompanyId;
+        /**scanDate 字段，用于当前类内部业务处理。*/
         private LocalDateTime scanDate;
+        /**addTime 字段，用于当前类内部业务处理。*/
         private LocalDateTime addTime;
+        /**hqConflict 字段，用于当前类内部业务处理。*/
         private boolean hqConflict;
 
         /**
          * 获取Barcode相关数据。
          *
          * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
-         * @return 处理结果
+         * @return 业务处理结果
          */
         public String getBarcode() {
             return barcode;
@@ -895,7 +836,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * set条码。
      *
-     * @param barcode 参数
+     * @param barcode 业务编码，用于匹配枚举、配置或外部系统数据。
          */
         public void setBarcode(String barcode) {
             this.barcode = barcode;
@@ -904,7 +845,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取DeliverNumber。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public String getDeliverNumber() {
             return deliverNumber;
@@ -913,7 +854,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * setDeliverNumber。
      *
-     * @param deliverNumber 参数
+     * @param deliverNumber deliverNumber，当前业务处理所需的输入值。
          */
         public void setDeliverNumber(String deliverNumber) {
             this.deliverNumber = deliverNumber;
@@ -922,7 +863,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取CustID。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public String getCustId() {
             return custId;
@@ -940,7 +881,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取SalesOrg。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public String getSalesOrg() {
             return salesOrg;
@@ -949,7 +890,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * setSalesOrg。
      *
-     * @param salesOrg 参数
+     * @param salesOrg salesOrg，当前业务处理所需的输入值。
          */
         public void setSalesOrg(String salesOrg) {
             this.salesOrg = salesOrg;
@@ -958,7 +899,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取Product编码。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public String getProductCode() {
             return productCode;
@@ -967,7 +908,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * setProduct编码。
      *
-     * @param productCode 参数
+     * @param productCode 业务编码，用于匹配枚举、配置或外部系统数据。
          */
         public void setProductCode(String productCode) {
             this.productCode = productCode;
@@ -976,7 +917,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取Product名称。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public String getProductName() {
             return productName;
@@ -985,7 +926,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * setProduct名称。
      *
-     * @param productName 参数
+     * @param productName productName，当前业务处理所需的输入值。
          */
         public void setProductName(String productName) {
             this.productName = productName;
@@ -994,7 +935,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取ProductModel。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public String getProductModel() {
             return productModel;
@@ -1003,7 +944,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * setProductModel。
      *
-     * @param productModel 参数
+     * @param productModel productModel，当前业务处理所需的输入值。
          */
         public void setProductModel(String productModel) {
             this.productModel = productModel;
@@ -1012,7 +953,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取机器编号。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public String getMachineNo() {
             return machineNo;
@@ -1021,7 +962,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * set机器编号。
      *
-     * @param machineNo 参数
+     * @param machineNo machineNo，当前业务处理所需的输入值。
          */
         public void setMachineNo(String machineNo) {
             this.machineNo = machineNo;
@@ -1030,7 +971,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取总部公司ID。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public Long getHqCompanyId() {
             return hqCompanyId;
@@ -1048,7 +989,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取扫描Date。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public LocalDateTime getScanDate() {
             return scanDate;
@@ -1057,7 +998,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * set扫描Date。
      *
-     * @param scanDate 参数
+     * @param scanDate 时间值，用于业务节点记录或时效判断。
          */
         public void setScanDate(LocalDateTime scanDate) {
             this.scanDate = scanDate;
@@ -1066,7 +1007,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取AddTime。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public LocalDateTime getAddTime() {
             return addTime;
@@ -1075,7 +1016,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * setAddTime。
      *
-     * @param addTime 参数
+     * @param addTime 时间值，用于业务节点记录或时效判断。
          */
         public void setAddTime(LocalDateTime addTime) {
             this.addTime = addTime;
@@ -1091,30 +1032,37 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * set总部Conflict。
      *
-     * @param hqConflict 参数
+     * @param hqConflict hqConflict，当前业务处理所需的输入值。
          */
         public void setHqConflict(boolean hqConflict) {
             this.hqConflict = hqConflict;
         }
     }
 
+    /**ProductSnapshot 服务实现，负责业务校验、状态流转、数据持久化和跨模块协同。
+
+@author Zoro*/
     private static class ProductSnapshot {
         /**
-     * String字段。
+     * 内部字段，用于保存当前流程需要复用的业务值。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         private String productCode;
+        /**salesOrg 字段，用于当前类内部业务处理。*/
         private String salesOrg;
+        /**productName 字段，用于当前类内部业务处理。*/
         private String productName;
+        /**productModel 字段，用于当前类内部业务处理。*/
         private String productModel;
+        /**machineNo 字段，用于当前类内部业务处理。*/
         private String machineNo;
 
         /**
          * 获取ProductCode相关数据。
          *
          * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
-         * @return 处理结果
+         * @return 业务处理结果
          */
         public String getProductCode() {
             return productCode;
@@ -1123,7 +1071,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * setProduct编码。
      *
-     * @param productCode 参数
+     * @param productCode 业务编码，用于匹配枚举、配置或外部系统数据。
          */
         public void setProductCode(String productCode) {
             this.productCode = productCode;
@@ -1132,7 +1080,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取SalesOrg。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public String getSalesOrg() {
             return salesOrg;
@@ -1141,7 +1089,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * setSalesOrg。
      *
-     * @param salesOrg 参数
+     * @param salesOrg salesOrg，当前业务处理所需的输入值。
          */
         public void setSalesOrg(String salesOrg) {
             this.salesOrg = salesOrg;
@@ -1150,7 +1098,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取Product名称。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public String getProductName() {
             return productName;
@@ -1159,7 +1107,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * setProduct名称。
      *
-     * @param productName 参数
+     * @param productName productName，当前业务处理所需的输入值。
          */
         public void setProductName(String productName) {
             this.productName = productName;
@@ -1168,7 +1116,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取ProductModel。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public String getProductModel() {
             return productModel;
@@ -1177,7 +1125,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * setProductModel。
      *
-     * @param productModel 参数
+     * @param productModel productModel，当前业务处理所需的输入值。
          */
         public void setProductModel(String productModel) {
             this.productModel = productModel;
@@ -1186,7 +1134,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * 获取机器编号。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public String getMachineNo() {
             return machineNo;
@@ -1195,30 +1143,34 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * set机器编号。
      *
-     * @param machineNo 参数
+     * @param machineNo machineNo，当前业务处理所需的输入值。
          */
         public void setMachineNo(String machineNo) {
             this.machineNo = machineNo;
         }
     }
 
+    /**ProductKey 服务实现，负责业务校验、状态流转、数据持久化和跨模块协同。
+
+@author Zoro*/
     private static class ProductKey {
         /**
-     * String字段。
+     * 内部字段，用于保存当前流程需要复用的业务值。
      *
-     * @param productCode 参数
-     * @param salesOrg 参数
-     * @return 处理结果
+     * @param productCode 业务编码，用于匹配枚举、配置或外部系统数据。
+     * @param salesOrg salesOrg，当前业务处理所需的输入值。
+     * @return 业务处理结果
          */
         private final String productCode;
+        /**salesOrg 字段，用于当前类内部业务处理。*/
         private final String salesOrg;
 
         /**
      * 构造机器条码同步实例。
      *
-     * @param productCode 参数
-     * @param salesOrg 参数
-     * @return 处理结果
+     * @param productCode 业务编码，用于匹配枚举、配置或外部系统数据。
+     * @param salesOrg salesOrg，当前业务处理所需的输入值。
+     * @return 业务处理结果
          */
         private ProductKey(String productCode, String salesOrg) {
             this.productCode = productCode;
@@ -1228,7 +1180,7 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
         /**
      * equals。
      *
-     * @param o 参数
+     * @param o o，当前业务处理所需的输入值。
          */
         @Override
         public boolean equals(Object o) {
@@ -1240,14 +1192,13 @@ public class MachineBarcodeSyncServiceImpl implements IMachineBarcodeSyncService
             }
             ProductKey productKey = (ProductKey) o;
             return Objects.equals(productCode, productKey.productCode)
-                    // 调用equals方法，复用统一能力并保证业务规则一致。
                     && Objects.equals(salesOrg, productKey.salesOrg);
         }
 
         /**
      * 判断是否存在h编码。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         @Override
         public int hashCode() {

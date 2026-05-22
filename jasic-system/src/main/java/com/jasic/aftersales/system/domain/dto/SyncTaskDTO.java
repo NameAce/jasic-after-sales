@@ -12,7 +12,7 @@ import java.io.Serializable;
 /**
  * 同步任务新增/修改参数
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/12
  */
 @ApiModel(description = "同步任务新增/修改参数")

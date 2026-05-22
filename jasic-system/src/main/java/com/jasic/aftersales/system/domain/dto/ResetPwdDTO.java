@@ -25,6 +25,7 @@ public class ResetPwdDTO implements Serializable {
     @NotNull(message = "用户ID不能为空")
     private Long userId;
 
+    /**targetCompanyId 字段，由接口调用方提交并参与服务层业务校验。*/
     @ApiModelProperty(value = "目标公司ID")
     private Long targetCompanyId;
 

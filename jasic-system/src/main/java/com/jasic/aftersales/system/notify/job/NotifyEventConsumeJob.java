@@ -18,19 +18,22 @@ import java.time.LocalDateTime;
  *
  * <p>任务执行前会先恢复处理超时的事件，避免 `PROCESSING` 状态因宕机或线程中断永久卡死。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/18
  */
 @Slf4j
 @DisallowConcurrentExecution
 public class NotifyEventConsumeJob implements Job {
 
+    /**notifyEventConsumeService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifyEventConsumeService notifyEventConsumeService;
 
+    /**notifyEventService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifyEventService notifyEventService;
 
+    /**eventProcessingTimeoutMinutes 字段，用于当前类内部业务处理。*/
     @Value("${jasic.notify.event-processing-timeout-minutes:" + NotifyConstants.EVENT_PROCESSING_TIMEOUT_MINUTES + "}")
     private long eventProcessingTimeoutMinutes = NotifyConstants.EVENT_PROCESSING_TIMEOUT_MINUTES;
 

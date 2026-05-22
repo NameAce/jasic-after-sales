@@ -19,24 +19,30 @@ import org.springframework.scheduling.quartz.SpringBeanJobFactory;
 /**
  * Quartz configuration.
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/12
  */
 @Configuration
 public class QuartzConfig {
 
+    /**NOTIFY_EVENT_JOB_GROUP 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String NOTIFY_EVENT_JOB_GROUP = "NOTIFY_EVENT";
+    /**NOTIFY_EVENT_JOB_NAME 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String NOTIFY_EVENT_JOB_NAME = "notify-event-consume-job";
+    /**NOTIFY_EVENT_TRIGGER_NAME 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String NOTIFY_EVENT_TRIGGER_NAME = "notify-event-consume-trigger";
+    /**NOTIFY_DISPATCH_JOB_GROUP 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String NOTIFY_DISPATCH_JOB_GROUP = "NOTIFY_DISPATCH";
+    /**NOTIFY_DISPATCH_JOB_NAME 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String NOTIFY_DISPATCH_JOB_NAME = "notify-dispatch-send-job";
+    /**NOTIFY_DISPATCH_TRIGGER_NAME 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String NOTIFY_DISPATCH_TRIGGER_NAME = "notify-dispatch-send-trigger";
 
     /**
      * schedulerFactoryBeanCustomizer。
      *
-     * @param beanFactory 参数
-     * @return 处理结果
+     * @param beanFactory beanFactory，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     @Bean
     public SchedulerFactoryBeanCustomizer schedulerFactoryBeanCustomizer(AutowireCapableBeanFactory beanFactory) {
@@ -44,14 +50,12 @@ public class QuartzConfig {
             /**
      * 创建任务Instance。
      *
-     * @param bundle 参数
-     * @return 处理结果
+     * @param bundle bundle，当前业务处理所需的输入值。
+     * @return 业务处理结果
              */
             @Override
             protected Object createJobInstance(TriggerFiredBundle bundle) throws Exception {
-                // 调用createJobInstance方法，复用统一能力并保证业务规则一致。
                 Object job = super.createJobInstance(bundle);
-                // 调用autowireBean方法，复用统一能力并保证业务规则一致。
                 beanFactory.autowireBean(job);
                 return job;
             }
@@ -61,23 +65,22 @@ public class QuartzConfig {
     /**
      * notify事件消费任务详情。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @Bean
     public JobDetail notifyEventConsumeJobDetail() {
         return JobBuilder.newJob(NotifyEventConsumeJob.class)
                 .withIdentity(NOTIFY_EVENT_JOB_NAME, NOTIFY_EVENT_JOB_GROUP)
                 .storeDurably()
-                // 调用build方法，复用统一能力并保证业务规则一致。
                 .build();
     }
 
     /**
      * notify事件消费Trigger。
      *
-     * @param jobDetail 参数
-     * @param intervalSeconds 参数
-     * @return 处理结果
+     * @param jobDetail jobDetail，当前业务处理所需的输入值。
+     * @param intervalSeconds intervalSeconds，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     @Bean
     public Trigger notifyEventConsumeTrigger(
@@ -89,23 +92,22 @@ public class QuartzConfig {
     /**
      * notify分发发送任务详情。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @Bean
     public JobDetail notifyDispatchSendJobDetail() {
         return JobBuilder.newJob(NotifyDispatchSendJob.class)
                 .withIdentity(NOTIFY_DISPATCH_JOB_NAME, NOTIFY_DISPATCH_JOB_GROUP)
                 .storeDurably()
-                // 调用build方法，复用统一能力并保证业务规则一致。
                 .build();
     }
 
     /**
      * notify分发发送Trigger。
      *
-     * @param jobDetail 参数
-     * @param intervalSeconds 参数
-     * @return 处理结果
+     * @param jobDetail jobDetail，当前业务处理所需的输入值。
+     * @param intervalSeconds intervalSeconds，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     @Bean
     public Trigger notifyDispatchSendTrigger(
@@ -117,14 +119,13 @@ public class QuartzConfig {
     /**
      * 构建SimpleTrigger。
      *
-     * @param jobDetail 参数
-     * @param triggerName 参数
-     * @param triggerGroup 参数
-     * @param intervalSeconds 参数
-     * @return 处理结果
+     * @param jobDetail jobDetail，当前业务处理所需的输入值。
+     * @param triggerName triggerName，当前业务处理所需的输入值。
+     * @param triggerGroup triggerGroup，当前业务处理所需的输入值。
+     * @param intervalSeconds intervalSeconds，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private Trigger buildSimpleTrigger(JobDetail jobDetail, String triggerName, String triggerGroup, int intervalSeconds) {
-        // 调用max方法，复用统一能力并保证业务规则一致。
         int safeIntervalSeconds = Math.max(intervalSeconds, 1);
         return TriggerBuilder.newTrigger()
                 .withIdentity(triggerName, triggerGroup)
@@ -134,7 +135,6 @@ public class QuartzConfig {
                         .withIntervalInSeconds(safeIntervalSeconds)
                         .repeatForever()
                         .withMisfireHandlingInstructionNextWithRemainingCount())
-                // 调用build方法，复用统一能力并保证业务规则一致。
                 .build();
     }
 }

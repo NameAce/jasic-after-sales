@@ -21,11 +21,12 @@ import java.util.List;
 /**
  * B端登录标识查询测试
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/02
  */
 public class SysAuthServiceImplTest {
 
+    /**验证ResolveLoginIdentityByPhone，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldResolveLoginIdentityByPhone() throws Exception {
         SysAuthServiceImpl service = new SysAuthServiceImpl();
@@ -41,6 +42,7 @@ public class SysAuthServiceImplTest {
         Assert.assertEquals("service_user", result.getUsername());
     }
 
+    /**验证RejectConflictingLoginIdentity，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectConflictingLoginIdentity() throws Exception {
         SysAuthServiceImpl service = new SysAuthServiceImpl();
@@ -62,6 +64,7 @@ public class SysAuthServiceImplTest {
         }
     }
 
+    /**验证BuildLightweightPermissionItems，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldBuildLightweightPermissionItems() throws Exception {
         SysAuthServiceImpl service = new SysAuthServiceImpl();
@@ -86,6 +89,11 @@ public class SysAuthServiceImplTest {
         Assert.assertEquals("workorder:transfer", result.get(0).getPerms());
     }
 
+    /**buildUser 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param id 主键ID。
+@param username 名称文本，用于展示、匹配或保存业务对象名称。
+@param phone phone 字段参数。
+@return 处理后的业务结果。*/
     private SysUser buildUser(Long id, String username, String phone) {
         SysUser user = new SysUser();
         user.setId(id);
@@ -95,8 +103,16 @@ public class SysAuthServiceImplTest {
         return user;
     }
 
+    /**createMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param users 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private SysUserMapper createMapperProxy(List<SysUser> users) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectList".equals(method.getName())) {
@@ -112,8 +128,16 @@ public class SysAuthServiceImplTest {
         );
     }
 
+    /**createMenuMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param menus 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private SysMenuMapper createMenuMapperProxy(List<SysMenu> menus) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectPermissionMenusByUserIdAndCompanyId".equals(method.getName())) {
@@ -129,12 +153,19 @@ public class SysAuthServiceImplTest {
         );
     }
 
+    /**setField 处理逻辑，服务于当前类的业务编排和数据转换。
+@param target target 字段参数。
+@param fieldName 名称文本，用于展示、匹配或保存业务对象名称。
+@param value value 字段参数。*/
     private void setField(Object target, String fieldName, Object value) throws Exception {
         Field field = SysAuthServiceImpl.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(target, value);
     }
 
+    /**defaultValue 处理逻辑，服务于当前类的业务编排和数据转换。
+@param returnType returnType 字段参数。
+@return 处理后的业务结果。*/
     private Object defaultValue(Class<?> returnType) {
         if (!returnType.isPrimitive()) {
             return null;

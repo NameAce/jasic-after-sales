@@ -78,58 +78,77 @@ import java.util.stream.Collectors;
 @Service
 public class SysAuthServiceImpl implements ISysAuthService {
 
+    /**BIND_TICKET_EXPIRE_MINUTES 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final int BIND_TICKET_EXPIRE_MINUTES = 10;
+    /**WECHAT_STATUS_BIND 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String WECHAT_STATUS_BIND = "BIND";
+    /**WECHAT_STATUS_UNBIND 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String WECHAT_STATUS_UNBIND = "UNBIND";
+    /**WECHAT_OPERATE_SOURCE_MP_BIND_LOGIN 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String WECHAT_OPERATE_SOURCE_MP_BIND_LOGIN = "MP_BIND_LOGIN";
+    /**WECHAT_OPERATE_SOURCE_PC_QR_BIND 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String WECHAT_OPERATE_SOURCE_PC_QR_BIND = "PC_QR_BIND";
+    /**WECHAT_OPERATE_SOURCE_PC_SELF_UNBIND 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String WECHAT_OPERATE_SOURCE_PC_SELF_UNBIND = "PC_SELF_UNBIND";
 
+    /**sysUserMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysUserMapper sysUserMapper;
 
+    /**sysCompanyMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysCompanyMapper sysCompanyMapper;
 
+    /**sysUserCompanyMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysUserCompanyMapper sysUserCompanyMapper;
 
+    /**sysCompanyTypeMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysCompanyTypeMapper sysCompanyTypeMapper;
 
+    /**sysMenuMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysMenuMapper sysMenuMapper;
 
+    /**sysUserRoleMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysUserRoleMapper sysUserRoleMapper;
 
+    /**sysRoleMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysRoleMapper sysRoleMapper;
 
+    /**sysPermissionService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysPermissionService sysPermissionService;
 
+    /**sysConfigService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private ISysConfigService sysConfigService;
 
+    /**regionService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private ISysRegionService regionService;
 
+    /**redisTemplate 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
 
+    /**wechatMiniProgramService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private WechatMiniProgramService wechatMiniProgramService;
 
     /**
      * 系统用户身份校验字段。
      *
-     * @param dto 参数
-     * @return 处理结果
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
+     * @return 业务处理结果
      */
     @Resource
     private SysUserIdentityValidator userIdentityValidator;
 
+    /**wechatBindRecordMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private WechatBindRecordMapper wechatBindRecordMapper;
 
@@ -141,7 +160,6 @@ public class SysAuthServiceImpl implements ISysAuthService {
      */
     @Override
     public LoginVO login(LoginDTO dto) {
-        // 调用getUsername方法，复用统一能力并保证业务规则一致。
         SysUser user = findByLoginIdentity(dto.getUsername());
         if (user == null) {
             throw new ServiceException(ResultCode.LOGIN_ERROR, "用户名或密码错误");
@@ -149,7 +167,6 @@ public class SysAuthServiceImpl implements ISysAuthService {
         if (!BCrypt.checkpw(dto.getPassword(), user.getPassword())) {
             throw new ServiceException(ResultCode.LOGIN_ERROR, "用户名或密码错误");
         }
-        // 说明：执行该步骤以保证业务流程正确。
         ensureUserActive(user);
         return doLogin(user);
     }
@@ -162,22 +179,15 @@ public class SysAuthServiceImpl implements ISysAuthService {
      */
     @Override
     public MpLoginVO mpLogin(MpLoginDTO dto) {
-        // 调用getCode方法，复用统一能力并保证业务规则一致。
         WechatAuthSession session = wechatMiniProgramService.code2Session(WechatMiniProgramScene.B, dto.getCode());
-        // 调用getOpenid方法，复用统一能力并保证业务规则一致。
         SysUser user = findByOpenid(session.getOpenid());
         if (user == null) {
-            // 调用MpLoginVO方法，复用统一能力并保证业务规则一致。
             MpLoginVO vo = new MpLoginVO();
-            // 调用setStatus方法，复用统一能力并保证业务规则一致。
             vo.setStatus(WECHAT_STATUS_UNBIND);
-            // 调用setNeedChooseCompany方法，复用统一能力并保证业务规则一致。
             vo.setNeedChooseCompany(false);
             return vo;
         }
-        // 说明：执行该步骤以保证业务流程正确。
         ensureUserActive(user);
-        // 调用getOpenid方法，复用统一能力并保证业务规则一致。
         refreshWechatIdentity(user.getId(), session.getOpenid(), null);
         return buildMpLoginVO(doLogin(requireActiveUser(user.getId())));
     }
@@ -191,30 +201,21 @@ public class SysAuthServiceImpl implements ISysAuthService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public MpLoginVO mpBindLogin(MpBindLoginDTO dto) {
-        // 调用getCode方法，复用统一能力并保证业务规则一致。
         WechatAuthSession authSession = wechatMiniProgramService.code2Session(WechatMiniProgramScene.B, dto.getCode());
-        // 调用getUsernameOrPhone方法，复用统一能力并保证业务规则一致。
         SysUser user = findByLoginIdentity(dto.getUsernameOrPhone());
         if (user == null || !BCrypt.checkpw(dto.getPassword(), user.getPassword())) {
             throw new ServiceException(ResultCode.LOGIN_ERROR, "用户名或密码错误");
         }
-        // 说明：执行该步骤以保证业务流程正确。
         ensureUserActive(user);
-        // 调用getOpenid方法，复用统一能力并保证业务规则一致。
         validateWechatBinding(user, authSession.getOpenid());
 
-        // 调用getOpenid方法，复用统一能力并保证业务规则一致。
         boolean wasBound = StrUtil.isNotBlank(user.getOpenid());
-        // 调用getId方法，复用统一能力并保证业务规则一致。
         String wechatPhone = resolveWechatPhone(dto.getPhoneCode(), user.getId());
-        // 调用getOpenid方法，复用统一能力并保证业务规则一致。
         refreshWechatIdentity(user.getId(), authSession.getOpenid(), wechatPhone);
         if (!wasBound) {
             saveWechatBindRecord(user, WECHAT_STATUS_BIND, WECHAT_OPERATE_SOURCE_MP_BIND_LOGIN,
-                    // 调用resolveRecordWechatPhone方法，复用统一能力并保证业务规则一致。
                     authSession.getOpenid(), resolveRecordWechatPhone(user, wechatPhone));
         }
-        // 调用getId方法，复用统一能力并保证业务规则一致。
         clearBindSession(getBindSession(user.getId()));
         return buildMpLoginVO(doLogin(requireActiveUser(user.getId())));
     }
@@ -227,46 +228,33 @@ public class SysAuthServiceImpl implements ISysAuthService {
      */
     @Override
     public SysUserVO chooseCompany(Long companyId) {
-        // 调用getCurrentUserId方法，复用统一能力并保证业务规则一致。
         Long userId = SecurityContext.getCurrentUserId();
 
         LambdaQueryWrapper<SysUserCompany> ucQuery = new LambdaQueryWrapper<>();
         ucQuery.eq(SysUserCompany::getUserId, userId)
-                // 调用eq方法，复用统一能力并保证业务规则一致。
                 .eq(SysUserCompany::getCompanyId, companyId);
-        // 说明：执行该步骤以保证业务流程正确。
         SysUserCompany userCompany = sysUserCompanyMapper.selectOne(ucQuery);
         if (userCompany == null) {
             throw new ServiceException(ResultCode.NOT_PERMISSION, "无权限操作该公司");
         }
 
-        // 调用selectById方法，复用统一能力并保证业务规则一致。
         SysCompany company = sysCompanyMapper.selectById(companyId);
         if (company == null) {
             throw new ServiceException(ResultCode.DATA_NOT_FOUND, "公司不存在");
         }
 
         LambdaQueryWrapper<SysCompanyType> typeQuery = new LambdaQueryWrapper<>();
-        // 调用getTypeCode方法，复用统一能力并保证业务规则一致。
         typeQuery.eq(SysCompanyType::getTypeCode, company.getTypeCode());
-        // 调用selectOne方法，复用统一能力并保证业务规则一致。
         SysCompanyType companyType = sysCompanyTypeMapper.selectOne(typeQuery);
 
-        // 调用setCurrentCompanyId方法，复用统一能力并保证业务规则一致。
         SecurityContext.setCurrentCompanyId(companyId);
-        // 调用getSubjectType方法，复用统一能力并保证业务规则一致。
         SecurityContext.setCurrentSubjectType(companyType != null ? companyType.getSubjectType() : null);
-        // 调用getTypeCode方法，复用统一能力并保证业务规则一致。
         SecurityContext.setCurrentTypeCode(company.getTypeCode());
-        // 调用initDataScopeContext方法，复用统一能力并保证业务规则一致。
         initDataScopeContext(userId, companyId, companyType);
 
-        // 说明：执行该步骤以保证业务流程正确。
         Set<String> perms = sysPermissionService.loadPermsToCache(userId, companyId);
-        // 调用selectMenuTreeByUserIdAndCompanyId方法，复用统一能力并保证业务规则一致。
         sysMenuMapper.selectMenuTreeByUserIdAndCompanyId(userId, companyId);
 
-        // 调用selectById方法，复用统一能力并保证业务规则一致。
         SysUser user = sysUserMapper.selectById(userId);
         return buildSysUserVO(user, company, companyType, userId, perms);
     }
@@ -278,60 +266,42 @@ public class SysAuthServiceImpl implements ISysAuthService {
      */
     @Override
     public SysUserVO getUserInfo() {
-        // 调用getCurrentUserId方法，复用统一能力并保证业务规则一致。
         Long userId = SecurityContext.getCurrentUserId();
-        // 调用getCurrentCompanyId方法，复用统一能力并保证业务规则一致。
         Long companyId = SecurityContext.getCurrentCompanyId();
 
-        // 说明：执行该步骤以保证业务流程正确。
         SysUser user = sysUserMapper.selectById(userId);
         if (user == null) {
             throw new ServiceException(ResultCode.DATA_NOT_FOUND, "用户不存在");
         }
 
-        // 调用buildBasicUserVO方法，复用统一能力并保证业务规则一致。
         SysUserVO vo = buildBasicUserVO(user);
         if (companyId != null) {
-            // 调用selectById方法，复用统一能力并保证业务规则一致。
             SysCompany company = sysCompanyMapper.selectById(companyId);
             if (company != null) {
-                // 调用getId方法，复用统一能力并保证业务规则一致。
                 vo.setCurrentCompanyId(company.getId());
-                // 调用getCompanyName方法，复用统一能力并保证业务规则一致。
                 vo.setCurrentCompanyName(company.getCompanyName());
-                // 调用getTypeCode方法，复用统一能力并保证业务规则一致。
                 vo.setCurrentTypeCode(company.getTypeCode());
 
                 LambdaQueryWrapper<SysCompanyType> typeQuery = new LambdaQueryWrapper<>();
-                // 调用getTypeCode方法，复用统一能力并保证业务规则一致。
                 typeQuery.eq(SysCompanyType::getTypeCode, company.getTypeCode());
-                // 调用selectOne方法，复用统一能力并保证业务规则一致。
                 SysCompanyType companyType = sysCompanyTypeMapper.selectOne(typeQuery);
                 if (companyType != null) {
-                    // 调用getSubjectType方法，复用统一能力并保证业务规则一致。
                     vo.setCurrentSubjectType(companyType.getSubjectType());
                 }
 
-                // 调用loadCurrentPerms方法，复用统一能力并保证业务规则一致。
                 vo.setPerms(loadCurrentPerms(userId, companyId));
-                // 调用buildCurrentPermissionVos方法，复用统一能力并保证业务规则一致。
                 vo.setPermissionVos(buildCurrentPermissionVos(userId, companyId));
-                // 调用buildCurrentCompanyRoles方法，复用统一能力并保证业务规则一致。
                 vo.setRoles(buildCurrentCompanyRoles(userId, companyId));
             }
         }
 
         LambdaQueryWrapper<SysUserCompany> ucQuery = new LambdaQueryWrapper<>();
-        // 调用eq方法，复用统一能力并保证业务规则一致。
         ucQuery.eq(SysUserCompany::getUserId, userId);
-        // 调用selectList方法，复用统一能力并保证业务规则一致。
         List<SysUserCompany> userCompanies = sysUserCompanyMapper.selectList(ucQuery);
         if (userCompanies != null && !userCompanies.isEmpty()) {
             List<Long> companyIds = userCompanies.stream()
                     .map(SysUserCompany::getCompanyId)
-                    // 调用toList方法，复用统一能力并保证业务规则一致。
                     .collect(Collectors.toList());
-            // 调用buildCompanySimpleList方法，复用统一能力并保证业务规则一致。
             vo.setCompanies(buildCompanySimpleList(companyIds));
         }
         return vo;
@@ -345,29 +315,20 @@ public class SysAuthServiceImpl implements ISysAuthService {
      */
     @Override
     public SysUserVO updateProfile(UpdateProfileDTO dto) {
-        // 调用getCurrentUserId方法，复用统一能力并保证业务规则一致。
         Long userId = SecurityContext.getCurrentUserId();
-        // 说明：执行该步骤以保证业务流程正确。
         SysUser user = requireActiveUser(userId);
-        // 调用getCurrentPassword方法，复用统一能力并保证业务规则一致。
         verifyCurrentPassword(user, dto.getCurrentPassword());
 
-        // 调用getRealName方法，复用统一能力并保证业务规则一致。
         String realName = StrUtil.trim(dto.getRealName());
-        // 调用getPhone方法，复用统一能力并保证业务规则一致。
         String phone = StrUtil.trim(dto.getPhone());
-        // 调用getEmail方法，复用统一能力并保证业务规则一致。
         String email = StrUtil.trim(dto.getEmail());
-        // 调用getUsername方法，复用统一能力并保证业务规则一致。
         userIdentityValidator.validateLoginIdentityUnique(userId, user.getUsername(), phone);
 
         LambdaUpdateWrapper<SysUser> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(SysUser::getId, userId)
                 .set(SysUser::getRealName, realName)
                 .set(SysUser::getPhone, phone)
-                // 调用isBlank方法，复用统一能力并保证业务规则一致。
                 .set(SysUser::getEmail, StrUtil.isBlank(email) ? null : email);
-        // 说明：执行该步骤以保证业务流程正确。
         sysUserMapper.update(null, updateWrapper);
         return getUserInfo();
     }
@@ -379,11 +340,8 @@ public class SysAuthServiceImpl implements ISysAuthService {
      */
     @Override
     public void changePassword(ChangePasswordDTO dto) {
-        // 调用getCurrentUserId方法，复用统一能力并保证业务规则一致。
         Long userId = SecurityContext.getCurrentUserId();
-        // 说明：执行该步骤以保证业务流程正确。
         SysUser user = requireActiveUser(userId);
-        // 调用getCurrentPassword方法，复用统一能力并保证业务规则一致。
         verifyCurrentPassword(user, dto.getCurrentPassword());
         if (BCrypt.checkpw(dto.getNewPassword(), user.getPassword())) {
             throw new ServiceException("新密码不能与当前密码相同");
@@ -391,13 +349,9 @@ public class SysAuthServiceImpl implements ISysAuthService {
 
         LambdaUpdateWrapper<SysUser> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(SysUser::getId, userId)
-                // 调用gensalt方法，复用统一能力并保证业务规则一致。
                 .set(SysUser::getPassword, BCrypt.hashpw(dto.getNewPassword(), BCrypt.gensalt()));
-        // 说明：执行该步骤以保证业务流程正确。
         sysUserMapper.update(null, updateWrapper);
-        // 说明：执行该步骤以保证业务流程正确。
         sysPermissionService.clearAllPermsCache(userId);
-        // 调用kickout方法，复用统一能力并保证业务规则一致。
         StpUtil.kickout(userId);
     }
 
@@ -408,44 +362,30 @@ public class SysAuthServiceImpl implements ISysAuthService {
      */
     @Override
     public WechatBindStatusVO createWechatBindQrcode() {
-        // 调用getCurrentUserId方法，复用统一能力并保证业务规则一致。
         Long userId = SecurityContext.getCurrentUserId();
-        // 说明：执行该步骤以保证业务流程正确。
         SysUser user = requireActiveUser(userId);
-        // 调用getBindSession方法，复用统一能力并保证业务规则一致。
         WechatBindSession oldSession = getBindSession(userId);
         if (StrUtil.isNotBlank(user.getOpenid())) {
-            // 调用clearBindSession方法，复用统一能力并保证业务规则一致。
             clearBindSession(oldSession);
             return buildWechatBindStatus(user, null);
         }
 
         if (oldSession != null) {
-            // 调用clearBindSession方法，复用统一能力并保证业务规则一致。
             clearBindSession(oldSession);
         }
 
-        // 调用WechatBindSession方法，复用统一能力并保证业务规则一致。
         WechatBindSession session = new WechatBindSession();
-        // 调用setUserId方法，复用统一能力并保证业务规则一致。
         session.setUserId(userId);
-        // 调用generateBindTicket方法，复用统一能力并保证业务规则一致。
         session.setBindTicket(generateBindTicket());
-        // 调用plusMinutes方法，复用统一能力并保证业务规则一致。
         session.setExpireAt(LocalDateTime.now().plusMinutes(BIND_TICKET_EXPIRE_MINUTES));
-        // 调用saveBindSession方法，复用统一能力并保证业务规则一致。
         saveBindSession(session);
         try {
-            // 调用getValueByKey方法，复用统一能力并保证业务规则一致。
             String pagePath = StrUtil.trim(sysConfigService.getValueByKey(WechatConfigConstants.B_BIND_PAGE_PATH));
-            // 调用buildWechatBindStatus方法，复用统一能力并保证业务规则一致。
             WechatBindStatusVO vo = buildWechatBindStatus(user, session);
             vo.setQrImageBase64(wechatMiniProgramService.createQrcodeBase64(
-                    // 调用getBindTicket方法，复用统一能力并保证业务规则一致。
                     WechatMiniProgramScene.B, session.getBindTicket(), pagePath));
             return vo;
         } catch (RuntimeException ex) {
-            // 调用clearBindSession方法，复用统一能力并保证业务规则一致。
             clearBindSession(session);
             throw ex;
         }
@@ -458,14 +398,10 @@ public class SysAuthServiceImpl implements ISysAuthService {
      */
     @Override
     public WechatBindStatusVO getWechatBindStatus() {
-        // 调用getCurrentUserId方法，复用统一能力并保证业务规则一致。
         Long userId = SecurityContext.getCurrentUserId();
-        // 说明：执行该步骤以保证业务流程正确。
         SysUser user = requireActiveUser(userId);
-        // 调用getBindSession方法，复用统一能力并保证业务规则一致。
         WechatBindSession session = getBindSession(userId);
         if (StrUtil.isNotBlank(user.getOpenid())) {
-            // 调用clearBindSession方法，复用统一能力并保证业务规则一致。
             clearBindSession(session);
             return buildWechatBindStatus(user, null);
         }
@@ -481,32 +417,22 @@ public class SysAuthServiceImpl implements ISysAuthService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public MpLoginVO confirmWechatBind(WechatBindConfirmDTO dto) {
-        // 说明：执行该步骤以保证业务流程正确。
         WechatBindSession bindSession = requireBindSession(dto.getBindTicket());
-        // 调用getUserId方法，复用统一能力并保证业务规则一致。
         SysUser user = requireActiveUser(bindSession.getUserId());
-        // 调用getCode方法，复用统一能力并保证业务规则一致。
         WechatAuthSession authSession = wechatMiniProgramService.code2Session(WechatMiniProgramScene.B, dto.getCode());
         if (StrUtil.isNotBlank(user.getOpenid()) && !StrUtil.equals(user.getOpenid(), authSession.getOpenid())) {
-            // 调用clearBindSession方法，复用统一能力并保证业务规则一致。
             clearBindSession(bindSession);
             throw new ServiceException("当前账号已绑定微信");
         }
-        // 调用getOpenid方法，复用统一能力并保证业务规则一致。
         validateWechatBinding(user, authSession.getOpenid());
 
-        // 调用getOpenid方法，复用统一能力并保证业务规则一致。
         boolean wasBound = StrUtil.isNotBlank(user.getOpenid());
-        // 调用getId方法，复用统一能力并保证业务规则一致。
         String wechatPhone = resolveWechatPhone(dto.getPhoneCode(), user.getId());
-        // 调用getOpenid方法，复用统一能力并保证业务规则一致。
         refreshWechatIdentity(user.getId(), authSession.getOpenid(), wechatPhone);
         if (!wasBound) {
             saveWechatBindRecord(user, WECHAT_STATUS_BIND, WECHAT_OPERATE_SOURCE_PC_QR_BIND,
-                    // 调用resolveRecordWechatPhone方法，复用统一能力并保证业务规则一致。
                     authSession.getOpenid(), resolveRecordWechatPhone(user, wechatPhone));
         }
-        // 调用clearBindSession方法，复用统一能力并保证业务规则一致。
         clearBindSession(bindSession);
         return buildMpLoginVO(doLogin(requireActiveUser(user.getId())));
     }
@@ -519,27 +445,18 @@ public class SysAuthServiceImpl implements ISysAuthService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void unbindWechat(WechatBindUnbindDTO dto) {
-        // 调用getCurrentUserId方法，复用统一能力并保证业务规则一致。
         Long userId = SecurityContext.getCurrentUserId();
-        // 说明：执行该步骤以保证业务流程正确。
         SysUser user = requireActiveUser(userId);
-        // 调用getCurrentPassword方法，复用统一能力并保证业务规则一致。
         verifyCurrentPassword(user, dto.getCurrentPassword());
         if (StrUtil.isBlank(user.getOpenid())) {
             throw new ServiceException("当前账号未绑定微信");
         }
 
-        // 调用getOpenid方法，复用统一能力并保证业务规则一致。
         String openid = user.getOpenid();
-        // 调用getWechatPhone方法，复用统一能力并保证业务规则一致。
         String wechatPhone = user.getWechatPhone();
-        // 调用getBindSession方法，复用统一能力并保证业务规则一致。
         clearBindSession(getBindSession(userId));
-        // 调用clearWechatIdentity方法，复用统一能力并保证业务规则一致。
         clearWechatIdentity(userId);
-        // 调用saveWechatBindRecord方法，复用统一能力并保证业务规则一致。
         saveWechatBindRecord(user, WECHAT_STATUS_UNBIND, WECHAT_OPERATE_SOURCE_PC_SELF_UNBIND, openid, wechatPhone);
-        // 调用kickout方法，复用统一能力并保证业务规则一致。
         StpUtil.kickout(userId);
     }
 
@@ -548,15 +465,11 @@ public class SysAuthServiceImpl implements ISysAuthService {
      */
     @Override
     public void logout() {
-        // 调用getCurrentUserId方法，复用统一能力并保证业务规则一致。
         Long userId = SecurityContext.getCurrentUserId();
-        // 调用getCurrentCompanyId方法，复用统一能力并保证业务规则一致。
         Long companyId = SecurityContext.getCurrentCompanyId();
         if (companyId != null) {
-            // 说明：执行该步骤以保证业务流程正确。
             sysPermissionService.clearPermsCache(userId, companyId);
         }
-        // 调用logout方法，复用统一能力并保证业务规则一致。
         StpUtil.logout();
     }
 
@@ -568,13 +481,9 @@ public class SysAuthServiceImpl implements ISysAuthService {
      * @param companyType 公司类型
      */
     private void initDataScopeContext(Long userId, Long companyId, SysCompanyType companyType) {
-        // 调用getSubjectType方法，复用统一能力并保证业务规则一致。
         String subjectType = companyType != null ? companyType.getSubjectType() : null;
-        // 调用resolveEffectiveDataScope方法，复用统一能力并保证业务规则一致。
         DataScopeEnum effectiveDataScope = resolveEffectiveDataScope(userId, companyId, subjectType);
-        // 调用getCode方法，复用统一能力并保证业务规则一致。
         SecurityContext.setEffectiveDataScope(effectiveDataScope.getCode());
-        // 调用resolveCurrentRegionIds方法，复用统一能力并保证业务规则一致。
         SecurityContext.setCurrentRegionIds(resolveCurrentRegionIds(userId, companyId, subjectType, effectiveDataScope));
     }
 
@@ -593,7 +502,6 @@ public class SysAuthServiceImpl implements ISysAuthService {
         if (SubjectTypeEnum.PLATFORM.getCode().equals(subjectType)) {
             return DataScopeEnum.ALL;
         }
-        // 说明：执行该步骤以保证业务流程正确。
         return sysPermissionService.getEffectiveDataScope(userId, companyId, subjectType);
     }
 
@@ -626,32 +534,22 @@ public class SysAuthServiceImpl implements ISysAuthService {
         }
         List<SysCompanySimpleVO> result = new ArrayList<>();
         for (Long companyId : companyIds) {
-            // 说明：执行该步骤以保证业务流程正确。
             SysCompany company = sysCompanyMapper.selectById(companyId);
             if (company == null) {
                 continue;
             }
-            // 调用SysCompanySimpleVO方法，复用统一能力并保证业务规则一致。
             SysCompanySimpleVO vo = new SysCompanySimpleVO();
-            // 调用getId方法，复用统一能力并保证业务规则一致。
             vo.setId(company.getId());
-            // 调用getCompanyName方法，复用统一能力并保证业务规则一致。
             vo.setCompanyName(company.getCompanyName());
-            // 调用getCompanyCode方法，复用统一能力并保证业务规则一致。
             vo.setCompanyCode(company.getCompanyCode());
-            // 调用getTypeCode方法，复用统一能力并保证业务规则一致。
             vo.setTypeCode(company.getTypeCode());
 
             LambdaQueryWrapper<SysCompanyType> typeQuery = new LambdaQueryWrapper<>();
-            // 调用getTypeCode方法，复用统一能力并保证业务规则一致。
             typeQuery.eq(SysCompanyType::getTypeCode, company.getTypeCode());
-            // 调用selectOne方法，复用统一能力并保证业务规则一致。
             SysCompanyType companyType = sysCompanyTypeMapper.selectOne(typeQuery);
             if (companyType != null) {
-                // 调用getTypeName方法，复用统一能力并保证业务规则一致。
                 vo.setTypeName(companyType.getTypeName());
             }
-            // 调用add方法，复用统一能力并保证业务规则一致。
             result.add(vo);
         }
         return result;
@@ -661,27 +559,16 @@ public class SysAuthServiceImpl implements ISysAuthService {
      * 构建基础用户VO（不含公司、权限等）
      */
     private SysUserVO buildBasicUserVO(SysUser user) {
-        // 调用SysUserVO方法，复用统一能力并保证业务规则一致。
         SysUserVO vo = new SysUserVO();
-        // 调用getId方法，复用统一能力并保证业务规则一致。
         vo.setId(user.getId());
-        // 调用getUsername方法，复用统一能力并保证业务规则一致。
         vo.setUsername(user.getUsername());
-        // 调用getRealName方法，复用统一能力并保证业务规则一致。
         vo.setRealName(user.getRealName());
-        // 调用getPhone方法，复用统一能力并保证业务规则一致。
         vo.setPhone(user.getPhone());
-        // 调用getEmail方法，复用统一能力并保证业务规则一致。
         vo.setEmail(user.getEmail());
-        // 调用getAvatar方法，复用统一能力并保证业务规则一致。
         vo.setAvatar(user.getAvatar());
-        // 调用getSex方法，复用统一能力并保证业务规则一致。
         vo.setSex(user.getSex());
-        // 调用getStatus方法，复用统一能力并保证业务规则一致。
         vo.setStatus(user.getStatus());
-        // 调用getRemark方法，复用统一能力并保证业务规则一致。
         vo.setRemark(user.getRemark());
-        // 调用getCreateTime方法，复用统一能力并保证业务规则一致。
         vo.setCreateTime(user.getCreateTime());
         return vo;
     }
@@ -691,40 +578,28 @@ public class SysAuthServiceImpl implements ISysAuthService {
      */
     private SysUserVO buildSysUserVO(SysUser user, SysCompany company, SysCompanyType companyType,
                                      Long userId, Set<String> perms) {
-        // 调用buildBasicUserVO方法，复用统一能力并保证业务规则一致。
         SysUserVO vo = buildBasicUserVO(user);
         if (company != null) {
-            // 调用getId方法，复用统一能力并保证业务规则一致。
             vo.setCurrentCompanyId(company.getId());
-            // 调用getCompanyName方法，复用统一能力并保证业务规则一致。
             vo.setCurrentCompanyName(company.getCompanyName());
-            // 调用getTypeCode方法，复用统一能力并保证业务规则一致。
             vo.setCurrentTypeCode(company.getTypeCode());
         }
         if (companyType != null) {
-            // 调用getSubjectType方法，复用统一能力并保证业务规则一致。
             vo.setCurrentSubjectType(companyType.getSubjectType());
         }
-        // 调用setPerms方法，复用统一能力并保证业务规则一致。
         vo.setPerms(perms);
         if (company != null) {
-            // 调用getId方法，复用统一能力并保证业务规则一致。
             vo.setPermissionVos(buildCurrentPermissionVos(userId, company.getId()));
-            // 调用getId方法，复用统一能力并保证业务规则一致。
             vo.setRoles(buildCurrentCompanyRoles(userId, company.getId()));
         }
 
         LambdaQueryWrapper<SysUserCompany> ucQuery = new LambdaQueryWrapper<>();
-        // 调用eq方法，复用统一能力并保证业务规则一致。
         ucQuery.eq(SysUserCompany::getUserId, userId);
-        // 说明：执行该步骤以保证业务流程正确。
         List<SysUserCompany> userCompanies = sysUserCompanyMapper.selectList(ucQuery);
         if (userCompanies != null && !userCompanies.isEmpty()) {
             List<Long> companyIds = userCompanies.stream()
                     .map(SysUserCompany::getCompanyId)
-                    // 调用toList方法，复用统一能力并保证业务规则一致。
                     .collect(Collectors.toList());
-            // 调用buildCompanySimpleList方法，复用统一能力并保证业务规则一致。
             vo.setCompanies(buildCompanySimpleList(companyIds));
         }
         return vo;
@@ -738,15 +613,12 @@ public class SysAuthServiceImpl implements ISysAuthService {
             return Collections.emptySet();
         }
         String permsKey = CacheConstants.USER_PERMS_KEY + userId + ":" + companyId;
-        // 调用members方法，复用统一能力并保证业务规则一致。
         Set<Object> permObjects = redisTemplate.opsForSet().members(permsKey);
         if (permObjects != null && !permObjects.isEmpty()) {
             return permObjects.stream()
                     .map(String::valueOf)
-                    // 调用toSet方法，复用统一能力并保证业务规则一致。
                     .collect(Collectors.toSet());
         }
-        // 说明：执行该步骤以保证业务流程正确。
         return sysPermissionService.loadPermsToCache(userId, companyId);
     }
 
@@ -757,35 +629,27 @@ public class SysAuthServiceImpl implements ISysAuthService {
         if (userId == null || companyId == null) {
             return Collections.emptyList();
         }
-        // 说明：执行该步骤以保证业务流程正确。
         List<SysMenu> permissionMenus = sysMenuMapper.selectPermissionMenusByUserIdAndCompanyId(userId, companyId);
         if (permissionMenus == null || permissionMenus.isEmpty()) {
             return Collections.emptyList();
         }
         return permissionMenus.stream()
                 .map(this::convertPermissionToVO)
-                // 调用toList方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toList());
     }
 
     /**
      * convert权限To视图。
      *
-     * @param menu 参数
-     * @return 处理结果
+     * @param menu menu，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private SysPermissionVO convertPermissionToVO(SysMenu menu) {
-        // 调用SysPermissionVO方法，复用统一能力并保证业务规则一致。
         SysPermissionVO vo = new SysPermissionVO();
-        // 调用getId方法，复用统一能力并保证业务规则一致。
         vo.setId(menu.getId());
-        // 调用getMenuName方法，复用统一能力并保证业务规则一致。
         vo.setMenuName(menu.getMenuName());
-        // 调用getParentId方法，复用统一能力并保证业务规则一致。
         vo.setParentId(menu.getParentId());
-        // 调用getMenuType方法，复用统一能力并保证业务规则一致。
         vo.setMenuType(menu.getMenuType());
-        // 调用getPerms方法，复用统一能力并保证业务规则一致。
         vo.setPerms(menu.getPerms());
         return vo;
     }
@@ -793,40 +657,28 @@ public class SysAuthServiceImpl implements ISysAuthService {
     /**
      * doLogin。
      *
-     * @param user 参数
-     * @return 处理结果
+     * @param user 用户业务对象或用户相关值，用于操作人或归属判断。
+     * @return 业务处理结果
      */
     private LoginVO doLogin(SysUser user) {
-        // 调用getId方法，复用统一能力并保证业务规则一致。
         StpUtil.login(user.getId());
-        // 调用getId方法，复用统一能力并保证业务规则一致。
         touchLastLoginTime(user.getId());
 
-        // 调用getId方法，复用统一能力并保证业务规则一致。
         List<SysCompanySimpleVO> companies = listUserCompanies(user.getId());
         if (companies.isEmpty()) {
             throw new ServiceException(ResultCode.USER_ERROR, "用户未关联任何公司");
         }
 
-        // 调用LoginVO方法，复用统一能力并保证业务规则一致。
         LoginVO loginVO = new LoginVO();
-        // 调用getTokenValue方法，复用统一能力并保证业务规则一致。
         loginVO.setToken(StpUtil.getTokenValue());
         if (companies.size() == 1) {
-            // 调用getId方法，复用统一能力并保证业务规则一致。
             SysUserVO userInfo = chooseCompany(companies.get(0).getId());
-            // 调用setUserInfo方法，复用统一能力并保证业务规则一致。
             loginVO.setUserInfo(userInfo);
-            // 调用setNeedChooseCompany方法，复用统一能力并保证业务规则一致。
             loginVO.setNeedChooseCompany(false);
-            // 调用setCompanies方法，复用统一能力并保证业务规则一致。
             loginVO.setCompanies(null);
         } else {
-            // 调用buildBasicUserVO方法，复用统一能力并保证业务规则一致。
             loginVO.setUserInfo(buildBasicUserVO(user));
-            // 调用setNeedChooseCompany方法，复用统一能力并保证业务规则一致。
             loginVO.setNeedChooseCompany(true);
-            // 调用setCompanies方法，复用统一能力并保证业务规则一致。
             loginVO.setCompanies(companies);
         }
         return loginVO;
@@ -835,20 +687,17 @@ public class SysAuthServiceImpl implements ISysAuthService {
     /**
      * 分页查询用户Companies列表。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     private List<SysCompanySimpleVO> listUserCompanies(Long userId) {
         LambdaQueryWrapper<SysUserCompany> query = new LambdaQueryWrapper<>();
-        // 调用eq方法，复用统一能力并保证业务规则一致。
         query.eq(SysUserCompany::getUserId, userId);
-        // 说明：执行该步骤以保证业务流程正确。
         List<SysUserCompany> relations = sysUserCompanyMapper.selectList(query);
         if (relations == null || relations.isEmpty()) {
             return Collections.emptyList();
         }
         return buildCompanySimpleList(relations.stream()
                 .map(SysUserCompany::getCompanyId)
-                // 调用toList方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toList()));
     }
 
@@ -858,24 +707,20 @@ public class SysAuthServiceImpl implements ISysAuthService {
     private void touchLastLoginTime(Long userId) {
         LambdaUpdateWrapper<SysUser> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(SysUser::getId, userId)
-                // 调用now方法，复用统一能力并保证业务规则一致。
                 .set(SysUser::getLastLoginTime, LocalDateTime.now());
-        // 说明：执行该步骤以保证业务流程正确。
         sysUserMapper.update(null, updateWrapper);
     }
 
     /**
      * requireActive用户。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     private SysUser requireActiveUser(Long userId) {
-        // 说明：执行该步骤以保证业务流程正确。
         SysUser user = sysUserMapper.selectById(userId);
         if (user == null) {
             throw new ServiceException(ResultCode.DATA_NOT_FOUND, "用户不存在");
         }
-        // 说明：执行该步骤以保证业务流程正确。
         ensureUserActive(user);
         return user;
     }
@@ -883,7 +728,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
     /**
      * ensure用户Active。
      *
-     * @param user 参数
+     * @param user 用户业务对象或用户相关值，用于操作人或归属判断。
      */
     private void ensureUserActive(SysUser user) {
         if (user.getStatus() == null || user.getStatus() == 0) {
@@ -894,8 +739,8 @@ public class SysAuthServiceImpl implements ISysAuthService {
     /**
      * verifyCurrentPassword。
      *
-     * @param user 参数
-     * @param currentPassword 参数
+     * @param user 用户业务对象或用户相关值，用于操作人或归属判断。
+     * @param currentPassword currentPassword，当前业务处理所需的输入值。
      */
     private void verifyCurrentPassword(SysUser user, String currentPassword) {
         if (!BCrypt.checkpw(currentPassword, user.getPassword())) {
@@ -906,35 +751,30 @@ public class SysAuthServiceImpl implements ISysAuthService {
     /**
      * findByOpenid。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     private SysUser findByOpenid(String openid) {
         if (StrUtil.isBlank(openid)) {
             return null;
         }
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
-        // 调用eq方法，复用统一能力并保证业务规则一致。
         wrapper.eq(SysUser::getOpenid, openid);
-        // 说明：执行该步骤以保证业务流程正确。
         return sysUserMapper.selectOne(wrapper);
     }
 
     /**
      * findByLogin身份。
      *
-     * @param loginIdentity 参数
-     * @return 处理结果
+     * @param loginIdentity loginIdentity，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private SysUser findByLoginIdentity(String loginIdentity) {
-        // 调用trim方法，复用统一能力并保证业务规则一致。
         String normalized = StrUtil.trim(loginIdentity);
         if (StrUtil.isBlank(normalized)) {
             return null;
         }
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
-        // 调用eq方法，复用统一能力并保证业务规则一致。
         wrapper.and(q -> q.eq(SysUser::getUsername, normalized).or().eq(SysUser::getPhone, normalized));
-        // 说明：执行该步骤以保证业务流程正确。
         List<SysUser> users = sysUserMapper.selectList(wrapper);
         if (users == null || users.isEmpty()) {
             return null;
@@ -948,16 +788,14 @@ public class SysAuthServiceImpl implements ISysAuthService {
     /**
      * 构建Current公司Roles。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     private List<SysRoleVO> buildCurrentCompanyRoles(Long userId, Long companyId) {
         if (userId == null || companyId == null) {
             return Collections.emptyList();
         }
         LambdaQueryWrapper<SysUserRole> userRoleQuery = new LambdaQueryWrapper<>();
-        // 调用eq方法，复用统一能力并保证业务规则一致。
         userRoleQuery.eq(SysUserRole::getUserId, userId);
-        // 说明：执行该步骤以保证业务流程正确。
         List<SysUserRole> userRoles = sysUserRoleMapper.selectList(userRoleQuery);
         if (userRoles == null || userRoles.isEmpty()) {
             return Collections.emptyList();
@@ -965,53 +803,37 @@ public class SysAuthServiceImpl implements ISysAuthService {
 
         List<Long> roleIds = userRoles.stream()
                 .map(SysUserRole::getRoleId)
-                // 调用toList方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toList());
         LambdaQueryWrapper<SysRole> roleQuery = new LambdaQueryWrapper<>();
         roleQuery.in(SysRole::getId, roleIds)
-                // 调用eq方法，复用统一能力并保证业务规则一致。
                 .eq(SysRole::getCompanyId, companyId);
-        // 调用selectList方法，复用统一能力并保证业务规则一致。
         List<SysRole> roles = sysRoleMapper.selectList(roleQuery);
         if (roles == null || roles.isEmpty()) {
             return Collections.emptyList();
         }
         return roles.stream()
                 .map(this::convertRoleToVO)
-                // 调用toList方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toList());
     }
 
     /**
      * convert角色To视图。
      *
-     * @param role 参数
-     * @return 处理结果
+     * @param role role，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private SysRoleVO convertRoleToVO(SysRole role) {
-        // 调用SysRoleVO方法，复用统一能力并保证业务规则一致。
         SysRoleVO vo = new SysRoleVO();
-        // 调用getId方法，复用统一能力并保证业务规则一致。
         vo.setId(role.getId());
-        // 调用getCompanyId方法，复用统一能力并保证业务规则一致。
         vo.setCompanyId(role.getCompanyId());
-        // 调用getRoleName方法，复用统一能力并保证业务规则一致。
         vo.setRoleName(role.getRoleName());
-        // 调用getRoleKey方法，复用统一能力并保证业务规则一致。
         vo.setRoleKey(role.getRoleKey());
-        // 调用getDataScope方法，复用统一能力并保证业务规则一致。
         vo.setDataScope(role.getDataScope());
-        // 调用getRoleType方法，复用统一能力并保证业务规则一致。
         vo.setRoleType(role.getRoleType());
-        // 调用getIsSystem方法，复用统一能力并保证业务规则一致。
         vo.setIsSystem(role.getIsSystem());
-        // 调用getStatus方法，复用统一能力并保证业务规则一致。
         vo.setStatus(role.getStatus());
-        // 调用getOrderNum方法，复用统一能力并保证业务规则一致。
         vo.setOrderNum(role.getOrderNum());
-        // 调用getRemark方法，复用统一能力并保证业务规则一致。
         vo.setRemark(role.getRemark());
-        // 调用getCreateTime方法，复用统一能力并保证业务规则一致。
         vo.setCreateTime(role.getCreateTime());
         return vo;
     }
@@ -1019,18 +841,15 @@ public class SysAuthServiceImpl implements ISysAuthService {
     /**
      * refresh微信身份。
      *
-     * @param wechatPhone 参数
+     * @param wechatPhone wechatPhone，当前业务处理所需的输入值。
      */
     private void refreshWechatIdentity(Long userId, String openid, String wechatPhone) {
         LambdaUpdateWrapper<SysUser> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(SysUser::getId, userId)
-                // 调用set方法，复用统一能力并保证业务规则一致。
                 .set(SysUser::getOpenid, openid);
         if (StrUtil.isNotBlank(wechatPhone)) {
-            // 调用set方法，复用统一能力并保证业务规则一致。
             wrapper.set(SysUser::getWechatPhone, wechatPhone);
         }
-        // 说明：执行该步骤以保证业务流程正确。
         sysUserMapper.update(null, wrapper);
     }
 
@@ -1041,16 +860,14 @@ public class SysAuthServiceImpl implements ISysAuthService {
         LambdaUpdateWrapper<SysUser> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(SysUser::getId, userId)
                 .set(SysUser::getOpenid, null)
-                // 调用set方法，复用统一能力并保证业务规则一致。
                 .set(SysUser::getWechatPhone, null);
-        // 说明：执行该步骤以保证业务流程正确。
         sysUserMapper.update(null, wrapper);
     }
 
     /**
      * 校验微信绑定ing。
      *
-     * @param user 参数
+     * @param user 用户业务对象或用户相关值，用于操作人或归属判断。
      */
     private void validateWechatBinding(SysUser user, String openid) {
         if (StrUtil.isBlank(openid)) {
@@ -1059,7 +876,6 @@ public class SysAuthServiceImpl implements ISysAuthService {
         if (StrUtil.isNotBlank(user.getOpenid()) && !StrUtil.equals(user.getOpenid(), openid)) {
             throw new ServiceException("当前账号已绑定微信");
         }
-        // 调用findByOpenid方法，复用统一能力并保证业务规则一致。
         SysUser boundUser = findByOpenid(openid);
         if (boundUser != null && !boundUser.getId().equals(user.getId())) {
             throw new ServiceException("该微信已绑定其他账号，请联系管理员");
@@ -1069,19 +885,17 @@ public class SysAuthServiceImpl implements ISysAuthService {
     /**
      * 解析微信Phone。
      *
-     * @param phoneCode 参数
-     * @return 处理结果
+     * @param phoneCode 业务编码，用于匹配枚举、配置或外部系统数据。
+     * @return 业务处理结果
      */
     private String resolveWechatPhone(String phoneCode, Long userId) {
         if (StrUtil.isBlank(phoneCode)) {
             return null;
         }
         try {
-            // 调用getPhoneNumber方法，复用统一能力并保证业务规则一致。
             WechatPhoneInfo phoneInfo = wechatMiniProgramService.getPhoneNumber(WechatMiniProgramScene.B, phoneCode);
             return StrUtil.blankToDefault(phoneInfo.getPhoneNumber(), phoneInfo.getPurePhoneNumber());
         } catch (Exception ex) {
-            // 调用warn方法，复用统一能力并保证业务规则一致。
             log.warn("获取 B 端微信手机号失败，userId={}", userId, ex);
             return null;
         }
@@ -1090,9 +904,9 @@ public class SysAuthServiceImpl implements ISysAuthService {
     /**
      * 解析Record微信Phone。
      *
-     * @param user 参数
-     * @param latestWechatPhone 参数
-     * @return 处理结果
+     * @param user 用户业务对象或用户相关值，用于操作人或归属判断。
+     * @param latestWechatPhone latestWechatPhone，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private String resolveRecordWechatPhone(SysUser user, String latestWechatPhone) {
         if (StrUtil.isNotBlank(latestWechatPhone)) {
@@ -1104,11 +918,10 @@ public class SysAuthServiceImpl implements ISysAuthService {
     /**
      * generate绑定Ticket。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     private String generateBindTicket() {
         for (int i = 0; i < 10; i++) {
-            // 调用randomString方法，复用统一能力并保证业务规则一致。
             String bindTicket = RandomUtil.randomString(24);
             if (!Boolean.TRUE.equals(redisTemplate.hasKey(CacheConstants.WECHAT_BIND_TICKET_KEY + bindTicket))) {
                 return bindTicket;
@@ -1120,10 +933,9 @@ public class SysAuthServiceImpl implements ISysAuthService {
     /**
      * 新增绑定Session。
      *
-     * @param session 参数
+     * @param session session，当前业务处理所需的输入值。
      */
     private void saveBindSession(WechatBindSession session) {
-        // 调用toJsonStr方法，复用统一能力并保证业务规则一致。
         String sessionJson = JSONUtil.toJsonStr(session);
         redisTemplate.opsForValue().set(CacheConstants.WECHAT_BIND_USER_KEY + session.getUserId(), sessionJson,
                 BIND_TICKET_EXPIRE_MINUTES, TimeUnit.MINUTES);
@@ -1134,10 +946,9 @@ public class SysAuthServiceImpl implements ISysAuthService {
     /**
      * 获取绑定Session。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     private WechatBindSession getBindSession(Long userId) {
-        // 调用get方法，复用统一能力并保证业务规则一致。
         Object raw = redisTemplate.opsForValue().get(CacheConstants.WECHAT_BIND_USER_KEY + userId);
         return parseBindSession(raw, userId);
     }
@@ -1145,21 +956,18 @@ public class SysAuthServiceImpl implements ISysAuthService {
     /**
      * 解析绑定Session。
      *
-     * @param raw 参数
-     * @return 处理结果
+     * @param raw raw，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private WechatBindSession parseBindSession(Object raw, Long userId) {
         if (raw == null || StrUtil.isBlank(String.valueOf(raw))) {
             return null;
         }
         try {
-            // 调用valueOf方法，复用统一能力并保证业务规则一致。
             WechatBindSession session = JSONUtil.toBean(String.valueOf(raw), WechatBindSession.class);
             if (session == null || session.getExpireAt() == null || session.getExpireAt().isBefore(LocalDateTime.now())) {
-                // 调用clearBindSession方法，复用统一能力并保证业务规则一致。
                 clearBindSession(session);
                 if (userId != null) {
-                    // 调用delete方法，复用统一能力并保证业务规则一致。
                     redisTemplate.delete(CacheConstants.WECHAT_BIND_USER_KEY + userId);
                 }
                 return null;
@@ -1167,7 +975,6 @@ public class SysAuthServiceImpl implements ISysAuthService {
             return session;
         } catch (Exception ex) {
             if (userId != null) {
-                // 调用delete方法，复用统一能力并保证业务规则一致。
                 redisTemplate.delete(CacheConstants.WECHAT_BIND_USER_KEY + userId);
             }
             return null;
@@ -1177,18 +984,15 @@ public class SysAuthServiceImpl implements ISysAuthService {
     /**
      * require绑定Session。
      *
-     * @param bindTicket 参数
-     * @return 处理结果
+     * @param bindTicket bindTicket，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private WechatBindSession requireBindSession(String bindTicket) {
-        // 调用get方法，复用统一能力并保证业务规则一致。
         Object rawSession = redisTemplate.opsForValue().get(CacheConstants.WECHAT_BIND_TICKET_KEY + bindTicket);
-        // 调用parseBindSession方法，复用统一能力并保证业务规则一致。
         WechatBindSession session = parseBindSession(rawSession, null);
         if (session == null || !StrUtil.equals(bindTicket, session.getBindTicket())) {
             throw new ServiceException("二维码已失效，请回 PC 端重新生成");
         }
-        // 调用getUserId方法，复用统一能力并保证业务规则一致。
         WechatBindSession currentUserSession = getBindSession(session.getUserId());
         if (currentUserSession == null || !StrUtil.equals(bindTicket, currentUserSession.getBindTicket())) {
             throw new ServiceException("二维码已失效，请回 PC 端重新生成");
@@ -1199,16 +1003,14 @@ public class SysAuthServiceImpl implements ISysAuthService {
     /**
      * clear绑定Session。
      *
-     * @param session 参数
+     * @param session session，当前业务处理所需的输入值。
      */
     private void clearBindSession(WechatBindSession session) {
         if (session == null) {
             return;
         }
-        // 调用getUserId方法，复用统一能力并保证业务规则一致。
         redisTemplate.delete(CacheConstants.WECHAT_BIND_USER_KEY + session.getUserId());
         if (StrUtil.isNotBlank(session.getBindTicket())) {
-            // 调用getBindTicket方法，复用统一能力并保证业务规则一致。
             redisTemplate.delete(CacheConstants.WECHAT_BIND_TICKET_KEY + session.getBindTicket());
         }
     }
@@ -1216,55 +1018,39 @@ public class SysAuthServiceImpl implements ISysAuthService {
     /**
      * 新增微信绑定Record。
      *
-     * @param user 参数
-     * @param operateType 参数
-     * @param operateSource 参数
-     * @param wechatPhone 参数
+     * @param user 用户业务对象或用户相关值，用于操作人或归属判断。
+     * @param operateType operateType，当前业务处理所需的输入值。
+     * @param operateSource operateSource，当前业务处理所需的输入值。
+     * @param wechatPhone wechatPhone，当前业务处理所需的输入值。
      */
     private void saveWechatBindRecord(SysUser user, String operateType, String operateSource,
                                       String openid, String wechatPhone) {
-        // 调用WechatBindRecord方法，复用统一能力并保证业务规则一致。
         WechatBindRecord record = new WechatBindRecord();
-        // 调用getId方法，复用统一能力并保证业务规则一致。
         record.setUserId(user.getId());
-        // 调用setOperateType方法，复用统一能力并保证业务规则一致。
         record.setOperateType(operateType);
-        // 调用setOperateSource方法，复用统一能力并保证业务规则一致。
         record.setOperateSource(operateSource);
-        // 调用setOpenid方法，复用统一能力并保证业务规则一致。
         record.setOpenid(openid);
-        // 调用setWechatPhone方法，复用统一能力并保证业务规则一致。
         record.setWechatPhone(wechatPhone);
-        // 调用getId方法，复用统一能力并保证业务规则一致。
         record.setOperatorUserId(user.getId());
-        // 调用getUsername方法，复用统一能力并保证业务规则一致。
         record.setOperatorUsername(user.getUsername());
-        // 调用now方法，复用统一能力并保证业务规则一致。
         record.setOperateTime(LocalDateTime.now());
-        // 说明：执行该步骤以保证业务流程正确。
         wechatBindRecordMapper.insert(record);
     }
 
     /**
      * 构建微信绑定状态。
      *
-     * @param user 参数
-     * @param session 参数
-     * @return 处理结果
+     * @param user 用户业务对象或用户相关值，用于操作人或归属判断。
+     * @param session session，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private WechatBindStatusVO buildWechatBindStatus(SysUser user, WechatBindSession session) {
-        // 调用WechatBindStatusVO方法，复用统一能力并保证业务规则一致。
         WechatBindStatusVO vo = new WechatBindStatusVO();
-        // 调用getOpenid方法，复用统一能力并保证业务规则一致。
         vo.setBound(StrUtil.isNotBlank(user.getOpenid()));
-        // 调用getOpenid方法，复用统一能力并保证业务规则一致。
         vo.setMaskedOpenid(maskOpenid(user.getOpenid()));
-        // 调用getWechatPhone方法，复用统一能力并保证业务规则一致。
         vo.setWechatPhone(user.getWechatPhone());
-        // 调用getBound方法，复用统一能力并保证业务规则一致。
         vo.setHasActiveTicket(Boolean.FALSE.equals(vo.getBound()) && session != null);
         if (session != null && Boolean.FALSE.equals(vo.getBound())) {
-            // 调用getExpireAt方法，复用统一能力并保证业务规则一致。
             vo.setExpireAt(session.getExpireAt());
         }
         return vo;
@@ -1273,7 +1059,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
     /**
      * maskOpenid。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     private String maskOpenid(String openid) {
         if (StrUtil.isBlank(openid)) {
@@ -1288,21 +1074,15 @@ public class SysAuthServiceImpl implements ISysAuthService {
     /**
      * 构建MpLogin视图。
      *
-     * @param loginVO 参数
-     * @return 处理结果
+     * @param loginVO loginVO，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private MpLoginVO buildMpLoginVO(LoginVO loginVO) {
-        // 调用MpLoginVO方法，复用统一能力并保证业务规则一致。
         MpLoginVO vo = new MpLoginVO();
-        // 调用setStatus方法，复用统一能力并保证业务规则一致。
         vo.setStatus(WECHAT_STATUS_BIND);
-        // 调用getToken方法，复用统一能力并保证业务规则一致。
         vo.setToken(loginVO.getToken());
-        // 调用getUserInfo方法，复用统一能力并保证业务规则一致。
         vo.setUserInfo(loginVO.getUserInfo());
-        // 调用getCompanies方法，复用统一能力并保证业务规则一致。
         vo.setCompanies(loginVO.getCompanies());
-        // 调用getNeedChooseCompany方法，复用统一能力并保证业务规则一致。
         vo.setNeedChooseCompany(loginVO.getNeedChooseCompany());
         return vo;
     }

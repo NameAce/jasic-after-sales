@@ -11,11 +11,12 @@ import org.junit.Test;
 /**
  * 公司数据权限策略注册测试。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/05
  */
 public class CompanyDataPolicyRegistryTest {
 
+    /**验证RegisterEveryTableNameEntity，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRegisterEveryTableNameEntity() {
         CompanyDataPolicyValidator.validateTablePolicies(
@@ -23,6 +24,7 @@ public class CompanyDataPolicyRegistryTest {
         );
     }
 
+    /**验证ApplyTenantLineOnlyForCurrentCompanyTables，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldApplyTenantLineOnlyForCurrentCompanyTables() {
         Assert.assertTrue(CompanyDataPolicyRegistry.useTenantLine("sys_role"));
@@ -34,6 +36,7 @@ public class CompanyDataPolicyRegistryTest {
         Assert.assertFalse(CompanyDataPolicyRegistry.useTenantLine("sys_menu"));
     }
 
+    /**验证FailClosedForUnknownTablePolicy，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldFailClosedForUnknownTablePolicy() {
         try {
@@ -44,6 +47,7 @@ public class CompanyDataPolicyRegistryTest {
         }
     }
 
+    /**验证ClassifyFaultConfigAsHqOwnerAndWorkOrderAsDomainPolicy，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldClassifyFaultConfigAsHqOwnerAndWorkOrderAsDomainPolicy() {
         Assert.assertEquals(CompanyDataPolicyType.HQ_OWNER,

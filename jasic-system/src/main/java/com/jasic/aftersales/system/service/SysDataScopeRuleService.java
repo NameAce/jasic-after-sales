@@ -29,11 +29,12 @@ public class SysDataScopeRuleService {
     /**
      * 系统公司Mapper数据访问接口。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @Resource
     private SysCompanyMapper sysCompanyMapper;
 
+    /**sysCompanyTypeMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysCompanyTypeMapper sysCompanyTypeMapper;
 
@@ -44,7 +45,6 @@ public class SysDataScopeRuleService {
      * @return 数据范围选项
      */
     public List<DataScopeOptionVO> listOptionsByCompanyId(Long companyId) {
-        // 说明：执行该步骤以保证业务流程正确。
         SysCompany company = sysCompanyMapper.selectById(companyId);
         if (company == null) {
             throw new ServiceException("公司不存在");
@@ -59,7 +59,6 @@ public class SysDataScopeRuleService {
      * @return 数据范围选项
      */
     public List<DataScopeOptionVO> listOptionsByTypeCode(String typeCode) {
-        // 调用getCompanyType方法，复用统一能力并保证业务规则一致。
         SysCompanyType companyType = getCompanyType(typeCode);
         return buildOptions(companyType.getSubjectType(), typeCode);
     }
@@ -71,9 +70,7 @@ public class SysDataScopeRuleService {
      */
     public Map<String, List<DataScopeOptionVO>> listOptionMap() {
         LambdaQueryWrapper<SysCompanyType> wrapper = new LambdaQueryWrapper<>();
-        // 调用orderByAsc方法，复用统一能力并保证业务规则一致。
         wrapper.orderByAsc(SysCompanyType::getOrderNum);
-        // 说明：执行该步骤以保证业务流程正确。
         List<SysCompanyType> companyTypes = sysCompanyTypeMapper.selectList(wrapper);
         return companyTypes.stream().collect(Collectors.toMap(
                 SysCompanyType::getTypeCode,
@@ -90,12 +87,10 @@ public class SysDataScopeRuleService {
      * @param dataScope 数据范围
      */
     public void validateByCompanyId(Long companyId, String dataScope) {
-        // 说明：执行该步骤以保证业务流程正确。
         SysCompany company = sysCompanyMapper.selectById(companyId);
         if (company == null) {
             throw new ServiceException("公司不存在");
         }
-        // 说明：执行该步骤以保证业务流程正确。
         validateByTypeCode(company.getTypeCode(), dataScope);
     }
 
@@ -109,9 +104,7 @@ public class SysDataScopeRuleService {
         if (dataScope == null || dataScope.trim().isEmpty()) {
             throw new ServiceException("数据范围不能为空");
         }
-        // 调用listOptionsByTypeCode方法，复用统一能力并保证业务规则一致。
         List<DataScopeOptionVO> options = listOptionsByTypeCode(typeCode);
-        // 调用equals方法，复用统一能力并保证业务规则一致。
         boolean matched = options.stream().anyMatch(option -> option.getValue().equals(dataScope));
         if (!matched) {
             throw new ServiceException("当前公司类型不支持该数据范围");
@@ -125,27 +118,23 @@ public class SysDataScopeRuleService {
      * @return 默认数据范围编码
      */
     public String getDefaultDataScope(String typeCode) {
-        // 调用listOptionsByTypeCode方法，复用统一能力并保证业务规则一致。
         List<DataScopeOptionVO> options = listOptionsByTypeCode(typeCode);
         return options.stream()
                 .filter(DataScopeOptionVO::getDefaultOption)
                 .map(DataScopeOptionVO::getValue)
                 .findFirst()
-                // 调用getCode方法，复用统一能力并保证业务规则一致。
                 .orElse(DataScopeEnum.SELF.getCode());
     }
 
     /**
      * 获取公司类型。
      *
-     * @param typeCode 参数
-     * @return 处理结果
+     * @param typeCode 业务编码，用于匹配枚举、配置或外部系统数据。
+     * @return 业务处理结果
      */
     private SysCompanyType getCompanyType(String typeCode) {
         LambdaQueryWrapper<SysCompanyType> wrapper = new LambdaQueryWrapper<>();
-        // 调用eq方法，复用统一能力并保证业务规则一致。
         wrapper.eq(SysCompanyType::getTypeCode, typeCode);
-        // 说明：执行该步骤以保证业务流程正确。
         SysCompanyType companyType = sysCompanyTypeMapper.selectOne(wrapper);
         if (companyType == null) {
             throw new ServiceException("公司类型不存在");
@@ -156,12 +145,11 @@ public class SysDataScopeRuleService {
     /**
      * 构建Options。
      *
-     * @param subjectType 参数
-     * @param typeCode 参数
-     * @return 处理结果
+     * @param subjectType subjectType，当前业务处理所需的输入值。
+     * @param typeCode 业务编码，用于匹配枚举、配置或外部系统数据。
+     * @return 业务处理结果
      */
     private List<DataScopeOptionVO> buildOptions(String subjectType, String typeCode) {
-        // 调用getByCode方法，复用统一能力并保证业务规则一致。
         SubjectTypeEnum subjectTypeEnum = SubjectTypeEnum.getByCode(subjectType);
         if (subjectTypeEnum == null) {
             throw new ServiceException("公司主体类型不合法");
@@ -195,19 +183,15 @@ public class SysDataScopeRuleService {
     /**
      * option。
      *
-     * @param value 参数
-     * @param label 参数
-     * @param defaultOption 参数
-     * @return 处理结果
+     * @param value value，当前业务处理所需的输入值。
+     * @param label label，当前业务处理所需的输入值。
+     * @param defaultOption defaultOption，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private DataScopeOptionVO option(String value, String label, boolean defaultOption) {
-        // 调用DataScopeOptionVO方法，复用统一能力并保证业务规则一致。
         DataScopeOptionVO option = new DataScopeOptionVO();
-        // 调用setValue方法，复用统一能力并保证业务规则一致。
         option.setValue(value);
-        // 调用setLabel方法，复用统一能力并保证业务规则一致。
         option.setLabel(label);
-        // 调用setDefaultOption方法，复用统一能力并保证业务规则一致。
         option.setDefaultOption(defaultOption);
         return option;
     }

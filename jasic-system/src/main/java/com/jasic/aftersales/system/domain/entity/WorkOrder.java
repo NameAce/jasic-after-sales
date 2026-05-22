@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 /**
  * 工单主表实体
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/03/26
  */
 @Data
@@ -72,6 +72,7 @@ public class WorkOrder extends BaseEntity {
     /** 服务方式编码（MAIL/STORE） */
     private String serviceMode;
 
+    /**lastOutDate 字段，对应数据库中的同名或映射字段。*/
     private LocalDateTime lastOutDate;
 
     /** 质保状态 */

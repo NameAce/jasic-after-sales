@@ -12,7 +12,7 @@ import java.lang.reflect.Method;
  * <p>这几条“按用户+公司加载权限/菜单”的 SQL 自身已经显式带有 companyId 条件，
  * 因此必须关闭租户拦截，避免异步线程或非登录上下文下再次回退读取 Sa-Token 请求态。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/19
  */
 public class SysMenuMapperTest {

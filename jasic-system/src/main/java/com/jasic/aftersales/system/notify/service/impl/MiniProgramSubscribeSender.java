@@ -27,12 +27,13 @@ import java.util.regex.Pattern;
 /**
  * Mini program subscribe message sender.
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/21
  */
 @Service
 public class MiniProgramSubscribeSender implements NotifyChannelSender {
 
+    /**PLACEHOLDER_PATTERN 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\$\\{([A-Za-z0-9_]+)}");
 
     /**
@@ -45,8 +46,8 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
      * 处理supports业务逻辑。
      *
      * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
-     * @param channelType 参数
-     * @return 处理结果
+     * @param channelType channelType，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     @Override
     public boolean supports(String channelType) {
@@ -56,21 +57,18 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
     /**
      * 发送小程序程序订阅发送。
      *
-     * @param context 参数
-     * @return 处理结果
+     * @param context 上下文对象，承载当前操作人、公司和数据范围。
+     * @return 业务处理结果
      */
     @Override
     public NotifyChannelSendResult send(NotifyChannelSendContext context) {
         if (context == null || context.getDispatch() == null || context.getPayload() == null) {
-            // 说明：执行该步骤以保证业务流程正确。
             return NotifyChannelSendResult.failed(
                     NotifyDispatchResultCodeEnum.FAILED_RENDER_ERROR.getCode(),
                     "Mini program send context is incomplete"
             );
         }
-        // 调用getPayload方法，复用统一能力并保证业务规则一致。
         NotifyDispatchPayload payload = context.getPayload();
-        // 调用getChannelConfig方法，复用统一能力并保证业务规则一致。
         NotifyTemplateChannelConfig channelConfig = payload.getChannelConfig();
         if (channelConfig == null) {
             return NotifyChannelSendResult.skipped(
@@ -97,7 +95,6 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
             );
         }
         List<NotifyChannelFieldMappingDTO> fieldMapping = channelConfig.getFieldMapping() == null
-                // 调用getFieldMapping方法，复用统一能力并保证业务规则一致。
                 ? Collections.emptyList() : channelConfig.getFieldMapping();
         if (fieldMapping.isEmpty()) {
             return NotifyChannelSendResult.skipped(
@@ -113,14 +110,11 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
                     "Mini program scene is invalid"
             );
         }
-        // 调用getVariables方法，复用统一能力并保证业务规则一致。
         Map<String, Object> variables = payload.getVariables() == null ? Collections.emptyMap() : payload.getVariables();
         String pagePath;
         JSONObject data;
         try {
-            // 调用getPagePathTemplate方法，复用统一能力并保证业务规则一致。
             pagePath = render(channelConfig.getPagePathTemplate(), variables);
-            // 调用buildData方法，复用统一能力并保证业务规则一致。
             data = buildData(fieldMapping, variables);
         } catch (Exception ex) {
             return NotifyChannelSendResult.failed(
@@ -137,24 +131,18 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
                     pagePath,
                     data
             );
-            // 调用success方法，复用统一能力并保证业务规则一致。
             NotifyChannelSendResult result = NotifyChannelSendResult.success();
-            // 调用setResultCode方法，复用统一能力并保证业务规则一致。
             result.setResultCode("SUCCESS");
-            // 调用setResultMessage方法，复用统一能力并保证业务规则一致。
             result.setResultMessage("Message sent");
-            // 调用toJsonStr方法，复用统一能力并保证业务规则一致。
             result.setChannelResponseJson(JSONUtil.toJsonStr(data));
             return result;
         } catch (ServiceException ex) {
-            // 调用getMessage方法，复用统一能力并保证业务规则一致。
             String message = StrUtil.blankToDefault(ex.getMessage(), "Mini program send failed");
             if (isUserNotSubscribed(message)) {
                 NotifyChannelSendResult result = NotifyChannelSendResult.skipped(
                         NotifyDispatchResultCodeEnum.SKIPPED_USER_NOT_SUBSCRIBED.getCode(),
                         message
                 );
-                // 调用setChannelResponseJson方法，复用统一能力并保证业务规则一致。
                 result.setChannelResponseJson(message);
                 return result;
             }
@@ -162,7 +150,6 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
                     NotifyDispatchResultCodeEnum.FAILED_CHANNEL_REQUEST.getCode(),
                     message
             );
-            // 调用setChannelResponseJson方法，复用统一能力并保证业务规则一致。
             result.setChannelResponseJson(message);
             return result;
         } catch (Exception ex) {
@@ -170,7 +157,6 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
                     NotifyDispatchResultCodeEnum.FAILED_CHANNEL_REQUEST.getCode(),
                     StrUtil.blankToDefault(ex.getMessage(), "Mini program send failed")
             );
-            // 调用getSimpleName方法，复用统一能力并保证业务规则一致。
             result.setChannelResponseJson(ex.getClass().getSimpleName());
             return result;
         }
@@ -180,7 +166,7 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
      * 解析场景。
      *
      * @param channelScene 配置中的小程序场景
-     * @return 处理结果
+     * @return 业务处理结果
      */
     private WechatMiniProgramScene resolveScene(String channelScene) {
         NotifyChannelSceneEnum configuredScene = NotifyChannelSceneEnum.getByCode(channelScene);
@@ -195,19 +181,16 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
     /**
      * 构建数据。
      *
-     * @param fieldMapping 参数
-     * @param variables 参数
-     * @return 处理结果
+     * @param fieldMapping 业务映射数据，用于批量组装或快速查找。
+     * @param variables variables，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private JSONObject buildData(List<NotifyChannelFieldMappingDTO> fieldMapping, Map<String, Object> variables) {
-        // 调用createObj方法，复用统一能力并保证业务规则一致。
         JSONObject data = JSONUtil.createObj();
-        // 说明：执行该步骤以保证业务流程正确。
         for (NotifyChannelFieldMappingDTO item : fieldMapping) {
             if (item == null || StrUtil.isBlank(item.getField()) || StrUtil.isBlank(item.getValue())) {
                 continue;
             }
-            // 调用getValue方法，复用统一能力并保证业务规则一致。
             data.set(item.getField().trim(), render(item.getValue(), variables));
         }
         return data;
@@ -216,27 +199,21 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
     /**
      * 渲染小程序程序订阅发送。
      *
-     * @param template 参数
-     * @param variables 参数
-     * @return 处理结果
+     * @param template template，当前业务处理所需的输入值。
+     * @param variables variables，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private String render(String template, Map<String, Object> variables) {
         if (template == null) {
             return null;
         }
-        // 调用matcher方法，复用统一能力并保证业务规则一致。
         Matcher matcher = PLACEHOLDER_PATTERN.matcher(template);
-        // 调用StringBuffer方法，复用统一能力并保证业务规则一致。
         StringBuffer buffer = new StringBuffer();
         while (matcher.find()) {
-            // 调用group方法，复用统一能力并保证业务规则一致。
             String variableName = matcher.group(1);
-            // 调用get方法，复用统一能力并保证业务规则一致。
             Object value = variables.get(variableName);
-            // 调用trim方法，复用统一能力并保证业务规则一致。
             matcher.appendReplacement(buffer, Matcher.quoteReplacement(value == null ? "" : String.valueOf(value).trim()));
         }
-        // 调用appendTail方法，复用统一能力并保证业务规则一致。
         matcher.appendTail(buffer);
         return buffer.toString().trim();
     }
@@ -244,7 +221,7 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
     /**
      * 判断是否用户NotSubscribed。
      *
-     * @param message 参数
+     * @param message 提示或消息文本，用于异常返回或通知内容。
      */
     private boolean isUserNotSubscribed(String message) {
         if (StrUtil.isBlank(message)) {
@@ -254,7 +231,6 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
                 || StrUtil.containsIgnoreCase(message, "require subscribe")
                 || StrUtil.containsIgnoreCase(message, "accept the msg")
                 || StrUtil.contains(message, "用户拒绝接受消息")
-                // 调用contains方法，复用统一能力并保证业务规则一致。
                 || StrUtil.contains(message, "用户未订阅");
     }
 }

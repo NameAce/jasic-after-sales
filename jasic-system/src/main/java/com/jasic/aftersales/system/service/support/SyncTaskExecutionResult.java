@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
  *
  * <p>该对象用于统一沉淀处理器输出，便于日志中心记录本次同步覆盖的数据范围和摘要信息。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/12
  */
 @Data

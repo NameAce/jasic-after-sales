@@ -9,7 +9,7 @@ import java.util.List;
  * <p>该对象由 `NotifySceneRegistry` 对外暴露，负责描述当前场景的业务语义、默认目标类型、
  * 可用变量以及全部目标元数据。运行时必须显式按目标类型读取目标级配置，不再透出旧模板接口兼容字段。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 public class NotifySceneMeta {
@@ -86,30 +86,44 @@ public class NotifySceneMeta {
         return getTargetMeta(defaultTargetType);
     }
 
+    /**getSceneCode 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
     public String getSceneCode() {
         return sceneCode;
     }
 
+    /**getSceneName 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
     public String getSceneName() {
         return sceneName;
     }
 
+    /**getBizType 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
     public String getBizType() {
         return bizType;
     }
 
+    /**getEventCode 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
     public String getEventCode() {
         return eventCode;
     }
 
+    /**getDefaultTargetType 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
     public String getDefaultTargetType() {
         return defaultTargetType;
     }
 
+    /**getVariables 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或组装后的业务数据集合。*/
     public List<NotifyTemplateVariableMeta> getVariables() {
         return variables;
     }
 
+    /**getTargetMetas 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或组装后的业务数据集合。*/
     public List<NotifySceneTargetMeta> getTargetMetas() {
         return targetMetas;
     }

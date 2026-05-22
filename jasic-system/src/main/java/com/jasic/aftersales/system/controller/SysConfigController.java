@@ -34,7 +34,7 @@ import io.swagger.annotations.ApiOperation;
  * <p>该控制器保留旧参数设置页的分页维护接口，同时提供非分页分组查询接口给前端展示全部配置分组。
  * 分组查询不替代旧列表，也不引入完整配置中心模型。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/03/19
  */
 @Api(tags = "参数设置")
@@ -42,14 +42,15 @@ import io.swagger.annotations.ApiOperation;
 @RequestMapping("/system/config")
 public class SysConfigController extends BaseController {
 
+    /**configService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private ISysConfigService configService;
 
     /**
      * 分页查询配置列表。
      *
-     * @param query 参数
-     * @return 处理结果
+     * @param query 查询条件，包含分页、筛选和权限收口所需字段。
+     * @return 业务处理结果
      */
     @SaCheckPermission("system:config:list")
     @GetMapping("/list")
@@ -72,7 +73,7 @@ public class SysConfigController extends BaseController {
     /**
      * 根据ID查询配置详情。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @SaCheckPermission("system:config:list")
     @GetMapping("/{id}")
@@ -83,8 +84,8 @@ public class SysConfigController extends BaseController {
     /**
      * 获取值ByKey。
      *
-     * @param configKey 参数
-     * @return 处理结果
+     * @param configKey configKey，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     @GetMapping("/key/{configKey}")
     public Result<String> getValueByKey(@PathVariable String configKey) {
@@ -94,8 +95,8 @@ public class SysConfigController extends BaseController {
     /**
      * 新增配置。
      *
-     * @param dto 参数
-     * @return 处理结果
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
+     * @return 业务处理结果
      */
     @SaCheckPermission("system:config:add")
     @OperLog(title = "参数设置", operType = OperTypeEnum.INSERT)
@@ -107,14 +108,13 @@ public class SysConfigController extends BaseController {
     /**
      * 更新配置。
      *
-     * @param dto 参数
-     * @return 处理结果
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
+     * @return 业务处理结果
      */
     @SaCheckPermission("system:config:update")
     @OperLog(title = "参数设置", operType = OperTypeEnum.UPDATE)
     @PutMapping
     public Result<Void> update(@Validated @RequestBody SysConfigDTO dto) {
-        // 调用update方法，复用统一能力并保证业务规则一致。
         configService.update(dto);
         return Result.ok();
     }
@@ -123,7 +123,7 @@ public class SysConfigController extends BaseController {
      * 按分组批量保存配置。
      *
      * @param dto 分组保存参数；要求同一次请求中的配置项都属于同一分组，避免跨组提交造成配置漂移
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @SaCheckPermission("system:config:update")
     @OperLog(title = "参数设置", operType = OperTypeEnum.UPDATE)
@@ -137,13 +137,12 @@ public class SysConfigController extends BaseController {
     /**
      * 删除配置。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @SaCheckPermission("system:config:remove")
     @OperLog(title = "参数设置", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/{id}")
     public Result<Void> remove(@PathVariable Long id) {
-        // 调用remove方法，复用统一能力并保证业务规则一致。
         configService.remove(id);
         return Result.ok();
     }
@@ -151,13 +150,12 @@ public class SysConfigController extends BaseController {
     /**
      * 刷新配置缓存。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @SaCheckPermission("system:config:refresh")
     @OperLog(title = "参数设置", operType = OperTypeEnum.OTHER)
     @DeleteMapping("/refresh-cache")
     public Result<Void> refreshCache() {
-        // 调用refreshCache方法，复用统一能力并保证业务规则一致。
         configService.refreshCache();
         return Result.ok();
     }

@@ -12,19 +12,21 @@ import javax.annotation.Resource;
  *
  * <p>该处理器不自行计算时间窗口，而是调用基于主键游标的增量同步服务。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/12
  */
 @Component
 public class WarehouseScanOutstorageSyncTaskHandler implements SyncTaskHandler {
 
+    /**HANDLER_CODE 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     public static final String HANDLER_CODE = "warehouseScanOutstorageSync";
+    /**HANDLER_NAME 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String HANDLER_NAME = "销售出库扫码同步";
 
     /**
      * CRM仓库扫描出库同步服务服务依赖。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @Resource
     private ICrmWarehouseScanOutstorageSyncService crmWarehouseScanOutstorageSyncService;
@@ -33,7 +35,7 @@ public class WarehouseScanOutstorageSyncTaskHandler implements SyncTaskHandler {
      * 获取Code相关数据。
      *
      * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @Override
     public String getCode() {
@@ -43,7 +45,7 @@ public class WarehouseScanOutstorageSyncTaskHandler implements SyncTaskHandler {
     /**
      * 获取仓库扫描出库同步任务名称。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @Override
     public String getName() {
@@ -53,13 +55,12 @@ public class WarehouseScanOutstorageSyncTaskHandler implements SyncTaskHandler {
     /**
      * execute。
      *
-     * @param task 参数
-     * @param context 参数
-     * @return 处理结果
+     * @param task task，当前业务处理所需的输入值。
+     * @param context 上下文对象，承载当前操作人、公司和数据范围。
+     * @return 业务处理结果
      */
     @Override
     public SyncTaskExecutionResult execute(SyncTask task, SyncTaskExecutionContext context) {
-        // 调用syncIncremental方法，复用统一能力并保证业务规则一致。
         CrmWarehouseScanOutstorageSyncSummaryVO summary = crmWarehouseScanOutstorageSyncService.syncIncremental();
         return SyncTaskExecutionResult.builder()
                 .dataStartTime(context.getLastSuccessEndTime())
@@ -69,15 +70,14 @@ public class WarehouseScanOutstorageSyncTaskHandler implements SyncTaskHandler {
                         defaultInt(summary.getAffectedBarcodeCount()),
                         defaultInt(summary.getUpdatedMachineBarcodeCount()),
                         defaultInt(summary.getUnmatchedBarcodeCount())))
-                // 调用build方法，复用统一能力并保证业务规则一致。
                 .build();
     }
 
     /**
      * defaultInt。
      *
-     * @param value 参数
-     * @return 处理结果
+     * @param value value，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private int defaultInt(Integer value) {
         return value == null ? 0 : value;

@@ -12,7 +12,7 @@ import io.swagger.annotations.ApiModelProperty;
 /**
  * 工单故障点视图
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/03/26
  */
 @ApiModel(description = "工单故障点视图")

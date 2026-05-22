@@ -5,7 +5,7 @@ import com.jasic.aftersales.common.constant.WechatConfigConstants;
 /**
  * 小程序场景枚举
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/02
  */
 public enum WechatMiniProgramScene {
@@ -20,15 +20,17 @@ public enum WechatMiniProgramScene {
      * 微信小程序程序场景编码。
      */
     private final String code;
+    /**appIdKey 字段，用于当前类内部业务处理。*/
     private final String appIdKey;
+    /**secretKey 字段，用于当前类内部业务处理。*/
     private final String secretKey;
 
     /**
      * 构造微信小程序程序场景实例。
      *
-     * @param code 参数
-     * @param appIdKey 参数
-     * @param secretKey 参数
+     * @param code 业务编码，用于匹配枚举、配置或外部系统数据。
+     * @param appIdKey appIdKey，当前业务处理所需的输入值。
+     * @param secretKey secretKey，当前业务处理所需的输入值。
      */
     WechatMiniProgramScene(String code, String appIdKey, String secretKey) {
         this.code = code;
@@ -39,7 +41,7 @@ public enum WechatMiniProgramScene {
     /**
      * 获取微信小程序程序场景编码。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     public String getCode() {
         return code;
@@ -48,7 +50,7 @@ public enum WechatMiniProgramScene {
     /**
      * 获取AppIDKey。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     public String getAppIdKey() {
         return appIdKey;
@@ -57,7 +59,7 @@ public enum WechatMiniProgramScene {
     /**
      * 获取SecretKey。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     public String getSecretKey() {
         return secretKey;

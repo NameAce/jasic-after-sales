@@ -9,7 +9,7 @@ import org.apache.ibatis.annotations.Mapper;
  *
  * <p>负责 `notify_scene_target` 的基础读写，不承载复杂业务逻辑。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 @Mapper

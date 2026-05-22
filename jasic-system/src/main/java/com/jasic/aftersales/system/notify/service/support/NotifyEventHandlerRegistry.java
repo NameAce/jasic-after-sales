@@ -15,12 +15,13 @@ import java.util.List;
  * 该注册表只做处理器路由，不承载任何具体业务规则，
  * 这样后续新增通知场景时只需要增加新的 handler，而不需要继续膨胀消费编排类。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/14
  */
 @Component
 public class NotifyEventHandlerRegistry {
 
+    /**notifyEventHandlers 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Autowired(required = false)
     private List<NotifyEventHandler> notifyEventHandlers = Collections.emptyList();
 

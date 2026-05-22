@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
  *     <li>不直接新增或覆盖本地 {@code sys_company}，仅提供快照与预览数据。</li>
  * </ul>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/12
  */
 public interface ICrmBizCompanySnapshotService {

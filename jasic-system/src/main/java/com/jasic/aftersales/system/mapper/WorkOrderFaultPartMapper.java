@@ -7,7 +7,7 @@ import org.apache.ibatis.annotations.Mapper;
 /**
  * 工单故障点配件明细 Mapper
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/15
  */
 @Mapper

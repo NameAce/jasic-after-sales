@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 /**
  * 通知分发详情。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/14
  */
 @ApiModel(description = "通知分发详情")

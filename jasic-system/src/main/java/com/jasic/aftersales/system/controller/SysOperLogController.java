@@ -33,6 +33,7 @@ import io.swagger.annotations.ApiOperation;
 @RequestMapping("/log/oper-log")
 public class SysOperLogController extends BaseController {
 
+    /**operLogService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private ISysOperLogService operLogService;
 
@@ -46,7 +47,6 @@ public class SysOperLogController extends BaseController {
     @SaCheckPermission("log:operLog:list")
     @GetMapping("/list")
     public Result<PageResult<SysOperLog>> list(SysOperLogQuery query) {
-        // 调用listPage方法，复用统一能力并保证业务规则一致。
         PageResult<SysOperLog> page = operLogService.listPage(query);
         return Result.ok(page);
     }
@@ -61,7 +61,6 @@ public class SysOperLogController extends BaseController {
     @OperLog(title = "操作日志", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/clean")
     public Result<Void> clean() {
-        // 调用clean方法，复用统一能力并保证业务规则一致。
         operLogService.clean();
         return Result.ok();
     }
@@ -81,9 +80,7 @@ public class SysOperLogController extends BaseController {
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .map(Long::parseLong)
-                // 调用toList方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toList());
-        // 调用removeByIds方法，复用统一能力并保证业务规则一致。
         operLogService.removeByIds(idList);
         return Result.ok();
     }

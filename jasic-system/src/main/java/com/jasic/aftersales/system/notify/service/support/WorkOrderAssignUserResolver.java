@@ -32,23 +32,28 @@ import java.util.stream.Collectors;
  * 因此这里只负责收口“谁有资格作为待派单通知接收人”，
  * 真实发送时如果微信返回未订阅，仍由 sender 统一记跳过结果。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/18
  */
 @Component
 public class WorkOrderAssignUserResolver {
 
+    /**WORKORDER_ASSIGN_PERMISSION 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String WORKORDER_ASSIGN_PERMISSION = "workorder:assign";
 
+    /**sysUserCompanyMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysUserCompanyMapper sysUserCompanyMapper;
 
+    /**sysUserMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysUserMapper sysUserMapper;
 
+    /**sysMenuMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysMenuMapper sysMenuMapper;
 
+    /**companyDataAccessContext 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private CompanyDataAccessContext companyDataAccessContext;
 

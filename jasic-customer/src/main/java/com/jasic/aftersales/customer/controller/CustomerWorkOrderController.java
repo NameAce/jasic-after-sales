@@ -34,7 +34,7 @@ import io.swagger.annotations.ApiOperation;
 /**
  * C端工单控制器
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/03/26
  */
 @Api(tags = "C端工单")
@@ -42,6 +42,7 @@ import io.swagger.annotations.ApiOperation;
 @RequestMapping("/customer/work-order")
 public class CustomerWorkOrderController {
 
+    /**customerWorkOrderService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private ICustomerWorkOrderService customerWorkOrderService;
 
@@ -152,7 +153,6 @@ public class CustomerWorkOrderController {
     @ApiOperation(value = "更新寄修信息")
     @PutMapping("/send-info")
     public Result<Void> updateSendInfo(@Validated @RequestBody CustomerWorkOrderSendInfoDTO dto) {
-        // 调用updateSendInfo方法，复用统一能力并保证业务规则一致。
         customerWorkOrderService.updateSendInfo(dto);
         return Result.ok();
     }
@@ -166,7 +166,6 @@ public class CustomerWorkOrderController {
     @ApiOperation(value = "上传寄件凭证")
     @PutMapping("/sender-voucher")
     public Result<Void> updateSenderVoucher(@Validated @RequestBody CustomerWorkOrderSenderVoucherDTO dto) {
-        // 调用updateSenderVoucher方法，复用统一能力并保证业务规则一致。
         customerWorkOrderService.updateSenderVoucher(dto);
         return Result.ok();
     }
@@ -180,7 +179,6 @@ public class CustomerWorkOrderController {
     @ApiOperation(value = "提交工单评价")
     @PostMapping("/evaluate")
     public Result<Void> evaluate(@Validated @RequestBody CustomerWorkOrderEvaluateDTO dto) {
-        // 调用evaluate方法，复用统一能力并保证业务规则一致。
         customerWorkOrderService.evaluate(dto);
         return Result.ok();
     }

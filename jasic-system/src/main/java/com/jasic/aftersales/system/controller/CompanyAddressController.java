@@ -28,7 +28,7 @@ import java.util.List;
 /**
  * 公司地址簿控制器。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/11
  */
 @Api(tags = "公司地址簿")
@@ -36,9 +36,11 @@ import java.util.List;
 @RequestMapping("/system/company-address")
 public class CompanyAddressController {
 
+    /**companyAddressService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private ICompanyAddressService companyAddressService;
 
+    /**companyDataAccessService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private CompanyDataAccessService companyDataAccessService;
 

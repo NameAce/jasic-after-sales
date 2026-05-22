@@ -31,25 +31,30 @@ import java.util.List;
  * <p>负责外部分发任务的状态机维护，包括自动发送、失败重试、超时恢复和死信处理。
  * 渠道发送器只返回发送结果，由本类统一决定如何更新分发状态。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/21
  */
 @Slf4j
 @Service
 public class NotifyDispatchServiceImpl implements NotifyDispatchService {
 
+    /**sysNotifyDispatchMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysNotifyDispatchMapper sysNotifyDispatchMapper;
 
+    /**notifyChannelSenders 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private List<NotifyChannelSender> notifyChannelSenders = Collections.emptyList();
 
+    /**transactionTemplate 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private TransactionTemplate transactionTemplate;
 
+    /**dispatchRetryMaxCount 字段，用于当前类内部业务处理。*/
     @Value("${jasic.notify.dispatch-retry-max-count:" + NotifyConstants.DISPATCH_RETRY_MAX_COUNT + "}")
     private int dispatchRetryMaxCount = NotifyConstants.DISPATCH_RETRY_MAX_COUNT;
 
+    /**dispatchRetryDelayMinutes 字段，用于当前类内部业务处理。*/
     @Value("${jasic.notify.dispatch-retry-delay-minutes:" + NotifyConstants.DISPATCH_RETRY_DELAY_MINUTES + "}")
     private long dispatchRetryDelayMinutes = NotifyConstants.DISPATCH_RETRY_DELAY_MINUTES;
 

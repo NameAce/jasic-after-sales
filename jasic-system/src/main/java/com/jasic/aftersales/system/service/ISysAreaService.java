@@ -10,15 +10,20 @@ import java.util.Map;
 /**
  * 行政区划 Service
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/17
  */
 public interface ISysAreaService {
 
+    /**ROOT_PARENT_CODE 字段，用于当前类内部业务处理。*/
     String ROOT_PARENT_CODE = "0";
+    /**LEVEL_PROVINCE 字段，用于当前类内部业务处理。*/
     String LEVEL_PROVINCE = "PROVINCE";
+    /**LEVEL_CITY 字段，用于当前类内部业务处理。*/
     String LEVEL_CITY = "CITY";
+    /**LEVEL_DISTRICT 字段，用于当前类内部业务处理。*/
     String LEVEL_DISTRICT = "DISTRICT";
+    /**STATUS_ENABLED 字段，用于当前类内部业务处理。*/
     Integer STATUS_ENABLED = 1;
 
     /**
@@ -64,24 +69,26 @@ public interface ISysAreaService {
         /**
      * 系统Area字段。
      *
-     * @param province 参数
-     * @param city 参数
-     * @param district 参数
-     * @return 处理结果
+     * @param province province，当前业务处理所需的输入值。
+     * @param city city，当前业务处理所需的输入值。
+     * @param district district，当前业务处理所需的输入值。
+     * @return 业务处理结果
          */
         private final SysArea province;
 
+        /**city 字段，用于当前类内部业务处理。*/
         private final SysArea city;
 
+        /**district 字段，用于当前类内部业务处理。*/
         private final SysArea district;
 
         /**
      * 构造系统Area实例。
      *
-     * @param province 参数
-     * @param city 参数
-     * @param district 参数
-     * @return 处理结果
+     * @param province province，当前业务处理所需的输入值。
+     * @param city city，当前业务处理所需的输入值。
+     * @param district district，当前业务处理所需的输入值。
+     * @return 业务处理结果
          */
         public AreaMatchResult(SysArea province, SysArea city, SysArea district) {
             this.province = province;
@@ -92,7 +99,7 @@ public interface ISysAreaService {
         /**
      * 获取Province。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public SysArea getProvince() {
             return province;
@@ -101,7 +108,7 @@ public interface ISysAreaService {
         /**
      * 获取City。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public SysArea getCity() {
             return city;
@@ -110,7 +117,7 @@ public interface ISysAreaService {
         /**
      * 获取District。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public SysArea getDistrict() {
             return district;

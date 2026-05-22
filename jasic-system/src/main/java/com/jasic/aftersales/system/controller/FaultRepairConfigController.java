@@ -29,7 +29,7 @@ import io.swagger.annotations.ApiOperation;
 /**
  * 故障与维修配置控制器
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/01
  */
 @Api(tags = "故障与维修配置")
@@ -37,14 +37,15 @@ import io.swagger.annotations.ApiOperation;
 @RequestMapping("/system/fault-repair-config")
 public class FaultRepairConfigController extends BaseController {
 
+    /**faultRepairConfigService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private IFaultRepairConfigService faultRepairConfigService;
 
     /**
      * 分页查询故障维修配置列表。
      *
-     * @param query 参数
-     * @return 处理结果
+     * @param query 查询条件，包含分页、筛选和权限收口所需字段。
+     * @return 业务处理结果
      */
     @SaCheckPermission("system:faultRepairConfig:list")
     @GetMapping("/list")
@@ -55,7 +56,7 @@ public class FaultRepairConfigController extends BaseController {
     /**
      * 根据ID查询故障维修配置详情。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @SaCheckPermission("system:faultRepairConfig:list")
     @GetMapping("/{id}")
@@ -67,7 +68,7 @@ public class FaultRepairConfigController extends BaseController {
     /**
      * 分页查询公司Options列表。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @SaCheckPermission("system:faultRepairConfig:list")
     @GetMapping("/company-options")
@@ -78,8 +79,8 @@ public class FaultRepairConfigController extends BaseController {
     /**
      * 新增故障维修配置。
      *
-     * @param dto 参数
-     * @return 处理结果
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
+     * @return 业务处理结果
      */
     @SaCheckPermission("system:faultRepairConfig:add")
     @OperLog(title = "故障与维修配置", operType = OperTypeEnum.INSERT)
@@ -91,14 +92,13 @@ public class FaultRepairConfigController extends BaseController {
     /**
      * 更新故障维修配置。
      *
-     * @param dto 参数
-     * @return 处理结果
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
+     * @return 业务处理结果
      */
     @SaCheckPermission("system:faultRepairConfig:update")
     @OperLog(title = "故障与维修配置", operType = OperTypeEnum.UPDATE)
     @PutMapping
     public Result<Void> update(@Validated @RequestBody FaultRepairConfigDTO dto) {
-        // 调用update方法，复用统一能力并保证业务规则一致。
         faultRepairConfigService.update(dto);
         return Result.ok();
     }

@@ -13,7 +13,7 @@ import java.util.List;
 /**
  * 同步任务 Service
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/12
  */
 public interface ISyncTaskService {
@@ -21,61 +21,61 @@ public interface ISyncTaskService {
     /**
      * 分页查询同步任务列表。
      *
-     * @param query 参数
-     * @return 处理结果
+     * @param query 查询条件，包含分页、筛选和权限收口所需字段。
+     * @return 业务处理结果
      */
     PageResult<SyncTaskVO> listPage(SyncTaskQuery query);
 
     /**
      * 根据ID查询同步任务详情。
      *
-     * @param id 参数
-     * @return 处理结果
+     * @param id 业务主键或关联对象ID。
+     * @return 业务处理结果
      */
     SyncTaskVO getById(Long id);
 
     /**
      * 新增同步任务。
      *
-     * @param dto 参数
-     * @return 处理结果
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
+     * @return 业务处理结果
      */
     Long save(SyncTaskDTO dto);
 
     /**
      * 更新同步任务。
      *
-     * @param dto 参数
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
      */
     void update(SyncTaskDTO dto);
 
     /**
      * 分页查询日志分页列表。
      *
-     * @param query 参数
-     * @return 处理结果
+     * @param query 查询条件，包含分页、筛选和权限收口所需字段。
+     * @return 业务处理结果
      */
     PageResult<SyncTaskLogVO> listLogPage(SyncTaskLogQuery query);
 
     /**
      * 分页查询处理Options列表。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     List<SyncTaskHandlerOptionVO> listHandlerOptions();
 
     /**
      * execute。
      *
-     * @param id 参数
-     * @return 处理结果
+     * @param id 业务主键或关联对象ID。
+     * @return 业务处理结果
      */
     Long execute(Long id);
 
     /**
      * executeDefault机器条码任务。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     Long executeDefaultMachineBarcodeTask();
 

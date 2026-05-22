@@ -21,11 +21,12 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * NotifyDispatchServiceImpl 单测。
- */
+/*** NotifyDispatchServiceImpl 单测。
+
+@author Zoro*/
 public class NotifyDispatchServiceImplTest {
 
+    /**验证BuildSendableQueryWithRetryLimit，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldBuildSendableQueryWithRetryLimit() throws Exception {
         NotifyDispatchServiceImpl service = new NotifyDispatchServiceImpl();
@@ -44,6 +45,7 @@ public class NotifyDispatchServiceImplTest {
         Assert.assertTrue(sqlSegment.contains("ORDER BY id ASC"));
     }
 
+    /**验证MarkDispatchFailedWhenSendResultBelowMax，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldMarkDispatchFailedWhenSendResultBelowMax() throws Exception {
         NotifyDispatchServiceImpl service = new NotifyDispatchServiceImpl();
@@ -71,6 +73,7 @@ public class NotifyDispatchServiceImplTest {
                 .containsValue(NotifyDispatchResultCodeEnum.FAILED_CHANNEL_REQUEST.getCode()));
     }
 
+    /**验证MarkDispatchDeadWhenSendResultReachesMax，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldMarkDispatchDeadWhenSendResultReachesMax() throws Exception {
         NotifyDispatchServiceImpl service = new NotifyDispatchServiceImpl();
@@ -98,6 +101,7 @@ public class NotifyDispatchServiceImplTest {
                 .containsValue(NotifyDispatchResultCodeEnum.DEAD_RETRY_EXCEEDED.getCode()));
     }
 
+    /**验证RecoverTimeoutProcessingDispatchesToFailed，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRecoverTimeoutProcessingDispatchesToFailed() throws Exception {
         NotifyDispatchServiceImpl service = new NotifyDispatchServiceImpl();
@@ -116,6 +120,7 @@ public class NotifyDispatchServiceImplTest {
         Assert.assertTrue(mapperState.lastUpdateWrapper.getParamNameValuePairs().containsValue(timeoutBefore));
     }
 
+    /**验证ResetDeadDispatchForManualRetry，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldResetDeadDispatchForManualRetry() throws Exception {
         NotifyDispatchServiceImpl service = new NotifyDispatchServiceImpl();
@@ -159,6 +164,11 @@ public class NotifyDispatchServiceImplTest {
     @SuppressWarnings("unchecked")
     private SysNotifyDispatchMapper createMapperProxy(DispatchMapperState state) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 String name = method.getName();
@@ -255,9 +265,13 @@ public class NotifyDispatchServiceImplTest {
      * 分发 Mapper 调用状态。
      */
     private static class DispatchMapperState {
+        /**selectListResult 字段，用于当前类内部业务处理。*/
         private List<SysNotifyDispatch> selectListResult = Collections.emptyList();
+        /**updateResult 字段，用于当前类内部业务处理。*/
         private int updateResult;
+        /**lastSelectWrapper 字段，用于当前类内部业务处理。*/
         private LambdaQueryWrapper<SysNotifyDispatch> lastSelectWrapper;
+        /**lastUpdateWrapper 字段，用于当前类内部业务处理。*/
         private LambdaUpdateWrapper<SysNotifyDispatch> lastUpdateWrapper;
     }
 }

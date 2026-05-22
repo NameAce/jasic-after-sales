@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 /**
  * 工单参与方快照实体
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/03/26
  */
 @Data

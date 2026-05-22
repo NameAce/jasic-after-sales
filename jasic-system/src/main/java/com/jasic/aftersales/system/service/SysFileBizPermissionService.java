@@ -18,12 +18,13 @@ import java.util.EnumSet;
 /**
  * 文件业务对象权限校验。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/05
  */
 @Service
 public class SysFileBizPermissionService {
 
+    /**WORK_ORDER_TYPES 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final EnumSet<SysFileBizTypeEnum> WORK_ORDER_TYPES = EnumSet.of(
             SysFileBizTypeEnum.WORK_ORDER_FAULT_IMAGE,
             SysFileBizTypeEnum.WORK_ORDER_FAULT_VIDEO,
@@ -32,6 +33,7 @@ public class SysFileBizPermissionService {
             SysFileBizTypeEnum.WORK_ORDER_RETURN_VOUCHER
     );
 
+    /**WORK_ORDER_REPAIR_TYPES 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final EnumSet<SysFileBizTypeEnum> WORK_ORDER_REPAIR_TYPES = EnumSet.of(
             SysFileBizTypeEnum.WORK_ORDER_REPAIR_OLD_IMAGE,
             SysFileBizTypeEnum.WORK_ORDER_REPAIR_NEW_IMAGE,
@@ -46,12 +48,15 @@ public class SysFileBizPermissionService {
     @Resource
     private WorkOrderMapper workOrderMapper;
 
+    /**workOrderRepairMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private WorkOrderRepairMapper workOrderRepairMapper;
 
+    /**sysFileBizMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysFileBizMapper sysFileBizMapper;
 
+    /**workOrderPermissionService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private WorkOrderPermissionService workOrderPermissionService;
 
@@ -59,13 +64,11 @@ public class SysFileBizPermissionService {
      * 处理requireView业务逻辑。
      *
      * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
-     * @param bizType 参数
-     * @param bizId 参数
+     * @param bizType bizType，当前业务处理所需的输入值。
+     * @param bizId 业务主键或关联对象ID。
      */
     public void requireView(SysFileBizTypeEnum bizType, Long bizId) {
-        // 调用resolveWorkOrder方法，复用统一能力并保证业务规则一致。
         WorkOrder workOrder = resolveWorkOrder(bizType, bizId);
-        // 说明：执行该步骤以保证业务流程正确。
         if (!workOrderPermissionService.canView(workOrder)) {
             throw new ServiceException("无权查看该工单");
         }
@@ -74,14 +77,11 @@ public class SysFileBizPermissionService {
     /**
      * requireExecute。
      *
-     * @param bizType 参数
+     * @param bizType bizType，当前业务处理所需的输入值。
      */
     public void requireExecute(SysFileBizTypeEnum bizType, Long bizId) {
-        // 调用resolveWriteAction方法，复用统一能力并保证业务规则一致。
         WorkOrderActionEnum action = resolveWriteAction(bizType, bizId);
-        // 调用resolveWorkOrder方法，复用统一能力并保证业务规则一致。
         WorkOrder workOrder = resolveWorkOrder(bizType, bizId);
-        // 说明：执行该步骤以保证业务流程正确。
         if (!workOrderPermissionService.canExecute(workOrder, action)) {
             throw new ServiceException("无权操作该工单附件");
         }
@@ -90,7 +90,7 @@ public class SysFileBizPermissionService {
     /**
      * require文件BoundTo业务。
      *
-     * @param bizType 参数
+     * @param bizType bizType，当前业务处理所需的输入值。
      */
     public void requireFileBoundToBiz(Long fileId, SysFileBizTypeEnum bizType, Long bizId) {
         if (fileId == null) {
@@ -100,9 +100,7 @@ public class SysFileBizPermissionService {
         wrapper.eq(SysFileBiz::getFileId, fileId)
                 .eq(SysFileBiz::getBizType, bizType)
                 .eq(SysFileBiz::getBizId, bizId)
-                // 调用last方法，复用统一能力并保证业务规则一致。
                 .last("limit 1");
-        // 说明：执行该步骤以保证业务流程正确。
         if (sysFileBizMapper.selectOne(wrapper) == null) {
             throw new ServiceException("文件未绑定到当前业务对象");
         }
@@ -111,8 +109,8 @@ public class SysFileBizPermissionService {
     /**
      * 解析工单。
      *
-     * @param bizType 参数
-     * @return 处理结果
+     * @param bizType bizType，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private WorkOrder resolveWorkOrder(SysFileBizTypeEnum bizType, Long bizId) {
         if (bizType == null || bizId == null) {
@@ -122,17 +120,14 @@ public class SysFileBizPermissionService {
         if (WORK_ORDER_TYPES.contains(bizType)) {
             workOrderId = bizId;
         } else if (WORK_ORDER_REPAIR_TYPES.contains(bizType)) {
-            // 说明：执行该步骤以保证业务流程正确。
             WorkOrderRepair repair = workOrderRepairMapper.selectById(bizId);
             if (repair == null) {
                 throw new ServiceException("维修记录不存在");
             }
-            // 调用getWorkOrderId方法，复用统一能力并保证业务规则一致。
             workOrderId = repair.getWorkOrderId();
         } else {
             throw new ServiceException("不支持的文件业务类型");
         }
-        // 调用selectById方法，复用统一能力并保证业务规则一致。
         WorkOrder workOrder = workOrderMapper.selectById(workOrderId);
         if (workOrder == null) {
             throw new ServiceException("工单不存在");
@@ -143,8 +138,8 @@ public class SysFileBizPermissionService {
     /**
      * 解析Write动作。
      *
-     * @param bizType 参数
-     * @return 处理结果
+     * @param bizType bizType，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private WorkOrderActionEnum resolveWriteAction(SysFileBizTypeEnum bizType, Long bizId) {
         if (bizType == null || bizId == null) {
@@ -157,7 +152,6 @@ public class SysFileBizPermissionService {
             return WorkOrderActionEnum.CLOSE;
         }
         if (WORK_ORDER_REPAIR_TYPES.contains(bizType)) {
-            // 说明：执行该步骤以保证业务流程正确。
             WorkOrderRepair repair = workOrderRepairMapper.selectById(bizId);
             if (repair == null) {
                 throw new ServiceException("维修记录不存在");

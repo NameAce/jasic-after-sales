@@ -7,7 +7,7 @@ import java.io.Serializable;
 /**
  * 微信 code2Session 结果
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/02
  */
 @Data

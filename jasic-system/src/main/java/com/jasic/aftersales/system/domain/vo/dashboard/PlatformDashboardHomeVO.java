@@ -12,7 +12,7 @@ import java.io.Serializable;
  * <p>该对象是 `/dashboard/platform/home` 的唯一返回契约。本轮平台首页命名为“治理看板”，
  * 只允许返回组织治理、账号治理和基础配置三块内容，不包含任何工单、CRM 同步、消息治理、趋势图或完整度评分字段。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/21
  */
 @ApiModel(description = "平台主体首页返回结构")

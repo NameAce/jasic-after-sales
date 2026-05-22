@@ -12,7 +12,7 @@ import java.io.Serializable;
  * <p>该对象用于“历史参与”等不作为核心 KPI 的入口。入口只提供标题和跳转目标，
  * 不提供数值，避免前端把入口误展示为核心指标。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/21
  */
 @ApiModel(description = "首页入口项")

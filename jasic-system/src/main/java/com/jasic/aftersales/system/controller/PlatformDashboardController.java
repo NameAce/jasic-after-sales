@@ -18,7 +18,7 @@ import javax.annotation.Resource;
  * <p>该控制器只提供平台“治理看板”聚合接口。
  * 本轮平台首页只包含组织治理、账号治理和基础配置三块，不承载工单、CRM 同步、消息治理、趋势图或完整度评分。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/20
  */
 @Api(tags = "平台首页")

@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 /**
  * 微信绑定票据会话
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/02
  */
 @Data

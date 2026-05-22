@@ -12,7 +12,7 @@ import io.swagger.annotations.ApiModelProperty;
 /**
  * C端工单列表视图
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/03/26
  */
 @ApiModel(description = "C端工单列表视图")
@@ -81,6 +81,7 @@ public class CustomerWorkOrderListVO implements Serializable {
     @ApiModelProperty(value = "当前受理网点名称")
     private String currentAcceptCompanyName;
 
+    /**currentAcceptCompanyPhone 字段，用于向前端展示经过服务层组装后的业务值。*/
     @ApiModelProperty(value = "当前受理网点电话")
     private String currentAcceptCompanyPhone;
 

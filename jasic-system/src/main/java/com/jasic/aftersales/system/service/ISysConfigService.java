@@ -16,7 +16,7 @@ import java.util.List;
  * <p>该接口同时服务旧“参数设置”页和后续系统配置分组展示能力。
  * 旧页面继续使用分页列表；分组展示页使用非分页分组接口，避免前端为了展示全部分组而拼接分页数据。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/03/19
  */
 public interface ISysConfigService {

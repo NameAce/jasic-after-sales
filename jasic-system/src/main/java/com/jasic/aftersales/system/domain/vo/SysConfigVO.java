@@ -14,7 +14,7 @@ import io.swagger.annotations.ApiModelProperty;
  * <p>用于旧“参数设置”页和后续配置页改造读取配置项。新增 groupKey 只作为后端分组能力输出，
  * 不要求当前前端页面改变布局、结构或交互。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/03/19
  */
 @ApiModel(description = "参数设置 VO")

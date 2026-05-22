@@ -23,7 +23,7 @@ import io.swagger.annotations.ApiOperation;
 /**
  * C端客户地址控制器
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/08
  */
 @Api(tags = "C端客户地址簿")
@@ -31,6 +31,7 @@ import io.swagger.annotations.ApiOperation;
 @RequestMapping("/customer/address")
 public class CustomerAddressController {
 
+    /**customerAddressService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private ICustomerAddressService customerAddressService;
 
@@ -78,7 +79,6 @@ public class CustomerAddressController {
     @ApiOperation(value = "修改地址")
     @PutMapping
     public Result<Void> update(@Validated @RequestBody CustomerAddressUpdateDTO dto) {
-        // 调用update方法，复用统一能力并保证业务规则一致。
         customerAddressService.update(dto);
         return Result.ok();
     }
@@ -92,7 +92,6 @@ public class CustomerAddressController {
     @ApiOperation(value = "删除地址")
     @DeleteMapping("/{addressId}")
     public Result<Void> delete(@PathVariable Long addressId) {
-        // 调用delete方法，复用统一能力并保证业务规则一致。
         customerAddressService.delete(addressId);
         return Result.ok();
     }
@@ -106,7 +105,6 @@ public class CustomerAddressController {
     @ApiOperation(value = "设为默认地址")
     @PutMapping("/{addressId}/default")
     public Result<Void> setDefault(@PathVariable Long addressId) {
-        // 调用setDefault方法，复用统一能力并保证业务规则一致。
         customerAddressService.setDefault(addressId);
         return Result.ok();
     }

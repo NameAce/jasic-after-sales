@@ -12,7 +12,7 @@ import java.io.Serializable;
  * <p>该对象是 `/dashboard/hq/home` 的唯一返回契约。本轮总部首页命名为“调度看板”，
  * 只返回总部当前承接工单池、已转出和近七天事件趋势，不再包含我的事项、网点履约监控、SLA 或风险指标。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/21
  */
 @ApiModel(description = "总部主体首页返回结构")

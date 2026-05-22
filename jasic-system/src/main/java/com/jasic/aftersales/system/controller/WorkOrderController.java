@@ -46,7 +46,7 @@ import io.swagger.annotations.ApiOperation;
 /**
  * 工单查询控制器
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/03/26
  */
 @Api(tags = "工单查询")
@@ -54,6 +54,7 @@ import io.swagger.annotations.ApiOperation;
 @RequestMapping("/system/work-order")
 public class WorkOrderController extends BaseController {
 
+    /**workOrderService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private IWorkOrderService workOrderService;
 
@@ -297,7 +298,6 @@ public class WorkOrderController extends BaseController {
     @OperLog(title = "工单管理", operType = OperTypeEnum.UPDATE)
     @PutMapping("/assign")
     public Result<Void> assign(@Validated @RequestBody WorkOrderAssignDTO dto) {
-        // 调用assign方法，复用统一能力并保证业务规则一致。
         workOrderService.assign(dto);
         return Result.ok();
     }
@@ -313,7 +313,6 @@ public class WorkOrderController extends BaseController {
     @OperLog(title = "工单管理", operType = OperTypeEnum.UPDATE)
     @PutMapping("/tech-accept")
     public Result<Void> techAccept(@Validated @RequestBody WorkOrderTechAcceptDTO dto) {
-        // 调用techAccept方法，复用统一能力并保证业务规则一致。
         workOrderService.techAccept(dto);
         return Result.ok();
     }
@@ -329,7 +328,6 @@ public class WorkOrderController extends BaseController {
     @OperLog(title = "工单管理", operType = OperTypeEnum.UPDATE)
     @PutMapping("/transfer")
     public Result<Void> transfer(@Validated @RequestBody WorkOrderTransferDTO dto) {
-        // 调用transfer方法，复用统一能力并保证业务规则一致。
         workOrderService.transfer(dto);
         return Result.ok();
     }
@@ -345,7 +343,6 @@ public class WorkOrderController extends BaseController {
     @OperLog(title = "工单管理", operType = OperTypeEnum.UPDATE)
     @PostMapping("/repair")
     public Result<Void> saveRepair(@Validated @RequestBody WorkOrderRepairDTO dto) {
-        // 调用saveRepair方法，复用统一能力并保证业务规则一致。
         workOrderService.saveRepair(dto);
         return Result.ok();
     }
@@ -361,7 +358,6 @@ public class WorkOrderController extends BaseController {
     @OperLog(title = "工单管理", operType = OperTypeEnum.UPDATE)
     @PostMapping("/review")
     public Result<Void> saveReview(@Validated @RequestBody WorkOrderReviewDTO dto) {
-        // 调用saveReview方法，复用统一能力并保证业务规则一致。
         workOrderService.saveReview(dto);
         return Result.ok();
     }
@@ -376,7 +372,6 @@ public class WorkOrderController extends BaseController {
     @OperLog(title = "工单管理", operType = OperTypeEnum.UPDATE)
     @PutMapping("/repair-product-model")
     public Result<Void> updateRepairProductModel(@Validated @RequestBody WorkOrderUpdateProductModelDTO dto) {
-        // 调用updateRepairProductModel方法，复用统一能力并保证业务规则一致。
         workOrderService.updateRepairProductModel(dto);
         return Result.ok();
     }
@@ -394,7 +389,6 @@ public class WorkOrderController extends BaseController {
     @OperLog(title = "工单管理", operType = OperTypeEnum.UPDATE)
     @PutMapping("/send-express")
     public Result<Void> updateSendExpress(@Validated @RequestBody WorkOrderSendExpressDTO dto) {
-        // 调用updateSendExpress方法，复用统一能力并保证业务规则一致。
         workOrderService.updateSendExpress(dto);
         return Result.ok();
     }
@@ -410,7 +404,6 @@ public class WorkOrderController extends BaseController {
     @OperLog(title = "工单管理", operType = OperTypeEnum.UPDATE)
     @PutMapping("/close")
     public Result<Void> close(@Validated @RequestBody WorkOrderCloseDTO dto) {
-        // 调用close方法，复用统一能力并保证业务规则一致。
         workOrderService.close(dto);
         return Result.ok();
     }

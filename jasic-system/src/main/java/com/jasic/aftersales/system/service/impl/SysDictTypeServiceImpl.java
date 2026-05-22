@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 /**
  * 字典类型 Service 实现类
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/03/19
  */
 @Service
@@ -34,15 +34,17 @@ public class SysDictTypeServiceImpl implements ISysDictTypeService {
     /**
      * 系统字典类型Mapper数据访问接口。
      *
-     * @param query 参数
-     * @return 处理结果
+     * @param query 查询条件，包含分页、筛选和权限收口所需字段。
+     * @return 业务处理结果
      */
     @Resource
     private SysDictTypeMapper sysDictTypeMapper;
 
+    /**sysDictDataMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysDictDataMapper sysDictDataMapper;
 
+    /**dictDataService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private ISysDictDataService dictDataService;
 
@@ -50,33 +52,26 @@ public class SysDictTypeServiceImpl implements ISysDictTypeService {
      * 查询listPage相关业务数据。
      *
      * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
-     * @param query 参数
-     * @return 处理结果
+     * @param query 查询条件，包含分页、筛选和权限收口所需字段。
+     * @return 业务处理结果
      */
     @Override
     public PageResult<SysDictTypeVO> listPage(SysDictTypeQuery query) {
-        // 调用getPageSize方法，复用统一能力并保证业务规则一致。
         Page<SysDictType> page = new Page<>(query.getPageNum(), query.getPageSize());
         LambdaQueryWrapper<SysDictType> wrapper = new LambdaQueryWrapper<>();
         if (StrUtil.isNotBlank(query.getDictName())) {
-            // 调用getDictName方法，复用统一能力并保证业务规则一致。
             wrapper.like(SysDictType::getDictName, query.getDictName());
         }
         if (StrUtil.isNotBlank(query.getDictType())) {
-            // 调用getDictType方法，复用统一能力并保证业务规则一致。
             wrapper.like(SysDictType::getDictType, query.getDictType());
         }
         if (query.getStatus() != null) {
-            // 调用getStatus方法，复用统一能力并保证业务规则一致。
             wrapper.eq(SysDictType::getStatus, query.getStatus());
         }
-        // 调用orderByDesc方法，复用统一能力并保证业务规则一致。
         wrapper.orderByDesc(SysDictType::getId);
-        // 说明：执行该步骤以保证业务流程正确。
         Page<SysDictType> result = sysDictTypeMapper.selectPage(page, wrapper);
         List<SysDictTypeVO> records = result.getRecords().stream()
                 .map(this::toVO)
-                // 调用toList方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toList());
         return PageResult.of(records, result.getTotal(), query.getPageNum(), query.getPageSize());
     }
@@ -84,11 +79,10 @@ public class SysDictTypeServiceImpl implements ISysDictTypeService {
     /**
      * 根据ID查询字典类型详情。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @Override
     public SysDictTypeVO getById(Long id) {
-        // 调用selectById方法，复用统一能力并保证业务规则一致。
         SysDictType entity = sysDictTypeMapper.selectById(id);
         return entity == null ? null : toVO(entity);
     }
@@ -96,18 +90,14 @@ public class SysDictTypeServiceImpl implements ISysDictTypeService {
     /**
      * 新增字典类型。
      *
-     * @param dto 参数
-     * @return 处理结果
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
+     * @return 业务处理结果
      */
     @Override
     public Long save(SysDictTypeDTO dto) {
-        // 调用getDictType方法，复用统一能力并保证业务规则一致。
         checkDictTypeUnique(dto.getDictType(), null);
-        // 调用copyProperties方法，复用统一能力并保证业务规则一致。
         SysDictType entity = BeanUtil.copyProperties(dto, SysDictType.class);
-        // 说明：执行该步骤以保证业务流程正确。
         sysDictTypeMapper.insert(entity);
-        // 调用getDictType方法，复用统一能力并保证业务规则一致。
         dictDataService.refreshCache(entity.getDictType());
         return entity.getId();
     }
@@ -115,7 +105,7 @@ public class SysDictTypeServiceImpl implements ISysDictTypeService {
     /**
      * 更新字典类型。
      *
-     * @param dto 参数
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
      */
     @Transactional(rollbackFor = Exception.class)
     @Override
@@ -123,35 +113,24 @@ public class SysDictTypeServiceImpl implements ISysDictTypeService {
         if (dto.getId() == null) {
             throw new ServiceException("字典类型ID不能为空");
         }
-        // 说明：执行该步骤以保证业务流程正确。
         SysDictType entity = sysDictTypeMapper.selectById(dto.getId());
         if (entity == null) {
             throw new ServiceException("字典类型不存在");
         }
-        // 调用getId方法，复用统一能力并保证业务规则一致。
         checkDictTypeUnique(dto.getDictType(), dto.getId());
-        // 调用getDictType方法，复用统一能力并保证业务规则一致。
         String oldDictType = entity.getDictType();
-        // 调用copyProperties方法，复用统一能力并保证业务规则一致。
         BeanUtil.copyProperties(dto, entity);
-        // 说明：执行该步骤以保证业务流程正确。
         sysDictTypeMapper.updateById(entity);
         if (!StrUtil.equals(oldDictType, entity.getDictType())) {
             LambdaQueryWrapper<SysDictData> wrapper = new LambdaQueryWrapper<>();
-            // 调用eq方法，复用统一能力并保证业务规则一致。
             wrapper.eq(SysDictData::getDictType, oldDictType);
-            // 调用selectList方法，复用统一能力并保证业务规则一致。
             List<SysDictData> dataList = sysDictDataMapper.selectList(wrapper);
             for (SysDictData data : dataList) {
-                // 调用getDictType方法，复用统一能力并保证业务规则一致。
                 data.setDictType(entity.getDictType());
-                // 调用updateById方法，复用统一能力并保证业务规则一致。
                 sysDictDataMapper.updateById(data);
             }
-            // 调用removeCache方法，复用统一能力并保证业务规则一致。
             dictDataService.removeCache(oldDictType);
         }
-        // 调用getDictType方法，复用统一能力并保证业务规则一致。
         dictDataService.refreshCache(entity.getDictType());
     }
 
@@ -161,20 +140,16 @@ public class SysDictTypeServiceImpl implements ISysDictTypeService {
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void remove(Long id) {
-        // 说明：执行该步骤以保证业务流程正确。
         SysDictType entity = sysDictTypeMapper.selectById(id);
         if (entity == null) {
             throw new ServiceException("字典类型不存在");
         }
         LambdaQueryWrapper<SysDictData> wrapper = new LambdaQueryWrapper<>();
-        // 调用getDictType方法，复用统一能力并保证业务规则一致。
         wrapper.eq(SysDictData::getDictType, entity.getDictType());
         if (sysDictDataMapper.selectCount(wrapper) > 0) {
             throw new ServiceException("该字典类型下存在数据项，不允许删除");
         }
-        // 说明：执行该步骤以保证业务流程正确。
         sysDictTypeMapper.deleteById(id);
-        // 调用getDictType方法，复用统一能力并保证业务规则一致。
         dictDataService.removeCache(entity.getDictType());
     }
 
@@ -183,21 +158,18 @@ public class SysDictTypeServiceImpl implements ISysDictTypeService {
      */
     @Override
     public void refreshCache() {
-        // 调用refreshCache方法，复用统一能力并保证业务规则一致。
         dictDataService.refreshCache();
     }
 
     /**
      * check字典类型Unique。
      *
-     * @param dictType 参数
+     * @param dictType dictType，当前业务处理所需的输入值。
      * @param excludeId exclude ID
      */
     private void checkDictTypeUnique(String dictType, Long excludeId) {
         LambdaQueryWrapper<SysDictType> wrapper = new LambdaQueryWrapper<>();
-        // 调用eq方法，复用统一能力并保证业务规则一致。
         wrapper.eq(SysDictType::getDictType, dictType);
-        // 说明：执行该步骤以保证业务流程正确。
         SysDictType exists = sysDictTypeMapper.selectOne(wrapper);
         if (exists != null && (excludeId == null || !exists.getId().equals(excludeId))) {
             throw new ServiceException("字典类型已存在");
@@ -207,8 +179,8 @@ public class SysDictTypeServiceImpl implements ISysDictTypeService {
     /**
      * to视图。
      *
-     * @param entity 参数
-     * @return 处理结果
+     * @param entity entity，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private SysDictTypeVO toVO(SysDictType entity) {
         return BeanUtil.copyProperties(entity, SysDictTypeVO.class);

@@ -31,23 +31,28 @@ import java.util.stream.Collectors;
  * 因此这里无法在事件发布前进一步预筛“已完成模板订阅授权”的用户。
  * 真实发送时如果微信返回用户未订阅，仍由 sender 统一跳过并留痕。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 @Component
 public class WorkOrderAcceptUserResolver {
 
+    /**WORKORDER_ACCEPT_PERMISSION 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String WORKORDER_ACCEPT_PERMISSION = "workorder:accept";
 
+    /**sysUserCompanyMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysUserCompanyMapper sysUserCompanyMapper;
 
+    /**sysUserMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysUserMapper sysUserMapper;
 
+    /**sysMenuMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysMenuMapper sysMenuMapper;
 
+    /**companyDataAccessContext 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private CompanyDataAccessContext companyDataAccessContext;
 

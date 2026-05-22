@@ -18,27 +18,30 @@ import java.util.Map;
 /**
  * 基于高德 WebService 的公司地址解析实现
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/02
  */
 @Slf4j
 @Service
 public class AmapCompanyGeoResolver implements ICompanyGeoResolver {
 
+    /**enabled 字段，用于当前类内部业务处理。*/
     @Value("${jasic.amap.geocode.enabled:false}")
     private boolean enabled;
 
+    /**key 字段，用于当前类内部业务处理。*/
     @Value("${jasic.amap.geocode.key:}")
     private String key;
 
+    /**url 字段，用于当前类内部业务处理。*/
     @Value("${jasic.amap.geocode.url:https://restapi.amap.com/v3/geocode/geo}")
     private String url;
 
     /**
      * int字段。
      *
-     * @param address 参数
-     * @return 处理结果
+     * @param address address，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     @Value("${jasic.amap.geocode.timeout-ms:3000}")
     private int timeoutMs;
@@ -51,7 +54,6 @@ public class AmapCompanyGeoResolver implements ICompanyGeoResolver {
      */
     @Override
     public GeoLocation resolve(String address) {
-        // 调用trim方法，复用统一能力并保证业务规则一致。
         String normalizedAddress = StrUtil.trim(address);
         if (StrUtil.isBlank(normalizedAddress)) {
             throw new ServiceException("公司地址不能为空");
@@ -61,46 +63,36 @@ public class AmapCompanyGeoResolver implements ICompanyGeoResolver {
         }
 
         Map<String, Object> params = new LinkedHashMap<>();
-        // 调用put方法，复用统一能力并保证业务规则一致。
         params.put("key", key);
-        // 调用put方法，复用统一能力并保证业务规则一致。
         params.put("address", normalizedAddress);
 
         String responseBody;
         try {
-            // 调用get方法，复用统一能力并保证业务规则一致。
             responseBody = HttpUtil.get(url, params, timeoutMs);
         } catch (Exception ex) {
-            // 调用error方法，复用统一能力并保证业务规则一致。
             log.error("调用高德地址解析失败，address={}", normalizedAddress, ex);
             throw new ServiceException("地址解析服务调用失败，请稍后重试");
         }
 
         try {
-            // 调用parseObj方法，复用统一能力并保证业务规则一致。
             JSONObject response = JSONUtil.parseObj(responseBody);
             if (!"1".equals(response.getStr("status"))) {
-                // 调用getStr方法，复用统一能力并保证业务规则一致。
                 String info = StrUtil.blankToDefault(response.getStr("info"), "地址解析失败");
                 throw new ServiceException(info);
             }
-            // 调用getJSONArray方法，复用统一能力并保证业务规则一致。
             JSONArray geocodes = response.getJSONArray("geocodes");
             if (geocodes == null || geocodes.isEmpty()) {
                 throw new ServiceException("未找到该地址对应的经纬度");
             }
-            // 调用getStr方法，复用统一能力并保证业务规则一致。
             String location = geocodes.getJSONObject(0).getStr("location");
             if (StrUtil.isBlank(location) || !location.contains(",")) {
                 throw new ServiceException("地址解析结果异常，请检查地址是否完整");
             }
-            // 调用split方法，复用统一能力并保证业务规则一致。
             String[] coordinates = location.split(",");
             return new GeoLocation(new BigDecimal(coordinates[0]), new BigDecimal(coordinates[1]));
         } catch (ServiceException ex) {
             throw ex;
         } catch (Exception ex) {
-            // 调用error方法，复用统一能力并保证业务规则一致。
             log.error("解析高德地址响应失败，address={}, response={}", normalizedAddress, responseBody, ex);
             throw new ServiceException("地址解析结果异常，请稍后重试");
         }

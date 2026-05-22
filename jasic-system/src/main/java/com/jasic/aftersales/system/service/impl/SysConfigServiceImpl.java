@@ -40,7 +40,7 @@ import java.util.stream.Collectors;
  * 本轮系统配置分组改造只在 sys_config 单表上补充 groupKey，服务层负责把旧页面未提交分组字段的请求
  * 按配置 key 自动归组，保证现有入口不因数据库新增非空字段而失效。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/03/19
  */
 @Service
@@ -351,6 +351,7 @@ public class SysConfigServiceImpl implements ISysConfigService {
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            /**afterCommit 处理逻辑，服务于当前类的业务编排和数据转换。*/
             @Override
             public void afterCommit() {
                 // 只有事务真正提交成功后才刷新缓存，避免回滚后 Redis 和数据库出现不一致。

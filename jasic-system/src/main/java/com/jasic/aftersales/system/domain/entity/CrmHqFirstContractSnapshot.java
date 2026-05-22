@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
  * <p>该表只沉淀 CRM 原始签约事实，供签约页“从 CRM 导入”使用，
  * 不直接替代售后正式签约关系表。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/12
  */
 @Data

@@ -9,7 +9,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
  * <p>该枚举用于描述“通知目标默认发给哪一类对象”，方便后台配置页展示和排障追踪。
  * 实际接收人解析仍由具体事件处理器结合业务快照计算。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 public enum NotifyReceiverTypeEnum {

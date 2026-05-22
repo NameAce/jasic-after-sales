@@ -41,18 +41,21 @@ import java.util.Objects;
  *
  * <p>模板渲染、目标分流、站内消息创建和外部分发表创建由统一消费编排层完成。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 @Component
 public class WorkOrderAssignedNotifyEventHandler implements NotifyEventHandler {
 
+    /**notifyMessageService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifyMessageService notifyMessageService;
 
+    /**notifyMessageLogService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifyMessageLogService notifyMessageLogService;
 
+    /**sysUserMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysUserMapper sysUserMapper;
 

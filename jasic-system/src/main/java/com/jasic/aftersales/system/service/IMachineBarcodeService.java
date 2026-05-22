@@ -12,7 +12,7 @@ import java.util.List;
 /**
  * 条码档案管理 Service 接口
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/01
  */
 public interface IMachineBarcodeService {

@@ -51,7 +51,7 @@ import java.util.Objects;
  * <p>该服务负责把单条通知事件展开成多个通知目标。
  * 站内目标直接落消息表，外部目标写入分发表，真实发送仍由 dispatch 链路异步执行。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 @Slf4j
@@ -63,39 +63,51 @@ public class NotifyEventConsumeServiceImpl implements NotifyEventConsumeService 
      */
     private static final String DEAD_RETRY_EXCEEDED_MESSAGE = "通知事件超过最大重试次数，已转入死信";
 
+    /**notifyEventService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifyEventService notifyEventService;
 
+    /**notifyEventHandlerRegistry 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifyEventHandlerRegistry notifyEventHandlerRegistry;
 
+    /**notifySceneTargetMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifySceneTargetMapper notifySceneTargetMapper;
 
+    /**notifySceneMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifySceneMapper notifySceneMapper;
 
+    /**notifySceneRegistry 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifySceneRegistry notifySceneRegistry;
 
+    /**notifyTemplateRenderService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifyTemplateRenderService notifyTemplateRenderService;
 
+    /**notifyMessageService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifyMessageService notifyMessageService;
 
+    /**notifyMessageLogService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifyMessageLogService notifyMessageLogService;
 
+    /**notifyDispatchService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifyDispatchService notifyDispatchService;
 
+    /**transactionTemplate 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private TransactionTemplate transactionTemplate;
 
+    /**eventRetryMaxCount 字段，用于当前类内部业务处理。*/
     @Value("${jasic.notify.event-retry-max-count:" + NotifyConstants.EVENT_RETRY_MAX_COUNT + "}")
     private int eventRetryMaxCount = NotifyConstants.EVENT_RETRY_MAX_COUNT;
 
+    /**eventRetryDelayMinutes 字段，用于当前类内部业务处理。*/
     @Value("${jasic.notify.event-retry-delay-minutes:" + NotifyConstants.EVENT_RETRY_DELAY_MINUTES + "}")
     private long eventRetryDelayMinutes = NotifyConstants.EVENT_RETRY_DELAY_MINUTES;
 

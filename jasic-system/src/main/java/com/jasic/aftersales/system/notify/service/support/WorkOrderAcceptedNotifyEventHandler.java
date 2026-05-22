@@ -19,7 +19,7 @@ import java.util.Objects;
 /**
  * C 端接单成功提醒事件处理器。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 @Component
@@ -58,6 +58,9 @@ public class WorkOrderAcceptedNotifyEventHandler implements NotifyEventHandler {
         return context;
     }
 
+    /**parsePayload 处理逻辑，服务于当前类的业务编排和数据转换。
+@param event event 字段参数。
+@return 处理后的业务结果。*/
     private NotifyWorkOrderAcceptedEventDTO parsePayload(SysNotifyEvent event) {
         if (StrUtil.isBlank(event.getPayloadJson())) {
             throw new ServiceException("工单接单成功提醒事件载荷不能为空");
@@ -83,10 +86,16 @@ public class WorkOrderAcceptedNotifyEventHandler implements NotifyEventHandler {
         return payload;
     }
 
+    /**resolveSceneCode 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param event event 字段参数。
+@return 查询或解析得到的业务对象。*/
     private String resolveSceneCode(SysNotifyEvent event) {
         return StrUtil.blankToDefault(event.getSceneCode(), NotifySceneCode.WORK_ORDER_ACCEPTED.getCode());
     }
 
+    /**buildTemplateVariables 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param payload payload 字段参数。
+@return 查询或组装后的业务数据集合。*/
     private Map<String, Object> buildTemplateVariables(NotifyWorkOrderAcceptedEventDTO payload) {
         Map<String, Object> variables = new LinkedHashMap<>();
         variables.put("workOrderId", payload.getWorkOrderId());

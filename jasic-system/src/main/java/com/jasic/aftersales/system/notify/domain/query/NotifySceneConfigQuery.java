@@ -9,7 +9,7 @@ import lombok.EqualsAndHashCode;
 /**
  * 通知场景配置分页查询参数。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 @ApiModel(description = "通知场景配置分页查询参数")

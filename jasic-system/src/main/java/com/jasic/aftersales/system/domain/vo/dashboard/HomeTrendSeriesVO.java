@@ -14,7 +14,7 @@ import java.util.List;
  * <p>趋势序列按“事件发生时间”聚合，不表示当前状态存量。
  * 每个 values 数组长度必须和 HomeTrendVO.days 保持一致，由服务端补齐没有事件的日期。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/21
  */
 @ApiModel(description = "首页趋势序列")

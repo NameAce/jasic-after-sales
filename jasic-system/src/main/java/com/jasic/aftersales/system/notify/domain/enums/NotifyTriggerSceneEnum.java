@@ -8,7 +8,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
  *
  * <p>该枚举用于约束模板配置、场景配置和历史兼容接口可绑定的工单通知场景。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 public enum NotifyTriggerSceneEnum {

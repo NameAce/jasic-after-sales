@@ -11,7 +11,7 @@ import java.io.Serializable;
  * 包括工单基础信息、客户展示信息、最终责任维修员信息以及最终处理公司信息。
  * 事件消费阶段不再回查客户评价表拼装模板字段，避免重试时受到业务数据变更影响。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/20
  */
 @Data

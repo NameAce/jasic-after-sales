@@ -7,7 +7,7 @@ import org.apache.ibatis.annotations.Mapper;
 /**
  * CRM 销售出库扫码快照 Mapper
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/12
  */
 @Mapper

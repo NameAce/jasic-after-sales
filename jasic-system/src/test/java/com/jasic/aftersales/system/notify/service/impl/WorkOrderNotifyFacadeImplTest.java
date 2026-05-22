@@ -16,9 +16,9 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 
-/**
- * WorkOrderNotifyFacadeImpl 单测。
- */
+/*** WorkOrderNotifyFacadeImpl 单测。
+
+@author Zoro*/
 public class WorkOrderNotifyFacadeImplTest {
 
     /**
@@ -101,6 +101,11 @@ public class WorkOrderNotifyFacadeImplTest {
      */
     private NotifyEventService createNotifyEventServiceProxy(EventServiceState state) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 String name = method.getName();
@@ -128,6 +133,11 @@ public class WorkOrderNotifyFacadeImplTest {
      */
     private NotifyMessageService createNotifyMessageServiceProxy() {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 return defaultValue(method.getReturnType());
@@ -195,6 +205,7 @@ public class WorkOrderNotifyFacadeImplTest {
      * 事件服务调用状态。
      */
     private static class EventServiceState {
+        /**createdEvent 字段，用于当前类内部业务处理。*/
         private SysNotifyEvent createdEvent;
     }
 }

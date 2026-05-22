@@ -12,43 +12,39 @@ import java.util.Set;
 /**
  * 启动期校验所有实体表均已注册数据权限策略。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/05
  */
 @Component
 public class CompanyDataPolicyValidator implements ApplicationRunner {
 
+    /**BASE_PACKAGE 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String BASE_PACKAGE = "com.jasic.aftersales";
 
     /**
      * run。
      *
-     * @param args 参数
+     * @param args args，当前业务处理所需的输入值。
      */
     @Override
     public void run(ApplicationArguments args) {
-        // 调用scanTableEntities方法，复用统一能力并保证业务规则一致。
         validateTablePolicies(TableNameEntityScanner.scanTableEntities(BASE_PACKAGE));
     }
 
     /**
      * 校验表Policies。
      *
-     * @param tableEntities 参数
+     * @param tableEntities tableEntities，当前业务处理所需的输入值。
      */
     public static void validateTablePolicies(Map<String, Set<String>> tableEntities) {
         List<String> errors = new ArrayList<>();
         for (Map.Entry<String, Set<String>> entry : tableEntities.entrySet()) {
-            // 调用getKey方法，复用统一能力并保证业务规则一致。
             String tableName = entry.getKey();
-            // 调用getValue方法，复用统一能力并保证业务规则一致。
             Set<String> entityClasses = entry.getValue();
             if (entityClasses.size() > 1) {
-                // 调用add方法，复用统一能力并保证业务规则一致。
                 errors.add("表名重复：" + tableName + " -> " + entityClasses);
             }
             if (!CompanyDataPolicyRegistry.contains(tableName)) {
-                // 调用add方法，复用统一能力并保证业务规则一致。
                 errors.add("实体表未注册数据权限策略：" + tableName + " -> " + entityClasses);
             }
         }

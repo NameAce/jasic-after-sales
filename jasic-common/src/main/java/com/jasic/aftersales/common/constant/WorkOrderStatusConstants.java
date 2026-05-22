@@ -11,7 +11,7 @@ import java.util.Set;
 /**
  * 工单状态常量。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/03/31
  */
 public class WorkOrderStatusConstants {
@@ -57,7 +57,7 @@ public class WorkOrderStatusConstants {
         /**
          * 构造主状态实例。
          *
-         * @return 处理结果
+         * @return 业务处理结果
          */
         private MainStatus() {
         }
@@ -89,7 +89,7 @@ public class WorkOrderStatusConstants {
         /**
          * 构造展示状态实例。
          *
-         * @return 处理结果
+         * @return 业务处理结果
          */
         private DisplayStatus() {
         }
@@ -187,15 +187,14 @@ public class WorkOrderStatusConstants {
     /**
      * 解析标签。
      *
-     * @param labelMap 参数
-     * @param code 参数
-     * @return 处理结果
+     * @param labelMap 业务映射数据，用于批量组装或快速查找。
+     * @param code 业务编码，用于匹配枚举、配置或外部系统数据。
+     * @return 业务处理结果
      */
     private static String resolveLabel(Map<String, String> labelMap, String code) {
         if (code == null || code.trim().isEmpty()) {
             return code;
         }
-        // 调用get方法，复用统一能力并保证业务规则一致。
         String label = labelMap.get(code);
         return label == null ? code : label;
     }
@@ -203,14 +202,13 @@ public class WorkOrderStatusConstants {
     /**
      * unmodifiableMap。
      *
-     * @param entries 参数
-     * @return 处理结果
+     * @param entries entries，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     @SafeVarargs
     private static Map<String, String> unmodifiableMap(Map.Entry<String, String>... entries) {
         Map<String, String> map = new LinkedHashMap<>();
         for (Map.Entry<String, String> entry : entries) {
-            // 调用getValue方法，复用统一能力并保证业务规则一致。
             map.put(entry.getKey(), entry.getValue());
         }
         return Collections.unmodifiableMap(map);
@@ -219,9 +217,9 @@ public class WorkOrderStatusConstants {
     /**
      * entry。
      *
-     * @param key 参数
-     * @param value 参数
-     * @return 处理结果
+     * @param key key，当前业务处理所需的输入值。
+     * @param value value，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private static Map.Entry<String, String> entry(String key, String value) {
         return new AbstractMap.SimpleEntry<>(key, value);

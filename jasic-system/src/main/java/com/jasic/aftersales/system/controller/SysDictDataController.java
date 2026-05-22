@@ -28,7 +28,7 @@ import io.swagger.annotations.ApiOperation;
 /**
  * 字典数据控制器
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/03/19
  */
 @Api(tags = "字典数据")
@@ -36,14 +36,15 @@ import io.swagger.annotations.ApiOperation;
 @RequestMapping("/system/dict/data")
 public class SysDictDataController extends BaseController {
 
+    /**dictDataService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private ISysDictDataService dictDataService;
 
     /**
      * 分页查询字典数据列表。
      *
-     * @param query 参数
-     * @return 处理结果
+     * @param query 查询条件，包含分页、筛选和权限收口所需字段。
+     * @return 业务处理结果
      */
     @SaCheckPermission("system:dictData:list")
     @GetMapping("/list")
@@ -54,7 +55,7 @@ public class SysDictDataController extends BaseController {
     /**
      * 根据ID查询字典数据详情。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @SaCheckPermission("system:dictData:list")
     @GetMapping("/{id}")
@@ -65,8 +66,8 @@ public class SysDictDataController extends BaseController {
     /**
      * 分页查询By类型列表。
      *
-     * @param dictType 参数
-     * @return 处理结果
+     * @param dictType dictType，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     @GetMapping("/type/{dictType}")
     public Result<List<SysDictDataVO>> listByType(@PathVariable String dictType) {
@@ -76,8 +77,8 @@ public class SysDictDataController extends BaseController {
     /**
      * 新增字典数据。
      *
-     * @param dto 参数
-     * @return 处理结果
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
+     * @return 业务处理结果
      */
     @SaCheckPermission("system:dictData:add")
     @OperLog(title = "字典数据管理", operType = OperTypeEnum.INSERT)
@@ -89,14 +90,13 @@ public class SysDictDataController extends BaseController {
     /**
      * 更新字典数据。
      *
-     * @param dto 参数
-     * @return 处理结果
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
+     * @return 业务处理结果
      */
     @SaCheckPermission("system:dictData:update")
     @OperLog(title = "字典数据管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
     public Result<Void> update(@Validated @RequestBody SysDictDataDTO dto) {
-        // 调用update方法，复用统一能力并保证业务规则一致。
         dictDataService.update(dto);
         return Result.ok();
     }
@@ -104,13 +104,12 @@ public class SysDictDataController extends BaseController {
     /**
      * 删除字典数据。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @SaCheckPermission("system:dictData:remove")
     @OperLog(title = "字典数据管理", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/{id}")
     public Result<Void> remove(@PathVariable Long id) {
-        // 调用remove方法，复用统一能力并保证业务规则一致。
         dictDataService.remove(id);
         return Result.ok();
     }

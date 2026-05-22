@@ -34,7 +34,7 @@ import javax.annotation.Resource;
  * 它统一围绕“一个通知场景下维护多个通知目标”提供元数据、列表、详情、保存和预览接口，
  * 不再暴露旧“模板管理/渠道配置”割裂入口。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 @Api(tags = "通知场景配置")
@@ -42,6 +42,7 @@ import javax.annotation.Resource;
 @RequestMapping("/system/notify/scene")
 public class NotifySceneController extends BaseController {
 
+    /**notifySceneTargetConfigService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifySceneTargetConfigService notifySceneTargetConfigService;
 
@@ -88,7 +89,7 @@ public class NotifySceneController extends BaseController {
      *
      * @param sceneCode 场景编码
      * @param dto 场景保存参数
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @ApiOperation(value = "保存整个通知场景下的全部目标配置")
     @SaCheckPermission("system:notifyScene:update")

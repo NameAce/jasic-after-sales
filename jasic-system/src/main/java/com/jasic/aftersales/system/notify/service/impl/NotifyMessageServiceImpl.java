@@ -40,7 +40,7 @@ import java.util.stream.Collectors;
 /**
  * 通知消息 Service 实现。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/18
  */
 @Service
@@ -49,18 +49,21 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
     /**
      * 系统通知消息Mapper数据访问接口。
      *
-     * @param notifyMessage 参数
-     * @return 处理结果
+     * @param notifyMessage 提示或消息文本，用于异常返回或通知内容。
+     * @return 业务处理结果
      */
     @Resource
     private SysNotifyMessageMapper sysNotifyMessageMapper;
 
+    /**notifyMessageLogService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifyMessageLogService notifyMessageLogService;
 
+    /**workOrderMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private WorkOrderMapper workOrderMapper;
 
+    /**workOrderPermissionService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private WorkOrderPermissionService workOrderPermissionService;
 
@@ -68,12 +71,11 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
      * 执行createMessage相关新增业务。
      *
      * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
-     * @param notifyMessage 参数
-     * @return 处理结果
+     * @param notifyMessage 提示或消息文本，用于异常返回或通知内容。
+     * @return 业务处理结果
      */
     @Override
     public Long createMessage(SysNotifyMessage notifyMessage) {
-        // 调用insert方法，复用统一能力并保证业务规则一致。
         sysNotifyMessageMapper.insert(notifyMessage);
         return notifyMessage.getId();
     }
@@ -81,7 +83,7 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
     /**
      * 根据ID查询通知消息详情。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @Override
     public SysNotifyMessage getById(Long id) {
@@ -92,18 +94,16 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
      * 获取By事件ID。
      *
      * @param eventId event ID
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @Override
     public SysNotifyMessage getByEventId(Long eventId) {
         if (eventId == null) {
             return null;
         }
-        // 说明：执行该步骤以保证业务流程正确。
         LambdaQueryWrapper<SysNotifyMessage> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysNotifyMessage::getEventId, eventId)
                 .orderByAsc(SysNotifyMessage::getId)
-                // 调用last方法，复用统一能力并保证业务规则一致。
                 .last("limit 1");
         return sysNotifyMessageMapper.selectOne(wrapper);
     }
@@ -130,10 +130,10 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
     /**
      * 分页查询Active待办By业务And接收人列表。
      *
-     * @param bizType 参数
+     * @param bizType bizType，当前业务处理所需的输入值。
      * @param receiverId receiver ID
      * @param receiverCompanyId receiver Company ID
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @Override
     public List<SysNotifyMessage> listActiveTodoByBizAndReceiver(String bizType, Long bizId, Long receiverId,
@@ -141,7 +141,6 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         if (StrUtil.isBlank(bizType) || bizId == null || receiverId == null || isInvalidId(receiverCompanyId)) {
             return Collections.emptyList();
         }
-        // 说明：执行该步骤以保证业务流程正确。
         LambdaQueryWrapper<SysNotifyMessage> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysNotifyMessage::getBizType, bizType)
                 .eq(SysNotifyMessage::getBizId, bizId)
@@ -151,7 +150,6 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
                 .in(SysNotifyMessage::getTodoStatus,
                         NotifyTodoStatusEnum.PENDING.getCode(),
                         NotifyTodoStatusEnum.READ.getCode())
-                // 调用orderByAsc方法，复用统一能力并保证业务规则一致。
                 .orderByAsc(SysNotifyMessage::getId);
         return sysNotifyMessageMapper.selectList(wrapper);
     }
@@ -160,15 +158,14 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
      * 作废消息。
      *
      * @param messageId message ID
-     * @param invalidReason 参数
-     * @param invalidTime 参数
+     * @param invalidReason invalidReason，当前业务处理所需的输入值。
+     * @param invalidTime 时间值，用于业务节点记录或时效判断。
      */
     @Override
     public boolean invalidateMessage(Long messageId, String invalidReason, LocalDateTime invalidTime) {
         if (messageId == null) {
             return false;
         }
-        // 说明：执行该步骤以保证业务流程正确。
         LambdaUpdateWrapper<SysNotifyMessage> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(SysNotifyMessage::getId, messageId)
                 .in(SysNotifyMessage::getTodoStatus,
@@ -176,7 +173,6 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
                         NotifyTodoStatusEnum.READ.getCode())
                 .set(SysNotifyMessage::getTodoStatus, NotifyTodoStatusEnum.INVALID.getCode())
                 .set(SysNotifyMessage::getInvalidReason, invalidReason)
-                // 调用set方法，复用统一能力并保证业务规则一致。
                 .set(SysNotifyMessage::getInvalidTime, invalidTime);
         return sysNotifyMessageMapper.update(null, wrapper) > 0;
     }
@@ -196,7 +192,6 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         if (receiverId == null) {
             throw new ServiceException("当前登录用户不能为空");
         }
-        // 说明：执行该步骤以保证业务流程正确。
         SysNotifyMessage message = getById(id);
         if (isInvalidId(receiverCompanyId)) {
             throw new ServiceException("缺少公司数据访问上下文");
@@ -205,19 +200,15 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
                 || !receiverCompanyId.equals(message.getReceiverCompanyId())) {
             throw new ServiceException("消息不存在");
         }
-        // 说明：执行该步骤以保证业务流程正确。
         requireBizPermission(message.getBizType(), message.getBizId());
         if (!NotifyTodoStatusEnum.PENDING.getCode().equals(message.getTodoStatus())) {
             return;
         }
-        // 调用now方法，复用统一能力并保证业务规则一致。
         LocalDateTime readTime = LocalDateTime.now();
         if (!markReadMessage(id, readTime)) {
             return;
         }
-        // 调用getCode方法，复用统一能力并保证业务规则一致。
         message.setTodoStatus(NotifyTodoStatusEnum.READ.getCode());
-        // 调用setReadTime方法，复用统一能力并保证业务规则一致。
         message.setReadTime(readTime);
         notifyMessageLogService.createLog(buildMessageLog(
                 message,
@@ -230,16 +221,13 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
     /**
      * mark读取By业务。
      *
-     * @param dto 参数
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void markReadByBiz(NotifyReadByBizDTO dto) {
-        // 说明：执行该步骤以保证业务流程正确。
         validateReadByBizDTO(dto);
-        // 调用getBizId方法，复用统一能力并保证业务规则一致。
         requireBizPermission(dto.getBizType(), dto.getBizId());
-        // 说明：执行该步骤以保证业务流程正确。
         List<SysNotifyMessage> messages = listPendingTodoByBizAndReceiver(
                 dto.getBizType(),
                 dto.getBizId(),
@@ -249,15 +237,12 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         if (messages.isEmpty()) {
             return;
         }
-        // 调用now方法，复用统一能力并保证业务规则一致。
         LocalDateTime readTime = LocalDateTime.now();
         for (SysNotifyMessage message : messages) {
             if (!markReadMessage(message.getId(), readTime)) {
                 continue;
             }
-            // 调用getCode方法，复用统一能力并保证业务规则一致。
             message.setTodoStatus(NotifyTodoStatusEnum.READ.getCode());
-            // 调用setReadTime方法，复用统一能力并保证业务规则一致。
             message.setReadTime(readTime);
             notifyMessageLogService.createLog(buildMessageLog(
                     message,
@@ -271,16 +256,13 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
     /**
      * 完成待办By业务And接收人。
      *
-     * @param dto 参数
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void completeTodoByBizAndReceiver(NotifyTodoCompleteDTO dto) {
-        // 说明：执行该步骤以保证业务流程正确。
         validateCompleteDTO(dto);
-        // 调用getBizId方法，复用统一能力并保证业务规则一致。
         requireBizPermission(dto.getBizType(), dto.getBizId());
-        // 说明：执行该步骤以保证业务流程正确。
         List<SysNotifyMessage> messages = listActiveTodoByBizAndReceiver(
                 dto.getBizType(),
                 dto.getBizId(),
@@ -290,15 +272,12 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         if (messages.isEmpty()) {
             return;
         }
-        // 调用now方法，复用统一能力并保证业务规则一致。
         LocalDateTime doneTime = LocalDateTime.now();
         for (SysNotifyMessage message : messages) {
             if (!completeMessage(message.getId(), doneTime)) {
                 continue;
             }
-            // 调用getCode方法，复用统一能力并保证业务规则一致。
             message.setTodoStatus(NotifyTodoStatusEnum.DONE.getCode());
-            // 调用setDoneTime方法，复用统一能力并保证业务规则一致。
             message.setDoneTime(doneTime);
             notifyMessageLogService.createLog(buildMessageLog(
                     message,
@@ -312,33 +291,25 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
     /**
      * 作废待办By业务。
      *
-     * @param dto 参数
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void invalidateTodoByBiz(NotifyTodoInvalidateDTO dto) {
-        // 说明：执行该步骤以保证业务流程正确。
         validateInvalidateDTO(dto);
-        // 调用getBizId方法，复用统一能力并保证业务规则一致。
         requireBizPermission(dto.getBizType(), dto.getBizId());
-        // 说明：执行该步骤以保证业务流程正确。
         List<SysNotifyMessage> messages = listActiveTodoByBiz(dto.getBizType(), dto.getBizId());
         if (messages.isEmpty()) {
             return;
         }
-        // 调用now方法，复用统一能力并保证业务规则一致。
         LocalDateTime invalidTime = LocalDateTime.now();
-        // 调用getCurrentUserId方法，复用统一能力并保证业务规则一致。
         Long actionUserId = SecurityContext.getCurrentUserId();
         for (SysNotifyMessage message : messages) {
             if (!invalidateMessage(message.getId(), dto.getInvalidReason(), invalidTime)) {
                 continue;
             }
-            // 调用getCode方法，复用统一能力并保证业务规则一致。
             message.setTodoStatus(NotifyTodoStatusEnum.INVALID.getCode());
-            // 调用getInvalidReason方法，复用统一能力并保证业务规则一致。
             message.setInvalidReason(dto.getInvalidReason());
-            // 调用setInvalidTime方法，复用统一能力并保证业务规则一致。
             message.setInvalidTime(invalidTime);
             notifyMessageLogService.createLog(buildMessageLog(
                     message,
@@ -352,8 +323,8 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
     /**
      * 分页查询通知消息列表。
      *
-     * @param query 参数
-     * @return 处理结果
+     * @param query 查询条件，包含分页、筛选和权限收口所需字段。
+     * @return 业务处理结果
      */
     @Override
     public PageResult<NotifyMessagePageVO> listPage(NotifyMessageQuery query) {
@@ -366,30 +337,23 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         if (isInvalidId(query.getReceiverCompanyId())) {
             throw new ServiceException("缺少公司数据访问上下文");
         }
-        // 调用getBox方法，复用统一能力并保证业务规则一致。
         List<String> todoStatuses = resolveBoxStatuses(query.getBox());
-        // 说明：执行该步骤以保证业务流程正确。
         Page<SysNotifyMessage> page = new Page<>(query.getPageNum(), query.getPageSize());
         LambdaQueryWrapper<SysNotifyMessage> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysNotifyMessage::getReceiverId, query.getReceiverId())
                 .eq(SysNotifyMessage::getReceiverCompanyId, query.getReceiverCompanyId())
                 .in(SysNotifyMessage::getTodoStatus, todoStatuses)
                 .orderByDesc(SysNotifyMessage::getCreateTime)
-                // 调用orderByDesc方法，复用统一能力并保证业务规则一致。
                 .orderByDesc(SysNotifyMessage::getId);
         if (StrUtil.isNotBlank(query.getBizType())) {
-            // 调用trim方法，复用统一能力并保证业务规则一致。
             wrapper.eq(SysNotifyMessage::getBizType, query.getBizType().trim());
         }
         if (query.getBizId() != null) {
-            // 调用getBizId方法，复用统一能力并保证业务规则一致。
             wrapper.eq(SysNotifyMessage::getBizId, query.getBizId());
         }
-        // 调用selectPage方法，复用统一能力并保证业务规则一致。
         Page<SysNotifyMessage> result = sysNotifyMessageMapper.selectPage(page, wrapper);
         List<NotifyMessagePageVO> rows = result.getRecords().stream()
                 .map(this::buildPageVO)
-                // 调用toList方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toList());
         return PageResult.of(rows, result.getTotal(), query.getPageNum(), query.getPageSize());
     }
@@ -399,7 +363,7 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
      *
      * @param receiverId receiver ID
      * @param receiverCompanyId receiver Company ID
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @Override
     public Long countTodo(Long receiverId, Long receiverCompanyId) {
@@ -409,16 +373,13 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         if (isInvalidId(receiverCompanyId)) {
             throw new ServiceException("缺少公司数据访问上下文");
         }
-        // 说明：执行该步骤以保证业务流程正确。
         LambdaQueryWrapper<SysNotifyMessage> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysNotifyMessage::getReceiverId, receiverId)
                 .eq(SysNotifyMessage::getReceiverCompanyId, receiverCompanyId)
                 .and(this::appendTodoTargetFilter)
                 .in(SysNotifyMessage::getTodoStatus,
                         NotifyTodoStatusEnum.PENDING.getCode(),
-                        // 调用getCode方法，复用统一能力并保证业务规则一致。
                         NotifyTodoStatusEnum.READ.getCode());
-        // 调用selectCount方法，复用统一能力并保证业务规则一致。
         Long count = sysNotifyMessageMapper.selectCount(wrapper);
         return count == null ? 0L : count;
     }
@@ -426,17 +387,16 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
     /**
      * 分页查询Pending待办By业务And接收人列表。
      *
-     * @param bizType 参数
+     * @param bizType bizType，当前业务处理所需的输入值。
      * @param receiverId receiver ID
      * @param receiverCompanyId receiver Company ID
-     * @return 处理结果
+     * @return 业务处理结果
      */
     private List<SysNotifyMessage> listPendingTodoByBizAndReceiver(String bizType, Long bizId,
                                                                    Long receiverId, Long receiverCompanyId) {
         if (StrUtil.isBlank(bizType) || bizId == null || receiverId == null || isInvalidId(receiverCompanyId)) {
             return Collections.emptyList();
         }
-        // 说明：执行该步骤以保证业务流程正确。
         LambdaQueryWrapper<SysNotifyMessage> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysNotifyMessage::getBizType, bizType)
                 .eq(SysNotifyMessage::getBizId, bizId)
@@ -444,7 +404,6 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
                 .eq(SysNotifyMessage::getReceiverCompanyId, receiverCompanyId)
                 .and(this::appendTodoTargetFilter)
                 .eq(SysNotifyMessage::getTodoStatus, NotifyTodoStatusEnum.PENDING.getCode())
-                // 调用orderByAsc方法，复用统一能力并保证业务规则一致。
                 .orderByAsc(SysNotifyMessage::getId);
         return sysNotifyMessageMapper.selectList(wrapper);
     }
@@ -452,14 +411,13 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
     /**
      * 分页查询Active待办By业务列表。
      *
-     * @param bizType 参数
-     * @return 处理结果
+     * @param bizType bizType，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private List<SysNotifyMessage> listActiveTodoByBiz(String bizType, Long bizId) {
         if (StrUtil.isBlank(bizType) || bizId == null) {
             return Collections.emptyList();
         }
-        // 说明：执行该步骤以保证业务流程正确。
         LambdaQueryWrapper<SysNotifyMessage> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysNotifyMessage::getBizType, bizType)
                 .eq(SysNotifyMessage::getBizId, bizId)
@@ -467,7 +425,6 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
                 .in(SysNotifyMessage::getTodoStatus,
                         NotifyTodoStatusEnum.PENDING.getCode(),
                         NotifyTodoStatusEnum.READ.getCode())
-                // 调用orderByAsc方法，复用统一能力并保证业务规则一致。
                 .orderByAsc(SysNotifyMessage::getId);
         return sysNotifyMessageMapper.selectList(wrapper);
     }
@@ -476,18 +433,16 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
      * mark读取消息。
      *
      * @param messageId message ID
-     * @param readTime 参数
+     * @param readTime 时间值，用于业务节点记录或时效判断。
      */
     private boolean markReadMessage(Long messageId, LocalDateTime readTime) {
         if (messageId == null) {
             return false;
         }
-        // 说明：执行该步骤以保证业务流程正确。
         LambdaUpdateWrapper<SysNotifyMessage> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(SysNotifyMessage::getId, messageId)
                 .eq(SysNotifyMessage::getTodoStatus, NotifyTodoStatusEnum.PENDING.getCode())
                 .set(SysNotifyMessage::getTodoStatus, NotifyTodoStatusEnum.READ.getCode())
-                // 调用set方法，复用统一能力并保证业务规则一致。
                 .set(SysNotifyMessage::getReadTime, readTime);
         return sysNotifyMessageMapper.update(null, wrapper) > 0;
     }
@@ -496,20 +451,18 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
      * 完成消息。
      *
      * @param messageId message ID
-     * @param doneTime 参数
+     * @param doneTime 时间值，用于业务节点记录或时效判断。
      */
     private boolean completeMessage(Long messageId, LocalDateTime doneTime) {
         if (messageId == null) {
             return false;
         }
-        // 说明：执行该步骤以保证业务流程正确。
         LambdaUpdateWrapper<SysNotifyMessage> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(SysNotifyMessage::getId, messageId)
                 .in(SysNotifyMessage::getTodoStatus,
                         NotifyTodoStatusEnum.PENDING.getCode(),
                         NotifyTodoStatusEnum.READ.getCode())
                 .set(SysNotifyMessage::getTodoStatus, NotifyTodoStatusEnum.DONE.getCode())
-                // 调用set方法，复用统一能力并保证业务规则一致。
                 .set(SysNotifyMessage::getDoneTime, doneTime);
         return sysNotifyMessageMapper.update(null, wrapper) > 0;
     }
@@ -534,33 +487,21 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
     /**
      * 构建分页视图。
      *
-     * @param message 参数
-     * @return 处理结果
+     * @param message 提示或消息文本，用于异常返回或通知内容。
+     * @return 业务处理结果
      */
     private NotifyMessagePageVO buildPageVO(SysNotifyMessage message) {
-        // 说明：执行该步骤以保证业务流程正确。
         NotifyMessagePageVO vo = new NotifyMessagePageVO();
-        // 调用getId方法，复用统一能力并保证业务规则一致。
         vo.setId(message.getId());
-        // 调用getTitle方法，复用统一能力并保证业务规则一致。
         vo.setTitle(message.getTitle());
-        // 调用getSummary方法，复用统一能力并保证业务规则一致。
         vo.setSummary(message.getSummary());
-        // 调用getBizType方法，复用统一能力并保证业务规则一致。
         vo.setBizType(message.getBizType());
-        // 调用getBizId方法，复用统一能力并保证业务规则一致。
         vo.setBizId(message.getBizId());
-        // 调用getBizNo方法，复用统一能力并保证业务规则一致。
         vo.setBizNo(message.getBizNo());
-        // 调用getRouteType方法，复用统一能力并保证业务规则一致。
         vo.setRouteType(message.getRouteType());
-        // 调用getRouteValue方法，复用统一能力并保证业务规则一致。
         vo.setRouteValue(message.getRouteValue());
-        // 调用getTodoStatus方法，复用统一能力并保证业务规则一致。
         vo.setTodoStatus(message.getTodoStatus());
-        // 调用getInvalidReason方法，复用统一能力并保证业务规则一致。
         vo.setInvalidReason(message.getInvalidReason());
-        // 调用getCreateTime方法，复用统一能力并保证业务规则一致。
         vo.setCreateTime(message.getCreateTime());
         return vo;
     }
@@ -568,13 +509,11 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
     /**
      * 解析BoxStatuses。
      *
-     * @param box 参数
-     * @return 处理结果
+     * @param box box，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private List<String> resolveBoxStatuses(String box) {
-        // 调用toUpperCase方法，复用统一能力并保证业务规则一致。
         String normalizedBox = StrUtil.trimToEmpty(box).toUpperCase();
-        // 说明：执行该步骤以保证业务流程正确。
         if (NotifyConstants.BOX_TODO.equals(normalizedBox)) {
             return Arrays.asList(
                     NotifyTodoStatusEnum.PENDING.getCode(),
@@ -593,24 +532,18 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
     /**
      * 构建消息日志。
      *
-     * @param message 参数
-     * @param actionType 参数
+     * @param message 提示或消息文本，用于异常返回或通知内容。
+     * @param actionType actionType，当前业务处理所需的输入值。
      * @param actionUserId action User ID
-     * @param remark 参数
-     * @return 处理结果
+     * @param remark remark，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private SysNotifyMessageLog buildMessageLog(SysNotifyMessage message, String actionType, Long actionUserId, String remark) {
-        // 说明：执行该步骤以保证业务流程正确。
         SysNotifyMessageLog logEntity = new SysNotifyMessageLog();
-        // 调用getId方法，复用统一能力并保证业务规则一致。
         logEntity.setMessageId(message.getId());
-        // 调用setActionType方法，复用统一能力并保证业务规则一致。
         logEntity.setActionType(actionType);
-        // 调用setActionUserId方法，复用统一能力并保证业务规则一致。
         logEntity.setActionUserId(actionUserId);
-        // 调用setRemark方法，复用统一能力并保证业务规则一致。
         logEntity.setRemark(remark);
-        // 调用toJsonStr方法，复用统一能力并保证业务规则一致。
         logEntity.setSnapshotJson(JSONUtil.toJsonStr(message));
         return logEntity;
     }
@@ -618,11 +551,10 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
     /**
      * 构建作废Remark。
      *
-     * @param invalidReason 参数
-     * @return 处理结果
+     * @param invalidReason invalidReason，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private String buildInvalidateRemark(String invalidReason) {
-        // 调用getByCode方法，复用统一能力并保证业务规则一致。
         NotifyInvalidReasonEnum reasonEnum = NotifyInvalidReasonEnum.getByCode(invalidReason);
         return reasonEnum == null ? "业务状态变化，待办失效" : String.format("%s，待办失效", reasonEnum.getDesc());
     }
@@ -630,13 +562,12 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
     /**
      * 校验读取By业务DTO。
      *
-     * @param dto 参数
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
      */
     private void validateReadByBizDTO(NotifyReadByBizDTO dto) {
         if (dto == null) {
             throw new ServiceException("已读参数不能为空");
         }
-        // 说明：执行该步骤以保证业务流程正确。
         validateBiz(dto.getBizType(), dto.getBizId());
         if (dto.getReceiverId() == null) {
             throw new ServiceException("已读参数缺少接收人");
@@ -649,13 +580,12 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
     /**
      * 校验完成DTO。
      *
-     * @param dto 参数
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
      */
     private void validateCompleteDTO(NotifyTodoCompleteDTO dto) {
         if (dto == null) {
             throw new ServiceException("完成参数不能为空");
         }
-        // 说明：执行该步骤以保证业务流程正确。
         validateBiz(dto.getBizType(), dto.getBizId());
         if (dto.getReceiverId() == null) {
             throw new ServiceException("完成参数缺少接收人");
@@ -666,7 +596,6 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
         if (StrUtil.isBlank(dto.getActionCode())) {
             throw new ServiceException("完成参数缺少业务动作编码");
         }
-        // 说明：执行该步骤以保证业务流程正确。
         if (NotifyBizTypeEnum.WORK_ORDER.getCode().equals(dto.getBizType())
                 && !NotifyConstants.ACTION_TECH_ACCEPT.equals(dto.getActionCode())) {
             throw new ServiceException("当前阶段工单待办仅允许绑定 TECH_ACCEPT 完成");
@@ -676,18 +605,16 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
     /**
      * 校验作废DTO。
      *
-     * @param dto 参数
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
      */
     private void validateInvalidateDTO(NotifyTodoInvalidateDTO dto) {
         if (dto == null) {
             throw new ServiceException("失效参数不能为空");
         }
-        // 说明：执行该步骤以保证业务流程正确。
         validateBiz(dto.getBizType(), dto.getBizId());
         if (StrUtil.isBlank(dto.getInvalidReason())) {
             throw new ServiceException("失效参数缺少失效原因");
         }
-        // 说明：执行该步骤以保证业务流程正确。
         if (NotifyInvalidReasonEnum.getByCode(dto.getInvalidReason()) == null) {
             throw new ServiceException("不支持的失效原因：" + dto.getInvalidReason());
         }
@@ -696,13 +623,12 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
     /**
      * 校验业务。
      *
-     * @param bizType 参数
+     * @param bizType bizType，当前业务处理所需的输入值。
      */
     private void validateBiz(String bizType, Long bizId) {
         if (StrUtil.isBlank(bizType)) {
             throw new ServiceException("业务类型不能为空");
         }
-        // 说明：执行该步骤以保证业务流程正确。
         if (NotifyBizTypeEnum.getByCode(bizType) == null) {
             throw new ServiceException("不支持的业务类型：" + bizType);
         }
@@ -714,16 +640,13 @@ public class NotifyMessageServiceImpl implements NotifyMessageService {
     /**
      * require业务权限。
      *
-     * @param bizType 参数
+     * @param bizType bizType，当前业务处理所需的输入值。
      */
     private void requireBizPermission(String bizType, Long bizId) {
-        // 说明：执行该步骤以保证业务流程正确。
         validateBiz(bizType, bizId);
-        // 说明：执行该步骤以保证业务流程正确。
         if (!NotifyBizTypeEnum.WORK_ORDER.getCode().equals(bizType)) {
             throw new ServiceException("不支持的业务类型：" + bizType);
         }
-        // 说明：执行该步骤以保证业务流程正确。
         WorkOrder workOrder = workOrderMapper.selectById(bizId);
         if (workOrder == null || !workOrderPermissionService.canView(workOrder)) {
             throw new ServiceException("无权查看该工单");

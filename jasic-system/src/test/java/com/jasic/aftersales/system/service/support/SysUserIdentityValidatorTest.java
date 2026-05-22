@@ -16,11 +16,12 @@ import java.util.Queue;
 /**
  * B端登录标识校验测试
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/02
  */
 public class SysUserIdentityValidatorTest {
 
+    /**验证AllowSameUserUsernameEqualsPhone，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldAllowSameUserUsernameEqualsPhone() throws Exception {
         SysUserIdentityValidator validator = new SysUserIdentityValidator();
@@ -29,6 +30,7 @@ public class SysUserIdentityValidatorTest {
         validator.validateLoginIdentityUnique(1L, "13800138000", "13800138000");
     }
 
+    /**验证RejectWhenUsernameOccupiedByOtherPhone，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectWhenUsernameOccupiedByOtherPhone() throws Exception {
         SysUserIdentityValidator validator = new SysUserIdentityValidator();
@@ -42,6 +44,7 @@ public class SysUserIdentityValidatorTest {
         }
     }
 
+    /**验证RejectWhenPhoneAlreadyExists，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectWhenPhoneAlreadyExists() throws Exception {
         SysUserIdentityValidator validator = new SysUserIdentityValidator();
@@ -55,9 +58,17 @@ public class SysUserIdentityValidatorTest {
         }
     }
 
+    /**createMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param counts counts 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private SysUserMapper createMapperProxy(Long... counts) {
         Queue<Long> queue = new ArrayDeque<>(Arrays.asList(counts));
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectCount".equals(method.getName())) {
@@ -73,12 +84,19 @@ public class SysUserIdentityValidatorTest {
         );
     }
 
+    /**setField 处理逻辑，服务于当前类的业务编排和数据转换。
+@param target target 字段参数。
+@param fieldName 名称文本，用于展示、匹配或保存业务对象名称。
+@param value value 字段参数。*/
     private void setField(Object target, String fieldName, Object value) throws Exception {
         Field field = SysUserIdentityValidator.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(target, value);
     }
 
+    /**defaultValue 处理逻辑，服务于当前类的业务编排和数据转换。
+@param returnType returnType 字段参数。
+@return 处理后的业务结果。*/
     private Object defaultValue(Class<?> returnType) {
         if (!returnType.isPrimitive()) {
             return null;

@@ -31,7 +31,7 @@ import java.util.Map;
  *
  * <p>该组件不负责事件消费、接收人实时解析、站内消息落库或微信真实发送。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 @Component
@@ -811,6 +811,8 @@ public class NotifySceneRegistry {
         return variables;
     }
 
+    /**buildWorkOrderAcceptedVariables 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@return 查询或组装后的业务数据集合。*/
     private List<NotifyTemplateVariableMeta> buildWorkOrderAcceptedVariables() {
         List<NotifyTemplateVariableMeta> variables = new ArrayList<>();
         variables.add(buildVariableMeta("workOrderId", "工单ID", "91"));

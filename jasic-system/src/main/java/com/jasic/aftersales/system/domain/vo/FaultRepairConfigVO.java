@@ -12,7 +12,7 @@ import io.swagger.annotations.ApiModelProperty;
 /**
  * 故障与维修配置视图
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/01
  */
 @ApiModel(description = "故障与维修配置视图")

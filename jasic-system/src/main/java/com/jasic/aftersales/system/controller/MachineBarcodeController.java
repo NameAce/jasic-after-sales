@@ -25,7 +25,7 @@ import io.swagger.annotations.Api;
 /**
  * 条码档案管理控制器
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/01
  */
 @Api(tags = "条码档案管理")
@@ -33,9 +33,11 @@ import io.swagger.annotations.Api;
 @RequestMapping("/system/machine-barcode")
 public class MachineBarcodeController extends BaseController {
 
+    /**machineBarcodeService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private IMachineBarcodeService machineBarcodeService;
 
+    /**syncTaskService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private ISyncTaskService syncTaskService;
 

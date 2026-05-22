@@ -30,29 +30,36 @@ import java.util.stream.Collectors;
  *
  * <p>仅同步 CRM 来源关系事实，供“一级-二级关系”管理中的来源导入使用。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/17
  */
 @Service
 public class CrmFirstSecondRelationSnapshotServiceImpl implements ICrmFirstSecondRelationSnapshotService {
 
+    /**CRM_RELATION_TABLE 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String CRM_RELATION_TABLE = "saas_deal_user_relation";
+    /**CRM_BIZ_COMPANY_TABLE 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String CRM_BIZ_COMPANY_TABLE = "biz_company";
+    /**FIRST_LEVEL_CUST_RAGE 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final int FIRST_LEVEL_CUST_RAGE = 0;
+    /**SECOND_LEVEL_CUST_RAGE 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final int SECOND_LEVEL_CUST_RAGE = 3;
+    /**DEFAULT_BATCH_SIZE 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final int DEFAULT_BATCH_SIZE = 500;
 
+    /**jdbcTemplate 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource(name = "jdbcTemplate")
     private JdbcTemplate jdbcTemplate;
 
     /**
      * JDBC模板模板依赖。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @Resource(name = "crmJdbcTemplate")
     private JdbcTemplate crmJdbcTemplate;
 
+    /**crmFirstSecondRelationSnapshotMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private CrmFirstSecondRelationSnapshotMapper crmFirstSecondRelationSnapshotMapper;
 
@@ -60,11 +67,10 @@ public class CrmFirstSecondRelationSnapshotServiceImpl implements ICrmFirstSecon
      * 获取EarliestChangeTime相关数据。
      *
      * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @Override
     public LocalDateTime getEarliestChangeTime() {
-        // 说明：执行该步骤以保证业务流程正确。
         JdbcTemplate crm = requireCrmJdbcTemplate();
         Timestamp timestamp = crm.queryForObject(
                 "SELECT MIN(r.oper_date) FROM " + CRM_RELATION_TABLE + " r "
@@ -82,16 +88,15 @@ public class CrmFirstSecondRelationSnapshotServiceImpl implements ICrmFirstSecon
     /**
      * 同步ByTimeRange。
      *
-     * @param startInclusive 参数
-     * @param endExclusive 参数
-     * @return 处理结果
+     * @param startInclusive startInclusive，当前业务处理所需的输入值。
+     * @param endExclusive endExclusive，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     @Override
     public CrmFirstSecondRelationSyncSummaryVO syncByTimeRange(LocalDateTime startInclusive, LocalDateTime endExclusive) {
         if (startInclusive == null || endExclusive == null || !startInclusive.isBefore(endExclusive)) {
             throw new ServiceException("CRM 一级二级关系快照同步时间范围不合法");
         }
-        // 说明：执行该步骤以保证业务流程正确。
         JdbcTemplate crm = requireCrmJdbcTemplate();
         String sql = "SELECT id, buy_cust_id, sup_cust_id, oper_date "
                 + "FROM " + CRM_RELATION_TABLE + " r "
@@ -105,34 +110,24 @@ public class CrmFirstSecondRelationSnapshotServiceImpl implements ICrmFirstSecon
                 + "ORDER BY r.buy_cust_id ASC, r.id ASC";
 
         List<CrmFirstSecondRelationSnapshot> batch = new ArrayList<>(DEFAULT_BATCH_SIZE);
-        // 调用SyncCounter方法，复用统一能力并保证业务规则一致。
         SyncCounter counter = new SyncCounter();
-        // 调用now方法，复用统一能力并保证业务规则一致。
         LocalDateTime syncTime = LocalDateTime.now();
         crm.query(connection -> {
-            // 调用prepareStatement方法，复用统一能力并保证业务规则一致。
             PreparedStatement ps = connection.prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
-            // 调用setFetchSize方法，复用统一能力并保证业务规则一致。
             ps.setFetchSize(Integer.MIN_VALUE);
-            // 调用toTimestamp方法，复用统一能力并保证业务规则一致。
             ps.setTimestamp(1, toTimestamp(startInclusive));
-            // 调用toTimestamp方法，复用统一能力并保证业务规则一致。
             ps.setTimestamp(2, toTimestamp(endExclusive));
             return ps;
         }, rs -> {
             while (rs.next()) {
-                // 调用getRow方法，复用统一能力并保证业务规则一致。
                 CrmFirstSecondRelationSnapshot row = CRM_RELATION_ROW_MAPPER.mapRow(rs, rs.getRow());
                 if (row == null || row.getFirstCustId() == null || row.getSecondCustId() == null) {
                     continue;
                 }
-                // 调用add方法，复用统一能力并保证业务规则一致。
                 batch.add(row);
                 counter.processedCount++;
                 if (batch.size() >= DEFAULT_BATCH_SIZE) {
-                    // 调用flushBatch方法，复用统一能力并保证业务规则一致。
                     flushBatch(batch, syncTime, counter);
-                    // 调用clear方法，复用统一能力并保证业务规则一致。
                     batch.clear();
                 }
             }
@@ -140,21 +135,14 @@ public class CrmFirstSecondRelationSnapshotServiceImpl implements ICrmFirstSecon
         });
 
         if (CollUtil.isNotEmpty(batch)) {
-            // 调用flushBatch方法，复用统一能力并保证业务规则一致。
             flushBatch(batch, syncTime, counter);
         }
 
-        // 调用CrmFirstSecondRelationSyncSummaryVO方法，复用统一能力并保证业务规则一致。
         CrmFirstSecondRelationSyncSummaryVO summary = new CrmFirstSecondRelationSyncSummaryVO();
-        // 调用setDataStartTime方法，复用统一能力并保证业务规则一致。
         summary.setDataStartTime(startInclusive);
-        // 调用setDataEndTime方法，复用统一能力并保证业务规则一致。
         summary.setDataEndTime(endExclusive);
-        // 调用setProcessedCount方法，复用统一能力并保证业务规则一致。
         summary.setProcessedCount(counter.processedCount);
-        // 调用setInsertedCount方法，复用统一能力并保证业务规则一致。
         summary.setInsertedCount(counter.insertedCount);
-        // 调用setUpdatedCount方法，复用统一能力并保证业务规则一致。
         summary.setUpdatedCount(counter.updatedCount);
         return summary;
     }
@@ -162,27 +150,22 @@ public class CrmFirstSecondRelationSnapshotServiceImpl implements ICrmFirstSecon
     /**
      * flushBatch。
      *
-     * @param rows 参数
-     * @param syncTime 参数
-     * @param counter 参数
+     * @param rows rows，当前业务处理所需的输入值。
+     * @param syncTime 时间值，用于业务节点记录或时效判断。
+     * @param counter counter，当前业务处理所需的输入值。
      */
     private void flushBatch(List<CrmFirstSecondRelationSnapshot> rows, LocalDateTime syncTime, SyncCounter counter) {
         List<Long> secondCustIds = rows.stream()
                 .map(CrmFirstSecondRelationSnapshot::getSecondCustId)
                 .filter(value -> value != null)
                 .distinct()
-                // 调用toList方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toList());
-        // 调用emptySet方法，复用统一能力并保证业务规则一致。
         Set<Long> existingSecondCustIds = Collections.emptySet();
         if (CollUtil.isNotEmpty(secondCustIds)) {
             LambdaQueryWrapper<CrmFirstSecondRelationSnapshot> wrapper = new LambdaQueryWrapper<>();
-            // 调用in方法，复用统一能力并保证业务规则一致。
             wrapper.in(CrmFirstSecondRelationSnapshot::getSecondCustId, secondCustIds);
-            // 说明：执行该步骤以保证业务流程正确。
             existingSecondCustIds = crmFirstSecondRelationSnapshotMapper.selectList(wrapper).stream()
                     .map(CrmFirstSecondRelationSnapshot::getSecondCustId)
-                    // 调用toCollection方法，复用统一能力并保证业务规则一致。
                     .collect(Collectors.toCollection(LinkedHashSet::new));
         }
 
@@ -194,35 +177,28 @@ public class CrmFirstSecondRelationSnapshotServiceImpl implements ICrmFirstSecon
                 + "first_cust_id = VALUES(first_cust_id), "
                 + "crm_oper_time = VALUES(crm_oper_time), "
                 + "last_sync_time = VALUES(last_sync_time), "
-                // 调用NOW方法，复用统一能力并保证业务规则一致。
                 + "update_time = NOW()";
         jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
             /**
      * setValues。
      *
-     * @param ps 参数
-     * @param i 参数
+     * @param ps ps，当前业务处理所需的输入值。
+     * @param i i，当前业务处理所需的输入值。
              */
             @Override
             public void setValues(PreparedStatement ps, int i) throws SQLException {
-                // 调用get方法，复用统一能力并保证业务规则一致。
                 CrmFirstSecondRelationSnapshot row = rows.get(i);
-                // 调用getSourceId方法，复用统一能力并保证业务规则一致。
                 ps.setObject(1, row.getSourceId());
-                // 调用getFirstCustId方法，复用统一能力并保证业务规则一致。
                 ps.setObject(2, row.getFirstCustId());
-                // 调用getSecondCustId方法，复用统一能力并保证业务规则一致。
                 ps.setObject(3, row.getSecondCustId());
-                // 调用getCrmOperTime方法，复用统一能力并保证业务规则一致。
                 ps.setTimestamp(4, toTimestamp(row.getCrmOperTime()));
-                // 调用toTimestamp方法，复用统一能力并保证业务规则一致。
                 ps.setTimestamp(5, toTimestamp(syncTime));
             }
 
             /**
      * 获取BatchSize。
      *
-     * @return 处理结果
+     * @return 业务处理结果
              */
             @Override
             public int getBatchSize() {
@@ -242,7 +218,7 @@ public class CrmFirstSecondRelationSnapshotServiceImpl implements ICrmFirstSecon
     /**
      * requireCRMJDBC模板。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     private JdbcTemplate requireCrmJdbcTemplate() {
         if (crmJdbcTemplate == null) {
@@ -254,8 +230,8 @@ public class CrmFirstSecondRelationSnapshotServiceImpl implements ICrmFirstSecon
     /**
      * toTimestamp。
      *
-     * @param value 参数
-     * @return 处理结果
+     * @param value value，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private Timestamp toTimestamp(LocalDateTime value) {
         return value == null ? null : Timestamp.valueOf(value);
@@ -264,16 +240,16 @@ public class CrmFirstSecondRelationSnapshotServiceImpl implements ICrmFirstSecon
     /**
      * toLocalDateTime。
      *
-     * @param rs 参数
-     * @param column 参数
-     * @return 处理结果
+     * @param rs rs，当前业务处理所需的输入值。
+     * @param column column，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private static LocalDateTime toLocalDateTime(ResultSet rs, String column) throws SQLException {
-        // 调用getTimestamp方法，复用统一能力并保证业务规则一致。
         Timestamp value = rs.getTimestamp(column);
         return value == null ? null : value.toLocalDateTime();
     }
 
+    /**CRM_RELATION_ROW_MAPPER 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final RowMapper<CrmFirstSecondRelationSnapshot> CRM_RELATION_ROW_MAPPER = (rs, rowNum) -> {
         CrmFirstSecondRelationSnapshot snapshot = new CrmFirstSecondRelationSnapshot();
         long sourceId = rs.getLong("id");
@@ -286,9 +262,15 @@ public class CrmFirstSecondRelationSnapshotServiceImpl implements ICrmFirstSecon
         return snapshot;
     };
 
+    /**SyncCounter 服务实现，负责业务校验、状态流转、数据持久化和跨模块协同。
+
+@author Zoro*/
     private static class SyncCounter {
+        /**processedCount 字段，用于当前类内部业务处理。*/
         private int processedCount;
+        /**insertedCount 字段，用于当前类内部业务处理。*/
         private int insertedCount;
+        /**updatedCount 字段，用于当前类内部业务处理。*/
         private int updatedCount;
     }
 }

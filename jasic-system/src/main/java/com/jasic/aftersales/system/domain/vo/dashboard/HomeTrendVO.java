@@ -14,7 +14,7 @@ import java.util.List;
  * <p>本轮首页趋势固定为近七天，并且全部按工单流转事件 create_time 统计。
  * 该对象不用于当前状态存量统计，因此趋势点不要求与任一状态列表 total 对齐。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/21
  */
 @ApiModel(description = "首页近七天事件趋势")

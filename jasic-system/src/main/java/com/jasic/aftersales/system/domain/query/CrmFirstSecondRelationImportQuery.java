@@ -9,7 +9,7 @@ import lombok.EqualsAndHashCode;
 /**
  * CRM 一级二级关系导入查询参数
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/17
  */
 @ApiModel(description = "CRM 一级二级关系导入查询参数")

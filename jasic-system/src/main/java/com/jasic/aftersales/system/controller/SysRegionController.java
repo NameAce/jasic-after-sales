@@ -35,6 +35,7 @@ import io.swagger.annotations.ApiOperation;
 @RequestMapping("/system/region")
 public class SysRegionController extends BaseController {
 
+    /**regionService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private ISysRegionService regionService;
 
@@ -90,7 +91,6 @@ public class SysRegionController extends BaseController {
     @OperLog(title = "大区管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
     public Result<Void> update(@Validated @RequestBody SysRegionDTO dto) {
-        // 调用update方法，复用统一能力并保证业务规则一致。
         regionService.update(dto);
         return Result.ok();
     }

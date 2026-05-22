@@ -12,7 +12,7 @@ import lombok.Getter;
  * <p>后端通常按“能否查看工单 -> 解析 relationType -> 结合主状态和权限点返回动作列表”的顺序做校验。
  * 因此该枚举既用于列表/详情展示当前身份，也用于控制 `availableActions`、只读标记和单个动作接口的放行逻辑。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/11
  */
 @Getter

@@ -43,16 +43,21 @@ import java.util.Set;
 /**
  * 工单权限服务测试。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/01
  */
 public class WorkOrderPermissionServiceTest {
 
+    /**service 字段，用于当前类内部业务处理。*/
     private WorkOrderPermissionService service;
+    /**permissionCodes 字段，用于当前类内部业务处理。*/
     private Set<String> permissionCodes;
+    /**historyParticipationKeys 字段，用于当前类内部业务处理。*/
     private Set<String> historyParticipationKeys;
+    /**temporaryCreatorUserIds 字段，用于当前类内部业务处理。*/
     private Map<Long, Long> temporaryCreatorUserIds;
 
+    /**setUp 处理逻辑，服务于当前类的业务编排和数据转换。*/
     @Before
     public void setUp() throws Exception {
         SaManager.setSaTokenContext(new SaTokenContextForThreadLocal());
@@ -62,16 +67,27 @@ public class WorkOrderPermissionServiceTest {
         historyParticipationKeys = new LinkedHashSet<>();
         temporaryCreatorUserIds = new LinkedHashMap<>();
         service = new WorkOrderPermissionService() {
+            /**hasPermissionCode 业务条件，用于决定后续流程是否允许继续执行。
+@param permissionCode 业务编码，用于匹配枚举、配置或外部系统数据。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             protected boolean hasPermissionCode(String permissionCode) {
                 return permissionCode == null || permissionCode.trim().isEmpty() || permissionCodes.contains(permissionCode);
             }
 
+            /**hasHistoryUserParticipation 业务条件，用于决定后续流程是否允许继续执行。
+@param workOrderId 工单ID。
+@param companyId 公司ID。
+@param userId 用户ID。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             protected boolean hasHistoryUserParticipation(Long workOrderId, Long companyId, Long userId) {
                 return historyParticipationKeys.contains(buildHistoryParticipationKey(workOrderId, companyId, userId));
             }
 
+            /**resolveTemporaryCreatorUserId 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param workOrderId 工单ID。
+@return 查询或解析得到的业务对象。*/
             @Override
             protected Long resolveTemporaryCreatorUserId(Long workOrderId) {
                 return temporaryCreatorUserIds.get(workOrderId);
@@ -80,6 +96,7 @@ public class WorkOrderPermissionServiceTest {
         setEmptyMapperDependencies();
     }
 
+    /**tearDown 处理逻辑，服务于当前类的业务编排和数据转换。*/
     @After
     public void tearDown() {
         try {
@@ -89,6 +106,7 @@ public class WorkOrderPermissionServiceTest {
         }
     }
 
+    /**验证AllowRegionManagerViewCurrentHqWorkOrderWithinRegion，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldAllowRegionManagerViewCurrentHqWorkOrderWithinRegion() throws Exception {
         setCurrentHqRegionContext();
@@ -105,6 +123,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertTrue(service.canView(workOrder));
     }
 
+    /**验证AllowAllScopeUserViewCurrentHqWorkOrder，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldAllowAllScopeUserViewCurrentHqWorkOrder() throws Exception {
         setCurrentHqAllContext();
@@ -117,6 +136,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertTrue(service.canView(workOrder));
     }
 
+    /**验证AllowAllScopeUserViewReadonlyNetworkWorkOrder，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldAllowAllScopeUserViewReadonlyNetworkWorkOrder() throws Exception {
         setCurrentHqAllContext();
@@ -130,6 +150,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertTrue(service.canView(workOrder));
     }
 
+    /**验证RejectAllScopeUserViewWorkOrderFromAnotherHq，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectAllScopeUserViewWorkOrderFromAnotherHq() throws Exception {
         setCurrentHqAllContext();
@@ -142,6 +163,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertFalse(service.canView(workOrder));
     }
 
+    /**验证RejectRegionManagerViewCurrentHqWorkOrderOutsideRegion，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectRegionManagerViewCurrentHqWorkOrderOutsideRegion() throws Exception {
         setCurrentHqRegionContext();
@@ -158,6 +180,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertFalse(service.canView(workOrder));
     }
 
+    /**验证RejectRegionManagerReadonlyOrderOutsideRegionEvenIfParticipantExists，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectRegionManagerReadonlyOrderOutsideRegionEvenIfParticipantExists() throws Exception {
         setCurrentHqRegionContext();
@@ -174,6 +197,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertFalse(service.canView(workOrder));
     }
 
+    /**验证RejectRegionManagerViewWorkOrderFromAnotherHq，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectRegionManagerViewWorkOrderFromAnotherHq() throws Exception {
         setCurrentHqRegionContext();
@@ -182,6 +206,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertFalse(service.canView(workOrder));
     }
 
+    /**验证RejectSelfScopeUserViewUnassignedHqWorkOrder，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectSelfScopeUserViewUnassignedHqWorkOrder() {
         SecurityContext.setCurrentCompanyId(900L);
@@ -195,6 +220,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertFalse(service.canView(workOrder));
     }
 
+    /**验证AllowSelfScopeUserViewHistoricalWorkOrderWhenParticipationExists，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldAllowSelfScopeUserViewHistoricalWorkOrderWhenParticipationExists() throws Exception {
         SecurityContext.setCurrentCompanyId(1001L);
@@ -212,6 +238,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertTrue(service.canView(workOrder));
     }
 
+    /**验证RejectSelfScopeHistoricalWorkOrderWhenParticipationMissing，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectSelfScopeHistoricalWorkOrderWhenParticipationMissing() throws Exception {
         SecurityContext.setCurrentCompanyId(1001L);
@@ -228,6 +255,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertFalse(service.canView(workOrder));
     }
 
+    /**验证AllowAllScopeHistoricalWorkOrderWithoutUserParticipation，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldAllowAllScopeHistoricalWorkOrderWithoutUserParticipation() throws Exception {
         SecurityContext.setCurrentCompanyId(1001L);
@@ -244,6 +272,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertTrue(service.canView(workOrder));
     }
 
+    /**验证FillQueryScopeWithAllScopeAndEmptyRelatedCompanyIds，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldFillQueryScopeWithAllScopeAndEmptyRelatedCompanyIds() throws Exception {
         setCurrentHqAllContext();
@@ -261,6 +290,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertEquals(Collections.emptyList(), scopedQuery.getAccessContext().getRelatedCompanyIds());
     }
 
+    /**验证FillQueryScopeWithRegionCompanyIds，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldFillQueryScopeWithRegionCompanyIds() throws Exception {
         setCurrentHqRegionContext();
@@ -282,6 +312,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertEquals(Arrays.asList(1001L, 1002L), scopedQuery.getAccessContext().getRelatedCompanyIds());
     }
 
+    /**验证ResolveRelationTagsForAssignedDispatcherInCurrentAcceptCompany，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldResolveRelationTagsForAssignedDispatcherInCurrentAcceptCompany() throws Exception {
         setCurrentServiceContext(1001L);
@@ -296,6 +327,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertTrue(relationTags.contains(WorkOrderRelationTagEnum.CREATOR_COMPANY));
     }
 
+    /**验证RejectTransferForAssignedTechWithoutTransferPermission，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectTransferForAssignedTechWithoutTransferPermission() throws Exception {
         setCurrentServiceContext(1001L);
@@ -309,6 +341,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertFalse(service.listAvailableActions(workOrder).contains(WorkOrderActionEnum.TRANSFER.getCode()));
     }
 
+    /**验证OnlyExposeRepairRegisterActionForInProgressAssignee，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldOnlyExposeRepairRegisterActionForInProgressAssignee() throws Exception {
         setCurrentServiceContext(1001L);
@@ -324,6 +357,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertTrue(actions.contains(WorkOrderActionEnum.REPAIR_FINISH.getCode()));
     }
 
+    /**验证AllowCloseForCompletedCurrentAcceptCompanyWhenHasClosePermission，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldAllowCloseForCompletedCurrentAcceptCompanyWhenHasClosePermission() throws Exception {
         setCurrentServiceContext(1001L);
@@ -337,6 +371,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertTrue(service.listAvailableActions(workOrder).contains(WorkOrderActionEnum.CLOSE.getCode()));
     }
 
+    /**验证NotExposeIndependentCloseForPendingTechAcceptAssignee，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldNotExposeIndependentCloseForPendingTechAcceptAssignee() throws Exception {
         setCurrentServiceContext(1001L);
@@ -351,6 +386,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertFalse(service.listAvailableActions(workOrder).contains(WorkOrderActionEnum.CLOSE.getCode()));
     }
 
+    /**验证ReturnHistoryReadonlyReasonForTransferredWorkOrder，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldReturnHistoryReadonlyReasonForTransferredWorkOrder() throws Exception {
         setCurrentServiceContext(1001L);
@@ -366,6 +402,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertEquals("当前非受理方，仅可查看", service.getReadonlyReason(workOrder));
     }
 
+    /**验证ReturnAssigneeReadonlyReasonWhenOtherTechnicianIsHandlingWorkOrder，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldReturnAssigneeReadonlyReasonWhenOtherTechnicianIsHandlingWorkOrder() throws Exception {
         setCurrentServiceContext(1001L);
@@ -377,6 +414,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertEquals("当前由其他维修人员处理", service.getReadonlyReason(workOrder));
     }
 
+    /**验证ReturnNullReadonlyReasonWhenActionsAreAvailable，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldReturnNullReadonlyReasonWhenActionsAreAvailable() throws Exception {
         setCurrentServiceContext(1001L);
@@ -389,6 +427,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertNull(service.getReadonlyReason(workOrder));
     }
 
+    /**验证AllowProxySelfCreatorUploadSendExpressWithoutAssignPermission，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldAllowProxySelfCreatorUploadSendExpressWithoutAssignPermission() throws Exception {
         setCurrentServiceContext(1001L);
@@ -401,6 +440,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertTrue(service.listAvailableActions(workOrder).contains(WorkOrderActionEnum.UPLOAD_SEND_EXPRESS.getCode()));
     }
 
+    /**验证RejectProxySelfSameCompanyOtherUserUploadSendExpress，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectProxySelfSameCompanyOtherUserUploadSendExpress() throws Exception {
         setCurrentServiceContext(1001L);
@@ -413,6 +453,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertFalse(service.listAvailableActions(workOrder).contains(WorkOrderActionEnum.UPLOAD_SEND_EXPRESS.getCode()));
     }
 
+    /**验证AllowUpstreamFirstCreatorUploadSendExpressFromReadonlyList，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldAllowUpstreamFirstCreatorUploadSendExpressFromReadonlyList() throws Exception {
         setCurrentServiceContext(2002L);
@@ -429,6 +470,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertTrue(service.listAvailableActions(workOrder).contains(WorkOrderActionEnum.UPLOAD_SEND_EXPRESS.getCode()));
     }
 
+    /**验证AllowUpstreamHqCreatorUploadSendExpressFromReadonlyList，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldAllowUpstreamHqCreatorUploadSendExpressFromReadonlyList() throws Exception {
         setCurrentServiceContext(1001L);
@@ -445,6 +487,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertTrue(service.listAvailableActions(workOrder).contains(WorkOrderActionEnum.UPLOAD_SEND_EXPRESS.getCode()));
     }
 
+    /**验证AllowUploadSendExpressInPendingTechAcceptWindow，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldAllowUploadSendExpressInPendingTechAcceptWindow() throws Exception {
         setCurrentServiceContext(1001L);
@@ -456,6 +499,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertTrue(service.canUpdateSendExpress(workOrder));
     }
 
+    /**验证RejectUploadSendExpressOutsideWaitAcceptWindow，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectUploadSendExpressOutsideWaitAcceptWindow() throws Exception {
         setCurrentServiceContext(1001L);
@@ -467,6 +511,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertFalse(service.canUpdateSendExpress(workOrder));
     }
 
+    /**验证RejectUploadSendExpressWhenCreateFlowMissingOrOperatorEmpty，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectUploadSendExpressWhenCreateFlowMissingOrOperatorEmpty() throws Exception {
         setCurrentServiceContext(1001L);
@@ -481,6 +526,7 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertFalse(service.canUpdateSendExpress(emptyOperator));
     }
 
+    /**setCurrentHqRegionContext 处理逻辑，服务于当前类的业务编排和数据转换。*/
     private void setCurrentHqRegionContext() {
         SecurityContext.setCurrentCompanyId(900L);
         SecurityContext.setCurrentSubjectType("HQ");
@@ -489,6 +535,7 @@ public class WorkOrderPermissionServiceTest {
         SecurityContext.setCurrentRegionIds(Collections.singletonList(10L));
     }
 
+    /**setCurrentHqAllContext 处理逻辑，服务于当前类的业务编排和数据转换。*/
     private void setCurrentHqAllContext() {
         SecurityContext.setCurrentCompanyId(900L);
         SecurityContext.setCurrentSubjectType("HQ");
@@ -497,6 +544,8 @@ public class WorkOrderPermissionServiceTest {
         SecurityContext.setCurrentRegionIds(Collections.emptyList());
     }
 
+    /**setCurrentServiceContext 处理逻辑，服务于当前类的业务编排和数据转换。
+@param companyId 公司ID。*/
     private void setCurrentServiceContext(Long companyId) {
         SecurityContext.setCurrentCompanyId(companyId);
         SecurityContext.setCurrentSubjectType("SERVICE");
@@ -505,6 +554,8 @@ public class WorkOrderPermissionServiceTest {
         SecurityContext.setCurrentRegionIds(Collections.emptyList());
     }
 
+    /**grantPermissions 处理逻辑，服务于当前类的业务编排和数据转换。
+@param permissionCodes 业务编码，用于匹配枚举、配置或外部系统数据。*/
     private void grantPermissions(String... permissionCodes) {
         if (permissionCodes == null) {
             return;
@@ -512,24 +563,44 @@ public class WorkOrderPermissionServiceTest {
         this.permissionCodes.addAll(Arrays.asList(permissionCodes));
     }
 
+    /**grantHistoryParticipation 处理逻辑，服务于当前类的业务编排和数据转换。
+@param workOrderId 工单ID。
+@param companyId 公司ID。
+@param userId 用户ID。*/
     private void grantHistoryParticipation(Long workOrderId, Long companyId, Long userId) {
         historyParticipationKeys.add(buildHistoryParticipationKey(workOrderId, companyId, userId));
     }
 
+    /**rememberTemporaryCreator 处理逻辑，服务于当前类的业务编排和数据转换。
+@param workOrderId 工单ID。
+@param userId 用户ID。*/
     private void rememberTemporaryCreator(Long workOrderId, Long userId) {
         temporaryCreatorUserIds.put(workOrderId, userId);
     }
 
+    /**buildHistoryParticipationKey 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param workOrderId 工单ID。
+@param companyId 公司ID。
+@param userId 用户ID。
+@return 处理后的业务结果。*/
     private String buildHistoryParticipationKey(Long workOrderId, Long companyId, Long userId) {
         return String.valueOf(workOrderId) + "-" + String.valueOf(companyId) + "-" + String.valueOf(userId);
     }
 
+    /**setEmptyMapperDependencies 处理逻辑，服务于当前类的业务编排和数据转换。*/
     private void setEmptyMapperDependencies() throws Exception {
         setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(null, 0L));
         setField(service, "hqFirstContractMapper", createContractMapperProxy(Collections.emptyList()));
         setField(service, "firstSecondRelationMapper", createRelationMapperProxy(Collections.emptyList()));
     }
 
+    /**buildWorkOrder 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param id 主键ID。
+@param hqCompanyId hqCompanyId 字段。
+@param currentAcceptCompanyId currentAcceptCompanyId 字段。
+@param createCompanyId createCompanyId 字段。
+@param assignedUserId assignedUserId 字段。
+@return 处理后的业务结果。*/
     private WorkOrder buildWorkOrder(Long id, Long hqCompanyId, Long currentAcceptCompanyId,
                                      Long createCompanyId, Long assignedUserId) {
         WorkOrder workOrder = new WorkOrder();
@@ -541,6 +612,14 @@ public class WorkOrderPermissionServiceTest {
         return workOrder;
     }
 
+    /**buildMailWorkOrder 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param id 主键ID。
+@param hqCompanyId hqCompanyId 字段。
+@param currentAcceptCompanyId currentAcceptCompanyId 字段。
+@param createCompanyId createCompanyId 字段。
+@param mainStatus 业务状态编码，用于判断或更新当前流程节点。
+@param createEntryType createEntryType 字段参数。
+@return 处理后的业务结果。*/
     private WorkOrder buildMailWorkOrder(Long id, Long hqCompanyId, Long currentAcceptCompanyId,
                                          Long createCompanyId, String mainStatus, String createEntryType) {
         WorkOrder workOrder = buildWorkOrder(id, hqCompanyId, currentAcceptCompanyId, createCompanyId, null);
@@ -550,6 +629,11 @@ public class WorkOrderPermissionServiceTest {
         return workOrder;
     }
 
+    /**buildParticipant 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param workOrderId 工单ID。
+@param companyId 公司ID。
+@param participateType participateType 字段参数。
+@return 处理后的业务结果。*/
     private WorkOrderParticipant buildParticipant(Long workOrderId, Long companyId, String participateType) {
         WorkOrderParticipant participant = new WorkOrderParticipant();
         participant.setWorkOrderId(workOrderId);
@@ -559,6 +643,11 @@ public class WorkOrderPermissionServiceTest {
         return participant;
     }
 
+    /**buildContract 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param hqCompanyId hqCompanyId 字段。
+@param firstCompanyId firstCompanyId 字段。
+@param regionId regionId 字段。
+@return 处理后的业务结果。*/
     private HqFirstContract buildContract(Long hqCompanyId, Long firstCompanyId, Long regionId) {
         HqFirstContract contract = new HqFirstContract();
         contract.setHqCompanyId(hqCompanyId);
@@ -568,6 +657,10 @@ public class WorkOrderPermissionServiceTest {
         return contract;
     }
 
+    /**buildRelation 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param firstCompanyId firstCompanyId 字段。
+@param secondCompanyId secondCompanyId 字段。
+@return 处理后的业务结果。*/
     private FirstSecondRelation buildRelation(Long firstCompanyId, Long secondCompanyId) {
         FirstSecondRelation relation = new FirstSecondRelation();
         relation.setFirstCompanyId(firstCompanyId);
@@ -576,8 +669,17 @@ public class WorkOrderPermissionServiceTest {
         return relation;
     }
 
+    /**createParticipantMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param participant participant 字段参数。
+@param relatedCount relatedCount 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private WorkOrderParticipantMapper createParticipantMapperProxy(WorkOrderParticipant participant, Long relatedCount) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectOne".equals(method.getName())) {
@@ -596,8 +698,16 @@ public class WorkOrderPermissionServiceTest {
         );
     }
 
+    /**createContractMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param contracts 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private HqFirstContractMapper createContractMapperProxy(List<HqFirstContract> contracts) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectList".equals(method.getName())) {
@@ -613,8 +723,16 @@ public class WorkOrderPermissionServiceTest {
         );
     }
 
+    /**createRelationMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param relations 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private FirstSecondRelationMapper createRelationMapperProxy(List<FirstSecondRelation> relations) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectList".equals(method.getName())) {
@@ -630,6 +748,10 @@ public class WorkOrderPermissionServiceTest {
         );
     }
 
+    /**setField 处理逻辑，服务于当前类的业务编排和数据转换。
+@param target target 字段参数。
+@param fieldName 名称文本，用于展示、匹配或保存业务对象名称。
+@param value value 字段参数。*/
     private void setField(Object target, String fieldName, Object value) throws Exception {
         if ("hqFirstContractMapper".equals(fieldName) || "firstSecondRelationMapper".equals(fieldName)) {
             Field accessContextResolverField = WorkOrderPermissionService.class.getDeclaredField("accessContextResolver");
@@ -649,6 +771,9 @@ public class WorkOrderPermissionServiceTest {
         field.set(target, value);
     }
 
+    /**defaultValue 处理逻辑，服务于当前类的业务编排和数据转换。
+@param returnType returnType 字段参数。
+@return 处理后的业务结果。*/
     private Object defaultValue(Class<?> returnType) {
         if (!returnType.isPrimitive()) {
             return null;
@@ -672,107 +797,169 @@ public class WorkOrderPermissionServiceTest {
         return null;
     }
 
+    /**MockSaRequest 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class MockSaRequest implements SaRequest {
 
+        /**getSource 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public Object getSource() {
             return this;
         }
 
+        /**getParam 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getParam(String name) {
             return null;
         }
 
+        /**getParamNames 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或组装后的业务数据集合。*/
         @Override
         public List<String> getParamNames() {
             return Collections.emptyList();
         }
 
+        /**getParamMap 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或组装后的业务数据集合。*/
         @Override
         public Map<String, String> getParamMap() {
             return Collections.emptyMap();
         }
 
+        /**getHeader 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getHeader(String name) {
             return null;
         }
 
+        /**getCookieValue 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getCookieValue(String name) {
             return null;
         }
 
+        /**getRequestPath 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getRequestPath() {
             return "/";
         }
 
+        /**getUrl 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getUrl() {
             return "http://localhost/test";
         }
 
+        /**getMethod 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getMethod() {
             return "GET";
         }
 
+        /**forward 处理逻辑，服务于当前类的业务编排和数据转换。
+@param path path 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public Object forward(String path) {
             return null;
         }
     }
 
+    /**MockSaResponse 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class MockSaResponse implements SaResponse {
 
+        /**getSource 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public Object getSource() {
             return this;
         }
 
+        /**setStatus 处理逻辑，服务于当前类的业务编排和数据转换。
+@param sc sc 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaResponse setStatus(int sc) {
             return this;
         }
 
+        /**setHeader 处理逻辑，服务于当前类的业务编排和数据转换。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@param value value 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaResponse setHeader(String name, String value) {
             return this;
         }
 
+        /**addHeader 处理逻辑，服务于当前类的业务编排和数据转换。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@param value value 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaResponse addHeader(String name, String value) {
             return this;
         }
 
+        /**redirect 处理逻辑，服务于当前类的业务编排和数据转换。
+@param url url 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public Object redirect(String url) {
             return null;
         }
     }
 
+    /**MockSaStorage 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class MockSaStorage implements SaStorage {
 
+        /**values 字段，用于当前类内部业务处理。*/
         private final Map<String, Object> values = new LinkedHashMap<>();
 
+        /**getSource 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public Object getSource() {
             return this;
         }
 
+        /**get 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param key key 字段参数。
+@return 查询或解析得到的业务对象。*/
         @Override
         public Object get(String key) {
             return values.get(key);
         }
 
+        /**set 处理逻辑，服务于当前类的业务编排和数据转换。
+@param key key 字段参数。
+@param value value 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaStorage set(String key, Object value) {
             values.put(key, value);
             return this;
         }
 
+        /**delete 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param key key 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaStorage delete(String key) {
             values.remove(key);

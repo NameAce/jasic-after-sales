@@ -15,7 +15,7 @@ import java.util.List;
  * 统一承载站内消息、站内待办和外部分发任务的数量、状态分布和摘要文案。
  * 页面通过该对象可以直接展示“站内消息已生成”“外部分发失败”“sender 跳过”“死信”等状态口径。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 @ApiModel(description = "通知排障目标聚合摘要")

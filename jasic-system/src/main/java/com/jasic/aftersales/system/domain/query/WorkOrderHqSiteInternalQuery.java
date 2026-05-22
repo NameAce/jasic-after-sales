@@ -8,7 +8,7 @@ import lombok.EqualsAndHashCode;
 /**
  * 总部网点工单内部查询参数。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/22
  */
 @ApiModel(description = "总部网点工单内部查询参数")

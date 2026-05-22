@@ -28,7 +28,7 @@ import java.util.Map;
  * <p>小程序 B/C 端归属必须由场景目标配置中的 `channelScene` 明确声明，
  * 避免发送阶段再次根据接收对象或旧场景后缀猜测目标小程序。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 public class MiniProgramSubscribeSenderTest {
@@ -181,10 +181,15 @@ public class MiniProgramSubscribeSenderTest {
      * 发送调用捕获器。
      */
     private static class SendCapture {
+        /**scene 字段，用于当前类内部业务处理。*/
         private WechatMiniProgramScene scene;
+        /**openid 字段，用于当前类内部业务处理。*/
         private String openid;
+        /**templateId 字段，用于当前类内部业务处理。*/
         private String templateId;
+        /**pagePath 字段，用于当前类内部业务处理。*/
         private String pagePath;
+        /**data 字段，用于当前类内部业务处理。*/
         private JSONObject data;
     }
 }

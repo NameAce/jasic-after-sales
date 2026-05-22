@@ -61,11 +61,12 @@ import java.util.Queue;
 /**
  * 签约管理服务测试
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/02
  */
 public class SysContractServiceImplTest {
 
+    /**setUpSecurityContext 处理逻辑，服务于当前类的业务编排和数据转换。*/
     @Before
     public void setUpSecurityContext() {
         SaManager.setSaTokenContext(new SaTokenContextForThreadLocal());
@@ -75,6 +76,7 @@ public class SysContractServiceImplTest {
         SecurityContext.setCurrentTypeCode("PLATFORM");
     }
 
+    /**tearDownSecurityContext 处理逻辑，服务于当前类的业务编排和数据转换。*/
     @After
     public void tearDownSecurityContext() {
         try {
@@ -85,6 +87,7 @@ public class SysContractServiceImplTest {
         }
     }
 
+    /**验证RejectNonHqCompanyWhenSavingHqFirst，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectNonHqCompanyWhenSavingHqFirst() throws Exception {
         SysContractServiceImpl service = new SysContractServiceImpl();
@@ -109,6 +112,7 @@ public class SysContractServiceImplTest {
         }
     }
 
+    /**验证RejectRegionOutOfHqWhenSavingHqFirst，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectRegionOutOfHqWhenSavingHqFirst() throws Exception {
         SysContractServiceImpl service = new SysContractServiceImpl();
@@ -140,6 +144,7 @@ public class SysContractServiceImplTest {
         }
     }
 
+    /**验证RejectSecondCompanyAlreadyBoundToOtherFirst，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectSecondCompanyAlreadyBoundToOtherFirst() throws Exception {
         SysContractServiceImpl service = new SysContractServiceImpl();
@@ -176,6 +181,7 @@ public class SysContractServiceImplTest {
         }
     }
 
+    /**验证TranslateDuplicateKeyWhenSavingFirstSecond，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldTranslateDuplicateKeyWhenSavingFirstSecond() throws Exception {
         SysContractServiceImpl service = new SysContractServiceImpl();
@@ -208,6 +214,7 @@ public class SysContractServiceImplTest {
         }
     }
 
+    /**验证RecordDeleteSnapshotWhenRemovingHqFirst，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRecordDeleteSnapshotWhenRemovingHqFirst() throws Exception {
         SysContractServiceImpl service = new SysContractServiceImpl();
@@ -238,6 +245,7 @@ public class SysContractServiceImplTest {
         Assert.assertEquals("DELETE", recordHolder.record.getOperationType());
     }
 
+    /**验证RecordDeleteSnapshotWhenRemovingFirstSecond，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRecordDeleteSnapshotWhenRemovingFirstSecond() throws Exception {
         SysContractServiceImpl service = new SysContractServiceImpl();
@@ -269,6 +277,7 @@ public class SysContractServiceImplTest {
         Assert.assertEquals("DELETE", recordHolder.record.getOperationType());
     }
 
+    /**验证ListOnlyImportableRowsWhenListingCrmImportPage，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldListOnlyImportableRowsWhenListingCrmImportPage() throws Exception {
         SysContractServiceImpl service = new SysContractServiceImpl();
@@ -318,6 +327,7 @@ public class SysContractServiceImplTest {
         Assert.assertEquals(Boolean.TRUE, page.getRecords().get(0).getCanImport());
     }
 
+    /**验证CountSuccessExistingAndFailedWhenImportingFromCrm，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldCountSuccessExistingAndFailedWhenImportingFromCrm() throws Exception {
         SysContractServiceImpl service = new SysContractServiceImpl();
@@ -392,6 +402,7 @@ public class SysContractServiceImplTest {
         Assert.assertEquals("CRM导入初始化", contractState.insertedEntity.getRemark());
     }
 
+    /**验证ListOnlyImportableFirstSecondRowsWhenListingCrmImportPage，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldListOnlyImportableFirstSecondRowsWhenListingCrmImportPage() throws Exception {
         SysContractServiceImpl service = new SysContractServiceImpl();
@@ -450,6 +461,7 @@ public class SysContractServiceImplTest {
         Assert.assertEquals(Boolean.TRUE, page.getRecords().get(0).getCanImport());
     }
 
+    /**验证CountSuccessExistingConflictAndFailedWhenImportingFirstSecondFromCrm，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldCountSuccessExistingConflictAndFailedWhenImportingFirstSecondFromCrm() throws Exception {
         SysContractServiceImpl service = new SysContractServiceImpl();
@@ -533,6 +545,11 @@ public class SysContractServiceImplTest {
         Assert.assertEquals(Long.valueOf(10L), relationState.insertedEntity.getSecondCompanyId());
     }
 
+    /**buildCompany 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param id 主键ID。
+@param typeCode 业务编码，用于匹配枚举、配置或外部系统数据。
+@param status 业务状态编码，用于判断或更新当前流程节点。
+@return 处理后的业务结果。*/
     private SysCompany buildCompany(Long id, String typeCode, Integer status) {
         SysCompany company = new SysCompany();
         company.setId(id);
@@ -541,8 +558,16 @@ public class SysContractServiceImplTest {
         return company;
     }
 
+    /**createCompanyMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param companies 业务映射数据，用于提升后续组装或匹配效率。
+@return 新增或保存后的业务标识或处理结果。*/
     private SysCompanyMapper createCompanyMapperProxy(Map<Long, SysCompany> companies) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectById".equals(method.getName())) {
@@ -561,8 +586,16 @@ public class SysContractServiceImplTest {
         );
     }
 
+    /**createRegionMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param regions 业务映射数据，用于提升后续组装或匹配效率。
+@return 新增或保存后的业务标识或处理结果。*/
     private SysRegionMapper createRegionMapperProxy(Map<Long, SysRegion> regions) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectById".equals(method.getName())) {
@@ -581,8 +614,16 @@ public class SysContractServiceImplTest {
         );
     }
 
+    /**createHqFirstContractMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param state state 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private HqFirstContractMapper createHqFirstContractMapperProxy(HqFirstContractMapperState state) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectById".equals(method.getName())) {
@@ -621,8 +662,16 @@ public class SysContractServiceImplTest {
         );
     }
 
+    /**createSnapshotMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param state state 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private CrmHqFirstContractSnapshotMapper createSnapshotMapperProxy(CrmHqFirstContractSnapshotMapperState state) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectList".equals(method.getName())) {
@@ -638,8 +687,16 @@ public class SysContractServiceImplTest {
         );
     }
 
+    /**createFirstSecondSnapshotMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param state state 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private CrmFirstSecondRelationSnapshotMapper createFirstSecondSnapshotMapperProxy(CrmFirstSecondRelationSnapshotMapperState state) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectList".equals(method.getName())) {
@@ -655,8 +712,16 @@ public class SysContractServiceImplTest {
         );
     }
 
+    /**createCrmBizCompanySnapshotMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param state state 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private CrmBizCompanySnapshotMapper createCrmBizCompanySnapshotMapperProxy(CrmBizCompanySnapshotMapperState state) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectList".equals(method.getName())) {
@@ -672,8 +737,16 @@ public class SysContractServiceImplTest {
         );
     }
 
+    /**createFirstSecondRelationMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param state state 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private FirstSecondRelationMapper createFirstSecondRelationMapperProxy(FirstSecondRelationMapperState state) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectById".equals(method.getName())) {
@@ -711,8 +784,16 @@ public class SysContractServiceImplTest {
         );
     }
 
+    /**createHqFirstRecordMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param holder holder 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private HqFirstContractRecordMapper createHqFirstRecordMapperProxy(HqFirstContractRecordHolder holder) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("insert".equals(method.getName())) {
@@ -729,8 +810,16 @@ public class SysContractServiceImplTest {
         );
     }
 
+    /**createFirstSecondRecordMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param holder holder 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private FirstSecondRelationRecordMapper createFirstSecondRecordMapperProxy(FirstSecondRelationRecordHolder holder) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("insert".equals(method.getName())) {
@@ -747,6 +836,8 @@ public class SysContractServiceImplTest {
         );
     }
 
+    /**createCompanyTypeService 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@return 新增或保存后的业务标识或处理结果。*/
     private ISysCompanyTypeService createCompanyTypeService() {
         List<SysCompanyType> companyTypes = Arrays.asList(
                 buildCompanyType("HQ_A", "HQ"),
@@ -754,31 +845,47 @@ public class SysContractServiceImplTest {
                 buildCompanyType("SITE_SECOND", "SERVICE")
         );
         return new ISysCompanyTypeService() {
+            /**listAll 业务数据，按查询条件和数据权限返回可见范围内的结果。
+@return 查询或组装后的业务数据集合。*/
             @Override
             public List<SysCompanyType> listAll() {
                 return companyTypes;
             }
 
+            /**getById 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param id 主键ID。
+@return 查询或解析得到的业务对象。*/
             @Override
             public SysCompanyType getById(Long id) {
                 return null;
             }
 
+            /**save 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param entity entity 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
             @Override
             public Long save(SysCompanyType entity) {
                 return null;
             }
 
+            /**update 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param entity entity 字段参数。*/
             @Override
             public void update(SysCompanyType entity) {
             }
 
+            /**remove 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param id 主键ID。*/
             @Override
             public void remove(Long id) {
             }
         };
     }
 
+    /**buildCompanyType 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param typeCode 业务编码，用于匹配枚举、配置或外部系统数据。
+@param subjectType subjectType 字段参数。
+@return 处理后的业务结果。*/
     private SysCompanyType buildCompanyType(String typeCode, String subjectType) {
         SysCompanyType type = new SysCompanyType();
         type.setTypeCode(typeCode);
@@ -786,6 +893,12 @@ public class SysContractServiceImplTest {
         return type;
     }
 
+    /**buildSnapshot 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param id 主键ID。
+@param kunnr kunnr 字段参数。
+@param salesOrg salesOrg 字段参数。
+@param regionCode 业务编码，用于匹配枚举、配置或外部系统数据。
+@return 处理后的业务结果。*/
     private CrmHqFirstContractSnapshot buildSnapshot(Long id, String kunnr, String salesOrg, String regionCode) {
         CrmHqFirstContractSnapshot snapshot = new CrmHqFirstContractSnapshot();
         snapshot.setId(id);
@@ -796,6 +909,11 @@ public class SysContractServiceImplTest {
         return snapshot;
     }
 
+    /**buildFirstSecondSnapshot 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param id 主键ID。
+@param firstCustId firstCustId 字段。
+@param secondCustId secondCustId 字段。
+@return 处理后的业务结果。*/
     private CrmFirstSecondRelationSnapshot buildFirstSecondSnapshot(Long id, Long firstCustId, Long secondCustId) {
         CrmFirstSecondRelationSnapshot snapshot = new CrmFirstSecondRelationSnapshot();
         snapshot.setId(id);
@@ -804,6 +922,12 @@ public class SysContractServiceImplTest {
         return snapshot;
     }
 
+    /**buildCrmCompanySnapshot 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param custId custId 字段。
+@param companyCode 业务编码，用于匹配枚举、配置或外部系统数据。
+@param companyName 名称文本，用于展示、匹配或保存业务对象名称。
+@param custRage custRage 字段参数。
+@return 处理后的业务结果。*/
     private CrmBizCompanySnapshot buildCrmCompanySnapshot(Long custId, String companyCode, String companyName, Integer custRage) {
         CrmBizCompanySnapshot snapshot = new CrmBizCompanySnapshot();
         snapshot.setCustId(custId);
@@ -813,12 +937,19 @@ public class SysContractServiceImplTest {
         return snapshot;
     }
 
+    /**setField 处理逻辑，服务于当前类的业务编排和数据转换。
+@param target target 字段参数。
+@param fieldName 名称文本，用于展示、匹配或保存业务对象名称。
+@param value value 字段参数。*/
     private void setField(Object target, String fieldName, Object value) throws Exception {
         Field field = SysContractServiceImpl.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(target, value);
     }
 
+    /**defaultValue 处理逻辑，服务于当前类的业务编排和数据转换。
+@param returnType returnType 字段参数。
+@return 处理后的业务结果。*/
     private Object defaultValue(Class<?> returnType) {
         if (!returnType.isPrimitive()) {
             return null;
@@ -842,43 +973,83 @@ public class SysContractServiceImplTest {
         return null;
     }
 
+    /**HqFirstContractMapperState 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class HqFirstContractMapperState {
+        /**selectCountResults 字段，用于当前类内部业务处理。*/
         private final Queue<Long> selectCountResults = new ArrayDeque<>();
+        /**selectByIdResult 字段，用于当前类内部业务处理。*/
         private HqFirstContract selectByIdResult;
+        /**selectListResult 字段，用于当前类内部业务处理。*/
         private List<HqFirstContract> selectListResult = Collections.emptyList();
+        /**insertException 字段，用于当前类内部业务处理。*/
         private DuplicateKeyException insertException;
+        /**insertedEntity 字段，用于当前类内部业务处理。*/
         private HqFirstContract insertedEntity;
+        /**updatedEntity 字段，用于当前类内部业务处理。*/
         private HqFirstContract updatedEntity;
+        /**deletedId 字段，用于当前类内部业务处理。*/
         private Long deletedId;
     }
 
+    /**CrmHqFirstContractSnapshotMapperState 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class CrmHqFirstContractSnapshotMapperState {
+        /**selectListResult 字段，用于当前类内部业务处理。*/
         private List<CrmHqFirstContractSnapshot> selectListResult = Collections.emptyList();
     }
 
+    /**CrmFirstSecondRelationSnapshotMapperState 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class CrmFirstSecondRelationSnapshotMapperState {
+        /**selectListResult 字段，用于当前类内部业务处理。*/
         private List<CrmFirstSecondRelationSnapshot> selectListResult = Collections.emptyList();
     }
 
+    /**CrmBizCompanySnapshotMapperState 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class CrmBizCompanySnapshotMapperState {
+        /**selectListResult 字段，用于当前类内部业务处理。*/
         private List<CrmBizCompanySnapshot> selectListResult = Collections.emptyList();
     }
 
+    /**FirstSecondRelationMapperState 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class FirstSecondRelationMapperState {
+        /**selectCountResults 字段，用于当前类内部业务处理。*/
         private final Queue<Long> selectCountResults = new ArrayDeque<>();
+        /**selectByIdResult 字段，用于当前类内部业务处理。*/
         private FirstSecondRelation selectByIdResult;
+        /**selectOneResult 字段，用于当前类内部业务处理。*/
         private FirstSecondRelation selectOneResult;
+        /**selectListResult 字段，用于当前类内部业务处理。*/
         private List<FirstSecondRelation> selectListResult = Collections.emptyList();
+        /**insertException 字段，用于当前类内部业务处理。*/
         private DuplicateKeyException insertException;
+        /**insertedEntity 字段，用于当前类内部业务处理。*/
         private FirstSecondRelation insertedEntity;
+        /**deletedId 字段，用于当前类内部业务处理。*/
         private Long deletedId;
     }
 
+    /**HqFirstContractRecordHolder 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class HqFirstContractRecordHolder {
+        /**record 字段，用于当前类内部业务处理。*/
         private HqFirstContractRecord record;
     }
 
+    /**FirstSecondRelationRecordHolder 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class FirstSecondRelationRecordHolder {
+        /**record 字段，用于当前类内部业务处理。*/
         private FirstSecondRelationRecord record;
     }
 }

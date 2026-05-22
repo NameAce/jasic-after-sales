@@ -46,7 +46,6 @@ public class MybatisPlusConfig implements MetaObjectHandler {
      */
     @Bean
     public MybatisPlusInterceptor mybatisPlusInterceptor(CompanyDataAccessContext companyDataAccessContext) {
-        // 调用MybatisPlusInterceptor方法，复用统一能力并保证业务规则一致。
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
 
         // TenantLine 只作用于显式注册为 CURRENT_COMPANY 的表。
@@ -54,7 +53,7 @@ public class MybatisPlusConfig implements MetaObjectHandler {
             /**
      * 获取TenantID。
      *
-     * @return 处理结果
+     * @return 业务处理结果
              */
             @Override
             public Expression getTenantId() {
@@ -64,7 +63,7 @@ public class MybatisPlusConfig implements MetaObjectHandler {
             /**
      * 获取TenantIDColumn。
      *
-     * @return 处理结果
+     * @return 业务处理结果
              */
             @Override
             public String getTenantIdColumn() {
@@ -74,17 +73,15 @@ public class MybatisPlusConfig implements MetaObjectHandler {
             /**
      * ignore表。
      *
-     * @param tableName 参数
+     * @param tableName tableName，当前业务处理所需的输入值。
              */
             @Override
             public boolean ignoreTable(String tableName) {
                 return !CompanyDataPolicyRegistry.useTenantLine(tableName);
             }
         });
-        // 调用addInnerInterceptor方法，复用统一能力并保证业务规则一致。
         interceptor.addInnerInterceptor(tenantInterceptor);
 
-        // 调用PaginationInnerInterceptor方法，复用统一能力并保证业务规则一致。
         interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
         return interceptor;
     }
@@ -96,9 +93,7 @@ public class MybatisPlusConfig implements MetaObjectHandler {
      */
     @Override
     public void insertFill(MetaObject metaObject) {
-        // 调用now方法，复用统一能力并保证业务规则一致。
         this.strictInsertFill(metaObject, "createTime", LocalDateTime.class, LocalDateTime.now());
-        // 调用now方法，复用统一能力并保证业务规则一致。
         this.strictInsertFill(metaObject, "updateTime", LocalDateTime.class, LocalDateTime.now());
     }
 
@@ -109,7 +104,6 @@ public class MybatisPlusConfig implements MetaObjectHandler {
      */
     @Override
     public void updateFill(MetaObject metaObject) {
-        // 调用now方法，复用统一能力并保证业务规则一致。
         this.strictUpdateFill(metaObject, "updateTime", LocalDateTime.class, LocalDateTime.now());
     }
 }

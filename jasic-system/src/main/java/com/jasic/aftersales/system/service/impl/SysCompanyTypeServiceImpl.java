@@ -24,11 +24,12 @@ public class SysCompanyTypeServiceImpl implements ISysCompanyTypeService {
     /**
      * 系统公司类型Mapper数据访问接口。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @Resource
     private SysCompanyTypeMapper sysCompanyTypeMapper;
 
+    /**sysCompanyMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysCompanyMapper sysCompanyMapper;
 
@@ -40,7 +41,6 @@ public class SysCompanyTypeServiceImpl implements ISysCompanyTypeService {
     @Override
     public List<SysCompanyType> listAll() {
         LambdaQueryWrapper<SysCompanyType> wrapper = new LambdaQueryWrapper<>();
-        // 调用orderByAsc方法，复用统一能力并保证业务规则一致。
         wrapper.orderByAsc(SysCompanyType::getOrderNum);
         return sysCompanyTypeMapper.selectList(wrapper);
     }
@@ -65,13 +65,10 @@ public class SysCompanyTypeServiceImpl implements ISysCompanyTypeService {
     @Override
     public Long save(SysCompanyType entity) {
         LambdaQueryWrapper<SysCompanyType> wrapper = new LambdaQueryWrapper<>();
-        // 调用getTypeCode方法，复用统一能力并保证业务规则一致。
         wrapper.eq(SysCompanyType::getTypeCode, entity.getTypeCode());
-        // 说明：执行该步骤以保证业务流程正确。
         if (sysCompanyTypeMapper.selectCount(wrapper) > 0) {
             throw new ServiceException("类型编码已存在");
         }
-        // 说明：执行该步骤以保证业务流程正确。
         sysCompanyTypeMapper.insert(entity);
         return entity.getId();
     }
@@ -83,7 +80,6 @@ public class SysCompanyTypeServiceImpl implements ISysCompanyTypeService {
      */
     @Override
     public void update(SysCompanyType entity) {
-        // 调用updateById方法，复用统一能力并保证业务规则一致。
         sysCompanyTypeMapper.updateById(entity);
     }
 
@@ -94,18 +90,15 @@ public class SysCompanyTypeServiceImpl implements ISysCompanyTypeService {
      */
     @Override
     public void remove(Long id) {
-        // 说明：执行该步骤以保证业务流程正确。
         SysCompanyType companyType = sysCompanyTypeMapper.selectById(id);
         if (companyType == null) {
             return;
         }
         LambdaQueryWrapper<SysCompany> wrapper = new LambdaQueryWrapper<>();
-        // 调用getTypeCode方法，复用统一能力并保证业务规则一致。
         wrapper.eq(SysCompany::getTypeCode, companyType.getTypeCode());
         if (sysCompanyMapper.selectCount(wrapper) > 0) {
             throw new ServiceException("该类型下存在公司，不允许删除");
         }
-        // 说明：执行该步骤以保证业务流程正确。
         sysCompanyTypeMapper.deleteById(id);
     }
 }

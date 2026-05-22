@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 /**
  * 同步任务执行日志实体
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/12
  */
 @Data

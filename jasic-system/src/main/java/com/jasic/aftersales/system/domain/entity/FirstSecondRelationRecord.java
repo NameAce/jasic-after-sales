@@ -10,7 +10,7 @@ import lombok.EqualsAndHashCode;
 /**
  * 一级-二级从属关系记录实体
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/02
  */
 @Data

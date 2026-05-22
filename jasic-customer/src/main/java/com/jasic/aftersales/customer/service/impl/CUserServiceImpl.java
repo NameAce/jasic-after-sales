@@ -26,7 +26,7 @@ public class CUserServiceImpl implements ICUserService {
     /**
      * C用户Mapper数据访问接口。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @Resource
     private CUserMapper cUserMapper;
@@ -52,7 +52,6 @@ public class CUserServiceImpl implements ICUserService {
      */
     @Override
     public CUser getByPhone(String phone) {
-        // 说明：执行该步骤以保证业务流程正确。
         List<CUser> users = cUserMapper.selectList(
                 new LambdaQueryWrapper<CUser>().eq(CUser::getPhone, phone).orderByAsc(CUser::getId)
         );
@@ -71,7 +70,6 @@ public class CUserServiceImpl implements ICUserService {
      */
     @Override
     public CUser loginOrRegister(String openid, String phone) {
-        // 调用getByOpenid方法，复用统一能力并保证业务规则一致。
         CUser user = getByOpenid(openid);
         if (user != null) {
             return updateLoginSnapshot(user, phone);
@@ -79,10 +77,8 @@ public class CUserServiceImpl implements ICUserService {
         if (!StringUtils.hasText(phone)) {
             throw new ServiceException("首次登录请先授权手机号");
         }
-        // 调用getByPhone方法，复用统一能力并保证业务规则一致。
         CUser phoneUser = getByPhone(phone);
         if (phoneUser != null) {
-            // 调用setOpenid方法，复用统一能力并保证业务规则一致。
             phoneUser.setOpenid(openid);
             return updateLoginSnapshot(phoneUser, phone);
         }
@@ -107,21 +103,17 @@ public class CUserServiceImpl implements ICUserService {
      */
     @Override
     public CUser updateProfile(CustomerProfileUpdateDTO dto) {
-        // 说明：执行该步骤以保证业务流程正确。
         CUser user = requireCurrentUser();
         boolean changed = false;
         if (dto.getNickname() != null) {
-            // 调用getNickname方法，复用统一能力并保证业务规则一致。
             user.setNickname(normalizeText(dto.getNickname()));
             changed = true;
         }
         if (dto.getAvatar() != null) {
-            // 调用getAvatar方法，复用统一能力并保证业务规则一致。
             user.setAvatar(normalizeText(dto.getAvatar()));
             changed = true;
         }
         if (changed) {
-            // 说明：执行该步骤以保证业务流程正确。
             cUserMapper.updateById(user);
         }
         return user;
@@ -135,15 +127,11 @@ public class CUserServiceImpl implements ICUserService {
      * @return 更新后的客户
      */
     private CUser updateLoginSnapshot(CUser user, String phone) {
-        // 说明：执行该步骤以保证业务流程正确。
         ensureUserActive(user);
         if (StringUtils.hasText(phone)) {
-            // 调用setPhone方法，复用统一能力并保证业务规则一致。
             user.setPhone(phone);
         }
-        // 调用now方法，复用统一能力并保证业务规则一致。
         user.setLastLoginTime(LocalDateTime.now());
-        // 说明：执行该步骤以保证业务流程正确。
         cUserMapper.updateById(user);
         return user;
     }
@@ -156,17 +144,11 @@ public class CUserServiceImpl implements ICUserService {
      * @return 新建客户
      */
     private CUser createUser(String openid, String phone) {
-        // 调用CUser方法，复用统一能力并保证业务规则一致。
         CUser newUser = new CUser();
-        // 调用setOpenid方法，复用统一能力并保证业务规则一致。
         newUser.setOpenid(openid);
-        // 调用setPhone方法，复用统一能力并保证业务规则一致。
         newUser.setPhone(phone);
-        // 调用setStatus方法，复用统一能力并保证业务规则一致。
         newUser.setStatus(1);
-        // 调用now方法，复用统一能力并保证业务规则一致。
         newUser.setLastLoginTime(LocalDateTime.now());
-        // 说明：执行该步骤以保证业务流程正确。
         cUserMapper.insert(newUser);
         return newUser;
     }
@@ -177,16 +159,12 @@ public class CUserServiceImpl implements ICUserService {
      * @return 当前客户
      */
     private CUser requireCurrentUser() {
-        // 调用checkLogin方法，复用统一能力并保证业务规则一致。
         StpCustomerUtil.checkLogin();
-        // 调用getLoginIdAsLong方法，复用统一能力并保证业务规则一致。
         Long userId = StpCustomerUtil.getLoginIdAsLong();
-        // 说明：执行该步骤以保证业务流程正确。
         CUser user = cUserMapper.selectById(userId);
         if (user == null) {
             throw new ServiceException("当前客户不存在");
         }
-        // 说明：执行该步骤以保证业务流程正确。
         ensureUserActive(user);
         return user;
     }

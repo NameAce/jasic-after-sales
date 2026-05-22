@@ -9,7 +9,7 @@ import lombok.EqualsAndHashCode;
 /**
  * 通知消息查询参数。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/18
  */
 @ApiModel(description = "通知消息查询参数")

@@ -74,7 +74,6 @@ public enum DataScopeEnum {
      * @return 合法化后的数据范围
      */
     public DataScopeEnum normalizeForSubject(String subjectType) {
-        // 调用getByCode方法，复用统一能力并保证业务规则一致。
         SubjectTypeEnum subjectTypeEnum = SubjectTypeEnum.getByCode(subjectType);
         if (subjectTypeEnum == null) {
             return SELF;

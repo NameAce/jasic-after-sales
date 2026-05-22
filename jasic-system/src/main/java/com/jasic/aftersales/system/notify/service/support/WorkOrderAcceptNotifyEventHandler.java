@@ -19,12 +19,13 @@ import java.util.Objects;
 /**
  * B 端待派单通知事件处理器。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 @Component
 public class WorkOrderAcceptNotifyEventHandler implements NotifyEventHandler {
 
+    /**workOrderAssignUserResolver 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private WorkOrderAssignUserResolver workOrderAssignUserResolver;
 

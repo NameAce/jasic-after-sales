@@ -9,11 +9,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-/**
- * WorkOrder Mapper XML 合同测试。
- */
+/*** WorkOrder Mapper XML 合同测试。
+
+@author Zoro*/
 public class WorkOrderMapperXmlContractTest {
 
+    /**shouldAllowSelfAllScopeToIncludeAssignedAndHistoryParticipation 数据访问操作，为服务层提供数据库查询或写入结果。*/
     @Test
     public void shouldAllowSelfAllScopeToIncludeAssignedAndHistoryParticipation() throws IOException {
         String xml = new String(Files.readAllBytes(resolveMapperPath()), StandardCharsets.UTF_8);
@@ -27,6 +28,7 @@ public class WorkOrderMapperXmlContractTest {
                         "                        AND <include refid=\"CurrentUserAllVisibilityCondition\" />"));
     }
 
+    /**shouldRestrictSelfScopedVisibilityCondition 数据访问操作，为服务层提供数据库查询或写入结果。*/
     @Test
     public void shouldRestrictSelfScopedVisibilityCondition() throws IOException {
         String xml = new String(Files.readAllBytes(resolveMapperPath()), StandardCharsets.UTF_8);
@@ -39,6 +41,7 @@ public class WorkOrderMapperXmlContractTest {
                 "OR <include refid=\"CurrentUserHistoryParticipationCondition\" />"));
     }
 
+    /**shouldDefineHqSiteSummaryReadonlyScope 数据访问操作，为服务层提供数据库查询或写入结果。*/
     @Test
     public void shouldDefineHqSiteSummaryReadonlyScope() throws IOException {
         String xml = new String(Files.readAllBytes(resolveMapperPath()), StandardCharsets.UTF_8);
@@ -52,6 +55,7 @@ public class WorkOrderMapperXmlContractTest {
         Assert.assertTrue(normalized.contains("SUM(CASE WHEN w.main_status = 'COMPLETED' THEN 1 ELSE 0 END) AS completedCount"));
     }
 
+    /**shouldReturnWarrantyFieldsInWorkOrderListQueries 数据访问操作，为服务层提供数据库查询或写入结果。*/
     @Test
     public void shouldReturnWarrantyFieldsInWorkOrderListQueries() throws IOException {
         String xml = new String(Files.readAllBytes(resolveMapperPath()), StandardCharsets.UTF_8);
@@ -61,6 +65,7 @@ public class WorkOrderMapperXmlContractTest {
         Assert.assertEquals(3, countOccurrences(normalized, "w.warranty_status AS warrantyStatus"));
     }
 
+    /**shouldUseTransferDirectionOutAsTransferOutScope 数据访问操作，为服务层提供数据库查询或写入结果。*/
     @Test
     public void shouldUseTransferDirectionOutAsTransferOutScope() throws IOException {
         String xml = new String(Files.readAllBytes(resolveMapperPath()), StandardCharsets.UTF_8);
@@ -74,6 +79,8 @@ public class WorkOrderMapperXmlContractTest {
                 "<if test=\"query.transferDirection != 'OUT' and query.accessContext.dataScope == 'SELF' and query.accessContext.currentUserId != null\">"));
     }
 
+    /**resolveMapperPath 数据访问操作，为服务层提供数据库查询或写入结果。
+@return 查询或解析得到的业务对象。*/
     private Path resolveMapperPath() {
         Path direct = Paths.get("jasic-admin", "src", "main", "resources", "mapper", "system", "WorkOrderMapper.xml");
         if (Files.exists(direct)) {
@@ -86,6 +93,10 @@ public class WorkOrderMapperXmlContractTest {
         throw new IllegalStateException("未找到 WorkOrderMapper.xml");
     }
 
+    /**countOccurrences 数据访问操作，为服务层提供数据库查询或写入结果。
+@param content content 字段参数。
+@param needle needle 字段参数。
+@return 处理后的业务结果。*/
     private int countOccurrences(String content, String needle) {
         int count = 0;
         int index = 0;

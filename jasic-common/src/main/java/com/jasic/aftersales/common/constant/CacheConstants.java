@@ -35,6 +35,7 @@ public class CacheConstants {
     /** 参数缓存前缀，完整 key: config:key:{configKey} */
     public static final String CONFIG_KEY = "config:key:";
 
+    /**NOTIFY_TEMPLATE_KEY 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     public static final String NOTIFY_TEMPLATE_KEY = "notify:template:";
 
     /** 微信 access_token 缓存前缀，完整 key: wechat:access-token:{scene} */

@@ -9,7 +9,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
  * <p>当前模板配置重构只收口已经确认的外部渠道类型，避免后台在阶段一就暴露
  * 短信、邮件等尚未进入正式链路的能力。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/15
  */
 public enum NotifyChannelTypeEnum {

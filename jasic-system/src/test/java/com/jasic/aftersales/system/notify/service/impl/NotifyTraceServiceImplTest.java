@@ -27,9 +27,9 @@ import java.lang.reflect.Proxy;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * NotifyTraceServiceImpl 单测。
- */
+/*** NotifyTraceServiceImpl 单测。
+
+@author Zoro*/
 public class NotifyTraceServiceImplTest {
 
     /**
@@ -263,6 +263,11 @@ public class NotifyTraceServiceImplTest {
     @SuppressWarnings("unchecked")
     private NotifyTraceMapper createTraceMapperProxy(TraceMapperState state) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectTracePage".equals(method.getName())) {
@@ -288,6 +293,11 @@ public class NotifyTraceServiceImplTest {
     @SuppressWarnings("unchecked")
     private NotifyEventService createNotifyEventServiceProxy(EventServiceState state) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("getById".equals(method.getName())) {
@@ -321,6 +331,11 @@ public class NotifyTraceServiceImplTest {
     @SuppressWarnings("unchecked")
     private NotifyDispatchService createNotifyDispatchServiceProxy(DispatchServiceState state) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("getById".equals(method.getName())) {
@@ -355,6 +370,11 @@ public class NotifyTraceServiceImplTest {
     @SuppressWarnings("unchecked")
     private SysNotifyMessageMapper createNotifyMessageMapperProxy(MessageMapperState state) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectList".equals(method.getName())) {
@@ -380,6 +400,11 @@ public class NotifyTraceServiceImplTest {
     @SuppressWarnings("unchecked")
     private SysNotifyDispatchMapper createSysNotifyDispatchMapperProxy(DispatchMapperState state) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectList".equals(method.getName())) {
@@ -451,7 +476,9 @@ public class NotifyTraceServiceImplTest {
      * Trace Mapper 测试状态。
      */
     private static class TraceMapperState {
+        /**pageResult 字段，用于当前类内部业务处理。*/
         private Page<NotifyTracePageVO> pageResult = new Page<>();
+        /**lastQuery 字段，用于当前类内部业务处理。*/
         private NotifyTraceQuery lastQuery;
     }
 
@@ -459,9 +486,13 @@ public class NotifyTraceServiceImplTest {
      * 事件服务测试状态。
      */
     private static class EventServiceState {
+        /**event 字段，用于当前类内部业务处理。*/
         private SysNotifyEvent event;
+        /**resetEventId 字段，用于当前类内部业务处理。*/
         private Long resetEventId;
+        /**markDeadEventId 字段，用于当前类内部业务处理。*/
         private Long markDeadEventId;
+        /**markDeadMessage 字段，用于当前类内部业务处理。*/
         private String markDeadMessage;
     }
 
@@ -469,10 +500,15 @@ public class NotifyTraceServiceImplTest {
      * 分发服务测试状态。
      */
     private static class DispatchServiceState {
+        /**dispatch 字段，用于当前类内部业务处理。*/
         private SysNotifyDispatch dispatch;
+        /**resetDispatchId 字段，用于当前类内部业务处理。*/
         private Long resetDispatchId;
+        /**markDeadDispatchId 字段，用于当前类内部业务处理。*/
         private Long markDeadDispatchId;
+        /**markDeadResultCode 字段，用于当前类内部业务处理。*/
         private String markDeadResultCode;
+        /**markDeadResultMessage 字段，用于当前类内部业务处理。*/
         private String markDeadResultMessage;
     }
 
@@ -480,7 +516,9 @@ public class NotifyTraceServiceImplTest {
      * 通知消息 Mapper 测试状态。
      */
     private static class MessageMapperState {
+        /**messages 字段，用于当前类内部业务处理。*/
         private List<SysNotifyMessage> messages = Collections.emptyList();
+        /**lastWrapper 字段，用于当前类内部业务处理。*/
         private LambdaQueryWrapper<SysNotifyMessage> lastWrapper;
     }
 
@@ -488,7 +526,9 @@ public class NotifyTraceServiceImplTest {
      * 通知分发 Mapper 测试状态。
      */
     private static class DispatchMapperState {
+        /**dispatches 字段，用于当前类内部业务处理。*/
         private List<SysNotifyDispatch> dispatches = Collections.emptyList();
+        /**lastWrapper 字段，用于当前类内部业务处理。*/
         private LambdaQueryWrapper<SysNotifyDispatch> lastWrapper;
     }
 }

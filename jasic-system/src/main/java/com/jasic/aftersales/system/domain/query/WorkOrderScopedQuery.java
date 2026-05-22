@@ -9,7 +9,7 @@ import lombok.EqualsAndHashCode;
  *
  * <p>前端筛选字段来自 {@link WorkOrderQuery}，权限上下文仅由服务端解析后写入。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/05
  */
 @Data
@@ -18,5 +18,6 @@ public class WorkOrderScopedQuery extends WorkOrderQuery {
 
     private static final long serialVersionUID = 1L;
 
+    /**accessContext 字段，用于参与列表查询、筛选或数据权限收口。*/
     private WorkOrderAccessContext accessContext;
 }

@@ -29,21 +29,22 @@ import java.util.concurrent.ConcurrentMap;
 /**
  * 微信小程序能力服务实现
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/02
  */
 @Slf4j
 @Service
 public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
 
+    /**serviceHolderMap 字段，用于当前类内部业务处理。*/
     private final ConcurrentMap<String, WxMaServiceHolder> serviceHolderMap = new ConcurrentHashMap<>();
 
     /**
      * 系统配置服务服务依赖。
      *
-     * @param scene 参数
-     * @param code 参数
-     * @return 处理结果
+     * @param scene scene，当前业务处理所需的输入值。
+     * @param code 业务编码，用于匹配枚举、配置或外部系统数据。
+     * @return 业务处理结果
      */
     @Resource
     private ISysConfigService sysConfigService;
@@ -52,9 +53,9 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
      * 处理code2Session业务逻辑。
      *
      * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
-     * @param scene 参数
-     * @param code 参数
-     * @return 处理结果
+     * @param scene scene，当前业务处理所需的输入值。
+     * @param code 业务编码，用于匹配枚举、配置或外部系统数据。
+     * @return 业务处理结果
      */
     @Override
     public WechatAuthSession code2Session(WechatMiniProgramScene scene, String code) {
@@ -64,23 +65,17 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
 
         WxMaJscode2SessionResult result;
         try {
-            // 调用jsCode2SessionInfo方法，复用统一能力并保证业务规则一致。
             result = getMaService(scene).jsCode2SessionInfo(code);
         } catch (WxErrorException ex) {
-            // 调用getCode方法，复用统一能力并保证业务规则一致。
             log.error("调用微信 code2Session 失败，scene={}", scene.getCode(), ex);
             throw buildWxServiceException("微信登录失败", ex);
         } catch (Exception ex) {
-            // 调用getCode方法，复用统一能力并保证业务规则一致。
             log.error("调用微信 code2Session 失败，scene={}", scene.getCode(), ex);
             throw new ServiceException(ResultCode.THIRD_PARTY_ERROR, "微信登录服务调用失败，请稍后重试");
         }
 
-        // 调用WechatAuthSession方法，复用统一能力并保证业务规则一致。
         WechatAuthSession session = new WechatAuthSession();
-        // 调用getOpenid方法，复用统一能力并保证业务规则一致。
         session.setOpenid(result.getOpenid());
-        // 调用getSessionKey方法，复用统一能力并保证业务规则一致。
         session.setSessionKey(result.getSessionKey());
         if (StrUtil.isBlank(session.getOpenid())) {
             throw new ServiceException(ResultCode.THIRD_PARTY_ERROR, "微信登录失败，未获取到用户标识");
@@ -91,9 +86,9 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
     /**
      * 获取PhoneNumber。
      *
-     * @param scene 参数
-     * @param phoneCode 参数
-     * @return 处理结果
+     * @param scene scene，当前业务处理所需的输入值。
+     * @param phoneCode 业务编码，用于匹配枚举、配置或外部系统数据。
+     * @return 业务处理结果
      */
     @Override
     public WechatPhoneInfo getPhoneNumber(WechatMiniProgramScene scene, String phoneCode) {
@@ -103,25 +98,18 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
 
         WxMaPhoneNumberInfo result;
         try {
-            // 调用getPhoneNumber方法，复用统一能力并保证业务规则一致。
             result = getMaService(scene).getUserService().getPhoneNumber(phoneCode);
         } catch (WxErrorException ex) {
-            // 调用getCode方法，复用统一能力并保证业务规则一致。
             log.error("调用微信获取手机号失败，scene={}", scene.getCode(), ex);
             throw buildWxServiceException("获取微信手机号失败", ex);
         } catch (Exception ex) {
-            // 调用getCode方法，复用统一能力并保证业务规则一致。
             log.error("调用微信获取手机号失败，scene={}", scene.getCode(), ex);
             throw new ServiceException(ResultCode.THIRD_PARTY_ERROR, "微信手机号服务调用失败，请稍后重试");
         }
 
-        // 调用WechatPhoneInfo方法，复用统一能力并保证业务规则一致。
         WechatPhoneInfo phoneInfo = new WechatPhoneInfo();
-        // 调用getPhoneNumber方法，复用统一能力并保证业务规则一致。
         phoneInfo.setPhoneNumber(result.getPhoneNumber());
-        // 调用getPurePhoneNumber方法，复用统一能力并保证业务规则一致。
         phoneInfo.setPurePhoneNumber(result.getPurePhoneNumber());
-        // 调用getCountryCode方法，复用统一能力并保证业务规则一致。
         phoneInfo.setCountryCode(result.getCountryCode());
         if (StrUtil.isBlank(phoneInfo.getPhoneNumber())) {
             throw new ServiceException(ResultCode.THIRD_PARTY_ERROR, "获取微信手机号失败，未获取到手机号");
@@ -132,10 +120,10 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
     /**
      * 创建Qrcode基础64。
      *
-     * @param scene 参数
-     * @param sceneValue 参数
-     * @param pagePath 参数
-     * @return 处理结果
+     * @param scene scene，当前业务处理所需的输入值。
+     * @param sceneValue sceneValue，当前业务处理所需的输入值。
+     * @param pagePath pagePath，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     @Override
     public String createQrcodeBase64(WechatMiniProgramScene scene, String sceneValue, String pagePath) {
@@ -152,11 +140,9 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
                     .createWxaCodeUnlimitBytes(sceneValue, pagePath, true, "release", 430, true,
                             (WxMaCodeLineColor) null, false);
         } catch (WxErrorException ex) {
-            // 调用getCode方法，复用统一能力并保证业务规则一致。
             log.error("调用微信生成二维码失败，scene={}", scene.getCode(), ex);
             throw buildWxServiceException("生成微信绑定二维码失败", ex);
         } catch (Exception ex) {
-            // 调用getCode方法，复用统一能力并保证业务规则一致。
             log.error("调用微信生成二维码失败，scene={}", scene.getCode(), ex);
             throw new ServiceException(ResultCode.THIRD_PARTY_ERROR, "生成微信绑定二维码失败，请稍后重试");
         }
@@ -166,9 +152,9 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
     /**
      * 发送订阅消息。
      *
-     * @param scene 参数
-     * @param pagePath 参数
-     * @param data 参数
+     * @param scene scene，当前业务处理所需的输入值。
+     * @param pagePath pagePath，当前业务处理所需的输入值。
+     * @param data data，当前业务处理所需的输入值。
      */
     @Override
     public void sendSubscribeMessage(WechatMiniProgramScene scene, String openid, String templateId, String pagePath,
@@ -180,32 +166,24 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
             throw new ServiceException("微信配置未完成");
         }
 
-        // 调用WxMaSubscribeMessage方法，复用统一能力并保证业务规则一致。
         WxMaSubscribeMessage message = new WxMaSubscribeMessage();
-        // 调用setToUser方法，复用统一能力并保证业务规则一致。
         message.setToUser(openid);
-        // 调用setTemplateId方法，复用统一能力并保证业务规则一致。
         message.setTemplateId(templateId);
         if (StrUtil.isNotBlank(pagePath)) {
-            // 调用setPage方法，复用统一能力并保证业务规则一致。
             message.setPage(pagePath);
         }
         if (data != null && !data.isEmpty()) {
             for (Map.Entry<String, Object> entry : data.entrySet()) {
-                // 调用getValue方法，复用统一能力并保证业务规则一致。
                 message.addData(buildMsgData(entry.getKey(), entry.getValue()));
             }
         }
 
         try {
-            // 调用sendSubscribeMsg方法，复用统一能力并保证业务规则一致。
             getMaService(scene).getMsgService().sendSubscribeMsg(message);
         } catch (WxErrorException ex) {
-            // 调用getCode方法，复用统一能力并保证业务规则一致。
             log.error("调用微信订阅消息发送失败，scene={}, openid={}", scene.getCode(), openid, ex);
             throw buildWxServiceException("微信通知发送失败", ex);
         } catch (Exception ex) {
-            // 调用getCode方法，复用统一能力并保证业务规则一致。
             log.error("调用微信订阅消息发送失败，scene={}, openid={}", scene.getCode(), openid, ex);
             throw new ServiceException(ResultCode.THIRD_PARTY_ERROR, "微信通知发送失败，请稍后重试");
         }
@@ -215,23 +193,18 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
      * 获取当前场景对应的小程序服务实例。
      */
     private WxMaService getMaService(WechatMiniProgramScene scene) {
-        // 调用loadRequiredConfig方法，复用统一能力并保证业务规则一致。
         WechatMiniProgramConfig config = loadRequiredConfig(scene);
-        // 调用getCode方法，复用统一能力并保证业务规则一致。
         WxMaServiceHolder holder = serviceHolderMap.get(scene.getCode());
         if (holder != null && holder.matches(config)) {
             return holder.getService();
         }
 
         synchronized (this) {
-            // 调用getCode方法，复用统一能力并保证业务规则一致。
             holder = serviceHolderMap.get(scene.getCode());
             if (holder != null && holder.matches(config)) {
                 return holder.getService();
             }
-            // 调用buildService方法，复用统一能力并保证业务规则一致。
             WxMaService service = buildService(config);
-            // 调用getSecret方法，复用统一能力并保证业务规则一致。
             serviceHolderMap.put(scene.getCode(), new WxMaServiceHolder(config.getAppId(), config.getSecret(), service));
             return service;
         }
@@ -241,16 +214,11 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
      * 根据系统参数表配置构建 WxJava 小程序服务。
      */
     private WxMaService buildService(WechatMiniProgramConfig config) {
-        // 调用WxMaDefaultConfigImpl方法，复用统一能力并保证业务规则一致。
         WxMaDefaultConfigImpl wxConfig = new WxMaDefaultConfigImpl();
-        // 调用getAppId方法，复用统一能力并保证业务规则一致。
         wxConfig.setAppid(config.getAppId());
-        // 调用getSecret方法，复用统一能力并保证业务规则一致。
         wxConfig.setSecret(config.getSecret());
 
-        // 调用WxMaServiceImpl方法，复用统一能力并保证业务规则一致。
         WxMaService service = new WxMaServiceImpl();
-        // 调用setWxMaConfig方法，复用统一能力并保证业务规则一致。
         service.setWxMaConfig(wxConfig);
         return service;
     }
@@ -258,13 +226,11 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
     /**
      * loadRequired配置。
      *
-     * @param scene 参数
-     * @return 处理结果
+     * @param scene scene，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private WechatMiniProgramConfig loadRequiredConfig(WechatMiniProgramScene scene) {
-        // 调用getAppIdKey方法，复用统一能力并保证业务规则一致。
         String appId = sysConfigService.getValueByKey(scene.getAppIdKey());
-        // 调用getSecretKey方法，复用统一能力并保证业务规则一致。
         String secret = sysConfigService.getValueByKey(scene.getSecretKey());
         if (StrUtil.isBlank(appId) || StrUtil.isBlank(secret)) {
             throw new ServiceException(ResultCode.THIRD_PARTY_ERROR, "微信配置未完成，请联系管理员");
@@ -282,7 +248,6 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
     private ServiceException buildWxServiceException(String defaultMessage, WxErrorException ex) {
         String errorMessage = defaultMessage;
         if (ex != null && ex.getError() != null && StrUtil.isNotBlank(ex.getError().getErrorMsg())) {
-            // 调用getErrorMsg方法，复用统一能力并保证业务规则一致。
             errorMessage = defaultMessage + "：" + ex.getError().getErrorMsg();
         }
         return new ServiceException(ResultCode.THIRD_PARTY_ERROR, errorMessage);
@@ -296,11 +261,8 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
      * @return 订阅消息字段
      */
     private WxMaSubscribeMessage.MsgData buildMsgData(String name, Object valueObj) {
-        // 调用MsgData方法，复用统一能力并保证业务规则一致。
         WxMaSubscribeMessage.MsgData data = new WxMaSubscribeMessage.MsgData();
-        // 调用setName方法，复用统一能力并保证业务规则一致。
         data.setName(name);
-        // 调用resolveTemplateValue方法，复用统一能力并保证业务规则一致。
         data.setValue(resolveTemplateValue(valueObj));
         return data;
     }
@@ -324,21 +286,22 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
     private static class WechatMiniProgramConfig {
 
         /**
-     * String字段。
+     * 内部字段，用于保存当前流程需要复用的业务值。
      *
      * @param appId app ID
-     * @param secret 参数
-     * @return 处理结果
+     * @param secret secret，当前业务处理所需的输入值。
+     * @return 业务处理结果
          */
         private final String appId;
+        /**secret 字段，用于当前类内部业务处理。*/
         private final String secret;
 
         /**
          * 构造微信小程序程序实例。
          *
-         * @param appId 参数
-         * @param secret 参数
-         * @return 处理结果
+         * @param appId 业务主键或关联对象ID。
+         * @param secret secret，当前业务处理所需的输入值。
+         * @return 业务处理结果
          */
         private WechatMiniProgramConfig(String appId, String secret) {
             this.appId = appId;
@@ -348,7 +311,7 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
         /**
      * 获取AppID。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public String getAppId() {
             return appId;
@@ -357,7 +320,7 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
         /**
      * 获取Secret。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public String getSecret() {
             return secret;
@@ -370,24 +333,26 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
     private static class WxMaServiceHolder {
 
         /**
-     * String字段。
+     * 内部字段，用于保存当前流程需要复用的业务值。
      *
      * @param appId app ID
-     * @param secret 参数
-     * @param service 参数
-     * @return 处理结果
+     * @param secret secret，当前业务处理所需的输入值。
+     * @param service service，当前业务处理所需的输入值。
+     * @return 业务处理结果
          */
         private final String appId;
+        /**secret 字段，用于当前类内部业务处理。*/
         private final String secret;
+        /**service 字段，用于当前类内部业务处理。*/
         private final WxMaService service;
 
         /**
          * 构造WxMa服务Holder实例。
          *
-         * @param appId 参数
-         * @param secret 参数
-         * @param service 参数
-         * @return 处理结果
+         * @param appId 业务主键或关联对象ID。
+         * @param secret secret，当前业务处理所需的输入值。
+         * @param service service，当前业务处理所需的输入值。
+         * @return 业务处理结果
          */
         private WxMaServiceHolder(String appId, String secret, WxMaService service) {
             this.appId = appId;
@@ -398,7 +363,7 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
         /**
      * 获取服务。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public WxMaService getService() {
             return service;
@@ -407,7 +372,7 @@ public class WechatMiniProgramServiceImpl implements WechatMiniProgramService {
         /**
      * matches。
      *
-     * @param config 参数
+     * @param config config，当前业务处理所需的输入值。
          */
         public boolean matches(WechatMiniProgramConfig config) {
             return StrUtil.equals(appId, config.getAppId()) && StrUtil.equals(secret, config.getSecret());

@@ -7,7 +7,7 @@ import java.io.Serializable;
 /**
  * CRM 销售出库扫码同步摘要
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/12
  */
 @Data

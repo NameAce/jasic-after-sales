@@ -10,7 +10,7 @@ import io.swagger.annotations.ApiModelProperty;
 /**
  * B端小程序登录结果
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/02
  */
 @ApiModel(description = "B端小程序登录结果")

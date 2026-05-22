@@ -8,7 +8,7 @@ import com.jasic.aftersales.system.notify.domain.enums.NotifyChannelTypeEnum;
  * <p>该对象描述“同一个通知场景下，某个目标应该如何默认配置”。
  * 它只负责系统注册态的只读元数据，不负责数据库持久化，也不负责运行时发送。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 public class NotifySceneTargetMeta {
@@ -127,58 +127,86 @@ public class NotifySceneTargetMeta {
         this.defaultChannelConfig = defaultChannelConfig;
     }
 
+    /**getTargetType 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
     public String getTargetType() {
         return targetType;
     }
 
+    /**getTargetTypeDesc 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
     public String getTargetTypeDesc() {
         return targetTypeDesc;
     }
 
+    /**getReceiverType 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
     public String getReceiverType() {
         return receiverType;
     }
 
+    /**getReceiverTypeDesc 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
     public String getReceiverTypeDesc() {
         return receiverTypeDesc;
     }
 
+    /**getReceiverDesc 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
     public String getReceiverDesc() {
         return receiverDesc;
     }
 
+    /**getDefaultEnabled 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
     public Integer getDefaultEnabled() {
         return defaultEnabled;
     }
 
+    /**getDefaultTemplateName 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
     public String getDefaultTemplateName() {
         return defaultTemplateName;
     }
 
+    /**getDefaultTitleTemplate 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
     public String getDefaultTitleTemplate() {
         return defaultTitleTemplate;
     }
 
+    /**getDefaultContentTemplate 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
     public String getDefaultContentTemplate() {
         return defaultContentTemplate;
     }
 
+    /**getDefaultRouteType 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
     public String getDefaultRouteType() {
         return defaultRouteType;
     }
 
+    /**getDefaultRouteValueTemplate 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
     public String getDefaultRouteValueTemplate() {
         return defaultRouteValueTemplate;
     }
 
+    /**getChannelType 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
     public String getChannelType() {
         return channelType;
     }
 
+    /**getChannelTypeDesc 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
     public String getChannelTypeDesc() {
         return channelTypeDesc;
     }
 
+    /**getDefaultChannelConfig 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
     public NotifyTemplateChannelConfig getDefaultChannelConfig() {
         return defaultChannelConfig;
     }

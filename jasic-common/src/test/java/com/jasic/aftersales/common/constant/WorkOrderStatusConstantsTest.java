@@ -6,11 +6,12 @@ import org.junit.Test;
 /**
  * 工单状态常量测试。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/03/31
  */
 public class WorkOrderStatusConstantsTest {
 
+    /**验证ResolveMainStatusLabel，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldResolveMainStatusLabel() {
         Assert.assertEquals("待派单",
@@ -25,6 +26,7 @@ public class WorkOrderStatusConstantsTest {
                 WorkOrderStatusConstants.resolveMainStatusLabel(WorkOrderStatusConstants.MainStatus.CLOSED));
     }
 
+    /**验证ResolveDisplayStatusForWaitAccept，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldResolveDisplayStatusForWaitAccept() {
         Assert.assertTrue(WorkOrderStatusConstants.isWaitAcceptMainStatus(WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN));
@@ -39,6 +41,7 @@ public class WorkOrderStatusConstantsTest {
                 WorkOrderStatusConstants.resolveDisplayStatusLabel(WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT));
     }
 
+    /**验证ResolveEvaluateStatusLabel，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldResolveEvaluateStatusLabel() {
         Assert.assertEquals("未开启评价",
@@ -49,6 +52,7 @@ public class WorkOrderStatusConstantsTest {
                 WorkOrderStatusConstants.resolveEvaluateStatusLabel(WorkOrderStatusConstants.EvaluateStatus.EVALUATED));
     }
 
+    /**验证JudgeTransferableStatus，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldJudgeTransferableStatus() {
         Assert.assertFalse(WorkOrderStatusConstants.canTransfer(WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN));
@@ -58,6 +62,7 @@ public class WorkOrderStatusConstantsTest {
         Assert.assertFalse(WorkOrderStatusConstants.canTransfer(WorkOrderStatusConstants.MainStatus.CLOSED));
     }
 
+    /**验证FollowFrozenStatusFlow，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldFollowFrozenStatusFlow() {
         Assert.assertEquals(WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN, WorkOrderStatusFlow.afterCreate());

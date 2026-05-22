@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>用于在单实例内保护同一个任务不被重复执行。该组件只处理进程内并发，不承担分布式锁职责。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/12
  */
 @Component
@@ -38,7 +38,6 @@ public class SyncTaskRunningRegistry {
      * @param taskId 任务ID
      */
     public void unlock(Long taskId) {
-        // 调用remove方法，复用统一能力并保证业务规则一致。
         runningTaskIds.remove(taskId);
     }
 }

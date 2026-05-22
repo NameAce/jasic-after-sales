@@ -10,7 +10,7 @@ import lombok.EqualsAndHashCode;
 /**
  * 字典数据实体
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/03/19
  */
 @Data

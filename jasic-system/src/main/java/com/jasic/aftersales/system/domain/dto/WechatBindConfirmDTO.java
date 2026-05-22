@@ -10,7 +10,7 @@ import io.swagger.annotations.ApiModelProperty;
 /**
  * 微信绑定确认参数
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/02
  */
 @ApiModel(description = "微信绑定确认参数")

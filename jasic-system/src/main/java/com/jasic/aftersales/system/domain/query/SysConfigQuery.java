@@ -12,7 +12,7 @@ import io.swagger.annotations.ApiModelProperty;
  * <p>该查询对象继续服务旧参数设置列表。新增 groupKey 为后续按组查询预留能力，
  * 旧页面不传该字段时仍按原有名称、键名和内置状态查询。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/03/19
  */
 @ApiModel(description = "参数设置查询参数")

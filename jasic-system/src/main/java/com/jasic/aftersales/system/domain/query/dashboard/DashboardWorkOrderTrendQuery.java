@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
  * <p>该对象在复用工单现有权限上下文的基础上，
  * 额外补充首页趋势统计所需的时间窗口，避免继续复用分页列表结果做二次聚合。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/20
  */
 @ApiModel(description = "首页工单趋势聚合查询参数")

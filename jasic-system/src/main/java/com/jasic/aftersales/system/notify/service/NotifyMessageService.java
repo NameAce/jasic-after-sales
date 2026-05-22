@@ -14,7 +14,7 @@ import java.util.List;
 /**
  * 通知消息 Service。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/18
  */
 public interface NotifyMessageService {
@@ -77,9 +77,9 @@ public interface NotifyMessageService {
     /**
      * 标记读取。
      *
-     * @param id 参数
-     * @param receiverId 参数
-     * @param receiverCompanyId 参数
+     * @param id 业务主键或关联对象ID。
+     * @param receiverId 业务主键或关联对象ID。
+     * @param receiverCompanyId 业务主键或关联对象ID。
      */
     void markRead(Long id, Long receiverId, Long receiverCompanyId);
 

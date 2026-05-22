@@ -16,7 +16,7 @@ import java.util.Map;
  * 而是统一负责把业务事件解析成运行时上下文。
  * 事件消费编排层再基于该上下文，按场景下启用的多个通知目标逐个渲染并分流执行。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 @Data

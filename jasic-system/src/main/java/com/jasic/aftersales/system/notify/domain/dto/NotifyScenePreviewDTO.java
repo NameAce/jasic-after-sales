@@ -16,7 +16,7 @@ import java.util.Map;
  * <p>预览接口允许直接携带当前页面尚未保存的目标配置，
  * 这样后台维护时可以先校验渲染结果，再决定是否保存。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 @ApiModel(description = "通知场景目标预览参数")

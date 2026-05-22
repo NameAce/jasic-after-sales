@@ -17,7 +17,7 @@ import lombok.Getter;
  * “当前账号原则上是否具备这类动作能力”，并不直接等价于“当前这张工单上就一定能做”。
  * 真正放行时，后端仍然需要再叠加工单关系、工单状态、服务模式等实例条件。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/11
  */
 @Getter
@@ -75,9 +75,9 @@ public enum WorkOrderActionEnum {
     /**
      * 构造工单动作实例。
      *
-     * @param code 参数
-     * @param label 参数
-     * @param permissionCode 参数
+     * @param code 业务编码，用于匹配枚举、配置或外部系统数据。
+     * @param label label，当前业务处理所需的输入值。
+     * @param permissionCode 业务编码，用于匹配枚举、配置或外部系统数据。
      */
     WorkOrderActionEnum(String code, String label, String permissionCode) {
         this.code = code;
@@ -116,7 +116,6 @@ public enum WorkOrderActionEnum {
      * @return 展示名称；未命中时返回原值
      */
     public static String resolveLabel(String code) {
-        // 调用getByCode方法，复用统一能力并保证业务规则一致。
         WorkOrderActionEnum action = getByCode(code);
         return action == null ? code : action.getLabel();
     }

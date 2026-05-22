@@ -14,7 +14,7 @@ import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderTransferNoti
 /**
  * Work order notification facade.
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/18
  */
 public interface WorkOrderNotifyFacade {
@@ -36,7 +36,7 @@ public interface WorkOrderNotifyFacade {
     /**
      * publishAssigned事件。
      *
-     * @param dto 参数
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
      */
     void publishAssignedEvent(NotifyAssignedEventDTO dto);
 
@@ -57,7 +57,7 @@ public interface WorkOrderNotifyFacade {
     /**
      * publish评价Invite事件。
      *
-     * @param dto 参数
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
      */
     void publishEvaluationInviteEvent(NotifyEvaluationInviteEventDTO dto);
 
@@ -71,21 +71,21 @@ public interface WorkOrderNotifyFacade {
     /**
      * 标记读取By业务。
      *
-     * @param dto 参数
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
      */
     void markReadByBiz(NotifyReadByBizDTO dto);
 
     /**
      * 完成待办By业务And接收人。
      *
-     * @param dto 参数
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
      */
     void completeTodoByBizAndReceiver(NotifyTodoCompleteDTO dto);
 
     /**
      * 作废待办By业务。
      *
-     * @param dto 参数
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
      */
     void invalidateTodoByBiz(NotifyTodoInvalidateDTO dto);
 }

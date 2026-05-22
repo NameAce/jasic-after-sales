@@ -17,11 +17,12 @@ import java.util.List;
 /**
  * C端客户登录服务测试
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/02
  */
 public class CUserServiceImplTest {
 
+    /**验证MergeRealWechatIdentityByPhone，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldMergeRealWechatIdentityByPhone() throws Exception {
         CUserServiceImpl service = new CUserServiceImpl();
@@ -37,6 +38,7 @@ public class CUserServiceImplTest {
         Assert.assertNotNull(user.getLastLoginTime());
     }
 
+    /**验证RejectFirstLoginWithoutPhone，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectFirstLoginWithoutPhone() throws Exception {
         CUserServiceImpl service = new CUserServiceImpl();
@@ -50,6 +52,7 @@ public class CUserServiceImplTest {
         }
     }
 
+    /**验证RejectDuplicatePhoneBinding，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectDuplicatePhoneBinding() throws Exception {
         CUserServiceImpl service = new CUserServiceImpl();
@@ -66,6 +69,12 @@ public class CUserServiceImplTest {
         }
     }
 
+    /**buildUser 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param id 主键ID。
+@param openid openid 字段。
+@param phone phone 字段参数。
+@param status 业务状态编码，用于判断或更新当前流程节点。
+@return 处理后的业务结果。*/
     private CUser buildUser(Long id, String openid, String phone, Integer status) {
         CUser user = new CUser();
         user.setId(id);
@@ -76,11 +85,21 @@ public class CUserServiceImplTest {
         return user;
     }
 
+    /**createUserMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param store 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private CUserMapper createUserMapperProxy(List<CUser> store) {
         InvocationHandler handler = new InvocationHandler() {
+            /**nextId 字段，用于当前类内部业务处理。*/
             private long nextId = store.size() + 1L;
+            /**openidQueried 字段，用于当前类内部业务处理。*/
             private boolean openidQueried = false;
 
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectOne".equals(method.getName())) {
@@ -128,12 +147,19 @@ public class CUserServiceImplTest {
         );
     }
 
+    /**setField 处理逻辑，服务于当前类的业务编排和数据转换。
+@param target target 字段参数。
+@param fieldName 名称文本，用于展示、匹配或保存业务对象名称。
+@param value value 字段参数。*/
     private void setField(Object target, String fieldName, Object value) throws Exception {
         Field field = CUserServiceImpl.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(target, value);
     }
 
+    /**defaultValue 处理逻辑，服务于当前类的业务编排和数据转换。
+@param returnType returnType 字段参数。
+@return 处理后的业务结果。*/
     private Object defaultValue(Class<?> returnType) {
         if (!returnType.isPrimitive()) {
             return null;

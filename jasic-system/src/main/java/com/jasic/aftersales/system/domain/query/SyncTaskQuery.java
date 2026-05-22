@@ -9,7 +9,7 @@ import lombok.EqualsAndHashCode;
 /**
  * 同步任务查询参数
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/12
  */
 @ApiModel(description = "同步任务查询参数")

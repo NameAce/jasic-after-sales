@@ -12,11 +12,12 @@ import java.util.Map;
  *
  * <p>表策略是安全边界，固定在代码中维护。所有 {@code @TableName} 实体表必须在这里登记。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/05
  */
 public final class CompanyDataPolicyRegistry {
 
+    /**POLICIES 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final Map<String, CompanyDataPolicyType> POLICIES;
 
     static {
@@ -102,7 +103,7 @@ public final class CompanyDataPolicyRegistry {
     /**
      * allPolicies。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     public static Map<String, CompanyDataPolicyType> allPolicies() {
         return POLICIES;
@@ -111,7 +112,7 @@ public final class CompanyDataPolicyRegistry {
     /**
      * contains。
      *
-     * @param tableName 参数
+     * @param tableName tableName，当前业务处理所需的输入值。
      */
     public static boolean contains(String tableName) {
         return POLICIES.containsKey(normalize(tableName));
@@ -120,8 +121,8 @@ public final class CompanyDataPolicyRegistry {
     /**
      * 获取策略。
      *
-     * @param tableName 参数
-     * @return 处理结果
+     * @param tableName tableName，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     public static CompanyDataPolicyType getPolicy(String tableName) {
         return POLICIES.get(normalize(tableName));
@@ -130,11 +131,10 @@ public final class CompanyDataPolicyRegistry {
     /**
      * require策略。
      *
-     * @param tableName 参数
-     * @return 处理结果
+     * @param tableName tableName，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     public static CompanyDataPolicyType requirePolicy(String tableName) {
-        // 调用getPolicy方法，复用统一能力并保证业务规则一致。
         CompanyDataPolicyType policyType = getPolicy(tableName);
         if (policyType == null) {
             throw new ServiceException("未知数据权限表策略：" + tableName);
@@ -145,7 +145,7 @@ public final class CompanyDataPolicyRegistry {
     /**
      * useTenantLine。
      *
-     * @param tableName 参数
+     * @param tableName tableName，当前业务处理所需的输入值。
      */
     public static boolean useTenantLine(String tableName) {
         return requirePolicy(tableName) == CompanyDataPolicyType.CURRENT_COMPANY;
@@ -154,17 +154,15 @@ public final class CompanyDataPolicyRegistry {
     /**
      * 规范化公司数据策略。
      *
-     * @param tableName 参数
-     * @return 处理结果
+     * @param tableName tableName，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     public static String normalize(String tableName) {
         if (tableName == null) {
             return null;
         }
-        // 调用trim方法，复用统一能力并保证业务规则一致。
         String normalized = tableName.trim();
         if (normalized.startsWith("`") && normalized.endsWith("`") && normalized.length() > 1) {
-            // 调用length方法，复用统一能力并保证业务规则一致。
             normalized = normalized.substring(1, normalized.length() - 1);
         }
         return normalized.toLowerCase(Locale.ROOT);
@@ -173,19 +171,17 @@ public final class CompanyDataPolicyRegistry {
     /**
      * register。
      *
-     * @param policies 参数
-     * @param policyType 参数
-     * @param tableNames 参数
+     * @param policies policies，当前业务处理所需的输入值。
+     * @param policyType policyType，当前业务处理所需的输入值。
+     * @param tableNames tableNames，当前业务处理所需的输入值。
      */
     private static void register(Map<String, CompanyDataPolicyType> policies, CompanyDataPolicyType policyType,
                                  String... tableNames) {
         for (String tableName : tableNames) {
-            // 调用normalize方法，复用统一能力并保证业务规则一致。
             String normalized = normalize(tableName);
             if (normalized == null || normalized.length() == 0) {
                 throw new IllegalStateException("数据权限表名不能为空");
             }
-            // 调用putIfAbsent方法，复用统一能力并保证业务规则一致。
             CompanyDataPolicyType exists = policies.putIfAbsent(normalized, policyType);
             if (exists != null) {
                 throw new IllegalStateException("重复注册数据权限表策略：" + normalized);

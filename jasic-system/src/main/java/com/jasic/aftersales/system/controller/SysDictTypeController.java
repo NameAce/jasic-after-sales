@@ -27,7 +27,7 @@ import io.swagger.annotations.ApiOperation;
 /**
  * 字典类型控制器
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/03/19
  */
 @Api(tags = "字典类型")
@@ -35,14 +35,15 @@ import io.swagger.annotations.ApiOperation;
 @RequestMapping("/system/dict/type")
 public class SysDictTypeController extends BaseController {
 
+    /**dictTypeService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private ISysDictTypeService dictTypeService;
 
     /**
      * 分页查询字典类型列表。
      *
-     * @param query 参数
-     * @return 处理结果
+     * @param query 查询条件，包含分页、筛选和权限收口所需字段。
+     * @return 业务处理结果
      */
     @SaCheckPermission("system:dictType:list")
     @GetMapping("/list")
@@ -53,7 +54,7 @@ public class SysDictTypeController extends BaseController {
     /**
      * 根据ID查询字典类型详情。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @SaCheckPermission("system:dictType:list")
     @GetMapping("/{id}")
@@ -64,8 +65,8 @@ public class SysDictTypeController extends BaseController {
     /**
      * 新增字典类型。
      *
-     * @param dto 参数
-     * @return 处理结果
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
+     * @return 业务处理结果
      */
     @SaCheckPermission("system:dictType:add")
     @OperLog(title = "字典类型管理", operType = OperTypeEnum.INSERT)
@@ -77,14 +78,13 @@ public class SysDictTypeController extends BaseController {
     /**
      * 更新字典类型。
      *
-     * @param dto 参数
-     * @return 处理结果
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
+     * @return 业务处理结果
      */
     @SaCheckPermission("system:dictType:update")
     @OperLog(title = "字典类型管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
     public Result<Void> update(@Validated @RequestBody SysDictTypeDTO dto) {
-        // 调用update方法，复用统一能力并保证业务规则一致。
         dictTypeService.update(dto);
         return Result.ok();
     }
@@ -92,13 +92,12 @@ public class SysDictTypeController extends BaseController {
     /**
      * 删除字典类型。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @SaCheckPermission("system:dictType:remove")
     @OperLog(title = "字典类型管理", operType = OperTypeEnum.DELETE)
     @DeleteMapping("/{id}")
     public Result<Void> remove(@PathVariable Long id) {
-        // 调用remove方法，复用统一能力并保证业务规则一致。
         dictTypeService.remove(id);
         return Result.ok();
     }
@@ -106,13 +105,12 @@ public class SysDictTypeController extends BaseController {
     /**
      * 刷新字典类型缓存。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @SaCheckPermission("system:dictType:refresh")
     @OperLog(title = "字典类型管理", operType = OperTypeEnum.OTHER)
     @DeleteMapping("/refresh-cache")
     public Result<Void> refreshCache() {
-        // 调用refreshCache方法，复用统一能力并保证业务规则一致。
         dictTypeService.refreshCache();
         return Result.ok();
     }

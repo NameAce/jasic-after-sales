@@ -9,7 +9,7 @@ import java.io.Serializable;
 /**
  * 工单接单成功提醒事件参数。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 @ApiModel(description = "工单接单成功提醒事件参数")

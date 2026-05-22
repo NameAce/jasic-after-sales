@@ -39,9 +39,11 @@ import io.swagger.annotations.ApiOperation;
 @RequestMapping("/system/user")
 public class SysUserController extends BaseController {
 
+    /**userService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private ISysUserService userService;
 
+    /**companyDataAccessService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private CompanyDataAccessService companyDataAccessService;
 
@@ -55,11 +57,8 @@ public class SysUserController extends BaseController {
     @SaCheckPermission("system:user:list")
     @GetMapping("/list")
     public Result<PageResult<SysUserVO>> list(SysUserQuery query) {
-        // 调用getTargetCompanyId方法，复用统一能力并保证业务规则一致。
         Long targetCompanyId = companyDataAccessService.resolveCurrentCompanyOwnedTarget(query.getTargetCompanyId());
-        // 调用setTargetCompanyId方法，复用统一能力并保证业务规则一致。
         query.setTargetCompanyId(targetCompanyId);
-        // 调用listPage方法，复用统一能力并保证业务规则一致。
         PageResult<SysUserVO> page = userService.listPage(query);
         return Result.ok(page);
     }
@@ -91,9 +90,7 @@ public class SysUserController extends BaseController {
     @OperLog(title = "用户管理", operType = OperTypeEnum.INSERT)
     @PostMapping
     public Result<Long> save(@Validated @RequestBody SysUserDTO dto) {
-        // 调用getTargetCompanyId方法，复用统一能力并保证业务规则一致。
         dto.setTargetCompanyId(companyDataAccessService.resolveCurrentCompanyOwnedTarget(dto.getTargetCompanyId()));
-        // 调用save方法，复用统一能力并保证业务规则一致。
         Long id = userService.save(dto);
         return Result.ok(id);
     }
@@ -109,9 +106,7 @@ public class SysUserController extends BaseController {
     @OperLog(title = "用户管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
     public Result<Void> update(@Validated @RequestBody SysUserDTO dto) {
-        // 调用getTargetCompanyId方法，复用统一能力并保证业务规则一致。
         dto.setTargetCompanyId(companyDataAccessService.resolveCurrentCompanyOwnedTarget(dto.getTargetCompanyId()));
-        // 调用update方法，复用统一能力并保证业务规则一致。
         userService.update(dto);
         return Result.ok();
     }
@@ -144,9 +139,7 @@ public class SysUserController extends BaseController {
     @OperLog(title = "用户管理", operType = OperTypeEnum.UPDATE)
     @PutMapping("/reset-pwd")
     public Result<Void> resetPwd(@Validated @RequestBody ResetPwdDTO dto) {
-        // 调用getTargetCompanyId方法，复用统一能力并保证业务规则一致。
         dto.setTargetCompanyId(companyDataAccessService.resolveCurrentCompanyOwnedTarget(dto.getTargetCompanyId()));
-        // 调用resetPwd方法，复用统一能力并保证业务规则一致。
         userService.resetPwd(dto);
         return Result.ok();
     }

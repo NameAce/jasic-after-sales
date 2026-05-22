@@ -6,7 +6,7 @@ package com.jasic.aftersales.system.notify.support;
  * <p>用于给模板配置页和预览能力提供统一的变量说明。
  * 该对象只描述变量含义和示例，不负责变量实际取值解析。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/15
  */
 public class NotifyTemplateVariableMeta {

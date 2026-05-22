@@ -12,7 +12,7 @@ import java.io.Serializable;
  * <p>该对象只承接平台首页“组织、账号、基础配置”三块所需的聚合 SQL 结果。
  * 它不包含工单、CRM 同步、消息治理、日志趋势或基础配置完整度字段，确保平台首页不会误接入本期明确不做的内容。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/21
  */
 @ApiModel(description = "平台治理看板原始统计结果")

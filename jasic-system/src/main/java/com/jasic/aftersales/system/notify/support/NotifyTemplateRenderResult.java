@@ -13,7 +13,7 @@ import java.util.List;
  * 内容和跳转信息。当前主体链路仍沿用 `templateCode` 字段名传递模板身份，
  * Phase 1 起该字段实际承载的是 `sceneCode`。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/15
  */
 @Data

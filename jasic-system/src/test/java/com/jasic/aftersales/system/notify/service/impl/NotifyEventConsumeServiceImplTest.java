@@ -79,7 +79,7 @@ import java.util.Map;
  * 3. 小程序目标统一写入分发表并固化发送快照
  * 4. 事件异常仍走统一重试与死信规则</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 public class NotifyEventConsumeServiceImplTest {
@@ -174,11 +174,17 @@ public class NotifyEventConsumeServiceImplTest {
                 buildUserMapper(null, null, null)
         );
         setField(service, "notifyEventHandlerRegistry", buildRegistryWithHandlers(Collections.singletonList(new NotifyEventHandler() {
+            /**supports 处理逻辑，服务于当前类的业务编排和数据转换。
+@param eventType eventType 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
             @Override
             public boolean supports(String eventType) {
                 return NotifyEventTypeEnum.WORK_ORDER_ACCEPT.getCode().equals(eventType);
             }
 
+            /**buildExecutionContext 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param sourceEvent sourceEvent 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public NotifyEventExecutionContext buildExecutionContext(SysNotifyEvent sourceEvent) {
                 NotifyEventExecutionContext context = new NotifyEventExecutionContext();
@@ -397,6 +403,7 @@ public class NotifyEventConsumeServiceImplTest {
         Assert.assertEquals("张三", payload.getVariables().get("customerName"));
     }
 
+    /**验证MarkEventFailedWhenContextBuildThrows，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldMarkEventFailedWhenContextBuildThrows() throws Exception {
         FakeNotifyEventService eventService = new FakeNotifyEventService();
@@ -733,6 +740,12 @@ public class NotifyEventConsumeServiceImplTest {
         return user;
     }
 
+    /**buildActiveTodo 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param id 主键ID。
+@param bizId bizId 字段。
+@param receiverId receiverId 字段。
+@param todoStatus 业务状态编码，用于判断或更新当前流程节点。
+@return 处理后的业务结果。*/
     private SysNotifyMessage buildActiveTodo(Long id, Long bizId, Long receiverId, String todoStatus) {
         SysNotifyMessage message = new SysNotifyMessage();
         message.setId(id);
@@ -941,25 +954,40 @@ public class NotifyEventConsumeServiceImplTest {
      * 事件服务桩。
      */
     private static class FakeNotifyEventService implements NotifyEventService {
+        /**events 字段，用于当前类内部业务处理。*/
         private final Map<Long, SysNotifyEvent> events = new LinkedHashMap<>();
+        /**pendingEventIds 字段，用于当前类内部业务处理。*/
         private final List<Long> pendingEventIds = new ArrayList<>();
 
+        /**createEvent 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param notifyEvent notifyEvent 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
         @Override
         public Long createEvent(SysNotifyEvent notifyEvent) {
             events.put(notifyEvent.getId(), notifyEvent);
             return notifyEvent.getId();
         }
 
+        /**getById 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param id 主键ID。
+@return 查询或解析得到的业务对象。*/
         @Override
         public SysNotifyEvent getById(Long id) {
             return events.get(id);
         }
 
+        /**getByEventKey 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param eventKey eventKey 字段参数。
+@return 查询或解析得到的业务对象。*/
         @Override
         public SysNotifyEvent getByEventKey(String eventKey) {
             return null;
         }
 
+        /**listConsumableEvents 业务数据，按查询条件和数据权限返回可见范围内的结果。
+@param now now 字段参数。
+@param limit limit 字段参数。
+@return 查询或组装后的业务数据集合。*/
         @Override
         public List<SysNotifyEvent> listConsumableEvents(LocalDateTime now, Integer limit) {
             List<SysNotifyEvent> result = new ArrayList<>();
@@ -969,21 +997,34 @@ public class NotifyEventConsumeServiceImplTest {
             return result;
         }
 
+        /**listTimeoutProcessingEvents 业务数据，按查询条件和数据权限返回可见范围内的结果。
+@param timeoutBefore timeoutBefore 字段参数。
+@param limit limit 字段参数。
+@return 查询或组装后的业务数据集合。*/
         @Override
         public List<SysNotifyEvent> listTimeoutProcessingEvents(LocalDateTime timeoutBefore, Integer limit) {
             return Collections.emptyList();
         }
 
+        /**listByQuery 业务数据，按查询条件和数据权限返回可见范围内的结果。
+@param query 查询条件，包含分页、筛选和权限收口所需字段。
+@return 查询或组装后的业务数据集合。*/
         @Override
         public List<SysNotifyEvent> listByQuery(NotifyEventQuery query) {
             return Collections.emptyList();
         }
 
+        /**updateStatus 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param eventId eventId 字段。
+@param status 业务状态编码，用于判断或更新当前流程节点。*/
         @Override
         public void updateStatus(Long eventId, String status) {
             events.get(eventId).setStatus(status);
         }
 
+        /**markProcessing 处理逻辑，服务于当前类的业务编排和数据转换。
+@param eventId eventId 字段。
+@return true 表示满足业务条件，false 表示不满足。*/
         @Override
         public boolean markProcessing(Long eventId) {
             events.get(eventId).setStatus(NotifyEventStatusEnum.PROCESSING.getCode());
@@ -991,12 +1032,19 @@ public class NotifyEventConsumeServiceImplTest {
             return true;
         }
 
+        /**markSuccess 处理逻辑，服务于当前类的业务编排和数据转换。
+@param eventId eventId 字段。*/
         @Override
         public void markSuccess(Long eventId) {
             events.get(eventId).setStatus(NotifyEventStatusEnum.SUCCESS.getCode());
             events.get(eventId).setProcessingTime(null);
         }
 
+        /**markFailed 处理逻辑，服务于当前类的业务编排和数据转换。
+@param eventId eventId 字段。
+@param retryCount retryCount 字段参数。
+@param nextRetryTime nextRetryTime 字段参数。
+@param errorMessage errorMessage 字段参数。*/
         @Override
         public void markFailed(Long eventId, Integer retryCount, LocalDateTime nextRetryTime, String errorMessage) {
             SysNotifyEvent event = events.get(eventId);
@@ -1007,6 +1055,11 @@ public class NotifyEventConsumeServiceImplTest {
             event.setProcessingTime(null);
         }
 
+        /**updateRetryInfo 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param eventId eventId 字段。
+@param retryCount retryCount 字段参数。
+@param nextRetryTime nextRetryTime 字段参数。
+@param errorMessage errorMessage 字段参数。*/
         @Override
         public void updateRetryInfo(Long eventId, Integer retryCount, LocalDateTime nextRetryTime, String errorMessage) {
             SysNotifyEvent event = events.get(eventId);
@@ -1015,11 +1068,17 @@ public class NotifyEventConsumeServiceImplTest {
             event.setErrorMessage(errorMessage);
         }
 
+        /**recoverTimeoutProcessingEvents 处理逻辑，服务于当前类的业务编排和数据转换。
+@param timeoutBefore timeoutBefore 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public int recoverTimeoutProcessingEvents(LocalDateTime timeoutBefore) {
             return 0;
         }
 
+        /**markDead 处理逻辑，服务于当前类的业务编排和数据转换。
+@param eventId eventId 字段。
+@param errorMessage errorMessage 字段参数。*/
         @Override
         public void markDead(Long eventId, String errorMessage) {
             SysNotifyEvent event = events.get(eventId);
@@ -1027,6 +1086,8 @@ public class NotifyEventConsumeServiceImplTest {
             event.setErrorMessage(errorMessage);
         }
 
+        /**resetForRetry 处理逻辑，服务于当前类的业务编排和数据转换。
+@param eventId eventId 字段。*/
         @Override
         public void resetForRetry(Long eventId) {
         }
@@ -1036,11 +1097,18 @@ public class NotifyEventConsumeServiceImplTest {
      * 消息服务桩。
      */
     private static class FakeNotifyMessageService implements NotifyMessageService {
+        /**createdMessages 字段，用于当前类内部业务处理。*/
         private final List<SysNotifyMessage> createdMessages = new ArrayList<>();
+        /**messageByEventAndTarget 字段，用于当前类内部业务处理。*/
         private final Map<String, SysNotifyMessage> messageByEventAndTarget = new LinkedHashMap<>();
+        /**activeTodosByReceiver 字段，用于当前类内部业务处理。*/
         private final Map<Long, List<SysNotifyMessage>> activeTodosByReceiver = new LinkedHashMap<>();
+        /**nextMessageId 字段，用于当前类内部业务处理。*/
         private long nextMessageId = 1000L;
 
+        /**createMessage 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param notifyMessage notifyMessage 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
         @Override
         public Long createMessage(SysNotifyMessage notifyMessage) {
             notifyMessage.setId(nextMessageId++);
@@ -1049,11 +1117,17 @@ public class NotifyEventConsumeServiceImplTest {
             return notifyMessage.getId();
         }
 
+        /**getById 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param id 主键ID。
+@return 查询或解析得到的业务对象。*/
         @Override
         public SysNotifyMessage getById(Long id) {
             return null;
         }
 
+        /**getByEventId 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param eventId eventId 字段。
+@return 查询或解析得到的业务对象。*/
         @Override
         public SysNotifyMessage getByEventId(Long eventId) {
             for (SysNotifyMessage createdMessage : createdMessages) {
@@ -1064,17 +1138,32 @@ public class NotifyEventConsumeServiceImplTest {
             return null;
         }
 
+        /**getByEventIdAndTargetType 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param eventId eventId 字段。
+@param targetType targetType 字段参数。
+@return 查询或解析得到的业务对象。*/
         @Override
         public SysNotifyMessage getByEventIdAndTargetType(Long eventId, String targetType) {
             return messageByEventAndTarget.get(buildKey(eventId, targetType));
         }
 
+        /**listActiveTodoByBizAndReceiver 业务数据，按查询条件和数据权限返回可见范围内的结果。
+@param bizType bizType 字段参数。
+@param bizId bizId 字段。
+@param receiverId receiverId 字段。
+@param receiverCompanyId receiverCompanyId 字段。
+@return 查询或组装后的业务数据集合。*/
         @Override
         public List<SysNotifyMessage> listActiveTodoByBizAndReceiver(String bizType, Long bizId, Long receiverId,
                                                                      Long receiverCompanyId) {
             return activeTodosByReceiver.getOrDefault(receiverId, Collections.emptyList());
         }
 
+        /**invalidateMessage 处理逻辑，服务于当前类的业务编排和数据转换。
+@param messageId messageId 字段。
+@param invalidReason invalidReason 字段参数。
+@param invalidTime invalidTime 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
         @Override
         public boolean invalidateMessage(Long messageId, String invalidReason, LocalDateTime invalidTime) {
             for (List<SysNotifyMessage> messages : activeTodosByReceiver.values()) {
@@ -1090,32 +1179,53 @@ public class NotifyEventConsumeServiceImplTest {
             return false;
         }
 
+        /**markRead 处理逻辑，服务于当前类的业务编排和数据转换。
+@param id 主键ID。
+@param receiverId receiverId 字段。
+@param receiverCompanyId receiverCompanyId 字段。*/
         @Override
         public void markRead(Long id, Long receiverId, Long receiverCompanyId) {
         }
 
+        /**markReadByBiz 处理逻辑，服务于当前类的业务编排和数据转换。
+@param dto 业务请求参数，承载本次操作需要提交的字段。*/
         @Override
         public void markReadByBiz(com.jasic.aftersales.system.notify.domain.dto.NotifyReadByBizDTO dto) {
         }
 
+        /**completeTodoByBizAndReceiver 处理逻辑，服务于当前类的业务编排和数据转换。
+@param dto 业务请求参数，承载本次操作需要提交的字段。*/
         @Override
         public void completeTodoByBizAndReceiver(com.jasic.aftersales.system.notify.domain.dto.NotifyTodoCompleteDTO dto) {
         }
 
+        /**invalidateTodoByBiz 处理逻辑，服务于当前类的业务编排和数据转换。
+@param dto 业务请求参数，承载本次操作需要提交的字段。*/
         @Override
         public void invalidateTodoByBiz(com.jasic.aftersales.system.notify.domain.dto.NotifyTodoInvalidateDTO dto) {
         }
 
+        /**listPage 业务数据，按查询条件和数据权限返回可见范围内的结果。
+@param query 查询条件，包含分页、筛选和权限收口所需字段。
+@return 分页查询结果。*/
         @Override
         public PageResult<NotifyMessagePageVO> listPage(NotifyMessageQuery query) {
             return null;
         }
 
+        /**countTodo 业务数据，按查询条件和数据权限返回可见范围内的结果。
+@param receiverId receiverId 字段。
+@param receiverCompanyId receiverCompanyId 字段。
+@return 处理后的业务结果。*/
         @Override
         public Long countTodo(Long receiverId, Long receiverCompanyId) {
             return 0L;
         }
 
+        /**buildKey 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param eventId eventId 字段。
+@param targetType targetType 字段参数。
+@return 处理后的业务结果。*/
         private String buildKey(Long eventId, String targetType) {
             return eventId + "#" + targetType;
         }
@@ -1126,6 +1236,11 @@ public class NotifyEventConsumeServiceImplTest {
      */
     private static class FakeNotifyTemplateRenderService implements NotifyTemplateRenderService {
 
+        /**render 处理逻辑，服务于当前类的业务编排和数据转换。
+@param sceneCode 业务编码，用于匹配枚举、配置或外部系统数据。
+@param targetType targetType 字段参数。
+@param variables 业务映射数据，用于提升后续组装或匹配效率。
+@return 处理后的业务结果。*/
         @Override
         public NotifyTemplateRenderResult render(String sceneCode, String targetType, Map<String, Object> variables) {
             NotifyTemplateRenderResult result = new NotifyTemplateRenderResult();
@@ -1154,8 +1269,12 @@ public class NotifyEventConsumeServiceImplTest {
      * 分发服务桩。
      */
     private static class FakeNotifyDispatchService implements NotifyDispatchService {
+        /**createdDispatches 字段，用于当前类内部业务处理。*/
         private final List<SysNotifyDispatch> createdDispatches = new ArrayList<>();
 
+        /**createDispatch 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param dispatch dispatch 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
         @Override
         public Long createDispatch(SysNotifyDispatch dispatch) {
             dispatch.setId((long) (createdDispatches.size() + 1));
@@ -1163,52 +1282,94 @@ public class NotifyEventConsumeServiceImplTest {
             return dispatch.getId();
         }
 
+        /**getById 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param id 主键ID。
+@return 查询或解析得到的业务对象。*/
         @Override
         public SysNotifyDispatch getById(Long id) {
             return null;
         }
 
+        /**listSendableDispatches 业务数据，按查询条件和数据权限返回可见范围内的结果。
+@param now now 字段参数。
+@param limit limit 字段参数。
+@return 查询或组装后的业务数据集合。*/
         @Override
         public List<SysNotifyDispatch> listSendableDispatches(LocalDateTime now, Integer limit) {
             return Collections.emptyList();
         }
 
+        /**listTimeoutProcessingDispatches 业务数据，按查询条件和数据权限返回可见范围内的结果。
+@param timeoutBefore timeoutBefore 字段参数。
+@param limit limit 字段参数。
+@return 查询或组装后的业务数据集合。*/
         @Override
         public List<SysNotifyDispatch> listTimeoutProcessingDispatches(LocalDateTime timeoutBefore, Integer limit) {
             return Collections.emptyList();
         }
 
+        /**markProcessing 处理逻辑，服务于当前类的业务编排和数据转换。
+@param dispatchId dispatchId 字段。
+@return true 表示满足业务条件，false 表示不满足。*/
         @Override
         public boolean markProcessing(Long dispatchId) {
             return false;
         }
 
+        /**markSuccess 处理逻辑，服务于当前类的业务编排和数据转换。
+@param dispatchId dispatchId 字段。
+@param resultCode 业务编码，用于匹配枚举、配置或外部系统数据。
+@param resultMessage resultMessage 字段参数。
+@param channelResponseJson channelResponseJson 字段参数。*/
         @Override
         public void markSuccess(Long dispatchId, String resultCode, String resultMessage, String channelResponseJson) {
         }
 
+        /**markFailed 处理逻辑，服务于当前类的业务编排和数据转换。
+@param dispatchId dispatchId 字段。
+@param retryCount retryCount 字段参数。
+@param nextRetryTime nextRetryTime 字段参数。
+@param resultCode 业务编码，用于匹配枚举、配置或外部系统数据。
+@param resultMessage resultMessage 字段参数。
+@param channelResponseJson channelResponseJson 字段参数。*/
         @Override
         public void markFailed(Long dispatchId, Integer retryCount, LocalDateTime nextRetryTime, String resultCode,
                                String resultMessage, String channelResponseJson) {
         }
 
+        /**markSkipped 处理逻辑，服务于当前类的业务编排和数据转换。
+@param dispatchId dispatchId 字段。
+@param resultCode 业务编码，用于匹配枚举、配置或外部系统数据。
+@param resultMessage resultMessage 字段参数。
+@param channelResponseJson channelResponseJson 字段参数。*/
         @Override
         public void markSkipped(Long dispatchId, String resultCode, String resultMessage, String channelResponseJson) {
         }
 
+        /**recoverTimeoutProcessingDispatches 处理逻辑，服务于当前类的业务编排和数据转换。
+@param timeoutBefore timeoutBefore 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public int recoverTimeoutProcessingDispatches(LocalDateTime timeoutBefore) {
             return 0;
         }
 
+        /**markDead 处理逻辑，服务于当前类的业务编排和数据转换。
+@param dispatchId dispatchId 字段。
+@param resultCode 业务编码，用于匹配枚举、配置或外部系统数据。
+@param resultMessage resultMessage 字段参数。*/
         @Override
         public void markDead(Long dispatchId, String resultCode, String resultMessage) {
         }
 
+        /**resetForRetry 处理逻辑，服务于当前类的业务编排和数据转换。
+@param dispatchId dispatchId 字段。*/
         @Override
         public void resetForRetry(Long dispatchId) {
         }
 
+        /**consumePendingDispatches 处理逻辑，服务于当前类的业务编排和数据转换。
+@return 处理后的业务结果。*/
         @Override
         public int consumePendingDispatches() {
             return 0;
@@ -1219,14 +1380,21 @@ public class NotifyEventConsumeServiceImplTest {
      * 消息日志服务桩。
      */
     private static class FakeNotifyMessageLogService implements NotifyMessageLogService {
+        /**logs 字段，用于当前类内部业务处理。*/
         private final List<SysNotifyMessageLog> logs = new ArrayList<>();
 
+        /**createLog 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param notifyMessageLog notifyMessageLog 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
         @Override
         public Long createLog(SysNotifyMessageLog notifyMessageLog) {
             logs.add(notifyMessageLog);
             return (long) logs.size();
         }
 
+        /**listByQuery 业务数据，按查询条件和数据权限返回可见范围内的结果。
+@param query 查询条件，包含分页、筛选和权限收口所需字段。
+@return 查询或组装后的业务数据集合。*/
         @Override
         public List<SysNotifyMessageLog> listByQuery(com.jasic.aftersales.system.notify.domain.query.NotifyMessageLogQuery query) {
             return Collections.emptyList();
@@ -1237,6 +1405,7 @@ public class NotifyEventConsumeServiceImplTest {
      * 目标配置状态桩。
      */
     private static class TargetMapperState {
+        /**targets 字段，用于当前类内部业务处理。*/
         private final List<NotifySceneTarget> targets = new ArrayList<>();
     }
 
@@ -1245,15 +1414,22 @@ public class NotifyEventConsumeServiceImplTest {
      */
     private static class NoopTransactionManager implements PlatformTransactionManager {
 
+        /**getTransaction 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param definition definition 字段参数。
+@return 查询或解析得到的业务对象。*/
         @Override
         public TransactionStatus getTransaction(TransactionDefinition definition) {
             return new SimpleTransactionStatus();
         }
 
+        /**commit 处理逻辑，服务于当前类的业务编排和数据转换。
+@param status 业务状态编码，用于判断或更新当前流程节点。*/
         @Override
         public void commit(TransactionStatus status) {
         }
 
+        /**rollback 处理逻辑，服务于当前类的业务编排和数据转换。
+@param status 业务状态编码，用于判断或更新当前流程节点。*/
         @Override
         public void rollback(TransactionStatus status) {
         }

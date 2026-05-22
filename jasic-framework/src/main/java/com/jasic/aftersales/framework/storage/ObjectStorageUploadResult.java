@@ -7,7 +7,7 @@ import java.io.Serializable;
 /**
  * 对象存储上传结果
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/07
  */
 @Data

@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 /**
  * 品牌类型枚举
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/08
  */
 public enum BrandTypeEnum {
@@ -26,8 +26,8 @@ public enum BrandTypeEnum {
     /**
      * 构造品牌类型实例。
      *
-     * @param code 参数
-     * @param label 参数
+     * @param code 业务编码，用于匹配枚举、配置或外部系统数据。
+     * @param label label，当前业务处理所需的输入值。
      */
     BrandTypeEnum(String code, String label) {
         this.code = code;
@@ -44,7 +44,6 @@ public enum BrandTypeEnum {
         if (code == null) {
             return null;
         }
-        // 调用trim方法，复用统一能力并保证业务规则一致。
         String normalizedCode = code.trim();
         if (normalizedCode.isEmpty()) {
             return null;
@@ -68,7 +67,6 @@ public enum BrandTypeEnum {
         if (code == null) {
             return null;
         }
-        // 调用getByCode方法，复用统一能力并保证业务规则一致。
         BrandTypeEnum brandType = getByCode(code);
         if (brandType == null) {
             throw new IllegalArgumentException("不支持的品牌类型编码：" + code);
@@ -106,7 +104,7 @@ public enum BrandTypeEnum {
     /**
      * 获取品牌类型编码。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @JsonValue
     public String getCode() {

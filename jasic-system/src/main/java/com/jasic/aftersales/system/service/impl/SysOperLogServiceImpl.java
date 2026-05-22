@@ -24,12 +24,13 @@ import java.util.List;
 @Service
 public class SysOperLogServiceImpl implements ISysOperLogService {
 
+    /**FORMATTER 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     /**
      * 系统操作日志Mapper数据访问接口。
      *
-     * @param operLog 参数
+     * @param operLog operLog，当前业务处理所需的输入值。
      */
     @Resource
     private SysOperLogMapper sysOperLogMapper;
@@ -41,7 +42,6 @@ public class SysOperLogServiceImpl implements ISysOperLogService {
      */
     @Override
     public void save(SysOperLog operLog) {
-        // 调用insert方法，复用统一能力并保证业务规则一致。
         sysOperLogMapper.insert(operLog);
     }
 
@@ -53,30 +53,23 @@ public class SysOperLogServiceImpl implements ISysOperLogService {
      */
     @Override
     public PageResult<SysOperLog> listPage(SysOperLogQuery query) {
-        // 调用getPageSize方法，复用统一能力并保证业务规则一致。
         Page<SysOperLog> page = new Page<>(query.getPageNum(), query.getPageSize());
         LambdaQueryWrapper<SysOperLog> wrapper = new LambdaQueryWrapper<>();
         if (StrUtil.isNotBlank(query.getTitle())) {
-            // 调用getTitle方法，复用统一能力并保证业务规则一致。
             wrapper.like(SysOperLog::getTitle, query.getTitle());
         }
         if (query.getOperType() != null) {
-            // 调用getOperType方法，复用统一能力并保证业务规则一致。
             wrapper.eq(SysOperLog::getOperType, query.getOperType());
         }
         if (StrUtil.isNotBlank(query.getUsername())) {
-            // 调用getUsername方法，复用统一能力并保证业务规则一致。
             wrapper.like(SysOperLog::getUsername, query.getUsername());
         }
         if (query.getStatus() != null) {
-            // 调用getStatus方法，复用统一能力并保证业务规则一致。
             wrapper.eq(SysOperLog::getStatus, query.getStatus());
         }
         if (StrUtil.isNotBlank(query.getBeginTime())) {
             try {
-                // 调用getBeginTime方法，复用统一能力并保证业务规则一致。
                 LocalDateTime begin = LocalDateTime.parse(query.getBeginTime(), FORMATTER);
-                // 调用ge方法，复用统一能力并保证业务规则一致。
                 wrapper.ge(SysOperLog::getOperTime, begin);
             } catch (Exception ignored) {
                 // 解析失败则忽略
@@ -84,17 +77,13 @@ public class SysOperLogServiceImpl implements ISysOperLogService {
         }
         if (StrUtil.isNotBlank(query.getEndTime())) {
             try {
-                // 调用getEndTime方法，复用统一能力并保证业务规则一致。
                 LocalDateTime end = LocalDateTime.parse(query.getEndTime(), FORMATTER);
-                // 调用le方法，复用统一能力并保证业务规则一致。
                 wrapper.le(SysOperLog::getOperTime, end);
             } catch (Exception ignored) {
                 // 解析失败则忽略
             }
         }
-        // 调用orderByDesc方法，复用统一能力并保证业务规则一致。
         wrapper.orderByDesc(SysOperLog::getOperTime);
-        // 说明：执行该步骤以保证业务流程正确。
         Page<SysOperLog> result = sysOperLogMapper.selectPage(page, wrapper);
         return PageResult.of(result.getRecords(), result.getTotal(), query.getPageNum(), query.getPageSize());
     }
@@ -109,7 +98,6 @@ public class SysOperLogServiceImpl implements ISysOperLogService {
         if (ids == null || ids.isEmpty()) {
             return;
         }
-        // 说明：执行该步骤以保证业务流程正确。
         sysOperLogMapper.deleteBatchIds(ids);
     }
 
@@ -118,7 +106,6 @@ public class SysOperLogServiceImpl implements ISysOperLogService {
      */
     @Override
     public void clean() {
-        // 调用delete方法，复用统一能力并保证业务规则一致。
         sysOperLogMapper.delete(null);
     }
 }

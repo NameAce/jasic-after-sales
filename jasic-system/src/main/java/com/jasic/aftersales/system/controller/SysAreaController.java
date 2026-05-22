@@ -19,7 +19,7 @@ import java.util.List;
 /**
  * 行政区划接口
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/17
  */
 @Api(tags = "行政区划")
@@ -27,6 +27,7 @@ import java.util.List;
 @RequestMapping("/org/area")
 public class SysAreaController extends BaseController {
 
+    /**sysAreaService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private ISysAreaService sysAreaService;
 

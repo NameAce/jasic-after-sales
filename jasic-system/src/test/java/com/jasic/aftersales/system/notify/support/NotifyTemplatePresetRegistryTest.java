@@ -17,7 +17,7 @@ import java.util.List;
  * <p>该测试聚焦当前通知场景注册表暴露的默认元数据，
  * 确保后台默认配置、模板字段映射和渠道归属与现行代码口径一致。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/20
  */
 public class NotifyTemplatePresetRegistryTest {

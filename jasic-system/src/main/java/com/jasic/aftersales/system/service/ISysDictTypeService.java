@@ -8,7 +8,7 @@ import com.jasic.aftersales.system.domain.vo.SysDictTypeVO;
 /**
  * 字典类型 Service 接口
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/03/19
  */
 public interface ISysDictTypeService {

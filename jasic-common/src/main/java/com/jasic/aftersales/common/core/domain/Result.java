@@ -30,7 +30,9 @@ public class Result<T> implements Serializable {
     @ApiModelProperty(value = "数据")
     private T data;
 
+    /**SUCCESS_CODE 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String SUCCESS_CODE = "00000";
+    /**SUCCESS_MSG 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String SUCCESS_MSG = "操作成功";
 
     /**
@@ -52,11 +54,8 @@ public class Result<T> implements Serializable {
      */
     public static <T> Result<T> ok(T data) {
         Result<T> result = new Result<>();
-        // 调用setCode方法，复用统一能力并保证业务规则一致。
         result.setCode(SUCCESS_CODE);
-        // 调用setMsg方法，复用统一能力并保证业务规则一致。
         result.setMsg(SUCCESS_MSG);
-        // 调用setData方法，复用统一能力并保证业务规则一致。
         result.setData(data);
         return result;
     }
@@ -71,9 +70,7 @@ public class Result<T> implements Serializable {
      */
     public static <T> Result<T> fail(String code, String msg) {
         Result<T> result = new Result<>();
-        // 调用setCode方法，复用统一能力并保证业务规则一致。
         result.setCode(code);
-        // 调用setMsg方法，复用统一能力并保证业务规则一致。
         result.setMsg(msg);
         return result;
     }

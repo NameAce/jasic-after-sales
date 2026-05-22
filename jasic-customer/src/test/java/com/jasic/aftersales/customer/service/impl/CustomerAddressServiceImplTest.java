@@ -20,11 +20,12 @@ import java.util.List;
 /**
  * C端客户地址服务测试
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/08
  */
 public class CustomerAddressServiceImplTest {
 
+    /**验证AutoSetFirstAddressAsDefault，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldAutoSetFirstAddressAsDefault() throws Exception {
         CustomerAddressServiceImpl service = new CustomerAddressServiceImpl();
@@ -43,6 +44,7 @@ public class CustomerAddressServiceImplTest {
         Assert.assertEquals(Integer.valueOf(1), store.get(0).getIsDefault());
     }
 
+    /**验证RejectCreateWhenAddressCountExceedsLimit，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectCreateWhenAddressCountExceedsLimit() throws Exception {
         CustomerAddressServiceImpl service = new CustomerAddressServiceImpl();
@@ -61,6 +63,7 @@ public class CustomerAddressServiceImplTest {
         }
     }
 
+    /**验证PromoteLatestRemainingAddressAfterDeletingDefault，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldPromoteLatestRemainingAddressAfterDeletingDefault() throws Exception {
         CustomerAddressServiceImpl service = new CustomerAddressServiceImpl();
@@ -78,6 +81,7 @@ public class CustomerAddressServiceImplTest {
         Assert.assertEquals(Integer.valueOf(0), findAddress(store, 2L).getIsDefault());
     }
 
+    /**验证ClearOtherDefaultsWhenSettingDefault，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldClearOtherDefaultsWhenSettingDefault() throws Exception {
         CustomerAddressServiceImpl service = new CustomerAddressServiceImpl();
@@ -93,6 +97,8 @@ public class CustomerAddressServiceImplTest {
         Assert.assertEquals(Integer.valueOf(1), findAddress(store, 2L).getIsDefault());
     }
 
+    /**buildCreateDTO 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@return 处理后的业务结果。*/
     private CustomerAddressCreateDTO buildCreateDTO() {
         CustomerAddressCreateDTO dto = new CustomerAddressCreateDTO();
         dto.setContactName("张三");
@@ -104,6 +110,12 @@ public class CustomerAddressServiceImplTest {
         return dto;
     }
 
+    /**buildAddress 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param id 主键ID。
+@param customerId 客户ID。
+@param isDefault isDefault 字段参数。
+@param updateTime 更新时间参数。
+@return 处理后的业务结果。*/
     private CustomerAddress buildAddress(Long id, Long customerId, Integer isDefault, LocalDateTime updateTime) {
         CustomerAddress address = new CustomerAddress();
         address.setId(id);
@@ -119,6 +131,10 @@ public class CustomerAddressServiceImplTest {
         return address;
     }
 
+    /**findAddress 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param store 业务数据列表，用于批量处理或返回组装。
+@param id 主键ID。
+@return 查询或解析得到的业务对象。*/
     private CustomerAddress findAddress(List<CustomerAddress> store, Long id) {
         for (CustomerAddress item : store) {
             if (id.equals(item.getId())) {
@@ -128,10 +144,19 @@ public class CustomerAddressServiceImplTest {
         return null;
     }
 
+    /**createAddressMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param store 业务数据列表，用于批量处理或返回组装。
+@return 新增或保存后的业务标识或处理结果。*/
     private CustomerAddressMapper createAddressMapperProxy(List<CustomerAddress> store) {
         InvocationHandler handler = new InvocationHandler() {
+            /**nextId 字段，用于当前类内部业务处理。*/
             private long nextId = store.size() + 1L;
 
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectList".equals(method.getName())) {
@@ -203,8 +228,16 @@ public class CustomerAddressServiceImplTest {
         );
     }
 
+    /**createUserServiceProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param customerId 客户ID。
+@return 新增或保存后的业务标识或处理结果。*/
     private ICUserService createUserServiceProxy(Long customerId) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("getCurrentUser".equals(method.getName())) {
@@ -223,12 +256,19 @@ public class CustomerAddressServiceImplTest {
         );
     }
 
+    /**setField 处理逻辑，服务于当前类的业务编排和数据转换。
+@param target target 字段参数。
+@param fieldName 名称文本，用于展示、匹配或保存业务对象名称。
+@param value value 字段参数。*/
     private void setField(Object target, String fieldName, Object value) throws Exception {
         Field field = CustomerAddressServiceImpl.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(target, value);
     }
 
+    /**defaultValue 处理逻辑，服务于当前类的业务编排和数据转换。
+@param returnType returnType 字段参数。
+@return 处理后的业务结果。*/
     private Object defaultValue(Class<?> returnType) {
         if (!returnType.isPrimitive()) {
             return null;

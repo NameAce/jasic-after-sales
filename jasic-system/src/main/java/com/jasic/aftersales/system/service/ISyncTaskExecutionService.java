@@ -3,7 +3,7 @@ package com.jasic.aftersales.system.service;
 /**
  * 同步任务执行 Service
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/12
  */
 public interface ISyncTaskExecutionService {

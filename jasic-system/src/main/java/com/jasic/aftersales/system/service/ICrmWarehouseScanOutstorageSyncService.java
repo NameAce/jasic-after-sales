@@ -14,7 +14,7 @@ import com.jasic.aftersales.system.domain.vo.CrmWarehouseScanOutstorageSyncSumma
  * <p>字段对外仍展示为“最后出库日期”，但为规避重复扫码出库，
  * 同步实现按同条码首次有效扫码时间回写。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/12
  */
 public interface ICrmWarehouseScanOutstorageSyncService {

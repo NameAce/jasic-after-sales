@@ -12,7 +12,7 @@ import java.util.List;
 /**
  * CRM 一级二级关系批量导入参数
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/17
  */
 @ApiModel(description = "CRM 一级二级关系批量导入参数")

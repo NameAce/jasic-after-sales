@@ -23,7 +23,7 @@ import java.util.Objects;
  * 包括客户接收对象、openid 快照和模板变量快照。
  * 外部分发表创建、跳过结果回写和 sender 真实发送由统一链路负责。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 @Component

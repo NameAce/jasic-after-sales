@@ -33,11 +33,12 @@ import java.util.Set;
  * 一是分组保存时缓存必须在事务提交后再刷新，不能把回滚前的数据提前暴露给运行时读取链路；
  * 二是分组保存只能维护本组已有配置项的值，不能借这个批量接口篡改配置定义或跨组修改其它记录。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/21
  */
 public class SysConfigServiceImplTest {
 
+    /**验证RefreshCacheOnlyAfterCommitWhenSavingGroup，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRefreshCacheOnlyAfterCommitWhenSavingGroup() throws Exception {
         SysConfigServiceImpl service = new SysConfigServiceImpl();
@@ -72,6 +73,7 @@ public class SysConfigServiceImplTest {
         }
     }
 
+    /**验证RejectWhenGroupSaveAttemptsToModifyAnotherGroupsRecord，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectWhenGroupSaveAttemptsToModifyAnotherGroupsRecord() throws Exception {
         SysConfigServiceImpl service = new SysConfigServiceImpl();
@@ -96,6 +98,7 @@ public class SysConfigServiceImplTest {
         }
     }
 
+    /**验证RejectWhenGroupSaveAttemptsToChangeConfigKey，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectWhenGroupSaveAttemptsToChangeConfigKey() throws Exception {
         SysConfigServiceImpl service = new SysConfigServiceImpl();
@@ -194,8 +197,11 @@ public class SysConfigServiceImplTest {
      */
     private static final class FakeSysConfigMapper implements InvocationHandler {
 
+        /**storage 字段，用于当前类内部业务处理。*/
         private final Map<Long, SysConfig> storage = new HashMap<>();
 
+        /**createProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@return 新增或保存后的业务标识或处理结果。*/
         private SysConfigMapper createProxy() {
             return (SysConfigMapper) Proxy.newProxyInstance(
                     SysConfigMapper.class.getClassLoader(),
@@ -204,14 +210,24 @@ public class SysConfigServiceImplTest {
             );
         }
 
+        /**put 处理逻辑，服务于当前类的业务编排和数据转换。
+@param config config 字段参数。*/
         private void put(SysConfig config) {
             storage.put(config.getId(), copyConfig(config));
         }
 
+        /**getStored 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param id 主键ID。
+@return 查询或解析得到的业务对象。*/
         private SysConfig getStored(Long id) {
             return storage.get(id);
         }
 
+        /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public Object invoke(Object proxy, Method method, Object[] args) {
             String methodName = method.getName();
@@ -271,23 +287,34 @@ public class SysConfigServiceImplTest {
      */
     private static final class FakeRedisTemplate extends RedisTemplate<String, Object> {
 
+        /**values 字段，用于当前类内部业务处理。*/
         private final Map<String, Object> values = new HashMap<>();
+        /**valueOperations 字段，用于当前类内部业务处理。*/
         private final ValueOperations<String, Object> valueOperations;
 
+        /**构造 FakeRedisTemplate 实例，初始化当前对象在业务流程中需要持有的基础数据。*/
         private FakeRedisTemplate() {
             this.valueOperations = createValueOperationsProxy();
         }
 
+        /**opsForValue 处理逻辑，服务于当前类的业务编排和数据转换。
+@return 处理后的业务结果。*/
         @Override
         public ValueOperations<String, Object> opsForValue() {
             return valueOperations;
         }
 
+        /**hasKey 业务条件，用于决定后续流程是否允许继续执行。
+@param key key 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
         @Override
         public Boolean hasKey(String key) {
             return values.containsKey(key);
         }
 
+        /**keys 处理逻辑，服务于当前类的业务编排和数据转换。
+@param pattern pattern 字段参数。
+@return 查询或组装后的业务数据集合。*/
         @Override
         public Set<String> keys(String pattern) {
             Set<String> matchedKeys = new HashSet<>();
@@ -300,11 +327,17 @@ public class SysConfigServiceImplTest {
             return matchedKeys;
         }
 
+        /**delete 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param key key 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
         @Override
         public Boolean delete(String key) {
             return values.remove(key) != null;
         }
 
+        /**delete 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param keys keys 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public Long delete(Collection<String> keys) {
             long deletedCount = 0L;
@@ -316,18 +349,31 @@ public class SysConfigServiceImplTest {
             return deletedCount;
         }
 
+        /**putConfigValue 处理逻辑，服务于当前类的业务编排和数据转换。
+@param configKey configKey 字段参数。
+@param value value 字段参数。*/
         private void putConfigValue(String configKey, String value) {
             values.put(CacheConstants.CONFIG_KEY + configKey, value);
         }
 
+        /**getConfigValue 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param configKey configKey 字段参数。
+@return 查询或解析得到的业务对象。*/
         private String getConfigValue(String configKey) {
             Object value = values.get(CacheConstants.CONFIG_KEY + configKey);
             return value == null ? null : String.valueOf(value);
         }
 
+        /**createValueOperationsProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@return 新增或保存后的业务标识或处理结果。*/
         @SuppressWarnings("unchecked")
         private ValueOperations<String, Object> createValueOperationsProxy() {
             InvocationHandler handler = new InvocationHandler() {
+                /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
                 @Override
                 public Object invoke(Object proxy, Method method, Object[] args) {
                     String methodName = method.getName();

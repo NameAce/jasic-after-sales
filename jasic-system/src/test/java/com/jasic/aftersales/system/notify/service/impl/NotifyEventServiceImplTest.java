@@ -18,11 +18,12 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * NotifyEventServiceImpl 单测。
- */
+/*** NotifyEventServiceImpl 单测。
+
+@author Zoro*/
 public class NotifyEventServiceImplTest {
 
+    /**验证BuildConsumableQueryWithRetryLimit，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldBuildConsumableQueryWithRetryLimit() throws Exception {
         NotifyEventServiceImpl service = new NotifyEventServiceImpl();
@@ -41,6 +42,7 @@ public class NotifyEventServiceImplTest {
         Assert.assertTrue(sqlSegment.contains("ORDER BY id ASC"));
     }
 
+    /**验证RecoverTimeoutProcessingEventsToFailed，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRecoverTimeoutProcessingEventsToFailed() throws Exception {
         NotifyEventServiceImpl service = new NotifyEventServiceImpl();
@@ -61,6 +63,7 @@ public class NotifyEventServiceImplTest {
         Assert.assertTrue(mapperState.lastUpdateWrapper.getParamNameValuePairs().containsValue("FAILED"));
     }
 
+    /**验证ResetDeadEventForManualRetry，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldResetDeadEventForManualRetry() throws Exception {
         NotifyEventServiceImpl service = new NotifyEventServiceImpl();
@@ -89,6 +92,11 @@ public class NotifyEventServiceImplTest {
     @SuppressWarnings("unchecked")
     private SysNotifyEventMapper createMapperProxy(EventMapperState state) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 String name = method.getName();
@@ -192,10 +200,15 @@ public class NotifyEventServiceImplTest {
      * 事件 Mapper 调用状态。
      */
     private static class EventMapperState {
+        /**selectListResult 字段，用于当前类内部业务处理。*/
         private List<SysNotifyEvent> selectListResult = Collections.emptyList();
+        /**updateResult 字段，用于当前类内部业务处理。*/
         private int updateResult;
+        /**lastSelectWrapper 字段，用于当前类内部业务处理。*/
         private LambdaQueryWrapper<SysNotifyEvent> lastSelectWrapper;
+        /**lastUpdateWrapper 字段，用于当前类内部业务处理。*/
         private LambdaUpdateWrapper<SysNotifyEvent> lastUpdateWrapper;
+        /**lastUpdateEntity 字段，用于当前类内部业务处理。*/
         private SysNotifyEvent lastUpdateEntity;
     }
 }

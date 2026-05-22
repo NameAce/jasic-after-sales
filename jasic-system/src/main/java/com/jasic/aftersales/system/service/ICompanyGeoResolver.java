@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 /**
  * 公司地址解析 Service 接口
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/02
  */
 public interface ICompanyGeoResolver {
@@ -26,20 +26,21 @@ public interface ICompanyGeoResolver {
         /**
      * BigDecimal字段。
      *
-     * @param longitude 参数
-     * @param latitude 参数
-     * @return 处理结果
+     * @param longitude longitude，当前业务处理所需的输入值。
+     * @param latitude latitude，当前业务处理所需的输入值。
+     * @return 业务处理结果
          */
         private final BigDecimal longitude;
 
+        /**latitude 字段，用于当前类内部业务处理。*/
         private final BigDecimal latitude;
 
         /**
      * 构造公司地理实例。
      *
-     * @param longitude 参数
-     * @param latitude 参数
-     * @return 处理结果
+     * @param longitude longitude，当前业务处理所需的输入值。
+     * @param latitude latitude，当前业务处理所需的输入值。
+     * @return 业务处理结果
          */
         public GeoLocation(BigDecimal longitude, BigDecimal latitude) {
             this.longitude = longitude;
@@ -49,7 +50,7 @@ public interface ICompanyGeoResolver {
         /**
      * 获取Longitude。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public BigDecimal getLongitude() {
             return longitude;
@@ -58,7 +59,7 @@ public interface ICompanyGeoResolver {
         /**
      * 获取Latitude。
      *
-     * @return 处理结果
+     * @return 业务处理结果
          */
         public BigDecimal getLatitude() {
             return latitude;

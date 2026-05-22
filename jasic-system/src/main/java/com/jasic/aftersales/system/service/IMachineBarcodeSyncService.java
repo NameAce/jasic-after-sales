@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 /**
  * 条码主数据同步 Service
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/07
  */
 public interface IMachineBarcodeSyncService {

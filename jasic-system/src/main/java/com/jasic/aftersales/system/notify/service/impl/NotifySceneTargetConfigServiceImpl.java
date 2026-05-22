@@ -61,30 +61,44 @@ import java.util.stream.Collectors;
  *
  * <p>该实现不负责事件消费、站内消息落库、分发表创建和真实渠道发送。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 @Service
 public class NotifySceneTargetConfigServiceImpl implements NotifySceneTargetConfigService {
 
+    /**SCENE_CODE_MAX_LENGTH 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final int SCENE_CODE_MAX_LENGTH = 64;
+    /**SCENE_NAME_MAX_LENGTH 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final int SCENE_NAME_MAX_LENGTH = 128;
+    /**BIZ_TYPE_MAX_LENGTH 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final int BIZ_TYPE_MAX_LENGTH = 64;
+    /**EVENT_CODE_MAX_LENGTH 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final int EVENT_CODE_MAX_LENGTH = 64;
+    /**TITLE_MAX_LENGTH 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final int TITLE_MAX_LENGTH = 128;
+    /**CONTENT_MAX_LENGTH 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final int CONTENT_MAX_LENGTH = 512;
+    /**ROUTE_TYPE_MAX_LENGTH 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final int ROUTE_TYPE_MAX_LENGTH = 64;
+    /**ROUTE_VALUE_MAX_LENGTH 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final int ROUTE_VALUE_MAX_LENGTH = 256;
+    /**CHANNEL_SCENE_MAX_LENGTH 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final int CHANNEL_SCENE_MAX_LENGTH = 16;
+    /**REMARK_MAX_LENGTH 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final int REMARK_MAX_LENGTH = 255;
+    /**PLACEHOLDER_PATTERN 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\$\\{([A-Za-z0-9_]+)}");
 
+    /**notifySceneRegistry 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifySceneRegistry notifySceneRegistry;
 
+    /**notifySceneMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifySceneMapper notifySceneMapper;
 
+    /**notifySceneTargetMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifySceneTargetMapper notifySceneTargetMapper;
 

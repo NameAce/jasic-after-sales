@@ -13,7 +13,7 @@ import java.io.Serializable;
  * 让排障页可以明确看到“失败几条、跳过几条、死信几条”，
  * 而不是只能看到一条最新记录。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 @ApiModel(description = "通知排障状态计数视图")

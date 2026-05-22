@@ -9,7 +9,7 @@ import io.swagger.annotations.ApiModelProperty;
 /**
  * 当前用户权限项VO
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/08
  */
 @ApiModel(description = "当前用户权限项VO")

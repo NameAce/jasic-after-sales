@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
  *
  * <p>该表仅沉淀来源关系事实，预览导入时再结合 CRM 公司快照和本地公司表动态计算匹配结果。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/17
  */
 @Data

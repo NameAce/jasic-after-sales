@@ -11,18 +11,19 @@ import java.util.function.Supplier;
  *
  * <p>该上下文只用于数据隔离，不改变登录态和审计身份。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/05
  */
 @Component
 public class CompanyDataAccessContext {
 
+    /**TARGET_COMPANY_ID 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final ThreadLocal<Long> TARGET_COMPANY_ID = new ThreadLocal<>();
 
     /**
      * 获取Target公司ID。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     public Long getTargetCompanyId() {
         return TARGET_COMPANY_ID.get();
@@ -31,15 +32,13 @@ public class CompanyDataAccessContext {
     /**
      * 解析公司ID。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     public Long resolveCompanyId() {
-        // 调用getTargetCompanyId方法，复用统一能力并保证业务规则一致。
         Long targetCompanyId = getTargetCompanyId();
         if (targetCompanyId != null) {
             return targetCompanyId;
         }
-        // 调用getCurrentCompanyId方法，复用统一能力并保证业务规则一致。
         Long currentCompanyId = SecurityContext.getCurrentCompanyId();
         if (currentCompanyId == null) {
             throw new ServiceException("缺少公司数据访问上下文");
@@ -50,21 +49,18 @@ public class CompanyDataAccessContext {
     /**
      * runWithTarget公司。
      *
-     * @param supplier 参数
-     * @return 处理结果
+     * @param supplier supplier，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     public <T> T runWithTargetCompany(Long targetCompanyId, Supplier<T> supplier) {
         if (targetCompanyId == null) {
             throw new ServiceException("缺少目标公司上下文");
         }
-        // 调用get方法，复用统一能力并保证业务规则一致。
         Long previous = TARGET_COMPANY_ID.get();
-        // 调用set方法，复用统一能力并保证业务规则一致。
         TARGET_COMPANY_ID.set(targetCompanyId);
         try {
             return supplier.get();
         } finally {
-            // 调用restore方法，复用统一能力并保证业务规则一致。
             restore(previous);
         }
     }
@@ -72,11 +68,10 @@ public class CompanyDataAccessContext {
     /**
      * runWithTarget公司。
      *
-     * @param runnable 参数
+     * @param runnable runnable，当前业务处理所需的输入值。
      */
     public void runWithTargetCompany(Long targetCompanyId, Runnable runnable) {
         runWithTargetCompany(targetCompanyId, () -> {
-            // 调用run方法，复用统一能力并保证业务规则一致。
             runnable.run();
             return null;
         });
@@ -86,21 +81,18 @@ public class CompanyDataAccessContext {
      * clear。
      */
     public void clear() {
-        // 调用remove方法，复用统一能力并保证业务规则一致。
         TARGET_COMPANY_ID.remove();
     }
 
     /**
      * restore。
      *
-     * @param previous 参数
+     * @param previous previous，当前业务处理所需的输入值。
      */
     private void restore(Long previous) {
         if (previous == null) {
-            // 调用remove方法，复用统一能力并保证业务规则一致。
             TARGET_COMPANY_ID.remove();
         } else {
-            // 调用set方法，复用统一能力并保证业务规则一致。
             TARGET_COMPANY_ID.set(previous);
         }
     }

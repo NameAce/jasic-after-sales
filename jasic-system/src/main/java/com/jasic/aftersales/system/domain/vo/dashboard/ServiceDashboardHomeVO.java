@@ -12,7 +12,7 @@ import java.io.Serializable;
  * <p>该对象是 `/dashboard/service/home` 的唯一返回契约。本轮服务网点首页命名为“服务工作台”，
  * 一级网点和二级网点统一使用同一结构，只返回当前服务公司承接工单、已转出、历史参与入口和近七天事件趋势。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/21
  */
 @ApiModel(description = "服务网点主体首页返回结构")

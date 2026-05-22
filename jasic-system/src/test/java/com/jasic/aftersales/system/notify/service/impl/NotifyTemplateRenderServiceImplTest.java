@@ -30,11 +30,12 @@ import java.util.Map;
  * <p>阶段一后运行时渲染已经切换为从 `notify_scene_target` 读取默认目标配置，
  * 本测试重点验证旧的“只传 sceneCode”调用方式仍然可用。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 public class NotifyTemplateRenderServiceImplTest {
 
+    /**验证RenderConfiguredTargetBySceneCodeAndTargetType，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRenderConfiguredTargetBySceneCodeAndTargetType() throws Exception {
         NotifyTemplateRenderServiceImpl service = buildService();
@@ -62,6 +63,7 @@ public class NotifyTemplateRenderServiceImplTest {
         Assert.assertEquals("88", renderResult.getRouteValue());
     }
 
+    /**验证ReturnDisabledResultWhenTargetConfigIsNotEnabled，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldReturnDisabledResultWhenTargetConfigIsNotEnabled() throws Exception {
         NotifyTemplateRenderServiceImpl service = buildService();
@@ -85,6 +87,8 @@ public class NotifyTemplateRenderServiceImplTest {
         Assert.assertFalse(renderResult.getErrors().isEmpty());
     }
 
+    /**buildService 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@return 处理后的业务结果。*/
     private NotifyTemplateRenderServiceImpl buildService() throws Exception {
         NotifyTemplateRenderServiceImpl service = new NotifyTemplateRenderServiceImpl();
         setField(service, "notifySceneRegistry", new NotifySceneRegistry());
@@ -92,6 +96,7 @@ public class NotifyTemplateRenderServiceImplTest {
         return service;
     }
 
+    /**initTableInfo 处理逻辑，服务于当前类的业务编排和数据转换。*/
     private void initTableInfo() {
         if (TableInfoHelper.getTableInfo(NotifySceneTarget.class) == null) {
             Configuration configuration = new Configuration();
@@ -102,6 +107,9 @@ public class NotifyTemplateRenderServiceImplTest {
         }
     }
 
+    /**injectMapper 处理逻辑，服务于当前类的业务编排和数据转换。
+@param service service 字段参数。
+@param state state 字段参数。*/
     private void injectMapper(NotifyTemplateRenderServiceImpl service, RenderMapperState state) throws Exception {
         setField(service, "notifySceneTargetMapper", createTargetMapperProxy(state));
         setField(service, "notifySceneMapper", createSceneMapperProxy());
@@ -130,6 +138,12 @@ public class NotifyTemplateRenderServiceImplTest {
         );
     }
 
+    /**buildTarget 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param id 主键ID。
+@param sceneCode 业务编码，用于匹配枚举、配置或外部系统数据。
+@param targetType targetType 字段参数。
+@param enabled enabled 字段参数。
+@return 处理后的业务结果。*/
     private NotifySceneTarget buildTarget(Long id, String sceneCode, String targetType, Integer enabled) {
         NotifySceneTarget target = new NotifySceneTarget();
         target.setId(id);
@@ -145,6 +159,9 @@ public class NotifyTemplateRenderServiceImplTest {
         return target;
     }
 
+    /**createTargetMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param state state 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     @SuppressWarnings("unchecked")
     private NotifySceneTargetMapper createTargetMapperProxy(RenderMapperState state) {
         return (NotifySceneTargetMapper) Proxy.newProxyInstance(
@@ -159,6 +176,10 @@ public class NotifyTemplateRenderServiceImplTest {
         );
     }
 
+    /**selectTargets 业务数据，按查询条件和数据权限返回可见范围内的结果。
+@param targets 业务数据列表，用于批量处理或返回组装。
+@param wrapper wrapper 字段参数。
+@return 查询或组装后的业务数据集合。*/
     @SuppressWarnings("unchecked")
     private List<NotifySceneTarget> selectTargets(List<NotifySceneTarget> targets, Object wrapper) throws Exception {
         String sqlSegment = String.valueOf(invokeWrapperMethod(wrapper, "getSqlSegment"));
@@ -180,22 +201,36 @@ public class NotifyTemplateRenderServiceImplTest {
         return matched;
     }
 
+    /**invokeWrapperMethod 处理逻辑，服务于当前类的业务编排和数据转换。
+@param wrapper wrapper 字段参数。
+@param methodName 名称文本，用于展示、匹配或保存业务对象名称。
+@return 处理后的业务结果。*/
     private Object invokeWrapperMethod(Object wrapper, String methodName) throws Exception {
         Method method = wrapper.getClass().getMethod(methodName);
         method.setAccessible(true);
         return method.invoke(wrapper);
     }
 
+    /**copyTarget 处理逻辑，服务于当前类的业务编排和数据转换。
+@param target target 字段参数。
+@return 处理后的业务结果。*/
     private NotifySceneTarget copyTarget(NotifySceneTarget target) {
         return BeanUtil.copyProperties(target, NotifySceneTarget.class);
     }
 
+    /**setField 处理逻辑，服务于当前类的业务编排和数据转换。
+@param target target 字段参数。
+@param fieldName 名称文本，用于展示、匹配或保存业务对象名称。
+@param value value 字段参数。*/
     private void setField(Object target, String fieldName, Object value) throws Exception {
         Field field = target.getClass().getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(target, value);
     }
 
+    /**defaultValue 处理逻辑，服务于当前类的业务编排和数据转换。
+@param returnType returnType 字段参数。
+@return 处理后的业务结果。*/
     private Object defaultValue(Class<?> returnType) {
         if (returnType == boolean.class) {
             return false;
@@ -209,7 +244,11 @@ public class NotifyTemplateRenderServiceImplTest {
         return null;
     }
 
+    /**RenderMapperState 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class RenderMapperState {
+        /**targets 字段，用于当前类内部业务处理。*/
         private final List<NotifySceneTarget> targets = new ArrayList<>();
     }
 }

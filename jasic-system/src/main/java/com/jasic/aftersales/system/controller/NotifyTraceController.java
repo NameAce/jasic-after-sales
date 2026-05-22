@@ -26,7 +26,7 @@ import javax.annotation.Resource;
 /**
  * 通知记录排障控制器。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/14
  */
 @Api(tags = "通知记录排障")
@@ -34,6 +34,7 @@ import javax.annotation.Resource;
 @RequestMapping("/system/notify/trace")
 public class NotifyTraceController {
 
+    /**notifyTraceService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifyTraceService notifyTraceService;
 

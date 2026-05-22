@@ -12,7 +12,7 @@ import java.util.List;
 /**
  * CRM 签约批量导入参数。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/12
  */
 @ApiModel(description = "CRM 签约批量导入参数")

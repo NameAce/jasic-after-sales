@@ -27,21 +27,25 @@ import java.util.regex.Pattern;
  *
  * <p>当前运行时统一从 `notify_scene_target` 读取目标级模板配置，不再保留旧的单场景渲染入口。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 @Slf4j
 @Service
 public class NotifyTemplateRenderServiceImpl implements NotifyTemplateRenderService {
 
+    /**PLACEHOLDER_PATTERN 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\$\\{([A-Za-z0-9_]+)}");
 
+    /**notifySceneTargetMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifySceneTargetMapper notifySceneTargetMapper;
 
+    /**notifySceneMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifySceneMapper notifySceneMapper;
 
+    /**notifySceneRegistry 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifySceneRegistry notifySceneRegistry;
 

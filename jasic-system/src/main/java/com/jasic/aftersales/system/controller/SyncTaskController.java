@@ -32,7 +32,7 @@ import java.util.List;
  *
  * <p>负责暴露同步任务配置、执行和日志查询相关接口，便于统一管理外部系统数据同步。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/12
  */
 @Api(tags = "同步任务管理")
@@ -40,14 +40,15 @@ import java.util.List;
 @RequestMapping("/system/sync-task")
 public class SyncTaskController extends BaseController {
 
+    /**syncTaskService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private ISyncTaskService syncTaskService;
 
     /**
      * 分页查询同步任务列表。
      *
-     * @param query 参数
-     * @return 处理结果
+     * @param query 查询条件，包含分页、筛选和权限收口所需字段。
+     * @return 业务处理结果
      */
     @ApiOperation(value = "分页查询同步任务")
     @SaCheckPermission("system:syncTask:list")
@@ -59,7 +60,7 @@ public class SyncTaskController extends BaseController {
     /**
      * 根据ID查询同步任务详情。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @ApiOperation(value = "查询同步任务详情")
     @SaCheckPermission("system:syncTask:list")
@@ -71,7 +72,7 @@ public class SyncTaskController extends BaseController {
     /**
      * 分页查询处理Options列表。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @ApiOperation(value = "查询同步任务处理器选项")
     @SaCheckPermission("system:syncTask:list")
@@ -83,8 +84,8 @@ public class SyncTaskController extends BaseController {
     /**
      * 分页查询Logs列表。
      *
-     * @param query 参数
-     * @return 处理结果
+     * @param query 查询条件，包含分页、筛选和权限收口所需字段。
+     * @return 业务处理结果
      */
     @ApiOperation(value = "分页查询同步任务执行日志")
     @SaCheckPermission("system:syncTask:log")
@@ -96,8 +97,8 @@ public class SyncTaskController extends BaseController {
     /**
      * 新增同步任务。
      *
-     * @param dto 参数
-     * @return 处理结果
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
+     * @return 业务处理结果
      */
     @ApiOperation(value = "新增同步任务")
     @SaCheckPermission("system:syncTask:add")
@@ -110,15 +111,14 @@ public class SyncTaskController extends BaseController {
     /**
      * 更新同步任务。
      *
-     * @param dto 参数
-     * @return 处理结果
+     * @param dto 接口请求参数，承载本次业务操作需要的字段。
+     * @return 业务处理结果
      */
     @ApiOperation(value = "修改同步任务")
     @SaCheckPermission("system:syncTask:update")
     @OperLog(title = "同步任务管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
     public Result<Void> update(@Validated @RequestBody SyncTaskDTO dto) {
-        // 调用update方法，复用统一能力并保证业务规则一致。
         syncTaskService.update(dto);
         return Result.ok();
     }
@@ -126,7 +126,7 @@ public class SyncTaskController extends BaseController {
     /**
      * execute。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @ApiOperation(value = "立即执行同步任务")
     @SaCheckPermission("system:syncTask:execute")

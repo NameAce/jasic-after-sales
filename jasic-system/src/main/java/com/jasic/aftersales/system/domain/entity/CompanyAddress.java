@@ -10,7 +10,7 @@ import lombok.EqualsAndHashCode;
 /**
  * 公司地址簿实体。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/11
  */
 @Data

@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 /**
  * 工单访问上下文解析器。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/05
  */
 @Service
@@ -32,11 +32,12 @@ public class WorkOrderAccessContextResolver {
     /**
      * 总部一级合同Mapper数据访问接口。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @Resource
     private HqFirstContractMapper hqFirstContractMapper;
 
+    /**firstSecondRelationMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private FirstSecondRelationMapper firstSecondRelationMapper;
 
@@ -44,38 +45,26 @@ public class WorkOrderAccessContextResolver {
      * 处理resolve业务逻辑。
      *
      * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
-     * @return 处理结果
+     * @return 业务处理结果
      */
     public WorkOrderAccessContext resolve() {
-        // 调用WorkOrderAccessContext方法，复用统一能力并保证业务规则一致。
         WorkOrderAccessContext context = new WorkOrderAccessContext();
-        // 调用getCurrentUserId方法，复用统一能力并保证业务规则一致。
         context.setCurrentUserId(SecurityContext.getCurrentUserId());
-        // 调用getCurrentSubjectType方法，复用统一能力并保证业务规则一致。
         context.setSubjectType(SecurityContext.getCurrentSubjectType());
-        // 调用getCurrentTypeCode方法，复用统一能力并保证业务规则一致。
         context.setTypeCode(SecurityContext.getCurrentTypeCode());
-        // 调用isPlatformUser方法，复用统一能力并保证业务规则一致。
         context.setPlatformUser(SecurityContext.isPlatformUser());
         if (context.isPlatformUser()) {
             throw new ServiceException("平台账号不参与工单业务");
         }
-        // 调用getCurrentCompanyId方法，复用统一能力并保证业务规则一致。
         Long currentCompanyId = SecurityContext.getCurrentCompanyId();
         if (currentCompanyId == null) {
             throw new ServiceException("缺少公司数据访问上下文");
         }
-        // 调用setCurrentCompanyId方法，复用统一能力并保证业务规则一致。
         context.setCurrentCompanyId(currentCompanyId);
-        // 调用getSubjectType方法，复用统一能力并保证业务规则一致。
         DataScopeEnum dataScope = DataScopeEnum.normalize(SecurityContext.getEffectiveDataScope(), context.getSubjectType());
-        // 调用setDataScopeEnum方法，复用统一能力并保证业务规则一致。
         context.setDataScopeEnum(dataScope);
-        // 调用getCode方法，复用统一能力并保证业务规则一致。
         context.setDataScope(dataScope.getCode());
-        // 调用getCurrentRegionIds方法，复用统一能力并保证业务规则一致。
         context.setCurrentRegionIds(SecurityContext.getCurrentRegionIds());
-        // 调用resolveRelatedCompanyIds方法，复用统一能力并保证业务规则一致。
         context.setRelatedCompanyIds(resolveRelatedCompanyIds(context));
         return context;
     }
@@ -83,8 +72,8 @@ public class WorkOrderAccessContextResolver {
     /**
      * 解析Related公司Ids。
      *
-     * @param context 参数
-     * @return 处理结果
+     * @param context 上下文对象，承载当前操作人、公司和数据范围。
+     * @return 业务处理结果
      */
     private List<Long> resolveRelatedCompanyIds(WorkOrderAccessContext context) {
         if (context == null || context.getCurrentCompanyId() == null) {
@@ -104,18 +93,17 @@ public class WorkOrderAccessContextResolver {
     /**
      * requiresRelated公司Limit。
      *
-     * @param context 参数
+     * @param context 上下文对象，承载当前操作人、公司和数据范围。
      */
     private boolean requiresRelatedCompanyLimit(WorkOrderAccessContext context) {
         return SubjectTypeEnum.HQ.getCode().equals(context.getSubjectType())
-                // 调用getDataScopeEnum方法，复用统一能力并保证业务规则一致。
                 && DataScopeEnum.REGION == context.getDataScopeEnum();
     }
 
     /**
      * 解析地区公司Ids。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     private List<Long> resolveRegionCompanyIds(Long currentCompanyId, List<Long> currentRegionIds) {
         if (currentRegionIds == null || currentRegionIds.isEmpty()) {
@@ -124,9 +112,7 @@ public class WorkOrderAccessContextResolver {
         LambdaQueryWrapper<HqFirstContract> contractWrapper = new LambdaQueryWrapper<>();
         contractWrapper.eq(HqFirstContract::getHqCompanyId, currentCompanyId)
                 .eq(HqFirstContract::getStatus, 1)
-                // 调用in方法，复用统一能力并保证业务规则一致。
                 .in(HqFirstContract::getRegionId, currentRegionIds);
-        // 说明：执行该步骤以保证业务流程正确。
         List<HqFirstContract> contracts = hqFirstContractMapper.selectList(contractWrapper);
         if (contracts == null || contracts.isEmpty()) {
             return Collections.emptyList();
@@ -134,7 +120,6 @@ public class WorkOrderAccessContextResolver {
         Set<Long> relatedCompanyIds = contracts.stream()
                 .map(HqFirstContract::getFirstCompanyId)
                 .filter(id -> id != null)
-                // 调用toCollection方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         return appendSecondLevelCompanies(relatedCompanyIds);
     }
@@ -142,11 +127,10 @@ public class WorkOrderAccessContextResolver {
     /**
      * 解析一级Level公司范围。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     private List<Long> resolveFirstLevelCompanyScope(Long currentCompanyId) {
         Set<Long> relatedCompanyIds = new LinkedHashSet<>();
-        // 调用add方法，复用统一能力并保证业务规则一致。
         relatedCompanyIds.add(currentCompanyId);
         return appendSecondLevelCompanies(relatedCompanyIds);
     }
@@ -154,7 +138,7 @@ public class WorkOrderAccessContextResolver {
     /**
      * append二级LevelCompanies。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     private List<Long> appendSecondLevelCompanies(Set<Long> relatedCompanyIds) {
         if (relatedCompanyIds == null || relatedCompanyIds.isEmpty()) {
@@ -162,16 +146,13 @@ public class WorkOrderAccessContextResolver {
         }
         LambdaQueryWrapper<FirstSecondRelation> relationWrapper = new LambdaQueryWrapper<>();
         relationWrapper.eq(FirstSecondRelation::getStatus, 1)
-                // 调用in方法，复用统一能力并保证业务规则一致。
                 .in(FirstSecondRelation::getFirstCompanyId, relatedCompanyIds);
-        // 说明：执行该步骤以保证业务流程正确。
         List<FirstSecondRelation> relations = firstSecondRelationMapper.selectList(relationWrapper);
         if (relations == null || relations.isEmpty()) {
             return new ArrayList<>(relatedCompanyIds);
         }
         for (FirstSecondRelation relation : relations) {
             if (relation.getSecondCompanyId() != null) {
-                // 调用getSecondCompanyId方法，复用统一能力并保证业务规则一致。
                 relatedCompanyIds.add(relation.getSecondCompanyId());
             }
         }

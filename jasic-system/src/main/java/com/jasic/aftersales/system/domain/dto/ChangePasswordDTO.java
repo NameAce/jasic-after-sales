@@ -10,7 +10,7 @@ import io.swagger.annotations.ApiModelProperty;
 /**
  * 账号中心修改密码参数
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/02
  */
 @ApiModel(description = "账号中心修改密码参数")

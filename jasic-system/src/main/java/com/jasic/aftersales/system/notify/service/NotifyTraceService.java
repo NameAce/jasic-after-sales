@@ -9,7 +9,7 @@ import com.jasic.aftersales.system.notify.domain.vo.NotifyTracePageVO;
 /**
  * 通知记录排障服务。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/14
  */
 public interface NotifyTraceService {

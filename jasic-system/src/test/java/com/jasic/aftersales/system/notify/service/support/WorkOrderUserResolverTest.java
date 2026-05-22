@@ -26,11 +26,12 @@ import java.util.Set;
  * <p>这里重点验证解析器在异步通知链路下会显式压入目标公司上下文，
  * 避免权限查询回退依赖当前 Web 登录态，导致 Quartz/异步线程抛出非 Web 上下文异常。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/18
  */
 public class WorkOrderUserResolverTest {
 
+    /**TARGET_COMPANY_ID 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final Long TARGET_COMPANY_ID = 2002L;
 
     /**

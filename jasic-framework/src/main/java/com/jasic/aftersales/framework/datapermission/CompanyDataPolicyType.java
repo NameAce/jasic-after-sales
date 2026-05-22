@@ -3,7 +3,7 @@ package com.jasic.aftersales.framework.datapermission;
 /**
  * 公司数据权限表策略类型。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/05
  */
 public enum CompanyDataPolicyType {

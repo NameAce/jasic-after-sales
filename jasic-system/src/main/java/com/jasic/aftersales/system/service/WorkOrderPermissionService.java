@@ -28,7 +28,7 @@ import java.util.List;
 /**
  * 工单权限判断服务。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/03/26
  */
 @Service
@@ -51,6 +51,7 @@ public class WorkOrderPermissionService {
             WorkOrderActionEnum.CLOSE
     ));
 
+    /**workOrderParticipantMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private WorkOrderParticipantMapper workOrderParticipantMapper;
 
@@ -70,6 +71,7 @@ public class WorkOrderPermissionService {
     @Resource
     private WorkOrderAccessContextResolver accessContextResolver;
 
+    /**workOrderUserParticipantService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private WorkOrderUserParticipantService workOrderUserParticipantService;
 
@@ -86,14 +88,13 @@ public class WorkOrderPermissionService {
     /**
      * canView。
      *
-     * @param workOrder 参数
-     * @param context 参数
+     * @param workOrder 工单业务对象，用于判断状态、权限或组装返回数据。
+     * @param context 上下文对象，承载当前操作人、公司和数据范围。
      */
     public boolean canView(WorkOrder workOrder, WorkOrderAccessContext context) {
         if (workOrder == null) {
             return false;
         }
-        // 调用getCurrentCompanyId方法，复用统一能力并保证业务规则一致。
         Long currentCompanyId = context.getCurrentCompanyId();
         if (currentCompanyId == null) {
             return false;
@@ -102,15 +103,11 @@ public class WorkOrderPermissionService {
                 && !currentCompanyId.equals(workOrder.getHqCompanyId())) {
             return false;
         }
-        // 调用getRelatedCompanyIds方法，复用统一能力并保证业务规则一致。
         List<Long> relatedCompanyIds = context.getRelatedCompanyIds();
-        // 调用matchRelatedCompanyScope方法，复用统一能力并保证业务规则一致。
         boolean matchRelatedCompanyScope = !relatedCompanyIds.isEmpty() && matchRelatedCompanyScope(workOrder, relatedCompanyIds);
-        // 调用requiresRelatedCompanyLimit方法，复用统一能力并保证业务规则一致。
         boolean requiresRelatedCompanyLimit = requiresRelatedCompanyLimit(context);
         if (currentCompanyId.equals(workOrder.getCurrentAcceptCompanyId())) {
             if (DataScopeEnum.SELF == context.getDataScopeEnum()) {
-                // 调用getCurrentUserId方法，复用统一能力并保证业务规则一致。
                 Long currentUserId = context.getCurrentUserId();
                 if (currentUserId == null || !currentUserId.equals(workOrder.getAssignedUserId())) {
                     return false;
@@ -118,7 +115,6 @@ public class WorkOrderPermissionService {
             }
             return !requiresRelatedCompanyLimit || matchRelatedCompanyScope;
         }
-        // 说明：执行该步骤以保证业务流程正确。
         WorkOrderParticipant participant = getParticipant(workOrder.getId(), currentCompanyId);
         if (participant == null || Integer.valueOf(1).equals(participant.getIsCurrentHandler())) {
             return false;
@@ -139,33 +135,21 @@ public class WorkOrderPermissionService {
      * @return 内部查询对象
      */
     public WorkOrderScopedQuery buildScopedQuery(WorkOrderQuery query) {
-        // 调用WorkOrderScopedQuery方法，复用统一能力并保证业务规则一致。
         WorkOrderScopedQuery scopedQuery = new WorkOrderScopedQuery();
         if (query != null) {
-            // 调用getViewScope方法，复用统一能力并保证业务规则一致。
             scopedQuery.setViewScope(query.getViewScope());
-            // 调用getOrderNo方法，复用统一能力并保证业务规则一致。
             scopedQuery.setOrderNo(query.getOrderNo());
-            // 调用getCustomerName方法，复用统一能力并保证业务规则一致。
             scopedQuery.setCustomerName(query.getCustomerName());
-            // 调用getCustomerMobile方法，复用统一能力并保证业务规则一致。
             scopedQuery.setCustomerMobile(query.getCustomerMobile());
-            // 调用getBarcode方法，复用统一能力并保证业务规则一致。
             scopedQuery.setBarcode(query.getBarcode());
-            // 调用getMainStatus方法，复用统一能力并保证业务规则一致。
             scopedQuery.setMainStatus(query.getMainStatus());
-            // 调用getDisplayStatus方法，复用统一能力并保证业务规则一致。
             scopedQuery.setDisplayStatus(query.getDisplayStatus());
-            // 调用getHasTransfer方法，复用统一能力并保证业务规则一致。
             scopedQuery.setHasTransfer(query.getHasTransfer());
             // 转出方向筛选只表达“当前登录公司作为转出方”，实际公司边界由 Mapper 使用服务端上下文注入。
             scopedQuery.setTransferDirection(query.getTransferDirection());
-            // 调用getPageNum方法，复用统一能力并保证业务规则一致。
             scopedQuery.setPageNum(query.getPageNum());
-            // 调用getPageSize方法，复用统一能力并保证业务规则一致。
             scopedQuery.setPageSize(query.getPageSize());
         }
-        // 调用resolveAccessContext方法，复用统一能力并保证业务规则一致。
         scopedQuery.setAccessContext(resolveAccessContext());
         return scopedQuery;
     }
@@ -173,7 +157,7 @@ public class WorkOrderPermissionService {
     /**
      * 解析Access上下文。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     public WorkOrderAccessContext resolveAccessContext() {
         return accessContextResolver.resolve();
@@ -201,50 +185,42 @@ public class WorkOrderPermissionService {
     /**
      * 解析关系Tags。
      *
-     * @param workOrder 参数
-     * @param context 参数
-     * @return 处理结果
+     * @param workOrder 工单业务对象，用于判断状态、权限或组装返回数据。
+     * @param context 上下文对象，承载当前操作人、公司和数据范围。
+     * @return 业务处理结果
      */
     public EnumSet<WorkOrderRelationTagEnum> resolveRelationTags(WorkOrder workOrder, WorkOrderAccessContext context) {
-        // 调用noneOf方法，复用统一能力并保证业务规则一致。
         EnumSet<WorkOrderRelationTagEnum> relationTags = EnumSet.noneOf(WorkOrderRelationTagEnum.class);
         if (workOrder == null) {
             return relationTags;
         }
-        // 调用getCurrentCompanyId方法，复用统一能力并保证业务规则一致。
         Long currentCompanyId = context.getCurrentCompanyId();
-        // 调用getCurrentUserId方法，复用统一能力并保证业务规则一致。
         Long currentUserId = context.getCurrentUserId();
         if (currentCompanyId == null) {
             return relationTags;
         }
         // 当前登录公司就是当前受理公司，是大多数管理动作成立的必要前提。
         if (currentCompanyId.equals(workOrder.getCurrentAcceptCompanyId())) {
-            // 调用add方法，复用统一能力并保证业务规则一致。
             relationTags.add(WorkOrderRelationTagEnum.CURRENT_ACCEPT_COMPANY);
         }
         // 建单方标签当前主要用于补齐事实关系，为后续扩展建单方能力预留挂点。
         if (currentCompanyId.equals(workOrder.getCreateCompanyId())) {
-            // 调用add方法，复用统一能力并保证业务规则一致。
             relationTags.add(WorkOrderRelationTagEnum.CREATOR_COMPANY);
         }
         // 被明确派到这张单上的维修员单独打标，供接单/报价/维修动作复用。
         if (workOrder.getAssignedUserId() != null && workOrder.getAssignedUserId().equals(currentUserId)) {
-            // 调用add方法，复用统一能力并保证业务规则一致。
             relationTags.add(WorkOrderRelationTagEnum.ASSIGNEE);
         }
         // 当前受理公司下的标签已经足够判定当前处理方关系，无需再查参与表补历史标签。
         if (relationTags.contains(WorkOrderRelationTagEnum.CURRENT_ACCEPT_COMPANY)) {
             return relationTags;
         }
-        // 说明：执行该步骤以保证业务流程正确。
         WorkOrderParticipant participant = getParticipant(workOrder.getId(), currentCompanyId);
         if (participant == null) {
             return relationTags;
         }
         // 总部参与关系保留独立标签，方便前端或后端单独识别总部只读视角。
         if (WorkOrderRelationTypeEnum.HQ_OBSERVER.getCode().equals(participant.getParticipateType())) {
-            // 调用add方法，复用统一能力并保证业务规则一致。
             relationTags.add(WorkOrderRelationTagEnum.HQ_OBSERVER);
             return relationTags;
         }
@@ -274,9 +250,9 @@ public class WorkOrderPermissionService {
     /**
      * 分页查询Available动作s列表。
      *
-     * @param workOrder 参数
-     * @param context 参数
-     * @return 处理结果
+     * @param workOrder 工单业务对象，用于判断状态、权限或组装返回数据。
+     * @param context 上下文对象，承载当前操作人、公司和数据范围。
+     * @return 业务处理结果
      */
     public List<String> listAvailableActions(WorkOrder workOrder, WorkOrderAccessContext context) {
         if (workOrder == null) {
@@ -285,7 +261,6 @@ public class WorkOrderPermissionService {
         List<String> actions = new ArrayList<>();
         for (WorkOrderActionEnum action : ACTION_ORDER) {
             if (canExecute(workOrder, action, context)) {
-                // 调用addAction方法，复用统一能力并保证业务规则一致。
                 addAction(actions, action);
             }
         }
@@ -299,7 +274,6 @@ public class WorkOrderPermissionService {
      * @return 只读原因；存在可执行动作时返回 null
      */
     public String getReadonlyReason(WorkOrder workOrder) {
-        // 调用resolveAccessContext方法，复用统一能力并保证业务规则一致。
         WorkOrderAccessContext context = resolveAccessContext();
         return getReadonlyReason(workOrder, listAvailableActions(workOrder, context), context);
     }
@@ -318,10 +292,10 @@ public class WorkOrderPermissionService {
     /**
      * 获取只读原因。
      *
-     * @param workOrder 参数
-     * @param availableActions 参数
-     * @param context 参数
-     * @return 处理结果
+     * @param workOrder 工单业务对象，用于判断状态、权限或组装返回数据。
+     * @param availableActions availableActions，当前业务处理所需的输入值。
+     * @param context 上下文对象，承载当前操作人、公司和数据范围。
+     * @return 业务处理结果
      */
     public String getReadonlyReason(WorkOrder workOrder, List<String> availableActions, WorkOrderAccessContext context) {
         if (workOrder == null) {
@@ -330,7 +304,6 @@ public class WorkOrderPermissionService {
         if (availableActions != null && !availableActions.isEmpty()) {
             return null;
         }
-        // 调用resolveRelationTags方法，复用统一能力并保证业务规则一致。
         EnumSet<WorkOrderRelationTagEnum> relationTags = resolveRelationTags(workOrder, context);
         if (relationTags.contains(WorkOrderRelationTagEnum.HISTORY_PARTICIPANT)) {
             // 历史参与既包括真实转单后的转出方，也包括报修上级/总部后的发起方；
@@ -340,16 +313,13 @@ public class WorkOrderPermissionService {
         if (relationTags.contains(WorkOrderRelationTagEnum.HQ_OBSERVER)) {
             return "当前由网点处理，仅可查看";
         }
-        // 调用getMainStatus方法，复用统一能力并保证业务规则一致。
         String mainStatus = workOrder.getMainStatus();
         if (WorkOrderStatusConstants.MainStatus.CLOSED.equals(mainStatus)) {
             return "当前工单已关闭，仅可查看";
         }
         if (relationTags.contains(WorkOrderRelationTagEnum.CURRENT_ACCEPT_COMPANY)) {
-            // 调用getCurrentUserId方法，复用统一能力并保证业务规则一致。
             Long currentUserId = context.getCurrentUserId();
             boolean assignedToOther = workOrder.getAssignedUserId() != null
-                    // 调用equals方法，复用统一能力并保证业务规则一致。
                     && (currentUserId == null || !workOrder.getAssignedUserId().equals(currentUserId));
             if (assignedToOther
                     && (WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT.equals(mainStatus)
@@ -396,9 +366,9 @@ public class WorkOrderPermissionService {
     /**
      * canExecute。
      *
-     * @param workOrder 参数
-     * @param action 参数
-     * @param context 参数
+     * @param workOrder 工单业务对象，用于判断状态、权限或组装返回数据。
+     * @param action action，当前业务处理所需的输入值。
+     * @param context 上下文对象，承载当前操作人、公司和数据范围。
      */
     public boolean canExecute(WorkOrder workOrder, WorkOrderActionEnum action, WorkOrderAccessContext context) {
         if (workOrder == null || action == null) {
@@ -407,20 +377,15 @@ public class WorkOrderPermissionService {
         if (!canView(workOrder, context)) {
             return false;
         }
-        // 调用resolveRelationTags方法，复用统一能力并保证业务规则一致。
         EnumSet<WorkOrderRelationTagEnum> relationTags = resolveRelationTags(workOrder, context);
-        // 调用getMainStatus方法，复用统一能力并保证业务规则一致。
         String mainStatus = workOrder.getMainStatus();
-        // 调用contains方法，复用统一能力并保证业务规则一致。
         boolean inCurrentAcceptCompany = relationTags.contains(WorkOrderRelationTagEnum.CURRENT_ACCEPT_COMPANY);
-        // 调用contains方法，复用统一能力并保证业务规则一致。
         boolean isAssignee = relationTags.contains(WorkOrderRelationTagEnum.ASSIGNEE);
         switch (action) {
             case ASSIGN:
                 // 派单要求当前登录公司就是当前受理公司，且工单仍停留在待派单状态。
                 return inCurrentAcceptCompany
                         && WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN.equals(mainStatus)
-                        // 调用hasActionPermission方法，复用统一能力并保证业务规则一致。
                         && hasActionPermission(action);
             case UPLOAD_SEND_EXPRESS:
                 // 上传寄件单号本轮已从“当前受理方派单动作”收口为“建单人本人补资料动作”，
@@ -432,27 +397,23 @@ public class WorkOrderPermissionService {
                 // 接单只属于当前被派到这张单上的维修员。
                 return isAssignee
                         && WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT.equals(mainStatus)
-                        // 调用hasActionPermission方法，复用统一能力并保证业务规则一致。
                         && hasActionPermission(action);
             case REPAIR_FINISH:
                 // 维修登记沿用“维修员 + 处理中 + repair 权限”约束。
                 return isAssignee
                         && WorkOrderStatusConstants.MainStatus.IN_PROGRESS.equals(mainStatus)
-                        // 调用hasActionPermission方法，复用统一能力并保证业务规则一致。
                         && hasActionPermission(action);
             case TRANSFER:
                 // 转单看的是“是否属于当前受理公司 + 是否有转单权限”，
                 // 而不是“主展示身份是不是管理岗”，这样才能兼容一人多岗。
                 return inCurrentAcceptCompany
                         && WorkOrderStatusConstants.canTransfer(mainStatus)
-                        // 调用hasActionPermission方法，复用统一能力并保证业务规则一致。
                         && hasActionPermission(action);
             case REVIEW:
                 // 复检和关闭属于完成态管理动作；如果未来要增加“禁止自己复检自己”，
                 // 应在这里直接追加实例级约束，而不是再回退到单值身份互斥。
                 return inCurrentAcceptCompany
                         && WorkOrderStatusConstants.MainStatus.COMPLETED.equals(mainStatus)
-                        // 调用hasActionPermission方法，复用统一能力并保证业务规则一致。
                         && hasActionPermission(action);
             case RETURN_METHOD:
             case CLOSE:
@@ -462,7 +423,6 @@ public class WorkOrderPermissionService {
                 // 不通过独立 close 动作放行，否则会把待接单阶段错误暴露成单独的关闭按钮。
                 return inCurrentAcceptCompany
                         && WorkOrderStatusConstants.MainStatus.COMPLETED.equals(mainStatus)
-                        // 调用hasActionPermission方法，复用统一能力并保证业务规则一致。
                         && hasActionPermission(action);
             default:
                 return false;
@@ -627,20 +587,17 @@ public class WorkOrderPermissionService {
         if (actions == null || action == null) {
             return;
         }
-        // 调用getCode方法，复用统一能力并保证业务规则一致。
         actions.add(action.getCode());
     }
 
     /**
      * 获取参与者。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     private WorkOrderParticipant getParticipant(Long workOrderId, Long companyId) {
-        // 说明：执行该步骤以保证业务流程正确。
         LambdaQueryWrapper<WorkOrderParticipant> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrderParticipant::getWorkOrderId, workOrderId)
-                // 调用eq方法，复用统一能力并保证业务规则一致。
                 .eq(WorkOrderParticipant::getCompanyId, companyId);
         return workOrderParticipantMapper.selectOne(wrapper);
     }
@@ -648,18 +605,17 @@ public class WorkOrderPermissionService {
     /**
      * requiresRelated公司Limit。
      *
-     * @param context 参数
+     * @param context 上下文对象，承载当前操作人、公司和数据范围。
      */
     private boolean requiresRelatedCompanyLimit(WorkOrderAccessContext context) {
         return "HQ".equals(context.getSubjectType())
-                // 调用getDataScopeEnum方法，复用统一能力并保证业务规则一致。
                 && DataScopeEnum.REGION == context.getDataScopeEnum();
     }
 
     /**
      * matchRelated公司范围。
      *
-     * @param workOrder 参数
+     * @param workOrder 工单业务对象，用于判断状态、权限或组装返回数据。
      */
     private boolean matchRelatedCompanyScope(WorkOrder workOrder, List<Long> relatedCompanyIds) {
         if (workOrder == null || relatedCompanyIds == null || relatedCompanyIds.isEmpty()) {
@@ -669,10 +625,8 @@ public class WorkOrderPermissionService {
                 || relatedCompanyIds.contains(workOrder.getCurrentAcceptCompanyId())) {
             return true;
         }
-        // 说明：执行该步骤以保证业务流程正确。
         LambdaQueryWrapper<WorkOrderParticipant> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrderParticipant::getWorkOrderId, workOrder.getId())
-                // 调用in方法，复用统一能力并保证业务规则一致。
                 .in(WorkOrderParticipant::getCompanyId, relatedCompanyIds);
         return workOrderParticipantMapper.selectCount(wrapper) > 0;
     }
@@ -719,7 +673,6 @@ public class WorkOrderPermissionService {
      */
     protected boolean hasHistoryUserParticipation(Long workOrderId, Long companyId, Long userId) {
         return workOrderUserParticipantService != null
-                // 调用hasParticipation方法，复用统一能力并保证业务规则一致。
                 && workOrderUserParticipantService.hasParticipation(workOrderId, companyId, userId);
     }
 

@@ -9,7 +9,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
  * <p>用于约束通知事件、消息和分发排障里允许出现的业务边界。
  * 当前阶段只收口售后工单通知，不负责扩展未知业务类型。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/15
  */
 public enum NotifyBizTypeEnum {

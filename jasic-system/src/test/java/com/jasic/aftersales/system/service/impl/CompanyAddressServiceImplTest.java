@@ -31,14 +31,17 @@ import java.util.Map;
 /**
  * 公司地址簿服务测试。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/11
  */
 public class CompanyAddressServiceImplTest {
 
+    /**service 字段，用于当前类内部业务处理。*/
     private CompanyAddressServiceImpl service;
+    /**companyDataAccessContext 字段，用于当前类内部业务处理。*/
     private CompanyDataAccessContext companyDataAccessContext;
 
+    /**setUp 处理逻辑，服务于当前类的业务编排和数据转换。*/
     @Before
     public void setUp() throws Exception {
         SaManager.setSaTokenContext(new SaTokenContextForThreadLocal());
@@ -50,6 +53,7 @@ public class CompanyAddressServiceImplTest {
         setField(service, "companyDataAccessContext", companyDataAccessContext);
     }
 
+    /**tearDown 处理逻辑，服务于当前类的业务编排和数据转换。*/
     @After
     public void tearDown() {
         try {
@@ -59,6 +63,7 @@ public class CompanyAddressServiceImplTest {
         }
     }
 
+    /**验证SetEditedAddressAsDefault，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldSetEditedAddressAsDefault() throws Exception {
         Map<Long, CompanyAddress> store = new LinkedHashMap<>();
@@ -80,6 +85,7 @@ public class CompanyAddressServiceImplTest {
         Assert.assertEquals("新默认地址", store.get(2L).getContactName());
     }
 
+    /**验证PromoteLatestRemainingAddressWhenDefaultUnset，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldPromoteLatestRemainingAddressWhenDefaultUnset() throws Exception {
         Map<Long, CompanyAddress> store = new LinkedHashMap<>();
@@ -102,6 +108,7 @@ public class CompanyAddressServiceImplTest {
         Assert.assertEquals(Integer.valueOf(1), store.get(3L).getIsDefault());
     }
 
+    /**验证CreateAddressInScopedTargetCompanyWithoutChangingLoginCompany，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldCreateAddressInScopedTargetCompanyWithoutChangingLoginCompany() throws Exception {
         Map<Long, CompanyAddress> store = new LinkedHashMap<>();
@@ -121,6 +128,13 @@ public class CompanyAddressServiceImplTest {
         Assert.assertNull(companyDataAccessContext.getTargetCompanyId());
     }
 
+    /**buildAddress 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param id 主键ID。
+@param companyId 公司ID。
+@param contactName 名称文本，用于展示、匹配或保存业务对象名称。
+@param isDefault isDefault 字段参数。
+@param updateTime 更新时间参数。
+@return 处理后的业务结果。*/
     private CompanyAddress buildAddress(Long id, Long companyId, String contactName, Integer isDefault,
                                         LocalDateTime updateTime) {
         CompanyAddress address = new CompanyAddress();
@@ -134,8 +148,16 @@ public class CompanyAddressServiceImplTest {
         return address;
     }
 
+    /**createCompanyAddressMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param store 业务映射数据，用于提升后续组装或匹配效率。
+@return 新增或保存后的业务标识或处理结果。*/
     private CompanyAddressMapper createCompanyAddressMapperProxy(Map<Long, CompanyAddress> store) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 String name = method.getName();
@@ -181,113 +203,179 @@ public class CompanyAddressServiceImplTest {
         );
     }
 
+    /**setField 处理逻辑，服务于当前类的业务编排和数据转换。
+@param target target 字段参数。
+@param fieldName 名称文本，用于展示、匹配或保存业务对象名称。
+@param value value 字段参数。*/
     private void setField(Object target, String fieldName, Object value) throws Exception {
         Field field = target.getClass().getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(target, value);
     }
 
+    /**MockSaRequest 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class MockSaRequest implements SaRequest {
 
+        /**getSource 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public Object getSource() {
             return this;
         }
 
+        /**getParam 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getParam(String name) {
             return null;
         }
 
+        /**getParamNames 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或组装后的业务数据集合。*/
         @Override
         public List<String> getParamNames() {
             return new ArrayList<>();
         }
 
+        /**getParamMap 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或组装后的业务数据集合。*/
         @Override
         public Map<String, String> getParamMap() {
             return new LinkedHashMap<>();
         }
 
+        /**getHeader 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getHeader(String name) {
             return null;
         }
 
+        /**getCookieValue 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getCookieValue(String name) {
             return null;
         }
 
+        /**getRequestPath 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getRequestPath() {
             return "/";
         }
 
+        /**getUrl 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getUrl() {
             return "http://localhost/";
         }
 
+        /**getMethod 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getMethod() {
             return "GET";
         }
 
+        /**forward 处理逻辑，服务于当前类的业务编排和数据转换。
+@param path path 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public String forward(String path) {
             return path;
         }
     }
 
+    /**MockSaResponse 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class MockSaResponse implements SaResponse {
 
+        /**getSource 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public Object getSource() {
             return this;
         }
 
+        /**setStatus 处理逻辑，服务于当前类的业务编排和数据转换。
+@param sc sc 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaResponse setStatus(int sc) {
             return this;
         }
 
+        /**setHeader 处理逻辑，服务于当前类的业务编排和数据转换。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@param value value 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaResponse setHeader(String name, String value) {
             return this;
         }
 
+        /**addHeader 处理逻辑，服务于当前类的业务编排和数据转换。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@param value value 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaResponse addHeader(String name, String value) {
             return this;
         }
 
+        /**redirect 处理逻辑，服务于当前类的业务编排和数据转换。
+@param url url 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public Object redirect(String url) {
             return url;
         }
     }
 
+    /**MockSaStorage 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class MockSaStorage implements SaStorage {
 
+        /**storage 字段，用于当前类内部业务处理。*/
         private final Map<String, Object> storage = new LinkedHashMap<>();
 
+        /**getSource 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public Object getSource() {
             return this;
         }
 
+        /**get 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param key key 字段参数。
+@return 查询或解析得到的业务对象。*/
         @Override
         public Object get(String key) {
             return storage.get(key);
         }
 
+        /**set 处理逻辑，服务于当前类的业务编排和数据转换。
+@param key key 字段参数。
+@param value value 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaStorage set(String key, Object value) {
             storage.put(key, value);
             return this;
         }
 
+        /**delete 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param key key 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaStorage delete(String key) {
             storage.remove(key);

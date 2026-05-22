@@ -8,7 +8,7 @@ import com.jasic.aftersales.system.domain.entity.SyncTask;
  * <p>每一种外部同步能力都通过一个独立处理器暴露给同步任务中心，调度层只关心处理器编码、
  * 名称和统一执行入口，不感知具体业务明细。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/12
  */
 public interface SyncTaskHandler {

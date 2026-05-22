@@ -40,12 +40,15 @@ import io.swagger.annotations.ApiOperation;
 @RequestMapping("/system/role")
 public class SysRoleController extends BaseController {
 
+    /**roleService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private ISysRoleService roleService;
 
+    /**dataScopeRuleService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysDataScopeRuleService dataScopeRuleService;
 
+    /**companyDataAccessService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private CompanyDataAccessService companyDataAccessService;
 
@@ -59,9 +62,7 @@ public class SysRoleController extends BaseController {
     @SaCheckPermission("system:role:list")
     @GetMapping("/list")
     public Result<PageResult<SysRoleVO>> list(SysRoleQuery query) {
-        // 调用getTargetCompanyId方法，复用统一能力并保证业务规则一致。
         Long targetCompanyId = companyDataAccessService.resolveCurrentCompanyOwnedTarget(query.getTargetCompanyId());
-        // 调用setTargetCompanyId方法，复用统一能力并保证业务规则一致。
         query.setTargetCompanyId(targetCompanyId);
         return Result.ok(companyDataAccessService.runWithCurrentCompanyOwnedTarget(
                 targetCompanyId,
@@ -129,9 +130,7 @@ public class SysRoleController extends BaseController {
     @OperLog(title = "角色管理", operType = OperTypeEnum.INSERT)
     @PostMapping
     public Result<Long> save(@Validated @RequestBody SysRoleDTO dto) {
-        // 调用getTargetCompanyId方法，复用统一能力并保证业务规则一致。
         Long targetCompanyId = companyDataAccessService.resolveCurrentCompanyOwnedTarget(dto.getTargetCompanyId());
-        // 调用setTargetCompanyId方法，复用统一能力并保证业务规则一致。
         dto.setTargetCompanyId(targetCompanyId);
         return Result.ok(companyDataAccessService.runWithCurrentCompanyOwnedTarget(
                 targetCompanyId,
@@ -150,11 +149,8 @@ public class SysRoleController extends BaseController {
     @OperLog(title = "角色管理", operType = OperTypeEnum.UPDATE)
     @PutMapping
     public Result<Void> update(@Validated @RequestBody SysRoleDTO dto) {
-        // 调用getTargetCompanyId方法，复用统一能力并保证业务规则一致。
         Long targetCompanyId = companyDataAccessService.resolveCurrentCompanyOwnedTarget(dto.getTargetCompanyId());
-        // 调用setTargetCompanyId方法，复用统一能力并保证业务规则一致。
         dto.setTargetCompanyId(targetCompanyId);
-        // 调用update方法，复用统一能力并保证业务规则一致。
         companyDataAccessService.runWithCurrentCompanyOwnedTarget(targetCompanyId, () -> roleService.update(dto));
         return Result.ok();
     }

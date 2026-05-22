@@ -8,7 +8,7 @@ import com.jasic.aftersales.system.domain.vo.dashboard.HqDashboardHomeVO;
  * <p>该接口只负责总部“调度看板”聚合编排。
  * 本轮只返回当前总部承接工单池、已转出和近七天事件趋势，不混入网点履约或待办数据。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/20
  */
 public interface IHqDashboardService {

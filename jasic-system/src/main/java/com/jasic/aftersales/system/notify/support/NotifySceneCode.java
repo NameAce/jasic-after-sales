@@ -8,7 +8,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
  *
  * <p>该枚举只描述“发生了什么业务通知场景”，不再把 B/C 端渠道类型直接编码进场景值本身。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/16
  */
 public enum NotifySceneCode {

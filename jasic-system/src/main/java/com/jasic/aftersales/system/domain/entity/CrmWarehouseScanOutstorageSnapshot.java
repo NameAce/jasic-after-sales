@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
  * <p>快照层按明细保留外部原始扫码记录，后续再基于本地快照按条码聚合最早扫码时间，
  * 投影到本地条码档案的销售最后出库日期字段。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/12
  */
 @Data

@@ -12,7 +12,7 @@ import java.util.List;
  * <p>负责通知事件的查询、抢占、状态流转和可靠性恢复，
  * 让上层消费编排只关注“如何处理事件”，不直接关心底层状态更新细节。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/18
  */
 public interface NotifyEventService {

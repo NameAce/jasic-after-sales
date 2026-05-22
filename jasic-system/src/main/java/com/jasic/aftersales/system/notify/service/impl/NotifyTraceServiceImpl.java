@@ -51,34 +51,45 @@ import java.util.stream.Collectors;
  * <p>该实现只处理后台排障查询和人工介入动作，
  * 不直接改动通知生成链路，避免排障收口逻辑与前面消费/分发阶段耦合过深。</p>
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/05/14
  */
 @Slf4j
 @Service
 public class NotifyTraceServiceImpl implements NotifyTraceService {
 
+    /**PRODUCT_CATEGORY_IN_APP 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String PRODUCT_CATEGORY_IN_APP = "IN_APP";
+    /**PRODUCT_CATEGORY_EXTERNAL 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String PRODUCT_CATEGORY_EXTERNAL = "EXTERNAL";
+    /**UNKNOWN_TARGET_TYPE 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String UNKNOWN_TARGET_TYPE = "UNKNOWN";
+    /**EVENT_MANUAL_DEAD_MESSAGE_PREFIX 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String EVENT_MANUAL_DEAD_MESSAGE_PREFIX = "人工标记不再处理：";
+    /**DISPATCH_MANUAL_DEAD_MESSAGE_PREFIX 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String DISPATCH_MANUAL_DEAD_MESSAGE_PREFIX = "人工标记不再处理：";
 
+    /**notifyTraceMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifyTraceMapper notifyTraceMapper;
 
+    /**notifyEventService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifyEventService notifyEventService;
 
+    /**notifyDispatchService 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifyDispatchService notifyDispatchService;
 
+    /**sysNotifyMessageMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysNotifyMessageMapper sysNotifyMessageMapper;
 
+    /**sysNotifyDispatchMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private SysNotifyDispatchMapper sysNotifyDispatchMapper;
 
+    /**notifySceneRegistry 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private NotifySceneRegistry notifySceneRegistry;
 

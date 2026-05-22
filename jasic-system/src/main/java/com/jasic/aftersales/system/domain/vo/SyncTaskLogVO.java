@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 /**
  * 同步任务日志返回对象
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/12
  */
 @ApiModel(description = "同步任务日志返回对象")

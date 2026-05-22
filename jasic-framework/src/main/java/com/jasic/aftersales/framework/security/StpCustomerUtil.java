@@ -16,8 +16,10 @@ import cn.dev33.satoken.stp.StpUtil;
  */
 public class StpCustomerUtil {
 
+    /**TYPE 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     public static final String TYPE = "customer";
 
+    /**STP_LOGIC 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final StpLogic STP_LOGIC = new StpLogic(TYPE);
 
     /**
@@ -41,7 +43,6 @@ public class StpCustomerUtil {
      * @param id 客户ID
      */
     public static void login(Object id) {
-        // 调用login方法，复用统一能力并保证业务规则一致。
         STP_LOGIC.login(id);
     }
 
@@ -49,7 +50,6 @@ public class StpCustomerUtil {
      * C端用户登出
      */
     public static void logout() {
-        // 调用logout方法，复用统一能力并保证业务规则一致。
         STP_LOGIC.logout();
     }
 
@@ -57,7 +57,6 @@ public class StpCustomerUtil {
      * 检查C端用户是否已登录
      */
     public static void checkLogin() {
-        // 调用checkLogin方法，复用统一能力并保证业务规则一致。
         STP_LOGIC.checkLogin();
     }
 
@@ -85,7 +84,6 @@ public class StpCustomerUtil {
      * @param id 客户ID
      */
     public static void kickout(Object id) {
-        // 调用kickout方法，复用统一能力并保证业务规则一致。
         STP_LOGIC.kickout(id);
     }
 }

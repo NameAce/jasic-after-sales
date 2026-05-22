@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 /**
  * 通知分发结果码枚举。
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/21
  */
 public enum NotifyDispatchResultCodeEnum {
@@ -33,19 +33,20 @@ public enum NotifyDispatchResultCodeEnum {
     /**
      * 通知分发结果编码编码。
      *
-     * @param code 参数
-     * @param desc 参数
-     * @return 处理结果
+     * @param code 业务编码，用于匹配枚举、配置或外部系统数据。
+     * @param desc desc，当前业务处理所需的输入值。
+     * @return 业务处理结果
      */
     private final String code;
 
+    /**desc 字段，用于当前类内部业务处理。*/
     private final String desc;
 
     /**
      * 构造通知分发结果编码实例。
      *
-     * @param code 参数
-     * @param desc 参数
+     * @param code 业务编码，用于匹配枚举、配置或外部系统数据。
+     * @param desc desc，当前业务处理所需的输入值。
      */
     NotifyDispatchResultCodeEnum(String code, String desc) {
         this.code = code;
@@ -55,14 +56,13 @@ public enum NotifyDispatchResultCodeEnum {
     /**
      * 根据编码查询通知分发结果编码。
      *
-     * @param code 参数
-     * @return 处理结果
+     * @param code 业务编码，用于匹配枚举、配置或外部系统数据。
+     * @return 业务处理结果
      */
     public static NotifyDispatchResultCodeEnum getByCode(String code) {
         if (code == null) {
             return null;
         }
-        // 调用trim方法，复用统一能力并保证业务规则一致。
         String normalizedCode = code.trim();
         if (normalizedCode.isEmpty()) {
             return null;
@@ -78,12 +78,11 @@ public enum NotifyDispatchResultCodeEnum {
     /**
      * 根据编码解析通知分发结果编码。
      *
-     * @param code 参数
-     * @return 处理结果
+     * @param code 业务编码，用于匹配枚举、配置或外部系统数据。
+     * @return 业务处理结果
      */
     @JsonCreator
     public static NotifyDispatchResultCodeEnum fromCode(String code) {
-        // 调用getByCode方法，复用统一能力并保证业务规则一致。
         NotifyDispatchResultCodeEnum value = getByCode(code);
         if (value == null && code != null) {
             throw new IllegalArgumentException("Unsupported notify dispatch result code: " + code);
@@ -94,7 +93,7 @@ public enum NotifyDispatchResultCodeEnum {
     /**
      * 获取通知分发结果编码编码。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     @JsonValue
     public String getCode() {
@@ -104,7 +103,7 @@ public enum NotifyDispatchResultCodeEnum {
     /**
      * 获取通知分发结果编码描述。
      *
-     * @return 处理结果
+     * @return 业务处理结果
      */
     public String getDesc() {
         return desc;

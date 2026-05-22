@@ -39,11 +39,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * NotifyMessageServiceImpl tests.
- */
+/*** NotifyMessageServiceImpl tests.
+
+@author Zoro*/
 public class NotifyMessageServiceImplTest {
 
+    /**验证ResolveTodoStatusesAsPendingAndRead，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldResolveTodoStatusesAsPendingAndRead() throws Exception {
         NotifyMessageServiceImpl service = new NotifyMessageServiceImpl();
@@ -56,6 +57,7 @@ public class NotifyMessageServiceImplTest {
         ), statuses);
     }
 
+    /**验证ResolveHistoryStatusesAsDoneAndInvalid，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldResolveHistoryStatusesAsDoneAndInvalid() throws Exception {
         NotifyMessageServiceImpl service = new NotifyMessageServiceImpl();
@@ -68,6 +70,7 @@ public class NotifyMessageServiceImplTest {
         ), statuses);
     }
 
+    /**验证FilterPageQueryByCurrentReceiverAndMapRows，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldFilterPageQueryByCurrentReceiverAndMapRows() throws Exception {
         NotifyMessageServiceImpl service = new NotifyMessageServiceImpl();
@@ -94,6 +97,7 @@ public class NotifyMessageServiceImplTest {
         Assert.assertTrue(mapperState.pageWrapper.getSqlSegment().contains("ORDER BY create_time DESC,id DESC"));
     }
 
+    /**验证CountActiveTodo，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldCountActiveTodo() throws Exception {
         NotifyMessageServiceImpl service = new NotifyMessageServiceImpl();
@@ -111,6 +115,7 @@ public class NotifyMessageServiceImplTest {
         Assert.assertTrue(mapperState.countWrapper.getSqlSegment().contains("receiver_company_id"));
     }
 
+    /**验证RejectReadingOtherUsersMessage，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectReadingOtherUsersMessage() throws Exception {
         NotifyMessageServiceImpl service = new NotifyMessageServiceImpl();
@@ -131,6 +136,7 @@ public class NotifyMessageServiceImplTest {
         Assert.assertEquals(0, logService.logs.size());
     }
 
+    /**验证MarkOwnPendingMessageReadAndWriteLog，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldMarkOwnPendingMessageReadAndWriteLog() throws Exception {
         NotifyMessageServiceImpl service = new NotifyMessageServiceImpl();
@@ -152,6 +158,7 @@ public class NotifyMessageServiceImplTest {
         Assert.assertEquals(NotifyActionTypeEnum.READ.getCode(), logService.logs.get(0).getActionType());
     }
 
+    /**验证RejectReadingMessageWhenReceiverCompanyMismatch，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectReadingMessageWhenReceiverCompanyMismatch() throws Exception {
         NotifyMessageServiceImpl service = new NotifyMessageServiceImpl();
@@ -170,6 +177,7 @@ public class NotifyMessageServiceImplTest {
         Assert.assertEquals(0, mapperState.updateCount);
     }
 
+    /**验证RejectReadingMessageWhenWorkOrderIsNotViewable，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldRejectReadingMessageWhenWorkOrderIsNotViewable() throws Exception {
         NotifyMessageServiceImpl service = new NotifyMessageServiceImpl();
@@ -190,6 +198,7 @@ public class NotifyMessageServiceImplTest {
         Assert.assertEquals(0, mapperState.updateCount);
     }
 
+    /**验证MarkPendingTodoReadByBusinessWhenOpeningWorkOrderDetail，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldMarkPendingTodoReadByBusinessWhenOpeningWorkOrderDetail() throws Exception {
         NotifyMessageServiceImpl service = new NotifyMessageServiceImpl();
@@ -216,6 +225,7 @@ public class NotifyMessageServiceImplTest {
         Assert.assertEquals(NotifyActionTypeEnum.READ.getCode(), logService.logs.get(0).getActionType());
     }
 
+    /**验证CompleteActiveTodoByBusinessWhenTechnicianAccepts，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void shouldCompleteActiveTodoByBusinessWhenTechnicianAccepts() throws Exception {
         NotifyMessageServiceImpl service = new NotifyMessageServiceImpl();
@@ -243,6 +253,7 @@ public class NotifyMessageServiceImplTest {
         Assert.assertEquals(NotifyActionTypeEnum.DONE.getCode(), logService.logs.get(0).getActionType());
     }
 
+    /**initTableInfo 处理逻辑，服务于当前类的业务编排和数据转换。*/
     private void initTableInfo() {
         if (TableInfoHelper.getTableInfo(SysNotifyMessage.class) != null) {
             return;
@@ -254,6 +265,10 @@ public class NotifyMessageServiceImplTest {
         TableInfoHelper.initTableInfo(assistant, SysNotifyMessage.class);
     }
 
+    /**invokeResolveBoxStatuses 处理逻辑，服务于当前类的业务编排和数据转换。
+@param service service 字段参数。
+@param box box 字段参数。
+@return 查询或组装后的业务数据集合。*/
     @SuppressWarnings("unchecked")
     private List<String> invokeResolveBoxStatuses(NotifyMessageServiceImpl service, String box) throws Exception {
         Method method = NotifyMessageServiceImpl.class.getDeclaredMethod("resolveBoxStatuses", String.class);
@@ -261,8 +276,16 @@ public class NotifyMessageServiceImplTest {
         return (List<String>) method.invoke(service, box);
     }
 
+    /**createMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param state state 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private SysNotifyMessageMapper createMapperProxy(MessageMapperState state) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 String name = method.getName();
@@ -299,6 +322,9 @@ public class NotifyMessageServiceImplTest {
         );
     }
 
+    /**applyMessageUpdate 处理逻辑，服务于当前类的业务编排和数据转换。
+@param state state 字段参数。
+@param wrapper wrapper 字段参数。*/
     private void applyMessageUpdate(MessageMapperState state, LambdaUpdateWrapper<SysNotifyMessage> wrapper) {
         Long messageId = resolveMessageId(state, wrapper);
         SysNotifyMessage message = state.messageStore.get(messageId);
@@ -318,6 +344,10 @@ public class NotifyMessageServiceImplTest {
         }
     }
 
+    /**resolveMessageId 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param state state 字段参数。
+@param wrapper wrapper 字段参数。
+@return 查询或解析得到的业务对象。*/
     private Long resolveMessageId(MessageMapperState state, LambdaUpdateWrapper<SysNotifyMessage> wrapper) {
         if (state.lastMessageId != null) {
             return state.lastMessageId;
@@ -330,8 +360,16 @@ public class NotifyMessageServiceImplTest {
         return null;
     }
 
+    /**createWorkOrderMapperProxy 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param found found 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private WorkOrderMapper createWorkOrderMapperProxy(boolean found) {
         InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。
+@param proxy proxy 字段参数。
+@param method method 字段参数。
+@param args args 字段参数。
+@return 处理后的业务结果。*/
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) {
                 if ("selectById".equals(method.getName())) {
@@ -352,6 +390,9 @@ public class NotifyMessageServiceImplTest {
         );
     }
 
+    /**defaultValue 处理逻辑，服务于当前类的业务编排和数据转换。
+@param type type 字段参数。
+@return 处理后的业务结果。*/
     private Object defaultValue(Class<?> type) {
         if (type == null || !type.isPrimitive()) {
             return null;
@@ -383,6 +424,11 @@ public class NotifyMessageServiceImplTest {
         return null;
     }
 
+    /**buildMessage 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param id 主键ID。
+@param receiverId receiverId 字段。
+@param todoStatus 业务状态编码，用于判断或更新当前流程节点。
+@return 处理后的业务结果。*/
     private SysNotifyMessage buildMessage(Long id, Long receiverId, String todoStatus) {
         SysNotifyMessage message = new SysNotifyMessage();
         message.setId(id);
@@ -402,44 +448,77 @@ public class NotifyMessageServiceImplTest {
         return message;
     }
 
+    /**TestWorkOrderPermissionService 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class TestWorkOrderPermissionService extends WorkOrderPermissionService {
+        /**allowed 字段，用于当前类内部业务处理。*/
         private final boolean allowed;
 
+        /**构造 TestWorkOrderPermissionService 实例，初始化当前对象在业务流程中需要持有的基础数据。
+@param allowed allowed 字段参数。*/
         private TestWorkOrderPermissionService(boolean allowed) {
             this.allowed = allowed;
         }
 
+        /**canView 业务条件，用于决定后续流程是否允许继续执行。
+@param workOrder workOrder 字段参数。
+@return true 表示满足业务条件，false 表示不满足。*/
         @Override
         public boolean canView(WorkOrder workOrder) {
             return allowed;
         }
     }
 
+    /**setField 处理逻辑，服务于当前类的业务编排和数据转换。
+@param target target 字段参数。
+@param fieldName 名称文本，用于展示、匹配或保存业务对象名称。
+@param value value 字段参数。*/
     private void setField(Object target, String fieldName, Object value) throws Exception {
         Field field = target.getClass().getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(target, value);
     }
 
+    /**MessageMapperState 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class MessageMapperState {
+        /**messageStore 字段，用于当前类内部业务处理。*/
         private final Map<Long, SysNotifyMessage> messageStore = new LinkedHashMap<>();
+        /**pageResult 字段，用于当前类内部业务处理。*/
         private Page<SysNotifyMessage> pageResult;
+        /**countResult 字段，用于当前类内部业务处理。*/
         private Long countResult;
+        /**pageWrapper 字段，用于当前类内部业务处理。*/
         private LambdaQueryWrapper<SysNotifyMessage> pageWrapper;
+        /**countWrapper 字段，用于当前类内部业务处理。*/
         private LambdaQueryWrapper<SysNotifyMessage> countWrapper;
+        /**updateCount 字段，用于当前类内部业务处理。*/
         private int updateCount;
+        /**lastMessageId 字段，用于当前类内部业务处理。*/
         private Long lastMessageId;
     }
 
+    /**MemoryNotifyMessageLogService 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class MemoryNotifyMessageLogService implements NotifyMessageLogService {
+        /**logs 字段，用于当前类内部业务处理。*/
         private final List<SysNotifyMessageLog> logs = new ArrayList<>();
 
+        /**createLog 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param notifyMessageLog notifyMessageLog 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
         @Override
         public Long createLog(SysNotifyMessageLog notifyMessageLog) {
             logs.add(notifyMessageLog);
             return (long) logs.size();
         }
 
+        /**listByQuery 业务数据，按查询条件和数据权限返回可见范围内的结果。
+@param query 查询条件，包含分页、筛选和权限收口所需字段。
+@return 查询或组装后的业务数据集合。*/
         @Override
         public List<SysNotifyMessageLog> listByQuery(com.jasic.aftersales.system.notify.domain.query.NotifyMessageLogQuery query) {
             return Collections.emptyList();

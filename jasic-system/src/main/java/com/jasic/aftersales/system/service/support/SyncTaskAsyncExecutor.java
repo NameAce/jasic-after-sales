@@ -8,7 +8,7 @@ import javax.annotation.Resource;
 /**
  * 同步任务异步执行器
  *
- * @author Codex
+ * @author Zoro
  * @date 2026/04/12
  */
 @Component
@@ -27,12 +27,11 @@ public class SyncTaskAsyncExecutor {
      * 处理executeAsync业务逻辑。
      *
      * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
-     * @param taskId 参数
-     * @param logId 参数
+     * @param taskId 业务主键或关联对象ID。
+     * @param logId 业务主键或关联对象ID。
      */
     @Async
     public void executeAsync(Long taskId, Long logId) {
-        // 调用executeWithLog方法，复用统一能力并保证业务规则一致。
         syncTaskExecutionRunner.executeWithLog(taskId, logId);
     }
 }

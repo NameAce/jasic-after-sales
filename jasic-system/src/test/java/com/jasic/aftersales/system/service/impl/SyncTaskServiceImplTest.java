@@ -35,11 +35,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**SyncTaskServiceImplTest 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
 public class SyncTaskServiceImplTest {
 
+    /**permissionCodes 字段，用于当前类内部业务处理。*/
     private Set<String> permissionCodes;
+    /**previousStpInterface 字段，用于当前类内部业务处理。*/
     private StpInterface previousStpInterface;
 
+    /**setUp 处理逻辑，服务于当前类的业务编排和数据转换。*/
     @Before
     public void setUp() {
         SaManager.setSaTokenContext(new SaTokenContextForThreadLocal());
@@ -48,11 +54,19 @@ public class SyncTaskServiceImplTest {
         permissionCodes = new LinkedHashSet<>();
         previousStpInterface = SaManager.getStpInterface();
         SaManager.setStpInterface(new StpInterface() {
+            /**getPermissionList 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param loginId loginId 字段。
+@param loginType loginType 字段参数。
+@return 查询或组装后的业务数据集合。*/
             @Override
             public List<String> getPermissionList(Object loginId, String loginType) {
                 return new ArrayList<>(permissionCodes);
             }
 
+            /**getRoleList 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param loginId loginId 字段。
+@param loginType loginType 字段参数。
+@return 查询或组装后的业务数据集合。*/
             @Override
             public List<String> getRoleList(Object loginId, String loginType) {
                 return Collections.emptyList();
@@ -60,6 +74,7 @@ public class SyncTaskServiceImplTest {
         });
     }
 
+    /**tearDown 处理逻辑，服务于当前类的业务编排和数据转换。*/
     @After
     public void tearDown() {
         try {
@@ -70,6 +85,7 @@ public class SyncTaskServiceImplTest {
         }
     }
 
+    /**验证nonPlatformUserShouldNotTriggerSyncTaskEvenWithPermission，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void nonPlatformUserShouldNotTriggerSyncTaskEvenWithPermission() throws Exception {
         switchContext(11L, SubjectTypeEnum.SERVICE.getCode(), "SITE_FIRST");
@@ -84,6 +100,7 @@ public class SyncTaskServiceImplTest {
         }
     }
 
+    /**验证platformUserShouldFailClosedWhenExecutePermissionMissing，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void platformUserShouldFailClosedWhenExecutePermissionMissing() throws Exception {
         switchContext(1L, SubjectTypeEnum.PLATFORM.getCode(), "PLATFORM");
@@ -97,6 +114,7 @@ public class SyncTaskServiceImplTest {
         }
     }
 
+    /**验证platformUserShouldSubmitSyncTaskWithExecutePermission，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void platformUserShouldSubmitSyncTaskWithExecutePermission() throws Exception {
         switchContext(1L, SubjectTypeEnum.PLATFORM.getCode(), "PLATFORM");
@@ -110,6 +128,7 @@ public class SyncTaskServiceImplTest {
         Assert.assertEquals(Long.valueOf(42L), executionService.submittedTaskId);
     }
 
+    /**验证machineBarcodeQuickTriggerShouldUseMachineBarcodePermission，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void machineBarcodeQuickTriggerShouldUseMachineBarcodePermission() throws Exception {
         switchContext(1L, SubjectTypeEnum.PLATFORM.getCode(), "PLATFORM");
@@ -123,6 +142,7 @@ public class SyncTaskServiceImplTest {
         Assert.assertEquals(Long.valueOf(88L), executionService.submittedTaskId);
     }
 
+    /**验证machineBarcodeQuickTriggerShouldRejectSyncTaskPermissionOnly，保证相关业务规则在回归场景下保持稳定。*/
     @Test
     public void machineBarcodeQuickTriggerShouldRejectSyncTaskPermissionOnly() throws Exception {
         switchContext(1L, SubjectTypeEnum.PLATFORM.getCode(), "PLATFORM");
@@ -137,6 +157,9 @@ public class SyncTaskServiceImplTest {
         }
     }
 
+    /**buildService 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param task task 字段参数。
+@return 处理后的业务结果。*/
     private SyncTaskServiceImpl buildService(SyncTask task) throws Exception {
         SyncTaskServiceImpl service = new SyncTaskServiceImpl();
         setField(service, "syncTaskMapper", createSyncTaskMapper(task));
@@ -144,6 +167,9 @@ public class SyncTaskServiceImplTest {
         return service;
     }
 
+    /**buildTask 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。
+@param id 主键ID。
+@return 处理后的业务结果。*/
     private SyncTask buildTask(Long id) {
         SyncTask task = new SyncTask();
         task.setId(id);
@@ -155,6 +181,9 @@ public class SyncTaskServiceImplTest {
         return task;
     }
 
+    /**createSyncTaskMapper 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param task task 字段参数。
+@return 新增或保存后的业务标识或处理结果。*/
     private SyncTaskMapper createSyncTaskMapper(SyncTask task) {
         InvocationHandler handler = (proxy, method, args) -> {
             if ("selectOne".equals(method.getName()) || "selectById".equals(method.getName())) {
@@ -169,6 +198,9 @@ public class SyncTaskServiceImplTest {
         );
     }
 
+    /**defaultValue 处理逻辑，服务于当前类的业务编排和数据转换。
+@param returnType returnType 字段参数。
+@return 处理后的业务结果。*/
     private Object defaultValue(Class<?> returnType) {
         if (returnType == Void.TYPE) {
             return null;
@@ -182,136 +214,219 @@ public class SyncTaskServiceImplTest {
         return null;
     }
 
+    /**switchContext 处理逻辑，服务于当前类的业务编排和数据转换。
+@param companyId 公司ID。
+@param subjectType subjectType 字段参数。
+@param typeCode 业务编码，用于匹配枚举、配置或外部系统数据。*/
     private void switchContext(Long companyId, String subjectType, String typeCode) {
         SecurityContext.setCurrentCompanyId(companyId);
         SecurityContext.setCurrentSubjectType(subjectType);
         SecurityContext.setCurrentTypeCode(typeCode);
     }
 
+    /**setField 处理逻辑，服务于当前类的业务编排和数据转换。
+@param target target 字段参数。
+@param fieldName 名称文本，用于展示、匹配或保存业务对象名称。
+@param value value 字段参数。*/
     private void setField(Object target, String fieldName, Object value) throws Exception {
         Field field = target.getClass().getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(target, value);
     }
 
+    /**getField 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param target target 字段参数。
+@param fieldName 名称文本，用于展示、匹配或保存业务对象名称。
+@return 查询或解析得到的业务对象。*/
     private Object getField(Object target, String fieldName) throws Exception {
         Field field = target.getClass().getDeclaredField(fieldName);
         field.setAccessible(true);
         return field.get(target);
     }
 
+    /**StubExecutionService 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class StubExecutionService implements ISyncTaskExecutionService {
+        /**submittedTaskId 字段，用于当前类内部业务处理。*/
         private Long submittedTaskId;
 
+        /**submitManualExecution 处理逻辑，服务于当前类的业务编排和数据转换。
+@param taskId taskId 字段。
+@return 处理后的业务结果。*/
         @Override
         public Long submitManualExecution(Long taskId) {
             submittedTaskId = taskId;
             return 9001L;
         }
 
+        /**executeScheduled 处理逻辑，服务于当前类的业务编排和数据转换。
+@param taskId taskId 字段。*/
         @Override
         public void executeScheduled(Long taskId) {
         }
     }
 
+    /**MockSaRequest 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class MockSaRequest implements SaRequest {
+        /**getSource 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public Object getSource() {
             return this;
         }
 
+        /**getParam 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getParam(String name) {
             return null;
         }
 
+        /**getParamNames 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或组装后的业务数据集合。*/
         @Override
         public List<String> getParamNames() {
             return Collections.emptyList();
         }
 
+        /**getParamMap 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或组装后的业务数据集合。*/
         @Override
         public Map<String, String> getParamMap() {
             return Collections.emptyMap();
         }
 
+        /**getHeader 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getHeader(String name) {
             return null;
         }
 
+        /**getCookieValue 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getCookieValue(String name) {
             return null;
         }
 
+        /**getRequestPath 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getRequestPath() {
             return "/";
         }
 
+        /**getUrl 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getUrl() {
             return "http://localhost/test";
         }
 
+        /**getMethod 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public String getMethod() {
             return "GET";
         }
 
+        /**forward 处理逻辑，服务于当前类的业务编排和数据转换。
+@param path path 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public Object forward(String path) {
             return null;
         }
     }
 
+    /**MockSaResponse 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class MockSaResponse implements SaResponse {
+        /**getSource 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public Object getSource() {
             return this;
         }
 
+        /**setStatus 处理逻辑，服务于当前类的业务编排和数据转换。
+@param sc sc 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaResponse setStatus(int sc) {
             return this;
         }
 
+        /**setHeader 处理逻辑，服务于当前类的业务编排和数据转换。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@param value value 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaResponse setHeader(String name, String value) {
             return this;
         }
 
+        /**addHeader 处理逻辑，服务于当前类的业务编排和数据转换。
+@param name 名称文本，用于展示、匹配或保存业务对象名称。
+@param value value 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaResponse addHeader(String name, String value) {
             return this;
         }
 
+        /**redirect 处理逻辑，服务于当前类的业务编排和数据转换。
+@param url url 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public Object redirect(String url) {
             return null;
         }
     }
 
+    /**MockSaStorage 测试类，用于验证对应业务规则、边界条件和回归场景。
+
+@author Zoro*/
     private static class MockSaStorage implements SaStorage {
+        /**storage 字段，用于当前类内部业务处理。*/
         private final Map<String, Object> storage = new LinkedHashMap<>();
 
+        /**getSource 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@return 查询或解析得到的业务对象。*/
         @Override
         public Object getSource() {
             return this;
         }
 
+        /**get 业务对象，缺失或不满足条件时按调用语义返回空值或抛出业务异常。
+@param key key 字段参数。
+@return 查询或解析得到的业务对象。*/
         @Override
         public Object get(String key) {
             return storage.get(key);
         }
 
+        /**set 处理逻辑，服务于当前类的业务编排和数据转换。
+@param key key 字段参数。
+@param value value 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaStorage set(String key, Object value) {
             storage.put(key, value);
             return this;
         }
 
+        /**delete 业务动作，完成必要校验后同步更新主表、明细表和流程记录。
+@param key key 字段参数。
+@return 处理后的业务结果。*/
         @Override
         public SaStorage delete(String key) {
             storage.remove(key);
