@@ -264,13 +264,32 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         Map<Long, BigDecimal> currentQuoteAmountMap = buildCurrentValidQuoteAmountMap(
                 records.stream().map(WorkOrderListVO::getId).collect(Collectors.toList())
         );
-        // 调用getViewScope方法，复用统一能力并保证业务规则一致。
-        boolean fillActionInfo = "CURRENT".equals(scopedQuery.getViewScope());
+        // 当前处理视图展示完整流程动作；历史转出视图仅用于透出后端允许的补资料例外动作，
+        // 例如建单人本人在寄修待接单窗口内上传寄件单号，详情页仍保持不展示该入口。
+        boolean fillActionInfo = shouldFillListActionInfo(scopedQuery);
         for (WorkOrderListVO record : records) {
             // 调用getAccessContext方法，复用统一能力并保证业务规则一致。
             fillListSnapshot(record, currentQuoteAmountMap, fillActionInfo, scopedQuery.getAccessContext());
         }
         return PageResult.of(records, result.getTotal(), scopedQuery.getPageNum(), scopedQuery.getPageSize());
+    }
+
+    /**
+     * 判断列表行是否需要计算可执行动作与只读原因。
+     *
+     * <p>当前处理列表承载正常流程操作按钮；历史转出列表原则上只读，
+     * 但上传寄件单号已在权限服务中定义为“建单人本人补资料”例外动作，
+     * 因此历史列表也需要计算动作，由前端和权限服务共同保证只透出允许的例外动作。</p>
+     *
+     * @param scopedQuery 已补齐权限上下文的查询参数
+     * @return true 表示需要填充 availableActions / readonlyReason
+     */
+    private boolean shouldFillListActionInfo(WorkOrderScopedQuery scopedQuery) {
+        if (scopedQuery == null) {
+            return false;
+        }
+        String viewScope = scopedQuery.getViewScope();
+        return "CURRENT".equals(viewScope) || "HISTORY".equals(viewScope);
     }
 
     /**

@@ -333,7 +333,9 @@ public class WorkOrderPermissionService {
         // 调用resolveRelationTags方法，复用统一能力并保证业务规则一致。
         EnumSet<WorkOrderRelationTagEnum> relationTags = resolveRelationTags(workOrder, context);
         if (relationTags.contains(WorkOrderRelationTagEnum.HISTORY_PARTICIPANT)) {
-            return "已转出，当前仅可查看";
+            // 历史参与既包括真实转单后的转出方，也包括报修上级/总部后的发起方；
+            // 这里用中性文案，避免未发生转单的工单被误解为“已转出”。
+            return "当前非受理方，仅可查看";
         }
         if (relationTags.contains(WorkOrderRelationTagEnum.HQ_OBSERVER)) {
             return "当前由网点处理，仅可查看";

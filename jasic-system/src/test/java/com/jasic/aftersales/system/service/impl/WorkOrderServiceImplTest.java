@@ -199,6 +199,54 @@ public class WorkOrderServiceImplTest {
     }
 
     @Test
+    public void shouldFillUploadSendExpressActionInHistoryListPage() throws Exception {
+        WorkOrderListVO record = new WorkOrderListVO();
+        record.setId(299L);
+        record.setMainStatus(WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN);
+        record.setCurrentAcceptCompanyId(1001L);
+        record.setCreateCompanyId(2002L);
+        record.setServiceMode("MAIL");
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createPagedWorkOrderMapperProxy(Collections.singletonList(record)));
+        setField(service, "workOrderQuoteMapper", createQuoteMapperProxy(Collections.emptyList()));
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            @Override
+            public WorkOrderScopedQuery buildScopedQuery(WorkOrderQuery query) {
+                WorkOrderScopedQuery scopedQuery = new WorkOrderScopedQuery();
+                scopedQuery.setPageNum(query.getPageNum());
+                scopedQuery.setPageSize(query.getPageSize());
+                scopedQuery.setViewScope(query.getViewScope());
+                scopedQuery.setAccessContext(resolveAccessContext());
+                return scopedQuery;
+            }
+
+            @Override
+            public List<String> listAvailableActions(WorkOrder workOrder, WorkOrderAccessContext context) {
+                return Collections.singletonList("UPLOAD_SEND_EXPRESS");
+            }
+        });
+
+        WorkOrderQuery query = new WorkOrderQuery();
+        query.setPageNum(1);
+        query.setPageSize(10);
+        query.setViewScope("HISTORY");
+
+        final PageResult<WorkOrderListVO>[] holder = new PageResult[1];
+        runWithLoginContext(101L, new ThrowingRunnable() {
+            @Override
+            public void run() {
+                com.jasic.aftersales.framework.security.SecurityContext.setCurrentCompanyId(2002L);
+                com.jasic.aftersales.framework.security.SecurityContext.setCurrentSubjectType("BRANCH");
+                holder[0] = service.listPage(query);
+            }
+        });
+
+        Assert.assertEquals(1, holder[0].getRecords().size());
+        Assert.assertEquals(Collections.singletonList("UPLOAD_SEND_EXPRESS"), holder[0].getRecords().get(0).getAvailableActions());
+    }
+
+    @Test
     public void shouldKeepHqPermissionFieldsWhenBuildingWorkOrderSnapshot() throws Exception {
         WorkOrderListVO record = new WorkOrderListVO();
         record.setId(199L);

@@ -212,7 +212,7 @@ const routeMap: RouteMap = {
   "system": "/system",
   "system_branch": "/system/branch",
   "system_menu": "/system/menu",
-  "system_notify-scene": "/system/notifyScene",
+  "system_notify-scene": "/system/notify-scene",
   "system_notify-trace": "/system/notify-trace",
   "system_role": "/system/role",
   "system_user": "/system/user",

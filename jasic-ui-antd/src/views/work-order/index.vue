@@ -163,8 +163,8 @@ const statusSegmentOptions = computed(() =>
   }))
 );
 
-// 「当前处理」视图展示操作列（按钮来自 availableActions，无动作时展示 readonlyReason）
-const showOperationColumn = computed(() => query.viewScope === 'CURRENT');
+// 当前处理展示完整流程动作；历史转出仅展示后端允许的补寄件单号例外动作。
+const showOperationColumn = computed(() => query.viewScope === 'CURRENT' || query.viewScope === 'HISTORY');
 
 /** 本页常见 2 个链接按钮一排（如「维修员接单」「上传寄件单号」） */
 const WORK_ORDER_ACTION_COL_WIDTH = 200;
@@ -740,11 +740,11 @@ onActivated(() => {
           <template v-else-if="column.key === 'actions'">
             <div class="work-order-actions-cell">
               <div
-                v-if="query.viewScope === 'CURRENT'"
+                v-if="getRowPrimaryActions(record, query.viewScope).length"
                 class="work-order-actions-cell__row work-order-actions-cell__row--primary"
               >
                 <AButton
-                  v-for="item in getRowPrimaryActions(record)"
+                  v-for="item in getRowPrimaryActions(record, query.viewScope)"
                   :key="`${record.id}-${item.action}`"
                   type="link"
                   size="small"
@@ -759,10 +759,7 @@ onActivated(() => {
                   {{ item.label }}
                 </AButton>
               </div>
-              <div
-                v-if="shouldShowReadonlyReason(record, query.viewScope === 'CURRENT')"
-                class="work-order-actions-cell__reason"
-              >
+              <div v-if="shouldShowReadonlyReason(record, query.viewScope)" class="work-order-actions-cell__reason">
                 {{ record.readonlyReason }}
               </div>
             </div>

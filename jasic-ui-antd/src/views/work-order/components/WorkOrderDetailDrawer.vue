@@ -261,8 +261,8 @@ const showTransfer = computed(() => hasAction('TRANSFER'));
 const showRepair = computed(() => hasAction('REPAIR_FINISH'));
 // 是否展示「复检登记」
 const showReview = computed(() => hasAction('REVIEW'));
-// 是否展示「上传寄件单号」
-const showMail = computed(() => hasAction('UPLOAD_SEND_EXPRESS'));
+// 上传寄件单号只作为列表行内补资料动作开放，详情抽屉保持不展示入口。
+const showMail = computed(() => false);
 // 是否展示「关闭工单」
 const showClose = computed(() => hasAction('CLOSE'));
 // 是否已加载故障-维修联动配置

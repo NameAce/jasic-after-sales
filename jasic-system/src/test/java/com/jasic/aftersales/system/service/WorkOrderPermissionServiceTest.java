@@ -363,7 +363,7 @@ public class WorkOrderPermissionServiceTest {
         WorkOrder workOrder = buildWorkOrder(31L, 900L, 2001L, 1001L, null);
         workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.IN_PROGRESS);
 
-        Assert.assertEquals("已转出，当前仅可查看", service.getReadonlyReason(workOrder));
+        Assert.assertEquals("当前非受理方，仅可查看", service.getReadonlyReason(workOrder));
     }
 
     @Test

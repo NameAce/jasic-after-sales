@@ -427,7 +427,7 @@ export const generatedRoutes: GeneratedRoute[] = [
       },
       {
         name: 'system_notify-scene',
-        path: '/system/notifyScene',
+        path: '/system/notify-scene',
         component: 'view.system_notify-scene',
         meta: {
           title: 'system_notify-scene',

@@ -43,6 +43,8 @@ export interface RowActionButton {
   type: ListActionType;
 }
 
+export type WorkOrderListViewScope = 'CURRENT' | 'HISTORY' | 'ALL' | undefined;
+
 /**
  * 判断字符串是否为有效的工单列表动作编码。
  *
@@ -70,16 +72,42 @@ export function normalizeRowActionCodes(row: Record<string, unknown>): WorkOrder
 }
 
 /**
+ * 按当前视图过滤列表行内动作。
+ *
+ * @param row - 表格行对象（含 availableActions）
+ * @param viewScope - 当前列表视图
+ * @returns 当前视图允许展示的动作编码数组
+ */
+export function resolveVisibleRowActionCodes(
+  row: Record<string, unknown>,
+  viewScope: WorkOrderListViewScope = 'CURRENT'
+): WorkOrderListActionCode[] {
+  const actionCodes = normalizeRowActionCodes(row);
+  if (viewScope === 'CURRENT') {
+    return actionCodes;
+  }
+  if (viewScope === 'HISTORY') {
+    // 历史转出视图仍是流程只读，只透出后端允许的“建单人补寄件单号”例外动作。
+    return actionCodes.filter(action => action === 'UPLOAD_SEND_EXPRESS');
+  }
+  return [];
+}
+
+/**
  * 将行可用动作拆成主按钮区与 more 区（主区按接口顺序，more 保留结构供扩展）。
  *
  * @param row - 表格行对象
+ * @param viewScope - 当前列表视图
  * @returns primary / more 按钮配置
  */
-export function splitRowActions(row: Record<string, unknown>): {
+export function splitRowActions(
+  row: Record<string, unknown>,
+  viewScope: WorkOrderListViewScope = 'CURRENT'
+): {
   primary: RowActionButton[];
   more: RowActionButton[];
 } {
-  const actionCodes = normalizeRowActionCodes(row);
+  const actionCodes = resolveVisibleRowActionCodes(row, viewScope);
   const primaryCodes = actionCodes.slice(0, LIST_MAX_PRIMARY_ACTIONS);
   const moreCodes = actionCodes.slice(LIST_MAX_PRIMARY_ACTIONS);
   const toButton = (action: WorkOrderListActionCode): RowActionButton => {
@@ -101,33 +129,44 @@ export function splitRowActions(row: Record<string, unknown>): {
  * 获取行数据对应的主操作按钮列表。
  *
  * @param row - 表格行对象
+ * @param viewScope - 当前列表视图
  * @returns 主操作按钮配置数组
  */
-export function getRowPrimaryActions(row: Record<string, unknown>): RowActionButton[] {
-  return splitRowActions(row).primary;
+export function getRowPrimaryActions(
+  row: Record<string, unknown>,
+  viewScope: WorkOrderListViewScope = 'CURRENT'
+): RowActionButton[] {
+  return splitRowActions(row, viewScope).primary;
 }
 
 /**
  * 获取行数据中归入「更多」的动作按钮列表。
  *
  * @param row - 表格行对象
+ * @param viewScope - 当前列表视图
  * @returns 更多区按钮配置数组
  */
-export function getRowMoreActions(row: Record<string, unknown>): RowActionButton[] {
-  return splitRowActions(row).more;
+export function getRowMoreActions(
+  row: Record<string, unknown>,
+  viewScope: WorkOrderListViewScope = 'CURRENT'
+): RowActionButton[] {
+  return splitRowActions(row, viewScope).more;
 }
 
 /**
  * 当前视图下是否应展示只读原因提示（无 availableActions 且接口返回 readonlyReason）。
  *
  * @param row - 表格行对象
- * @param isCurrentView - 是否为「当前处理」视图
+ * @param viewScope - 当前列表视图
  * @returns 是否展示只读原因
  */
-export function shouldShowReadonlyReason(row: Record<string, unknown>, isCurrentView: boolean): boolean {
-  if (!isCurrentView) return false;
+export function shouldShowReadonlyReason(
+  row: Record<string, unknown>,
+  viewScope: WorkOrderListViewScope = 'CURRENT'
+): boolean {
+  if (viewScope !== 'CURRENT' && viewScope !== 'HISTORY') return false;
   if (String(row?.mainStatus || '') === 'CLOSED') return false;
-  if (normalizeRowActionCodes(row).length) return false;
+  if (resolveVisibleRowActionCodes(row, viewScope).length) return false;
   const r = row?.readonlyReason;
   return typeof r === 'string' && r.trim().length > 0;
 }
