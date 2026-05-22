@@ -1,5 +1,7 @@
 /**
  * 登录状态检查与跳转工具
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 
 export function isLoggedIn(): boolean {
@@ -9,6 +11,8 @@ export function isLoggedIn(): boolean {
 /**
  * 检查登录状态，未登录则跳转登录页。
  * 返回 true 表示已登录，false 表示未登录（已触发跳转）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function requireLogin(): boolean {
   if (isLoggedIn()) return true

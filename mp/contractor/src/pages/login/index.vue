@@ -172,12 +172,20 @@
   const isTermsChecked = ref(false)
   // 条款错误
   const termsError = ref(false)
-  /** mp-login 返回 UNBIND 时展示认领表单，并暂存本次 getPhoneNumber 的 phoneCode */
+  /**
+ * mp-login 返回 UNBIND 时展示认领表单，并暂存本次 getPhoneNumber 的 phoneCode
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const showBindPanel = ref(false)
   const pendingPhoneCode = ref('')
   const bindUsername = ref('')
   const bindPassword = ref('')
-  /** 绑定弹层内密码是否明文展示 */
+  /**
+ * 绑定弹层内密码是否明文展示
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const showBindPassword = ref(false)
 
   const clearBindUsername = () => {
@@ -192,14 +200,22 @@
     showBindPassword.value = !showBindPassword.value
   }
 
-  /** 与 routeGuard 一致：有 token 则直接进入业务（冷启动首屏为登录页时） */
+  /**
+ * 与 routeGuard 一致：有 token 则直接进入业务（冷启动首屏为登录页时）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   onShow(() => {
     if (uni.getStorageSync('token')) {
       uni.switchTab({ url: '/pages/index/index' })
     }
   })
 
-  /** 待绑定态：拦截系统返回键，与导航返回一致，仅允许确认后退出小程序 */
+  /**
+ * 待绑定态：拦截系统返回键，与导航返回一致，仅允许确认后退出小程序
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   onBackPress(() => {
     if (showBindPanel.value) {
       exitWithoutBind()
@@ -211,7 +227,9 @@
   /**
    * 未绑定则无法使用：仅可退出小程序（不关闭绑定层回到可登录业务态）
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const exitWithoutBind = () => {
     uni.showModal({
       title: '提示',
@@ -233,7 +251,9 @@
   /**
    * 处理返回
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const handleBack = () => {
     if (showBindPanel.value) {
       exitWithoutBind()
@@ -255,7 +275,9 @@
    * 处理条款变化
    * @param e 事件
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const handleTermsChange = (e: any) => {
     isTermsChecked.value = e.detail.value.length > 0
     if (isTermsChecked.value) {
@@ -266,7 +288,9 @@
   /**
    * 未同意条款时提示
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const promptTermsFirst = () => {
     termsError.value = true
     setTimeout(() => {
@@ -278,7 +302,9 @@
   /**
    * 非微信端：无法使用手机号授权
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const handleNonWeixinLogin = () => {
     if (!isTermsChecked.value) {
       promptTermsFirst()
@@ -298,7 +324,9 @@
   /**
    * 认领绑定并登录（/api/auth/mp-bind-login）
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const handleBindSubmit = async () => {
     const usernameOrPhone = bindUsername.value.trim()
     if (!usernameOrPhone) {
@@ -354,7 +382,9 @@
    * 微信小程序：用户授权手机号后取 phoneCode，再 uni.login 取 code，POST /api/auth/mp-login（MpLoginDTO：code + phoneCode）
    * @param e getPhoneNumber 回调事件
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const handleWeixinMpLogin = async (e: { detail?: { errMsg?: string; code?: string } }) => {
     if (!isTermsChecked.value) {
       promptTermsFirst()

@@ -3,7 +3,7 @@ import { request } from '../request';
 /**
  * 售后工单域接口：列表、状态统计、创建/指派/流转/维修/关闭等全生命周期。
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 
 type IdLike = string | number;
@@ -26,7 +26,7 @@ export interface WorkOrderQuery extends Query {
 
 /** `GET /system/work-order/status-count`：仅提交前端筛选字段，不提交权限上下文字段。
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export type WorkOrderStatusCountQuery = Pick<
   WorkOrderQuery,
@@ -182,110 +182,278 @@ export interface WorkOrderCreateOptionsVO {
   faultItems?: Array<{ label: string; value: string }>;
 }
 
+/**
+ * 作用：分页查询工单列表（含 viewScope、主状态、转单筛选等）。
+ * @param params - 列表查询参数
+ * @returns 分页结果 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function listWorkOrder(params?: WorkOrderQuery) {
   return request<WorkOrderPageResult>({ url: '/system/work-order/list', method: 'get', params });
 }
 
+/**
+ * 作用：按当前筛选条件统计各主状态数量（不含 mainStatus，供 Segmented 角标）。
+ * @param params - 与列表共用的筛选字段子集
+ * @returns 各状态数量列表 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function countWorkOrderStatus(params?: WorkOrderStatusCountQuery) {
   return request<WorkOrderStatusCountVO[]>({ url: '/system/work-order/status-count', method: 'get', params });
 }
 
 /**
- * 查询总部网点工单汇总（按承修方公司聚合，供总部看板图表使用）。
- * 数据范围由服务端按当前登录总部上下文注入；`HQ SELF` 可能返回空列表。
+ * 作用：查询总部网点工单汇总（按承修方公司聚合，供总部看板图表使用）。
+ * 说明：数据范围由服务端按当前登录总部上下文注入；`HQ SELF` 可能返回空列表。
+ * @param params - 网点名称等筛选
+ * @returns 汇总列表 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function listHqSiteSummary(params?: WorkOrderHqSiteSummaryQuery) {
   return request<WorkOrderHqSiteSummaryVO[]>({ url: '/system/work-order/hq-site-summary', method: 'get', params });
 }
 
 /**
- * 总部查看指定承修方网点的只读工单分页列表。
- * 数据范围由服务端按当前总部登录上下文注入。
+ * 作用：总部查看指定承修方网点的只读工单分页列表。
+ * 说明：数据范围由服务端按当前总部登录上下文注入。
+ * @param params - 网点 id、展示状态、分页与搜索字段
+ * @returns 分页结果 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function listHqSiteOrders(params: WorkOrderHqSiteOrdersQuery) {
   return request<WorkOrderPageResult>({ url: '/system/work-order/hq-site-orders', method: 'get', params });
 }
 
+/**
+ * 作用：查询工单详情（含 availableActions、流转与附件等）。
+ * @param workOrderId - 工单 ID
+ * @returns 详情 VO Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function getWorkOrder(workOrderId: IdLike) {
   return request({ url: `/system/work-order/${workOrderId}`, method: 'get' });
 }
 
+/**
+ * 作用：总部代客建单页下拉选项（品牌、服务方式、故障项等）。
+ * @returns 建单选项 VO Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function listCreateHqOptions() {
   return request<WorkOrderCreateOptionsVO>({ url: '/system/work-order/create-hq-options', method: 'get' });
 }
 
+/**
+ * 作用：总部代客建单按条码拉取商品与故障选项。
+ * @param params - 条码、目标网点等
+ * @returns 条码信息 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function getProxyCreateBarcodeInfo(params?: Query) {
   return request({ url: '/system/work-order/create/proxy/barcode-info', method: 'get', params });
 }
 
+/**
+ * 作用：上游一级网点建单按条码拉取商品与受理信息。
+ * @param params - 条码、目标网点等
+ * @returns 条码信息 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function getUpstreamFirstCreateBarcodeInfo(params?: Query) {
   return request({ url: '/system/work-order/create/upstream-first/barcode-info', method: 'get', params });
 }
 
+/**
+ * 作用：上游一级建单可选目标网点列表。
+ * @returns 网点选项 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function listUpstreamFirstCreateTargetOptions() {
   return request({ url: '/system/work-order/create/upstream-first/target-options', method: 'get' });
 }
 
+/**
+ * 作用：上游报修佳士总部建单按条码拉取商品信息。
+ * @param params - 条码等
+ * @returns 条码信息 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function getUpstreamHqCreateBarcodeInfo(params?: Query) {
   return request({ url: '/system/work-order/create/upstream-hq/barcode-info', method: 'get', params });
 }
 
+/**
+ * 作用：派单弹窗可选维修人员列表。
+ * @param workOrderId - 工单 ID
+ * @returns 人员选项 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function listAssignUserOptions(workOrderId: IdLike) {
   return request({ url: `/system/work-order/${workOrderId}/assign-user-options`, method: 'get' });
 }
 
+/**
+ * 作用：转单弹窗可选目标网点列表。
+ * @param workOrderId - 工单 ID
+ * @returns 网点选项 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function listTransferTargetOptions(workOrderId: IdLike) {
   return request({ url: `/system/work-order/${workOrderId}/transfer-target-options`, method: 'get' });
 }
 
+/**
+ * 作用：维修/复检表单故障项下拉选项。
+ * @param workOrderId - 工单 ID
+ * @returns 故障选项 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function listRepairFaultOptions(workOrderId: IdLike) {
   return request({ url: `/system/work-order/${workOrderId}/repair-fault-options`, method: 'get' });
 }
 
+/**
+ * 作用：佳士无机型时补录机型下拉（支持关键字搜索）。
+ * @param workOrderId - 工单 ID
+ * @param params - 搜索关键字等
+ * @returns 机型选项 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function listRepairProductModelOptions(workOrderId: IdLike, params?: Query) {
   return request({ url: `/system/work-order/${workOrderId}/repair-product-model-options`, method: 'get', params });
 }
 
+/**
+ * 作用：总部代客创建工单。
+ * @param data - 建单 DTO
+ * @returns 创建结果 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function createProxyWorkOrder(data: WorkOrderProxyCreateDTO) {
   return request({ url: '/system/work-order/create/proxy', method: 'post', data });
 }
 
+/**
+ * 作用：上游一级网点创建工单。
+ * @param data - 建单请求体
+ * @returns 创建结果 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function createUpstreamFirstWorkOrder(data: Query) {
   return request({ url: '/system/work-order/create/upstream-first', method: 'post', data });
 }
 
+/**
+ * 作用：上游报修佳士总部创建工单。
+ * @param data - 建单请求体
+ * @returns 创建结果 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function createUpstreamHqWorkOrder(data: Query) {
   return request({ url: '/system/work-order/create/upstream-hq', method: 'post', data });
 }
 
+/**
+ * 作用：派单（指定维修人员）。
+ * @param data - 派单 DTO
+ * @returns 操作结果 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function assignWorkOrder(data: WorkOrderAssignDTO) {
   return request({ url: '/system/work-order/assign', method: 'put', data });
 }
 
+/**
+ * 作用：技术员接单（含无故障接单等扩展字段）。
+ * @param data - 接单请求体
+ * @returns 操作结果 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function techAcceptWorkOrder(data: Query) {
   return request({ url: '/system/work-order/tech-accept', method: 'put', data });
 }
 
+/**
+ * 作用：转单至其它网点。
+ * @param data - 转单 DTO
+ * @returns 操作结果 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function transferWorkOrder(data: WorkOrderTransferDTO) {
   return request({ url: '/system/work-order/transfer', method: 'put', data });
 }
 
+/**
+ * 作用：提交维修结果（报价、故障、配件、五类图等）。
+ * @param data - 维修 DTO
+ * @returns 操作结果 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function repairWorkOrder(data: WorkOrderRepairDTO) {
   return request({ url: '/system/work-order/repair', method: 'post', data });
 }
 
+/**
+ * 作用：总部复检通过（可修正维修说明与附件）。
+ * @param data - 复检 DTO
+ * @returns 操作结果 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function reviewWorkOrder(data: WorkOrderReviewDTO) {
   return request({ url: '/system/work-order/review', method: 'post', data });
 }
 
+/**
+ * 作用：补录维修机型（佳士条码无机型场景）。
+ * @param data - 含 workOrderId、productModel 等
+ * @returns 操作结果 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function updateRepairProductModel(data: Query) {
   return request({ url: '/system/work-order/repair-product-model', method: 'put', data });
 }
 
+/**
+ * 作用：补录或更新寄件快递单号与凭证。
+ * @param data - 含 workOrderId、sendExpressNo、凭证 fileIds 等
+ * @returns 操作结果 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function updateWorkOrderSendExpress(data: Query) {
   return request({ url: '/system/work-order/send-express', method: 'put', data });
 }
 
+/**
+ * 作用：关闭工单（返还方式、快递单、关闭原因等）。
+ * @param data - 关闭 DTO
+ * @returns 操作结果 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function closeWorkOrder(data: WorkOrderCloseDTO) {
   return request({ url: '/system/work-order/close', method: 'put', data });
 }

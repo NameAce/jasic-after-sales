@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 主业务框架布局：组合顶栏、页签、侧栏、内容区与主题抽屉，并向 AdminLayout 注入宽度、折叠等派生参数。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, defineAsyncComponent } from 'vue';
 import { AdminLayout, LAYOUT_SCROLL_EL_ID } from '@sa/materials';
@@ -78,6 +80,8 @@ const siderCollapsedWidth = computed(() => getSiderCollapsedWidth());
 /**
  * 作用：根据混合布局、固定子菜单等计算侧栏展开宽度。
  * @returns {number} 像素宽度
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function getSiderWidth() {
   const { reverseHorizontalMix } = themeStore.layout;
@@ -99,6 +103,8 @@ function getSiderWidth() {
 /**
  * 作用：计算侧栏折叠后的占位宽度。
  * @returns {number} 像素宽度
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function getSiderCollapsedWidth() {
   const { reverseHorizontalMix } = themeStore.layout;
@@ -119,6 +125,7 @@ function getSiderCollapsedWidth() {
 </script>
 
 <template>
+  <!-- 主布局：顶栏 + 侧栏/混合菜单 + 内容区与页签 -->
   <AdminLayout
     v-model:sider-collapse="appStore.siderCollapse"
     :mode="layoutMode"

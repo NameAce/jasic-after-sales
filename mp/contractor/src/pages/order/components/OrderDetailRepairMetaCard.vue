@@ -1,4 +1,5 @@
 <template>
+  <!-- 承修方小程序（网点/总部工单处理、派工）页面 order / components / OrderDetailRepairMetaCard -->
   <view v-if="show" class="od-card-box">
     <view class="od-section-header">
       <view class="section-mark"></view>
@@ -109,7 +110,11 @@
   const props = withDefaults(
     defineProps<{
       order: OrderDetail
-      /** 维修登记：在「维修信息」内展示可编辑报价（与 detail 中 repair 提交共用） */
+      /**
+ * 维修登记：在「维修信息」内展示可编辑报价（与 detail 中 repair 提交共用）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       quoteEditable?: boolean
     }>(),
     { quoteEditable: false }

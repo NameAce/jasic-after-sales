@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 全局顶栏：Logo、菜单/面包屑占位、全屏与主题切换、用户区；具体菜单由 Teleport 注入对应 DOM 节点。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { useFullscreen } from '@vueuse/core';
 import { GLOBAL_HEADER_MENU_ID } from '@/constants/app';
@@ -16,11 +18,23 @@ defineOptions({
 });
 
 interface Props {
-  /** Whether to show the logo */
+  /**
+   * Whether to show the logo
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   showLogo?: App.Global.HeaderProps['showLogo'];
-  /** Whether to show the menu toggler */
+  /**
+   * Whether to show the menu toggler
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   showMenuToggler?: App.Global.HeaderProps['showMenuToggler'];
-  /** Whether to show the menu */
+  /**
+   * Whether to show the menu
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   showMenu?: App.Global.HeaderProps['showMenu'];
 }
 
@@ -33,6 +47,7 @@ const { isFullscreen, toggle } = useFullscreen();
 </script>
 
 <template>
+  <!-- 顶栏：Logo、面包屑、主题与用户菜单 -->
   <DarkModeContainer class="h-full flex-y-center px-12px shadow-header">
     <GlobalLogo v-if="showLogo" class="h-full" :style="{ width: themeStore.sider.width + 'px' }" />
     <MenuToggler v-if="showMenuToggler" :collapsed="appStore.siderCollapse" @click="appStore.toggleSiderCollapse" />

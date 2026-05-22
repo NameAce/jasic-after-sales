@@ -48,10 +48,16 @@
    * 商品信息卡片：
    * - 机型只读展示；不再在卡片内自由输入（避免用户绕过后端校验写入空/非法机型）。
    * - 「须补录机型」时（维修登记缺机型，或复检且佳士缺机型）渲染「点击补录机器型号」，由父组件 detail.vue 唤起 MachineModelSupplementModal。
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const props = defineProps<{
     product: OrderDetail['product']
-    /** 是否需要补录机型入口（父级 detail：维修登记无机型，或复检佳士无机型） */
+    /**
+ * 是否需要补录机型入口（父级 detail：维修登记无机型，或复检佳士无机型）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
     needSupplement?: boolean
   }>()
 

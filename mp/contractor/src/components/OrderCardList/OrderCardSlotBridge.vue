@@ -9,7 +9,9 @@
   /**
    * 调用 OrderCardList 快照的 renderExtra/renderActions；无 template（mp 端由 vite 插件补 .wxml）。
    * slotBridge 以 props 为主：微信小程序等端跨自定义组件 inject 父级 provide 易失效。
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   export default defineComponent({
     name: 'OrderCardSlotBridge',
     props: {
@@ -21,7 +23,11 @@
         type: String as () => 'extra' | 'actions',
         required: true
       },
-      /** 由 OrderCardList 经 props 传入；小程序端仅靠 inject 常拿不到父组件 provide */
+      /**
+ * 由 OrderCardList 经 props 传入；小程序端仅靠 inject 常拿不到父组件 provide
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       slotBridge: {
         type: Object as () => OrderListParentSlotBridge | undefined,
         default: undefined

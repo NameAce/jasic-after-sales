@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 全局面包屑：读取 routeStore.breadcrumbs，支持带子菜单的下拉跳转。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { useAttrs } from 'vue';
 import { createReusableTemplate } from '@vueuse/core';
@@ -25,7 +27,11 @@ interface BreadcrumbContentProps {
 
 const [DefineBreadcrumbContent, BreadcrumbContent] = createReusableTemplate<BreadcrumbContentProps>();
 
-/** 面包屑下拉项点击：按路由 key 跳转 */
+/**
+ * 面包屑下拉项点击：按路由 key 跳转
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleClickMenu(key: RouteKey) {
   routerPushByKey(key);
 }

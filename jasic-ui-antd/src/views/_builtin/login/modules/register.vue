@@ -1,4 +1,9 @@
 <script setup lang="ts">
+/**
+ * 内置页：register。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 import { computed, reactive } from 'vue';
 import { useRouterPush } from '@/hooks/common/router';
 import { useAntdForm, useFormRules } from '@/hooks/common/form';
@@ -44,6 +49,8 @@ const rules = computed<Record<keyof FormModel, App.Global.FormRule[]>>(() => {
  * 作用：校验后提示 PC 注册流程未开放。
  * @param 无
  * @returns 返回 Promise，校验完成后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function handleSubmit() {
   await validate();
@@ -55,6 +62,8 @@ async function handleSubmit() {
  * 作用：校验手机号后请求短信验证码。
  * @param 无
  * @returns 返回 Promise，验证码请求结束后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function handleGetCaptcha() {
   if (!model.phone) {
@@ -67,6 +76,7 @@ async function handleGetCaptcha() {
 </script>
 
 <template>
+  <!-- 内置页：login/modules/register.vue -->
   <AForm ref="formRef" :model="model" :rules="rules" @keyup.enter="handleSubmit">
     <AFormItem name="phone" required>
       <AInput v-model:value="model.phone" size="large" :placeholder="$t('page.login.common.phonePlaceholder')" />

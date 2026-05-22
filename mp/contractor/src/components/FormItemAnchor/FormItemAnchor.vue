@@ -1,8 +1,14 @@
 <template>
+  <!-- 承修方小程序（网点/总部工单处理、派工）组件 FormItemAnchor -->
   <view :id="anchorId" class="form-field-anchor" />
 </template>
 
 <script setup lang="ts">
+/**
+ * 承修方小程序（网点/总部工单处理、派工）：FormItemAnchor。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   import { computed } from 'vue'
   import { formFieldAnchorId } from '@/utils/formFieldScrollFocus'
 

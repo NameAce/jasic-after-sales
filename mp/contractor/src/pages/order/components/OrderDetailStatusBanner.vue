@@ -1,4 +1,5 @@
 <template>
+  <!-- 承修方小程序（网点/总部工单处理、派工）页面 order / components / OrderDetailStatusBanner -->
   <view class="od-top-section">
     <view class="status-banner">
       <view class="status-top">
@@ -35,7 +36,11 @@
     status: WorkOrderMainStatus
   }>()
 
-  /** 与主状态枚举一致：待派单 / 待接单 拆成两步（对齐列表侧 PENDING_ASSIGN / PENDING_TECH_ACCEPT） */
+  /**
+ * 与主状态枚举一致：待派单 / 待接单 拆成两步（对齐列表侧 PENDING_ASSIGN / PENDING_TECH_ACCEPT）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const steps = ['待派单', '待接单', '维修中', '已完成', '已关闭'] as const
 
   const orderStatusText = computed(() => ORDER_STATUS_TEXT_MAP[props.status])

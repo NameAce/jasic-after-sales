@@ -1,4 +1,5 @@
 <template>
+  <!-- 承修方小程序（网点/总部工单处理、派工）组件 RepairTypeSelector -->
   <view class="repair-types">
     <view
       v-for="(item, index) in options"
@@ -45,7 +46,9 @@
   /**
    * 选择维修路径
    * @param value 维修路径
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const handleClick = (value: string) => {
     emit('update:modelValue', value)
   }

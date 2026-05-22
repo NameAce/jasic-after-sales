@@ -63,7 +63,11 @@
   import { WECHAT_TMPL_WORKORDER_ASSIGN_NOTICE } from '@/constants/subscribeMessage'
   import { requestWorkOrderSubscribeWithTemplateIds } from '@/utils/requestWorkOrderSubscribe'
 
-  /** 派单弹窗：未设置头像时使用默认维修员形象 */
+  /**
+ * 派单弹窗：未设置头像时使用默认维修员形象
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const DEFAULT_ASSIGN_AVATAR = ASSET_IMAGES.worker
 
   const avatarDisplayUrl = (avatar?: string) => {
@@ -71,7 +75,11 @@
     return s || DEFAULT_ASSIGN_AVATAR
   }
 
-  /** 维修员类型 */
+  /**
+ * 维修员类型
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   export type Technician = {
     id: number | string
     name: string
@@ -92,12 +100,18 @@
    * @param searchPlaceholder 搜索占位符
    * @param selectedTechId 选择的维修员ID
    * @param resetOnOpen 是否重置搜索
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const props = withDefaults(
     defineProps<{
       modelValue: boolean
       technicianList: Technician[]
-      /** 当前要派单的工单 ID（与列表/工作台 `order.id` 一致），确认时原样带回，避免异步加载人员期间切换工单导致入参错乱 */
+      /**
+ * 当前要派单的工单 ID（与列表/工作台 `order.id` 一致），确认时原样带回，避免异步加载人员期间切换工单导致入参错乱
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       assignWorkOrderId?: string | number | null
       title?: string
       searchPlaceholder?: string
@@ -117,7 +131,9 @@
    * 组件事件
    * @param e 事件
    * @param v 值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const emit = defineEmits<{
     (e: 'update:modelValue', v: boolean): void
     (e: 'update:selectedTechId', v: number | string | null): void
@@ -128,7 +144,9 @@
   /**
    * 是否显示弹窗
    * @returns 是否显示弹窗
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const visible = computed({
     get: () => props.modelValue,
     set: (v: boolean) => emit('update:modelValue', v)
@@ -137,12 +155,16 @@
   /**
    * 搜索关键词
    * @returns 搜索关键词
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const searchQuery = ref('')
   /**
    * 选择的维修员ID
    * @returns 选择的维修员ID
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const selectedId = computed({
     get: () => props.selectedTechId,
     set: (v: number | string | null) => emit('update:selectedTechId', v)
@@ -151,7 +173,9 @@
   /**
    * 监听弹窗是否显示
    * @param v 是否显示弹窗
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   watch(
     () => props.modelValue,
     (v) => {
@@ -163,7 +187,9 @@
   /**
    * 过滤维修员列表
    * @returns 过滤后的维修员列表
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const filteredTechnicianList = computed(() => {
     const q = searchQuery.value?.trim()
     if (!q) return props.technicianList
@@ -177,14 +203,18 @@
   /**
    * 选择维修员
    * @param id 维修员ID
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const selectTechnician = (id: number | string) => {
     selectedId.value = id
   }
 
   /**
    * 关闭弹窗
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onClose = () => {
     visible.value = false
     emit('close')
@@ -192,7 +222,9 @@
 
   /**
    * 确认指派
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onConfirm = async () => {
     if (selectedId.value === null || selectedId.value === undefined || selectedId.value === '') {
       uni.showToast({ title: '请选择维修员', icon: 'none' })

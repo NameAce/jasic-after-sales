@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 登录入口页：波浪背景 + 按 `module` 切换密码/验证码/注册/重置密码/绑定微信等子表单。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import type { Component } from 'vue';
@@ -15,7 +17,11 @@ import ResetPwd from './modules/reset-pwd.vue';
 import BindWechat from './modules/bind-wechat.vue';
 
 interface Props {
-  /** The login module */
+  /**
+   * The login module
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   module?: UnionKey.LoginModule;
 }
 
@@ -67,6 +73,7 @@ const systemTitle = computed(() => $t('system.title'));
 </script>
 
 <template>
+  <!-- 内置页：login/index.vue -->
   <div class="relative size-full flex-center" :style="{ backgroundColor: bgColor }">
     <WaveBg :theme-color="bgThemeColor" />
     <ACard class="relative z-4">

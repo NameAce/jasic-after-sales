@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 通知记录排障：按事件维度分页查询、查看事件/分发详情，支持人工重试与死信标记。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, onMounted, reactive, ref } from 'vue';
 import {
@@ -182,7 +184,10 @@ const deadDrawerReason = ref('');
 const deadDrawerTarget = ref<{ type: 'event' | 'dispatch'; id: number } | null>(null);
 
 /**
- * 作用：从分页响应中解析表格行数组。
+ * 作用：从分页接口响应解析列表数组。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function pickRows(data: unknown) {
   if (Array.isArray(data)) return data;
@@ -191,7 +196,10 @@ function pickRows(data: unknown) {
 }
 
 /**
- * 作用：组装列表查询参数，并将时间范围映射为 beginTime/endTime。
+ * 作用：构造数据或配置：buildQueryParams。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function buildQueryParams(): NotifyTraceQuery {
   const params: NotifyTraceQuery = { ...queryParams };
@@ -208,7 +216,10 @@ function buildQueryParams(): NotifyTraceQuery {
 }
 
 /**
- * 作用：拉取通知记录分页列表。
+ * 作用：加载当前 Tab/条件下表格数据。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadList() {
   clearListMsgs();
@@ -233,11 +244,23 @@ async function loadList() {
   }
 }
 
+/**
+ * 作用：处理交互事件：handleQuery。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleQuery() {
   queryParams.pageNum = 1;
   loadList();
 }
 
+/**
+ * 作用：重置查询条件并刷新列表：resetQuery。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function resetQuery() {
   dateRange.value = undefined;
   queryParams.pageNum = 1;
@@ -250,6 +273,12 @@ function resetQuery() {
   loadList();
 }
 
+/**
+ * 作用：组件回调：onPageChange。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function onPageChange(page: number, pageSize?: number) {
   if (pageSize !== undefined && pageSize !== queryParams.pageSize) {
     queryParams.pageSize = pageSize;
@@ -261,6 +290,12 @@ function onPageChange(page: number, pageSize?: number) {
   loadList();
 }
 
+/**
+ * 作用：页面内业务方法：openEventDetail。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function openEventDetail(eventId?: number) {
   if (!eventId) {
     window.$message?.warning('当前记录没有事件ID');
@@ -271,7 +306,10 @@ async function openEventDetail(eventId?: number) {
 }
 
 /**
- * 作用：列表行点击业务编号时打开事件详情抽屉（与故障配置页「归属总部」入口交互一致）。
+ * 作用：页面内业务方法：openEventDetailFromRow。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function openEventDetailFromRow(row: RowData) {
   if (!hasAuth('system:notifyTrace:view')) return;
@@ -279,10 +317,22 @@ function openEventDetailFromRow(row: RowData) {
 }
 
 /** 业务编号是否展示为可点击的详情入口 */
+/**
+ * 作用：页面内业务方法：canOpenEventDetailFromBizNo。
+ * @returns boolean
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function canOpenEventDetailFromBizNo(row: RowData) {
   return hasAuth('system:notifyTrace:view') && Boolean(row.eventId);
 }
 
+/**
+ * 作用：加载数据：loadEventDetail。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function loadEventDetail(eventId: number) {
   eventDrawerLoading.value = true;
   try {
@@ -299,6 +349,12 @@ async function loadEventDetail(eventId: number) {
   }
 }
 
+/**
+ * 作用：页面内业务方法：openDispatchDetail。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function openDispatchDetail(dispatchId?: number) {
   if (!dispatchId) {
     window.$message?.warning('当前记录没有分发ID');
@@ -308,6 +364,12 @@ async function openDispatchDetail(dispatchId?: number) {
   await loadDispatchDetail(dispatchId);
 }
 
+/**
+ * 作用：加载数据：loadDispatchDetail。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function loadDispatchDetail(dispatchId: number) {
   dispatchDrawerLoading.value = true;
   try {
@@ -324,6 +386,12 @@ async function loadDispatchDetail(dispatchId: number) {
   }
 }
 
+/**
+ * 作用：打开表单/抽屉：openDeadDrawer。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function openDeadDrawer(type: 'event' | 'dispatch', id?: number) {
   if (!id) {
     window.$message?.warning('未获取到可操作记录ID');
@@ -334,6 +402,12 @@ function openDeadDrawer(type: 'event' | 'dispatch', id?: number) {
   deadDrawerOpen.value = true;
 }
 
+/**
+ * 作用：校验并提交：submitDeadDrawer。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function submitDeadDrawer() {
   const reason = deadDrawerReason.value.trim();
   if (!reason) {
@@ -357,6 +431,12 @@ async function submitDeadDrawer() {
   }
 }
 
+/**
+ * 作用：页面内业务方法：retryTarget。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function retryTarget(type: 'event' | 'dispatch', id?: number) {
   if (!id) {
     window.$message?.warning('未获取到可操作记录ID');
@@ -367,6 +447,12 @@ async function retryTarget(type: 'event' | 'dispatch', id?: number) {
   await refreshAfterAction(type, id);
 }
 
+/**
+ * 作用：页面内业务方法：refreshAfterAction。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function refreshAfterAction(type: 'event' | 'dispatch', id: number) {
   await loadList();
   if (type === 'event' && eventDrawerOpen.value && eventDetail.value?.id === id) {
@@ -380,26 +466,62 @@ async function refreshAfterAction(type: 'event' | 'dispatch', id: number) {
   }
 }
 
+/**
+ * 作用：页面内业务方法：canRetryEventStatus。
+ * @returns boolean
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function canRetryEventStatus(status?: string) {
   return Boolean(status) && RETRY_STATUS.includes(status);
 }
 
+/**
+ * 作用：页面内业务方法：canDeadEventStatus。
+ * @returns boolean
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function canDeadEventStatus(status?: string) {
   return Boolean(status) && EVENT_DEAD_STATUS.includes(status);
 }
 
+/**
+ * 作用：页面内业务方法：canRetryDispatchStatus。
+ * @returns boolean
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function canRetryDispatchStatus(status?: string) {
   return Boolean(status) && RETRY_STATUS.includes(status);
 }
 
+/**
+ * 作用：页面内业务方法：canDeadDispatchStatus。
+ * @returns boolean
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function canDeadDispatchStatus(status?: string) {
   return Boolean(status) && DISPATCH_DEAD_STATUS.includes(status);
 }
 
+/**
+ * 作用：页面内业务方法：sceneLabel。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function sceneLabel(sceneCode?: string, sceneName?: string) {
   return sceneName || sceneCode || '-';
 }
 
+/**
+ * 作用：页面内业务方法：targetTypeLabel。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function targetTypeLabel(code?: string, desc?: string) {
   if (desc) return desc;
   const map: Record<string, string> = {
@@ -413,6 +535,12 @@ function targetTypeLabel(code?: string, desc?: string) {
   return (code && map[code]) || code || '-';
 }
 
+/**
+ * 作用：页面内业务方法：eventStatusLabel。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function eventStatusLabel(status?: string) {
   const map: Record<string, string> = {
     NEW: '新建',
@@ -424,6 +552,12 @@ function eventStatusLabel(status?: string) {
   return (status && map[status]) || status || '-';
 }
 
+/**
+ * 作用：页面内业务方法：dispatchStatusLabel。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function dispatchStatusLabel(status?: string) {
   const map: Record<string, string> = {
     PENDING: '待发送',
@@ -436,6 +570,12 @@ function dispatchStatusLabel(status?: string) {
   return (status && map[status]) || status || '-';
 }
 
+/**
+ * 作用：页面内业务方法：inAppStatusLabel。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function inAppStatusLabel(status?: string) {
   const map: Record<string, string> = {
     PENDING: '待处理',
@@ -446,6 +586,12 @@ function inAppStatusLabel(status?: string) {
   return (status && map[status]) || status || '-';
 }
 
+/**
+ * 作用：页面内业务方法：statusTagColor。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function statusTagColor(status?: string) {
   const map: Record<string, string> = {
     SUCCESS: 'success',
@@ -462,6 +608,12 @@ function statusTagColor(status?: string) {
   return (status && map[status]) || 'default';
 }
 
+/**
+ * 作用：页面内业务方法：prettyJson。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function prettyJson(value: unknown) {
   if (!value) return '-';
   if (typeof value === 'object') return JSON.stringify(value, null, 2);
@@ -472,10 +624,22 @@ function prettyJson(value: unknown) {
   }
 }
 
+/**
+ * 作用：页面内业务方法：messageSummaries。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function messageSummaries(row: RowData): TargetSummary[] {
   return Array.isArray(row.messageTargetSummaries) ? row.messageTargetSummaries : [];
 }
 
+/**
+ * 作用：页面内业务方法：dispatchSummaries。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function dispatchSummaries(row: RowData): TargetSummary[] {
   return Array.isArray(row.dispatchTargetSummaries) ? row.dispatchTargetSummaries : [];
 }
@@ -551,7 +715,9 @@ onMounted(loadList);
 </script>
 
 <template>
+  <!-- 通知追踪：事件/投递分页查询、重试与死信处理 -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <!-- 筛选区：工单号、场景、目标类型、状态与时间范围 -->
     <ACard :bordered="false" class="card-wrapper">
       <AForm :model="queryParams" :label-col="{ span: 5, md: 7 }">
         <div class="page-search-toolbar">
@@ -668,6 +834,7 @@ onMounted(loadList);
       </AForm>
     </ACard>
 
+    <!-- 列表区：事件汇总表格，行内重试/标记死信 -->
     <ACard
       :title="pageMenuTitle"
       :bordered="false"
@@ -776,6 +943,7 @@ onMounted(loadList);
       </ATable>
     </ACard>
 
+    <!-- 抽屉：事件详情、投递明细与死信确认 -->
     <ADrawer
       v-model:open="eventDrawerOpen"
       title="事件详情"

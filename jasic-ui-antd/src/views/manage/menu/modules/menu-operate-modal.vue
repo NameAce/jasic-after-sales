@@ -1,6 +1,8 @@
 <script setup lang="tsx">
 /**
  * 菜单管理 — 新增/编辑弹窗：菜单类型、路由、图标、排序与权限等表单项。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, nextTick, ref, watch } from 'vue';
 import { SimpleScrollbar } from '@sa/materials';
@@ -94,6 +96,8 @@ const model = ref(createDefaultModel());
  * 作用：创建菜单表单的默认值。
  * @param 无
  * @returns 默认 Model
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function createDefaultModel(): Model {
   return {
@@ -198,6 +202,8 @@ const roleOptions = ref<CommonType.Option<string>[]>([]);
  * 作用：拉取全部角色选项。
  * @param 无
  * @returns 返回 Promise，请求结束后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function getRoleOptions() {
   const { error, data } = await fetchGetAllRoles();
@@ -216,6 +222,8 @@ async function getRoleOptions() {
  * 作用：在路由 query 列表指定下标后插入一项。
  * @param index - 参考下标，新项插在 index+1
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function addQuery(index: number) {
   model.value.query.splice(index + 1, 0, {
@@ -228,6 +236,8 @@ function addQuery(index: number) {
  * 作用：删除路由 query 指定下标项。
  * @param index - 下标
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function removeQuery(index: number) {
   model.value.query.splice(index, 1);
@@ -237,6 +247,8 @@ function removeQuery(index: number) {
  * 作用：在按钮权限列表指定下标后插入一项。
  * @param index - 参考下标
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function addButton(index: number) {
   model.value.buttons.splice(index + 1, 0, {
@@ -249,6 +261,8 @@ function addButton(index: number) {
  * 作用：删除按钮项指定下标。
  * @param index - 下标
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function removeButton(index: number) {
   model.value.buttons.splice(index, 1);
@@ -258,6 +272,8 @@ function removeButton(index: number) {
  * 作用：根据 operateType 与 rowData 初始化或回填表单。
  * @param 无
  * @returns 返回 Promise，nextTick 与赋值完成后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function handleInitModel() {
   model.value = createDefaultModel();
@@ -293,6 +309,8 @@ async function handleInitModel() {
  * 作用：关闭菜单编辑抽屉。
  * @param 无
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function closeDrawer() {
   visible.value = false;
@@ -302,6 +320,8 @@ function closeDrawer() {
  * 作用：根据 routeName 同步生成 routePath。
  * @param 无
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleUpdateRoutePathByRouteName() {
   if (model.value.routeName) {
@@ -315,6 +335,8 @@ function handleUpdateRoutePathByRouteName() {
  * 作用：根据 routeName 同步生成 i18nKey。
  * @param 无
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleUpdateI18nKeyByRouteName() {
   if (model.value.routeName) {
@@ -328,6 +350,8 @@ function handleUpdateI18nKeyByRouteName() {
  * 作用：组装提交给后端的菜单参数（component、routePath 等派生字段）。
  * @param 无
  * @returns 提交用对象
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function getSubmitParams() {
   const { layout, page, pathParam, ...params } = model.value;
@@ -345,6 +369,8 @@ function getSubmitParams() {
  * 作用：校验表单并模拟保存成功（示例未接接口）。
  * @param 无
  * @returns 返回 Promise，校验与提示完成后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function handleSubmit() {
   await validate();
@@ -377,6 +403,7 @@ watch(
 </script>
 
 <template>
+  <!-- 菜单新增/编辑弹窗 -->
   <ADrawer v-model:open="visible" :title="title" :width="manageMenuDrawerWidth">
     <div class="h-480px">
       <SimpleScrollbar>

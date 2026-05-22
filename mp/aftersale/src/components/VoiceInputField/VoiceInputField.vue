@@ -62,7 +62,11 @@
   import { uploadCustomerFile } from '@/api/file'
   import type { VoicePlaybackItem } from '@/components/VoicePlaybackList/VoicePlaybackList.vue'
 
-  /** 语音条目：tempFilePath 为录制后本地临时文件，url 为上传回服务端的可访问地址 */
+  /**
+ * 语音条目：tempFilePath 为录制后本地临时文件，url 为上传回服务端的可访问地址
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   export interface VoiceItem {
     tempFilePath: string
     duration: number
@@ -70,11 +74,23 @@
     url?: string
   }
 
-  /** 最短有效录音时长（毫秒），低于此不入库 */
+  /**
+ * 最短有效录音时长（毫秒），低于此不入库
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const MIN_DURATION_MS = 600
-  /** 单次最长录音（毫秒），与 RecorderManager.start duration 对齐 */
+  /**
+ * 单次最长录音（毫秒），与 RecorderManager.start duration 对齐
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const MAX_DURATION_MS = 60000
-  /** 上滑取消：相对按下位置向上位移超过该值（px）视为取消区 */
+  /**
+ * 上滑取消：相对按下位置向上位移超过该值（px）视为取消区
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const SLIDE_CANCEL_PX = 72
 
   const props = withDefaults(
@@ -100,7 +116,9 @@
   /**
    * 传给 VoicePlaybackList 的条目：优先用本次录制的本地 tempFilePath（可直接播放），
    * 回退到上传后的 url（走组件内部下载逻辑）。
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const playbackItems = computed<VoicePlaybackItem[]>(() =>
     innerList.value.map((v) => ({
       url: v.tempFilePath || v.url || '',
@@ -116,7 +134,9 @@
    * cancelPendingStart：onStart 前已松手，须在 onStart 里立刻 stop，避免录满一整段
    * discardNextRecording：松手时处于上滑取消区，onStop 丢弃文件、不入库
    * 全屏遮罩：仅当按住条且引擎 pending/录音中；松手、上滑取消、onStop、onError 均会 endRecordInteraction 关闭
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const pressActive = ref(false)
   const recordSessionPending = ref(false)
   const isRecording = ref(false)
@@ -128,12 +148,20 @@
   const slideCancelActive = ref(false)
   const discardNextRecording = ref(false)
 
-  /** H5：鼠标模拟按住，需在 window 上跟手位移判断上滑取消 */
+  /**
+ * H5：鼠标模拟按住，需在 window 上跟手位移判断上滑取消
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   let mouseRecordDown = false
 
   const recorderManager = uni.getRecorderManager ? uni.getRecorderManager() : null
 
-  /** 录音条未录音时文案（对齐微信输入框） */
+  /**
+ * 录音条未录音时文案（对齐微信输入框）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const recordBarIdleText = computed(() => {
     if (isRecording.value || recordSessionPending.value) {
       return recordingElapsedSec.value > 0 ? `正在录音 ${recordingElapsedSec.value}s` : '正在录音…'
@@ -141,7 +169,11 @@
     return '按住 说话'
   })
 
-  /** 全屏遮罩：必须按住条，且已开始会话（pending）或正在录（isRecording） */
+  /**
+ * 全屏遮罩：必须按住条，且已开始会话（pending）或正在录（isRecording）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const recordOverlayVisible = computed(
     () => pressActive.value && (recordSessionPending.value || isRecording.value)
   )
@@ -152,7 +184,11 @@
 
   const overlaySubHint = computed(() => (slideCancelActive.value ? '' : '手指上滑，取消发送'))
 
-  /** 从触摸事件取纵向坐标（各端 clientY / pageY 不一致） */
+  /**
+ * 从触摸事件取纵向坐标（各端 clientY / pageY 不一致）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const getTouchClientY = (e: {
     touches?: { clientY?: number; pageY?: number }[]
     changedTouches?: { clientY?: number; pageY?: number }[]
@@ -189,7 +225,11 @@
     }, 1000)
   }
 
-  /** 录音真正开始时短震（App / 小程序等）；H5 无能力时静默跳过 */
+  /**
+ * 录音真正开始时短震（App / 小程序等）；H5 无能力时静默跳过
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const vibrateRecordStart = () => {
     const v = (uni as unknown as { vibrateShort?: (opts?: { type?: string }) => void }).vibrateShort
     if (typeof v !== 'function') return
@@ -204,7 +244,11 @@
     }
   }
 
-  /** 申请录音权限（小程序等）；不支持时直接通过 */
+  /**
+ * 申请录音权限（小程序等）；不支持时直接通过
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const ensureRecordPermission = (): Promise<boolean> => {
     return new Promise((resolve) => {
       const auth = (
@@ -240,7 +284,11 @@
     })
   }
 
-  /** 申请权限 → 若仍按住则 start；重复 start 由 recordSessionPending 防住 */
+  /**
+ * 申请权限 → 若仍按住则 start；重复 start 由 recordSessionPending 防住
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const startRecord = async () => {
     if (!recorderManager) {
       uni.showToast({ title: '当前环境不支持录音', icon: 'none', duration: 1500 })
@@ -270,7 +318,11 @@
     }
   }
 
-  /** 已 onStart：stop()；仅 pending：交给 onStart 里立刻 stop */
+  /**
+ * 已 onStart：stop()；仅 pending：交给 onStart 里立刻 stop
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const stopRecord = () => {
     if (!recorderManager) return
     if (isRecording.value) {
@@ -284,7 +336,11 @@
     if (recordSessionPending.value) cancelPendingStart.value = true
   }
 
-  /** 一次「按住」：复位上滑状态、标记按住、异步开始录音 */
+  /**
+ * 一次「按住」：复位上滑状态、标记按住、异步开始录音
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const armRecordPress = (startY: number | null) => {
     recordTouchStartY = startY
     slideCancelActive.value = false
@@ -321,13 +377,21 @@
     }
   }
 
-  /** 松手/会话结束：关遮罩（pressActive）、卸鼠标监听；onStop/onError 也会调，防止漏 touchend */
+  /**
+ * 松手/会话结束：关遮罩（pressActive）、卸鼠标监听；onStop/onError 也会调，防止漏 touchend
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const endRecordInteraction = () => {
     pressActive.value = false
     detachMouseRecordListeners()
   }
 
-  /** 松手：若在上滑取消区则 onStop 丢弃；并 stop 或取消 pending start */
+  /**
+ * 松手：若在上滑取消区则 onStop 丢弃；并 stop 或取消 pending start
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onPressEnd = () => {
     if (slideCancelActive.value) discardNextRecording.value = true
     endRecordInteraction()
@@ -424,7 +488,9 @@
   /**
    * VoicePlaybackList 抛上来的删除请求：录制阶段由本组件承担确认弹窗与 v-model 提交，
    * 统一入口以便与「暂无录音」占位、录制流程状态一同管理。
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onRemoveVoice = (index: number) => {
     if (index < 0 || index >= innerList.value.length) return
     uni.showModal({

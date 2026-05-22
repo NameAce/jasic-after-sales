@@ -1,4 +1,5 @@
 <template>
+  <!-- 售后客户端小程序（报修、工单、地址）页面 address / index -->
   <view class="addr-page-root">
     <custom-nav-bar :title="navTitle" surface="sticky" />
     <scroll-view
@@ -132,7 +133,11 @@
   const isSelectMode = ref(false)
   const navTitle = computed(() => (isSelectMode.value ? '选择寄件信息' : '我的地址'))
 
-  /** 左滑「删除」按钮样式（与 $danger 一致） */
+  /**
+ * 左滑「删除」按钮样式（与 $danger 一致）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const swipeDeleteOptions = [
     {
       text: '删除',
@@ -160,7 +165,9 @@
 
   /**
    * 从服务端拉取地址列表并同步本地缓存（供编辑页读取）
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const refresh = async () => {
     try {
       const res = await listCustomerAddress()
@@ -187,7 +194,9 @@
 
   /**
    * 页面显示时刷新地址列表
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   onShow(() => {
     refresh()
   })
@@ -196,14 +205,18 @@
    * 格式化地址
    * @param a 地址对象
    * @returns 格式化后的地址
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const fullAddress = (a: SavedAddress) => {
     return `${a.province}${a.city}${a.county}${a.detail}`
   }
 
   /**
    * 调起微信收货地址（主要支持微信小程序；其他端会失败并提示）
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const importFromWeChat = () => {
     uni.chooseAddress({
       success: (res) => {
@@ -254,7 +267,9 @@
 
   /**
    * 跳转到手动填写地址页面
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const goManualAdd = () => {
     uni.navigateTo({ url: '/pages/address/edit' })
   }
@@ -262,7 +277,9 @@
   /**
    * 跳转到编辑地址页面
    * @param id 地址ID
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const goEdit = (id: string) => {
     uni.navigateTo({ url: `/pages/address/edit?id=${encodeURIComponent(id)}` })
   }
@@ -275,7 +292,9 @@
   /**
    * 设为默认地址
    * @param id 地址ID
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const setAsDefault = (id: string) => {
     const idNum = Number(id)
     if (!Number.isFinite(idNum)) {
@@ -299,7 +318,9 @@
   /**
    * 删除地址
    * @param id 地址ID
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const removeAddress = (id: string) => {
     uni.showModal({
       title: '提示',

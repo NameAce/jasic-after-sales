@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 顶栏用户区：未登录显示登录/注册；已登录下拉含个人中心与退出（带确认）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { Modal } from 'ant-design-vue';
 import { useAuthStore } from '@/store/modules/auth';
@@ -14,7 +16,11 @@ defineOptions({
 const authStore = useAuthStore();
 const { routerPushByKey, toLogin } = useRouterPush();
 
-/** 跳转登录页（或注册入口由路由决定） */
+/**
+ * 跳转登录页（或注册入口由路由决定）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function loginOrRegister() {
   toLogin();
 }
@@ -27,6 +33,8 @@ function loginOrRegister() {
  *    这一刀只针对「打开退出确认」这一刻执行，不会和「退出确认」自身的 leave 过渡竞态。
  * 2. `onOk` 返回 logout 的 Promise，由 ant-design-vue 在 logout 完成后再触发 leave 过渡 → 自然卸载，
  *    避免在 leave 过渡期间再调 destroyAll 导致 useScrollLocker 计数错乱，进而 `<body>` 的 overflow 锁屏样式残留、整页点不动。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function logout() {
   // 清理可能存在的其它 imperative Modal，避免它们叠在退出流程上造成遮罩残留
@@ -46,6 +54,7 @@ function logout() {
 </script>
 
 <template>
+  <!-- 布局子模块：user-avatar -->
   <AButton v-if="!authStore.isLogin" @click="loginOrRegister">{{ $t('page.login.common.loginOrRegister') }}</AButton>
   <ADropdown v-else placement="bottomRight" trigger="click">
     <ButtonIcon>

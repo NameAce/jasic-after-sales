@@ -1,4 +1,5 @@
 <template>
+  <!-- 承修方小程序（网点/总部工单处理、派工）组件 OrderCardList -->
   <OrderCardItem
     :order="order"
     :status-text="statusText"
@@ -44,7 +45,9 @@
   }>()
   /**
    * 定义 emits
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const emit = defineEmits<{
     (e: 'order-click', order: OrderListItem): void
   }>()

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
- * 总部（subjectType=HQ）首页「调度看板」：顶部 KPI 不展示待接单/已关闭（饼图保留），无分区标题、单行占满。
+ * 总部（subjectType=HQ）首页「调度看板」：顶部 KPI 不展示待接单/已完成/已关闭（饼图保留），无分区标题、单行占满。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import type { HomeSectionVO } from '@/service/api';
@@ -31,8 +33,11 @@ const workOrderRoute = { name: 'after-sales_work-order', query: { viewScope: 'CU
 const filteredWorkOrderPool = computed(() => filterHomeKpiPoolMetrics(workOrderPool.value));
 
 /**
- * 承接工单池展示分区：在池内状态指标之后追加「已转出」，与承接卡同一行排列。
- * 饼图仍使用原始 workOrderPool（含待接单、已关闭），避免转出数混入状态分布。
+ * 作用：承接工单池展示分区，在池内状态指标之后追加「已转出」，与承接卡同一行排列。
+ * 说明：饼图仍使用原始 workOrderPool（含待接单、已关闭），避免转出数混入状态分布。
+ * @returns 合并后的 HomeSectionVO 或 null
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 const workOrderPoolWithTransfer = computed((): HomeSectionVO | null => {
   const pool = filteredWorkOrderPool.value;
@@ -49,6 +54,7 @@ const workOrderPoolWithTransfer = computed((): HomeSectionVO | null => {
 </script>
 
 <template>
+  <!-- 总部调度看板：横幅 + KPI（含已转出）+ 近七天趋势 / 承接池状态饼图 -->
   <div class="home-dashboard">
     <HomeWorkbenchHeader
       class="home-dashboard__shrink"

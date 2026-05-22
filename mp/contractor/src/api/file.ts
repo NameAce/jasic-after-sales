@@ -1,6 +1,10 @@
 import { API_SUCCESS_CODE, resolveHttpUrl } from '@/utils/http'
 
-/** 系统侧上传返回（与 SysFileUploadVO 一致） */
+/**
+ * 系统侧上传返回（与 SysFileUploadVO 一致）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export interface SysFileUploadVO {
   contentType?: string
   fileExt?: string
@@ -21,6 +25,8 @@ type UploadBody = {
  * 解析上传URL
  * @param url - 上传URL
  * @returns 解析后的上传URL
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function resolveUploadUrl(url: string): string {
   return resolveHttpUrl(url)
@@ -30,6 +36,8 @@ function resolveUploadUrl(url: string): string {
  * 解析上传响应
  * @param raw - 上传响应
  * @returns 解析后的上传响应
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function parseUploadResponse(raw: string | UploadBody): UploadBody {
   if (typeof raw === 'string') {
@@ -47,13 +55,17 @@ function parseUploadResponse(raw: string | UploadBody): UploadBody {
  * @param filePath - 文件路径
  * @returns 上传后的文件信息
  * POST `/system/file/upload`
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function uploadSystemFile(filePath: string): Promise<SysFileUploadVO> {
   /**
    * 上传文件
    * @param filePath - 文件路径
    * @returns 上传后的文件信息
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   return new Promise((resolve, reject) => {
     const token = uni.getStorageSync('token') || ''
     uni.uploadFile({

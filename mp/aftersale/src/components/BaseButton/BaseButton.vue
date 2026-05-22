@@ -1,4 +1,6 @@
 <template>
+  <!-- 售后客户端小程序（报修、工单、地址）：BaseButton。 @修改人 黄碧莲 @修改时间 2026-05-22 -->
+  <!-- 售后客户端小程序（报修、工单、地址）组件 BaseButton -->
   <view class="base-btn">
     <view class="base-btn-content">
       <slot />

@@ -6,6 +6,8 @@
  * 镜像口径：等价于 contractor `src/theme/colors.ts`，不迁移、不镜像路径，
  * 只镜像公共 token 字面（目录命名与存放位置仅为建议，详见
  * `mp/MIRROR_FILE_PAIRS.md` 的「目录命名和存放位置仅做建议」条目）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export const themeColors = {
   // --- 双端公共 token ---
@@ -40,7 +42,11 @@ export const themeColors = {
   // --- 用户端独有 / 扩展（当前无专有 token，后续新增请集中在此） ---
 } as const
 
-/** 与 `themeColors` 同引用，供沿用旧命名的组件/页面使用 */
+/**
+ * 与 `themeColors` 同引用，供沿用旧命名的组件/页面使用
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export const themeColor = themeColors
 
 export type ThemeColorName = keyof typeof themeColors

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 通用首页指标卡片：按 HomeSectionVO.metrics 渲染，点击走 routeTarget 跳转。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
@@ -45,12 +47,13 @@ const props = withDefaults(
 
 const router = useRouter();
 
+// 当前分区指标列表（无 metrics 时为空数组，避免模板 v-for 报错）
 const metrics = computed(() => (Array.isArray(props.section?.metrics) ? props.section!.metrics! : []));
 
-/** fillRow 时大屏用 flex 均分（如 7 张卡无法整除 24 栅格） */
+// fillRow 且指标个数不能整除 24 时，大屏用 flex 均分（如 7 张卡）
 const useFillRowFlex = computed(() => props.fillRow && metrics.value.length > 0 && 24 % metrics.value.length !== 0);
 
-/** 栅格占位：fillRow 且能整除 24 时用栅格，否则大屏走 flex */
+// 栅格占位：能整除 24 用 Ant Col span，否则走 flex
 const metricColSpan = computed(() => {
   const count = metrics.value.length;
   if (props.fillRow && count > 0 && !useFillRowFlex.value) {
@@ -71,6 +74,13 @@ interface GradientBgProps {
 
 const [DefineGradientBg, GradientBg] = createReusableTemplate<GradientBgProps>();
 
+/**
+ * 作用：按指标 code 生成卡片背景线性渐变 CSS。
+ * @param code - 指标 code
+ * @returns linear-gradient(...) 字符串
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function getGradientColor(code?: string) {
   const style = resolveMetricStyle(code, props.metricStyles);
   const { start, end } = style.color;
@@ -78,29 +88,56 @@ function getGradientColor(code?: string) {
   return `linear-gradient(to ${direction}, ${start}, ${end})`;
 }
 
+/**
+ * 作用：按指标 code 解析卡片图标（mdi 等）。
+ * @param code - 指标 code
+ * @returns 图标 name
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function getIcon(code?: string) {
   return resolveMetricStyle(code, props.metricStyles).icon;
 }
 
-/** 解析当前指标实际跳转目标 */
+/**
+ * 作用：解析当前指标实际跳转目标（前端覆盖优先于接口 routeTarget）。
+ * @param metric - 当前指标项
+ * @returns HomeRouteTargetVO 或 undefined
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function getMetricRouteTarget(metric: (typeof metrics.value)[number]) {
   return resolveMetricRouteTarget(metric, props.routeOverrides);
 }
 
-/** 是否可点击跳转 */
+/**
+ * 作用：判断指标卡片是否可点击跳转（需有有效 routeName）。
+ * @param metric - 当前指标项
+ * @returns 是否展示手型光标并响应点击
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function canNavigate(metric: (typeof metrics.value)[number]) {
   return Boolean(getMetricRouteTarget(metric)?.routeName);
 }
 
-/** 点击指标卡片，按解析后的 routeTarget 跳转对应业务页 */
+/**
+ * 作用：点击指标卡片，按解析后的 routeTarget 跳转对应业务页。
+ * @param metric - 当前指标项
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function openMetric(metric: (typeof metrics.value)[number]) {
   const target = getMetricRouteTarget(metric);
   if (!target?.routeName) return;
+  // 统一走首页路由助手，处理 query 类型转换与工单列表 hasTransfer 补全
   navigateHomeRoute(router, target);
 }
 </script>
 
 <template>
+  <!-- 首页 KPI 渐变卡片：支持 fillRow 均分、routeOverrides 覆盖跳转 -->
   <ACard
     :bordered="false"
     size="small"

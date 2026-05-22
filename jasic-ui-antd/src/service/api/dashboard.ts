@@ -1,6 +1,8 @@
 /**
  * 首页看板接口：按登录主体类型分别调用平台 / 总部 / 服务主体首页聚合接口。
  * 与后端 `PlatformDashboardController`、`HqDashboardController`、`ServiceDashboardController` 契约对齐。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { request } from '../request';
 
@@ -156,7 +158,12 @@ export interface HqDashboardHomeVO {
   trend?: HomeTrendVO;
 }
 
-/** 查询平台超管首页总览 */
+/**
+ * 作用：查询平台超管首页聚合数据（组织/账号/基础配置分区）。
+ * @returns 接口 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function getPlatformDashboardHome() {
   return request<PlatformDashboardHomeVO>({
     url: '/dashboard/platform/home',
@@ -164,7 +171,12 @@ export function getPlatformDashboardHome() {
   });
 }
 
-/** 查询总部首页总览 */
+/**
+ * 作用：查询总部调度看板聚合数据（承接池、已转出、近七天趋势）。
+ * @returns 接口 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function getHqDashboardHome() {
   return request<HqDashboardHomeVO>({
     url: '/dashboard/hq/home',
@@ -172,7 +184,12 @@ export function getHqDashboardHome() {
   });
 }
 
-/** 查询服务主体（网点等）首页总览 */
+/**
+ * 作用：查询服务主体（网点）服务工作台聚合数据（承接池、已转出、趋势、历史参与入口）。
+ * @returns 接口 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function getServiceDashboardHome() {
   return request<ServiceDashboardHomeVO>({
     url: '/dashboard/service/home',

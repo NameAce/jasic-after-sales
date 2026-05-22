@@ -52,7 +52,9 @@
    * @param selectedNetwork 选中网点
    * @param reason 转单原因
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const props = withDefaults(
     defineProps<{
       modelValue: boolean
@@ -73,7 +75,9 @@
    * @param cancel 取消
    * @param confirm 确认
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const emit = defineEmits<{
     (e: 'update:modelValue', v: boolean): void
     (e: 'update:selectedNetwork', v: NetworkItem | null): void
@@ -85,7 +89,9 @@
   /**
    * 转单弹窗 - 是否显示
    * @param modelValue 是否显示
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const visible = computed({
     get: () => props.modelValue,
     set: (v: boolean) => emit('update:modelValue', v)
@@ -94,7 +100,9 @@
   /**
    * 转单弹窗 - 选中网点
    * @param selectedNetwork 选中网点
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const selectedNetworkValue = computed({
     get: () => props.selectedNetwork ?? null,
     set: (v: NetworkItem | null) => emit('update:selectedNetwork', v)
@@ -103,7 +111,9 @@
   /**
    * 转单弹窗 - 转单原因
    * @param reason 转单原因
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const reasonValue = computed({
     get: () => props.reason ?? '',
     set: (v: string) => emit('update:reason', v)
@@ -113,7 +123,9 @@
    * 转单弹窗 - 网点选择
    * @param e 选择事件
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onNetworkChange = (e: any) => {
     const idx = Number(e?.detail?.value ?? -1)
     if (Number.isNaN(idx) || idx < 0 || idx >= props.networkList.length) return
@@ -123,7 +135,9 @@
   /**
    * 转单弹窗 - 取消
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onCancel = () => {
     emit('update:modelValue', false)
     emit('cancel')
@@ -132,7 +146,9 @@
   /**
    * 转单弹窗 - 确认
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onConfirm = () => {
     emit('confirm', { selectedNetwork: selectedNetworkValue.value, reason: reasonValue.value })
   }

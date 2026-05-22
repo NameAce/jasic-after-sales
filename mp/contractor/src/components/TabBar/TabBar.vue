@@ -106,7 +106,9 @@
    * 获取标签ID
    * @param value 标签值
    * @returns 标签ID
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const getTabId = (value: string) => {
     if (!props.idPrefix) return undefined
     return `${props.idPrefix}${value}`
@@ -116,7 +118,9 @@
    * 选择标签
    * @param value 标签值
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onSelect = (value: string) => {
     emit('change', value)
     emit('update:modelValue', value)

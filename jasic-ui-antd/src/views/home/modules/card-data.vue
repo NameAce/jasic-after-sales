@@ -1,4 +1,9 @@
 <script setup lang="ts">
+/**
+ * 遗留业务首页工单状态 KPI 卡片（六态 + 全部，点击带 mainStatus 筛选）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { createReusableTemplate } from '@vueuse/core';
@@ -79,11 +84,24 @@ interface GradientBgProps {
 
 const [DefineGradientBg, GradientBg] = createReusableTemplate<GradientBgProps>();
 
+/**
+ * 作用：生成卡片背景线性渐变 CSS。
+ * @param color - 起止色配置
+ * @returns linear-gradient 字符串
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function getGradientColor(color: CardData['color']) {
   return `linear-gradient(to bottom right, ${color.start}, ${color.end})`;
 }
 
-/** 按状态跳转工单列表 */
+/**
+ * 作用：按主状态跳转当前处理工单列表。
+ * @param status - 主状态或 ALL
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function openWorkOrderPage(status: CardData['key']) {
   const query = status === 'ALL' ? { viewScope: 'CURRENT' } : { viewScope: 'CURRENT', mainStatus: status };
   router.push({ name: 'after-sales_work-order', query });
@@ -91,6 +109,7 @@ function openWorkOrderPage(status: CardData['key']) {
 </script>
 
 <template>
+  <!-- 卡片数据展示 -->
   <ACard :bordered="false" size="small" class="card-wrapper" :loading="loading">
     <DefineGradientBg v-slot="{ $slots, gradientColor }">
       <div class="rd-8px px-16px pb-4px pt-8px text-white" :style="{ backgroundImage: gradientColor }">

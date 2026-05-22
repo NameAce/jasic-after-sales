@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 主题抽屉页脚：一键重置主题为默认、复制当前主题为 JSON（键名去引号便于粘贴到配置）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { onMounted, ref } from 'vue';
 import Clipboard from 'clipboard';
@@ -15,7 +17,11 @@ const themeStore = useThemeStore();
 
 const domRef = ref<HTMLElement | null>(null);
 
-/** 绑定 Clipboard 到「复制配置」按钮容器 */
+/**
+ * 绑定 Clipboard 到「复制配置」按钮容器
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function initClipboard() {
   if (!domRef.value) return;
 
@@ -28,7 +34,11 @@ function initClipboard() {
   });
 }
 
-/** 生成复制文本：将 JSON 中 `"key":` 形式的键名去掉引号 */
+/**
+ * 生成复制文本：将 JSON 中 `"key":` 形式的键名去掉引号
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function getClipboardText() {
   const reg = /"\w+":/g;
 
@@ -37,7 +47,11 @@ function getClipboardText() {
   return json.replace(reg, match => match.replace(/"/g, ''));
 }
 
-/** 恢复默认主题配置并提示 */
+/**
+ * 恢复默认主题配置并提示
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleReset() {
   themeStore.resetStore();
 
@@ -52,6 +66,7 @@ onMounted(() => {
 </script>
 
 <template>
+  <!-- 布局子模块：config-operation -->
   <div class="flex justify-between">
     <AButton danger @click="handleReset">{{ $t('theme.configOperation.resetConfig') }}</AButton>
     <div ref="domRef">

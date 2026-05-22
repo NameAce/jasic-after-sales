@@ -1,4 +1,8 @@
-/** 报修页「维修路径」选项（送店 / 邮寄），与售后端一致 */
+/**
+ * 报修页「维修路径」选项（送店 / 邮寄），与售后端一致
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export interface RepairTypeOption {
   label: string
   value: string

@@ -63,7 +63,9 @@ export const useUserStore = defineStore(
      * 设置用户信息
      * @param val 用户信息
      * @returns void
-    */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
     const setUserInfo = (val: SysUserInfo) => {
       userInfo.value = val
       if (val.perms) {
@@ -74,14 +76,18 @@ export const useUserStore = defineStore(
      * 设置权限
      * @param val 权限
      * @returns void
-     */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
     const setPermissions = (val: string[]) => {
       permissions.value = val
     }
     /**
      * 清除用户信息
      * @returns void
-     */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
     const clearUserInfo = () => {
       token.value = ''
       userInfo.value = undefined
@@ -93,7 +99,9 @@ export const useUserStore = defineStore(
      * @param loginToken 登录 token
      * @param info 用户信息
      * @returns void
-     */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
     const login = (loginToken: string, info: SysUserInfo) => {
       setToken(loginToken)
       setUserInfo(info)
@@ -101,7 +109,9 @@ export const useUserStore = defineStore(
     /**
      * 退出登录
      * @returns void
-     */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
     const logout = async () => {
       try {
         await logoutApi()
@@ -145,7 +155,11 @@ export const useUserStore = defineStore(
           return uni.getStorageSync(key)
         },
       },
-      /** 持久化恢复后对齐 permissions，避免仅有 userInfo.perms 时首页权限判断失败 */
+      /**
+ * 持久化恢复后对齐 permissions，避免仅有 userInfo.perms 时首页权限判断失败
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       afterRestore: (ctx: PiniaPluginContext) => {
         const store = ctx.store as {
           permissions?: string[]

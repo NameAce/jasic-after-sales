@@ -1,4 +1,5 @@
 <template>
+  <!-- 承修方小程序（网点/总部工单处理、派工）页面 order / components / OrderDetailServiceCard -->
   <view v-if="show" class="od-apply-card">
     <view class="od-apply-section-header">
       <view class="section-mark"></view>
@@ -47,7 +48,11 @@
   const props = withDefaults(
     defineProps<{
       service: OrderDetail['service']
-      /** 与 C 端 `acceptor.acceptorName` 一致：当前受理网点名称 */
+      /**
+ * 与 C 端 `acceptor.acceptorName` 一致：当前受理网点名称
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       acceptorSiteName?: string
     }>(),
     { acceptorSiteName: '' }
@@ -55,13 +60,21 @@
 
   const acceptorSiteName = computed(() => String(props.acceptorSiteName ?? '').trim())
 
-  /** 与 aftersale：`serviceModeLabel ?? repairMethod` */
+  /**
+ * 与 aftersale：`serviceModeLabel ?? repairMethod`
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const serviceModeLabel = computed(() => {
     const s = props.service as { serviceModeLabel?: string; repairMethod?: string }
     return String(s.serviceModeLabel ?? s.repairMethod ?? '').trim()
   })
 
-  /** 到店/送店类维修：与 aftersale `isInStoreRepair` 一致 */
+  /**
+ * 到店/送店类维修：与 aftersale `isInStoreRepair` 一致
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const isInStoreRepair = computed(() => {
     const t = serviceModeLabel.value
     if (!t) return false
@@ -70,10 +83,18 @@
     return /到店|送店/.test(t)
   })
 
-  /** 与 C 端映射一致：整段 `senderInfo`（含换行） */
+  /**
+ * 与 C 端映射一致：整段 `senderInfo`（含换行）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const senderInfoPlain = computed(() => String(props.service.senderInfo ?? '').trim())
 
-  /** 与 C 端：优先 `senderVoucherImg`，否则文件列表首图 */
+  /**
+ * 与 C 端：优先 `senderVoucherImg`，否则文件列表首图
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const senderVoucherDisplayUrl = computed(() => {
     const img = String(props.service.senderVoucherImg ?? '').trim()
     if (img) return resolvePreviewableUrl(img)

@@ -1,4 +1,5 @@
 <template>
+  <!-- 售后客户端小程序（报修、工单、地址）组件 AssignTechnicianModal -->
   <CommonModal v-model="visible" :title="title" @close="onClose">
     <view class="atm-search">
       <view class="search-box">
@@ -54,6 +55,11 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 售后客户端小程序（报修、工单、地址）：AssignTechnicianModal。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   import { computed, ref, watch } from 'vue'
   import CommonModal from '@/components/CommonModal/CommonModal.vue'
 

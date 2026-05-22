@@ -1,7 +1,7 @@
 /**
  * 工单创建表单共享：服务方式常量、故障选项、表单默认值与入口代理（供创建弹窗与列表联动）。
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 import { CREATE_ENTRY_PROXY, type CreateEntryMode } from './create-entry';
 
@@ -15,7 +15,7 @@ export const DEFAULT_OTHER_FAULT_LABEL = '其它故障';
 
 /** 与 contractor `REPAIR_TYPE_OPTIONS` 文案一致：送店维修 / 邮寄维修
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export const SERVICE_MODE_OPTIONS = [
   { label: '送店维修', value: SERVICE_MODE_STORE },
@@ -31,7 +31,7 @@ export interface CreateFileItem {
 
 /** 建单「故障图片/视频」合并上传项，提交时按 kind 拆成 faultImageFileIds / faultVideoFileIds
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export interface CreateFaultMediaItem extends CreateFileItem {
   kind: 'image' | 'video';
@@ -82,7 +82,7 @@ export interface CreateWorkOrderFormState {
  * @param value - 原始值
  * @returns 规范化字符串
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function normalizeText(value: unknown): string {
   return value === null || value === undefined ? '' : String(value).trim();
@@ -92,7 +92,7 @@ export function normalizeText(value: unknown): string {
  * 作用：生成建单表单的默认状态对象。
  * @returns 初始表单状态
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function buildDefaultCreateForm(): CreateWorkOrderFormState {
   return {
@@ -136,7 +136,7 @@ export function buildDefaultCreateForm(): CreateWorkOrderFormState {
  * @param fileList - 附件项列表
  * @returns fileId 数字数组
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function buildFileIdList(fileList: CreateFileItem[] | undefined): number[] {
   return (fileList || [])
@@ -151,7 +151,7 @@ export function buildFileIdList(fileList: CreateFileItem[] | undefined): number[
  * @param fileList - 附件项列表
  * @returns 拷贝后的数组
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function cloneFileItems(fileList: CreateFileItem[] | undefined): CreateFileItem[] {
   return (fileList || []).map(item => ({ ...item }));
@@ -162,7 +162,7 @@ export function cloneFileItems(fileList: CreateFileItem[] | undefined): CreateFi
  * @param list - CreateFaultMediaItem 列表
  * @returns 拷贝后的数组
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function cloneFaultMediaItems(list: CreateFaultMediaItem[] | undefined): CreateFaultMediaItem[] {
   return (list || []).map(item => ({ ...item }));
@@ -173,7 +173,7 @@ export function cloneFaultMediaItems(list: CreateFaultMediaItem[] | undefined): 
  * @param raw - 原始对象
  * @returns 规范化选项或无效时 null
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function normalizeTargetCompanyOption(raw: Record<string, unknown>): TargetCompanyOption | null {
   const id = Number(raw.id ?? raw.companyId ?? raw.value);

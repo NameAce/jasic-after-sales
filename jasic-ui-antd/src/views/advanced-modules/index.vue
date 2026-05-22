@@ -2,6 +2,8 @@
 /**
  * 高级/运维配置聚合页：字典、参数、通知模板、角色模板、同步任务等多 Tab（对接 system 等接口）。
  * 参数配置通过 GET /system/config/grouped 分组表单维护，不再提供表格列表模式。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, nextTick, onActivated, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
@@ -147,6 +149,12 @@ const ADV_MODULE_ACTION_WIDTH: Partial<Record<ModuleKey, number>> = {
 };
 
 /** 与当前 Tab 列宽之和 + 操作列 width 匹配的最小 scroll.x */
+/**
+ * 作用：页面内业务方法：advancedModuleTableMinScrollX。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function advancedModuleTableMinScrollX(key: ModuleKey, showAction: boolean): number {
   const actionW = showAction ? (ADV_MODULE_ACTION_WIDTH[key] ?? 120) : 0;
   switch (key) {
@@ -408,15 +416,22 @@ type FaultRepairItem = {
   repairOptions: string[];
 };
 
+/**
+ * 作用：构造数据或配置：buildFaultDetailParams。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function buildFaultDetailParams(record?: RowData | null) {
   const ownerHqId = Number(record?.companyId ?? faultQuery.companyId);
   return Number.isFinite(ownerHqId) ? { ownerHqId } : undefined;
 }
 
 /**
- * 作用：解析分页列表字段 records。
- * @param data - 接口数据
- * @returns 行数组
+ * 作用：从分页接口响应解析列表数组。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function pickRows(data: any) {
   if (Array.isArray(data)) return data;
@@ -425,25 +440,30 @@ function pickRows(data: any) {
 }
 
 /**
- * 作用：解析分页 total。
- * @param data - 接口数据
- * @returns 总条数
+ * 作用：从分页接口响应解析总条数。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function pickTotal(data: any) {
   return Number(data?.total) || 0;
 }
 
 /**
- * 作用：当前列表请求的统一分页参数。
- * @returns pageNum/pageSize
+ * 作用：页面内业务方法：listParams。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function listParams() {
   return { pageNum: pageQuery.pageNum, pageSize: pageQuery.pageSize };
 }
 
 /**
- * 作用：懒加载同步任务处理器选项。
- * @returns 无
+ * 作用：确保前置数据已加载：ensureHandlerOptions。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function ensureHandlerOptions() {
   if (handlerOptions.value.length) return;
@@ -456,8 +476,10 @@ async function ensureHandlerOptions() {
 }
 
 /**
- * 作用：懒加载故障配置可选归属公司列表。
- * @returns 无
+ * 作用：确保前置数据已加载：ensureFaultCompanyOptions。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function ensureFaultCompanyOptions() {
   if (faultCompanyOptions.value.length) return;
@@ -470,8 +492,10 @@ async function ensureFaultCompanyOptions() {
 }
 
 /**
- * 说明：在用户点击「重置」清空归属字段后同样需要回到「默认第一项」，以保持与首次进入 Tab 一致的列表范围。
- * @returns 无
+ * 作用：应用配置或路由参数：applyDefaultFaultRepairCompanyFilter。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function applyDefaultFaultRepairCompanyFilter() {
   if (faultQuery.companyId != null) return;
@@ -481,7 +505,10 @@ function applyDefaultFaultRepairCompanyFilter() {
 }
 
 /**
- * 作用：懒加载条码档案可维护总部下拉数据（仅拉选项，不改动当前筛选值）。
+ * 作用：确保前置数据已加载：ensureBarcodeHqOptions。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function ensureBarcodeHqOptions() {
   if (!barcodeHqOptions.value.length) {
@@ -491,9 +518,10 @@ async function ensureBarcodeHqOptions() {
 }
 
 /**
- * 作用：条码档案筛选「归属总部」未选时默认可选列表第一项。
- * 说明：进入子模块或通过「重置」清空归属后同样需要回到默认第一项，与初次进入该子模块一致。
- * @returns 无
+ * 作用：应用配置或路由参数：applyDefaultBarcodeOwnerHqFilter。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function applyDefaultBarcodeOwnerHqFilter() {
   if (barcodeQuery.ownerHqId != null) return;
@@ -503,8 +531,10 @@ function applyDefaultBarcodeOwnerHqFilter() {
 }
 
 /**
- * 作用：加载总部列表供「系统大区」筛选；默认选中第一项。
- * @returns 无
+ * 作用：加载数据：loadHqForRegion。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadHqForRegion() {
   const { data } = await listCompany({
@@ -520,8 +550,10 @@ async function loadHqForRegion() {
 }
 
 /**
- * 作用：加载公司类型标签映射与角色模板数据范围选项映射。
- * @returns 无
+ * 作用：加载数据：loadTypeCodeLabels。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadTypeCodeLabels() {
   try {
@@ -547,8 +579,10 @@ async function loadTypeCodeLabels() {
 }
 
 /**
- * 作用：按当前子模块构造列表请求 Promise。
- * @returns 接口 Promise
+ * 作用：加载数据：loadByModule。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function loadByModule() {
   const p = listParams();
@@ -949,17 +983,20 @@ const syncTaskLogColumns = applyDateTimeColumnRender([
 const hasDictRowActions = computed(() => activeKey.value === 'dict');
 
 /**
- * 作用：为表格行生成稳定 key。
- * @param r - 行数据
- * @returns 唯一键字符串
+ * 作用：页面内业务方法：resolveRowKey。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function resolveRowKey(r: RowData) {
   return r.id ?? r.dictId ?? r.configId ?? r.templateCode ?? String(r.taskCode ?? r.barcode ?? Math.random());
 }
 
 /**
- * 作用：拉取当前子模块列表数据并写入 rows/total。
- * @returns 无
+ * 作用：加载当前 Tab/条件下表格数据。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadList() {
   // 参数配置由 ConfigFormPanel 调用 grouped 接口拉取，不走表格列表请求。
@@ -1009,9 +1046,10 @@ async function loadList() {
 }
 
 /**
- * 作用：切换到指定高级配置子模块并加载列表。
- * @param moduleKey - 子模块 key
- * @returns 是否发生了 Tab 切换
+ * 作用：页面内业务方法：activateModule。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function activateModule(moduleKey: ModuleKey): Promise<boolean> {
   if (moduleKey === activeKey.value) return false;
@@ -1033,9 +1071,10 @@ async function activateModule(moduleKey: ModuleKey): Promise<boolean> {
 }
 
 /**
- * 作用：根据路由 query.module 切换 Tab（平台首页基础配置卡片跳转）。
- * @param module - query.module
- * @returns 是否发生了 Tab 切换
+ * 作用：同步状态：syncActiveModuleByQuery。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function syncActiveModuleByQuery(module: unknown): Promise<boolean> {
   const moduleKey = MODULE_QUERY_TO_KEY[String(module || '')];
@@ -1044,9 +1083,10 @@ async function syncActiveModuleByQuery(module: unknown): Promise<boolean> {
 }
 
 /**
- * 作用：根据路由 name 切换 Tab 并触发列表加载。
- * @param routeName - 当前路由 name
- * @returns 是否发生了 Tab 切换
+ * 作用：同步状态：syncActiveModuleByRouteName。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function syncActiveModuleByRouteName(routeName: unknown): Promise<boolean> {
   const moduleKey = ROUTE_NAME_TO_MODULE_KEY[String(routeName || '')];
@@ -1055,7 +1095,10 @@ async function syncActiveModuleByRouteName(routeName: unknown): Promise<boolean>
 }
 
 /**
- * 作用：按路由 name 或 query.module 同步当前 Tab（首页 routeTarget 跳转入口）。
+ * 作用：同步状态：syncActiveModuleFromRoute。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function syncActiveModuleFromRoute(): Promise<boolean> {
   const moduleQuery = route.query.module;
@@ -1067,8 +1110,10 @@ async function syncActiveModuleFromRoute(): Promise<boolean> {
 }
 
 /**
- * 作用：查询：重置到第一页并重新加载列表。
- * @returns 无
+ * 作用：执行查询（回到第一页）：handleSearch。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleSearch() {
   pageQuery.pageNum = 1;
@@ -1076,8 +1121,10 @@ function handleSearch() {
 }
 
 /**
- * 作用：清空当前子模块筛选条件并重新查询。
- * @returns 无
+ * 作用：页面内业务方法：resetSearch。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function resetSearch() {
   switch (activeKey.value) {
@@ -1132,10 +1179,10 @@ function resetSearch() {
 }
 
 /**
- * 作用：表格分页变更。
- * @param page - 页码
- * @param pageSize - 每页条数（可选）
- * @returns 无
+ * 作用：组件回调：onPageChange。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function onPageChange(page: number, pageSize?: number) {
   if (pageSize !== undefined && pageSize !== pageQuery.pageSize) {
@@ -1149,9 +1196,10 @@ function onPageChange(page: number, pageSize?: number) {
 }
 
 /**
- * 作用：打开通用表单抽屉并按子模块初始化表单模型。
- * @param record - 编辑时的行数据，新增时省略
- * @param title - 抽屉标题，可选
+ * 作用：打开表单/抽屉：openForm。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openForm(record?: RowData, title?: string) {
   if (activeKey.value === 'roleTemplate') {
@@ -1206,9 +1254,10 @@ async function openForm(record?: RowData, title?: string) {
 }
 
 /**
- * 作用：判断字典/参数表单字段是否必填。
- * @param key - 字段名
- * @returns 是否必填
+ * 作用：判断是否满足条件：isFormFieldRequired。
+ * @returns boolean
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function isFormFieldRequired(key: string) {
   if (activeKey.value === 'dict') {
@@ -1224,8 +1273,10 @@ function isFormFieldRequired(key: string) {
 }
 
 /**
- * 作用：返回当前子模块抽屉内表单字段定义。
- * @returns 字段列表
+ * 作用：页面内业务方法：formFields。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function formFields(): {
   label: string;
@@ -1316,9 +1367,10 @@ const channelsDrawerFieldCount = computed(() => (channelsRows.value?.length || 0
 const channelsDrawerWidth = computed(() => adaptiveModalWidth(980, channelsDrawerFieldCount.value));
 
 /**
- * 作用：字典/参数.radio 类型字段的选项。
- * @param key - 字段名
- * @returns 选项列表
+ * 作用：读取/解析：getFormRadioOptions。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function getFormRadioOptions(key: string) {
   if (key === 'status') {
@@ -1337,10 +1389,10 @@ function getFormRadioOptions(key: string) {
 }
 
 /**
- * 作用：表单控件占位提示文案。
- * @param key - 字段名
- * @param type - 控件类型
- * @returns 占位符或 undefined
+ * 作用：读取/解析：getFormPlaceholder。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function getFormPlaceholder(key: string, type: 'input' | 'textarea' | 'number' | 'radio') {
   if (activeKey.value === 'dict') {
@@ -1358,8 +1410,10 @@ function getFormPlaceholder(key: string, type: 'input' | 'textarea' | 'number' |
 }
 
 /**
- * 作用：新建一条空的故障-维修项。
- * @returns 故障项结构
+ * 作用：页面内业务方法：createFaultItem。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function createFaultItem(): FaultRepairItem {
   return {
@@ -1369,9 +1423,10 @@ function createFaultItem(): FaultRepairItem {
 }
 
 /**
- * 作用：将接口/行数据规整为故障维修表单可用的结构。
- * @param data - 原始数据，可选
- * @returns 表单模型片段
+ * 作用：页面内业务方法：normalizeFaultFormData。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function normalizeFaultFormData(data?: RowData) {
   const faultsRaw = Array.isArray(data?.faults) ? data.faults : [];
@@ -1398,8 +1453,10 @@ function normalizeFaultFormData(data?: RowData) {
 }
 
 /**
- * 作用：在故障表单中追加一条故障信息。
- * @returns 无
+ * 作用：页面内业务方法：addFaultItem。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function addFaultItem() {
   const list = Array.isArray(formModel.faults) ? (formModel.faults as FaultRepairItem[]) : [];
@@ -1408,8 +1465,10 @@ function addFaultItem() {
 }
 
 /**
- * 作用：移除指定索引的故障信息（至少保留一条）。
- * @param index - 下标
+ * 作用：删除记录：removeFaultItem。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function removeFaultItem(index: number) {
   const list = Array.isArray(formModel.faults) ? (formModel.faults as FaultRepairItem[]) : [];
@@ -1418,18 +1477,20 @@ function removeFaultItem(index: number) {
 }
 
 /**
- * 作用：为某故障追加一项维修说明输入框。
- * @param item - 故障项
- * @returns 无
+ * 作用：页面内业务方法：addRepairOption。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function addRepairOption(item: FaultRepairItem) {
   item.repairOptions.push('');
 }
 
 /**
- * 作用：移除指定维修说明项（至少保留一项）。
- * @param item - 故障项
- * @param index - 下标
+ * 作用：删除记录：removeRepairOption。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function removeRepairOption(item: FaultRepairItem, index: number) {
   if (item.repairOptions.length <= 1) return;
@@ -1437,9 +1498,10 @@ function removeRepairOption(item: FaultRepairItem, index: number) {
 }
 
 /**
- * 作用：校验故障描述 / 维修说明是否重复（单项必填由子表单项 rules 处理）。
- * @param data - 表单数据
- * @returns 首条错误文案或 null
+ * 作用：读取/解析：getFaultDuplicateError。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function getFaultDuplicateError(data: RowData): string | null {
   const faults = Array.isArray(data.faults) ? data.faults : [];
@@ -1619,9 +1681,10 @@ const advRegionFormRules = {
 };
 
 /**
- * 作用：组装故障维修提交给后端的 payload。
- * @param data - 表单数据
- * @returns 提交体
+ * 作用：构造数据或配置：buildFaultSubmitPayload。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function buildFaultSubmitPayload(data: RowData) {
   return {
@@ -1641,8 +1704,10 @@ function buildFaultSubmitPayload(data: RowData) {
 }
 
 /**
- * 作用：提交通用表单（字典/参数/通知/故障/角色模板等）。
- * @returns 无
+ * 作用：校验并提交：submitForm。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitForm() {
   try {
@@ -1679,9 +1744,10 @@ async function submitForm() {
 }
 
 /**
- * 作用：按当前子模块删除表格行。
- * @param record - 行数据
- * @returns 无
+ * 作用：删除记录：removeRow。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function removeRow(record: RowData) {
   let delResult: unknown;
@@ -1714,8 +1780,10 @@ async function removeRow(record: RowData) {
 }
 
 /**
- * 作用：刷新当前 Tab 对应的后端缓存（字典/参数/通知模板）。
- * @returns 无
+ * 作用：组件回调：onRefreshCache。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function onRefreshCache() {
   if (activeKey.value === 'dict') {
@@ -1732,9 +1800,10 @@ async function onRefreshCache() {
 }
 
 /**
- * 作用：手动触发一条同步任务执行。
- * @param record - 任务行
- * @returns 无
+ * 作用：组件回调：onRunSyncTask。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function onRunSyncTask(record: RowData) {
   const id = record.id ?? record.taskId;
@@ -1745,9 +1814,10 @@ async function onRunSyncTask(record: RowData) {
 }
 
 /**
- * 作用：同步单行角色模板至业务侧。
- * @param record - 模板行
- * @returns 无
+ * 作用：组件回调：onSyncRoleTemplateRow。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function onSyncRoleTemplateRow(record: RowData) {
   const id = record.id;
@@ -1757,8 +1827,10 @@ async function onSyncRoleTemplateRow(record: RowData) {
 }
 
 /**
- * 作用：触发机器条码全量同步任务。
- * @returns 无
+ * 作用：组件回调：onFullSyncBarcode。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function onFullSyncBarcode() {
   const r = await fullSyncMachineBarcode();
@@ -1767,9 +1839,10 @@ async function onFullSyncBarcode() {
 }
 
 /**
- * 作用：打开条码档案详情右侧抽屉并加载详情。
- * @param record - 列表行
- * @returns 无
+ * 作用：页面内业务方法：openBarcodeDetail。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openBarcodeDetail(record: RowData) {
   const id = record.id;
@@ -1782,9 +1855,10 @@ async function openBarcodeDetail(record: RowData) {
 }
 
 /**
- * 作用：判断列表中是否已存在某编码的自定义通知模板。
- * @param templateCode - 模板编码
- * @returns 是否存在 CUSTOM 来源记录
+ * 作用：页面内业务方法：hasCustomNotifyTemplate。
+ * @returns boolean
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function hasCustomNotifyTemplate(templateCode?: string) {
   const code = String(templateCode || '');
@@ -1795,9 +1869,10 @@ function hasCustomNotifyTemplate(templateCode?: string) {
 }
 
 /**
- * 作用：生成通知模板预览用的示例变量 JSON 字符串。
- * @param templateCode - 模板编码，用于分支变量集合
- * @returns JSON 字符串
+ * 作用：构造数据或配置：buildNotifyPreviewVariables。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function buildNotifyPreviewVariables(templateCode?: string) {
   // 给预览接口准备一个“尽量全”的变量集合，
@@ -1822,9 +1897,10 @@ function buildNotifyPreviewVariables(templateCode?: string) {
 }
 
 /**
- * 作用：用详情数据填充通知模板表单模型。
- * @param detail - 模板详情
- * @returns 无
+ * 作用：页面内业务方法：fillNotifyForm。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function fillNotifyForm(detail: RowData) {
   Object.keys(notifyForm).forEach(k => delete notifyForm[k]);
@@ -1836,9 +1912,10 @@ function fillNotifyForm(detail: RowData) {
 }
 
 /**
- * 作用：只读打开通知模板详情抽屉。
- * @param record - 行或详情引用
- * @returns 无
+ * 作用：页面内业务方法：openNotifyView。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openNotifyView(record: RowData) {
   notifyFormTitle.value = '查看通知模板';
@@ -1849,9 +1926,10 @@ async function openNotifyView(record: RowData) {
 }
 
 /**
- * 作用：基于标准模板打开「新增自定义模板」表单。
- * @param record - 基准行（提供编码等）
- * @returns 无
+ * 作用：页面内业务方法：openNotifyAddCustom。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openNotifyAddCustom(record: RowData) {
   notifyFormTitle.value = '新增自定义模板';
@@ -1872,9 +1950,10 @@ async function openNotifyAddCustom(record: RowData) {
 }
 
 /**
- * 作用：打开自定义模板编辑抽屉。
- * @param record - 列表行
- * @returns 无
+ * 作用：页面内业务方法：openNotifyEdit。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openNotifyEdit(record: RowData) {
   notifyFormTitle.value = '编辑自定义模板';
@@ -1885,8 +1964,10 @@ async function openNotifyEdit(record: RowData) {
 }
 
 /**
- * 作用：提交通知模板表单（新增或更新自定义模板）。
- * @returns 无
+ * 作用：校验并提交：submitNotifyForm。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitNotifyForm() {
   try {
@@ -1923,9 +2004,10 @@ async function submitNotifyForm() {
 }
 
 /**
- * 作用：从列表行打开模板预览弹窗并请求预览接口。
- * @param record - 模板行
- * @returns 无
+ * 作用：组件回调：onPreviewNotify。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function onPreviewNotify(record: RowData) {
   const payload = {
@@ -1945,8 +2027,10 @@ async function onPreviewNotify(record: RowData) {
 }
 
 /**
- * 作用：从抽屉表单打开预览并带上当前编辑内容。
- * @returns 无
+ * 作用：组件回调：onPreviewNotifyForm。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function onPreviewNotifyForm() {
   const payload = {
@@ -1967,9 +2051,10 @@ async function onPreviewNotifyForm() {
 }
 
 /**
- * 作用：调用预览接口并写入预览结果。
- * @param payload - 模板内容与开关等
- * @returns 无
+ * 作用：页面内业务方法：runNotifyPreview。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function runNotifyPreview(payload: RowData) {
   let variables = {};
@@ -1989,9 +2074,10 @@ async function runNotifyPreview(payload: RowData) {
 }
 
 /**
- * 作用：打开通知渠道配置抽屉并加载渠道列表。
- * @param record - 模板行（含 templateCode）
- * @returns 无
+ * 作用：页面内业务方法：openChannelsEditor。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openChannelsEditor(record: RowData) {
   channelsReadonly.value = !hasAuth('system:notifyTemplate:update');
@@ -2009,8 +2095,10 @@ async function openChannelsEditor(record: RowData) {
 }
 
 /**
- * 作用：新建一行渠道配置默认值（按模板编码可返回预设）。
- * @returns 渠道行对象
+ * 作用：页面内业务方法：createChannelRow。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function createChannelRow() {
   if (channelsTemplateCode.value === 'WORK_ORDER_EVALUATION_INVITE') {
@@ -2040,17 +2128,20 @@ function createChannelRow() {
 }
 
 /**
- * 作用：无渠道数据时的默认一行。
- * @returns 渠道行数组
+ * 作用：页面内业务方法：defaultChannelRows。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function defaultChannelRows() {
   return [createChannelRow()];
 }
 
 /**
- * 作用：将接口渠道项规整为表单行结构。
- * @param item - 原始项
- * @returns 规整后的行
+ * 作用：页面内业务方法：normalizeChannelRow。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function normalizeChannelRow(item: RowData) {
   return {
@@ -2069,9 +2160,10 @@ function normalizeChannelRow(item: RowData) {
 }
 
 /**
- * 作用：组装单条渠道保存请求体。
- * @param item - 表单行
- * @returns payload
+ * 作用：构造数据或配置：buildChannelPayload。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function buildChannelPayload(item: RowData) {
   return {
@@ -2091,24 +2183,30 @@ function buildChannelPayload(item: RowData) {
 }
 
 /**
- * 作用：渠道表格追加一行。
- * @returns 无
+ * 作用：页面内业务方法：addChannelRow。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function addChannelRow() {
   channelsRows.value.push(createChannelRow());
 }
 
 /**
- * 作用：删除指定索引的渠道行。
- * @param index - 下标
+ * 作用：删除记录：removeChannelRow。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function removeChannelRow(index: number) {
   channelsRows.value.splice(index, 1);
 }
 
 /**
- * 作用：为渠道行追加一条字段映射空行。
- * @param item - 渠道行
+ * 作用：页面内业务方法：addFieldMapping。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function addFieldMapping(item: RowData) {
   if (!Array.isArray(item.fieldMapping)) item.fieldMapping = [];
@@ -2116,9 +2214,10 @@ function addFieldMapping(item: RowData) {
 }
 
 /**
- * 作用：移除渠道行内指定字段映射。
- * @param item - 渠道行
- * @param index - 映射下标
+ * 作用：删除记录：removeFieldMapping。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function removeFieldMapping(item: RowData, index: number) {
   if (!Array.isArray(item.fieldMapping)) return;
@@ -2126,8 +2225,10 @@ function removeFieldMapping(item: RowData, index: number) {
 }
 
 /**
- * 作用：批量保存当前模板渠道配置。
- * @returns 无
+ * 作用：保存：saveChannels。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function saveChannels() {
   channelsLoading.value = true;
@@ -2142,9 +2243,10 @@ async function saveChannels() {
 }
 
 /**
- * 作用：打开同步任务新增/编辑抽屉。
- * @param record - 编辑时传入行数据，新增时省略
- * @returns 无
+ * 作用：打开表单/抽屉：openSyncForm。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function openSyncForm(record?: RowData) {
   syncFormTitle.value = record ? '编辑同步任务' : '新增同步任务';
@@ -2159,8 +2261,10 @@ function openSyncForm(record?: RowData) {
 }
 
 /**
- * 作用：提交同步任务表单。
- * @returns 无
+ * 作用：校验并提交：submitSyncForm。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitSyncForm() {
   try {
@@ -2176,9 +2280,10 @@ async function submitSyncForm() {
 }
 
 /**
- * 作用：拉取任务详情后打开编辑抽屉。
- * @param record - 列表行
- * @returns 无
+ * 作用：页面内业务方法：openSyncFormEdit。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openSyncFormEdit(record: RowData) {
   const id = record.id;
@@ -2188,9 +2293,10 @@ async function openSyncFormEdit(record: RowData) {
 }
 
 /**
- * 作用：打开同步任务执行日志弹窗并加载第一页。
- * @param record - 任务行
- * @returns 无
+ * 作用：页面内业务方法：openLogDialog。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openLogDialog(record: RowData) {
   logTaskId.value = record.id;
@@ -2202,8 +2308,10 @@ async function openLogDialog(record: RowData) {
 }
 
 /**
- * 作用：按当前任务与筛选分页加载执行日志。
- * @returns 无
+ * 作用：加载数据：loadSyncLogs。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadSyncLogs() {
   if (logTaskId.value == null) return;
@@ -2223,10 +2331,10 @@ async function loadSyncLogs() {
 }
 
 /**
- * 作用：日志表格分页变更。
- * @param page - 页码
- * @param pageSize - 每页条数，可选
- * @returns 无
+ * 作用：组件回调：onLogPageChange。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function onLogPageChange(page: number, pageSize?: number) {
   logPage.pageNum = page;
@@ -2235,8 +2343,10 @@ function onLogPageChange(page: number, pageSize?: number) {
 }
 
 /**
- * 作用：日志状态筛选变更时回到第一页并刷新。
- * @returns 无
+ * 作用：处理交互事件：handleLogStatusChange。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleLogStatusChange() {
   logPage.pageNum = 1;
@@ -2244,9 +2354,10 @@ function handleLogStatusChange() {
 }
 
 /**
- * 作用：同步日志状态对应 Tag 颜色。
- * @param status - 状态枚举字符串
- * @returns Ant Tag color
+ * 作用：同步状态：syncLogStatusTagColor。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function syncLogStatusTagColor(status: unknown) {
   const s = String(status || '');
@@ -2257,9 +2368,10 @@ function syncLogStatusTagColor(status: unknown) {
 }
 
 /**
- * 作用：同步日志触发人展示，定时任务统一展示系统任务身份。
- * @param record - 日志行
- * @returns 展示文案
+ * 作用：同步状态：syncLogTriggerUserLabel。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function syncLogTriggerUserLabel(record: RowData) {
   if (record.triggerType === 'SCHEDULED' || Number(record.triggerUserId) === 0) return '系统任务';
@@ -2267,9 +2379,10 @@ function syncLogTriggerUserLabel(record: RowData) {
 }
 
 /**
- * 作用：打开角色模板菜单分配抽屉并加载菜单树。
- * @param record - 模板行
- * @returns 无
+ * 作用：页面内业务方法：openRoleTemplateMenuAssign。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openRoleTemplateMenuAssign(record: RowData) {
   const typeCode = String(record.typeCode || '');
@@ -2295,8 +2408,10 @@ async function openRoleTemplateMenuAssign(record: RowData) {
 }
 
 /**
- * 作用：提交模板菜单勾选结果。
- * @returns 无
+ * 作用：校验并提交：submitRoleTemplateMenuAssign。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitRoleTemplateMenuAssign() {
   if (!menuAssignTypeCode.value || !menuAssignTemplate.value?.id) return;
@@ -2323,9 +2438,10 @@ async function submitRoleTemplateMenuAssign() {
 }
 
 /**
- * 作用：打开系统大区新增/编辑表单。
- * @param record - 编辑时传入行，新增时省略
- * @returns 无
+ * 作用：打开表单/抽屉：openRegionForm。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function openRegionForm(record?: RowData) {
   if (!regionHqId.value) {
@@ -2345,8 +2461,10 @@ function openRegionForm(record?: RowData) {
 }
 
 /**
- * 作用：提交大区表单（新增或更新）。
- * @returns 无
+ * 作用：校验并提交：submitRegionForm。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitRegionForm() {
   try {
@@ -2362,9 +2480,10 @@ async function submitRegionForm() {
 }
 
 /**
- * 作用：打开故障维修配置只读详情。
- * @param record - 列表行
- * @returns 无
+ * 作用：页面内业务方法：openFaultDetail。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openFaultDetail(record: RowData) {
   const id = record.id;
@@ -2375,18 +2494,20 @@ async function openFaultDetail(record: RowData) {
 }
 
 /**
- * 作用：将类型编码转为可读名称（查映射表）。
- * @param code - typeCode
- * @returns 展示文案
+ * 作用：页面内业务方法：typeCodeLabel。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function typeCodeLabel(code: string) {
   return typeCodeLabelMap.value[code] || code;
 }
 
 /**
- * 作用：表格中展示角色模板数据范围的可读标签。
- * @param row - 模板行
- * @returns 标签或原值
+ * 作用：读取/解析：getRoleTemplateDataScopeLabel。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function getRoleTemplateDataScopeLabel(row: RowData) {
   const typeCode = String(row.typeCode || '');
@@ -2399,8 +2520,10 @@ function getRoleTemplateDataScopeLabel(row: RowData) {
 }
 
 /**
- * 作用：角色模板类型筛选变更后回到第一页并刷新列表。
- * @returns 无
+ * 作用：组件回调：onRoleTemplateTypeChange。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function onRoleTemplateTypeChange() {
   pageQuery.pageNum = 1;
@@ -2408,9 +2531,10 @@ function onRoleTemplateTypeChange() {
 }
 
 /**
- * 作用：按表单中的 typeCode 拉取可选数据范围并重置 dataScope（可选保留当前值）。
- * @param keepCurrentValue - 为 true 时在合法时保留当前 dataScope
- * @returns 无
+ * 作用：组件回调：onRoleTemplateDataScopeInit。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function onRoleTemplateDataScopeInit(keepCurrentValue = false) {
   const typeCode = String(formModel.typeCode || '');
@@ -2473,8 +2597,9 @@ onActivated(async () => {
 </script>
 
 <template>
+  <!-- 高级/运维配置：字典/参数/通知/同步等多 Tab；config 仅渲染 ConfigFormPanel -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
-    <!-- 参数配置无筛选区，不渲染顶部空 card-wrapper 卡片 -->
+    <!-- 筛选区：除参数 config 外各 Tab 的查询表单（参数 Tab 无顶部空卡片） -->
     <ACard v-if="activeKey !== 'config'" :bordered="false" class="card-wrapper">
       <div class="flex flex-col gap-12px">
         <AForm v-if="activeKey === 'dict'" :model="dictQuery" :label-col="{ span: 5, md: 7 }">
@@ -2962,6 +3087,7 @@ onActivated(async () => {
         </AForm>
       </div>
     </ACard>
+    <!-- 列表区：当前 Tab 表格与行内操作（config Tab 由 ConfigFormPanel 替代） -->
     <ACard
       :title="pageMenuTitle"
       :bordered="false"
@@ -3188,6 +3314,7 @@ onActivated(async () => {
       </ATable>
     </ACard>
 
+    <!-- 抽屉区：各 Tab 统一表单及通知预览、同步日志、条码详情等 -->
     <ADrawer
       v-model:open="formOpen"
       :title="`${tabOptions.find(t => t.key === activeKey)?.label} — ${formTitle}`"

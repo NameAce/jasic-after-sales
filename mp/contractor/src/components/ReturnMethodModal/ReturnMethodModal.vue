@@ -137,16 +137,28 @@
     receiverName?: string
     receiverPhone?: string
     receiverAddress?: string
-    /** 详情接口 `sendExpressNo`，仅展示 */
+    /**
+ * 详情接口 `sendExpressNo`，仅展示
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
     sendExpressNo?: string
     receiptImagePaths?: string[]
   }
 
   const props = defineProps<{
     modelValue: boolean
-    /** 再次打开弹窗时回显已选方式，空则要求用户重新选择 */
+    /**
+ * 再次打开弹窗时回显已选方式，空则要求用户重新选择
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
     initialType?: '' | 'self' | 'mail'
-    /** 选择「回寄」时回显寄件信息与已上传凭证（可继续编辑）；无则空白 */
+    /**
+ * 选择「回寄」时回显寄件信息与已上传凭证（可继续编辑）；无则空白
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
     initialMail?: InitialMailFields
   }>()
 
@@ -187,7 +199,11 @@
   const receiverAddress = ref('')
   type ReceiptFileItem = Record<string, unknown>
 
-  /** 与 MediaUploadField / uni-file-picker 一致的结构，确认时抽出 url 作为 receiptImagePaths */
+  /**
+ * 与 MediaUploadField / uni-file-picker 一致的结构，确认时抽出 url 作为 receiptImagePaths
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const receiptFileList = ref<ReceiptFileItem[]>([])
 
   const detailSendExpressNo = computed(() => (props.initialMail?.sendExpressNo ?? '').trim())
@@ -211,7 +227,9 @@
   /**
    * 同步表单数据
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const syncFormFromInitial = () => {
     const m = props.initialMail
     isEditingAddress.value = true
@@ -235,7 +253,9 @@
 
   /**
    * 跳转地址簿选择寄件信息（与工单详情 onShow + takeSelectedShippingAddress 配合回显）
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const goPickShippingAddress = () => {
     uni.navigateTo({
       url: '/pages/address/index?mode=selectShipping'
@@ -246,7 +266,9 @@
    * 监听弹窗是否显示
    * @param open 是否显示弹窗
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   watch(
     () => props.modelValue,
     (open, wasOpen) => {
@@ -285,7 +307,9 @@
   /**
    * 切换编辑地址
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const toggleEditAddress = () => {
     isEditingAddress.value = !isEditingAddress.value
   }
@@ -293,7 +317,9 @@
   /**
    * 取消
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onCancel = () => {
     visible.value = false
   }
@@ -301,7 +327,9 @@
   /**
    * 确认
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onConfirm = () => {
     if (returnType.value !== 'self' && returnType.value !== 'mail') {
       uni.showToast({ title: '请选择机器返回方式', icon: 'none' })

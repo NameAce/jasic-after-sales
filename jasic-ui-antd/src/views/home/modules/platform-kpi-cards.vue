@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 平台超管 KPI：启用公司、角色数、通知场景配置、近7日失败操作（采样）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
@@ -55,10 +57,24 @@ interface GradientBgProps {
 
 const [DefineGradientBg, GradientBg] = createReusableTemplate<GradientBgProps>();
 
+/**
+ * 作用：生成 KPI 卡片背景线性渐变 CSS。
+ * @param color - 起止色配置
+ * @returns linear-gradient 字符串
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function getGradientColor(color: KpiItem['color']) {
   return `linear-gradient(to bottom right, ${color.start}, ${color.end})`;
 }
 
+/**
+ * 作用：从平台看板 kpis 解析卡片展示值。
+ * @param key - 卡片 key
+ * @returns 展示数值
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function resolveValue(key: string) {
   const k = kpis.value;
   if (key === 'companyEnabled') return k.companyEnabled;
@@ -67,6 +83,13 @@ function resolveValue(key: string) {
   return operLogFailedCount.value;
 }
 
+/**
+ * 作用：KPI 卡片点击跳转组织/角色/通知场景或失败操作日志。
+ * @param key - 卡片 key
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleClick(key: string) {
   if (key === 'companyEnabled') {
     router.push({ path: '/org/company' });
@@ -94,6 +117,7 @@ function handleClick(key: string) {
 </script>
 
 <template>
+  <!-- 平台 KPI 卡片 -->
   <ASpin :spinning="loading">
     <DefineGradientBg v-slot="{ $slots, gradientColor }">
       <div class="rd-8px px-16px pb-4px pt-8px text-white" :style="{ backgroundImage: gradientColor }">

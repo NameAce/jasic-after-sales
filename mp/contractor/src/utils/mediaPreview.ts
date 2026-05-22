@@ -1,5 +1,7 @@
 /**
  * 将接口或本地路径转为可预览的完整 URL（与 MediaUploadField 中逻辑一致）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function resolvePreviewableUrl(url: unknown): string {
   const raw = String(url ?? '').trim()
@@ -16,6 +18,8 @@ export function resolvePreviewableUrl(url: unknown): string {
 
 /**
  * 预览图片列表；current 为下标或当前图原始地址（会与 urls 同样规则解析后匹配）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function previewImages(urls: string[], current?: number | string): void {
   const list = urls.map((u) => resolvePreviewableUrl(u)).filter(Boolean)
@@ -33,7 +37,11 @@ export function previewImages(urls: string[], current?: number | string): void {
   })
 }
 
-/** 全屏预览单个视频（小程序等支持 uni.previewMedia 的环境） */
+/**
+ * 全屏预览单个视频（小程序等支持 uni.previewMedia 的环境）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function previewVideo(url: unknown): void {
   const src = resolvePreviewableUrl(url)
   if (!src) return

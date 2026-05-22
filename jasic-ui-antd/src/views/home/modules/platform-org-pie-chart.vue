@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 平台超管：按主体类型（平台/总部/网点）的公司数量分布饼图。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { nextTick, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
@@ -8,6 +10,7 @@ import { useElementSize } from '@vueuse/core';
 import { useAppStore } from '@/store/modules/app';
 import { useEcharts } from '@/hooks/common/echarts';
 import { $t } from '@/locales';
+import { HOME_PIE_CHART_COLORS } from '../composables/home-chart-theme';
 import { usePlatformDashboard } from '../composables/use-platform-dashboard';
 
 defineOptions({
@@ -31,7 +34,8 @@ const { domRef, updateOptions } = useEcharts(() => ({
   },
   series: [
     {
-      color: ['#5da8ff', '#fcbc25', '#26deca'],
+      // 三类主体：天蓝 / 暖黄 / 青绿（饼图基色 1、3、4）
+      color: [HOME_PIE_CHART_COLORS[0], HOME_PIE_CHART_COLORS[2], HOME_PIE_CHART_COLORS[3]],
       name: $t('page.home.platformOrgDistribution'),
       type: 'pie',
       radius: ['45%', '75%'],
@@ -51,6 +55,12 @@ const { domRef, updateOptions } = useEcharts(() => ({
 
 const { width, height } = useElementSize(domRef);
 
+/**
+ * 作用：将 subjectChartItems 同步到环图 series 数据。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function syncChart() {
   await nextTick();
   const items = subjectChartItems.value;
@@ -79,6 +89,12 @@ watch(
   }
 );
 
+/**
+ * 作用：跳转公司组织管理页。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function goOrgPage() {
   router.push({ path: '/org/company' });
 }
@@ -89,6 +105,7 @@ onMounted(() => {
 </script>
 
 <template>
+  <!-- 平台组织饼图 -->
   <ACard :bordered="false" class="card-wrapper" :loading="loading">
     <template #extra>
       <a class="text-primary" href="javascript:;" @click.prevent="goOrgPage">{{ $t('page.home.platformViewOrg') }}</a>

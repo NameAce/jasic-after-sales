@@ -71,7 +71,9 @@
   /**
    * 动画类
    * @returns 动画类
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const animationClass = computed(() => {
     if (props.animation === 'slide-up') return 'cm-animate-slide-up'
     return ''
@@ -79,7 +81,9 @@
 
   /**
    * 蒙层点击
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onMaskTap = () => {
     if (!props.closeOnMask) return
     emit('update:modelValue', false)

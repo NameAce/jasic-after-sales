@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 系统管理 — 用户：分页列表、增删改、分配角色/区域、强退等（对接后端 system 域接口）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -176,9 +178,10 @@ const columns = computed(() =>
 );
 
 /**
- * 作用：从接口响应中提取列表数组（兼容数组或 records 包装）。
- * @param data - 接口返回数据
- * @returns 可用于表格渲染的行数据数组
+ * 作用：从分页接口响应解析列表数组。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function pickRows(data: any) {
   if (Array.isArray(data)) return data;
@@ -187,9 +190,10 @@ function pickRows(data: any) {
 }
 
 /**
- * 作用：构建用户列表查询参数（pageNum/pageSize + 筛选字段）。
- * @param 无
- * @returns 请求用户列表接口的查询对象
+ * 作用：构造数据或配置：buildListParams。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function buildListParams(): SysUserQuery {
   return {
@@ -204,9 +208,10 @@ function buildListParams(): SysUserQuery {
 }
 
 /**
- * 作用：调用接口加载用户列表并回填表格。
- * @param 无
- * @returns Promise，列表加载结束后结束
+ * 作用：加载数据：loadData。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadData() {
   clearListMsgs();
@@ -232,9 +237,10 @@ async function loadData() {
 }
 
 /**
- * 作用：懒加载角色下拉（首次分配角色前请求）。
- * @param 无
- * @returns Promise，选项就绪后结束
+ * 作用：确保前置数据已加载：ensureAssignOptions。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function ensureAssignOptions() {
   if (!roleOpts.value.length) {
@@ -255,24 +261,32 @@ async function ensureAssignOptions() {
 }
 
 /**
- * 作用：取当前会话中的公司 ID（无效则返回 null）。
- * @param 无
- * @returns 有效公司 ID 或 null
+ * 作用：页面内业务方法：currentCompanyId。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function currentCompanyId() {
   const cid = Number(authStore.userInfo.currentCompanyId);
   return Number.isFinite(cid) && cid > 0 ? cid : null;
 }
 
+/**
+ * 作用：页面内业务方法：currentTargetCompanyParams。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function currentTargetCompanyParams() {
   const targetCompanyId = currentCompanyId();
   return targetCompanyId === null ? {} : { targetCompanyId };
 }
 
 /**
- * 作用：判断是否具备 HQ 绑定大区的权限与数据前提。
- * @param 无
- * @returns 可绑定时为 true，否则 false
+ * 作用：页面内业务方法：canBindRegion。
+ * @returns boolean
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function canBindRegion() {
   return (
@@ -283,9 +297,10 @@ function canBindRegion() {
 }
 
 /**
- * 作用：拉取当前公司下可选大区下拉数据。
- * @param 无
- * @returns Promise，大区选项加载完成后结束
+ * 作用：加载数据：loadRegionOptions。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadRegionOptions() {
   const cid = currentCompanyId();
@@ -305,9 +320,10 @@ async function loadRegionOptions() {
 }
 
 /**
- * 作用：搜索：回到第一页并刷新用户列表。
- * @param 无
- * @returns {void} 无
+ * 作用：执行查询（回到第一页）：handleSearch。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleSearch() {
   query.pageNum = 1;
@@ -315,9 +331,10 @@ function handleSearch() {
 }
 
 /**
- * 作用：重置筛选条件为第一页默认值并刷新列表。
- * @param 无
- * @returns {void} 无
+ * 作用：重置查询条件并刷新列表：resetQuery。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function resetQuery() {
   query.pageNum = 1;
@@ -337,6 +354,12 @@ function resetQuery() {
 }
 
 /** 首页账号治理卡片跳转：将路由 status 回显到筛选区 */
+/**
+ * 作用：应用配置或路由参数：applyFiltersFromRouteQuery。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function applyFiltersFromRouteQuery() {
   if (!('status' in route.query)) return;
   const statusNum = readRouteQueryNumber(route.query, 'status');
@@ -352,10 +375,10 @@ useRouteQueryFilterSync({
 });
 
 /**
- * 作用：分页或每页条数变化时刷新列表。
- * @param page - 目标页码
- * @param pageSize - 每页条数，可选
- * @returns {void} 无
+ * 作用：处理交互事件：handlePaginationChange。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handlePaginationChange(page: number, pageSize?: number) {
   if (pageSize !== undefined && pageSize !== query.pageSize) {
@@ -369,9 +392,10 @@ function handlePaginationChange(page: number, pageSize?: number) {
 }
 
 /**
- * 作用：打开新增抽屉并清空编辑表单默认值。
- * @param 无
- * @returns Promise，弹窗打开后结束
+ * 作用：页面内业务方法：openAdd。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openAdd() {
   Object.assign(editForm, {
@@ -387,9 +411,10 @@ async function openAdd() {
 }
 
 /**
- * 作用：打开编辑抽屉并拉取用户详情回填。
- * @param record - 表格行用户数据
- * @returns Promise，详情回填后结束
+ * 作用：页面内业务方法：openEdit。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openEdit(record: RowData) {
   const { data } = await getUser(record.id, currentTargetCompanyParams());
@@ -407,9 +432,10 @@ async function openEdit(record: RowData) {
 }
 
 /**
- * 作用：校验后提交新增或更新用户。
- * @param 无
- * @returns Promise，接口流程结束后结束
+ * 作用：校验并提交：submitEdit。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitEdit() {
   try {
@@ -449,9 +475,10 @@ async function submitEdit() {
 }
 
 /**
- * 作用：调用删除接口并刷新表格。
- * @param record - 待删除用户行
- * @returns Promise，删除完成后结束
+ * 作用：删除记录：removeRow。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function removeRow(record: RowData) {
   const res = await deleteUser(record.id, currentTargetCompanyParams());
@@ -460,9 +487,10 @@ async function removeRow(record: RowData) {
 }
 
 /**
- * 作用：打开分配角色抽屉并回填角色多选。
- * @param record - 表格行用户
- * @returns Promise，选项与已选就绪后结束
+ * 作用：页面内业务方法：openAssignRoles。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openAssignRoles(record: RowData) {
   await ensureAssignOptions();
@@ -482,9 +510,10 @@ async function openAssignRoles(record: RowData) {
 }
 
 /**
- * 作用：提交角色分配并关闭抽屉。
- * @param 无
- * @returns Promise，提交成功后结束
+ * 作用：校验并提交：submitAssignRoles。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitAssignRoles() {
   if (!roleUserId.value) return;
@@ -500,9 +529,10 @@ async function submitAssignRoles() {
 }
 
 /**
- * 作用：打开重置密码抽屉。
- * @param record - 目标用户行
- * @returns {void} 无
+ * 作用：页面内业务方法：openResetPwd。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function openResetPwd(record: RowData) {
   resetForm.userId = Number(record.id);
@@ -511,9 +541,10 @@ function openResetPwd(record: RowData) {
 }
 
 /**
- * 作用：校验后提交重置密码。
- * @param 无
- * @returns Promise，重置流程结束后结束
+ * 作用：校验并提交：submitResetPwd。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitResetPwd() {
   try {
@@ -537,9 +568,10 @@ async function submitResetPwd() {
 }
 
 /**
- * 作用：调用强制下线接口并提示。
- * @param record - 目标用户行
- * @returns Promise，接口返回后结束
+ * 作用：页面内业务方法：forceKickout。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function forceKickout(record: RowData) {
   const res = await kickoutUser(record.id, currentTargetCompanyParams());
@@ -547,9 +579,10 @@ async function forceKickout(record: RowData) {
 }
 
 /**
- * 作用：打开绑定大区抽屉并回填已绑定大区。
- * @param record - 表格行用户
- * @returns Promise，大区与勾选就绪后结束
+ * 作用：页面内业务方法：openAssignRegions。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openAssignRegions(record: RowData) {
   if (!canBindRegion()) {
@@ -574,9 +607,10 @@ async function openAssignRegions(record: RowData) {
 }
 
 /**
- * 作用：提交用户与大区绑定关系。
- * @param 无
- * @returns Promise，提交成功后结束
+ * 作用：校验并提交：submitAssignRegions。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitAssignRegions() {
   if (!regionUserId.value) return;
@@ -592,7 +626,9 @@ async function submitAssignRegions() {
 </script>
 
 <template>
+  <!-- 系统用户：分页列表、筛选与新增/编辑/角色/大区/重置密码 -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <!-- 筛选区：用户名、姓名、手机号、状态等 -->
     <ACard :bordered="false" class="card-wrapper">
       <AForm :model="query" :label-col="{ span: 5, md: 7 }">
         <div class="page-search-toolbar">
@@ -666,6 +702,7 @@ async function submitAssignRegions() {
         </div>
       </AForm>
     </ACard>
+    <!-- 列表区：用户表格与行内编辑/角色/大区/重置密码/强制下线 -->
     <ACard
       :title="pageMenuTitle"
       :bordered="false"
@@ -758,6 +795,7 @@ async function submitAssignRegions() {
       </ATable>
     </ACard>
 
+    <!-- 抽屉：新增/编辑用户、分配角色、绑定大区、重置密码 -->
     <ADrawer v-model:open="editOpen" :title="editForm.id ? '编辑用户' : '新增用户'" :width="360">
       <AForm ref="editFormRef" layout="vertical" :model="editForm" :rules="editFormRules as any">
         <AFormItem label="用户名" name="username" required>

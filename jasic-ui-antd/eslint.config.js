@@ -39,5 +39,19 @@ export default defineConfig(
       'no-template-curly-in-string': 'off',
       'vue/no-use-v-else-with-v-for': 'off'
     }
+  },
+  // 注释/文档批量维护脚本：允许 continue、++ 等写法，避免与业务源码同一套严格规则
+  {
+    files: ['scripts/**/*.mjs'],
+    rules: {
+      'no-continue': 'off',
+      'no-plusplus': 'off',
+      complexity: 'off',
+      'no-loop-func': 'off',
+      'no-nested-ternary': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+      'n/prefer-global/process': 'off',
+      'max-depth': 'off'
+    }
   }
 );

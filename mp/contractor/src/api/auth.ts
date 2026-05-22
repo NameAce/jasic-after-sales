@@ -6,7 +6,11 @@ export type LoginPayload = {
   password: string
 }
 
-/** B 端小程序登录（与后端 MpLoginVO 对齐） */
+/**
+ * B 端小程序登录（与后端 MpLoginVO 对齐）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export type MpLoginResult = {
   status?: string
   token?: string
@@ -15,13 +19,21 @@ export type MpLoginResult = {
   needChooseCompany?: boolean
 }
 
-/** 与后端 MpLoginDTO 一致：微信 login 凭证 code + 可选手机号授权码 phoneCode（getPhoneNumber） */
+/**
+ * 与后端 MpLoginDTO 一致：微信 login 凭证 code + 可选手机号授权码 phoneCode（getPhoneNumber）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export type MpLoginPayload = {
   code: string
   phoneCode?: string
 }
 
-/** 与后端 MpBindLoginDTO 一致：认领绑定并登录 */
+/**
+ * 与后端 MpBindLoginDTO 一致：认领绑定并登录
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export type MpBindLoginPayload = {
   code: string
   password: string
@@ -29,7 +41,11 @@ export type MpBindLoginPayload = {
   usernameOrPhone: string
 }
 
-/** PC 扫码绑定确认（与后端 WechatBindConfirmDTO 一致） */
+/**
+ * PC 扫码绑定确认（与后端 WechatBindConfirmDTO 一致）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export type MpBindConfirmPayload = {
   bindTicket: string
   code: string
@@ -40,6 +56,8 @@ export type MpBindConfirmPayload = {
  * 账号密码登录
  * @param payload LoginPayload
  * @returns ApiResponse<LoginResult>
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export async function login(payload: LoginPayload) {
   return http<LoginResult>({
@@ -53,6 +71,8 @@ export async function login(payload: LoginPayload) {
  * 微信小程序登录
  * @param payload MpLoginPayload
  * @returns ApiResponse<MpLoginResult>
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export async function mpLogin(payload: MpLoginPayload) {
   return http<MpLoginResult>({
@@ -67,6 +87,8 @@ export async function mpLogin(payload: MpLoginPayload) {
  * B 端小程序账号认领绑定并登录
  * @param payload MpBindLoginPayload
  * @returns ApiResponse<MpLoginResult>
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export async function mpBindLogin(payload: MpBindLoginPayload) {
   return http<MpLoginResult>({
@@ -81,6 +103,8 @@ export async function mpBindLogin(payload: MpBindLoginPayload) {
  * PC 账号中心扫码：小程序确认绑定微信（/api/auth/mp-bind-confirm）
  * @param payload MpBindConfirmPayload
  * @returns ApiResponse<MpLoginResult>
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export async function mpBindConfirm(payload: MpBindConfirmPayload) {
   return http<MpLoginResult>({
@@ -94,6 +118,8 @@ export async function mpBindConfirm(payload: MpBindConfirmPayload) {
 /**
  * 登出
  * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export async function logout() {
   await http<void>({
@@ -102,7 +128,11 @@ export async function logout() {
   })
 }
 
-/** 选择公司入参（与后端 ChooseCompanyDTO 对齐） */
+/**
+ * 选择公司入参（与后端 ChooseCompanyDTO 对齐）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export type ChooseCompanyPayload = {
   companyId: number
 }
@@ -116,6 +146,8 @@ export type ChooseCompanyPayload = {
  *
  * @param payload 公司 id
  * @returns ApiResponse<SysUserInfo>
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export async function chooseCompany(payload: ChooseCompanyPayload) {
   return http<SysUserInfo>({
@@ -132,6 +164,8 @@ export async function chooseCompany(payload: ChooseCompanyPayload) {
  * 典型调用点：`onLaunch` 时若本地有 token，先用该接口刷新最新 perms 与公司上下文。
  *
  * @returns ApiResponse<SysUserInfo>
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export async function getUserInfo() {
   return http<SysUserInfo>({

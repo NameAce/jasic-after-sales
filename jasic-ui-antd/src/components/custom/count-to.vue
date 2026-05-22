@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 数字递增动画展示：基于 @vueuse/useTransition，支持千分位与小数位格式化。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, nextTick, ref, watch } from 'vue';
 import { TransitionPresets, useTransition } from '@vueuse/core';
@@ -51,7 +53,11 @@ const outputValue = useTransition(source, {
 // 过渡中的数值格式化为带千分位的展示字符串
 const value = computed(() => formatValue(outputValue.value));
 
-/** 按 props 中的前后缀、小数点与千分位规则格式化数值 */
+/**
+ * 按 props 中的前后缀、小数点与千分位规则格式化数值
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function formatValue(num: number) {
   const { decimals, decimal, separator, suffix, prefix } = props;
 
@@ -71,7 +77,11 @@ function formatValue(num: number) {
   return prefix + x1 + x2 + suffix;
 }
 
-/** 将动画源值设到 endValue，触发展示过渡 */
+/**
+ * 将动画源值设到 endValue，触发展示过渡
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function start() {
   await nextTick();
   source.value = props.endValue;
@@ -90,6 +100,7 @@ watch(
 </script>
 
 <template>
+  <!-- 通用组件：count-to -->
   <span>{{ value }}</span>
 </template>
 

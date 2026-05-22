@@ -156,7 +156,11 @@
   // 限制数量
   const limitNum = computed(() => Number(props.limit ?? 1) || 1)
 
-  /** chooseMedia 存在时用宫格混合选择（小程序/App 等）；否则退回 uni-file-picker */
+  /**
+ * chooseMedia 存在时用宫格混合选择（小程序/App 等）；否则退回 uni-file-picker
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const useMixedMediaGrid = computed(
     () => props.fileMediatype === 'all' && typeof uni.chooseMedia === 'function'
   )
@@ -171,7 +175,9 @@
    * @param item 文件项
    * @param index 索引
    * @returns 唯一键
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const mixedItemKey = (item: Record<string, unknown>, index: number) => {
     const id = item.fileId ?? item.id
     const p = pickLocalPath(item)
@@ -182,14 +188,18 @@
    * 是否为视频文件项
    * @param item 文件项
    * @returns 是否为视频文件项
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const tileIsVideo = (item: Record<string, unknown>) => isVideoMediaItem(item)
 
   /**
    * 视频文件项封面
    * @param item 文件项
    * @returns 封面
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const tileVideoPoster = (item: Record<string, unknown>) => {
     const poster = String(item.videoPoster ?? '').trim()
     return poster
@@ -199,7 +209,9 @@
    * 图片文件项源
    * @param item 文件项
    * @returns 源
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const tileImageSrc = (item: Record<string, unknown>) => {
     const raw =
       item.url ?? item.previewUrl ?? item.fileUrl ?? item.path ?? item.filePath ?? item.tempFilePath
@@ -211,7 +223,9 @@
    * 视频文件项播放源
    * @param item 文件项
    * @returns 播放源
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const tileVideoPlaySrc = (item: Record<string, unknown>) => {
     const raw =
       item.url ?? item.previewUrl ?? item.fileUrl ?? item.path ?? item.filePath ?? item.tempFilePath
@@ -222,7 +236,9 @@
    * 批量上传并合并进列表（与 uni-file-picker 选择回调共用逻辑）
    * @param pending 待上传文件列表
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const uploadAndMergeFiles = async (pending: Record<string, unknown>[]): Promise<void> => {
     if (!pending.length) return
     const nextList = [...(Array.isArray(props.modelValue) ? props.modelValue : [])] as Record<
@@ -264,7 +280,9 @@
   /**
    * 选择混合媒体
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const chooseMixedMedia = (): void => {
     const current = mixedFileList.value
     const remain = limitNum.value - current.length
@@ -292,7 +310,9 @@
    * 从路径获取扩展名
    * @param p 路径
    * @returns 扩展名
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const extFromPath = (p: string): string => {
     const m = p.match(/\.([^.\\/]+)$/)
     return (m?.[1] ?? '').toLowerCase()
@@ -310,7 +330,9 @@
    * 混合媒体选择成功
    * @param tempFiles 临时文件列表
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const handleMixedChooseSuccess = async (tempFiles: ChooseMediaTempFile[]): Promise<void> => {
     const base = mixedFileList.value
     const mapped: Record<string, unknown>[] = []
@@ -352,7 +374,9 @@
    * 删除混合媒体
    * @param index 索引
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const removeMixedAt = (index: number): void => {
     const list = [...mixedFileList.value]
     const removed = list.splice(index, 1)[0]
@@ -370,7 +394,9 @@
    * 预览混合媒体
    * @param item 文件项
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const previewMixedItem = (item: Record<string, unknown>): void => {
     if (tileIsVideo(item)) {
       const src = tileVideoPlaySrc(item)
@@ -413,7 +439,9 @@
    * 获取本地路径
    * @param item 文件项
    * @returns 本地路径
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const pickLocalPath = (item: Record<string, unknown>): string => {
     const path = item.path ?? item.filePath ?? item.tempFilePath ?? item.previewUrl ?? item.url
     return String(path ?? '').trim()
@@ -423,7 +451,9 @@
    * 规范化预览 URL
    * @param url URL
    * @returns 规范化后的 URL
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const normalizePreviewUrl = (url: unknown): string => {
     const raw = String(url ?? '').trim()
     if (!raw) return ''
@@ -441,7 +471,9 @@
    * 选择文件
    * @param e 事件
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const handleSelect = async (e: unknown): Promise<void> => {
     const payload = e as { tempFiles?: Record<string, unknown>[] }
     emit('select', payload)
@@ -461,7 +493,9 @@
    * 删除文件
    * @param e 事件
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const handleDelete = (e: unknown): void => {
     emit('delete', e)
   }

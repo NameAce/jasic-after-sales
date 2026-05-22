@@ -1,3 +1,5 @@
+import { HOME_PIE_CHART_COLORS, HOME_SOYBEAN_PIE_COLORS } from './home-chart-theme';
+
 /**
  * 首页指标卡片展示样式：按后端稳定 code 映射颜色与图标（工单 / 平台治理共用）。
  */
@@ -34,7 +36,7 @@ export const WORK_ORDER_METRIC_STYLES: Record<string, HomeMetricCardStyle> = {
     gradientTo: 'right bottom'
   },
   IN_PROGRESS: {
-    color: { start: '#fcbc25', end: '#f68057' },
+    color: { start: '#5da8ff', end: '#3d7ee8' },
     icon: 'mdi:tools',
     gradientTo: 'right bottom'
   },
@@ -49,7 +51,7 @@ export const WORK_ORDER_METRIC_STYLES: Record<string, HomeMetricCardStyle> = {
     gradientTo: 'right bottom'
   },
   TRANSFER_OUT: {
-    color: { start: '#5da8ff', end: '#3d7ee8' },
+    color: { start: '#fcbc25', end: '#f68057' },
     icon: 'mdi:swap-horizontal',
     gradientTo: 'right bottom'
   }
@@ -134,51 +136,49 @@ export const PLATFORM_BASIC_CONFIG_METRIC_STYLES: Record<string, HomeMetricCardS
 };
 
 /**
- * 首页饼图默认色板（与组织治理环图一致：天蓝 / 淡紫 / 暖黄 / 青绿，并补充灰 / 粉 / 蓝备用）。
+ * 首页饼图默认色板（RGB 93,168,255 等基色 + 同色系扩展，见 home-chart-theme）。
  * 无 colorByCode 时按指标顺序循环取色。
  */
-export const HOME_PIE_COLORS: readonly string[] = [
-  '#5CA9FF',
-  '#94A1FF',
-  '#FFD666',
-  '#32D9CB',
-  '#8c8c8c',
-  '#ec4786',
-  '#5da8ff'
-];
+export const HOME_PIE_COLORS: readonly string[] = HOME_PIE_CHART_COLORS;
 
 /**
- * 组织治理饼图扇区配色（参考四色环图：天蓝 / 淡紫 / 暖黄 / 青绿）。
- * 顺序与后端组织治理指标一致：总部数 → 服务网点数 → 启用主体数 → 停用主体数。
+ * 组织治理饼图扇区配色（与饼图基色 RGB 逐项对应）。
+ * 顺序：总部数 → 服务网点数 → 启用主体数 → 停用主体数。
  */
 export const PLATFORM_ORG_PIE_COLOR_BY_CODE: Record<string, string> = {
-  HQ_COUNT: '#5CA9FF',
-  SERVICE_COUNT: '#94A1FF',
-  ENABLED_SUBJECT_COUNT: '#FFD666',
-  DISABLED_SUBJECT_COUNT: '#32D9CB'
+  HQ_COUNT: HOME_SOYBEAN_PIE_COLORS[0],
+  SERVICE_COUNT: HOME_SOYBEAN_PIE_COLORS[1],
+  ENABLED_SUBJECT_COUNT: HOME_SOYBEAN_PIE_COLORS[2],
+  DISABLED_SUBJECT_COUNT: HOME_SOYBEAN_PIE_COLORS[3]
 };
 
 /**
- * 工单承接池饼图扇区配色：取 WORK_ORDER_METRIC_STYLES 渐变起始色，与总部/网点 KPI 卡片主色一致。
+ * 工单承接池饼图扇区配色（与 HOME_PIE_CHART_COLORS 同源，不用 KPI 卡片渐变以免与环图色不一致）。
+ * 待派单淡紫 / 待接单天蓝 / 维修中暖黄 / 已完成青绿 / 已关闭灰（与 KPI 卡片色独立，维修中/已转出对调不影响饼图）。
  */
 export const WORK_ORDER_PIE_COLOR_BY_CODE: Record<string, string> = {
-  PENDING_ASSIGN: WORK_ORDER_METRIC_STYLES.PENDING_ASSIGN.color.start,
-  PENDING_TECH_ACCEPT: WORK_ORDER_METRIC_STYLES.PENDING_TECH_ACCEPT.color.start,
-  IN_PROGRESS: WORK_ORDER_METRIC_STYLES.IN_PROGRESS.color.start,
-  COMPLETED: WORK_ORDER_METRIC_STYLES.COMPLETED.color.start,
-  CLOSED: WORK_ORDER_METRIC_STYLES.CLOSED.color.start
+  PENDING_ASSIGN: HOME_PIE_CHART_COLORS[1],
+  PENDING_TECH_ACCEPT: HOME_PIE_CHART_COLORS[0],
+  IN_PROGRESS: HOME_PIE_CHART_COLORS[2],
+  COMPLETED: HOME_PIE_CHART_COLORS[3],
+  CLOSED: HOME_PIE_CHART_COLORS[9]
 };
 
-/** 账号治理折线图数据点配色（git platform-kpi 四色：蓝 / 紫 / 青 / 粉） */
+/** 账号治理折线图数据点配色（饼图基色 + 扩展色：蓝 / 紫 / 青 / 玫红） */
 export const PLATFORM_ACCOUNT_LINE_COLOR_BY_CODE: Record<string, string> = {
-  USER_TOTAL: '#5da8ff',
-  ENABLED_USER_COUNT: '#8e9dff',
-  DISABLED_USER_COUNT: '#26deca',
-  ROLE_COUNT: '#ec4786'
+  USER_TOTAL: HOME_PIE_CHART_COLORS[0],
+  ENABLED_USER_COUNT: HOME_PIE_CHART_COLORS[1],
+  DISABLED_USER_COUNT: HOME_PIE_CHART_COLORS[3],
+  ROLE_COUNT: HOME_PIE_CHART_COLORS[5]
 };
 
 /**
- * 解析指标卡片样式：优先业务样式表，否则默认样式。
+ * 作用：解析指标卡片展示样式（渐变、图标）；优先业务样式表，否则默认样式。
+ * @param code - 后端指标稳定 code（如 CURRENT_TOTAL、PRODUCT_COUNT）
+ * @param styleMap - 业务样式映射（WORK_ORDER_METRIC_STYLES 等）
+ * @returns 卡片渐变与图标配置
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function resolveMetricStyle(
   code: string | undefined,

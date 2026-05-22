@@ -1,4 +1,5 @@
 <template>
+  <!-- 承修方小程序（网点/总部工单处理、派工）页面 order / components / OrderDetailBaseInfoCard -->
   <view>
     <view class="od-apply-section-header">
       <view class="section-mark"></view>
@@ -42,7 +43,9 @@
   /**
    * 工单信息「工单类型」取值：与 `orderDetailApplyCards.scss` 中 `.info-item` 下规则一致。
    * 须在本组件顶层再写一遍，否则 `scoped` + `@use` 过深时微信小程序可能不命中（同 OrderDetailRepairMetaCard 故障角标处理）
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   .tag-value {
     padding: 4rpx $space-sm;
     font-size: $font-sm;

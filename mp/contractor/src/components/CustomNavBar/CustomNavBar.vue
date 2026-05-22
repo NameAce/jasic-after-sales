@@ -1,4 +1,5 @@
 <template>
+  <!-- 承修方小程序（网点/总部工单处理、派工）组件 CustomNavBar -->
   <view :class="rootClass" :style="rootStyle">
     <view class="custom-nav-bar__row custom-nav-bar__row--center">
       <view v-if="$slots.left" class="custom-nav-bar__left">
@@ -25,11 +26,23 @@
 
   const props = withDefaults(
     defineProps<{
-      /** 导航标题 */
+      /**
+ * 导航标题
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       title: string
-      /** 标题对齐方式 */
+      /**
+ * 标题对齐方式
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       titleAlign?: 'left' | 'center' | 'right'
-      /** 是否显示返回区（占位或按钮） */
+      /**
+ * 是否显示返回区（占位或按钮）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       showBack?: boolean
       /**
        * bar: 白底底边线（地址等）
@@ -37,20 +50,46 @@
        * frosted: 吸顶毛玻璃（评价页）
        * transparent: 透明底，配合 tone 用于有色背景上
        * plain: 仅排版，无背景边线（登录页 fixed 顶栏）
-       */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       surface?: 'bar' | 'sticky' | 'frosted' | 'transparent' | 'plain' | 'workbench'
-      /** transparent 时：dark 深色图标 / light 浅色图标与标题 */
+      /**
+ * transparent 时：dark 深色图标 / light 浅色图标与标题
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       tone?: 'dark' | 'light'
-      /** 同时覆盖标题与返回图标颜色 */
+      /**
+ * 同时覆盖标题与返回图标颜色
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       color?: string
-      /** 是否显示导航阴影（sticky 等样式可关闭） */
+      /**
+ * 是否显示导航阴影（sticky 等样式可关闭）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       shadow?: boolean
       backIconSize?: number
-      /** 覆盖自动计算的返回图标颜色 */
+      /**
+ * 覆盖自动计算的返回图标颜色
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       backIconColor?: string
-      /** 导航根节点背景（如 transparent 时与顶栏色块对齐），支持任意 CSS background 值 */
+      /**
+ * 导航根节点背景（如 transparent 时与顶栏色块对齐），支持任意 CSS background 值
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       background?: string
-      /** 是否 fixed 固定在顶部（登录页） */
+      /**
+ * 是否 fixed 固定在顶部（登录页）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       fixed?: boolean
     }>(),
     {
@@ -76,7 +115,9 @@
   /**
    * 图标颜色
    * @returns 图标颜色
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const iconColor = computed(() => {
     if (props.color) return props.color
     if (props.backIconColor) return props.backIconColor
@@ -87,7 +128,9 @@
   /**
    * 标题样式
    * @returns 标题样式
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const titleStyle = computed(() => {
     const style: Record<string, string> = {
       textAlign: props.titleAlign
@@ -107,7 +150,9 @@
   /**
    * 根节点样式
    * @returns 根节点样式
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const rootStyle = computed(() => {
     if (props.surface === 'workbench') {
       const style: Record<string, string> = {}
@@ -131,7 +176,9 @@
   /**
    * 根节点类
    * @returns 根节点类
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const rootClass = computed(() => [
     'custom-nav-bar',
     `custom-nav-bar--${props.surface}`,
@@ -144,7 +191,9 @@
 
   /**
    * 处理返回
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   function handleBack() {
     emit('back')
     uni.navigateBack()

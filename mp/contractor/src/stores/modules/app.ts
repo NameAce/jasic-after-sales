@@ -16,7 +16,9 @@ export const useAppStore = defineStore('app', () => {
    * 设置工单列表导航目标
    * @param target 工单列表导航目标
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const setOrderListNavTarget = (target: OrderListNavTarget) => {
     orderListNavTarget.value = target
   }
@@ -24,14 +26,20 @@ export const useAppStore = defineStore('app', () => {
   /**
    * 消费工单列表导航目标
    * @returns 工单列表导航目标
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const consumeOrderListNavTarget = () => {
     const target = orderListNavTarget.value
     orderListNavTarget.value = null
     return target
   }
 
-  /** 表单提交等场景进入工单库 tab 时，触发与 scroll-view 下拉刷新一致的加载反馈 */
+  /**
+ * 表单提交等场景进入工单库 tab 时，触发与 scroll-view 下拉刷新一致的加载反馈
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const orderListScrollRefresherOnNextShow = ref(false)
   const markOrderListScrollRefresherOnNextShow = () => {
     orderListScrollRefresherOnNextShow.value = true
@@ -45,7 +53,9 @@ export const useAppStore = defineStore('app', () => {
   /**
    * 初始化应用/系统信息
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const initAppInfo = () => {
     try {
       const info = uni.getSystemInfoSync()

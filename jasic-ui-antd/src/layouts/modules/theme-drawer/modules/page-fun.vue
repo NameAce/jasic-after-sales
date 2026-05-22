@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 主题抽屉 — 页面与框架细节：缓存策略、滚动模式、页签/顶栏/侧栏/页脚/水印等可选项。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import {
@@ -29,6 +31,7 @@ const isWrapperScrollMode = computed(() => themeStore.layout.scrollMode === 'wra
 </script>
 
 <template>
+  <!-- 布局子模块：page-fun -->
   <ADivider>{{ $t('theme.pageFunTitle') }}</ADivider>
   <TransitionGroup tag="div" name="setting-list" class="flex-col-stretch gap-12px">
     <SettingItem key="0" :label="$t('theme.resetCacheStrategy.title')">

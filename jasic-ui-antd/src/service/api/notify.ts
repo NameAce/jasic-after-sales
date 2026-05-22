@@ -1,7 +1,7 @@
 /**
  * 站内消息与待办：列表、已读、数量统计等。
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 import { request } from '../request';
 
@@ -19,7 +19,7 @@ export interface NotifyTodoCountVO {
 
 /** 与 jasic-ui notify 列表一致：分页为 pageNum/pageSize，box 区分待办与历史
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export interface NotifyMessageQuery extends Query {
   pageNum?: number;
@@ -55,7 +55,7 @@ export interface NotifyReadByBizDTO {
 
 /** 作用：查询待办消息数量角标。
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function getNotifyTodoCount() {
   return request<NotifyTodoCountVO>({ url: '/system/notify/todo/count', method: 'get' });
@@ -63,7 +63,7 @@ export function getNotifyTodoCount() {
 
 /** 作用：待办/历史消息分页列表。
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function getNotifyTodoPage(params?: NotifyMessageQuery) {
   return request<NotifyMessagePageResultVO>({ url: '/system/notify/todo/page', method: 'get', params });
@@ -71,7 +71,7 @@ export function getNotifyTodoPage(params?: NotifyMessageQuery) {
 
 /** 作用：将单条消息标记为已读。
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function markNotifyMessageRead(messageId: IdLike) {
   return request({ url: `/system/notify/message/${messageId}/read`, method: 'post' });
@@ -79,7 +79,7 @@ export function markNotifyMessageRead(messageId: IdLike) {
 
 /** 作用：按业务维度批量标记已读。
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function markNotifyMessageReadByBiz(data: NotifyReadByBizDTO) {
   return request({ url: '/system/notify/message/read-by-biz', method: 'post', data });
@@ -159,62 +159,136 @@ export interface NotifyScenePreviewDTO {
   variables?: Record<string, string>;
 }
 
-/** 作用：分页查询通知记录（事件维度排障列表）。 */
+/**
+ * 作用：分页查询通知记录（事件维度排障列表）。
+ * @param params - 分页与筛选条件
+ * @returns 分页结果 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function getNotifyTracePage(params?: NotifyTraceQuery) {
   return request<PageResult<Query>>({ url: '/system/notify/trace/page', method: 'get', params });
 }
 
-/** 作用：查询通知事件详情（含站内产物与外部分发任务）。 */
+/**
+ * 作用：查询通知事件详情（含站内产物与外部分发任务）。
+ * @param eventId - 事件 ID
+ * @returns 事件详情 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function getNotifyTraceEvent(eventId: IdLike) {
   return request<Query>({ url: `/system/notify/trace/event/${eventId}`, method: 'get' });
 }
 
-/** 作用：查询外部分发任务详情。 */
+/**
+ * 作用：查询外部分发任务详情。
+ * @param dispatchId - 分发任务 ID
+ * @returns 任务详情 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function getNotifyTraceDispatch(dispatchId: IdLike) {
   return request<Query>({ url: `/system/notify/trace/dispatch/${dispatchId}`, method: 'get' });
 }
 
-/** 作用：人工重试通知事件。 */
+/**
+ * 作用：人工重试通知事件。
+ * @param eventId - 事件 ID
+ * @returns 操作结果 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function retryNotifyTraceEvent(eventId: IdLike) {
   return request({ url: `/system/notify/trace/event/${eventId}/retry`, method: 'post' });
 }
 
-/** 作用：人工重试外部分发任务。 */
+/**
+ * 作用：人工重试外部分发任务。
+ * @param dispatchId - 分发任务 ID
+ * @returns 操作结果 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function retryNotifyTraceDispatch(dispatchId: IdLike) {
   return request({ url: `/system/notify/trace/dispatch/${dispatchId}/retry`, method: 'post' });
 }
 
-/** 作用：人工将通知事件标记为死信。 */
+/**
+ * 作用：人工将通知事件标记为死信。
+ * @param eventId - 事件 ID
+ * @param data - 死信原因
+ * @returns 操作结果 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function deadNotifyTraceEvent(eventId: IdLike, data: NotifyManualDeadDTO) {
   return request({ url: `/system/notify/trace/event/${eventId}/dead`, method: 'post', data });
 }
 
-/** 作用：人工将外部分发任务标记为死信。 */
+/**
+ * 作用：人工将外部分发任务标记为死信。
+ * @param dispatchId - 分发任务 ID
+ * @param data - 死信原因
+ * @returns 操作结果 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function deadNotifyTraceDispatch(dispatchId: IdLike, data: NotifyManualDeadDTO) {
   return request({ url: `/system/notify/trace/dispatch/${dispatchId}/dead`, method: 'post', data });
 }
 
-/** 作用：查询通知场景配置页元数据（场景注册表、目标类型等）。 */
+/**
+ * 作用：查询通知场景配置页元数据（场景注册表、目标类型等）。
+ * @returns 元数据 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function getNotifySceneOptions() {
   return request<Query>({ url: '/system/notify/scene/options', method: 'get' });
 }
 
-/** 作用：分页查询通知场景配置列表。 */
+/**
+ * 作用：分页查询通知场景配置列表。
+ * @param params - 分页与筛选条件
+ * @returns 分页结果 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function listNotifyScene(params?: NotifySceneConfigQuery) {
   return request<PageResult<Query>>({ url: '/system/notify/scene/list', method: 'get', params });
 }
 
-/** 作用：查询单个通知场景配置详情。 */
+/**
+ * 作用：查询单个通知场景配置详情。
+ * @param sceneCode - 场景编码
+ * @returns 场景配置 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function getNotifyScene(sceneCode: string) {
   return request<Query>({ url: `/system/notify/scene/${sceneCode}`, method: 'get' });
 }
 
-/** 作用：保存整个通知场景下的全部目标配置。 */
+/**
+ * 作用：保存整个通知场景下的全部目标配置。
+ * @param sceneCode - 场景编码
+ * @param data - 场景配置保存 DTO
+ * @returns 操作结果 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function updateNotifyScene(sceneCode: string, data: NotifySceneConfigSaveDTO) {
   return request({ url: `/system/notify/scene/${sceneCode}`, method: 'put', data });
 }
 
-/** 作用：预览指定场景目标的模板渲染结果。 */
+/**
+ * 作用：预览指定场景目标的模板渲染结果。
+ * @param data - 预览参数（模板与变量）
+ * @returns 渲染结果 Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function previewNotifyScene(data: NotifyScenePreviewDTO) {
   return request<Query>({ url: '/system/notify/scene/preview', method: 'post', data });
 }

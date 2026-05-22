@@ -4,4 +4,6 @@
  * 登录相关接口（`login / getUserInfo / logout`）位于 [api/auth.ts](./auth.ts)，
  * 对齐后端 `CustomerAuthController`（`/api/customer/auth/*`）。
  * 本文件仅保留真正意义上的「用户中心」业务接口（如资料完善、偏好）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */

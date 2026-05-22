@@ -2,6 +2,8 @@ import type { WorkOrderActionKey } from '@/constants/orderActions'
 
 /**
  * 列表/工作台共用的工单动作跳转（具体 API 调用仍在各页弹窗内完成）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export const navigateWorkOrderAction = (actionKey: WorkOrderActionKey, orderId: string) => {
   const id = String(orderId ?? '').trim()

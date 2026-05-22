@@ -9,6 +9,12 @@ type StoredPoint = {
   distance?: string
 }
 
+/**
+ * 作用：转换/构造：parseStoredPoint。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function parseStoredPoint(raw: unknown): StoredPoint | null {
   if (raw == null || raw === '') return null
   if (typeof raw === 'object' && raw !== null && !Array.isArray(raw)) {
@@ -27,7 +33,11 @@ function parseStoredPoint(raw: unknown): StoredPoint | null {
   return null
 }
 
-/** 网点选择页回写：从缓存同步 centerId 与展示文案；需在页面中 `onShow(applyStorageSelection)`。 */
+/**
+ * 网点选择页回写：从缓存同步 centerId 与展示文案；需在页面中 `onShow(applyStorageSelection)`。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function useServicePointSelection(formData: Ref<{ centerId: string | number | null }>) {
   const selectedCenterDisplay = ref('')
 

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 多页签栏：与 tabStore 同步当前路由页签，横向滚动定位激活项，并提供刷新/全内容区切换。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { nextTick, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
@@ -37,7 +39,11 @@ type TabNamedNodeMap = NamedNodeMap & {
   [TAB_DATA_ID]: Attr;
 };
 
-/** 激活页签变化后，将其滚入横向标签栏可视区域中部 */
+/**
+ * 激活页签变化后，将其滚入横向标签栏可视区域中部
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function scrollToActiveTab() {
   await nextTick();
   if (!tabRef.value) return;
@@ -62,7 +68,11 @@ async function scrollToActiveTab() {
   }
 }
 
-/** 按视口 clientX 计算与容器中心的偏差，驱动 BetterScroll 横向滚动 */
+/**
+ * 按视口 clientX 计算与容器中心的偏差，驱动 BetterScroll 横向滚动
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function scrollByClientX(clientX: number) {
   const currentX = clientX - bsWrapperLeft.value;
   const deltaX = currentX - bsWrapperWidth.value / 2;
@@ -77,7 +87,11 @@ function scrollByClientX(clientX: number) {
   }
 }
 
-/** 固定保留页签（如首页）在右键菜单中禁用「关闭当前/左侧」等项 */
+/**
+ * 固定保留页签（如首页）在右键菜单中禁用「关闭当前/左侧」等项
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function getContextMenuDisabledKeys(tabId: string) {
   const disabledKeys: App.Global.DropdownKey[] = [];
 
@@ -89,7 +103,11 @@ function getContextMenuDisabledKeys(tabId: string) {
   return disabledKeys;
 }
 
-/** 关闭单个页签；若主题配置为 close 时重置路由缓存 */
+/**
+ * 关闭单个页签；若主题配置为 close 时重置路由缓存
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function handleCloseTab(tab: App.Global.Tab) {
   await tabStore.removeTab(tab.id);
 
@@ -98,17 +116,29 @@ async function handleCloseTab(tab: App.Global.Tab) {
   }
 }
 
-/** 通过全局 reloadFlag 触发当前页整页重载（带短延迟以配合动画） */
+/**
+ * 通过全局 reloadFlag 触发当前页整页重载（带短延迟以配合动画）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function refresh() {
   appStore.reloadPage(500);
 }
 
-/** 点击标签栏空白处时去掉焦点，避免键盘焦点留在已隐藏控件上 */
+/**
+ * 点击标签栏空白处时去掉焦点，避免键盘焦点留在已隐藏控件上
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function removeFocus() {
   (document.activeElement as HTMLElement)?.blur();
 }
 
-/** 根据当前路由初始化 tabStore（含固定首页等） */
+/**
+ * 根据当前路由初始化 tabStore（含固定首页等）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function init() {
   tabStore.initTabStore(route);
 }
@@ -133,6 +163,7 @@ init();
 </script>
 
 <template>
+  <!-- 多页签栏：切换、关闭与右键菜单 -->
   <DarkModeContainer class="size-full flex-y-center px-16px shadow-tab">
     <div ref="bsWrapper" class="h-full flex-1-hidden">
       <BetterScroll ref="bsScroll" :options="{ scrollX: true, scrollY: false, click: !isPCFlag }" @click="removeFocus">

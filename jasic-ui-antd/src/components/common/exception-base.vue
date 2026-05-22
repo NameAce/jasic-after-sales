@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 /**
  * 403/404/500 异常占位页：大图 + 可选接口文案（query.msg）+ 回首页。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
@@ -18,6 +20,8 @@ interface Props {
    * - 403: no permission
    * - 404: not found
    * - 500: service error
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
    */
   type: ExceptionType;
 }
@@ -27,7 +31,11 @@ const props = defineProps<Props>();
 const route = useRoute();
 const { routerPushByKey } = useRouterPush();
 
-/** 请求拦截跳转时通过 query.msg 传入的后端文案 */
+/**
+ * 请求拦截跳转时通过 query.msg 传入的后端文案
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 const apiMessage = computed(() => {
   const raw = route.query.msg;
   const text = Array.isArray(raw) ? raw[0] : raw;
@@ -45,6 +53,7 @@ const icon = computed(() => iconMap[props.type]);
 </script>
 
 <template>
+  <!-- 通用组件：exception-base -->
   <div class="size-full min-h-520px flex-col-center gap-24px overflow-hidden px-24px">
     <div class="flex text-400px text-primary">
       <SvgIcon :local-icon="icon" />

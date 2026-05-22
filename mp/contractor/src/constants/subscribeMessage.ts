@@ -1,5 +1,7 @@
 /**
  * 微信工单相关订阅消息模板 ID
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export const WECHAT_TMPL_WORKORDER_NOTICE_1 =
   'aW97dc0OyW40-vGbO9ekIT9DFfyS6JvR9UhPkPuaW_Q'
@@ -10,11 +12,19 @@ export const WECHAT_TMPL_WORKORDER_NOTICE_2 =
 export const WECHAT_TMPL_WORKORDER_NOTICE_3 =
   'mw7ebqsdXbJxdQf-A_9161z0CdEVRGSi_I-gQY3dONw'
 
-/** 微信「派单通知」订阅消息模板 ID */
+/**
+ * 微信「派单通知」订阅消息模板 ID
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export const WECHAT_TMPL_WORKORDER_ASSIGN_NOTICE =
   'hhXhuNSWE4r98FbVMX8MfveAzBq3h7-QtfAMVOB2fTg'
 
-/** `uni.requestSubscribeMessage` 的 tmplIds，单次最多 3 个 */
+/**
+ * `uni.requestSubscribeMessage` 的 tmplIds，单次最多 3 个
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export const WORKORDER_SUBSCRIBE_TMPL_IDS = [
   WECHAT_TMPL_WORKORDER_NOTICE_1,
   WECHAT_TMPL_WORKORDER_NOTICE_2,

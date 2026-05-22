@@ -49,7 +49,9 @@
    * - 打开时用空 keyword 拉候选，并保存全量列表用于确认校验
    * - 用户输入时防抖再查（300ms）
    * - 确定：所选/输入的型号须在全量已启用列表中
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   import { ref, watch, computed } from 'vue'
   import { listRepairProductModelOptions } from '@/api/workOrder'
 
@@ -66,7 +68,11 @@
 
   const keyword = ref('')
   const options = ref<string[]>([])
-  /** 打开弹窗时「全量」已启用机型，用于与后端一致：仅允许选库内型号 */
+  /**
+ * 打开弹窗时「全量」已启用机型，用于与后端一致：仅允许选库内型号
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const enabledAllModels = ref<string[]>([])
   const loading = ref(false)
   let debounceTimer: ReturnType<typeof setTimeout> | null = null

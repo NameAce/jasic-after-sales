@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 角色列表 — 新增/编辑抽屉：基本信息与跳转菜单/按钮授权弹窗。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, ref, watch } from 'vue';
 import { useBoolean } from '@sa/hooks';
@@ -56,6 +58,8 @@ const model = ref(createDefaultModel());
  * 作用：返回角色表单默认值。
  * @param 无
  * @returns 默认模型
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function createDefaultModel(): Model {
   return {
@@ -84,6 +88,8 @@ const isEdit = computed(() => props.operateType === 'edit');
  * 作用：初始化表单模型。
  * @param 无
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleInitModel() {
   model.value = createDefaultModel();
@@ -97,6 +103,8 @@ function handleInitModel() {
  * 作用：关闭抽屉。
  * @param 无
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function closeDrawer() {
   visible.value = false;
@@ -106,6 +114,8 @@ function closeDrawer() {
  * 作用：校验并模拟提交（示例未接保存接口）。
  * @param 无
  * @returns 返回 Promise，校验完成后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function handleSubmit() {
   await validate();
@@ -125,6 +135,7 @@ watch(visible, () => {
 </script>
 
 <template>
+  <!-- 角色新增/编辑抽屉 -->
   <ADrawer v-model:open="visible" :title="title" :width="360">
     <AForm ref="formRef" layout="vertical" :model="model" :rules="rules">
       <AFormItem :label="$t('page.manage.role.roleName')" name="roleName" required>

@@ -1,4 +1,5 @@
 <template>
+  <!-- 承修方小程序（网点/总部工单处理、派工）页面 bind-confirm / index -->
   <view class="page-bind-confirm">
     <view class="bg-wrapper">
       <image class="bg-image" :src="ASSET_IMAGES.loginBg" mode="aspectFill" />
@@ -60,6 +61,11 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 承修方小程序（网点/总部工单处理、派工）：index。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   import { ref } from 'vue'
   import { onLoad } from '@dcloudio/uni-app'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'

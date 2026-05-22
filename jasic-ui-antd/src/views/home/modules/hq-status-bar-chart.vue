@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 工单看板降级图：无网点汇总时用 status-count 绘制状态分布（横向条或堆叠条）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { nextTick, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
@@ -33,6 +35,12 @@ const { width, height } = useElementSize(domRef);
 
 const COLORS = ['#fcbc25', '#f68057', '#8e9dff', '#26deca', '#8c8c8c'];
 
+/**
+ * 作用：按 variant 构建 ECharts 初始 option（横向条或纵向堆叠）。
+ * @returns ECharts 配置对象
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function buildOptions() {
   const isStack = props.variant === 'stack';
   return {
@@ -88,6 +96,12 @@ function buildOptions() {
   };
 }
 
+/**
+ * 作用：将 statusChartItems 同步到条形图或堆叠图。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function syncChart() {
   await nextTick();
   const items = statusChartItems.value;
@@ -143,6 +157,12 @@ watch(
   }
 );
 
+/**
+ * 作用：跳转工单列表（全网视角）。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function goWorkOrderPage() {
   router.push({ name: 'after-sales_work-order', query: { viewScope: 'ALL' } });
 }
@@ -153,6 +173,7 @@ onMounted(() => {
 </script>
 
 <template>
+  <!-- 总部状态柱状图 -->
   <ACard :bordered="false" class="card-wrapper" :loading="loading">
     <template #extra>
       <a class="text-primary" href="javascript:;" @click.prevent="goWorkOrderPage">

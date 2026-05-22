@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 角色授权 — 菜单权限弹窗：加载菜单树并回显角色已分配菜单。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, nextTick, shallowRef, watch } from 'vue';
 import type { SelectProps } from 'ant-design-vue';
@@ -28,6 +30,8 @@ const visible = defineModel<boolean>('visible', {
  * 作用：关闭菜单授权抽屉。
  * @param 无
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function closeModal() {
   visible.value = false;
@@ -43,6 +47,8 @@ const home = shallowRef('');
  * 作用：加载角色首页路由配置（示例为占位）。
  * @param 无
  * @returns 返回 Promise，请求结束后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function getHome() {
   if (!Number.isFinite(props.roleId)) {
@@ -55,6 +61,8 @@ async function getHome() {
  * 作用：更新角色绑定首页（示例占位）。
  * @param val - 选中路由值
  * @returns 返回 Promise，更新本地状态后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function updateHome(val: SelectProps['value']) {
   // request
@@ -69,6 +77,8 @@ const pages = shallowRef<string[]>([]);
  * 作用：拉取全部页面路径列表。
  * @param 无
  * @returns 返回 Promise，请求结束后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function getPages() {
   const { error, data } = await fetchGetAllPages();
@@ -95,6 +105,8 @@ const tree = shallowRef<DataNode[]>([]);
  * 作用：请求并转换菜单树为 Tree 组件结构。
  * @param 无
  * @returns 返回 Promise，加载结束后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function getTree() {
   const { error, data } = await fetchGetMenuTree();
@@ -108,6 +120,8 @@ async function getTree() {
  * 作用：递归转换后端菜单树为 Ant Design Tree 节点。
  * @param data - 菜单树
  * @returns Tree DataNode 数组
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function recursiveTransform(data: Api.SystemManage.MenuTree[]): DataNode[] {
   return data.map(item => {
@@ -138,6 +152,8 @@ const expandedKeys = shallowRef<Array<string | number>>([]);
  * 作用：加载角色已授权菜单 id（示例为 Mock）。
  * @param 无
  * @returns 返回 Promise，请求结束后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function getChecks() {
   if (!Number.isFinite(props.roleId)) {
@@ -152,6 +168,8 @@ async function getChecks() {
  * 作用：提交菜单勾选（示例仅提示成功）。
  * @param 无
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleSubmit() {
   if (!Number.isFinite(props.roleId)) {
@@ -168,6 +186,8 @@ function handleSubmit() {
  * 作用：打开弹窗时并行初始化首页、页面列表、树与勾选。
  * @param 无
  * @returns 返回 Promise，初始化结束后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function init() {
   getHome();
@@ -191,6 +211,7 @@ watch(visible, val => {
 </script>
 
 <template>
+  <!-- 角色菜单权限分配弹窗 -->
   <ADrawer v-model:open="visible" :title="title" :width="480">
     <div class="flex-y-center gap-16px pb-12px">
       <div>{{ $t('page.manage.menu.home') }}</div>

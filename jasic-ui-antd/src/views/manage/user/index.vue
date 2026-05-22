@@ -1,6 +1,8 @@
 <script setup lang="tsx">
 /**
  * 管理端演示 — 用户管理：分页列表、搜索与新增/编辑抽屉。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { Button, Popconfirm, Tag } from 'ant-design-vue';
 import { tagColorEnabled } from '@/constants/list-status-tag';
@@ -152,6 +154,8 @@ const {
  * 作用：批量删除选中用户（示例未接接口，仅清空选择）。
  * @param 无
  * @returns 返回 Promise，回调结束后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function handleBatchDelete() {
   // request
@@ -164,6 +168,8 @@ async function handleBatchDelete() {
  * 作用：删除单条用户（示例占位，仅刷新列表状态）。
  * @param id - 用户 id
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleDelete(_id: number) {
   // request
@@ -175,6 +181,8 @@ function handleDelete(_id: number) {
  * 作用：打开编辑抽屉并传入指定用户 id。
  * @param id - 用户 id
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function edit(id: number) {
   handleEdit(id);
@@ -182,6 +190,7 @@ function edit(id: number) {
 </script>
 
 <template>
+  <!-- 管理端演示 — 用户列表：搜索区 + 表格 + 新增/编辑抽屉 -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
     <UserSearch v-model:model="searchParams" @reset="resetSearchParams" @search="getDataByPage" />
     <ACard

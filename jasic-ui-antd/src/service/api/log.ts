@@ -1,7 +1,7 @@
 /**
  * 操作日志：分页查询与详情导出等审计相关接口。
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 import { request } from '../request';
 
@@ -11,7 +11,7 @@ type Query = Record<string, unknown>;
 export interface OperLogQuery extends Query {
   /** 与 jasic-ui `views/log/operLog/index.vue` 一致
    * @修改人 黄碧莲
-   * @修改时间 2026-05-14
+   * @修改时间 2026-05-22
    */
   pageNum?: number;
   pageSize?: number;
@@ -19,7 +19,7 @@ export interface OperLogQuery extends Query {
   operType?: number;
   /** jasic 字段名 `operUserName`
    * @修改人 黄碧莲
-   * @修改时间 2026-05-14
+   * @修改时间 2026-05-22
    */
   operUserName?: string;
   status?: 0 | 1;
@@ -39,7 +39,7 @@ export interface OperLogVO {
   userId?: number;
   /** jasic 列表列「操作人」
    * @修改人 黄碧莲
-   * @修改时间 2026-05-14
+   * @修改时间 2026-05-22
    */
   operUserName?: string;
   companyId?: number;
@@ -57,7 +57,7 @@ export interface OperLogPageResult {
 
 /** 作用：分页查询操作日志。
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function listOperLog(params?: OperLogQuery) {
   return request<OperLogPageResult>({ url: '/log/oper-log/list', method: 'get', params });
@@ -65,7 +65,7 @@ export function listOperLog(params?: OperLogQuery) {
 
 /** 作用：按主键删除操作日志（支持批量逗号拼接）。
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function deleteOperLog(ids: IdLike | IdLike[]) {
   const idText = Array.isArray(ids) ? ids.join(',') : ids;
@@ -74,7 +74,7 @@ export function deleteOperLog(ids: IdLike | IdLike[]) {
 
 /** 作用：清空操作日志。
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function cleanOperLog() {
   return request({ url: '/log/oper-log/clean', method: 'delete' });

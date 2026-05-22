@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 菜单根组件：按主题布局 mode 动态选择竖/横/混合等具体菜单实现，并注入选中项背景 CSS 变量。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import type { Component } from 'vue';
@@ -47,6 +49,7 @@ const selectedBgColor = computed(() => {
 </script>
 
 <template>
+  <!-- 全局菜单容器（按布局模式切换子菜单） -->
   <component :is="activeMenu" :key="reRenderVertical" />
 </template>
 

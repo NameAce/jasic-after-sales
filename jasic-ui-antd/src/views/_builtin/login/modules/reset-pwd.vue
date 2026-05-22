@@ -1,4 +1,9 @@
 <script setup lang="ts">
+/**
+ * 内置页：reset-pwd。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 import { computed, reactive } from 'vue';
 import { useRouterPush } from '@/hooks/common/router';
 import { useAntdForm, useFormRules } from '@/hooks/common/form';
@@ -43,6 +48,8 @@ const rules = computed<RuleRecord>(() => {
  * 作用：校验表单后提示占位（PC 暂未开放该流程）。
  * @param 无
  * @returns 返回 Promise，校验完成后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function handleSubmit() {
   await validate();
@@ -52,6 +59,7 @@ async function handleSubmit() {
 </script>
 
 <template>
+  <!-- 内置页：login/modules/reset-pwd.vue -->
   <AForm ref="formRef" :model="model" :rules="rules" @keyup.enter="handleSubmit">
     <AFormItem name="phone" required>
       <AInput v-model:value="model.phone" size="large" :placeholder="$t('page.login.common.phonePlaceholder')" />

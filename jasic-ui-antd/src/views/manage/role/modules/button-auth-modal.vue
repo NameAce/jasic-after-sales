@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 角色授权 — 按钮权限弹窗：按角色勾选接口级/按钮级权限树。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, shallowRef } from 'vue';
 import type { DataNode } from 'ant-design-vue/es/tree';
@@ -25,6 +27,8 @@ const visible = defineModel<boolean>('visible', {
  * 作用：关闭按钮授权抽屉。
  * @param 无
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function closeModal() {
   visible.value = false;
@@ -40,6 +44,8 @@ const tree = shallowRef<DataNode[]>([]);
  * 作用：加载全部按钮节点（示例 Mock）。
  * @param 无
  * @returns 返回 Promise，本地树更新后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function getAllButtons() {
   // request
@@ -64,6 +70,8 @@ const checks = shallowRef<number[]>([]);
  * 作用：加载角色已选按钮（示例 Mock）。
  * @param 无
  * @returns 返回 Promise，本地状态更新后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function getChecks() {
   if (!Number.isFinite(props.roleId)) {
@@ -78,6 +86,8 @@ async function getChecks() {
  * 作用：提交按钮勾选（示例仅提示）。
  * @param 无
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleSubmit() {
   if (!Number.isFinite(props.roleId)) {
@@ -94,6 +104,8 @@ function handleSubmit() {
  * 作用：初始化按钮树与勾选状态。
  * @param 无
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function init() {
   getAllButtons();
@@ -105,6 +117,7 @@ init();
 </script>
 
 <template>
+  <!-- 角色按钮权限分配弹窗 -->
   <ADrawer v-model:open="visible" :title="title" :width="480">
     <ATree v-model:checked-keys="checks" :tree-data="tree" checkable :height="280" class="h-280px" />
     <template #footer>

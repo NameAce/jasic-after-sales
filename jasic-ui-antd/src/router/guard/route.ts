@@ -22,6 +22,8 @@ type RouteStore = ReturnType<typeof useRouteStore>;
 
 /**
  * 作用：已登录用户访问登录页时，重定向到选公司或首页。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function getLoggedInLoginRedirect(to: RouteLocationNormalized, authStore: AuthStore): RouteLocationRaw | null {
   const loginRoute: RouteKey = 'login';
@@ -39,6 +41,8 @@ function getLoggedInLoginRedirect(to: RouteLocationNormalized, authStore: AuthSt
 /**
  * 作用：选公司流程中的路由拦截（待选公司 / 已选完误入选公司页）。
  * @returns 需重定向的目标；`proceed-switch` 表示在选公司页放行并由 handleRouteSwitch 继续
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function getChooseCompanyGuardResult(
   to: RouteLocationNormalized,
@@ -60,6 +64,8 @@ function getChooseCompanyGuardResult(
 
 /**
  * 作用：未登录时根据目标路由决定放行或跳转登录。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function resolveLocationWhenNotLoggedIn(
   to: RouteLocationNormalized,
@@ -78,6 +84,8 @@ function resolveLocationWhenNotLoggedIn(
 
 /**
  * 作用：鉴权路由未初始化时拉用户信息、处理选公司与 initAuthRoute，必要时重定向。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function resolveLocationWhenAuthRouteUninitialized(ctx: {
   to: RouteLocationNormalized;

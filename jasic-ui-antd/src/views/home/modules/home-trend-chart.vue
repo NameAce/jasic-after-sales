@@ -2,6 +2,8 @@
 /**
  * 通用首页近七天事件趋势折线图：名称/code/values 均来自接口 HomeTrendVO，不堆叠（三条为独立日事件数）。
  * 点击某条折线/色块区域跳转工单列表，并按 series.code 回显已有筛选项后自动查询。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
@@ -39,6 +41,7 @@ const props = withDefaults(
 
 const router = useRouter();
 
+// 将 HomeTrendVO 转为 ECharts 所需的 days、series（含颜色与对齐后的日计数）
 const trendPayload = computed(() => {
   const payload = props.trend;
   const days = Array.isArray(payload?.days) ? payload.days : [];
@@ -84,6 +87,7 @@ const { domRef, updateOptions } = useEcharts(
         const seriesIndex = Number(clickParams.seriesIndex);
         if (!Number.isFinite(seriesIndex) || seriesIndex < 0) return;
         const item = trendPayload.value.series[seriesIndex];
+        // 按 series.code 映射工单列表筛选项；未知 code 降级为 extraLinkRoute
         const target = resolveTrendSeriesRouteTarget(item?.code, props.extraLinkRoute);
         navigateHomeRoute(router, target);
       });
@@ -93,6 +97,12 @@ const { domRef, updateOptions } = useEcharts(
 
 const { width, height } = useElementSize(domRef);
 
+/**
+ * 作用：将 trendPayload 写入 ECharts（坐标轴、图例、非堆叠折线序列）。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function applyTrendData() {
   await nextTick();
   const payload = trendPayload.value;
@@ -118,6 +128,12 @@ watch(
   { flush: 'post', deep: true }
 );
 
+/**
+ * 作用：点击卡片右上角「工单列表」等链接跳转。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function openExtraLink() {
   if (!props.extraLinkRoute?.name) return;
   router.push({
@@ -128,6 +144,7 @@ function openExtraLink() {
 </script>
 
 <template>
+  <!-- 近七天多序列趋势：点击折线按 resolveTrendSeriesRouteTarget 跳转工单列表 -->
   <ACard
     :bordered="false"
     class="card-wrapper"

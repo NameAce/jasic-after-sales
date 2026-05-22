@@ -91,7 +91,9 @@
   /**
    * 用户信息
    * @returns 用户信息
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const profileData = computed(() => {
     const u = userStore.userInfo
     if (u) return buildUserProfile(u)
@@ -105,7 +107,11 @@
     }
   })
 
-  /** 功能菜单（建维修单需工单新增权限；其余入口展示，具体操作权限在各页控制） */
+  /**
+ * 功能菜单（建维修单需工单新增权限；其余入口展示，具体操作权限在各页控制）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const menuItems = computed(() => {
     const withoutRepairCreate = DEFAULT_MY_MENU.filter(
       (item) => item.link !== '/pages/jasicRepair/index'
@@ -118,7 +124,9 @@
    * 菜单项点击
    * @param item 菜单项
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onMenuItemTap = (item: { link?: string }) => {
     if (item.link) uni.navigateTo({ url: item.link })
   }
@@ -126,7 +134,9 @@
   /**
    * 退出当前账号
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onLogout = () => {
     uni.showModal({
       title: '提示',

@@ -1,8 +1,20 @@
+/**
+ * 工具模块：tree-expand-keys.ts。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
+
 /** Ant Design Vue Tree 父子联动时 v-model:checked-keys 为 { checked, halfChecked } */
 export type TreeCheckedKeysValue =
   | Array<string | number>
   | { checked?: Array<string | number>; halfChecked?: Array<string | number> };
 
+/**
+ * 作用：类型/值转换：toMenuNumericId。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function toMenuNumericId(raw: string | number): number {
   return typeof raw === 'number' ? raw : Number(String(raw ?? ''));
 }
@@ -13,6 +25,8 @@ function toMenuNumericId(raw: string | number): number {
  * @param checkedKeys - v-model:checked-keys 当前值
  * @param includeHalfChecked - 是否合并半选父节点（非严格联动场景保存时可传 true）
  * @returns key 列表
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function toTreeCheckedKeyList(checkedKeys: unknown, includeHalfChecked = false): Array<string | number> {
   if (Array.isArray(checkedKeys)) {

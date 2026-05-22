@@ -9,6 +9,8 @@ import type { CustomerUserInfo } from '@/models/user'
  * C 端不存在 contractor/jasic-ui 的 `perms / roles / companies` 等字段，
  * 故此处直接复用 `CustomerUserInfo`，不再保留历史 `SysUserInfo` 兼容别名
  * （`name / mobile / role` 等已在页面统一迁移为 `nickname / phone`）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export type UserInfo = CustomerUserInfo
 

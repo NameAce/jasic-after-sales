@@ -1,4 +1,5 @@
 <template>
+  <!-- 售后客户端小程序（报修、工单、地址）组件 ListEmpty -->
   <view class="list-empty">
     <view v-if="showIllustration" class="empty-icon-wrap">
       <image class="empty-list-illus" :src="emptyOrderListIcon" mode="aspectFit" />
@@ -9,6 +10,11 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 售后客户端小程序（报修、工单、地址）：ListEmpty。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   import { emptyOrderListIcon } from '@/svgs'
 
   withDefaults(

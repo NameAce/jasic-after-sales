@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 全局侧栏容器：Logo + 菜单挂载点（菜单组件通过 Teleport 写入 #GLOBAL_SIDER_MENU_ID）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import { GLOBAL_SIDER_MENU_ID } from '@/constants/app';
@@ -27,6 +29,7 @@ const menuWrapperClass = computed(() => (showLogo.value ? 'flex-1-hidden' : 'h-f
 </script>
 
 <template>
+  <!-- 侧栏容器：菜单与折叠 -->
   <DarkModeContainer class="size-full flex-col-stretch shadow-sider" :inverted="darkMenu">
     <GlobalLogo
       v-if="showLogo"

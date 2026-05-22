@@ -5,6 +5,8 @@
  * 镜像口径：等价于 aftersale `src/constants/theme.ts`，不迁移、不镜像路径，
  * 只镜像公共 token 字面（目录命名与存放位置仅为建议，详见
  * `mp/MIRROR_FILE_PAIRS.md` 的「目录命名和存放位置仅做建议」条目）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export const themeColors = {
   // --- 双端公共 token ---
@@ -38,23 +40,47 @@ export const themeColors = {
 
   // --- 师傅端独有 / 扩展 ---
   // 以下 token 仅在 contractor 使用，不镜像到 aftersale。
-  /** 主色偏亮（渐变、装饰） */
+  /**
+ * 主色偏亮（渐变、装饰）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   primaryLight: '#ff8533',
-  /** 登录/绑定页深色顶栏渐变 */
+  /**
+ * 登录/绑定页深色顶栏渐变
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   loginGradientStart: '#0f172a',
   loginGradientEnd: '#020617',
-  /** 深色背景上的浅红提示 */
+  /**
+ * 深色背景上的浅红提示
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   rose200: '#fecaca',
-  /** 语音条浅底、与 `$bg-muted-panel` 一致 */
+  /**
+ * 语音条浅底、与 `$bg-muted-panel` 一致
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   voicePanelBg: '#f9f9f9',
   voicePanelBorder: '#d9dfe6',
-  /** 与 `$primary-tint-bg` / 浅橙提示区一致 */
+  /**
+ * 与 `$primary-tint-bg` / 浅橙提示区一致
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   tagBrandBg: '#fff7ed',
   tagBrandBorder: '#ffedd5',
   tagBrandAccentBorder: '#fde4cf',
 } as const
 
-/** 与 `themeColors` 同引用，供沿用旧命名的组件使用 */
+/**
+ * 与 `themeColors` 同引用，供沿用旧命名的组件使用
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export const themeColor = themeColors
 
 export type ThemeColorName = keyof typeof themeColors

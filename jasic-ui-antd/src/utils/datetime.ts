@@ -1,18 +1,30 @@
 /**
  * 日期时间展示格式化：统一后端 LocalDateTime、ISO 8601、时间戳等在前端的展示口径。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import type { TableColumnType } from 'ant-design-vue';
 import dayjs from 'dayjs';
 
-/** 默认日期时间展示格式 */
+/**
+ * 默认日期时间展示格式
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export const DATETIME_FORMAT = 'YYYY-MM-DD HH:mm:ss';
 
-/** 仅日期展示格式 */
+/**
+ * 仅日期展示格式
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export const DATE_FORMAT = 'YYYY-MM-DD';
 
 /**
  * 最近连续 N 个自然日的日期区间（含今天），返回 yyyy-MM-dd。
  * 用于操作日志等「近 7 日」筛选与路由 query 同步。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function getRecentDateRange(size = 7) {
   const end = dayjs();
@@ -25,6 +37,8 @@ export function getRecentDateRange(size = 7) {
 
 /**
  * 将日期选择器的 yyyy-MM-dd 转为操作日志接口所需的起止时间。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function toOperLogQueryTime(dateStr: string, boundary: 'start' | 'end') {
   const d = String(dateStr || '').trim();
@@ -34,13 +48,19 @@ export function toOperLogQueryTime(dateStr: string, boundary: 'start' | 'end') {
   return d;
 }
 
-/** 不按日期时间格式化的字段（如操作耗时毫秒） */
+/**
+ * 不按日期时间格式化的字段（如操作耗时毫秒）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 const DATETIME_COLUMN_BLOCKLIST = new Set(['costTime']);
 
 /**
  * 判断表格字段名是否应按日期/时间格式化展示。
  *
  * @param key - 列 key 或 dataIndex
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function isDateTimeColumnKey(key: string): boolean {
   const k = String(key || '').trim();
@@ -52,6 +72,8 @@ export function isDateTimeColumnKey(key: string): boolean {
  * 判断字符串是否像未格式化的日期时间（ISO、时间戳等）。
  *
  * @param value - 原始字符串
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function looksLikeDateTime(value: string): boolean {
   const s = value.trim();
@@ -67,6 +89,8 @@ export function looksLikeDateTime(value: string): boolean {
  *
  * @param value - 原始值
  * @param fallback - 空值占位
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function formatDate(value: unknown, fallback = '-'): string {
   if (value === null || value === undefined || value === '') return fallback;
@@ -82,6 +106,8 @@ export function formatDate(value: unknown, fallback = '-'): string {
  *
  * @param value - 原始值
  * @param fallback - 空值占位
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function formatDateTime(value: unknown, fallback = '-'): string {
   if (value === null || value === undefined || value === '') return fallback;
@@ -99,6 +125,8 @@ export function formatDateTime(value: unknown, fallback = '-'): string {
  * @param key - 字段名
  * @param value - 原始值
  * @param fallback - 空值占位
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function formatDateTimeField(key: string, value: unknown, fallback = '-'): string {
   const k = String(key || '');
@@ -113,6 +141,8 @@ export function formatDateTimeField(key: string, value: unknown, fallback = '-')
  *
  * @param value - 原始值
  * @param fallback - 空值占位
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function formatDisplayValue(value: unknown, fallback = '-'): string {
   const text = String(value ?? '').trim();
@@ -121,7 +151,11 @@ export function formatDisplayValue(value: unknown, fallback = '-'): string {
   return text;
 }
 
-/** 详情描述行（label + value + key） */
+/**
+ * 详情描述行（label + value + key）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export type DetailDescriptionRow = {
   key: string;
   label: string;
@@ -133,6 +167,8 @@ export type DetailDescriptionRow = {
  *
  * @param rows - 描述行列表
  * @param fallback - 空值占位
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function mapDetailRowsDateTime<T extends DetailDescriptionRow>(rows: T[], fallback = '-'): T[] {
   return rows.map(row => {
@@ -149,6 +185,8 @@ export function mapDetailRowsDateTime<T extends DetailDescriptionRow>(rows: T[],
  * 为表格列中日期时间字段注入 customRender（已有 customRender 的列不覆盖）。
  *
  * @param columns - 原始列配置
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function applyDateTimeColumnRender<T = Record<string, unknown>>(
   columns: TableColumnType<T>[]

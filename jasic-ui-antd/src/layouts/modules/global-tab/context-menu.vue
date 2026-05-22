@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 单个页签的右键菜单：关闭当前/其他/左侧/右侧/全部，结合 exclude/disabled 控制展示与置灰。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import type { Trigger } from 'ant-design-vue/es/dropdown/props';
@@ -26,7 +28,11 @@ const props = withDefaults(defineProps<Props>(), {
 
 const { removeTab, clearTabs, clearLeftTabs, clearRightTabs } = useTabStore();
 
-/** 下拉菜单展示用：文案、图标与禁用态 */
+/**
+ * 下拉菜单展示用：文案、图标与禁用态
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 interface DropdownOption {
   key: App.Global.DropdownKey;
   label: string;
@@ -99,6 +105,7 @@ const dropdownAction: Record<App.Global.DropdownKey, () => void> = {
 </script>
 
 <template>
+  <!-- 布局子模块：context-menu -->
   <ADropdown :trigger="trigger" placement="bottom" destroy-popup-on-hide>
     <slot></slot>
     <template #overlay>

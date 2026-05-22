@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 顶栏一键切换亮/暗/跟随系统：向外 emit `switch`，由父级调用 themeStore。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import type { TooltipPlacement } from 'ant-design-vue/es/tooltip';
@@ -9,11 +11,23 @@ import { $t } from '@/locales';
 defineOptions({ name: 'ThemeSchemaSwitch' });
 
 interface Props {
-  /** Theme schema */
+  /**
+   * Theme schema
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   themeSchema: UnionKey.ThemeScheme;
-  /** Show tooltip */
+  /**
+   * Show tooltip
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   showTooltip?: boolean;
-  /** Tooltip placement */
+  /**
+   * Tooltip placement
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   tooltipPlacement?: TooltipPlacement;
 }
 
@@ -28,7 +42,11 @@ interface Emits {
 
 const emit = defineEmits<Emits>();
 
-/** 点击后通知父级切换主题方案 */
+/**
+ * 点击后通知父级切换主题方案
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleSwitch() {
   emit('switch');
 }
@@ -51,6 +69,7 @@ const tooltipContent = computed(() => {
 </script>
 
 <template>
+  <!-- 通用组件：theme-schema-switch -->
   <ButtonIcon
     :icon="icon"
     :tooltip-content="tooltipContent"

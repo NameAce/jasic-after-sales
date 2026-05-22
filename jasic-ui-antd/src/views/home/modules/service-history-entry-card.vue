@@ -2,6 +2,8 @@
 /**
  * 服务主体首页历史参与入口：样式对齐 git「通知动态」(project-news)，
  * 使用 ACard + AList + 头像列表项，整行点击跳转 viewScope=HISTORY 工单列表。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
@@ -38,13 +40,19 @@ const listItems = computed<HistoryListItem[]>(() => {
   ];
 });
 
-/** 点击列表项，按后端 routeTarget 进入历史参与工单列表 */
+/**
+ * 作用：点击列表项，按后端 routeTarget 进入历史参与工单列表。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function openHistoryItem() {
   navigateHomeRoute(router, entry.value?.routeTarget);
 }
 </script>
 
 <template>
+  <!-- 历史工单入口卡片 -->
   <ACard :title="entry?.title || '历史参与'" :bordered="false" size="small" class="card-wrapper" :loading="loading">
     <AList :data-source="listItems" :locale="{ emptyText: $t('page.home.projectNews.empty') }">
       <template #renderItem="{ item }">

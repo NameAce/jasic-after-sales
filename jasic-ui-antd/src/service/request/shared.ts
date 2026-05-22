@@ -1,22 +1,29 @@
 /**
  * 请求层共享：Authorization 头、refreshToken 串行刷新、错误消息去重等。
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 import { useAuthStore } from '@/store/modules/auth';
 import { localStg } from '@/utils/storage';
 import { fetchRefreshToken } from '../api';
 import type { RequestInstanceState } from './type';
 
+/**
+ * 作用：判断值是否为 null 或 undefined（扁平请求结果解析共用）。
+ * @param value - 待判断值
+ * @returns 是否为 null/undefined
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function isNil(value: unknown): value is null | undefined {
   return value === null || value === undefined;
 }
 
 /**
  * 作用：从本地存储读取 token 并格式化为请求头 Authorization 值（与 Sa-Token 约定一致，不加 Bearer）。
- * @returns {string | null} 鉴权头内容，未登录为 null
+ * @returns 鉴权头内容，未登录为 null
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function getAuthorization() {
   // 从本地存储读取登录 token
@@ -29,9 +36,9 @@ export function getAuthorization() {
 
 /**
  * 作用：是否启用 refreshToken 刷新流程（由环境变量控制）。
- * @returns {boolean}
+ * @returns 是否启用
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 function isAuthRefreshTokenEnabled() {
   return import.meta.env.VITE_AUTH_REFRESH_TOKEN === 'Y';
@@ -39,9 +46,9 @@ function isAuthRefreshTokenEnabled() {
 
 /**
  * 作用：调用刷新接口更新 token；未开启刷新或无 refreshToken 时清空登录态。
- * @returns {Promise<boolean>} 刷新成功为 true，否则 false
+ * @returns 刷新成功为 true，否则 false
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 async function handleRefreshToken() {
   // 取鉴权 Store 的 resetStore，用于刷新失败或未开启刷新时清空登录态
@@ -78,10 +85,10 @@ async function handleRefreshToken() {
 
 /**
  * 作用：401/过期时串行刷新 token，避免并发重复刷新（通过 state.refreshTokenFn 复用同一 Promise）。
- * @param state 请求实例状态
- * @returns {Promise<boolean>} 是否刷新成功
+ * @param state - 请求实例状态
+ * @returns 是否刷新成功
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export async function handleExpiredRequest(state: RequestInstanceState) {
   if (!state.refreshTokenFn) {
@@ -101,11 +108,11 @@ export async function handleExpiredRequest(state: RequestInstanceState) {
 
 /**
  * 作用：防抖式全局 error 消息提示，同一状态下相同文案不重复弹出。
- * @param state 请求实例状态（维护 toastErrMsgStack）
- * @param message 展示给用户的消息
- * @returns {void}
+ * @param state - 请求实例状态（维护 toastErrMsgStack）
+ * @param message - 展示给用户的消息
+ * @returns void
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function showErrorMsg(state: RequestInstanceState, message: string) {
   if (!state.toastErrMsgStack?.length) {
@@ -125,11 +132,11 @@ export function showErrorMsg(state: RequestInstanceState, message: string) {
 
 /**
  * 作用：从 Axios 响应体中解析后端提示文案（**优先 `msg`**，其次 `message`），无则返回 fallback。
- * @param response 原始响应对象
- * @param fallback 无文案时的默认值
- * @returns {string} 后端消息或 fallback
+ * @param response - 原始响应对象
+ * @param fallback - 无文案时的默认值
+ * @returns 后端消息或 fallback
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function getResponseMsg(response: unknown, fallback = '') {
   if (!response || typeof response !== 'object') {
@@ -159,7 +166,7 @@ export function getResponseMsg(response: unknown, fallback = '') {
  * @param flatResult - 扁平请求返回值或含 `response` / `msg` 的对象
  * @param fallback 无后端文案时的兜底
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function getFlatResponseMsg(flatResult: unknown, fallback = ''): string {
   if (isNil(flatResult)) return fallback;
@@ -172,7 +179,7 @@ export function getFlatResponseMsg(flatResult: unknown, fallback = ''): string {
   const o = flatResult as Record<string, unknown>;
   /** 扁平请求失败时不再从 response 取文案，避免业务层误把错误 msg 当成功提示
    * @修改人 黄碧莲
-   * @修改时间 2026-05-14
+   * @修改时间 2026-05-22
    */
   if ('error' in o && !isNil(o.error) && o.error !== false) {
     return fallback;
@@ -199,7 +206,7 @@ export function getFlatResponseMsg(flatResult: unknown, fallback = ''): string {
  * @param fallback - 无文案时的兜底
  * @returns {string} 错误提示文案
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function getFlatErrorMsg(flatResult: unknown, fallback = ''): string {
   if (isNil(flatResult) || typeof flatResult !== 'object') return fallback;
@@ -222,6 +229,10 @@ export function getFlatErrorMsg(flatResult: unknown, fallback = ''): string {
 
 /**
  * 作用：判断 `createFlatRequest` 返回值是否为业务/网络失败。
+ * @param flatResult - `await request(...)` 返回值
+ * @returns 是否存在 error 字段且为真
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function isFlatRequestFailed(flatResult: unknown): boolean {
   if (isNil(flatResult) || typeof flatResult !== 'object') {
@@ -231,12 +242,23 @@ export function isFlatRequestFailed(flatResult: unknown): boolean {
   return !isNil(r.error) && r.error !== false;
 }
 
+/**
+ * 作用：解析环境变量中的逗号分隔业务码列表（与 index.ts parseCodeList 语义一致）。
+ * @param raw - 环境变量原始字符串
+ * @returns 去空白后的码列表
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function parseEnvCodeList(raw: string | undefined) {
   return (raw?.split(',') || []).map(c => c.trim()).filter(Boolean);
 }
 
 /**
  * 作用：失败结果是否会由请求层跳转 403/404/500 异常页（此类不关弹窗也可，由路由接管）。
+ * @param flatResult - `await request(...)` 失败返回值
+ * @returns 是否会走异常页路由
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function isFlatRequestExceptionPageError(flatResult: unknown): boolean {
   if (!isFlatRequestFailed(flatResult)) {
@@ -263,7 +285,9 @@ export function isFlatRequestExceptionPageError(flatResult: unknown): boolean {
  *
  * @param result - `await request(...)` 的返回值 `{ data, error, response }`
  * @param fallback - 接口未带文案时的兜底成功提示
- * @returns {boolean} 是否成功
+ * @returns 是否成功（失败返回 false，不关弹窗）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function notifyOnceSuccessFromFlatResult(result: unknown, fallback: string): boolean {
   if (isFlatRequestFailed(result)) {

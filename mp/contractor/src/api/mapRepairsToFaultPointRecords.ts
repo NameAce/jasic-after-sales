@@ -1,8 +1,16 @@
 /**
  * 将详情 `repairs` 映射为故障点历史列表，与 aftersale `mapCustomerRepairsToAllFaultPointRecords` 同源逻辑。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import type { FaultPointRecord, WorkOrderFaultVO, WorkOrderRepairVO, SysFileItemVO } from '@/models/order'
 
+/**
+ * 作用：接口封装：resolveSysFileItemPreviewUrl。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function resolveSysFileItemPreviewUrl(item: unknown): string {
   if (item == null) return ''
   if (typeof item === 'string') return item.trim()
@@ -15,6 +23,12 @@ function resolveSysFileItemPreviewUrl(item: unknown): string {
   return ''
 }
 
+/**
+ * 作用：转换/构造：mapSysFileItemsToLabeledImages。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function mapSysFileItemsToLabeledImages(
   files: SysFileItemVO[] | undefined,
   labelPrefix: string,
@@ -30,12 +44,24 @@ function mapSysFileItemsToLabeledImages(
     .filter((x): x is { url: string; label: string } => x != null)
 }
 
+/**
+ * 作用：接口封装：sortRepairsByCreateTime。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function sortRepairsByCreateTime(repairs: WorkOrderRepairVO[]): WorkOrderRepairVO[] {
   return repairs
     .slice()
     .sort((a, b) => String(a.createTime || '').localeCompare(String(b.createTime || '')))
 }
 
+/**
+ * 作用：转换/构造：parseRepairPartDesc。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function parseRepairPartDesc(partDesc: string): { name: string; count: number }[] {
   const raw = String(partDesc || '').trim()
   if (!raw) return []
@@ -54,6 +80,12 @@ function parseRepairPartDesc(partDesc: string): { name: string; count: number }[
   return out
 }
 
+/**
+ * 作用：接口封装：faultPartsFromFault。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function faultPartsFromFault(f: WorkOrderFaultVO) {
   const list = Array.isArray(f.partList) ? f.partList : []
   return list
@@ -68,7 +100,11 @@ function faultPartsFromFault(f: WorkOrderFaultVO) {
     .filter((x): x is { name: string; count: number } => x != null)
 }
 
-/** 单条维修登记 → 若干条故障点历史记录 */
+/**
+ * 单条维修登记 → 若干条故障点历史记录
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function mapOneRepairToFaultRecords(r: WorkOrderRepairVO): FaultPointRecord[] {
   const faults = Array.isArray(r.faults) ? r.faults : []
   const when = String(r.createTime || '')
@@ -111,6 +147,8 @@ function mapOneRepairToFaultRecords(r: WorkOrderRepairVO): FaultPointRecord[] {
 /**
  * 将详情接口 `repairs` 映射为故障点历史列表。
  * 与 aftersale `mapCustomerRepairsToAllFaultPointRecords` 保持同源结构。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function mapWorkOrderRepairsToAllFaultPointRecords(
   repairs: WorkOrderRepairVO[] | undefined | null,

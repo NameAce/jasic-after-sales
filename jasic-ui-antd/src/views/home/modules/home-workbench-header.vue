@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 工单类首页顶部横幅：接口标题 + 用户问候 + 可选已转出快捷统计。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
@@ -33,16 +35,29 @@ const router = useRouter();
 
 const transferCount = computed(() => toDashboardCount(props.transferMetric?.value));
 
+/**
+ * 作用：跳转个人中心。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function openUserCenter() {
   router.push({ path: '/user-center' });
 }
 
+/**
+ * 作用：点击已转出统计，按接口 routeTarget 跳转工单列表（含 hasTransfer 补全）。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function openTransferList() {
   navigateHomeRoute(router, props.transferMetric?.routeTarget);
 }
 </script>
 
 <template>
+  <!-- 工作台页头 -->
   <ACard :bordered="false" class="card-wrapper" :loading="loading">
     <ARow :gutter="[16, 16]">
       <ACol :span="24" :md="transferMetric ? 18 : 24">

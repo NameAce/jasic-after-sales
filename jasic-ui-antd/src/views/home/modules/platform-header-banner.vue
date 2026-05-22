@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 平台超管首页顶部：问候语 + 接口标题 + 组织治理快捷指标（来自 organization 分区）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
@@ -27,16 +29,30 @@ const statisticData = computed(() =>
   }))
 );
 
+/**
+ * 作用：点击组织治理快捷指标，按 routeTarget 跳转业务页。
+ * @param item - 统计项（含 routeTarget）
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleStatisticClick(item: (typeof statisticData.value)[number]) {
   navigateHomeRoute(router, item.routeTarget);
 }
 
+/**
+ * 作用：跳转个人中心。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function openUserCenter() {
   router.push({ path: '/user-center' });
 }
 </script>
 
 <template>
+  <!-- 平台横幅 -->
   <ACard :bordered="false" class="card-wrapper" :loading="loading">
     <ARow :gutter="[16, 16]">
       <ACol :span="24" :md="statisticData.length ? 18 : 24">

@@ -52,19 +52,37 @@
 </template>
 
 <script setup lang="ts">
-  /** 故障判定 Form */
+  /**
+ * 故障判定 Form
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const faultJudgeOptions = ['有故障', '无故障']
-  /** 故障判定 */
+  /**
+ * 故障判定
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const faultJudge = defineModel<string>('faultJudge', { default: '' })
-  /** 维修报价 */
+  /**
+ * 维修报价
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const repairQuote = defineModel<string>('repairQuote', { default: '' })
-  /** 报价说明 */
+  /**
+ * 报价说明
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const quoteDesc = defineModel<string>('quoteDesc', { default: '' })
 
   /**
    * 故障判定选择
    * @param e 事件
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onFaultJudgePicker = (e: { detail: { value: string | number } }) => {
     const idx = Number(e.detail.value)
     const next = faultJudgeOptions[idx] ?? ''

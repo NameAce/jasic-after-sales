@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 平台超管：近 7 日操作日志量折线图（基于 oper-log 分页采样）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { nextTick, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
@@ -55,10 +57,23 @@ const { domRef, updateOptions } = useEcharts(() => ({
 
 const { width, height } = useElementSize(domRef);
 
+/**
+ * 作用：将 yyyy-MM-dd 格式化为 MM-dd 横轴标签。
+ * @param dayKey - 日期键
+ * @returns 轴标签字符串
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function toAxisLabel(dayKey: string) {
   return dayKey.slice(5);
 }
 
+/**
+ * 作用：将近 7 日操作日志采样数据同步到折线图。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function syncChart() {
   await nextTick();
   const keys = operLogDayKeys.value;
@@ -89,6 +104,12 @@ watch(
   }
 );
 
+/**
+ * 作用：跳转操作日志列表页。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function goLogPage() {
   router.push({ path: '/log' });
 }
@@ -99,6 +120,7 @@ onMounted(() => {
 </script>
 
 <template>
+  <!-- 平台操作日志图 -->
   <ACard :bordered="false" class="card-wrapper" :loading="loading">
     <template #extra>
       <a class="text-primary" href="javascript:;" @click.prevent="goLogPage">{{ $t('page.home.platformViewLog') }}</a>

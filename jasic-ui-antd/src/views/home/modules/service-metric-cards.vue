@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 服务主体首页指标卡片：按 HomeSectionVO.metrics 渲染，点击走 routeTarget 跳转。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
@@ -31,24 +33,45 @@ interface GradientBgProps {
 
 const [DefineGradientBg, GradientBg] = createReusableTemplate<GradientBgProps>();
 
+/**
+ * 作用：按指标 code 生成卡片背景线性渐变 CSS。
+ * @param code - 指标 code
+ * @returns linear-gradient 字符串
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function getGradientColor(code?: string) {
   const style = (code && SERVICE_METRIC_CARD_STYLES[code]) || DEFAULT_SERVICE_METRIC_STYLE;
   const { start, end } = style.color;
   return `linear-gradient(to bottom right, ${start}, ${end})`;
 }
 
+/**
+ * 作用：按指标 code 解析卡片图标。
+ * @param code - 指标 code
+ * @returns mdi 图标名
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function getIcon(code?: string) {
   const style = (code && SERVICE_METRIC_CARD_STYLES[code]) || DEFAULT_SERVICE_METRIC_STYLE;
   return style.icon;
 }
 
-/** 点击指标卡片，按后端下发的 routeTarget 进入工单列表 */
+/**
+ * 作用：点击指标卡片，按后端 routeTarget 进入工单列表。
+ * @param metric - 当前指标项
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function openMetric(metric: (typeof metrics.value)[number]) {
   navigateHomeRoute(router, metric?.routeTarget);
 }
 </script>
 
 <template>
+  <!-- 服务商指标卡片 -->
   <ACard :bordered="false" size="small" class="card-wrapper" :loading="loading">
     <template v-if="section?.title" #title>
       {{ section.title }}

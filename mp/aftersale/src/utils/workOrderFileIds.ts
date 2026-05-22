@@ -2,6 +2,8 @@
  * 从上传组件回显对象上解析服务端文件 ID（上传接口回填 fileId / id 后生效）
  * @param item 上传组件回显对象
  * @returns 文件ID
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function parseWorkOrderFileId(item: unknown): number | null {
   if (!item || typeof item !== 'object') return null
@@ -18,6 +20,8 @@ export function parseWorkOrderFileId(item: unknown): number | null {
  * 判断是否为视频媒体文件
  * @param item 上传组件回显对象
  * @returns 是否为视频媒体文件
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function isVideoMediaItem(item: unknown): boolean {
   if (!item || typeof item !== 'object') return false
@@ -31,6 +35,8 @@ export function isVideoMediaItem(item: unknown): boolean {
  * 分割故障媒体文件ID
  * @param items 上传组件回显对象列表
  * @returns 故障媒体文件ID列表
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function partitionFaultMediaFileIds(
   items: unknown[]
@@ -50,6 +56,8 @@ export function partitionFaultMediaFileIds(
  * 收集寄件凭证文件ID
  * @param items 上传组件回显对象列表
  * @returns 寄件凭证文件ID列表
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function collectVoucherFileIds(items: unknown[]): number[] {
   const ids: number[] = []
@@ -64,6 +72,8 @@ export function collectVoucherFileIds(items: unknown[]): number[] {
  * 将未知对象转换为数组
  * @param v 未知对象
  * @returns 数组
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function asUnknownArray(v: unknown): unknown[] {
   return Array.isArray(v) ? v : []
@@ -73,6 +83,8 @@ export function asUnknownArray(v: unknown): unknown[] {
  * 收集语音文件ID
  * @param list 上传组件回显对象列表
  * @returns 语音文件ID列表
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function collectVoiceFileIds(list: unknown[]): number[] {
   return list

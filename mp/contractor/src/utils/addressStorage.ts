@@ -1,4 +1,8 @@
-/** 本地保存的收货地址（与 uni.chooseAddress 字段对齐便于导入） */
+/**
+ * 本地保存的收货地址（与 uni.chooseAddress 字段对齐便于导入）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export type SavedAddress = {
   id: string
   name: string
@@ -7,9 +11,17 @@ export type SavedAddress = {
   city: string
   county: string
   detail: string
-  /** 服务端列表返回的完整地址文案，有则优先展示 */
+  /**
+ * 服务端列表返回的完整地址文案，有则优先展示
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   fullAddress?: string
-  /** 是否默认（1=是，0=否），来自服务端列表时可能有 */
+  /**
+ * 是否默认（1=是，0=否），来自服务端列表时可能有
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   isDefault?: number
   postalCode?: string
   nationalCode?: string
@@ -30,6 +42,8 @@ export type SelectedShippingAddress = {
 /**
  * 生成地址ID
  * @returns 地址ID
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function genAddressId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
@@ -38,6 +52,8 @@ export function genAddressId(): string {
 /**
  * 加载收货地址
  * @returns 收货地址列表
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function loadAddresses(): SavedAddress[] {
   try {
@@ -60,6 +76,8 @@ export function loadAddresses(): SavedAddress[] {
 /**
  * 保存收货地址
  * @param list 收货地址列表
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function saveAddresses(list: SavedAddress[]): void {
   uni.setStorageSync(STORAGE_KEY, JSON.stringify(list))
@@ -68,12 +86,18 @@ export function saveAddresses(list: SavedAddress[]): void {
 /**
  * 保存选中的收货地址
  * @param address 收货地址
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function saveSelectedShippingAddress(address: SavedAddress): void {
   const line =
     (address.fullAddress && String(address.fullAddress).trim()) ||
     `${address.province}${address.city}${address.county}${address.detail}`
-  /** 与 `takeSelectedShippingAddress` 一致：统一序列化为 string，避免 JSON 出现未加引号的数字导致读取端 typeof 校验失败 */
+  /**
+ * 与 `takeSelectedShippingAddress` 一致：统一序列化为 string，避免 JSON 出现未加引号的数字导致读取端 typeof 校验失败
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const payload: SelectedShippingAddress = {
     id: String(address.id ?? '').trim(),
     name: String(address.name ?? '').trim(),
@@ -86,6 +110,8 @@ export function saveSelectedShippingAddress(address: SavedAddress): void {
 /**
  * 获取选中的收货地址
  * @returns 选中的收货地址
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function takeSelectedShippingAddress(): SelectedShippingAddress | null {
   try {

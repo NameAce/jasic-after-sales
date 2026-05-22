@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 纵向布局侧栏菜单：Teleport 到侧栏容器，内联子菜单 + 选中路径 openKeys。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import type { MenuInfo } from 'ant-design-vue/es/menu/src/interface';
@@ -38,7 +40,11 @@ const openKeys = computed(() => {
   return routeStore.getSelectedMenuKeyPath(selectedKey.value);
 });
 
-/** 菜单项点击：携带 meta.query 等按路由 key 跳转 */
+/**
+ * 菜单项点击：携带 meta.query 等按路由 key 跳转
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleClickMenu(menuInfo: MenuInfo) {
   const key = menuInfo.key as RouteKey;
 
@@ -47,6 +53,7 @@ function handleClickMenu(menuInfo: MenuInfo) {
 </script>
 
 <template>
+  <!-- 布局子模块：vertical-menu -->
   <Teleport :to="`#${GLOBAL_SIDER_MENU_ID}`">
     <SimpleScrollbar class="menu-wrapper" :class="{ 'select-menu': !darkTheme }">
       <AMenu

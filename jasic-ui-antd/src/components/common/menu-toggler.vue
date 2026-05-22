@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 /**
  * 侧栏折叠切换：支持普通折叠图标或双箭头样式（混合菜单底部等场景）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import { $t } from '@/locales';
@@ -8,9 +10,17 @@ import { $t } from '@/locales';
 defineOptions({ name: 'MenuToggler' });
 
 interface Props {
-  /** Show collapsed icon */
+  /**
+   * Show collapsed icon
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   collapsed?: boolean;
-  /** Arrow style icon */
+  /**
+   * Arrow style icon
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   arrowIcon?: boolean;
 }
 
@@ -40,6 +50,7 @@ const icon = computed(() => {
 </script>
 
 <template>
+  <!-- 通用组件：menu-toggler -->
   <ButtonIcon
     :key="String(collapsed)"
     :tooltip-content="collapsed ? $t('icon.expand') : $t('icon.collapse')"
