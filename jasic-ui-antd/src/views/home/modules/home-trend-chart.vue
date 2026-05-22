@@ -144,14 +144,14 @@ function openExtraLink() {
 </script>
 
 <template>
-    <ACard
+  <ACard
     :bordered="false"
     class="card-wrapper"
     :class="{ 'home-chart-card--fill': fillHeight }"
     :loading="loading"
     :body-style="fillHeight ? { flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 } : undefined"
   >
-      <!-- 近七天多序列趋势：点击折线按 resolveTrendSeriesRouteTarget 跳转工单列表 -->
+    <!-- 近七天多序列趋势：点击折线按 resolveTrendSeriesRouteTarget 跳转工单列表 -->
     <template v-if="extraLinkText && extraLinkRoute" #extra>
       <a class="text-primary" href="javascript:;" @click.prevent="openExtraLink">{{ extraLinkText }}</a>
     </template>

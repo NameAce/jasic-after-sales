@@ -8,7 +8,7 @@
 
 <template>
   <div>two</div>
-    <!-- 功能演示页：hide-child/two/index.vue -->
+  <!-- 功能演示页：hide-child/two/index.vue -->
 </template>
 
 <style scoped></style>

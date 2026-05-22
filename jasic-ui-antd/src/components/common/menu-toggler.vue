@@ -50,12 +50,12 @@ const icon = computed(() => {
 </script>
 
 <template>
-    <ButtonIcon
+  <ButtonIcon
     :key="String(collapsed)"
     :tooltip-content="collapsed ? $t('icon.expand') : $t('icon.collapse')"
     tooltip-placement="bottomLeft"
   >
-      <!-- 通用组件：menu-toggler -->
+    <!-- 通用组件：menu-toggler -->
     <SvgIcon :icon="icon" />
   </ButtonIcon>
 </template>

@@ -22,14 +22,14 @@ const appStore = useAppStore();
 </script>
 
 <template>
-    <ADrawer
+  <ADrawer
     :open="appStore.themeDrawerVisible"
     :title="$t('theme.themeDrawerTitle')"
     :closable="false"
     :body-style="{ padding: '0px' }"
     @close="appStore.closeThemeDrawer"
   >
-      <!-- 主题配置抽屉入口 -->
+    <!-- 主题配置抽屉入口 -->
     <template #extra>
       <ButtonIcon icon="ant-design:close-outlined" class="h-28px" @click="appStore.closeThemeDrawer" />
     </template>

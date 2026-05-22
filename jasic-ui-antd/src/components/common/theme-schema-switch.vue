@@ -69,13 +69,13 @@ const tooltipContent = computed(() => {
 </script>
 
 <template>
-    <ButtonIcon
+  <ButtonIcon
     :icon="icon"
     :tooltip-content="tooltipContent"
     :tooltip-placement="tooltipPlacement"
     @click="handleSwitch"
   />
-      <!-- 通用组件：theme-schema-switch -->
+  <!-- 通用组件：theme-schema-switch -->
 </template>
 
 <style scoped></style>

@@ -31,7 +31,7 @@ function handleReverseHorizontalMixChange(value: CheckedType) {
 
 <template>
   <ADivider>{{ $t('theme.layoutMode.title') }}</ADivider>
-    <!-- 布局子模块：layout-mode -->
+  <!-- 布局子模块：layout-mode -->
   <LayoutModeCard v-model:mode="themeStore.layout.mode" :disabled="appStore.isMobile">
     <template #vertical>
       <div class="layout-sider h-full w-18px"></div>

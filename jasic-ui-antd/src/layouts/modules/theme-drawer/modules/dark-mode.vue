@@ -80,7 +80,7 @@ function handleColourWeaknessChange(value: CheckedType) {
 
 <template>
   <ADivider>{{ $t('theme.themeSchema.title') }}</ADivider>
-    <!-- 布局子模块：dark-mode -->
+  <!-- 布局子模块：dark-mode -->
   <div class="flex-col-stretch gap-16px">
     <div class="i-flex-center">
       <ASegmented :value="themeStore.themeScheme" :options="options" class="bg-layout" @change="handleSegmentChange">

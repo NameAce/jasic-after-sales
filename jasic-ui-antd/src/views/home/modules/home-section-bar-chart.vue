@@ -148,7 +148,7 @@ watch(
 </script>
 
 <template>
-    <ACard
+  <ACard
     :bordered="false"
     class="home-section-chart-card card-wrapper"
     :class="{ 'home-chart-card--fill': fillHeight }"
@@ -166,7 +166,7 @@ watch(
         : { paddingTop: '8px' }
     "
   >
-      <!-- 首页区块柱状图 -->
+    <!-- 首页区块柱状图 -->
     <div
       v-if="hasData"
       ref="domRef"

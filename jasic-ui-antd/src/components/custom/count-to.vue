@@ -101,7 +101,7 @@ watch(
 
 <template>
   <span>{{ value }}</span>
-    <!-- 通用组件：count-to -->
+  <!-- 通用组件：count-to -->
 </template>
 
 <style scoped></style>

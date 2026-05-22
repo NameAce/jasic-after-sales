@@ -1353,7 +1353,7 @@ defineExpose({
 </script>
 
 <template>
-    <ADrawer
+  <ADrawer
     v-model:open="createDrawerOpen"
     title="建维修订单"
     placement="right"
@@ -1365,7 +1365,7 @@ defineExpose({
       footer: { borderTop: '1px solid rgba(5, 5, 5, 0.06)', padding: '12px 16px' }
     }"
   >
-      <!-- 建单主抽屉：入口 Segmented → 条码查询 → 必填/补充表单 -->
+    <!-- 建单主抽屉：入口 Segmented → 条码查询 → 必填/补充表单 -->
     <div class="flex flex-col gap-16px">
       <!-- 建单入口：代填 / 报修一级 / 报修佳士（选项随当前网点类型变化） -->
       <ASegmented

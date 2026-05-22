@@ -70,14 +70,14 @@ function openNewsItem(item: NewsItem) {
 </script>
 
 <template>
-    <ACard
+  <ACard
     :title="$t('page.home.projectNews.title')"
     :bordered="false"
     size="small"
     class="card-wrapper"
     :loading="loading"
   >
-      <!-- 项目动态 -->
+    <!-- 项目动态 -->
     <AList :data-source="newses" :locale="{ emptyText: $t('page.home.projectNews.empty') }">
       <template #renderItem="{ item }">
         <AListItem class="cursor-pointer" @click="openNewsItem(item)">

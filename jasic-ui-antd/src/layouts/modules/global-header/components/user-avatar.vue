@@ -55,7 +55,7 @@ function logout() {
 
 <template>
   <AButton v-if="!authStore.isLogin" @click="loginOrRegister">{{ $t('page.login.common.loginOrRegister') }}</AButton>
-    <!-- 布局子模块：user-avatar -->
+  <!-- 布局子模块：user-avatar -->
   <ADropdown v-else placement="bottomRight" trigger="click">
     <ButtonIcon>
       <SvgIcon icon="ph:user-circle" class="text-icon-large" />
