@@ -2,7 +2,7 @@
 /**
  * 个人中心：资料修改、改密、微信绑定状态与二维码等（对接 auth 用户信息接口）。
  */
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref } from 'vue';
 import { Modal } from 'ant-design-vue';
 import type { FormInstance } from 'ant-design-vue';
 import {
@@ -54,6 +54,14 @@ const profileForm = reactive({
   phone: '',
   email: '',
   currentPassword: ''
+});
+
+/** 最近一次从服务端同步的资料快照，用于「重置」立即回退未保存的编辑 */
+const profileBaseline = reactive({
+  username: '',
+  realName: '',
+  phone: '',
+  email: ''
 });
 
 // 修改密码表单模型
@@ -124,6 +132,42 @@ function applyBindStatus(raw: unknown) {
 }
 
 /**
+ * 作用：将接口用户资料写入表单模型，并同步更新重置基线快照。
+ * @param raw - 用户信息接口 data
+ * @returns {void} 无
+ */
+function applyProfileFormData(raw: Record<string, unknown>) {
+  const username = String(raw.username || raw.userName || '');
+  const realName = String(raw.realName || '');
+  const phone = String(raw.phone || '');
+  const email = String(raw.email || '');
+
+  profileForm.username = username;
+  profileForm.realName = realName;
+  profileForm.phone = phone;
+  profileForm.email = email;
+  profileForm.currentPassword = '';
+
+  profileBaseline.username = username;
+  profileBaseline.realName = realName;
+  profileBaseline.phone = phone;
+  profileBaseline.email = email;
+}
+
+/**
+ * 作用：用本地基线快照回退资料表单（不依赖异步请求即可立刻生效）。
+ * @param 无
+ * @returns {void} 无
+ */
+function restoreProfileFormFromBaseline() {
+  profileForm.username = profileBaseline.username;
+  profileForm.realName = profileBaseline.realName;
+  profileForm.phone = profileBaseline.phone;
+  profileForm.email = profileBaseline.email;
+  profileForm.currentPassword = '';
+}
+
+/**
  * 作用：拉取当前用户资料并回填资料表单。
  * @param 无
  * @returns 返回 Promise，请求结束后结束
@@ -132,31 +176,35 @@ async function loadUserInfo() {
   const { data, error } = await fetchGetUserInfo();
   if (error || !data) return;
 
-  profileForm.username = String(data.username || data.userName || '');
-  profileForm.realName = String(data.realName || '');
-  profileForm.phone = String(data.phone || '');
-  profileForm.email = String(data.email || '');
-  profileForm.currentPassword = '';
+  applyProfileFormData(data as unknown as Record<string, unknown>);
 }
 
 /**
- * 作用：重置资料表单为服务端最新数据。
+ * 作用：重置资料表单为最近一次服务端快照，并清理校验态；随后静默拉取最新资料。
  * @param 无
- * @returns {void} 无
+ * @returns 返回 Promise，重置流程结束后结束
  */
-function resetProfileForm() {
-  loadUserInfo();
+async function resetProfileForm() {
+  restoreProfileFormFromBaseline();
+  await nextTick();
+  profileFormRef.value?.clearValidate();
+  await loadUserInfo();
+  window.$message?.success('资料已重置');
 }
 
 /**
- * 作用：清空修改密码表单输入。
+ * 作用：清空修改密码表单输入并恢复表单校验态。
  * @param 无
- * @returns {void} 无
+ * @returns 返回 Promise，重置流程结束后结束
  */
-function resetPasswordForm() {
+async function resetPasswordForm() {
   passwordForm.currentPassword = '';
   passwordForm.newPassword = '';
   passwordForm.confirmPassword = '';
+  await nextTick();
+  passwordFormRef.value?.resetFields();
+  passwordFormRef.value?.clearValidate();
+  window.$message?.success('密码表单已重置');
 }
 
 /**
@@ -179,12 +227,17 @@ async function submitProfile() {
       email: profileForm.email.trim(),
       currentPassword: profileForm.currentPassword.trim()
     };
-    const { error, response } = await fetchUpdateProfile(payload as Partial<Api.Auth.BackendUserInfo>);
+    const { data, error, response } = await fetchUpdateProfile(payload as Partial<Api.Auth.BackendUserInfo>);
     if (error) return;
 
     window.$message?.success(getResponseMsg(response, '资料修改成功'));
+    // 后端 updateProfile 已返回最新用户对象，直接同步表单与全局用户态，避免再请求 user-info
+    if (data) {
+      applyProfileFormData(data as unknown as Record<string, unknown>);
+      await authStore.initUserInfo(data);
+      return;
+    }
     await authStore.initUserInfo();
-    await loadUserInfo();
   } finally {
     profileLoading.value = false;
   }
@@ -349,7 +402,7 @@ onMounted(async () => {
             </AFormItem>
             <ASpace>
               <AButton type="primary" :loading="profileLoading" @click="submitProfile">保存资料</AButton>
-              <AButton @click="resetProfileForm">重置</AButton>
+              <AButton html-type="button" @click="resetProfileForm">重置</AButton>
             </ASpace>
           </AForm>
         </ACard>
@@ -367,14 +420,14 @@ onMounted(async () => {
             </AFormItem>
             <ASpace>
               <AButton type="primary" :loading="passwordLoading" @click="submitPassword">确认修改</AButton>
-              <AButton @click="resetPasswordForm">重置</AButton>
+              <AButton html-type="button" @click="resetPasswordForm">重置</AButton>
             </ASpace>
           </AForm>
         </ACard>
       </ACol>
 
-      <ACol :xs="24" :lg="10">
-        <ACard :bordered="false">
+      <ACol :xs="24" :lg="10" class="min-w-0">
+        <ACard :bordered="false" class="w-full">
           <template #title>
             <div class="flex items-center justify-between">
               <span>微信绑定</span>
@@ -412,9 +465,9 @@ onMounted(async () => {
 
           <template v-else>
             <AAlert message="当前账号尚未绑定微信" type="info" show-icon />
-            <div class="mt-16px text-#606266 leading-1.7">
+            <p class="wechat-bind-hint text-#606266">
               请使用微信扫一扫下方二维码，在 B 端小程序中确认绑定。绑定时不会覆盖当前账号手机号，仅保存微信标识。
-            </div>
+            </p>
             <div class="mt-16px border border-#dcdfe6 rounded-8px border-dashed bg-#f8fafc p-14px">
               <div
                 class="mx-auto w-220px flex items-center justify-center rounded-8px bg-#fff p-10px shadow-[inset_0_0_0_1px_#ebeef5]"
@@ -425,10 +478,7 @@ onMounted(async () => {
                   alt="微信绑定二维码"
                   class="h-220px w-220px object-contain"
                 />
-                <div
-                  v-else
-                  class="min-h-220px w-220px flex items-center justify-center text-center text-#909399 leading-1.7"
-                >
+                <div v-else class="wechat-bind-qr-placeholder min-h-220px w-full text-center text-#909399">
                   {{
                     bindStatus.hasActiveTicket
                       ? '当前存在有效二维码，如需继续绑定请重新生成。'
@@ -453,4 +503,23 @@ onMounted(async () => {
   </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+/* leading-1.7 在 Uno 中会按间距刻度换算成极小行高，此处用倍率行高避免说明文字被纵向挤压 */
+.wechat-bind-hint {
+  margin: 16px 0 0;
+  line-height: 1.7;
+  word-break: break-word;
+  white-space: normal;
+}
+
+.wechat-bind-qr-placeholder {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 10px;
+  line-height: 1.7;
+  word-break: break-word;
+  white-space: normal;
+}
+</style>

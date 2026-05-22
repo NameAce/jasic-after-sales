@@ -91,12 +91,12 @@ export function fetchChooseCompany(data: Api.Auth.ChooseCompanyParams) {
   });
 }
 
-/** 与 jasic-ui `PUT /auth/profile`（updateProfile）一致
+/** 与 jasic-ui `PUT /auth/profile`（updateProfile）一致；成功后返回最新用户信息（与 getUserInfo 结构相同）
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-21
  */
 export function fetchUpdateProfile(data: Partial<Api.Auth.BackendUserInfo>) {
-  return request<null>({ url: '/auth/profile', method: 'put', data });
+  return request<Api.Auth.BackendUserInfo>({ url: '/auth/profile', method: 'put', data });
 }
 
 /** 修改当前用户密码

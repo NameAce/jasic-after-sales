@@ -405,20 +405,29 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
 
   /**
    * 应用启动时若本地有 token 则尝试静默拉取用户信息，失败则清理登录态。
+   * 若调用方已持有最新用户对象（如资料保存接口返回），可传入 prefetched 避免重复请求 `/auth/user-info`。
    *
+   * @param prefetched - 可选，已拉取到的用户信息
    * @returns {Promise<void>} 无返回值
    * @修改人 黄碧莲
-   * @修改时间 2026-05-14
+   * @修改时间 2026-05-21
    */
-  async function initUserInfo() {
+  async function initUserInfo(prefetched?: Api.Auth.BackendUserInfo | null) {
     const hasToken = getToken();
 
-    if (hasToken) {
-      const pass = await getUserInfo();
+    if (!hasToken) {
+      return;
+    }
 
-      if (!pass) {
-        resetStore();
-      }
+    if (prefetched) {
+      applyLoginResponseContext(prefetched);
+      return;
+    }
+
+    const pass = await getUserInfo();
+
+    if (!pass) {
+      resetStore();
     }
   }
 
