@@ -11,7 +11,6 @@ import com.jasic.aftersales.common.enums.BrandTypeEnum;
 import com.jasic.aftersales.common.enums.CompanyCategoryEnum;
 import com.jasic.aftersales.common.enums.ServiceModeEnum;
 import com.jasic.aftersales.common.enums.SysFileBizTypeEnum;
-import com.jasic.aftersales.common.enums.SysFileStatusEnum;
 import com.jasic.aftersales.common.enums.SysFileUploadUserTypeEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderCreateDTO;
@@ -34,8 +33,6 @@ import com.jasic.aftersales.system.domain.entity.FirstSecondRelation;
 import com.jasic.aftersales.system.domain.entity.HqFirstContract;
 import com.jasic.aftersales.system.domain.entity.MachineBarcode;
 import com.jasic.aftersales.system.domain.entity.SysCompany;
-import com.jasic.aftersales.system.domain.entity.SysFile;
-import com.jasic.aftersales.system.domain.entity.SysFileBiz;
 import com.jasic.aftersales.system.domain.entity.SysUser;
 import com.jasic.aftersales.system.domain.entity.WorkOrder;
 import com.jasic.aftersales.system.domain.entity.WorkOrderEvaluation;
@@ -56,8 +53,6 @@ import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
 import com.jasic.aftersales.system.mapper.HqFirstContractMapper;
 import com.jasic.aftersales.system.mapper.MachineBarcodeMapper;
 import com.jasic.aftersales.system.mapper.SysCompanyMapper;
-import com.jasic.aftersales.system.mapper.SysFileBizMapper;
-import com.jasic.aftersales.system.mapper.SysFileMapper;
 import com.jasic.aftersales.system.service.ISysConfigService;
 import com.jasic.aftersales.system.mapper.SysUserMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderEvaluationMapper;
@@ -86,7 +81,6 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -156,12 +150,6 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
 
     @Resource
     private SysCompanyMapper sysCompanyMapper;
-
-    @Resource
-    private SysFileBizMapper sysFileBizMapper;
-
-    @Resource
-    private SysFileMapper sysFileMapper;
 
     @Resource
     private SysUserMapper sysUserMapper;
@@ -479,15 +467,12 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         Map<Long, String> userNameMap = buildUserNameMap(
                 records.stream().map(WorkOrder::getAssignedUserId).collect(Collectors.toSet())
         );
-        Set<Long> senderVoucherWorkOrderIds = buildSenderVoucherWorkOrderIdSet(
-                records.stream().map(WorkOrder::getId).collect(Collectors.toSet())
-        );
         Map<Long, BigDecimal> currentQuoteAmountMap = buildCurrentValidQuoteAmountMap(
                 records.stream().map(WorkOrder::getId).collect(Collectors.toList())
         );
         List<CustomerWorkOrderListVO> list = records.stream()
                 .map(workOrder -> buildListVo(workOrder, companyMap, userNameMap,
-                        senderVoucherWorkOrderIds, currentQuoteAmountMap))
+                        currentQuoteAmountMap))
                 // 调用toList方法，复用统一能力并保证业务规则一致。
                 .collect(Collectors.toList());
         return PageResult.of(list, result.getTotal(), query.getPageNum(), query.getPageSize());
@@ -701,10 +686,8 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         if (!canEditSendInfo(workOrder)) {
             throw new ServiceException("当前工单不允许上传寄件凭证");
         }
-        if (hasSenderVoucher(workOrder.getId())) {
-            throw new ServiceException("当前工单已上传寄件凭证");
-        }
-        // 说明：执行该步骤以保证业务流程正确。
+        // B 端建单人和 C 端客户可能先后补录同一份寄件凭证，
+        // 本轮按“最后一次提交生效”处理，因此不再因为已有凭证而拒绝客户后一次提交。
         sysFileService.replaceBizFiles(
                 SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER,
                 workOrder.getId(),
@@ -1508,7 +1491,6 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
      */
     private CustomerWorkOrderListVO buildListVo(WorkOrder workOrder, Map<Long, SysCompany> companyMap,
                                                 Map<Long, String> userNameMap,
-                                                Set<Long> senderVoucherWorkOrderIds,
                                                 Map<Long, BigDecimal> currentQuoteAmountMap) {
         // 调用CustomerWorkOrderListVO方法，复用统一能力并保证业务规则一致。
         CustomerWorkOrderListVO vo = new CustomerWorkOrderListVO();
@@ -1552,9 +1534,9 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         vo.setHasTransfer(workOrder.getHasTransfer());
         // 调用canEvaluate方法，复用统一能力并保证业务规则一致。
         vo.setCanEvaluate(canEvaluate(workOrder));
-        vo.setCanUploadSendExpress(canUploadSendExpress(workOrder,
-                // 调用getId方法，复用统一能力并保证业务规则一致。
-                senderVoucherWorkOrderIds != null && senderVoucherWorkOrderIds.contains(workOrder.getId())));
+        // C 端与 B 端并存时采用“最后一次提交生效”，已有寄件凭证不再屏蔽按钮；
+        // 只要仍处于寄修待接单窗口，客户本人可以继续补录或覆盖凭证。
+        vo.setCanUploadSendExpress(canUploadSendExpress(workOrder));
         // 调用getId方法，复用统一能力并保证业务规则一致。
         vo.setQuoteAmount(currentQuoteAmountMap == null ? null : currentQuoteAmountMap.get(workOrder.getId()));
         // 调用getCreateTime方法，复用统一能力并保证业务规则一致。
@@ -1707,72 +1689,16 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
     }
 
     /**
-     * 仅待接单寄修单且当前未上传寄件凭证时，列表才展示上传按钮。
+     * 判断客户是否允许上传或覆盖寄件凭证。
+     *
+     * <p>C 端与 B 端同时保留补录能力时，不再用“是否已有寄件凭证”做互斥。
+     * 只要工单仍是寄修且处于待接单窗口，后一次提交就覆盖前一次凭证，体现“最后一次提交生效”。</p>
      *
      * @param workOrder 工单实体
-     * @param hasSenderVoucher 当前是否已有寄件凭证
-     * @return 是否允许上传寄件凭证
+     * @return 是否允许上传或覆盖寄件凭证
      */
-    private boolean canUploadSendExpress(WorkOrder workOrder, boolean hasSenderVoucher) {
-        return !hasSenderVoucher && canEditSendInfo(workOrder);
-    }
-
-    /**
-     * 判断是否存在发送凭证。
-     */
-    private boolean hasSenderVoucher(Long workOrderId) {
-        if (workOrderId == null) {
-            return false;
-        }
-        // 说明：执行该步骤以保证业务流程正确。
-        return !sysFileService.listBizFiles(SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER, workOrderId).isEmpty();
-    }
-
-    /**
-     * 构建发送凭证工单IDSet。
-     *
-     * @return 处理结果
-     */
-    private Set<Long> buildSenderVoucherWorkOrderIdSet(Set<Long> workOrderIds) {
-        if (workOrderIds == null || workOrderIds.isEmpty()) {
-            return Collections.emptySet();
-        }
-        List<Long> validWorkOrderIds = workOrderIds.stream()
-                .filter(id -> id != null)
-                // 调用toList方法，复用统一能力并保证业务规则一致。
-                .collect(Collectors.toList());
-        if (validWorkOrderIds.isEmpty()) {
-            return Collections.emptySet();
-        }
-        LambdaQueryWrapper<SysFileBiz> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(SysFileBiz::getBizType, SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER)
-                // 调用in方法，复用统一能力并保证业务规则一致。
-                .in(SysFileBiz::getBizId, validWorkOrderIds);
-        // 说明：执行该步骤以保证业务流程正确。
-        List<SysFileBiz> relations = sysFileBizMapper.selectList(wrapper);
-        if (relations == null || relations.isEmpty()) {
-            return Collections.emptySet();
-        }
-        Set<Long> activeFileIds = sysFileMapper.selectBatchIds(relations.stream()
-                        .map(SysFileBiz::getFileId)
-                        .filter(id -> id != null)
-                        .collect(Collectors.toSet()))
-                .stream()
-                .filter(file -> file != null && SysFileStatusEnum.ACTIVE == file.getStatus())
-                .map(SysFile::getId)
-                // 调用toSet方法，复用统一能力并保证业务规则一致。
-                .collect(Collectors.toSet());
-        if (activeFileIds.isEmpty()) {
-            return Collections.emptySet();
-        }
-        Set<Long> result = new HashSet<>();
-        for (SysFileBiz relation : relations) {
-            if (relation != null && relation.getBizId() != null && activeFileIds.contains(relation.getFileId())) {
-                // 调用getBizId方法，复用统一能力并保证业务规则一致。
-                result.add(relation.getBizId());
-            }
-        }
-        return result;
+    private boolean canUploadSendExpress(WorkOrder workOrder) {
+        return canEditSendInfo(workOrder);
     }
 
     /**

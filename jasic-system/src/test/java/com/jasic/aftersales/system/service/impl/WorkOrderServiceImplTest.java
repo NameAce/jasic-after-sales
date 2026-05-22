@@ -22,6 +22,7 @@ import com.jasic.aftersales.system.domain.dto.WorkOrderFaultPartItemDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderProxyCreateDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderRepairDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderReviewDTO;
+import com.jasic.aftersales.system.domain.dto.WorkOrderSendExpressDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTechAcceptDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderTransferDTO;
 import com.jasic.aftersales.system.domain.dto.WorkOrderUpdateProductModelDTO;
@@ -528,6 +529,84 @@ public class WorkOrderServiceImplTest {
     }
 
     @Test
+    public void shouldHideUploadSendExpressActionInWorkOrderDetail() throws Exception {
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(20L);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN);
+        workOrder.setCurrentAcceptCompanyId(3L);
+
+        WorkOrderDetailVO detail = new WorkOrderDetailVO();
+        detail.setId(workOrder.getId());
+        detail.setMainStatus(workOrder.getMainStatus());
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createWorkOrderDetailMapperProxy(workOrder, detail));
+        setField(service, "workOrderQuoteMapper", createQuoteMapperProxy(Collections.emptyList()));
+        setField(service, "workOrderRepairMapper", createWorkOrderRepairMapperProxy(Collections.emptyList()));
+        setField(service, "workOrderFaultMapper", createWorkOrderFaultMapperProxy(Collections.emptyList()));
+        setField(service, "workOrderFaultPartMapper", createFaultPartMapperProxy(Collections.emptyList()));
+        setField(service, "workOrderFlowMapper", createFlowMapperProxy(Collections.emptyList()));
+        setField(service, "workOrderEvaluationMapper", createNoopProxy(WorkOrderEvaluationMapper.class, "never"));
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            @Override
+            public List<String> listAvailableActions(WorkOrder target, WorkOrderAccessContext context) {
+                return Arrays.asList("UPLOAD_SEND_EXPRESS", "ASSIGN");
+            }
+        });
+        setField(service, "sysFileService", createNoopProxy(com.jasic.aftersales.system.service.SysFileService.class, "replaceBizFiles"));
+        setField(service, "workOrderNotifyFacade", new RecordingWorkOrderNotifyFacade());
+
+        WorkOrderDetailVO result = runWithDetailLoginContext(workOrder, service);
+
+        Assert.assertFalse(result.getAvailableActions().contains("UPLOAD_SEND_EXPRESS"));
+        Assert.assertTrue(result.getAvailableActions().contains("ASSIGN"));
+    }
+
+    @Test
+    public void shouldUpdateSendExpressWithCurrentLoginCompanyAndReplaceVoucher() throws Exception {
+        WorkOrder workOrder = new WorkOrder();
+        workOrder.setId(21L);
+        workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN);
+        workOrder.setCurrentAcceptCompanyId(3001L);
+
+        int[] updateCount = new int[1];
+        List<Long> replacedFileIds = new ArrayList<>();
+        List<WorkOrderFlow> insertedFlows = new ArrayList<>();
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createMutableWorkOrderMapperProxy(workOrder, updateCount));
+        setField(service, "workOrderFlowMapper", createFlowMapperProxy(insertedFlows));
+        setField(service, "sysFileService", createSenderVoucherFileServiceProxy(replacedFileIds));
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            @Override
+            public boolean canUpdateSendExpress(WorkOrder target) {
+                return true;
+            }
+        });
+
+        WorkOrderSendExpressDTO dto = new WorkOrderSendExpressDTO();
+        dto.setWorkOrderId(workOrder.getId());
+        dto.setSendExpressNo("SF123456");
+        dto.setSenderVoucherFileIds(Arrays.asList(501L, 502L));
+
+        runWithLoginContext(101L, new ThrowingRunnable() {
+            @Override
+            public void run() throws Exception {
+                com.jasic.aftersales.framework.security.SecurityContext.setCurrentCompanyId(2002L);
+                service.updateSendExpress(dto);
+            }
+        });
+
+        Assert.assertEquals(1, updateCount[0]);
+        Assert.assertEquals("SF123456", workOrder.getSendExpressNo());
+        Assert.assertEquals(Arrays.asList(501L, 502L), replacedFileIds);
+        Assert.assertEquals(1, insertedFlows.size());
+        Assert.assertEquals("UPLOAD_SEND_EXPRESS", insertedFlows.get(0).getActionType());
+        Assert.assertEquals(Long.valueOf(2002L), insertedFlows.get(0).getOperatorCompanyId());
+        Assert.assertEquals(Long.valueOf(2002L), insertedFlows.get(0).getFromCompanyId());
+        Assert.assertEquals(Long.valueOf(2002L), insertedFlows.get(0).getToCompanyId());
+    }
+
+    @Test
     public void shouldTechAcceptFaultWorkOrderAndCreateQuote() throws Exception {
         WorkOrder workOrder = new WorkOrder();
         workOrder.setId(14L);
@@ -815,6 +894,33 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals("其它故障", invokeGetter(selection, "getFaultDesc"));
         Assert.assertEquals("无码机器手工描述故障", invokeGetter(selection, "getFaultRemark"));
     }
+
+    @Test
+    public void shouldFallbackCreateFaultOptionsToOtherFaultWhenProductConfigMissing() throws Exception {
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(Collections.emptyList()));
+
+        @SuppressWarnings("unchecked")
+        List<String> options = (List<String>) invokePrivateMethod(service, "buildCreateFaultOptions",
+                new Class<?>[]{Long.class, String.class, String.class},
+                900L, "P-100", "MODEL-A");
+
+        Assert.assertEquals(Collections.singletonList("其它故障"), options);
+    }
+
+    @Test
+    public void shouldAllowOtherFaultForBarcodeCreateWhenProductConfigMissing() throws Exception {
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(Collections.emptyList()));
+
+        Object selection = invokePrivateMethod(service, "resolveCreateFaultSelection",
+                new Class<?>[]{List.class, String.class, Long.class, String.class, String.class},
+                Collections.singletonList("其它故障"), "有条码机器未维护配置时的故障说明", 900L, "P-100", "MODEL-A");
+
+        Assert.assertEquals("其它故障", invokeGetter(selection, "getFaultDesc"));
+        Assert.assertEquals("有条码机器未维护配置时的故障说明", invokeGetter(selection, "getFaultRemark"));
+    }
+
     @Test
     public void shouldRequireRepairFaultItemsWhenRepairConfigExists() throws Exception {
         WorkOrder workOrder = new WorkOrder();
@@ -2050,6 +2156,32 @@ public class WorkOrderServiceImplTest {
         );
     }
 
+    private com.jasic.aftersales.system.service.SysFileService createSenderVoucherFileServiceProxy(List<Long> replacedFileIds) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            @SuppressWarnings("unchecked")
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("replaceBizFiles".equals(method.getName())) {
+                    Assert.assertEquals(com.jasic.aftersales.common.enums.SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER, args[0]);
+                    Assert.assertEquals(Long.valueOf(2002L), args[3]);
+                    Assert.assertEquals(Long.valueOf(101L), args[4]);
+                    Assert.assertEquals(com.jasic.aftersales.common.enums.SysFileUploadUserTypeEnum.SYSTEM, args[5]);
+                    replacedFileIds.clear();
+                    if (args[2] instanceof List) {
+                        replacedFileIds.addAll((List<Long>) args[2]);
+                    }
+                    return null;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (com.jasic.aftersales.system.service.SysFileService) Proxy.newProxyInstance(
+                com.jasic.aftersales.system.service.SysFileService.class.getClassLoader(),
+                new Class<?>[]{com.jasic.aftersales.system.service.SysFileService.class},
+                handler
+        );
+    }
+
     private WorkOrderQuoteMapper createQuoteMapperProxy(List<WorkOrderQuote> quotes) {
         InvocationHandler handler = new InvocationHandler() {
             @Override
@@ -2412,6 +2544,18 @@ public class WorkOrderServiceImplTest {
                 SaTokenContextForThreadLocalStorage.clearBox();
             }
         }
+    }
+
+    private WorkOrderDetailVO runWithDetailLoginContext(WorkOrder workOrder, WorkOrderServiceImpl service) throws Exception {
+        final WorkOrderDetailVO[] result = new WorkOrderDetailVO[1];
+        runWithLoginContext(101L, new ThrowingRunnable() {
+            @Override
+            public void run() throws Exception {
+                com.jasic.aftersales.framework.security.SecurityContext.setCurrentCompanyId(workOrder.getCurrentAcceptCompanyId());
+                result[0] = service.getById(workOrder.getId());
+            }
+        });
+        return result[0];
     }
 
     private interface ThrowingRunnable {

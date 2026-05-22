@@ -429,8 +429,9 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         detail.setFlows(listFlowVos(workOrderId));
         // 调用getEvaluationVo方法，复用统一能力并保证业务规则一致。
         detail.setEvaluation(getEvaluationVo(workOrderId));
-        // 调用listAvailableActions方法，复用统一能力并保证业务规则一致。
-        detail.setAvailableActions(workOrderPermissionService.listAvailableActions(entity, accessContext));
+        // 详情页不展示“上传寄件单号”按钮；该动作按本轮方案只放在列表中，
+        // 避免用户误以为它仍是详情页内的当前承接方处理动作。
+        detail.setAvailableActions(listDetailAvailableActions(entity, accessContext));
         // 调用singletonList方法，复用统一能力并保证业务规则一致。
         fillListSnapshot(detail, entity, buildCurrentValidQuoteAmountMap(Collections.singletonList(workOrderId)), false, accessContext);
         // 调用getEvaluateStatus方法，复用统一能力并保证业务规则一致。
@@ -442,6 +443,30 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         // 调用buildWorkOrderFileMap方法，复用统一能力并保证业务规则一致。
         fillAttachmentDetail(detail, buildWorkOrderFileMap(workOrderId));
         return detail;
+    }
+
+    /**
+     * 查询详情页允许展示的动作。
+     *
+     * <p>后端统一权限服务仍会计算“上传寄件单号”是否允许执行，供列表按钮和接口兜底复用；
+     * 但本轮业务确认该按钮只放列表、不放详情，因此详情返回前在这里过滤掉
+     * `UPLOAD_SEND_EXPRESS`，防止详情抽屉继续暴露旧入口。</p>
+     *
+     * @param entity 工单实体
+     * @param accessContext 当前访问上下文
+     * @return 详情页动作编码列表
+     */
+    private List<String> listDetailAvailableActions(WorkOrder entity, WorkOrderAccessContext accessContext) {
+        // 先调用统一动作计算，确保详情页其它按钮仍沿用同一套实例级权限规则。
+        List<String> availableActions = workOrderPermissionService.listAvailableActions(entity, accessContext);
+        if (availableActions == null || availableActions.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return availableActions.stream()
+                // 上传寄件单号是建单人补资料动作，本轮仅允许从可见列表发起。
+                .filter(action -> !WorkOrderActionEnum.UPLOAD_SEND_EXPRESS.getCode().equals(action))
+                // 调用toList方法，复用统一能力并保证业务规则一致。
+                .collect(Collectors.toList());
     }
 
     /**
@@ -1004,29 +1029,35 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateSendExpress(WorkOrderSendExpressDTO dto) {
-        // 说明：执行该步骤以保证业务流程正确。
+        // 先读取工单主数据，后续权限校验需要服务方式、主状态和工单ID来回溯建单人。
         WorkOrder workOrder = requireWorkOrder(dto.getWorkOrderId());
-        // 说明：执行该步骤以保证业务流程正确。
+        // 服务层作为接口最终兜底，必须按“建单人本人 + 待接单窗口”重新校验；
+        // 不能依赖前端按钮，也不能再回退到 workorder:assign 或当前受理方口径。
         if (!workOrderPermissionService.canUpdateSendExpress(workOrder)) {
             throw new ServiceException("当前工单不允许上传寄件快递单号");
         }
+        // 建单人可能已经处于历史转出/只读列表视角，操作公司应记录当前登录公司，
+        // 不能继续写成 currentAcceptCompanyId，否则会把补资料动作误记到当前承接方名下。
+        Long currentCompanyId = requireCurrentCompanyId();
         // 调用getSendExpressNo方法，复用统一能力并保证业务规则一致。
         workOrder.setSendExpressNo(normalizeRequiredText(dto.getSendExpressNo(), "寄件快递单号不能为空"));
-        // 说明：执行该步骤以保证业务流程正确。
+        // B 端与 C 端并存时采用“最后一次提交生效”，这里直接覆盖主表寄件单号。
         workOrderMapper.updateById(workOrder);
+        // 同步替换寄件凭证绑定，保证后提交的一端覆盖前一次提交结果，
+        // 不额外按端侧来源做互斥或加锁。
         sysFileService.replaceBizFiles(
                 SysFileBizTypeEnum.WORK_ORDER_SENDER_VOUCHER,
                 workOrder.getId(),
                 dto.getSenderVoucherFileIds(),
-                workOrder.getCurrentAcceptCompanyId(),
+                currentCompanyId,
                 SecurityContext.getCurrentUserId(),
                 SysFileUploadUserTypeEnum.SYSTEM,
                 null
         );
         saveFlow(workOrder.getId(), WorkOrderActionEnum.UPLOAD_SEND_EXPRESS.getCode(), workOrder.getMainStatus(), workOrder.getMainStatus(),
-                workOrder.getCurrentAcceptCompanyId(), workOrder.getCurrentAcceptCompanyId(),
+                currentCompanyId, currentCompanyId,
                 // 调用getSendExpressNo方法，复用统一能力并保证业务规则一致。
-                workOrder.getCurrentAcceptCompanyId(), workOrder.getSendExpressNo());
+                currentCompanyId, workOrder.getSendExpressNo());
     }
 
     /**
@@ -1270,8 +1301,12 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             throw new ServiceException("缺少公司数据访问上下文");
         }
         if (scopedQuery.getViewScope() == null || scopedQuery.getViewScope().trim().isEmpty()) {
-            // 调用setViewScope方法，复用统一能力并保证业务规则一致。
-            scopedQuery.setViewScope("CURRENT");
+            // transferDirection=OUT 是一个独立的列表口径，表示当前公司作为转出方。
+            // 该场景不能默认补 viewScope=CURRENT，否则已转出后当前不再承接的工单会被错误排除。
+            if (!"OUT".equals(scopedQuery.getTransferDirection())) {
+                // 调用setViewScope方法，复用统一能力并保证业务规则一致。
+                scopedQuery.setViewScope("CURRENT");
+            }
         }
         return scopedQuery;
     }
@@ -1371,6 +1406,8 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         target.setDisplayStatus(query.getDisplayStatus());
         // 调用getHasTransfer方法，复用统一能力并保证业务规则一致。
         target.setHasTransfer(query.getHasTransfer());
+        // 已转出统计必须与列表 transferDirection=OUT 口径一致，不能退回 hasTransfer。
+        target.setTransferDirection(query.getTransferDirection());
         return target;
     }
 
@@ -3802,10 +3839,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         if (hasProductScope) {
             // 调用listConfiguredFaultOptions方法，复用统一能力并保证业务规则一致。
             List<String> configuredFaultOptions = listConfiguredFaultOptions(hqCompanyId, productCode, productModel);
-            if (configuredFaultOptions.isEmpty()) {
-                throw new ServiceException("当前产品未配置故障项，不能建单，请联系管理员完善配置");
-            }
-            // 调用addAll方法，复用统一能力并保证业务规则一致。
+            // 产品未维护故障与维修配置时，B端建单与C端佳士有码报修保持一致，只开放固定“其它故障”兜底。
             allowedFaultOptions.addAll(configuredFaultOptions);
         }
         // 调用add方法，复用统一能力并保证业务规则一致。
@@ -3838,10 +3872,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         LinkedHashSet<String> result = new LinkedHashSet<>();
         // 调用listConfiguredFaultOptions方法，复用统一能力并保证业务规则一致。
         result.addAll(listConfiguredFaultOptions(hqCompanyId, productCode, productModel));
-        if (result.isEmpty()) {
-            throw new ServiceException("当前产品未配置故障项，不能建单，请联系管理员完善配置");
-        }
-        // 调用add方法，复用统一能力并保证业务规则一致。
+        // 产品没有维护故障配置时仍允许建单，但只能选择固定“其它故障”，由故障说明承接客户描述。
         result.add(OTHER_FAULT_LABEL);
         return new ArrayList<>(result);
     }

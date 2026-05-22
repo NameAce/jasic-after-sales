@@ -28,13 +28,15 @@ public class WorkOrderMapperXmlContractTest {
     }
 
     @Test
-    public void shouldRestrictHistoryParticipationConditionToSelfScope() throws IOException {
+    public void shouldRestrictSelfScopedVisibilityCondition() throws IOException {
         String xml = new String(Files.readAllBytes(resolveMapperPath()), StandardCharsets.UTF_8);
         String normalized = xml.replace("\r\n", "\n");
 
-        Assert.assertEquals(4, countOccurrences(normalized, "<if test=\"query.accessContext.dataScope == 'SELF'\">"));
+        Assert.assertEquals(6, countOccurrences(normalized, "<if test=\"query.accessContext.dataScope == 'SELF'\">"));
         Assert.assertEquals(4, countOccurrences(normalized,
                 "AND <include refid=\"CurrentUserHistoryParticipationCondition\" />"));
+        Assert.assertEquals(3, countOccurrences(normalized,
+                "OR <include refid=\"CurrentUserHistoryParticipationCondition\" />"));
     }
 
     @Test
@@ -57,6 +59,19 @@ public class WorkOrderMapperXmlContractTest {
 
         Assert.assertEquals(3, countOccurrences(normalized, "w.last_out_date AS lastOutDate"));
         Assert.assertEquals(3, countOccurrences(normalized, "w.warranty_status AS warrantyStatus"));
+    }
+
+    @Test
+    public void shouldUseTransferDirectionOutAsTransferOutScope() throws IOException {
+        String xml = new String(Files.readAllBytes(resolveMapperPath()), StandardCharsets.UTF_8);
+        String normalized = xml.replace("\r\n", "\n");
+
+        Assert.assertEquals(2, countOccurrences(normalized, "<when test=\"query.transferDirection == 'OUT'\">"));
+        Assert.assertEquals(2, countOccurrences(normalized, "AND tf.action_type = 'TRANSFER'"));
+        Assert.assertEquals(2, countOccurrences(normalized,
+                "AND tf.from_company_id = #{query.accessContext.currentCompanyId}"));
+        Assert.assertEquals(2, countOccurrences(normalized,
+                "<if test=\"query.transferDirection != 'OUT' and query.accessContext.dataScope == 'SELF' and query.accessContext.currentUserId != null\">"));
     }
 
     private Path resolveMapperPath() {

@@ -2,14 +2,10 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.jasic.aftersales.system.mapper.DashboardMapper">
 
-    <sql id="TodoTargetFilter">
-        (
-            m.target_type = 'IN_APP_TODO'
-            OR m.message_type = 'IN_APP_TODO'
-            OR m.message_type = 'TODO'
-        )
-    </sql>
-
+    <!--
+        首页事件趋势的总部 REGION 数据范围复用工单领域的相关公司边界。
+        该片段只用于总部事件趋势，不用于平台治理统计，也不直接暴露前端传入公司 ID。
+    -->
     <sql id="RelatedCompanyScopeCondition">
         (
             w.create_company_id IN
@@ -32,6 +28,10 @@
         )
     </sql>
 
+    <!--
+        当前用户历史参与边界用于 SELF 数据范围兜底。
+        如果当前账号只能看个人范围，首页趋势也不能绕开个人参与关系扩大到公司全量事件。
+    -->
     <sql id="CurrentUserHistoryParticipationCondition">
         EXISTS (
             SELECT 1
@@ -42,221 +42,150 @@
         )
     </sql>
 
-    <sql id="CurrentUserAllVisibilityCondition">
-        (
-            w.assigned_user_id = #{query.accessContext.currentUserId}
-            OR <include refid="CurrentUserHistoryParticipationCondition" />
-        )
-    </sql>
-
-    <sql id="WorkOrderVisibilityCondition">
-        <if test="query.accessContext.currentCompanyId != null">
+    <!--
+        首页工单事件趋势权限边界。
+        说明：
+        1. 主体公司边界由每个趋势 SQL 自己通过 from_company_id / to_company_id / operator_company_id 表达；
+        2. HQ REGION 需要继续限制在总部可管辖的相关服务公司范围内；
+        3. SELF 只统计当前用户本人操作或本人历史参与过的事件，避免首页趋势越过列表权限边界。
+    -->
+    <sql id="WorkOrderEventAccessCondition">
+        <if test="query.accessContext.subjectType == 'HQ'">
+            AND w.hq_company_id = #{query.accessContext.currentCompanyId}
             <choose>
-                <when test="query.viewScope == 'HISTORY'">
+                <when test="query.accessContext.dataScope == 'REGION'">
                     <choose>
-                        <when test="query.accessContext.subjectType == 'HQ'">
-                            AND w.hq_company_id = #{query.accessContext.currentCompanyId}
-                            AND w.current_accept_company_id &lt;&gt; #{query.accessContext.currentCompanyId}
-                            AND p.company_id = #{query.accessContext.currentCompanyId}
-                            AND p.is_current_handler = 0
-                            <if test="query.accessContext.dataScope == 'SELF'">
-                                <choose>
-                                    <when test="query.accessContext.currentUserId != null">
-                                        AND <include refid="CurrentUserHistoryParticipationCondition" />
-                                    </when>
-                                    <otherwise>
-                                        AND 1 = 0
-                                    </otherwise>
-                                </choose>
-                            </if>
-                            <choose>
-                                <when test="query.accessContext.dataScope == 'REGION'">
-                                    <choose>
-                                        <when test="query.accessContext.relatedCompanyIds != null and query.accessContext.relatedCompanyIds.size() > 0">
-                                            AND <include refid="RelatedCompanyScopeCondition" />
-                                        </when>
-                                        <otherwise>
-                                            AND 1 = 0
-                                        </otherwise>
-                                    </choose>
-                                </when>
-                                <otherwise>
-                                </otherwise>
-                            </choose>
+                        <when test="query.accessContext.relatedCompanyIds != null and query.accessContext.relatedCompanyIds.size() > 0">
+                            AND <include refid="RelatedCompanyScopeCondition" />
                         </when>
                         <otherwise>
-                            AND p.company_id = #{query.accessContext.currentCompanyId}
-                            AND p.is_current_handler = 0
-                            <if test="query.accessContext.dataScope == 'SELF'">
-                                <choose>
-                                    <when test="query.accessContext.currentUserId != null">
-                                        AND <include refid="CurrentUserHistoryParticipationCondition" />
-                                    </when>
-                                    <otherwise>
-                                        AND 1 = 0
-                                    </otherwise>
-                                </choose>
-                            </if>
-                        </otherwise>
-                    </choose>
-                </when>
-                <when test="query.viewScope == 'ALL'">
-                    <choose>
-                        <when test="query.accessContext.subjectType == 'HQ'">
-                            <choose>
-                                <when test="query.accessContext.dataScope == 'REGION'">
-                                    <choose>
-                                        <when test="query.accessContext.relatedCompanyIds != null and query.accessContext.relatedCompanyIds.size() > 0">
-                                            AND w.hq_company_id = #{query.accessContext.currentCompanyId}
-                                            AND <include refid="RelatedCompanyScopeCondition" />
-                                        </when>
-                                        <otherwise>
-                                            AND 1 = 0
-                                        </otherwise>
-                                    </choose>
-                                </when>
-                                <otherwise>
-                                    AND (
-                                        w.hq_company_id = #{query.accessContext.currentCompanyId}
-                                        AND (
-                                        w.current_accept_company_id = #{query.accessContext.currentCompanyId}
-                                        OR p.company_id = #{query.accessContext.currentCompanyId}
-                                        )
-                                    )
-                                </otherwise>
-                            </choose>
-                        </when>
-                        <otherwise>
-                            AND (
-                                w.current_accept_company_id = #{query.accessContext.currentCompanyId}
-                                OR p.company_id = #{query.accessContext.currentCompanyId}
-                                <if test="query.accessContext.relatedCompanyIds != null and query.accessContext.relatedCompanyIds.size() > 0">
-                                    OR w.current_accept_company_id IN
-                                    <foreach collection="query.accessContext.relatedCompanyIds" item="companyId" open="(" separator="," close=")">
-                                        #{companyId}
-                                    </foreach>
-                                    OR EXISTS (
-                                        SELECT 1
-                                        FROM work_order_participant sp
-                                        WHERE sp.work_order_id = w.id
-                                          AND sp.company_id IN
-                                          <foreach collection="query.accessContext.relatedCompanyIds" item="companyId" open="(" separator="," close=")">
-                                              #{companyId}
-                                          </foreach>
-                                    )
-                                </if>
-                            )
+                            AND 1 = 0
                         </otherwise>
                     </choose>
                 </when>
                 <otherwise>
-                    AND w.current_accept_company_id = #{query.accessContext.currentCompanyId}
-                    <if test="query.accessContext.subjectType == 'HQ' and query.accessContext.dataScope == 'REGION'">
-                        <choose>
-                            <when test="query.accessContext.relatedCompanyIds != null and query.accessContext.relatedCompanyIds.size() > 0">
-                                AND w.hq_company_id = #{query.accessContext.currentCompanyId}
-                                AND <include refid="RelatedCompanyScopeCondition" />
-                            </when>
-                            <otherwise>
-                                AND 1 = 0
-                            </otherwise>
-                        </choose>
-                    </if>
                 </otherwise>
             </choose>
         </if>
-        <if test="query.hasTransfer != null">
-            AND w.has_transfer = #{query.hasTransfer}
-        </if>
-        <if test="query.accessContext.dataScope == 'SELF' and query.accessContext.currentUserId != null">
+        <if test="query.accessContext.dataScope == 'SELF'">
             <choose>
-                <when test="query.viewScope == 'ALL'">
-                    AND <include refid="CurrentUserAllVisibilityCondition" />
+                <when test="query.accessContext.currentUserId != null">
+                    AND (
+                        f.operator_user_id = #{query.accessContext.currentUserId}
+                        OR <include refid="CurrentUserHistoryParticipationCondition" />
+                    )
                 </when>
-                <when test="query.viewScope != 'HISTORY'">
-                    AND w.assigned_user_id = #{query.accessContext.currentUserId}
-                </when>
+                <otherwise>
+                    AND 1 = 0
+                </otherwise>
             </choose>
         </if>
     </sql>
 
-    <select id="selectTodoStats" resultType="com.jasic.aftersales.system.domain.vo.dashboard.DashboardTodoStatsVO">
+    <select id="selectPlatformGovernanceStats" resultType="com.jasic.aftersales.system.domain.vo.dashboard.DashboardPlatformGovernanceStatsVO">
         SELECT
-            SUM(CASE WHEN m.todo_status IN ('PENDING', 'READ') THEN 1 ELSE 0 END) AS activeTodoCount,
-            SUM(CASE WHEN m.todo_status IN ('DONE', 'INVALID') THEN 1 ELSE 0 END) AS historyTodoCount
-        FROM sys_notify_message m
-        WHERE m.receiver_id = #{query.receiverId}
-          AND m.receiver_company_id = #{query.receiverCompanyId}
-          AND <include refid="TodoTargetFilter" />
+            (SELECT COUNT(1)
+             FROM sys_company c
+             JOIN sys_company_type t ON t.type_code = c.type_code
+             WHERE t.subject_type = 'HQ') AS hqCompanyCount,
+            (SELECT COUNT(1)
+             FROM sys_company c
+             JOIN sys_company_type t ON t.type_code = c.type_code
+             WHERE t.subject_type = 'SERVICE') AS serviceCompanyCount,
+            (SELECT COUNT(1)
+             FROM sys_company c
+             JOIN sys_company_type t ON t.type_code = c.type_code
+             WHERE t.subject_type IN ('HQ', 'SERVICE')
+               AND c.status = 1) AS enabledSubjectCount,
+            (SELECT COUNT(1)
+             FROM sys_company c
+             JOIN sys_company_type t ON t.type_code = c.type_code
+             WHERE t.subject_type IN ('HQ', 'SERVICE')
+               AND c.status = 0) AS disabledSubjectCount,
+            (SELECT COUNT(1)
+             FROM sys_user u
+             WHERE u.is_deleted = 0) AS userTotal,
+            (SELECT COUNT(1)
+             FROM sys_user u
+             WHERE u.is_deleted = 0
+               AND u.status = 1) AS enabledUserCount,
+            (SELECT COUNT(1)
+             FROM sys_user u
+             WHERE u.is_deleted = 0
+               AND u.status = 0) AS disabledUserCount,
+            (SELECT COUNT(1)
+             FROM sys_role r) AS roleCount,
+            (SELECT COUNT(DISTINCT mb.product_code)
+             FROM machine_barcode mb
+             WHERE mb.product_code IS NOT NULL
+               AND mb.product_code &lt;&gt; '') AS productCount,
+            (SELECT COUNT(1)
+             FROM sys_dict_data dd
+             WHERE dd.dict_type = 'service_mode') AS serviceTypeCount,
+            (SELECT COUNT(1)
+             FROM sys_dict_data dd) AS dictItemCount,
+            (SELECT COUNT(1)
+             FROM sys_region sr) AS regionCount
     </select>
 
-    <select id="selectActiveTodoTrend" resultType="com.jasic.aftersales.system.domain.vo.dashboard.DashboardCountByDayVO">
+    <select id="selectFlowInTrend" resultType="com.jasic.aftersales.system.domain.vo.dashboard.DashboardCountByDayVO">
         SELECT
-            DATE_FORMAT(m.create_time, '%Y-%m-%d') AS dayKey,
+            DATE_FORMAT(f.create_time, '%Y-%m-%d') AS dayKey,
             COUNT(1) AS countNum
-        FROM sys_notify_message m
-        WHERE m.receiver_id = #{query.receiverId}
-          AND m.receiver_company_id = #{query.receiverCompanyId}
-          AND <include refid="TodoTargetFilter" />
-          AND m.todo_status IN ('PENDING', 'READ')
-          AND m.create_time &gt;= #{query.startTime}
-          AND m.create_time &lt; #{query.endTime}
-        GROUP BY DATE_FORMAT(m.create_time, '%Y-%m-%d')
+        FROM work_order_flow f
+        JOIN work_order w ON w.id = f.work_order_id
+        WHERE f.to_company_id = #{query.accessContext.currentCompanyId}
+          AND f.action_type IN ('CREATE', 'TRANSFER')
+          AND f.create_time &gt;= #{query.startTime}
+          AND f.create_time &lt; #{query.endTime}
+          <include refid="WorkOrderEventAccessCondition" />
+        GROUP BY DATE_FORMAT(f.create_time, '%Y-%m-%d')
         ORDER BY dayKey ASC
     </select>
 
-    <select id="selectCreatedWorkOrderTrend" resultType="com.jasic.aftersales.system.domain.vo.dashboard.DashboardCountByDayVO">
+    <select id="selectTechAcceptTrend" resultType="com.jasic.aftersales.system.domain.vo.dashboard.DashboardCountByDayVO">
         SELECT
-            DATE_FORMAT(w.create_time, '%Y-%m-%d') AS dayKey,
+            DATE_FORMAT(f.create_time, '%Y-%m-%d') AS dayKey,
             COUNT(1) AS countNum
-        FROM work_order w
-        LEFT JOIN work_order_participant p
-            ON p.work_order_id = w.id
-            AND p.company_id = #{query.accessContext.currentCompanyId}
-        <where>
-            <include refid="WorkOrderVisibilityCondition" />
-            AND w.create_time &gt;= #{query.startTime}
-            AND w.create_time &lt; #{query.endTime}
-        </where>
-        GROUP BY DATE_FORMAT(w.create_time, '%Y-%m-%d')
+        FROM work_order_flow f
+        JOIN work_order w ON w.id = f.work_order_id
+        WHERE f.operator_company_id = #{query.accessContext.currentCompanyId}
+          AND f.action_type = 'TECH_ACCEPT'
+          AND f.create_time &gt;= #{query.startTime}
+          AND f.create_time &lt; #{query.endTime}
+          <include refid="WorkOrderEventAccessCondition" />
+        GROUP BY DATE_FORMAT(f.create_time, '%Y-%m-%d')
         ORDER BY dayKey ASC
     </select>
 
-    <select id="selectPlatformOverviewStats" resultType="com.jasic.aftersales.system.domain.vo.dashboard.DashboardPlatformOverviewStatsVO">
+    <select id="selectRepairFinishTrend" resultType="com.jasic.aftersales.system.domain.vo.dashboard.DashboardCountByDayVO">
         SELECT
-            (SELECT COUNT(1) FROM sys_company) AS companyTotal,
-            (SELECT COUNT(1) FROM sys_company WHERE status = 1) AS enabledCompanyTotal,
-            (SELECT COUNT(1) FROM sys_user WHERE is_deleted = 0) AS userTotal,
-            (SELECT COUNT(1) FROM sys_role) AS roleTotal,
-            (SELECT COUNT(1) FROM notify_scene) AS notifySceneTotal
-    </select>
-
-    <select id="selectSubjectTypeDistribution" resultType="com.jasic.aftersales.system.domain.vo.dashboard.DashboardSubjectTypeCountVO">
-        SELECT
-            t.subject_type AS subjectType,
+            DATE_FORMAT(f.create_time, '%Y-%m-%d') AS dayKey,
             COUNT(1) AS countNum
-        FROM sys_company c
-        JOIN sys_company_type t ON t.type_code = c.type_code
-        GROUP BY t.subject_type
-    </select>
-
-    <select id="selectOperLogTrend" resultType="com.jasic.aftersales.system.domain.vo.dashboard.DashboardCountByDayVO">
-        SELECT
-            DATE_FORMAT(l.oper_time, '%Y-%m-%d') AS dayKey,
-            COUNT(1) AS countNum
-        FROM sys_oper_log l
-        WHERE l.oper_time &gt;= #{query.startTime}
-          AND l.oper_time &lt; #{query.endTime}
-        GROUP BY DATE_FORMAT(l.oper_time, '%Y-%m-%d')
+        FROM work_order_flow f
+        JOIN work_order w ON w.id = f.work_order_id
+        WHERE f.operator_company_id = #{query.accessContext.currentCompanyId}
+          AND f.action_type = 'REPAIR_FINISH'
+          AND f.create_time &gt;= #{query.startTime}
+          AND f.create_time &lt; #{query.endTime}
+          <include refid="WorkOrderEventAccessCondition" />
+        GROUP BY DATE_FORMAT(f.create_time, '%Y-%m-%d')
         ORDER BY dayKey ASC
     </select>
 
-    <select id="selectOperLogFailedCount" resultType="java.lang.Long">
-        SELECT COUNT(1)
-        FROM sys_oper_log l
-        WHERE l.status = 0
-          AND l.oper_time &gt;= #{query.startTime}
-          AND l.oper_time &lt; #{query.endTime}
+    <select id="selectTransferOutTrend" resultType="com.jasic.aftersales.system.domain.vo.dashboard.DashboardCountByDayVO">
+        SELECT
+            DATE_FORMAT(f.create_time, '%Y-%m-%d') AS dayKey,
+            COUNT(1) AS countNum
+        FROM work_order_flow f
+        JOIN work_order w ON w.id = f.work_order_id
+        WHERE f.from_company_id = #{query.accessContext.currentCompanyId}
+          AND f.action_type = 'TRANSFER'
+          AND f.create_time &gt;= #{query.startTime}
+          AND f.create_time &lt; #{query.endTime}
+          <include refid="WorkOrderEventAccessCondition" />
+        GROUP BY DATE_FORMAT(f.create_time, '%Y-%m-%d')
+        ORDER BY dayKey ASC
     </select>
 
 </mapper>

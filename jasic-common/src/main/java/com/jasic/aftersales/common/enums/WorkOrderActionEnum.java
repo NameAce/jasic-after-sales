@@ -44,8 +44,13 @@ public enum WorkOrderActionEnum {
     /** 管理岗复检，决定通过关闭流或打回继续维修。 */
     REVIEW("REVIEW", "复检", "workorder:review"),
 
-    /** 上传寄修场景的寄件快递单号，补充送修物流信息。 */
-    UPLOAD_SEND_EXPRESS("UPLOAD_SEND_EXPRESS", "上传寄件单号", "workorder:assign"),
+    /**
+     * 上传寄修场景的寄件快递单号，补充送修物流信息。
+     *
+     * <p>该动作本轮临时重构为“建单人本人补录”口径，不再挂接派单权限点；
+     * 后端放行只看工单可见性、待接单状态窗口、寄修服务方式以及首条 CREATE 流转识别出的建单人。</p>
+     */
+    UPLOAD_SEND_EXPRESS("UPLOAD_SEND_EXPRESS", "上传寄件单号", ""),
 
     /** 选择返还方式，用于关闭前或无故障直接闭单场景的返件信息记录。 */
     RETURN_METHOD("RETURN_METHOD", "选择返回方式", "workorder:close"),

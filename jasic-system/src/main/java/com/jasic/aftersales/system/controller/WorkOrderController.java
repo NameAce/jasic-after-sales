@@ -384,11 +384,13 @@ public class WorkOrderController extends BaseController {
     /**
      * 上传寄件快递单号
      *
+     * <p>本轮该接口不再使用 `workorder:assign` 基础权限点，
+     * 最终放行由服务层按“工单可见 + 寄修待接单窗口 + 首条 CREATE 建单人本人”统一兜底校验。</p>
+     *
      * @param dto 寄件快递单号参数
      * @return 操作结果
      */
     @ApiOperation(value = "上传寄件快递单号")
-    @SaCheckPermission("workorder:assign")
     @OperLog(title = "工单管理", operType = OperTypeEnum.UPDATE)
     @PutMapping("/send-express")
     public Result<Void> updateSendExpress(@Validated @RequestBody WorkOrderSendExpressDTO dto) {

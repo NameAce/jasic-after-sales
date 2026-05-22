@@ -1,77 +1,72 @@
 package com.jasic.aftersales.system.service.impl;
 
-import cn.dev33.satoken.stp.StpUtil;
 import com.jasic.aftersales.common.enums.SubjectTypeEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.framework.security.SecurityContext;
-import com.jasic.aftersales.system.domain.query.dashboard.DashboardOperLogQuery;
-import com.jasic.aftersales.system.domain.vo.dashboard.DashboardCountByDayVO;
-import com.jasic.aftersales.system.domain.vo.dashboard.DashboardOperLogTrend7dVO;
-import com.jasic.aftersales.system.domain.vo.dashboard.DashboardPlatformOverviewStatsVO;
-import com.jasic.aftersales.system.domain.vo.dashboard.DashboardSubjectTypeCountVO;
-import com.jasic.aftersales.system.domain.vo.dashboard.DashboardSubjectTypeDistributionVO;
+import com.jasic.aftersales.system.domain.vo.dashboard.DashboardPlatformGovernanceStatsVO;
+import com.jasic.aftersales.system.domain.vo.dashboard.HomeMetricVO;
+import com.jasic.aftersales.system.domain.vo.dashboard.HomeRouteTargetVO;
+import com.jasic.aftersales.system.domain.vo.dashboard.HomeSectionVO;
 import com.jasic.aftersales.system.domain.vo.dashboard.PlatformDashboardHomeVO;
-import com.jasic.aftersales.system.domain.vo.dashboard.PlatformDashboardOverviewVO;
 import com.jasic.aftersales.system.mapper.DashboardMapper;
 import com.jasic.aftersales.system.service.IPlatformDashboardService;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
- * 平台首页 Service 实现。
+ * 平台主体首页 Service 实现。
  *
- * <p>该实现负责把平台首页组织治理概览、主体类型分布与操作日志趋势
- * 统一收敛为首页专用结构，替代前端继续复用公司/用户/角色/日志分页接口做二次统计。</p>
+ * <p>本轮平台首页只实现“治理看板”，范围限定为组织、账号和基础配置三块。
+ * 该实现不会调用工单 Service 或工单 Mapper，也不会读取 CRM 同步、消息治理、操作日志趋势或完整度评分数据，
+ * 以保证平台主体首页不再混入售后业务数据。</p>
  *
  * @author Codex
- * @date 2026/05/20
+ * @date 2026/05/21
  */
 @Service
 public class PlatformDashboardServiceImpl implements IPlatformDashboardService {
 
     /**
-     * 首页趋势固定展示最近 7 天。
-     */
-    private static final int TREND_DAYS = 7;
-
-    /**
-     * 首页专用聚合 Mapper，负责平台治理与日志趋势统计。
+     * 首页专用聚合 Mapper。
+     *
+     * <p>平台治理统计统一走 DashboardMapper.selectPlatformGovernanceStats，
+     * 这样可以明确审查平台首页 SQL 不包含工单表。</p>
      */
     @Resource
     private DashboardMapper dashboardMapper;
 
     /**
-     * 查询平台首页总览。
+     * 查询平台主体首页。
      *
      * <p>核心流程：
-     * 1. 校验当前主体必须为 PLATFORM；
-     * 2. 使用首页专用聚合 SQL 读取组织治理概览与主体类型分布；
-     * 3. 使用首页专用聚合 SQL 读取近七天操作日志趋势与失败数；
-     * 4. 对缺少权限的数据块做服务端兜底，避免新首页接口整体 403。</p>
+     * 1. 校验当前登录主体必须为平台主体；
+     * 2. 读取平台治理原始统计；
+     * 3. 分别组装组织治理、账号治理、基础配置三个 section；
+     * 4. 返回固定标题“治理看板”。</p>
      *
-     * @return 平台首页总览
+     * @return 平台主体首页数据
      */
     @Override
     public PlatformDashboardHomeVO getHome() {
         validateSubjectType(SubjectTypeEnum.PLATFORM);
 
+        DashboardPlatformGovernanceStatsVO stats = dashboardMapper.selectPlatformGovernanceStats();
         PlatformDashboardHomeVO home = new PlatformDashboardHomeVO();
-        DashboardPlatformOverviewStatsVO rawOverview = dashboardMapper.selectPlatformOverviewStats();
-        home.setOverview(buildOverview(rawOverview));
-        home.setSubjectTypeDistribution(buildSubjectTypeDistribution());
-        home.setOperLogTrend7d(buildOperLogTrend());
+        home.setTitle("治理看板");
+        home.setOrganization(buildOrganizationSection(stats));
+        home.setAccount(buildAccountSection(stats));
+        home.setBasicConfig(buildBasicConfigSection(stats));
         return home;
     }
 
     /**
      * 校验当前登录主体类型。
+     *
+     * <p>平台治理看板只允许平台主体访问；总部和服务网点应分别进入自己的首页接口，
+     * 否则不同主体看到的首页语义会混淆。</p>
      *
      * @param expected 期望主体类型
      */
@@ -83,148 +78,221 @@ public class PlatformDashboardServiceImpl implements IPlatformDashboardService {
     }
 
     /**
-     * 构建平台首页概览卡片。
+     * 组装组织治理分区。
      *
-     * <p>平台首页允许按能力块做权限兜底。
-     * 因此即使首页接口整体可访问，也需要对用户、角色、通知场景等敏感统计做服务端降级。</p>
+     * <p>组织治理只统计总部和服务网点，不把客户主体纳入本轮首页。</p>
      *
-     * @param rawOverview 聚合 SQL 原始结果
-     * @return 平台首页概览卡片
+     * @param stats 平台治理原始统计
+     * @return 组织治理分区
      */
-    private PlatformDashboardOverviewVO buildOverview(DashboardPlatformOverviewStatsVO rawOverview) {
-        PlatformDashboardOverviewVO overview = new PlatformDashboardOverviewVO();
-
-        if (hasPermission("org:company:list")) {
-            overview.setCompanyTotal(defaultLong(rawOverview == null ? null : rawOverview.getCompanyTotal()));
-            overview.setEnabledCompanyTotal(defaultLong(rawOverview == null ? null : rawOverview.getEnabledCompanyTotal()));
-        } else {
-            overview.setCompanyTotal(0L);
-            overview.setEnabledCompanyTotal(0L);
-        }
-
-        if (hasPermission("system:user:list")) {
-            overview.setUserTotal(defaultLong(rawOverview == null ? null : rawOverview.getUserTotal()));
-        } else {
-            overview.setUserTotal(0L);
-        }
-
-        if (hasPermission("system:role:list")) {
-            overview.setRoleTotal(defaultLong(rawOverview == null ? null : rawOverview.getRoleTotal()));
-        } else {
-            overview.setRoleTotal(0L);
-        }
-
-        if (hasPermission("system:notifyScene:list")) {
-            overview.setNotifySceneTotal(defaultLong(rawOverview == null ? null : rawOverview.getNotifySceneTotal()));
-        } else {
-            overview.setNotifySceneTotal(0L);
-        }
-        return overview;
+    private HomeSectionVO buildOrganizationSection(DashboardPlatformGovernanceStatsVO stats) {
+        HomeSectionVO section = buildSection("组织治理");
+        section.getMetrics().add(buildMetric(
+                "HQ_COUNT",
+                "总部数",
+                defaultLong(stats == null ? null : stats.getHqCompanyCount()),
+                "个",
+                "当前系统内主体类型为总部的公司数量",
+                "组织列表筛选总部主体",
+                route("org", query("activeTab", "company", "subjectType", "HQ"))
+        ));
+        section.getMetrics().add(buildMetric(
+                "SERVICE_COUNT",
+                "服务网点数",
+                defaultLong(stats == null ? null : stats.getServiceCompanyCount()),
+                "个",
+                "当前系统内主体类型为服务网点的公司数量，一级和二级服务网点统一纳入",
+                "组织列表筛选服务网点主体",
+                route("org", query("activeTab", "company", "subjectType", "SERVICE"))
+        ));
+        section.getMetrics().add(buildMetric(
+                "ENABLED_SUBJECT_COUNT",
+                "启用主体数",
+                defaultLong(stats == null ? null : stats.getEnabledSubjectCount()),
+                "个",
+                "当前启用状态的总部和服务网点主体数量",
+                "组织列表筛选启用主体",
+                route("org", query("activeTab", "company", "status", 1))
+        ));
+        section.getMetrics().add(buildMetric(
+                "DISABLED_SUBJECT_COUNT",
+                "停用主体数",
+                defaultLong(stats == null ? null : stats.getDisabledSubjectCount()),
+                "个",
+                "当前停用状态的总部和服务网点主体数量",
+                "组织列表筛选停用主体",
+                route("org", query("activeTab", "company", "status", 0))
+        ));
+        return section;
     }
 
     /**
-     * 构建主体类型分布。
+     * 组装账号治理分区。
      *
-     * @return 主体类型分布
+     * <p>账号治理只展示用户和角色规模，不展示我的事项、个人待办或消息治理数据。</p>
+     *
+     * @param stats 平台治理原始统计
+     * @return 账号治理分区
      */
-    private DashboardSubjectTypeDistributionVO buildSubjectTypeDistribution() {
-        DashboardSubjectTypeDistributionVO distribution = new DashboardSubjectTypeDistributionVO();
-        if (!hasPermission("org:company:list")) {
-            distribution.setPlatformCount(0L);
-            distribution.setHqCount(0L);
-            distribution.setServiceCount(0L);
-            return distribution;
-        }
-
-        List<DashboardSubjectTypeCountVO> rows = dashboardMapper.selectSubjectTypeDistribution();
-        Map<String, Long> countMap = new LinkedHashMap<>();
-        if (rows != null) {
-            for (DashboardSubjectTypeCountVO row : rows) {
-                if (row != null && row.getSubjectType() != null) {
-                    countMap.put(row.getSubjectType(), defaultLong(row.getCountNum()));
-                }
-            }
-        }
-        distribution.setPlatformCount(countMap.getOrDefault(SubjectTypeEnum.PLATFORM.getCode(), 0L));
-        distribution.setHqCount(countMap.getOrDefault(SubjectTypeEnum.HQ.getCode(), 0L));
-        distribution.setServiceCount(countMap.getOrDefault(SubjectTypeEnum.SERVICE.getCode(), 0L));
-        return distribution;
+    private HomeSectionVO buildAccountSection(DashboardPlatformGovernanceStatsVO stats) {
+        HomeSectionVO section = buildSection("账号治理");
+        section.getMetrics().add(buildMetric(
+                "USER_TOTAL",
+                "用户总数",
+                defaultLong(stats == null ? null : stats.getUserTotal()),
+                "个",
+                "当前系统未删除的 B 端用户总数",
+                "用户列表同口径总数",
+                route("system_user", null)
+        ));
+        section.getMetrics().add(buildMetric(
+                "ENABLED_USER_COUNT",
+                "启用用户数",
+                defaultLong(stats == null ? null : stats.getEnabledUserCount()),
+                "个",
+                "当前系统未删除且状态为启用的 B 端用户数量",
+                "用户列表筛选 status=1",
+                route("system_user", query("status", 1))
+        ));
+        section.getMetrics().add(buildMetric(
+                "DISABLED_USER_COUNT",
+                "停用用户数",
+                defaultLong(stats == null ? null : stats.getDisabledUserCount()),
+                "个",
+                "当前系统未删除且状态为停用的 B 端用户数量",
+                "用户列表筛选 status=0",
+                route("system_user", query("status", 0))
+        ));
+        section.getMetrics().add(buildMetric(
+                "ROLE_COUNT",
+                "角色数",
+                defaultLong(stats == null ? null : stats.getRoleCount()),
+                "个",
+                "当前系统角色数量",
+                "角色列表同口径总数",
+                route("system_role", null)
+        ));
+        return section;
     }
 
     /**
-     * 构建平台首页操作日志近七天趋势。
+     * 组装基础配置分区。
      *
-     * @return 操作日志近七天趋势
+     * <p>基础配置只展示规模和稳定入口，不计算完整度、评分或健康度。</p>
+     *
+     * @param stats 平台治理原始统计
+     * @return 基础配置分区
      */
-    private DashboardOperLogTrend7dVO buildOperLogTrend() {
-        DashboardOperLogTrend7dVO trend7d = new DashboardOperLogTrend7dVO();
-        List<String> dayKeys = buildRecentDayKeys();
-        trend7d.setDayKeys(dayKeys);
-
-        if (!hasPermission("log:operLog:list")) {
-            trend7d.setOperLogCounts(buildZeroCounts(dayKeys.size()));
-            trend7d.setFailedCount(0L);
-            return trend7d;
-        }
-
-        DashboardOperLogQuery query = new DashboardOperLogQuery();
-        query.setStartTime(resolveTrendStartTime());
-        query.setEndTime(resolveTrendEndTime());
-
-        Map<String, Long> countMap = buildDayCountMap(dashboardMapper.selectOperLogTrend(query));
-        List<Long> counts = new ArrayList<>();
-        for (String dayKey : dayKeys) {
-            counts.add(countMap.getOrDefault(dayKey, 0L));
-        }
-        trend7d.setOperLogCounts(counts);
-        trend7d.setFailedCount(defaultLong(dashboardMapper.selectOperLogFailedCount(query)));
-        return trend7d;
+    private HomeSectionVO buildBasicConfigSection(DashboardPlatformGovernanceStatsVO stats) {
+        HomeSectionVO section = buildSection("基础配置");
+        section.getMetrics().add(buildMetric(
+                "PRODUCT_COUNT",
+                "产品资料数",
+                defaultLong(stats == null ? null : stats.getProductCount()),
+                "个",
+                "机器条码档案中已沉淀的产品编码去重数量",
+                "高级功能中的机器条码档案入口",
+                route("advanced-modules", query("module", "barcode"))
+        ));
+        section.getMetrics().add(buildMetric(
+                "SERVICE_TYPE_COUNT",
+                "服务类型数",
+                defaultLong(stats == null ? null : stats.getServiceTypeCount()),
+                "个",
+                "字典类型 service_mode 下的服务方式配置项数量",
+                "高级功能中的字典管理入口",
+                route("advanced-modules", query("module", "dict"))
+        ));
+        section.getMetrics().add(buildMetric(
+                "DICT_ITEM_COUNT",
+                "字典配置项数",
+                defaultLong(stats == null ? null : stats.getDictItemCount()),
+                "个",
+                "当前系统字典数据项总数",
+                "高级功能中的字典管理入口",
+                route("advanced-modules", query("module", "dict"))
+        ));
+        section.getMetrics().add(buildMetric(
+                "REGION_COUNT",
+                "区域配置数",
+                defaultLong(stats == null ? null : stats.getRegionCount()),
+                "个",
+                "当前系统大区配置数量",
+                "高级功能中的系统大区入口",
+                route("advanced-modules", query("module", "region"))
+        ));
+        return section;
     }
 
     /**
-     * 生成最近七天日期键。
+     * 创建首页分区。
      *
-     * @return 最近七天日期键
+     * @param title 分区标题
+     * @return 首页分区
      */
-    private List<String> buildRecentDayKeys() {
-        List<String> dayKeys = new ArrayList<>();
-        LocalDate today = LocalDate.now();
-        for (int i = TREND_DAYS - 1; i >= 0; i--) {
-            dayKeys.add(today.minusDays(i).toString());
-        }
-        return dayKeys;
+    private HomeSectionVO buildSection(String title) {
+        HomeSectionVO section = new HomeSectionVO();
+        section.setTitle(title);
+        return section;
     }
 
     /**
-     * 创建指定长度的零值数组。
+     * 创建首页指标。
      *
-     * @param size 数组长度
-     * @return 零值数组
+     * @param code 指标编码
+     * @param title 指标标题
+     * @param value 指标数值
+     * @param unit 指标单位
+     * @param statCondition 统计条件说明
+     * @param listQueryCondition 列表查询条件说明
+     * @param routeTarget 点击跳转目标
+     * @return 首页指标
      */
-    private List<Long> buildZeroCounts(int size) {
-        List<Long> result = new ArrayList<>();
-        for (int i = 0; i < size; i++) {
-            result.add(0L);
-        }
-        return result;
+    private HomeMetricVO buildMetric(String code, String title, Long value, String unit,
+                                     String statCondition, String listQueryCondition,
+                                     HomeRouteTargetVO routeTarget) {
+        HomeMetricVO metric = new HomeMetricVO();
+        metric.setCode(code);
+        metric.setTitle(title);
+        metric.setValue(defaultLong(value));
+        metric.setUnit(unit);
+        metric.setStatCondition(statCondition);
+        metric.setListQueryCondition(listQueryCondition);
+        metric.setRouteTarget(routeTarget);
+        return metric;
     }
 
     /**
-     * 把按天聚合结果转换成便于补齐缺失日期的 Map。
+     * 创建跳转目标。
      *
-     * @param rows 按天聚合结果
-     * @return 日期键到数量的映射
+     * @param routeName 前端路由名称
+     * @param query 路由查询参数
+     * @return 跳转目标
      */
-    private Map<String, Long> buildDayCountMap(List<DashboardCountByDayVO> rows) {
-        Map<String, Long> result = new LinkedHashMap<>();
-        if (rows == null) {
+    private HomeRouteTargetVO route(String routeName, Map<String, Object> query) {
+        HomeRouteTargetVO target = new HomeRouteTargetVO();
+        target.setRouteName(routeName);
+        if (query != null) {
+            target.setQuery(query);
+        }
+        return target;
+    }
+
+    /**
+     * 创建有序查询参数。
+     *
+     * <p>首页返回 query 时使用有序 Map，便于调试日志和接口验收时稳定观察。</p>
+     *
+     * @param keyValues 交替传入 key 与 value
+     * @return 查询参数 Map
+     */
+    private Map<String, Object> query(Object... keyValues) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        if (keyValues == null) {
             return result;
         }
-        for (DashboardCountByDayVO row : rows) {
-            if (row == null || row.getDayKey() == null) {
-                continue;
-            }
-            result.put(row.getDayKey(), defaultLong(row.getCountNum()));
+        for (int i = 0; i + 1 < keyValues.length; i += 2) {
+            result.put(String.valueOf(keyValues[i]), keyValues[i + 1]);
         }
         return result;
     }
@@ -237,33 +305,5 @@ public class PlatformDashboardServiceImpl implements IPlatformDashboardService {
      */
     private Long defaultLong(Long value) {
         return value == null ? 0L : value;
-    }
-
-    /**
-     * 判断当前人是否具备指定权限。
-     *
-     * @param permission 权限标识
-     * @return true 表示具备权限
-     */
-    private boolean hasPermission(String permission) {
-        return StpUtil.hasPermission(permission);
-    }
-
-    /**
-     * 解析首页趋势开始时间。
-     *
-     * @return 最近七天的开始时间，含边界
-     */
-    private LocalDateTime resolveTrendStartTime() {
-        return LocalDate.now().minusDays(TREND_DAYS - 1L).atStartOfDay();
-    }
-
-    /**
-     * 解析首页趋势结束时间。
-     *
-     * @return 明天零点，不含边界
-     */
-    private LocalDateTime resolveTrendEndTime() {
-        return LocalDate.now().plusDays(1L).atStartOfDay();
     }
 }

@@ -51,4 +51,13 @@ public class WorkOrderQuery extends PageQuery {
     /** 是否转单 */
     @ApiModelProperty(value = "是否转单")
     private Integer hasTransfer;
+
+    /**
+     * 转单方向。
+     *
+     * <p>当前仅支持 OUT，表示当前登录主体公司作为转出方的工单。
+     * 该字段由后端根据当前登录公司限定 from_company_id，前端不得传任意公司 ID。</p>
+     */
+    @ApiModelProperty(value = "转单方向", allowableValues = "OUT")
+    private String transferDirection;
 }

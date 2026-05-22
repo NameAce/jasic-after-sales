@@ -7,7 +7,9 @@ import cn.dev33.satoken.context.model.SaRequest;
 import cn.dev33.satoken.context.model.SaResponse;
 import cn.dev33.satoken.context.model.SaStorage;
 import cn.dev33.satoken.stp.StpUtil;
+import com.jasic.aftersales.common.constant.WorkOrderCreateEntryConstants;
 import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
+import com.jasic.aftersales.common.enums.ServiceModeEnum;
 import com.jasic.aftersales.common.enums.WorkOrderActionEnum;
 import com.jasic.aftersales.common.enums.WorkOrderRelationTagEnum;
 import com.jasic.aftersales.framework.security.SecurityContext;
@@ -49,6 +51,7 @@ public class WorkOrderPermissionServiceTest {
     private WorkOrderPermissionService service;
     private Set<String> permissionCodes;
     private Set<String> historyParticipationKeys;
+    private Map<Long, Long> temporaryCreatorUserIds;
 
     @Before
     public void setUp() throws Exception {
@@ -57,6 +60,7 @@ public class WorkOrderPermissionServiceTest {
         StpUtil.login(101L);
         permissionCodes = new LinkedHashSet<>();
         historyParticipationKeys = new LinkedHashSet<>();
+        temporaryCreatorUserIds = new LinkedHashMap<>();
         service = new WorkOrderPermissionService() {
             @Override
             protected boolean hasPermissionCode(String permissionCode) {
@@ -66,6 +70,11 @@ public class WorkOrderPermissionServiceTest {
             @Override
             protected boolean hasHistoryUserParticipation(Long workOrderId, Long companyId, Long userId) {
                 return historyParticipationKeys.contains(buildHistoryParticipationKey(workOrderId, companyId, userId));
+            }
+
+            @Override
+            protected Long resolveTemporaryCreatorUserId(Long workOrderId) {
+                return temporaryCreatorUserIds.get(workOrderId);
             }
         };
         setEmptyMapperDependencies();
@@ -380,6 +389,98 @@ public class WorkOrderPermissionServiceTest {
         Assert.assertNull(service.getReadonlyReason(workOrder));
     }
 
+    @Test
+    public void shouldAllowProxySelfCreatorUploadSendExpressWithoutAssignPermission() throws Exception {
+        setCurrentServiceContext(1001L);
+        setEmptyMapperDependencies();
+        WorkOrder workOrder = buildMailWorkOrder(41L, 900L, 1001L, 1001L,
+                WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN, WorkOrderCreateEntryConstants.PROXY_SELF);
+        rememberTemporaryCreator(41L, 101L);
+
+        Assert.assertTrue(service.canUpdateSendExpress(workOrder));
+        Assert.assertTrue(service.listAvailableActions(workOrder).contains(WorkOrderActionEnum.UPLOAD_SEND_EXPRESS.getCode()));
+    }
+
+    @Test
+    public void shouldRejectProxySelfSameCompanyOtherUserUploadSendExpress() throws Exception {
+        setCurrentServiceContext(1001L);
+        setEmptyMapperDependencies();
+        WorkOrder workOrder = buildMailWorkOrder(42L, 900L, 1001L, 1001L,
+                WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN, WorkOrderCreateEntryConstants.PROXY_SELF);
+        rememberTemporaryCreator(42L, 202L);
+
+        Assert.assertFalse(service.canUpdateSendExpress(workOrder));
+        Assert.assertFalse(service.listAvailableActions(workOrder).contains(WorkOrderActionEnum.UPLOAD_SEND_EXPRESS.getCode()));
+    }
+
+    @Test
+    public void shouldAllowUpstreamFirstCreatorUploadSendExpressFromReadonlyList() throws Exception {
+        setCurrentServiceContext(2002L);
+        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(
+                buildParticipant(43L, 2002L, "CREATE"), 0L
+        ));
+        setField(service, "hqFirstContractMapper", createContractMapperProxy(Collections.emptyList()));
+        setField(service, "firstSecondRelationMapper", createRelationMapperProxy(Collections.emptyList()));
+        WorkOrder workOrder = buildMailWorkOrder(43L, 900L, 1001L, 2002L,
+                WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN, WorkOrderCreateEntryConstants.UPSTREAM_FIRST);
+        rememberTemporaryCreator(43L, 101L);
+
+        Assert.assertTrue(service.canUpdateSendExpress(workOrder));
+        Assert.assertTrue(service.listAvailableActions(workOrder).contains(WorkOrderActionEnum.UPLOAD_SEND_EXPRESS.getCode()));
+    }
+
+    @Test
+    public void shouldAllowUpstreamHqCreatorUploadSendExpressFromReadonlyList() throws Exception {
+        setCurrentServiceContext(1001L);
+        setField(service, "workOrderParticipantMapper", createParticipantMapperProxy(
+                buildParticipant(44L, 1001L, "CREATE"), 0L
+        ));
+        setField(service, "hqFirstContractMapper", createContractMapperProxy(Collections.emptyList()));
+        setField(service, "firstSecondRelationMapper", createRelationMapperProxy(Collections.emptyList()));
+        WorkOrder workOrder = buildMailWorkOrder(44L, 900L, 900L, 1001L,
+                WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT, WorkOrderCreateEntryConstants.UPSTREAM_HQ);
+        rememberTemporaryCreator(44L, 101L);
+
+        Assert.assertTrue(service.canUpdateSendExpress(workOrder));
+        Assert.assertTrue(service.listAvailableActions(workOrder).contains(WorkOrderActionEnum.UPLOAD_SEND_EXPRESS.getCode()));
+    }
+
+    @Test
+    public void shouldAllowUploadSendExpressInPendingTechAcceptWindow() throws Exception {
+        setCurrentServiceContext(1001L);
+        setEmptyMapperDependencies();
+        WorkOrder workOrder = buildMailWorkOrder(45L, 900L, 1001L, 1001L,
+                WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT, WorkOrderCreateEntryConstants.PROXY_SELF);
+        rememberTemporaryCreator(45L, 101L);
+
+        Assert.assertTrue(service.canUpdateSendExpress(workOrder));
+    }
+
+    @Test
+    public void shouldRejectUploadSendExpressOutsideWaitAcceptWindow() throws Exception {
+        setCurrentServiceContext(1001L);
+        setEmptyMapperDependencies();
+        WorkOrder workOrder = buildMailWorkOrder(46L, 900L, 1001L, 1001L,
+                WorkOrderStatusConstants.MainStatus.IN_PROGRESS, WorkOrderCreateEntryConstants.PROXY_SELF);
+        rememberTemporaryCreator(46L, 101L);
+
+        Assert.assertFalse(service.canUpdateSendExpress(workOrder));
+    }
+
+    @Test
+    public void shouldRejectUploadSendExpressWhenCreateFlowMissingOrOperatorEmpty() throws Exception {
+        setCurrentServiceContext(1001L);
+        setEmptyMapperDependencies();
+        WorkOrder missingCreateFlow = buildMailWorkOrder(47L, 900L, 1001L, 1001L,
+                WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN, WorkOrderCreateEntryConstants.PROXY_SELF);
+        WorkOrder emptyOperator = buildMailWorkOrder(48L, 900L, 1001L, 1001L,
+                WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN, WorkOrderCreateEntryConstants.PROXY_SELF);
+        rememberTemporaryCreator(48L, null);
+
+        Assert.assertFalse(service.canUpdateSendExpress(missingCreateFlow));
+        Assert.assertFalse(service.canUpdateSendExpress(emptyOperator));
+    }
+
     private void setCurrentHqRegionContext() {
         SecurityContext.setCurrentCompanyId(900L);
         SecurityContext.setCurrentSubjectType("HQ");
@@ -415,6 +516,10 @@ public class WorkOrderPermissionServiceTest {
         historyParticipationKeys.add(buildHistoryParticipationKey(workOrderId, companyId, userId));
     }
 
+    private void rememberTemporaryCreator(Long workOrderId, Long userId) {
+        temporaryCreatorUserIds.put(workOrderId, userId);
+    }
+
     private String buildHistoryParticipationKey(Long workOrderId, Long companyId, Long userId) {
         return String.valueOf(workOrderId) + "-" + String.valueOf(companyId) + "-" + String.valueOf(userId);
     }
@@ -433,6 +538,15 @@ public class WorkOrderPermissionServiceTest {
         workOrder.setCurrentAcceptCompanyId(currentAcceptCompanyId);
         workOrder.setCreateCompanyId(createCompanyId);
         workOrder.setAssignedUserId(assignedUserId);
+        return workOrder;
+    }
+
+    private WorkOrder buildMailWorkOrder(Long id, Long hqCompanyId, Long currentAcceptCompanyId,
+                                         Long createCompanyId, String mainStatus, String createEntryType) {
+        WorkOrder workOrder = buildWorkOrder(id, hqCompanyId, currentAcceptCompanyId, createCompanyId, null);
+        workOrder.setServiceMode(ServiceModeEnum.MAIL.getCode());
+        workOrder.setMainStatus(mainStatus);
+        workOrder.setCreateEntryType(createEntryType);
         return workOrder;
     }
 

@@ -10,9 +10,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
 import com.jasic.aftersales.system.domain.access.WorkOrderAccessContext;
 import com.jasic.aftersales.system.domain.entity.WorkOrder;
+import com.jasic.aftersales.system.domain.entity.WorkOrderFlow;
 import com.jasic.aftersales.system.domain.entity.WorkOrderParticipant;
 import com.jasic.aftersales.system.domain.query.WorkOrderQuery;
 import com.jasic.aftersales.system.domain.query.WorkOrderScopedQuery;
+import com.jasic.aftersales.system.mapper.WorkOrderFlowMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderParticipantMapper;
 import org.springframework.stereotype.Service;
 
@@ -33,12 +35,12 @@ import java.util.List;
 public class WorkOrderPermissionService {
 
     /**
-     * 详情页动作返回顺序。
+     * 动作返回顺序。
      *
      * <p>前端按钮通常希望按稳定顺序展示，因此这里集中定义返回顺序，
      * 避免动作判断逻辑改造后，按钮顺序随着代码分支顺序发生漂移。</p>
      */
-    private static final List<WorkOrderActionEnum> DETAIL_ACTION_ORDER = Collections.unmodifiableList(Arrays.asList(
+    private static final List<WorkOrderActionEnum> ACTION_ORDER = Collections.unmodifiableList(Arrays.asList(
             WorkOrderActionEnum.ASSIGN,
             WorkOrderActionEnum.UPLOAD_SEND_EXPRESS,
             WorkOrderActionEnum.TECH_ACCEPT,
@@ -51,6 +53,16 @@ public class WorkOrderPermissionService {
 
     @Resource
     private WorkOrderParticipantMapper workOrderParticipantMapper;
+
+    /**
+     * 工单流转记录 Mapper。
+     *
+     * <p>本轮“上传寄件单号”临时按首条 CREATE 流转回溯建单人，
+     * 因此权限服务需要读取流转表；后续主表补齐正式创建人字段后，
+     * 这里应切换为读取主表字段。</p>
+     */
+    @Resource
+    private WorkOrderFlowMapper workOrderFlowMapper;
 
     /**
      * 工单访问上下文解析器依赖。
@@ -146,6 +158,8 @@ public class WorkOrderPermissionService {
             scopedQuery.setDisplayStatus(query.getDisplayStatus());
             // 调用getHasTransfer方法，复用统一能力并保证业务规则一致。
             scopedQuery.setHasTransfer(query.getHasTransfer());
+            // 转出方向筛选只表达“当前登录公司作为转出方”，实际公司边界由 Mapper 使用服务端上下文注入。
+            scopedQuery.setTransferDirection(query.getTransferDirection());
             // 调用getPageNum方法，复用统一能力并保证业务规则一致。
             scopedQuery.setPageNum(query.getPageNum());
             // 调用getPageSize方法，复用统一能力并保证业务规则一致。
@@ -269,7 +283,7 @@ public class WorkOrderPermissionService {
             return Collections.emptyList();
         }
         List<String> actions = new ArrayList<>();
-        for (WorkOrderActionEnum action : DETAIL_ACTION_ORDER) {
+        for (WorkOrderActionEnum action : ACTION_ORDER) {
             if (canExecute(workOrder, action, context)) {
                 // 调用addAction方法，复用统一能力并保证业务规则一致。
                 addAction(actions, action);
@@ -407,12 +421,11 @@ public class WorkOrderPermissionService {
                         // 调用hasActionPermission方法，复用统一能力并保证业务规则一致。
                         && hasActionPermission(action);
             case UPLOAD_SEND_EXPRESS:
-                // 上传寄件单号是寄修单在待受理阶段的补充物流动作，沿用派单权限点控制。
-                return inCurrentAcceptCompany
-                        && ServiceModeEnum.isMail(workOrder.getServiceMode())
-                        && WorkOrderStatusConstants.isWaitAcceptMainStatus(mainStatus)
-                        // 调用hasActionPermission方法，复用统一能力并保证业务规则一致。
-                        && hasActionPermission(action);
+                // 上传寄件单号本轮已从“当前受理方派单动作”收口为“建单人本人补资料动作”，
+                // 因此不再依赖 currentAcceptCompanyId、workorder:assign、派单岗或调度岗。
+                // 只要当前登录人能看到该工单列表，且经首条 CREATE 流转确认其就是建单人本人，
+                // 即使工单出现在历史转出/只读列表，也应允许展示并执行该动作。
+                return canCreatorUpdateSendExpress(workOrder, context, mainStatus);
             case TECH_ACCEPT:
                 // 接单只属于当前被派到这张单上的维修员。
                 return isAssignee
@@ -452,6 +465,66 @@ public class WorkOrderPermissionService {
             default:
                 return false;
         }
+    }
+
+    /**
+     * 判断建单人本人是否允许补录寄件快递单号。
+     *
+     * <p>本方法承载本轮临时权限基线：B 端上传寄件单号不是派单、调度或当前承接方动作，
+     * 而是报修发起人补充送修物流资料的动作。判断时只保留“工单可见、寄修服务方式、
+     * 待接单状态窗口、当前用户等于临时识别出的建单人”四类业务条件。</p>
+     *
+     * @param workOrder 工单实体
+     * @param context 当前访问上下文
+     * @param mainStatus 工单主状态
+     * @return true 表示允许补录
+     */
+    private boolean canCreatorUpdateSendExpress(WorkOrder workOrder, WorkOrderAccessContext context, String mainStatus) {
+        if (workOrder == null || context == null || context.getCurrentUserId() == null) {
+            return false;
+        }
+        // 寄件单号只服务于寄修单；到店维修没有送修物流补录语义，不能因为用户是建单人而放开。
+        if (!ServiceModeEnum.isMail(workOrder.getServiceMode())) {
+            return false;
+        }
+        // 状态窗口沿用“待接单”口径：PENDING_ASSIGN 表示尚未派给维修员，
+        // PENDING_TECH_ACCEPT 表示已派单但维修员尚未接单，二者都仍处于送修信息补齐窗口。
+        if (!WorkOrderStatusConstants.isWaitAcceptMainStatus(mainStatus)) {
+            return false;
+        }
+        // 当前主表没有正式 createUserId 字段，本轮只能读取首条 CREATE 流转的 operatorUserId。
+        // 若不回溯该字段，就会退回建单公司、当前受理公司或派单权限等旧口径，破坏“本人”边界。
+        Long creatorUserId = resolveTemporaryCreatorUserId(workOrder.getId());
+        // 旧数据查不到首条 CREATE，或 CREATE.operatorUserId 为空时，无法稳定确认建单人本人。
+        // 本轮明确禁止为了兼容旧数据放宽为公司级或权限点级兜底，因此直接拒绝补录。
+        if (creatorUserId == null) {
+            return false;
+        }
+        // 历史转出/只读列表只表达该公司不是当前承接方，不代表建单人不能补资料；
+        // canExecute 外层已经确认当前用户可见该工单，这里只校验“是否本人”。
+        return creatorUserId.equals(context.getCurrentUserId());
+    }
+
+    /**
+     * 临时解析工单建单人用户ID。
+     *
+     * <p>`work_order` 主表尚未落正式创建人字段时，首条 `CREATE` 流转是唯一能表达
+     * “谁发起了建单动作”的稳定来源。本方法只作为本轮临时方案使用，后续正式字段落地后，
+     * 应将读取来源替换为主表创建人字段。</p>
+     *
+     * @param workOrderId 工单ID
+     * @return 建单人用户ID；旧数据缺失 CREATE 或 operatorUserId 为空时返回 null
+     */
+    protected Long resolveTemporaryCreatorUserId(Long workOrderId) {
+        if (workOrderId == null || workOrderFlowMapper == null) {
+            return null;
+        }
+        // 通过 Mapper 按 create_time、id 升序取首条 CREATE，避免重复流转数据导致建单人识别漂移。
+        WorkOrderFlow firstCreateFlow = workOrderFlowMapper.selectFirstCreateFlow(workOrderId);
+        if (firstCreateFlow == null) {
+            return null;
+        }
+        return firstCreateFlow.getOperatorUserId();
     }
 
     /**
@@ -506,6 +579,9 @@ public class WorkOrderPermissionService {
 
     /**
      * 判断当前登录人是否允许上传寄修场景下的寄件快递单号。
+     *
+     * <p>本轮该动作只允许建单人本人在待接单窗口内补录，
+     * 不再要求当前用户具备派单权限，也不再要求当前登录公司是工单当前受理方。</p>
      *
      * @param workOrder 工单实体
      * @return true 表示允许上传寄件快递单号

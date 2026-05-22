@@ -5,57 +5,43 @@ import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
- * 总部首页总览返回结构。
+ * 总部主体首页返回结构。
  *
- * <p>该对象是 `/dashboard/hq/home` 的唯一返回契约，
- * 在服务主体首页基础上补充总部专属网点汇总与排行字段。</p>
+ * <p>该对象是 `/dashboard/hq/home` 的唯一返回契约。本轮总部首页命名为“调度看板”，
+ * 只返回总部当前承接工单池、已转出和近七天事件趋势，不再包含我的事项、网点履约监控、SLA 或风险指标。</p>
  *
  * @author Codex
- * @date 2026/05/20
+ * @date 2026/05/21
  */
-@ApiModel(description = "总部首页总览返回结构")
+@ApiModel(description = "总部主体首页返回结构")
 @Data
 public class HqDashboardHomeVO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     /**
-     * 顶部概览区。
+     * 首页标题。
      */
-    @ApiModelProperty(value = "顶部概览区")
-    private HqDashboardOverviewVO overview;
+    @ApiModelProperty(value = "首页标题")
+    private String title;
 
     /**
-     * 工单状态统计。
+     * 当前总部承接工单池。
      */
-    @ApiModelProperty(value = "工单状态统计")
-    private DashboardWorkOrderStatusVO workOrderStatus;
+    @ApiModelProperty(value = "当前总部承接工单池")
+    private HomeSectionVO workOrderPool;
 
     /**
-     * 近七天趋势。
+     * 当前总部作为转出方的工单分区。
      */
-    @ApiModelProperty(value = "近七天趋势")
-    private DashboardTrend7dVO trend7d;
+    @ApiModelProperty(value = "当前总部作为转出方的工单分区")
+    private HomeSectionVO transfer;
 
     /**
-     * 网点汇总卡片。
+     * 近七天事件趋势。
      */
-    @ApiModelProperty(value = "网点汇总卡片")
-    private DashboardSiteSummaryVO siteSummary;
-
-    /**
-     * 网点待接单排行。
-     */
-    @ApiModelProperty(value = "网点待接单排行")
-    private List<DashboardSiteRankVO> siteWaitAcceptRank = new ArrayList<>();
-
-    /**
-     * 最新历史待办列表。
-     */
-    @ApiModelProperty(value = "最新历史待办列表")
-    private List<DashboardHistoryTodoVO> latestHistoryTodos = new ArrayList<>();
+    @ApiModelProperty(value = "近七天事件趋势")
+    private HomeTrendVO trend;
 }

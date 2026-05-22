@@ -5,8 +5,8 @@ import com.jasic.aftersales.system.domain.vo.dashboard.PlatformDashboardHomeVO;
 /**
  * 平台首页 Service。
  *
- * <p>该接口只负责平台治理类首页聚合编排，
- * 不混入工单、待办流转或总部网点统计。</p>
+ * <p>该接口只负责平台“治理看板”聚合编排。
+ * 本轮只返回组织治理、账号治理和基础配置三块，不混入工单、CRM 同步、消息治理或趋势图。</p>
  *
  * @author Codex
  * @date 2026/05/20
@@ -14,12 +14,11 @@ import com.jasic.aftersales.system.domain.vo.dashboard.PlatformDashboardHomeVO;
 public interface IPlatformDashboardService {
 
     /**
-     * 查询平台首页总览。
+     * 查询平台治理看板。
      *
-     * <p>该方法会按当前平台登录上下文聚合组织治理概览、
-     * 主体类型分布和操作日志近七天趋势。</p>
+     * <p>该方法会按当前平台登录上下文聚合组织治理、账号治理和基础配置规模数据。</p>
      *
-     * @return 平台首页总览
+     * @return 平台治理看板数据
      */
     PlatformDashboardHomeVO getHome();
 }

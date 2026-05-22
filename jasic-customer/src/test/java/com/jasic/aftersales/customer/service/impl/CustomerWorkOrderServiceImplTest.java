@@ -68,7 +68,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
-import java.util.Set;
 
 /**
  * C端工单服务测试
@@ -414,7 +413,6 @@ public class CustomerWorkOrderServiceImplTest {
                 WorkOrder.class,
                 Map.class,
                 Map.class,
-                Set.class,
                 Map.class
         );
         method.setAccessible(true);
@@ -424,7 +422,6 @@ public class CustomerWorkOrderServiceImplTest {
                 workOrder,
                 Collections.singletonMap(31L, buildNearbyCompany(31L, "Service A", "FIRST", "113.0000", "23.0000")),
                 Collections.emptyMap(),
-                Collections.emptySet(),
                 Collections.singletonMap(51L, new BigDecimal("256.80"))
         );
 
@@ -557,7 +554,7 @@ public class CustomerWorkOrderServiceImplTest {
     }
 
     @Test
-    public void shouldHideUploadSenderVoucherWhenCurrentVoucherAlreadyExists() throws Exception {
+    public void shouldShowUploadSenderVoucherWhenCurrentVoucherAlreadyExists() throws Exception {
         CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
         WorkOrder workOrder = new WorkOrder();
         workOrder.setId(52L);
@@ -569,7 +566,6 @@ public class CustomerWorkOrderServiceImplTest {
                 WorkOrder.class,
                 Map.class,
                 Map.class,
-                Set.class,
                 Map.class
         );
         method.setAccessible(true);
@@ -579,11 +575,10 @@ public class CustomerWorkOrderServiceImplTest {
                 workOrder,
                 Collections.emptyMap(),
                 Collections.emptyMap(),
-                Collections.singleton(52L),
                 Collections.emptyMap()
         );
 
-        Assert.assertFalse(vo.getCanUploadSendExpress());
+        Assert.assertTrue(vo.getCanUploadSendExpress());
     }
 
     @Test
@@ -614,7 +609,7 @@ public class CustomerWorkOrderServiceImplTest {
     }
 
     @Test
-    public void shouldRejectUploadSenderVoucherWhenCurrentVoucherAlreadyExists() throws Exception {
+    public void shouldReplaceSenderVoucherWhenCurrentVoucherAlreadyExists() throws Exception {
         CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
         WorkOrder workOrder = new WorkOrder();
         workOrder.setId(62L);
@@ -625,24 +620,22 @@ public class CustomerWorkOrderServiceImplTest {
         voucher.setFileId(301L);
 
         setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder, new int[1]));
+        List<Long> replacedFileIds = new ArrayList<>();
         setField(service, "sysFileService",
-                createSysFileServiceProxy(Collections.singletonList(voucher), new ArrayList<Long>()));
+                createSysFileServiceProxy(Collections.singletonList(voucher), replacedFileIds));
 
         CustomerWorkOrderSenderVoucherDTO dto = new CustomerWorkOrderSenderVoucherDTO();
         dto.setWorkOrderId(62L);
         dto.setSenderVoucherFileIds(Collections.singletonList(101L));
 
-        try {
-            runWithCustomerLoginContext(200L, new ThrowingRunnable() {
-                @Override
-                public void run() throws Exception {
-                    service.updateSenderVoucher(dto);
-                }
-            });
-            Assert.fail("Expected duplicate sender voucher upload to be rejected");
-        } catch (ServiceException ex) {
-            Assert.assertEquals("当前工单已上传寄件凭证", ex.getMessage());
-        }
+        runWithCustomerLoginContext(200L, new ThrowingRunnable() {
+            @Override
+            public void run() throws Exception {
+                service.updateSenderVoucher(dto);
+            }
+        });
+
+        Assert.assertEquals(Collections.singletonList(101L), replacedFileIds);
     }
 
     @Test

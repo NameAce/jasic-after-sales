@@ -1,26 +1,23 @@
 package com.jasic.aftersales.system.service.impl;
 
 import cn.dev33.satoken.stp.StpUtil;
-import com.jasic.aftersales.common.core.domain.PageResult;
+import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
 import com.jasic.aftersales.common.enums.SubjectTypeEnum;
 import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.framework.security.SecurityContext;
 import com.jasic.aftersales.system.domain.access.WorkOrderAccessContext;
 import com.jasic.aftersales.system.domain.query.WorkOrderQuery;
-import com.jasic.aftersales.system.domain.query.dashboard.DashboardTodoQuery;
 import com.jasic.aftersales.system.domain.query.dashboard.DashboardWorkOrderTrendQuery;
 import com.jasic.aftersales.system.domain.vo.WorkOrderStatusCountVO;
 import com.jasic.aftersales.system.domain.vo.dashboard.DashboardCountByDayVO;
-import com.jasic.aftersales.system.domain.vo.dashboard.DashboardHistoryTodoVO;
-import com.jasic.aftersales.system.domain.vo.dashboard.DashboardTodoStatsVO;
-import com.jasic.aftersales.system.domain.vo.dashboard.DashboardTrend7dVO;
-import com.jasic.aftersales.system.domain.vo.dashboard.DashboardWorkOrderStatusVO;
+import com.jasic.aftersales.system.domain.vo.dashboard.HomeEntryVO;
+import com.jasic.aftersales.system.domain.vo.dashboard.HomeMetricVO;
+import com.jasic.aftersales.system.domain.vo.dashboard.HomeRouteTargetVO;
+import com.jasic.aftersales.system.domain.vo.dashboard.HomeSectionVO;
+import com.jasic.aftersales.system.domain.vo.dashboard.HomeTrendSeriesVO;
+import com.jasic.aftersales.system.domain.vo.dashboard.HomeTrendVO;
 import com.jasic.aftersales.system.domain.vo.dashboard.ServiceDashboardHomeVO;
-import com.jasic.aftersales.system.domain.vo.dashboard.ServiceDashboardOverviewVO;
 import com.jasic.aftersales.system.mapper.DashboardMapper;
-import com.jasic.aftersales.system.notify.domain.query.NotifyMessageQuery;
-import com.jasic.aftersales.system.notify.domain.vo.NotifyMessagePageVO;
-import com.jasic.aftersales.system.notify.service.NotifyMessageService;
 import com.jasic.aftersales.system.service.IServiceDashboardService;
 import com.jasic.aftersales.system.service.IWorkOrderService;
 import com.jasic.aftersales.system.service.WorkOrderAccessContextResolver;
@@ -30,106 +27,82 @@ import javax.annotation.Resource;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * 服务主体首页 Service 实现。
+ * 服务网点主体首页 Service 实现。
  *
- * <p>该实现负责把当前登录服务主体首页所需的待办概览、工单概览、
- * 工单状态分布、近七天趋势和最新动态统一收敛为专用返回结构。
- * 其中工单状态统计复用既有 `status-count` 能力，趋势统计走首页专用聚合 SQL。</p>
+ * <p>本轮服务网点首页只实现“服务工作台”：当前服务公司承接工单、当前服务公司作为转出方的已转出指标、
+ * 历史参与入口和近七天事件趋势。一级网点和二级网点统一使用当前登录服务公司口径，
+ * 不再单独提供一级管理二级的专项首页。</p>
  *
  * @author Codex
- * @date 2026/05/20
+ * @date 2026/05/21
  */
 @Service
 public class ServiceDashboardServiceImpl implements IServiceDashboardService {
 
     /**
-     * 首页最新动态最多返回 10 条，避免首页列表过长影响加载与阅读。
-     */
-    private static final int LATEST_HISTORY_TODO_LIMIT = 10;
-
-    /**
-     * 首页趋势固定展示最近 7 天。
+     * 首页趋势固定展示最近七天。
      */
     private static final int TREND_DAYS = 7;
 
     /**
-     * 复用现有工单聚合能力，保证首页统计口径与列表页权限模型一致。
+     * 工单列表路由名称。
+     */
+    private static final String WORK_ORDER_ROUTE_NAME = "after-sales_work-order";
+
+    /**
+     * 复用工单列表同源统计能力。
      */
     @Resource
     private IWorkOrderService workOrderService;
 
     /**
-     * 复用现有工单访问上下文解析器，避免首页自行绕开既有数据权限。
+     * 复用工单访问上下文解析器。
      */
     @Resource
     private WorkOrderAccessContextResolver workOrderAccessContextResolver;
 
     /**
-     * 首页专用聚合 Mapper，负责待办趋势与工单建单趋势等专用 SQL。
+     * 首页专用 Mapper。
+     *
+     * <p>这里只用于近七天事件趋势，不承载当前状态存量统计。</p>
      */
     @Resource
     private DashboardMapper dashboardMapper;
 
     /**
-     * 复用现有通知消息 Service，读取首页最新历史待办列表。
-     */
-    @Resource
-    private NotifyMessageService notifyMessageService;
-
-    /**
-     * 查询服务主体首页总览。
+     * 查询服务网点主体首页。
      *
      * <p>核心流程：
-     * 1. 校验当前登录主体必须为 SERVICE；
-     * 2. 基于当前登录用户与公司聚合待办概览、待办趋势和最新历史待办；
-     * 3. 若具备工单列表权限，则复用既有工单聚合能力与首页专用工单趋势 SQL；
-     * 4. 统一输出首页专用返回结构，不再要求前端二次拼装分页列表结果。</p>
+     * 1. 校验当前登录主体必须为服务网点；
+     * 2. 复用工单列表统计查询当前承接工单池；
+     * 3. 使用 transferDirection=OUT 查询当前服务公司作为转出方的已转出数量；
+     * 4. 返回 viewScope=HISTORY 的历史参与入口；
+     * 5. 按工单流水事件发生时间聚合近七天接单、完成、转出趋势。</p>
      *
-     * @return 服务主体首页总览
+     * @return 服务网点主体首页数据
      */
     @Override
     public ServiceDashboardHomeVO getHome() {
         validateSubjectType(SubjectTypeEnum.SERVICE);
 
         ServiceDashboardHomeVO home = new ServiceDashboardHomeVO();
-        ServiceDashboardOverviewVO overview = new ServiceDashboardOverviewVO();
-        DashboardTrend7dVO trend7d = buildEmptyWorkOrderTrend();
-
-        // 首页待办完全以当前登录用户和当前登录公司为准，不允许前端另传口径。
-        DashboardTodoQuery todoQuery = buildTodoQuery();
-        DashboardTodoStatsVO todoStats = dashboardMapper.selectTodoStats(todoQuery);
-        overview.setActiveTodoCount(defaultLong(todoStats == null ? null : todoStats.getActiveTodoCount()));
-        overview.setHistoryTodoCount(defaultLong(todoStats == null ? null : todoStats.getHistoryTodoCount()));
-
-        // 首页最新动态仍复用稳定的 HISTORY 列表能力，但只取最近若干条，不再拿分页总数做统计。
-        home.setLatestHistoryTodos(listLatestHistoryTodos());
-
-        // 先补齐待办趋势。即使当前人没有工单权限，也应该能看到自己待办近七天变化。
-        fillTodoTrend(trend7d, dashboardMapper.selectActiveTodoTrend(todoQuery));
-
-        if (hasWorkOrderListPermission()) {
-            // 复用既有 status-count 统计能力，保证首页工单口径与现有工单权限模型保持一致。
-            List<WorkOrderStatusCountVO> currentStatusRows = workOrderService.countByStatus(buildStatusQuery("CURRENT", null));
-            List<WorkOrderStatusCountVO> allStatusRows = workOrderService.countByStatus(buildStatusQuery("ALL", null));
-            overview.setWorkOrderTotal(resolveAllCount(currentStatusRows));
-            home.setWorkOrderStatus(buildDashboardWorkOrderStatus(allStatusRows));
-
-            // 工单趋势必须走首页专用聚合 SQL，否则继续复用分页列表会被 pageSize 截断。
-            fillWorkOrderTrend(trend7d, dashboardMapper.selectCreatedWorkOrderTrend(buildWorkOrderTrendQuery("ALL")));
-        } else {
-            overview.setWorkOrderTotal(0L);
-            home.setWorkOrderStatus(buildEmptyWorkOrderStatus());
-            fillWorkOrderTrend(trend7d, Collections.emptyList());
+        home.setTitle("服务工作台");
+        home.setHistoryEntry(buildHistoryEntry());
+        if (!hasWorkOrderListPermission()) {
+            home.setCurrentPool(buildEmptyCurrentPoolSection("当前服务公司承接工单"));
+            home.setTransfer(buildTransferSection(0L, "当前服务公司曾经承接且由当前服务公司转出的工单"));
+            home.setTrend(buildEmptyTrend("近 7 天事件趋势"));
+            return home;
         }
 
-        home.setOverview(overview);
-        home.setTrend7d(trend7d);
+        home.setCurrentPool(buildCurrentPoolSection("当前服务公司承接工单", "当前服务公司承接中"));
+        home.setTransfer(buildTransferSection(countTransferOut(), "当前服务公司曾经承接且由当前服务公司转出的工单"));
+        home.setTrend(buildServiceTrend());
         return home;
     }
 
@@ -146,200 +119,304 @@ public class ServiceDashboardServiceImpl implements IServiceDashboardService {
     }
 
     /**
-     * 构建首页待办聚合查询参数。
+     * 构建历史参与入口。
      *
-     * <p>首页待办统计只能使用当前登录用户和公司，
-     * 否则会破坏“首页统计以后端当前登录上下文为准”的约束。</p>
+     * <p>历史参与不作为服务工作台核心 KPI，只提供进入工单列表 viewScope=HISTORY 的入口。</p>
      *
-     * @return 待办聚合查询参数
+     * @return 历史参与入口
      */
-    private DashboardTodoQuery buildTodoQuery() {
-        Long currentUserId = SecurityContext.getCurrentUserId();
-        Long currentCompanyId = SecurityContext.getCurrentCompanyId();
-        if (currentUserId == null) {
-            throw new ServiceException("缺少当前登录用户上下文");
-        }
-        if (currentCompanyId == null) {
-            throw new ServiceException("缺少当前登录公司上下文");
-        }
-        DashboardTodoQuery query = new DashboardTodoQuery();
-        query.setReceiverId(currentUserId);
-        query.setReceiverCompanyId(currentCompanyId);
-        query.setStartTime(resolveTrendStartTime());
-        query.setEndTime(resolveTrendEndTime());
-        return query;
+    private HomeEntryVO buildHistoryEntry() {
+        HomeEntryVO entry = new HomeEntryVO();
+        entry.setTitle("历史参与");
+        entry.setDescription("查看当前服务公司历史参与但当前不再承接的工单");
+        entry.setRouteTarget(route(WORK_ORDER_ROUTE_NAME, query("viewScope", "HISTORY")));
+        return entry;
     }
 
     /**
-     * 构建首页工单状态统计查询参数。
+     * 构建当前承接工单池分区。
      *
-     * <p>这里继续复用既有 `WorkOrderQuery + WorkOrderAccessContextResolver`，
-     * 避免首页工单统计与列表页权限口径脱节。</p>
-     *
-     * @param viewScope 首页需要的工单视角
-     * @param hasTransfer 是否仅统计转单工单
-     * @return 工单状态统计查询参数
+     * @param sectionTitle 分区标题
+     * @param subjectPhrase 当前主体描述
+     * @return 当前承接工单池分区
      */
-    private WorkOrderQuery buildStatusQuery(String viewScope, Integer hasTransfer) {
+    private HomeSectionVO buildCurrentPoolSection(String sectionTitle, String subjectPhrase) {
+        Map<String, Long> countMap = countStatusMap(buildCurrentQuery());
+        HomeSectionVO section = buildSection(sectionTitle);
+        section.getMetrics().add(buildWorkOrderMetric(
+                "CURRENT_TOTAL",
+                "当前工单总量",
+                countMap.get("ALL"),
+                subjectPhrase + "的全部工单",
+                query("viewScope", "CURRENT")
+        ));
+        appendStatusMetric(section, countMap, "PENDING_ASSIGN", WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN, subjectPhrase);
+        appendStatusMetric(section, countMap, "PENDING_TECH_ACCEPT", WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT, subjectPhrase);
+        appendStatusMetric(section, countMap, "IN_PROGRESS", WorkOrderStatusConstants.MainStatus.IN_PROGRESS, subjectPhrase);
+        appendStatusMetric(section, countMap, "COMPLETED", WorkOrderStatusConstants.MainStatus.COMPLETED, subjectPhrase);
+        appendStatusMetric(section, countMap, "CLOSED", WorkOrderStatusConstants.MainStatus.CLOSED, subjectPhrase);
+        return section;
+    }
+
+    /**
+     * 构建无权限时的空工单池分区。
+     *
+     * @param sectionTitle 分区标题
+     * @return 空工单池分区
+     */
+    private HomeSectionVO buildEmptyCurrentPoolSection(String sectionTitle) {
+        HomeSectionVO section = buildSection(sectionTitle);
+        section.getMetrics().add(buildWorkOrderMetric("CURRENT_TOTAL", "当前工单总量", 0L, "无工单列表权限", query("viewScope", "CURRENT")));
+        section.getMetrics().add(buildWorkOrderMetric("PENDING_ASSIGN", "待派单", 0L, "无工单列表权限", query("viewScope", "CURRENT", "mainStatus", WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN)));
+        section.getMetrics().add(buildWorkOrderMetric("PENDING_TECH_ACCEPT", "待接单", 0L, "无工单列表权限", query("viewScope", "CURRENT", "mainStatus", WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT)));
+        section.getMetrics().add(buildWorkOrderMetric("IN_PROGRESS", "维修中", 0L, "无工单列表权限", query("viewScope", "CURRENT", "mainStatus", WorkOrderStatusConstants.MainStatus.IN_PROGRESS)));
+        section.getMetrics().add(buildWorkOrderMetric("COMPLETED", "已完成", 0L, "无工单列表权限", query("viewScope", "CURRENT", "mainStatus", WorkOrderStatusConstants.MainStatus.COMPLETED)));
+        section.getMetrics().add(buildWorkOrderMetric("CLOSED", "已关闭", 0L, "无工单列表权限", query("viewScope", "CURRENT", "mainStatus", WorkOrderStatusConstants.MainStatus.CLOSED)));
+        return section;
+    }
+
+    /**
+     * 添加主状态指标。
+     *
+     * @param section 首页分区
+     * @param countMap 状态数量 Map
+     * @param code 指标编码
+     * @param mainStatus 主状态编码
+     * @param subjectPhrase 当前主体描述
+     */
+    private void appendStatusMetric(HomeSectionVO section, Map<String, Long> countMap, String code,
+                                    String mainStatus, String subjectPhrase) {
+        String label = WorkOrderStatusConstants.resolveMainStatusLabel(mainStatus);
+        section.getMetrics().add(buildWorkOrderMetric(
+                code,
+                label,
+                countMap.get(mainStatus),
+                subjectPhrase + "且主状态为“" + label + "”的工单",
+                query("viewScope", "CURRENT", "mainStatus", mainStatus)
+        ));
+    }
+
+    /**
+     * 构建已转出分区。
+     *
+     * @param count 已转出数量
+     * @param statCondition 统计条件说明
+     * @return 已转出分区
+     */
+    private HomeSectionVO buildTransferSection(Long count, String statCondition) {
+        HomeSectionVO section = buildSection("已转出");
+        section.getMetrics().add(buildWorkOrderMetric(
+                "TRANSFER_OUT",
+                "已转出",
+                count,
+                statCondition,
+                query("transferDirection", "OUT")
+        ));
+        return section;
+    }
+
+    /**
+     * 统计当前服务公司作为转出方的工单数量。
+     *
+     * @return 已转出数量
+     */
+    private Long countTransferOut() {
         WorkOrderQuery query = new WorkOrderQuery();
-        query.setViewScope(viewScope);
-        query.setHasTransfer(hasTransfer);
-        return query;
+        query.setTransferDirection("OUT");
+        return countStatusMap(query).get("ALL");
     }
 
     /**
-     * 构建首页工单趋势查询参数。
+     * 构建服务网点近七天事件趋势。
      *
-     * <p>趋势查询除了复用工单访问上下文，还需要固定最近七天时间窗口。
-     * 如果不补这个对象，首页就只能继续拿分页列表结果做不准确的前端聚合。</p>
-     *
-     * @param viewScope 工单视角
-     * @return 工单趋势聚合查询参数
+     * @return 服务网点近七天事件趋势
      */
-    private DashboardWorkOrderTrendQuery buildWorkOrderTrendQuery(String viewScope) {
+    private HomeTrendVO buildServiceTrend() {
+        DashboardWorkOrderTrendQuery query = buildTrendQuery();
+        List<String> days = buildRecentDayKeys();
+        HomeTrendVO trend = buildEmptyTrend("近 7 天事件趋势");
+        trend.setDays(days);
+        trend.getSeries().add(buildTrendSeries("TECH_ACCEPT", "接单", days, dashboardMapper.selectTechAcceptTrend(query)));
+        trend.getSeries().add(buildTrendSeries("REPAIR_FINISH", "完成", days, dashboardMapper.selectRepairFinishTrend(query)));
+        trend.getSeries().add(buildTrendSeries("TRANSFER_OUT", "转出", days, dashboardMapper.selectTransferOutTrend(query)));
+        return trend;
+    }
+
+    /**
+     * 构建趋势查询参数。
+     *
+     * @return 趋势查询参数
+     */
+    private DashboardWorkOrderTrendQuery buildTrendQuery() {
         DashboardWorkOrderTrendQuery query = new DashboardWorkOrderTrendQuery();
-        query.setViewScope(viewScope);
-        query.setHasTransfer(null);
         query.setStartTime(resolveTrendStartTime());
         query.setEndTime(resolveTrendEndTime());
 
-        // 工单趋势 SQL 必须复用现有工单访问上下文，否则首页趋势会出现“列表页看不见、首页看得见”的越权风险。
+        // 趋势统计必须复用工单访问上下文，避免首页事件趋势越过主体和数据范围边界。
         WorkOrderAccessContext accessContext = workOrderAccessContextResolver.resolve();
         query.setAccessContext(accessContext);
         return query;
     }
 
     /**
-     * 读取首页最新历史待办列表。
+     * 构建当前承接工单统计查询。
      *
-     * <p>这里有意继续复用现有 HISTORY 分页能力，因为首页只展示“最近若干条列表项”，
-     * 并不会再拿分页总数或分页 records 做趋势统计。</p>
-     *
-     * @return 首页最新历史待办列表
+     * @return 工单查询参数
      */
-    private List<DashboardHistoryTodoVO> listLatestHistoryTodos() {
-        NotifyMessageQuery query = new NotifyMessageQuery();
-        query.setBox("HISTORY");
-        query.setPageNum(1);
-        query.setPageSize(LATEST_HISTORY_TODO_LIMIT);
-        query.setReceiverId(SecurityContext.getCurrentUserId());
-        query.setReceiverCompanyId(SecurityContext.getCurrentCompanyId());
+    private WorkOrderQuery buildCurrentQuery() {
+        WorkOrderQuery query = new WorkOrderQuery();
+        query.setViewScope("CURRENT");
+        return query;
+    }
 
-        PageResult<NotifyMessagePageVO> pageResult = notifyMessageService.listPage(query);
-        List<NotifyMessagePageVO> records = pageResult == null ? Collections.emptyList() : pageResult.getRecords();
-        if (records == null || records.isEmpty()) {
-            return Collections.emptyList();
+    /**
+     * 调用工单领域状态统计并转为 Map。
+     *
+     * @param query 工单查询参数
+     * @return 状态编码到数量的 Map
+     */
+    private Map<String, Long> countStatusMap(WorkOrderQuery query) {
+        List<WorkOrderStatusCountVO> rows = workOrderService.countByStatus(query);
+        Map<String, Long> result = new LinkedHashMap<>();
+        result.put("ALL", 0L);
+        result.put(WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN, 0L);
+        result.put(WorkOrderStatusConstants.MainStatus.PENDING_TECH_ACCEPT, 0L);
+        result.put(WorkOrderStatusConstants.MainStatus.IN_PROGRESS, 0L);
+        result.put(WorkOrderStatusConstants.MainStatus.COMPLETED, 0L);
+        result.put(WorkOrderStatusConstants.MainStatus.CLOSED, 0L);
+        if (rows == null) {
+            return result;
         }
-        List<DashboardHistoryTodoVO> result = new ArrayList<>();
-        for (NotifyMessagePageVO record : records) {
-            if (record == null) {
+        for (WorkOrderStatusCountVO row : rows) {
+            if (row == null || row.getMainStatus() == null) {
                 continue;
             }
-            DashboardHistoryTodoVO item = new DashboardHistoryTodoVO();
-            item.setId(record.getId());
-            item.setTitle(record.getTitle());
-            item.setSummary(record.getSummary());
-            item.setBizType(record.getBizType());
-            item.setBizId(record.getBizId());
-            item.setRouteType(record.getRouteType());
-            item.setRouteValue(record.getRouteValue());
-            item.setTodoStatus(record.getTodoStatus());
-            item.setCreateTime(record.getCreateTime());
-            result.add(item);
+            result.put(row.getMainStatus(), defaultLong(row.getCountNum()));
         }
         return result;
     }
 
     /**
-     * 把待办趋势按最近七天完整补齐。
+     * 创建工单指标卡片。
      *
-     * @param trend7d 首页趋势对象
-     * @param rows 待办按天聚合结果
+     * @param code 指标编码
+     * @param title 指标标题
+     * @param value 指标值
+     * @param statCondition 统计条件说明
+     * @param query 点击列表查询参数
+     * @return 首页指标
      */
-    private void fillTodoTrend(DashboardTrend7dVO trend7d, List<DashboardCountByDayVO> rows) {
-        List<String> dayKeys = buildRecentDayKeys();
+    private HomeMetricVO buildWorkOrderMetric(String code, String title, Long value,
+                                              String statCondition, Map<String, Object> query) {
+        HomeMetricVO metric = new HomeMetricVO();
+        metric.setCode(code);
+        metric.setTitle(title);
+        metric.setValue(defaultLong(value));
+        metric.setUnit("单");
+        metric.setStatCondition(statCondition);
+        metric.setListQueryCondition(buildListQueryCondition(query));
+        metric.setRouteTarget(route(WORK_ORDER_ROUTE_NAME, query));
+        return metric;
+    }
+
+    /**
+     * 创建趋势序列。
+     *
+     * @param code 序列编码
+     * @param name 序列名称
+     * @param days 最近七天日期
+     * @param rows 数据库按天聚合结果
+     * @return 趋势序列
+     */
+    private HomeTrendSeriesVO buildTrendSeries(String code, String name, List<String> days, List<DashboardCountByDayVO> rows) {
         Map<String, Long> countMap = buildDayCountMap(rows);
-        trend7d.setDayKeys(dayKeys);
-        List<Long> counts = new ArrayList<>();
-        for (String dayKey : dayKeys) {
-            counts.add(countMap.getOrDefault(dayKey, 0L));
+        HomeTrendSeriesVO series = new HomeTrendSeriesVO();
+        series.setCode(code);
+        series.setName(name);
+        List<Long> values = new ArrayList<>();
+        for (String day : days) {
+            values.add(countMap.getOrDefault(day, 0L));
         }
-        trend7d.setActiveTodoCounts(counts);
+        series.setValues(values);
+        return series;
     }
 
     /**
-     * 把工单趋势按最近七天完整补齐。
+     * 创建空趋势结构。
      *
-     * @param trend7d 首页趋势对象
-     * @param rows 工单按天聚合结果
-     */
-    private void fillWorkOrderTrend(DashboardTrend7dVO trend7d, List<DashboardCountByDayVO> rows) {
-        List<String> dayKeys = trend7d.getDayKeys();
-        if (dayKeys == null || dayKeys.isEmpty()) {
-            dayKeys = buildRecentDayKeys();
-            trend7d.setDayKeys(dayKeys);
-        }
-        Map<String, Long> countMap = buildDayCountMap(rows);
-        List<Long> counts = new ArrayList<>();
-        for (String dayKey : dayKeys) {
-            counts.add(countMap.getOrDefault(dayKey, 0L));
-        }
-        trend7d.setCreatedWorkOrderCounts(counts);
-    }
-
-    /**
-     * 将工单状态计数列表收敛成首页专用固定字段。
-     *
-     * @param rows 既有状态计数列表
-     * @return 首页工单状态结构
-     */
-    private DashboardWorkOrderStatusVO buildDashboardWorkOrderStatus(List<WorkOrderStatusCountVO> rows) {
-        Map<String, Long> statusCountMap = new LinkedHashMap<>();
-        if (rows != null) {
-            for (WorkOrderStatusCountVO row : rows) {
-                if (row != null && row.getMainStatus() != null) {
-                    statusCountMap.put(row.getMainStatus(), defaultLong(row.getCountNum()));
-                }
-            }
-        }
-        DashboardWorkOrderStatusVO status = new DashboardWorkOrderStatusVO();
-        status.setAll(statusCountMap.getOrDefault("ALL", 0L));
-        status.setPendingAssign(statusCountMap.getOrDefault("PENDING_ASSIGN", 0L));
-        status.setPendingTechAccept(statusCountMap.getOrDefault("PENDING_TECH_ACCEPT", 0L));
-        status.setInProgress(statusCountMap.getOrDefault("IN_PROGRESS", 0L));
-        status.setCompleted(statusCountMap.getOrDefault("COMPLETED", 0L));
-        status.setClosed(statusCountMap.getOrDefault("CLOSED", 0L));
-        return status;
-    }
-
-    /**
-     * 创建空的工单状态结构。
-     *
-     * @return 空状态结构
-     */
-    private DashboardWorkOrderStatusVO buildEmptyWorkOrderStatus() {
-        DashboardWorkOrderStatusVO status = new DashboardWorkOrderStatusVO();
-        status.setAll(0L);
-        status.setPendingAssign(0L);
-        status.setPendingTechAccept(0L);
-        status.setInProgress(0L);
-        status.setCompleted(0L);
-        status.setClosed(0L);
-        return status;
-    }
-
-    /**
-     * 创建空的近七天趋势结构。
-     *
+     * @param title 趋势标题
      * @return 空趋势结构
      */
-    private DashboardTrend7dVO buildEmptyWorkOrderTrend() {
-        DashboardTrend7dVO trend7d = new DashboardTrend7dVO();
-        List<String> dayKeys = buildRecentDayKeys();
-        trend7d.setDayKeys(dayKeys);
-        trend7d.setCreatedWorkOrderCounts(buildZeroCounts(dayKeys.size()));
-        trend7d.setActiveTodoCounts(buildZeroCounts(dayKeys.size()));
-        return trend7d;
+    private HomeTrendVO buildEmptyTrend(String title) {
+        HomeTrendVO trend = new HomeTrendVO();
+        trend.setTitle(title);
+        trend.setDays(buildRecentDayKeys());
+        return trend;
+    }
+
+    /**
+     * 创建首页分区。
+     *
+     * @param title 分区标题
+     * @return 首页分区
+     */
+    private HomeSectionVO buildSection(String title) {
+        HomeSectionVO section = new HomeSectionVO();
+        section.setTitle(title);
+        return section;
+    }
+
+    /**
+     * 创建跳转目标。
+     *
+     * @param routeName 前端路由名称
+     * @param query 路由查询参数
+     * @return 跳转目标
+     */
+    private HomeRouteTargetVO route(String routeName, Map<String, Object> query) {
+        HomeRouteTargetVO target = new HomeRouteTargetVO();
+        target.setRouteName(routeName);
+        target.setQuery(query);
+        return target;
+    }
+
+    /**
+     * 创建有序查询参数。
+     *
+     * @param keyValues 交替传入 key 与 value
+     * @return 查询参数 Map
+     */
+    private Map<String, Object> query(Object... keyValues) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        if (keyValues == null) {
+            return result;
+        }
+        for (int i = 0; i + 1 < keyValues.length; i += 2) {
+            result.put(String.valueOf(keyValues[i]), keyValues[i + 1]);
+        }
+        return result;
+    }
+
+    /**
+     * 把路由查询参数转成接口说明文本。
+     *
+     * @param query 路由查询参数
+     * @return 查询说明
+     */
+    private String buildListQueryCondition(Map<String, Object> query) {
+        if (query == null || query.isEmpty()) {
+            return "工单列表无额外筛选";
+        }
+        StringBuilder builder = new StringBuilder("工单列表查询参数：");
+        boolean first = true;
+        for (Map.Entry<String, Object> entry : query.entrySet()) {
+            if (!first) {
+                builder.append("&");
+            }
+            builder.append(entry.getKey()).append("=").append(entry.getValue());
+            first = false;
+        }
+        return builder.toString();
     }
 
     /**
@@ -357,10 +434,10 @@ public class ServiceDashboardServiceImpl implements IServiceDashboardService {
     }
 
     /**
-     * 把按天聚合结果转换成便于补齐缺失日期的 Map。
+     * 把按天聚合结果转换成 Map。
      *
      * @param rows 按天聚合结果
-     * @return 日期键到数量的映射
+     * @return 日期到数量的映射
      */
     private Map<String, Long> buildDayCountMap(List<DashboardCountByDayVO> rows) {
         Map<String, Long> result = new LinkedHashMap<>();
@@ -377,51 +454,9 @@ public class ServiceDashboardServiceImpl implements IServiceDashboardService {
     }
 
     /**
-     * 创建指定长度的零值数组。
+     * 判断当前人是否具备工单列表权限。
      *
-     * @param size 数组长度
-     * @return 零值数组
-     */
-    private List<Long> buildZeroCounts(int size) {
-        List<Long> result = new ArrayList<>();
-        for (int i = 0; i < size; i++) {
-            result.add(0L);
-        }
-        return result;
-    }
-
-    /**
-     * 读取状态计数列表中的 ALL 数量。
-     *
-     * @param rows 状态计数列表
-     * @return ALL 数量
-     */
-    private Long resolveAllCount(List<WorkOrderStatusCountVO> rows) {
-        if (rows == null) {
-            return 0L;
-        }
-        for (WorkOrderStatusCountVO row : rows) {
-            if (row != null && "ALL".equals(row.getMainStatus())) {
-                return defaultLong(row.getCountNum());
-            }
-        }
-        return 0L;
-    }
-
-    /**
-     * 统一兜底空数量。
-     *
-     * @param value 原始数量
-     * @return 非空数量
-     */
-    private Long defaultLong(Long value) {
-        return value == null ? 0L : value;
-    }
-
-    /**
-     * 判断当前人是否具备工单统计能力。
-     *
-     * @return true 表示可读取工单首页统计
+     * @return true 表示可以读取首页工单统计
      */
     private boolean hasWorkOrderListPermission() {
         return StpUtil.hasPermission("workorder:list");
@@ -430,7 +465,7 @@ public class ServiceDashboardServiceImpl implements IServiceDashboardService {
     /**
      * 解析首页趋势开始时间。
      *
-     * @return 最近七天的开始时间，含边界
+     * @return 最近七天开始时间，含边界
      */
     private LocalDateTime resolveTrendStartTime() {
         return LocalDate.now().minusDays(TREND_DAYS - 1L).atStartOfDay();
@@ -443,5 +478,15 @@ public class ServiceDashboardServiceImpl implements IServiceDashboardService {
      */
     private LocalDateTime resolveTrendEndTime() {
         return LocalDate.now().plusDays(1L).atStartOfDay();
+    }
+
+    /**
+     * 统一兜底空数量。
+     *
+     * @param value 原始数量
+     * @return 非空数量
+     */
+    private Long defaultLong(Long value) {
+        return value == null ? 0L : value;
     }
 }

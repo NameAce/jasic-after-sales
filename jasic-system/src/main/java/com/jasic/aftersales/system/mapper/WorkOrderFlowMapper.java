@@ -20,6 +20,31 @@ import java.util.List;
 public interface WorkOrderFlowMapper extends BaseMapper<WorkOrderFlow> {
 
     /**
+     * 查询指定工单最早的一条建单流转记录。
+     *
+     * <p>本轮寄件单号补录采用不改表的临时方案，`work_order` 主表没有正式创建人字段，
+     * 因此只能回溯建单时写入的首条 `CREATE` 流转，并把其中的 `operator_user_id`
+     * 临时视为建单人用户ID。按创建时间和主键同时升序，是为了在异常重复 CREATE 记录下仍稳定取最早记录。</p>
+     *
+     * @param workOrderId 工单ID
+     * @return 首条建单流转记录；旧数据缺失 CREATE 时返回 null
+     */
+    @Select({
+            "SELECT",
+            "  id, work_order_id AS workOrderId, action_type AS actionType,",
+            "  before_status AS beforeStatus, after_status AS afterStatus,",
+            "  from_company_id AS fromCompanyId, to_company_id AS toCompanyId,",
+            "  operator_company_id AS operatorCompanyId, operator_user_id AS operatorUserId,",
+            "  remark, create_time AS createTime, update_time AS updateTime",
+            "FROM work_order_flow",
+            "WHERE work_order_id = #{workOrderId}",
+            "  AND action_type = 'CREATE'",
+            "ORDER BY create_time ASC, id ASC",
+            "LIMIT 1"
+    })
+    WorkOrderFlow selectFirstCreateFlow(@Param("workOrderId") Long workOrderId);
+
+    /**
      * 统计当前客户在指定服务网点集合内的建单报修历史。
      *
      * @param customerId 客户ID

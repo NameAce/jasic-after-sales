@@ -117,6 +117,48 @@
         <where>
             <if test="query.accessContext.currentCompanyId != null">
                 <choose>
+                    <when test="query.transferDirection == 'OUT'">
+                        AND EXISTS (
+                            SELECT 1
+                            FROM work_order_flow tf
+                            WHERE tf.work_order_id = w.id
+                              AND tf.action_type = 'TRANSFER'
+                              AND tf.from_company_id = #{query.accessContext.currentCompanyId}
+                        )
+                        <if test="query.accessContext.subjectType == 'HQ'">
+                            AND w.hq_company_id = #{query.accessContext.currentCompanyId}
+                        </if>
+                        <if test="query.accessContext.subjectType == 'HQ' and query.accessContext.dataScope == 'REGION'">
+                            <choose>
+                                <when test="query.accessContext.relatedCompanyIds != null and query.accessContext.relatedCompanyIds.size() > 0">
+                                    AND <include refid="RelatedCompanyScopeCondition" />
+                                </when>
+                                <otherwise>
+                                    AND 1 = 0
+                                </otherwise>
+                            </choose>
+                        </if>
+                        <if test="query.accessContext.dataScope == 'SELF'">
+                            <choose>
+                                <when test="query.accessContext.currentUserId != null">
+                                    AND (
+                                        EXISTS (
+                                            SELECT 1
+                                            FROM work_order_flow tfu
+                                            WHERE tfu.work_order_id = w.id
+                                              AND tfu.action_type = 'TRANSFER'
+                                              AND tfu.from_company_id = #{query.accessContext.currentCompanyId}
+                                              AND tfu.operator_user_id = #{query.accessContext.currentUserId}
+                                        )
+                                        OR <include refid="CurrentUserHistoryParticipationCondition" />
+                                    )
+                                </when>
+                                <otherwise>
+                                    AND 1 = 0
+                                </otherwise>
+                            </choose>
+                        </if>
+                    </when>
                     <when test="query.viewScope == 'HISTORY'">
                         <choose>
                             <when test="query.accessContext.subjectType == 'HQ'">
@@ -251,7 +293,7 @@
             <if test="query.hasTransfer != null">
                 AND w.has_transfer = #{query.hasTransfer}
             </if>
-            <if test="query.accessContext.dataScope == 'SELF' and query.accessContext.currentUserId != null">
+            <if test="query.transferDirection != 'OUT' and query.accessContext.dataScope == 'SELF' and query.accessContext.currentUserId != null">
                 <choose>
                     <when test="query.viewScope == 'ALL'">
                         AND <include refid="CurrentUserAllVisibilityCondition" />
@@ -352,6 +394,48 @@
         <where>
             <if test="query.accessContext.currentCompanyId != null">
                 <choose>
+                    <when test="query.transferDirection == 'OUT'">
+                        AND EXISTS (
+                            SELECT 1
+                            FROM work_order_flow tf
+                            WHERE tf.work_order_id = w.id
+                              AND tf.action_type = 'TRANSFER'
+                              AND tf.from_company_id = #{query.accessContext.currentCompanyId}
+                        )
+                        <if test="query.accessContext.subjectType == 'HQ'">
+                            AND w.hq_company_id = #{query.accessContext.currentCompanyId}
+                        </if>
+                        <if test="query.accessContext.subjectType == 'HQ' and query.accessContext.dataScope == 'REGION'">
+                            <choose>
+                                <when test="query.accessContext.relatedCompanyIds != null and query.accessContext.relatedCompanyIds.size() > 0">
+                                    AND <include refid="RelatedCompanyScopeCondition" />
+                                </when>
+                                <otherwise>
+                                    AND 1 = 0
+                                </otherwise>
+                            </choose>
+                        </if>
+                        <if test="query.accessContext.dataScope == 'SELF'">
+                            <choose>
+                                <when test="query.accessContext.currentUserId != null">
+                                    AND (
+                                        EXISTS (
+                                            SELECT 1
+                                            FROM work_order_flow tfu
+                                            WHERE tfu.work_order_id = w.id
+                                              AND tfu.action_type = 'TRANSFER'
+                                              AND tfu.from_company_id = #{query.accessContext.currentCompanyId}
+                                              AND tfu.operator_user_id = #{query.accessContext.currentUserId}
+                                        )
+                                        OR <include refid="CurrentUserHistoryParticipationCondition" />
+                                    )
+                                </when>
+                                <otherwise>
+                                    AND 1 = 0
+                                </otherwise>
+                            </choose>
+                        </if>
+                    </when>
                     <when test="query.viewScope == 'HISTORY'">
                         <choose>
                             <when test="query.accessContext.subjectType == 'HQ'">
@@ -483,7 +567,7 @@
             <if test="query.hasTransfer != null">
                 AND w.has_transfer = #{query.hasTransfer}
             </if>
-            <if test="query.accessContext.dataScope == 'SELF' and query.accessContext.currentUserId != null">
+            <if test="query.transferDirection != 'OUT' and query.accessContext.dataScope == 'SELF' and query.accessContext.currentUserId != null">
                 <choose>
                     <when test="query.viewScope == 'ALL'">
                         AND <include refid="CurrentUserAllVisibilityCondition" />

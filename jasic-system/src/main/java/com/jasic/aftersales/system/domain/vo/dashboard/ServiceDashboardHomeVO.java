@@ -5,45 +5,49 @@ import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
- * 服务主体首页总览返回结构。
+ * 服务网点主体首页返回结构。
  *
- * <p>该对象是 `/dashboard/service/home` 的唯一返回契约，
- * 用于替代前端拼装旧分页接口后的首页数据结构。</p>
+ * <p>该对象是 `/dashboard/service/home` 的唯一返回契约。本轮服务网点首页命名为“服务工作台”，
+ * 一级网点和二级网点统一使用同一结构，只返回当前服务公司承接工单、已转出、历史参与入口和近七天事件趋势。</p>
  *
  * @author Codex
- * @date 2026/05/20
+ * @date 2026/05/21
  */
-@ApiModel(description = "服务主体首页总览返回结构")
+@ApiModel(description = "服务网点主体首页返回结构")
 @Data
 public class ServiceDashboardHomeVO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     /**
-     * 顶部概览区。
+     * 首页标题。
      */
-    @ApiModelProperty(value = "顶部概览区")
-    private ServiceDashboardOverviewVO overview;
+    @ApiModelProperty(value = "首页标题")
+    private String title;
 
     /**
-     * 工单状态统计。
+     * 当前服务公司承接工单池。
      */
-    @ApiModelProperty(value = "工单状态统计")
-    private DashboardWorkOrderStatusVO workOrderStatus;
+    @ApiModelProperty(value = "当前服务公司承接工单池")
+    private HomeSectionVO currentPool;
 
     /**
-     * 近七天趋势。
+     * 当前服务公司作为转出方的工单分区。
      */
-    @ApiModelProperty(value = "近七天趋势")
-    private DashboardTrend7dVO trend7d;
+    @ApiModelProperty(value = "当前服务公司作为转出方的工单分区")
+    private HomeSectionVO transfer;
 
     /**
-     * 最新历史待办列表。
+     * 历史参与入口。
      */
-    @ApiModelProperty(value = "最新历史待办列表")
-    private List<DashboardHistoryTodoVO> latestHistoryTodos = new ArrayList<>();
+    @ApiModelProperty(value = "历史参与入口")
+    private HomeEntryVO historyEntry;
+
+    /**
+     * 近七天事件趋势。
+     */
+    @ApiModelProperty(value = "近七天事件趋势")
+    private HomeTrendVO trend;
 }

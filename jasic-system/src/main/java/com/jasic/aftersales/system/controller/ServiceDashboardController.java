@@ -13,35 +13,35 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.annotation.Resource;
 
 /**
- * 服务主体首页控制器。
+ * 服务网点主体首页控制器。
  *
- * <p>该控制器只提供服务主体首页专用聚合接口，
- * 不承载工单列表、待办列表等非首页业务入口。</p>
+ * <p>该控制器只提供服务网点“服务工作台”聚合接口。
+ * 一级网点和二级网点本轮统一处理，不承载我的事项或一级管理二级的专项首页。</p>
  *
  * @author Codex
  * @date 2026/05/20
  */
-@Api(tags = "服务主体首页")
+@Api(tags = "服务网点主体首页")
 @RestController
 @SaCheckLogin
 @RequestMapping("/dashboard/service")
 public class ServiceDashboardController {
 
     /**
-     * 服务主体首页 Service。
+     * 服务网点主体首页 Service。
      */
     @Resource
     private IServiceDashboardService serviceDashboardService;
 
     /**
-     * 查询服务主体首页总览。
+     * 查询服务网点主体首页总览。
      *
-     * <p>该接口一次返回服务主体首页所需的全部数据块，
-     * 包括概览卡片、工单状态、近七天趋势和最新历史待办。</p>
+     * <p>该接口一次返回服务工作台所需的全部数据块：
+     * 当前承接工单、已转出、历史参与入口和近七天事件趋势。</p>
      *
-     * @return 服务主体首页总览
+     * @return 服务网点主体首页总览
      */
-    @ApiOperation(value = "查询服务主体首页总览")
+    @ApiOperation(value = "查询服务网点主体首页总览")
     @GetMapping("/home")
     public Result<ServiceDashboardHomeVO> home() {
         return Result.ok(serviceDashboardService.getHome());

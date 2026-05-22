@@ -7,35 +7,41 @@ import lombok.Data;
 import java.io.Serializable;
 
 /**
- * 平台首页总览返回结构。
+ * 平台主体首页返回结构。
  *
- * <p>该对象是 `/dashboard/platform/home` 的唯一返回契约，
- * 仅承载组织治理类统计，不混入工单业务统计。</p>
+ * <p>该对象是 `/dashboard/platform/home` 的唯一返回契约。本轮平台首页命名为“治理看板”，
+ * 只允许返回组织治理、账号治理和基础配置三块内容，不包含任何工单、CRM 同步、消息治理、趋势图或完整度评分字段。</p>
  *
  * @author Codex
- * @date 2026/05/20
+ * @date 2026/05/21
  */
-@ApiModel(description = "平台首页总览返回结构")
+@ApiModel(description = "平台主体首页返回结构")
 @Data
 public class PlatformDashboardHomeVO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     /**
-     * 顶部概览区。
+     * 首页标题。
      */
-    @ApiModelProperty(value = "顶部概览区")
-    private PlatformDashboardOverviewVO overview;
+    @ApiModelProperty(value = "首页标题")
+    private String title;
 
     /**
-     * 主体类型分布。
+     * 组织治理分区。
      */
-    @ApiModelProperty(value = "主体类型分布")
-    private DashboardSubjectTypeDistributionVO subjectTypeDistribution;
+    @ApiModelProperty(value = "组织治理分区")
+    private HomeSectionVO organization;
 
     /**
-     * 操作日志近七天趋势。
+     * 账号治理分区。
      */
-    @ApiModelProperty(value = "操作日志近七天趋势")
-    private DashboardOperLogTrend7dVO operLogTrend7d;
+    @ApiModelProperty(value = "账号治理分区")
+    private HomeSectionVO account;
+
+    /**
+     * 基础配置分区。
+     */
+    @ApiModelProperty(value = "基础配置分区")
+    private HomeSectionVO basicConfig;
 }
