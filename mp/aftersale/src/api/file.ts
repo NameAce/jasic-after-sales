@@ -16,10 +16,22 @@ type UploadBody = {
   data?: SysFileUploadVO
 }
 
+/**
+ * 作用：接口封装：resolveUploadUrl。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function resolveUploadUrl(url: string): string {
   return resolveHttpUrl(url)
 }
 
+/**
+ * 作用：转换/构造：parseUploadResponse。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function parseUploadResponse(raw: string | UploadBody): UploadBody {
   if (typeof raw === 'string') {
     try {
@@ -31,6 +43,12 @@ function parseUploadResponse(raw: string | UploadBody): UploadBody {
   return raw ?? {}
 }
 
+/**
+ * 作用：接口封装：uploadCustomerFile。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function uploadCustomerFile(filePath: string): Promise<SysFileUploadVO> {
   return new Promise((resolve, reject) => {
     const token = uni.getStorageSync('token') || ''

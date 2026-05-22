@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 主题抽屉 — 外观模式：亮/暗/跟随系统、侧栏反色、灰度与色弱辅助。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import type { SegmentedOption } from 'ant-design-vue/es/segmented/src/segmented';
@@ -21,7 +23,11 @@ const icons: Record<UnionKey.ThemeScheme, string> = {
   auto: 'material-symbols:hdr-auto'
 };
 
-/** 构建 Segmented 选项（含图标 payload） */
+/**
+ * 构建 Segmented 选项（含图标 payload）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function getSegmentOptions() {
   const opts: SegmentedOption[] = Object.keys(themeSchemaRecord).map(item => {
     const key = item as UnionKey.ThemeScheme;
@@ -39,7 +45,11 @@ function getSegmentOptions() {
 // Segmented 控件选项（亮/暗/跟随系统）含图标 payload
 const options = computed(() => getSegmentOptions());
 
-/** Segmented 变更：写入全局 themeScheme */
+/**
+ * Segmented 变更：写入全局 themeScheme
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleSegmentChange(value: string | number) {
   themeStore.setThemeScheme(value as UnionKey.ThemeScheme);
 }
@@ -49,18 +59,27 @@ const showSiderInverted = computed(() => !themeStore.darkMode && themeStore.layo
 
 type CheckedType = boolean | string | number;
 
-/** 灰度模式开关 */
+/**
+ * 灰度模式开关
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleGrayscaleChange(value: CheckedType) {
   themeStore.setGrayscale(value as boolean);
 }
 
-/** 色弱模式开关 */
+/**
+ * 色弱模式开关
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleColourWeaknessChange(value: CheckedType) {
   themeStore.setColourWeakness(value as boolean);
 }
 </script>
 
 <template>
+  <!-- 布局子模块：dark-mode -->
   <ADivider>{{ $t('theme.themeSchema.title') }}</ADivider>
   <div class="flex-col-stretch gap-16px">
     <div class="i-flex-center">

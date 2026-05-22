@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 系统管理 — 角色：分页列表、数据范围、分配菜单与角色模板维护（对接后端角色接口）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, nextTick, onMounted, reactive, ref } from 'vue';
 import type { FormInstance } from 'ant-design-vue';
@@ -138,9 +140,10 @@ const columns = computed(() =>
 );
 
 /**
- * 作用：从分页或数组结构中解析表格行数据。
- * @param data - 接口返回体
- * @returns 行数组
+ * 作用：从分页接口响应解析列表数组。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function pickRows(data: any) {
   if (Array.isArray(data)) return data;
@@ -149,9 +152,10 @@ function pickRows(data: any) {
 }
 
 /**
- * 作用：将数据范围选项列表转为 value→label 映射表。
- * @param options - 数据范围选项
- * @returns 映射对象
+ * 作用：构造数据或配置：buildDataScopeMap。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function buildDataScopeMap(options: ScopeOption[]) {
   return (options || []).reduce<Record<string, string>>((map, option) => {
@@ -161,10 +165,10 @@ function buildDataScopeMap(options: ScopeOption[]) {
 }
 
 /**
- * 作用：合并历史遗留的数据范围值到选项列表（禁用展示）。
- * @param options - 当前可选列表
- * @param currentValue - 当前表单中的旧值
- * @returns 合并后的选项数组
+ * 作用：页面内业务方法：mergeLegacyOption。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function mergeLegacyOption(options: ScopeOption[], currentValue?: string) {
   const result = [...(options || [])];
@@ -200,18 +204,20 @@ const roleFormRules = computed(() => ({
 }));
 
 /**
- * 作用：根据主数据范围选项同步表单内下拉可选项（含历史值兜底）。
- * @param currentValue - 当前 dataScope 字符串
- * @returns {void} 无
+ * 作用：同步状态：syncFormDataScopeOptions。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function syncFormDataScopeOptions(currentValue = String(formModel.dataScope || '')) {
   formDataScopeOptions.value = mergeLegacyOption(dataScopeOptions.value, currentValue);
 }
 
 /**
- * 作用：读取后端标记的默认数据范围编码。
- * @param 无
- * @returns 默认 value，无则 SELF
+ * 作用：读取/解析：getDefaultDataScope。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function getDefaultDataScope() {
   const defaultOption = dataScopeOptions.value.find(item => item.defaultOption);
@@ -219,18 +225,20 @@ function getDefaultDataScope() {
 }
 
 /**
- * 作用：校验 dataScope 是否在当前公司允许列表内。
- * @param value - 数据范围编码
- * @returns 是否合法
+ * 作用：判断是否满足条件：isValidDataScope。
+ * @returns boolean
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function isValidDataScope(value: string) {
   return dataScopeOptions.value.some(item => item.value === value);
 }
 
 /**
- * 作用：加载数据范围字典并更新映射与表单选项。
- * @param 无
- * @returns 返回 Promise，请求结束后结束
+ * 作用：加载数据：loadDataScopeMap。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadDataScopeMap() {
   try {
@@ -247,9 +255,10 @@ async function loadDataScopeMap() {
 }
 
 /**
- * 作用：分页拉取角色列表并更新表格。
- * @param page - 目标页码，默认可不传则用当前 pageNum
- * @returns 返回 Promise，加载结束后结束
+ * 作用：加载当前 Tab/条件下表格数据。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadList(page = pageNum.value) {
   clearListMsgs();
@@ -282,9 +291,10 @@ async function loadList(page = pageNum.value) {
 }
 
 /**
- * 作用：搜索时回到第一页并刷新列表。
- * @param 无
- * @returns {void} 无
+ * 作用：执行查询（回到第一页）：handleSearch。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleSearch() {
   pageNum.value = 1;
@@ -292,9 +302,10 @@ function handleSearch() {
 }
 
 /**
- * 作用：重置筛选条件并重新查询。
- * @param 无
- * @returns {void} 无
+ * 作用：页面内业务方法：resetSearch。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function resetSearch() {
   queryParams.roleName = '';
@@ -303,10 +314,10 @@ function resetSearch() {
 }
 
 /**
- * 作用：表格分页变化时重新拉取（每页条数变化时回到第一页）。
- * @param page - 页码
- * @param pageSizeArg - 每页条数，可选
- * @returns {void} 无
+ * 作用：处理交互事件：handleTablePageChange。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleTablePageChange(page: number, pageSizeArg?: number) {
   if (pageSizeArg !== undefined && pageSizeArg !== pageSize.value) {
@@ -318,9 +329,10 @@ function handleTablePageChange(page: number, pageSizeArg?: number) {
 }
 
 /**
- * 作用：打开新增角色抽屉并初始化表单默认值。
- * @param 无
- * @returns {void} 无
+ * 作用：页面内业务方法：openAdd。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function openAdd() {
   formTitle.value = '新增角色';
@@ -338,9 +350,10 @@ function openAdd() {
 }
 
 /**
- * 作用：打开编辑抽屉并回填指定角色详情。
- * @param record - 表格行数据
- * @returns 返回 Promise，详情加载并回填后结束
+ * 作用：页面内业务方法：openEdit。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openEdit(record: RowData) {
   formTitle.value = '编辑角色';
@@ -360,9 +373,10 @@ async function openEdit(record: RowData) {
 }
 
 /**
- * 作用：校验并提交新增/编辑角色表单。
- * @param 无
- * @returns 返回 Promise，提交结束后结束
+ * 作用：校验并提交：submitForm。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitForm() {
   try {
@@ -397,9 +411,10 @@ async function submitForm() {
 }
 
 /**
- * 作用：删除角色并刷新当前页列表。
- * @param record - 表格行
- * @returns 返回 Promise，删除完成后结束
+ * 作用：删除记录：removeRole。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function removeRole(record: RowData) {
   const res = await deleteRole(record.id);
@@ -408,9 +423,10 @@ async function removeRole(record: RowData) {
 }
 
 /**
- * 作用：打开分配菜单抽屉，加载当前公司类型下的菜单树；已勾选菜单以 GET /system/role/{id} 返回的 SysRoleVO.menuIds 为准（与后端 sys_role_menu 一致）。
- * @param record - 角色行
- * @returns 返回 Promise，数据就绪后结束
+ * 作用：页面内业务方法：openAssignMenu。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openAssignMenu(record: RowData) {
   const typeCode = String(authStore.userInfo.currentTypeCode || '');
@@ -440,9 +456,10 @@ async function openAssignMenu(record: RowData) {
 }
 
 /**
- * 作用：提交角色菜单权限勾选结果。
- * @param 无
- * @returns 返回 Promise，提交完成后结束
+ * 作用：校验并提交：submitAssignMenu。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitAssignMenu() {
   if (!currentRoleId.value) return;
@@ -471,7 +488,9 @@ onMounted(async () => {
 </script>
 
 <template>
+  <!-- 系统角色：列表维护、菜单权限分配与数据范围配置 -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <!-- 筛选区：角色名称、状态 -->
     <ACard :bordered="false" class="card-wrapper">
       <AForm :model="queryParams" :label-col="{ span: 5, md: 7 }">
         <div class="page-search-toolbar">
@@ -524,6 +543,7 @@ onMounted(async () => {
         </div>
       </AForm>
     </ACard>
+    <!-- 列表区：角色表格与菜单权限分配 -->
     <ACard
       :title="pageMenuTitle"
       :bordered="false"
@@ -599,6 +619,7 @@ onMounted(async () => {
       </ATable>
     </ACard>
 
+    <!-- 抽屉：角色表单与菜单树勾选 -->
     <ADrawer v-model:open="formOpen" :title="formTitle" :width="roleFormDrawerWidth">
       <AForm ref="roleFormRef" layout="vertical" :model="formModel" :rules="roleFormRules as any">
         <ARow :gutter="16">

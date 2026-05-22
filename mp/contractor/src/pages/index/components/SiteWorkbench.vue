@@ -1,4 +1,5 @@
 <template>
+  <!-- 承修方小程序（网点/总部工单处理、派工）页面 index / components / SiteWorkbench -->
   <view class="site-workbench">
     <view class="stats-section">
       <view class="stat-card primary" @tap="emit('stat-tap', 'pending')">
@@ -55,12 +56,18 @@
 
   const props = withDefaults(
     defineProps<{
-      /** 首卡：与接口 `status-count` 中 PENDING_ASSIGN / PENDING_TECH_ACCEPT 行的 displayStatus、countNum 一致 */
+      /**
+ * 首卡：与接口 `status-count` 中 PENDING_ASSIGN / PENDING_TECH_ACCEPT 行的 displayStatus、countNum 一致
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       primaryPendingStat: { label: string; count: number }
       /**
        * 来自 `GET /api/system/work-order/status-count`（`viewScope: CURRENT`），
        * 父级 `useIndexWorkbench` 内 `aggregateWorkOrderStatusTabCounts` 聚合后与列表一并刷新。
-       */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       siteWorkbenchStats: {
         pendingAssign: number
         pendingTechAccept: number
@@ -71,7 +78,11 @@
       workbenchListTitle: string
       workbenchEmptyTitle: string
       workbenchEmptyDesc: string
-      /** 工单列表已加载完全部分页数据时展示「没有更多了」 */
+      /**
+ * 工单列表已加载完全部分页数据时展示「没有更多了」
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       showNoMore?: boolean
       orderList: OrderListItem[]
       getOrderListStatusText: (order: OrderListItem) => string

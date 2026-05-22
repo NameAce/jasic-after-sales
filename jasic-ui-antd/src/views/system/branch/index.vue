@@ -2,6 +2,8 @@
 /**
  * 总部系统管理 — 网点管理：按承修方汇总展示工单数量（`GET /system/work-order/hq-site-summary`）。
  * 菜单 component 约定为 `system/branch/index`，由动态路由映射为 `system_branch` 视图。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, onMounted, reactive, ref } from 'vue';
 import { listHqSiteSummary } from '@/service/api';
@@ -66,6 +68,12 @@ const columns = [
   { title: '已完成', dataIndex: 'completedCount', key: 'completedCount', width: 100, align: 'left' as const }
 ];
 
+/**
+ * 作用：从分页接口响应解析列表数组。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function pickRows(data: unknown) {
   if (Array.isArray(data)) return data;
   if (data && typeof data === 'object' && Array.isArray((data as { records?: unknown }).records)) {
@@ -75,7 +83,10 @@ function pickRows(data: unknown) {
 }
 
 /**
- * 作用：将全量汇总结果按当前页码、每页条数切片到表格数据源。
+ * 作用：应用配置或路由参数：applyPagination。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function applyPagination() {
   const start = (query.pageNum - 1) * query.pageSize;
@@ -84,7 +95,10 @@ function applyPagination() {
 }
 
 /**
- * 作用：请求总部网点工单汇总；未选择总部公司时不发起请求。
+ * 作用：加载当前 Tab/条件下表格数据。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadList() {
   clearListMsgs();
@@ -129,27 +143,54 @@ async function loadList() {
   }
 }
 
+/**
+ * 作用：执行查询（回到第一页）：handleSearch。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleSearch() {
   query.pageNum = 1;
   loadList();
 }
 
+/**
+ * 作用：处理交互事件：handleReset。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleReset() {
   query.siteName = '';
   handleSearch();
 }
 
+/**
+ * 作用：表格相关：tableRowKey。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function tableRowKey(record: RowData) {
   return record.siteCompanyId ?? record.siteCompanyName ?? 'summary-row';
 }
 
 /**
- * 作用：打开指定承修网点的只读工单列表抽屉。
+ * 作用：页面内业务方法：openSiteOrders。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function openSiteOrders(record: RowData) {
   siteOrdersDrawerRef.value?.open(record);
 }
 
+/**
+ * 作用：表格相关：tablePagination。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function tablePagination() {
   return {
     current: query.pageNum,
@@ -171,7 +212,9 @@ onMounted(() => {
 </script>
 
 <template>
+  <!-- 网点管理：承修方网点列表，网点名称可打开该网点工单抽屉 -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <!-- 筛选区：网点名称 -->
     <ACard :bordered="false" class="card-wrapper">
       <AForm :model="query" :label-col="{ span: 5, md: 7 }" class="mb-0">
         <div class="page-search-toolbar">
@@ -197,6 +240,7 @@ onMounted(() => {
       </AForm>
     </ACard>
 
+    <!-- 列表区：网点表格，网点名链接触发 BranchSiteOrdersDrawer -->
     <ACard
       :title="pageMenuTitle"
       :bordered="false"

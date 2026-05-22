@@ -1,4 +1,5 @@
 <template>
+  <!-- 承修方小程序（网点/总部工单处理、派工）组件 SiteWorkbench -->
   <view class="site-workbench">
     <view class="stats-section">
       <view class="stat-card primary" @tap="emit('stat-tap', 'pending')">
@@ -54,6 +55,11 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 承修方小程序（网点/总部工单处理、派工）：SiteWorkbench。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   import OrderCardList from '@/components/OrderCardList/OrderCardList.vue'
   import type { OrderListItem } from '@/models/order'
 

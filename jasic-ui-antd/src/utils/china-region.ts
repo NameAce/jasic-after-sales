@@ -125,6 +125,12 @@ export async function getRegionLabelsByCodes(codes: string[]): Promise<string[]>
   return results.filter(Boolean);
 }
 
+/**
+ * 作用：工具/模块方法：composeAddressWithRegion。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export async function composeAddressWithRegion(regionCodes: string[], addressDetail: string): Promise<string> {
   const labels = await getRegionLabelsByCodes(regionCodes);
   const prefix = labels.join('');

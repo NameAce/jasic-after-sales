@@ -1,4 +1,9 @@
 <script setup lang="ts">
+/**
+ * 遗留业务首页项目动态列表（latestHistoryTodos，可深链工单详情）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuth } from '@/hooks/business/auth';
@@ -21,7 +26,13 @@ const router = useRouter();
 const { hasAuth } = useAuth();
 const { loading, latestHistoryTodos } = useBusinessHomeDashboard();
 
-/** 拼接标题与摘要为列表展示文案 */
+/**
+ * 作用：拼接标题与摘要为列表展示文案。
+ * @param row - 动态行
+ * @returns 展示字符串
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function buildContent(row: { title?: string; summary?: string }) {
   const title = String(row?.title || '').trim();
   const summary = String(row?.summary || '').trim();
@@ -39,7 +50,13 @@ const newses = computed<NewsItem[]>(() =>
   }))
 );
 
-/** 点击动态项跳转工单或消息中心 */
+/**
+ * 作用：点击动态项跳转工单详情或消息中心历史箱。
+ * @param item - 列表项
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function openNewsItem(item: NewsItem) {
   if (item.workOrderId) {
     router.push({
@@ -53,6 +70,7 @@ function openNewsItem(item: NewsItem) {
 </script>
 
 <template>
+  <!-- 项目动态 -->
   <ACard
     :title="$t('page.home.projectNews.title')"
     :bordered="false"

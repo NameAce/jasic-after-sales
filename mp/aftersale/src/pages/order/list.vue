@@ -1,4 +1,5 @@
 <template>
+  <!-- 售后客户端小程序（报修、工单、地址）页面 order / list -->
   <view class="order-list-layout">
     <custom-nav-bar title="工单列表" surface="sticky" :shadow="false">
       <view class="search-wrap">
@@ -246,24 +247,38 @@
   const hasMore = ref(true)
   const loading = ref(false)
   const loadingMore = ref(false)
-  /** 模糊筛选关键词（仅过滤当前已加载到本地的列表，不额外请求接口） */
+  /**
+ * 模糊筛选关键词（仅过滤当前已加载到本地的列表，不额外请求接口）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const searchKeyword = ref('')
 
   /**
    * 是否包含条码
    * @param order - 工单
    * @returns boolean
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   function hasBarcode(order: OrderListItem) {
     return Boolean(order.qrCode?.trim())
   }
 
-  /** 接口有返回非空文案时才展示对应行 */
+  /**
+ * 接口有返回非空文案时才展示对应行
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   function hasDisplayText(v?: string | null) {
     return Boolean(String(v ?? '').trim())
   }
 
-  /** 与详情区模板一致：当前卡片会渲染几项（用于两列宫格末行是否拉通条码） */
+  /**
+ * 与详情区模板一致：当前卡片会渲染几项（用于两列宫格末行是否拉通条码）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   function orderDetailsGridVisibleCount(order: OrderListItem) {
     let n = 0
     if (hasDisplayText(order.centerName)) n++
@@ -274,12 +289,20 @@
     return n
   }
 
-  /** 条码占满整行：仅当可见项总数为奇数时，避免偶数项却拉通条码导致上一行只剩一格 */
+  /**
+ * 条码占满整行：仅当可见项总数为奇数时，避免偶数项却拉通条码导致上一行只剩一格
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   function orderDetailsBarcodeSpanFullWidth(order: OrderListItem) {
     return hasBarcode(order) && orderDetailsGridVisibleCount(order) % 2 === 1
   }
 
-  /** 列表维修价格：与 contractor `repairPriceDisplay` 一致带「¥ 」；接口已带头符时不重复 */
+  /**
+ * 列表维修价格：与 contractor `repairPriceDisplay` 一致带「¥ 」；接口已带头符时不重复
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   function repairPriceListDisplay(v?: string | null) {
     const p = String(v ?? '').trim()
     if (!p) return ''
@@ -287,26 +310,42 @@
     return `¥ ${p}`
   }
 
-  /** 非佳士：有型号即展示；佳士：仍仅在有条码时展示型号 */
+  /**
+ * 非佳士：有型号即展示；佳士：仍仅在有条码时展示型号
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   function showModelTag(order: OrderListItem) {
     if (order.isJasic) return hasBarcode(order)
     return Boolean(order.modelName?.trim())
   }
 
-  /** 列表状态角标：C 端中文状态优先用 `displayStatus` 展示，筛选仍走主枚举 `mainStatus` */
+  /**
+ * 列表状态角标：C 端中文状态优先用 `displayStatus` 展示，筛选仍走主枚举 `mainStatus`
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   function orderStatusText(order: OrderListItem) {
     const fromApi = String(order.displayStatus ?? '').trim()
     return fromApi || order.status
   }
 
-  /** 与详情「工单类型」一致：列表仅展示接口 `brandTypeLabel`，样式按文案是否含「非佳士」区分 */
+  /**
+ * 与详情「工单类型」一致：列表仅展示接口 `brandTypeLabel`，样式按文案是否含「非佳士」区分
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   function orderBrandTypeTagClass(order: OrderListItem) {
     const t = String(order.brandTypeLabel ?? '').trim()
     if (!t) return 'tag-brand'
     return /非佳士/.test(t) ? 'tag-other-brand' : 'tag-brand'
   }
 
-  /** 在已加载的 orderList 上做前端模糊匹配（与 Tab、分页接口数据一致，不单独打 keyword 接口） */
+  /**
+ * 在已加载的 orderList 上做前端模糊匹配（与 Tab、分页接口数据一致，不单独打 keyword 接口）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const displayOrderList = computed(() => {
     const list = orderList.value
     const kw = searchKeyword.value.trim().toLowerCase()
@@ -336,7 +375,9 @@
   /**
    * 加载工单列表
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const loadOrderList = async (reset = false) => {
     if (loading.value || loadingMore.value) return
     if (!reset && !hasMore.value) return
@@ -376,7 +417,9 @@
   /**
    * 重置并重新加载列表
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const reloadOrderList = () => {
     pageNum.value = 1
     total.value = 0
@@ -391,7 +434,11 @@
     await reloadOrderList()
   })
 
-  /** 切换 Tab：仅切换展示 Tab，接口筛选参数统一映射为 mainStatus */
+  /**
+ * 切换 Tab：仅切换展示 Tab，接口筛选参数统一映射为 mainStatus
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   function selectTab(index: number) {
     if (currentTab.value === index) return
     currentTab.value = index
@@ -401,7 +448,9 @@
   /**
    * 触底加载更多
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const loadMore = () => {
     loadOrderList(false)
   }
@@ -410,7 +459,9 @@
    * 页面加载
    * @param options - 选项
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   onLoad((options?: Record<string, string>) => {
     const raw = options?.tab
     if (raw != null && raw !== '') {
@@ -424,7 +475,9 @@
   /**
    * 页面显示
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   onShow(() => {
     reloadOrderList()
   })
@@ -434,7 +487,9 @@
    * @param id - 工单ID
    * @param status - 工单状态
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const goToOrderDetail = (id: string, status: string) => {
     uni.navigateTo({
       url: `/pages/order/detail?id=${encodeURIComponent(id)}&status=${encodeURIComponent(status)}`
@@ -444,14 +499,20 @@
   // 上传寄件单号弹窗状态
   const showUploadModal = ref(false)
   const currentUploadId = ref<string | null>(null)
-  /** 选中的快递单照片本地临时路径，用于预览与后续上传 */
+  /**
+ * 选中的快递单照片本地临时路径，用于预览与后续上传
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const uploadImagePath = ref('')
 
   /**
    * 打开上传寄件单号弹窗
    * @param id - 工单ID
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const goToUploadLogistics = (id: string) => {
     currentUploadId.value = id
     uploadImagePath.value = ''
@@ -461,7 +522,9 @@
   /**
    * 关闭上传寄件单号弹窗
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const closeUploadModal = () => {
     showUploadModal.value = false
     currentUploadId.value = null
@@ -471,7 +534,9 @@
   /**
    * 选择图片
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const chooseImage = () => {
     uni.chooseImage({
       count: 1,
@@ -489,7 +554,9 @@
   /**
    * 提交上传寄件单号
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const submitUpload = async () => {
     if (!uploadImagePath.value) {
       uni.showToast({ title: '请先选择快递单照片', icon: 'none', duration: 1500 })
@@ -528,14 +595,20 @@
    * 跳转到评价
    * @param id - 工单ID
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const goToEvaluate = (id: string, orderNo?: string) => {
     let url = `/pages/order/evaluate?id=${encodeURIComponent(id)}`
     if (orderNo) url += `&orderNo=${encodeURIComponent(orderNo)}`
     uni.navigateTo({
       url,
       events: {
-        /** 评价页提交成功后 emit，上一页立即拉新列表 */
+        /**
+ * 评价页提交成功后 emit，上一页立即拉新列表
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
         workOrderEvaluated: () => {
           reloadOrderList()
         }

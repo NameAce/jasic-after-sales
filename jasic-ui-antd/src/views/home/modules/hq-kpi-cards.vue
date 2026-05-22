@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 工单看板 KPI：有网点汇总时展示 siteSummary 全量指标，否则展示全网状态统计维度。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
@@ -104,11 +106,24 @@ interface GradientBgProps {
 
 const [DefineGradientBg, GradientBg] = createReusableTemplate<GradientBgProps>();
 
+/**
+ * 作用：生成 KPI 卡片背景线性渐变 CSS。
+ * @param color - 起止色配置
+ * @returns linear-gradient 字符串
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function getGradientColor(color: KpiItem['color']) {
   return `linear-gradient(to bottom right, ${color.start}, ${color.end})`;
 }
 
-/** 从 kpis 解析各卡片展示值（字段与 `/dashboard/hq/home` 对齐） */
+/**
+ * 作用：从 kpis 解析各卡片展示值（字段与 `/dashboard/hq/home` 对齐）。
+ * @param key - 卡片业务 key
+ * @returns 展示数值
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function resolveValue(key: string) {
   const k = kpis.value;
   if (key === 'site') return hasSiteData.value ? k.siteCount : k.totalCount;
@@ -119,6 +134,13 @@ function resolveValue(key: string) {
   return k.transferCount;
 }
 
+/**
+ * 作用：跳转当前处理工单列表并附带筛选 query。
+ * @param query - 额外 query（mainStatus、hasTransfer 等）
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function openWorkOrderList(query?: Record<string, string>) {
   router.push({
     name: 'after-sales_work-order',
@@ -126,6 +148,13 @@ function openWorkOrderList(query?: Record<string, string>) {
   });
 }
 
+/**
+ * 作用：KPI 卡片点击分发（转单、已完成、维修中、总量等）。
+ * @param key - 卡片 key
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleClick(key: string) {
   if (key === 'transfer') {
     openWorkOrderList({ hasTransfer: '1' });
@@ -151,6 +180,7 @@ function handleClick(key: string) {
 </script>
 
 <template>
+  <!-- 总部 KPI 卡片 -->
   <ASpin :spinning="loading">
     <DefineGradientBg v-slot="{ $slots, gradientColor }">
       <div class="rd-8px px-16px pb-4px pt-8px text-white" :style="{ backgroundImage: gradientColor }">

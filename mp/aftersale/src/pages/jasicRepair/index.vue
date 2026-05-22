@@ -247,7 +247,9 @@
   /**
    * 获取表单实例
    * @returns 表单实例
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   type UniFormsInstance = {
     validate?: () => Promise<unknown>
     clearValidate?: (names?: string[]) => void
@@ -281,18 +283,38 @@
   const showWarrantyModal = ref(false)
 
   const userStore = useUserStore()
-  /** 最近一次「查询保修」接口返回的完整 data，提交时优先取其中的 barcode / brand / 机型 / 保修等字段 */
+  /**
+ * 最近一次「查询保修」接口返回的完整 data，提交时优先取其中的 barcode / brand / 机型 / 保修等字段
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const lastBarcodeInfo = ref<BarcodeInfoDTO | null>(null)
-  /** 仅当条码「查询」接口返回非空 faultOptions 时为 true，才展示故障描述下拉 */
+  /**
+ * 仅当条码「查询」接口返回非空 faultOptions 时为 true，才展示故障描述下拉
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const barcodeQueryHasFaultDescription = ref(false)
-  /** 条码查询返回的故障描述下拉（来自接口 data.faultOptions） */
+  /**
+ * 条码查询返回的故障描述下拉（来自接口 data.faultOptions）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const faultDescriptionOptionsFromApi = ref<{ text: string; value: string }[]>([])
   const showFaultDescDropdown = ref(false)
   const draftFaultDesc = ref<string[]>([])
-  /** 有条码但查询失败时，仍须展示并必填故障说明备注 */
+  /**
+ * 有条码但查询失败时，仍须展示并必填故障说明备注
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const queryFailedWithBarcode = ref(false)
 
-  /** 是否为「其它 / 其他故障」类选项（展示并必填故障说明备注） */
+  /**
+ * 是否为「其它 / 其他故障」类选项（展示并必填故障说明备注）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const isOtherFaultSelection = (value: string | string[]) => {
     const values = Array.isArray(value)
       ? value.map((item) => String(item ?? '').trim()).filter(Boolean)
@@ -314,7 +336,11 @@
     })
   }
 
-  /** 按条码 / 查询结果同步是否展示「故障说明备注」 */
+  /**
+ * 按条码 / 查询结果同步是否展示「故障说明备注」
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const syncShowFaultRemarkFromState = () => {
     const code = String(formData.value.warrantyCode ?? '').trim()
     if (!code) {
@@ -423,14 +449,24 @@
   // 是否已恢复暂存
   const hasRestoredRepairDraft = ref(false)
   // 重置后仅在实际再次进入页面（非从地图选点返回）时从本地恢复暂存
-  /** 重置后仅在实际再次进入页面（非从地图选点返回）时从本地恢复暂存 */
+  /**
+ * 重置后仅在实际再次进入页面（非从地图选点返回）时从本地恢复暂存
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const needReapplyDraftAfterReset = ref(false)
-  /** 从本地恢复暂存中：避免 warrantyCode 的 watch 先清空条码查询态导致故障描述被卸表单项清空 */
+  /**
+ * 从本地恢复暂存中：避免 warrantyCode 的 watch 先清空条码查询态导致故障描述被卸表单项清空
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const isApplyingJasicRepairDraft = ref(false)
 
   /**
    * 应用佳士报修暂存（包装以配合 watch 跳过破坏性重置）
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const runApplyJasicRepairDraft = (
     draft: ReturnType<typeof loadJasicRepairDraft>,
     preserveServicePoint: boolean
@@ -457,7 +493,9 @@
   /**
    * 同步表单中心ID到uni-forms
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const syncFormCenterIdToUniForms = () => {
     nextTick(() => {
       const id = formData.value.centerId
@@ -472,7 +510,9 @@
 
   /**
    * 页面显示：合并暂存恢复与网点回写后的统一收尾（避免重复分支）
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   onShow(() => {
     const fromMap = hasPendingServicePointPick()
     applyStorageSelection()
@@ -509,7 +549,11 @@
   // 维修路径选项
   const repairTypes = REPAIR_TYPE_OPTIONS
 
-  /** 暂存/自动保存草稿时的完整快照（含条码查询结果，便于再次进入恢复 UI 与提交入参） */
+  /**
+ * 暂存/自动保存草稿时的完整快照（含条码查询结果，便于再次进入恢复 UI 与提交入参）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const buildJasicRepairDraftSnapshot = (): JasicRepairDraft => ({
     formData: JSON.parse(JSON.stringify(formData.value)) as JasicRepairDraftForm,
     selectedCenterDisplay: selectedCenterDisplay.value,
@@ -525,7 +569,9 @@
   /**
    * 扫描条形码
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const handleScan = () => {
     // 扫描条形码
     uni.scanCode({
@@ -542,7 +588,9 @@
    * @param options.silentToast - 进入页自动查询时不弹成功提示，避免打扰
    * @param options.skipClearFaultFieldsWhenNoOptions - 自动查询且接口无故障下拉时不清空已填备注（与暂存恢复配合）
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const checkWarranty = async (options?: {
     silentToast?: boolean
     skipClearFaultFieldsWhenNoOptions?: boolean
@@ -619,7 +667,9 @@
 
   /**
    * 进入页面且条码已有值时自动查询一次（等同点击「查询」），用于恢复故障描述下拉与 lastBarcodeInfo
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const tryAutoQueryBarcodeOnEnter = (fromMapPick: boolean) => {
     if (fromMapPick) return
     const code = String(formData.value.warrantyCode ?? '').trim()
@@ -631,7 +681,9 @@
    * 故障描述变化
    * @param e - 故障描述
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const handleFaultDescriptionChange = (e: string | string[]) => {
     const nextShow = isOtherFaultSelection(e)
     showFaultRemark.value = nextShow
@@ -644,7 +696,9 @@
   /**
    * 选择寄件信息
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const chooseShippingAddress = () => {
     uni.navigateTo({ url: '/pages/address/index?mode=selectShipping' })
   }
@@ -653,7 +707,9 @@
    * 条形码变化
    * @param val - 条形码
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   watch(
     () => formData.value.warrantyCode,
     (val, oldVal) => {
@@ -693,7 +749,9 @@
    * 维修路径变化
    * @param val - 维修路径
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   watch(
     () => formData.value.repairType,
     (val) => {
@@ -717,7 +775,9 @@
   /**
    * 获取故障描述文本
    * @returns 故障描述文本
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const getJasicFaultDescriptionText = () => {
     if (!barcodeQueryHasFaultDescription.value) {
       return ''
@@ -739,7 +799,9 @@
    * 从条码查询结果解析保修状态枚举（与后端一致）
    *
    * 真源：`CustomerBarcodeInfoVO.warrantyStatus`，字符串枚举 `IN_WARRANTY / OUT_OF_WARRANTY`。
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const resolveWarrantyStatusFromBarcodeInfo = (info: BarcodeInfoDTO | null): string => {
     if (!info) return ''
     const ws = info.warrantyStatus
@@ -749,7 +811,9 @@
 
   /**
    * 故障描述提交文本：有下拉选项时取用户选择，否则以用户填写的 faultRemark 为准
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const resolveFaultDescForSubmit = (): string => {
     if (barcodeQueryHasFaultDescription.value) return getJasicFaultDescriptionText()
     return String(formData.value.faultRemark ?? '').trim()
@@ -766,7 +830,9 @@
   /**
    * 构建佳士报修 payload
    * @returns payload
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const buildJasicWorkOrderPayload = (): CreateCustomerWorkOrderDTO => {
     const rawId = formData.value.centerId
     const sid =
@@ -832,7 +898,9 @@
    * @param options.loadingTitle - 加载标题
    * @param options.redirect - 是否重定向
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const executeJasicRepairSubmit = async (options: {
     validate: boolean
     loadingTitle: string
@@ -854,7 +922,11 @@
     try {
       const res = await createCustomerWorkOrder(buildJasicWorkOrderPayload())
       uni.hideLoading()
-      /** 关单后服务端会推「客户满意度评价通知」，需在创建工单时完成订阅授权 */
+      /**
+ * 关单后服务端会推「客户满意度评价通知」，需在创建工单时完成订阅授权
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       await requestEvaluationInviteSubscribe()
       uni.showToast({ title: res.msg, icon: 'none', duration: TOAST_DURATION })
       // 如果需要重定向，则清除暂存并重定向
@@ -890,7 +962,9 @@
   /**
    * 执行佳士报修暂存
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const stashForm = () => {
     // 暂存只保存本地草稿：不校验、不提交接口
     uni.showLoading({ title: '暂存中...' })
@@ -911,7 +985,9 @@
   /**
    * 重置表单
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const resetForm = () => {
     // 显示保修提示
     showWarrantyModal.value = false
@@ -950,7 +1026,9 @@
   /**
    * 提交表单
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const submitForm = () => {
     // 如果条形码不为空，则执行佳士报修提交
     if (formData.value.warrantyCode) {
@@ -973,7 +1051,9 @@
   /**
    * 确认提交
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const confirmSubmit = () => {
     performSubmit()
   }

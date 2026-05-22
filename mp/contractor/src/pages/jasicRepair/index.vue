@@ -239,7 +239,9 @@
 <script setup lang="ts">
   /**
    * 建维修订单：提交/确认提交需 ORDER_CREATE（按钮级）；主体类型仅影响文案/表单项展示。
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   import { ref, computed, watch, nextTick, onMounted, onActivated } from 'vue'
   import { onShow } from '@dcloudio/uni-app'
   import { themeColors } from '@/theme/colors'
@@ -288,7 +290,9 @@
   /**
    * 一级经销商标签
    * @returns 一级经销商标签
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const upstreamTabLabel = computed(() => (userStore.isPrimaryDealer ? '报修佳士' : '报修一级'))
 
   // 维修入口标签
@@ -301,11 +305,19 @@
 
   // 表单类型
   const formType = 'jasic'
-  /** 旧版单一草稿键（仅迁移后删除） */
+  /**
+ * 旧版单一草稿键（仅迁移后删除）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const DRAFT_KEY_LEGACY = 'jasicRepairDraft'
   const DRAFT_KEY_PROXY = 'jasicRepairDraft_proxy'
   const DRAFT_KEY_UPSTREAM = 'jasicRepairDraft_upstream'
-  /** 上次停留的 tab，用于两个 tab 均有暂存时决定首屏 */
+  /**
+ * 上次停留的 tab，用于两个 tab 均有暂存时决定首屏
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const DRAFT_LAST_TAB_KEY = 'jasicRepairDraft_lastTab'
 
   const draftStorageKey = (tab: 'proxy' | 'upstream') =>
@@ -332,7 +344,11 @@
     shippingInfo: '',
     // 语音列表（tempFilePath + duration 毫秒）
     voiceList: [] as { tempFilePath: string; duration: number }[],
-    /** 一级报修佳士：目标受理公司 ID（uni-data-select 用字符串） */
+    /**
+ * 一级报修佳士：目标受理公司 ID（uni-data-select 用字符串）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
     targetCompanyId: ''
   })
 
@@ -347,14 +363,30 @@
   // 状态
   const formData = ref(createInitialFormData())
 
-  /** 最近一次条码查询返回（提交时 faultItems 等可兜底） */
+  /**
+ * 最近一次条码查询返回（提交时 faultItems 等可兜底）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const lastBarcodeInfo = ref<WorkOrderCreateBarcodeInfoVO | null>(null)
-  /** 仅当查询返回非空 faultOptions 时展示故障描述下拉 */
+  /**
+ * 仅当查询返回非空 faultOptions 时展示故障描述下拉
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const barcodeQueryHasFaultDescription = ref(false)
   const faultDescriptionOptionsFromApi = ref<{ text: string; value: string }[]>([])
-  /** 有条码但查询失败时仍须展示并必填故障说明备注 */
+  /**
+ * 有条码但查询失败时仍须展示并必填故障说明备注
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const queryFailedWithBarcode = ref(false)
-  /** 初始无条码时与售后端一致：展示故障说明备注 */
+  /**
+ * 初始无条码时与售后端一致：展示故障说明备注
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const showFaultRemark = ref(true)
   const selectedShippingAddress = ref<SelectedShippingAddress | null>(null)
 
@@ -367,7 +399,11 @@
 
   const OTHER_FAULT_VALUE = 'other'
 
-  /** 故障描述：接口若仅返回「其它」「其他」，展示与提交统一为「其它故障」「其他故障」 */
+  /**
+ * 故障描述：接口若仅返回「其它」「其他」，展示与提交统一为「其它故障」「其他故障」
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const normalizeFaultDescriptionDisplayText = (label: string) => {
     const t = String(label ?? '').trim()
     if (t === '其它') return '其它故障'
@@ -377,7 +413,9 @@
 
   /**
    * 将条码查询返回的 targetCompanyOptions 映射为 uni-data-select 结构。
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const mapTargetCompanyOptionsToSelect = (raw: unknown) => {
     if (!Array.isArray(raw)) return []
     return raw
@@ -391,26 +429,46 @@
       .filter((x): x is { text: string; value: string } => x != null)
   }
 
-  /** 报修入口上"目标总部/目标一级"可选项（一级报修佳士走 targetCompanyOptions；二级报修一级兼容接口兜底） */
+  /**
+ * 报修入口上"目标总部/目标一级"可选项（一级报修佳士走 targetCompanyOptions；二级报修一级兼容接口兜底）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const upstreamTargetCompanyOptions = ref<{ text: string; value: string }[]>([])
 
-  /** 目标字段 label：一级 → 目标总部；二级 → 目标一级 */
+  /**
+ * 目标字段 label：一级 → 目标总部；二级 → 目标一级
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const upstreamTargetCompanyLabel = computed(() =>
     userStore.isPrimaryDealer ? '目标总部' : '目标一级'
   )
 
-  /** 是否展示"目标（一级/总部）"选择项 */
+  /**
+ * 是否展示"目标（一级/总部）"选择项
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const showUpstreamTargetField = computed(() => {
     if (repairEntryTab.value !== 'upstream') return false
     return upstreamTargetCompanyOptions.value.length > 0
   })
 
-  /** 目标字段是否单项自动回显（>=1 时仅 1 个时禁用 picker） */
+  /**
+ * 目标字段是否单项自动回显（>=1 时仅 1 个时禁用 picker）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const isUpstreamTargetSingleOption = computed(
     () => upstreamTargetCompanyOptions.value.length === 1
   )
 
-  /** 目标字段当前展示文案 */
+  /**
+ * 目标字段当前展示文案
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const upstreamTargetDisplay = computed(() => {
     const cur = String(formData.value.targetCompanyId || '')
     const hit = upstreamTargetCompanyOptions.value.find((o) => o.value === cur)
@@ -423,7 +481,9 @@
    *   多项→尝试默认值；1 项→回显；0 项→默认总部兜底（保持原行为）
    * - 二级经销商：按 `getUpstreamFirstCreateBarcodeInfo` 返回的 targetCompanyOptions
    *   多项→让用户挑（提交时必填）；1 项→默认回显；0 项→提交时必填（不兜底 hqCompanyId）
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const syncUpstreamTargetCompanyFromBarcodeInfo = (
     info: WorkOrderCreateBarcodeInfoVO | null | undefined
   ) => {
@@ -475,7 +535,9 @@
   /**
    * 二级经销商无码兜底：拉取可上报的一级网点列表填充到"目标一级"选择项。
    * 场景：切换到 upstream tab、未输入条码或条码查询失败时使用。
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const loadUpstreamFirstTargetOptionsForSecondary = async () => {
     if (userStore.isPrimaryDealer) return
     if (repairEntryTab.value !== 'upstream') return
@@ -500,7 +562,9 @@
    * 将后端故障选项映射为 uni-data-select 所需结构。
    * - 其它故障统一归一化为 value=other；
    * - 其余选项使用自身文本作为 value。
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const mapFaultOptionsToSelect = (faultOptions: unknown, otherFaultLabel?: string) => {
     if (!Array.isArray(faultOptions)) return []
     const otherLabel = String(otherFaultLabel || '').trim()
@@ -533,7 +597,11 @@
     return Array.from(dedup.values())
   }
 
-  /** 当前条码是否已完成一次商品查询（含失败/无结果，便于校验「先查询」） */
+  /**
+ * 当前条码是否已完成一次商品查询（含失败/无结果，便于校验「先查询」）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const warrantyQueried = ref(false)
 
   const normalizeFaultDescriptionValue = (val: unknown): string[] => {
@@ -542,7 +610,11 @@
     return single ? [single] : []
   }
 
-  /** 是否为「其它 / 其他故障」类选项（展示并必填故障说明备注） */
+  /**
+ * 是否为「其它 / 其他故障」类选项（展示并必填故障说明备注）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const isOtherFaultSelection = (value: string) => {
     const v = String(value ?? '').trim()
     if (!v) return false
@@ -560,7 +632,11 @@
     return false
   }
 
-  /** 按条码 / 查询结果同步是否展示「故障说明备注」 */
+  /**
+ * 按条码 / 查询结果同步是否展示「故障说明备注」
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const syncShowFaultRemarkFromState = () => {
     const code = String(formData.value.warrantyCode ?? '').trim()
     if (!code) {
@@ -634,7 +710,11 @@
 
   // 用于避免“回显草稿”时触发 warrantyCode 监听器清空数据
   const isRestoringDraft = ref(false)
-  /** 切换入口 tab 恢复快照时避免 warrantyCode 监听误清空 */
+  /**
+ * 切换入口 tab 恢复快照时避免 warrantyCode 监听误清空
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const isRestoringTabSnapshot = ref(false)
 
   type RepairEntryTabSnapshot = {
@@ -653,7 +733,9 @@
 
   /**
    * 将本地存储的一条 tab 草稿解析为切换 tab 用的快照结构。
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const parseTabDraftToSnapshot = (raw: unknown): RepairEntryTabSnapshot | null => {
     if (!raw || typeof raw !== 'object') return null
     const d = raw as {
@@ -722,7 +804,9 @@
   /**
    * 扫描条形码
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const handleScan = () => {
     if (toastIfMediaUploading()) return
     uni.scanCode({
@@ -735,7 +819,9 @@
   /**
    * 展开/收缩补充说明
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const toggleSupplementSection = () => {
     if (toastIfMediaUploading()) return
     showSupplementSection.value = !showSupplementSection.value
@@ -745,11 +831,17 @@
    * 查询条码信息（按入口区分：代客户填写 / 报修一级）
    * @param options.silentToast - 进入页自动查询时不弹成功提示
    * @param options.skipClearFaultFieldsWhenNoOptions - 自动查询且接口无故障下拉时不清空已填备注（与暂存恢复配合）
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const checkWarranty = async (options?: {
     silentToast?: boolean
     skipClearFaultFieldsWhenNoOptions?: boolean
-    /** 进入页自动查询且有条码故障下拉时保留已填故障项（与暂存恢复一致） */
+    /**
+ * 进入页自动查询且有条码故障下拉时保留已填故障项（与暂存恢复一致）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
     preserveFaultFieldsWhenHasOptions?: boolean
   }) => {
     const silentToast = options?.silentToast ?? false
@@ -838,7 +930,9 @@
 
   /**
    * 进入页面且条码已有值时自动查询一次（恢复故障描述下拉与 lastBarcodeInfo）
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const tryAutoQueryBarcodeOnEnter = () => {
     const code = String(formData.value.warrantyCode ?? '').trim()
     if (!code) return
@@ -934,7 +1028,9 @@
 
   /**
    * 切换报修入口：离开前保存当前 tab 快照；进入目标 tab 时恢复快照或空表。
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const setRepairEntryTab = (tab: 'proxy' | 'upstream') => {
     if (toastIfMediaUploading()) return
     if (tab === repairEntryTab.value) return
@@ -1023,7 +1119,11 @@
     validateFaultMediaSelection(e.tempFiles)
   }
 
-  /** 进入「我的地址」选择寄件地址（selectShipping），返回后由 onShow 中 applyShippingPickFromStorage 回填 */
+  /**
+ * 进入「我的地址」选择寄件地址（selectShipping），返回后由 onShow 中 applyShippingPickFromStorage 回填
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const chooseShippingAddress = () => {
     if (toastIfMediaUploading()) return
     uni.navigateTo({ url: '/pages/address/index?mode=selectShipping' })
@@ -1081,7 +1181,9 @@
 
   /**
    * 构建「代客户填写」创建工单 DTO
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const buildProxyCreateDto = (): WorkOrderProxyCreateDTO => {
     const api = lastBarcodeInfo.value
     const barcodeTrim = String(formData.value.warrantyCode || '').trim()
@@ -1111,7 +1213,9 @@
 
   /**
    * 构建「二级报修一级 / 报修佳士」创建工单 DTO
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const buildUpstreamFirstCreateDto = (): WorkOrderUpstreamCreateDTO => {
     const api = lastBarcodeInfo.value
     const barcodeTrim = String(formData.value.warrantyCode || '').trim()
@@ -1148,7 +1252,9 @@
   /**
    * 重置表单状态
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const resetFormState = () => {
     repairEntryTab.value = 'proxy'
     tabFormSnapshots.value = {}
@@ -1196,7 +1302,9 @@
   /**
    * 保存草稿（按当前 tab 分键存储，互不覆盖）
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const handleSaveDraft = () => {
     if (toastIfMediaUploading()) return
     try {
@@ -1213,7 +1321,9 @@
   /**
    * 重置表单
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const handleResetForm = () => {
     if (toastIfMediaUploading()) return
     uni.showModal({
@@ -1233,7 +1343,9 @@
   /**
    * 提交表单
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const handleSubmitClick = () => {
     if (submitting.value) return
     if (toastIfMediaUploading()) return
@@ -1271,7 +1383,9 @@
   /**
    * 执行提交
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const performSubmit = () => {
     if (submitting.value) return
     if (toastIfMediaUploading()) return
@@ -1331,7 +1445,11 @@
       })
   }
 
-  /** 将旧版单一草稿迁移到对应 tab 键并删除旧键 */
+  /**
+ * 将旧版单一草稿迁移到对应 tab 键并删除旧键
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const migrateLegacyJasicDraftIfNeeded = () => {
     try {
       const legacy = uni.getStorageSync(DRAFT_KEY_LEGACY) as unknown
@@ -1366,7 +1484,9 @@
 
   /**
    * 恢复草稿：两个 tab 各自一份，切换 tab 时与内存快照一致
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const restoreDraft = () => {
     try {
       migrateLegacyJasicDraftIfNeeded()
@@ -1423,7 +1543,9 @@
   /**
    * 确认提交按钮点击
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onWarrantyModalBackdropClick = () => {
     if (toastIfMediaUploading()) return
     showWarrantyModal.value = false

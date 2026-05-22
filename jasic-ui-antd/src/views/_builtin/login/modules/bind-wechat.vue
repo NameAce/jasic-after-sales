@@ -1,4 +1,9 @@
 <script setup lang="ts">
+/**
+ * 内置页：bind-wechat。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 import { reactive } from 'vue';
 import { useAuthStore } from '@/store/modules/auth';
 import { useRouterPush } from '@/hooks/common/router';
@@ -35,6 +40,8 @@ const rules: Record<keyof FormModel, App.Global.FormRule[]> = {
  * 作用：校验后确认微信绑定并完成登录。
  * @param 无
  * @returns 返回 Promise，登录结束后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function handleSubmit() {
   await validate();
@@ -43,6 +50,7 @@ async function handleSubmit() {
 </script>
 
 <template>
+  <!-- 内置页：login/modules/bind-wechat.vue -->
   <AForm ref="formRef" :model="model" :rules="rules" @keyup.enter="handleSubmit">
     <AFormItem name="bindTicket" required>
       <AInput v-model:value="model.bindTicket" size="large" placeholder="请输入绑定票据 bindTicket" />

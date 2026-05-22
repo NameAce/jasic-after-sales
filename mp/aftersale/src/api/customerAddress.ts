@@ -3,15 +3,27 @@ import type { SavedAddress } from '@/utils/addressStorage'
 
 // --- CustomerAddress ---
 
-/** C 端客户地址新增参数（与 `/customer/address` 一致） */
+/**
+ * C 端客户地址新增参数（与 `/customer/address` 一致）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export interface CustomerAddressCreateDTO {
   city: string
   contactMobile: string
   contactName: string
-  /** 区县，可选 */
+  /**
+ * 区县，可选
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   county?: string
   detailAddress: string
-  /** 是否默认地址（1=是，0=否） */
+  /**
+ * 是否默认地址（1=是，0=否）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   isDefault?: number
   province: string
 }
@@ -19,6 +31,8 @@ export interface CustomerAddressCreateDTO {
 /**
  * 新增客户收货地址
  * @returns 成功时 data 为新地址 ID（long）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export const addCustomerAddress = (data: CustomerAddressCreateDTO) => {
   return http<number>({
@@ -28,7 +42,11 @@ export const addCustomerAddress = (data: CustomerAddressCreateDTO) => {
   })
 }
 
-/** C 端客户地址修改参数（与 `PUT /customer/address` 一致） */
+/**
+ * C 端客户地址修改参数（与 `PUT /customer/address` 一致）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export interface CustomerAddressUpdateDTO {
   city: string
   contactMobile: string
@@ -41,6 +59,8 @@ export interface CustomerAddressUpdateDTO {
 
 /**
  * 修改客户收货地址
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export const updateCustomerAddress = (data: CustomerAddressUpdateDTO) => {
   return http<null>({
@@ -50,7 +70,11 @@ export const updateCustomerAddress = (data: CustomerAddressUpdateDTO) => {
   })
 }
 
-/** 客户地址列表项（与 `/customer/address/list` 一致） */
+/**
+ * 客户地址列表项（与 `/customer/address/list` 一致）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export interface CustomerAddressVO {
   id: number
   city: string
@@ -65,6 +89,8 @@ export interface CustomerAddressVO {
 
 /**
  * 查询当前客户地址列表
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export const listCustomerAddress = () => {
   return http<CustomerAddressVO[]>({
@@ -75,6 +101,8 @@ export const listCustomerAddress = () => {
 
 /**
  * 删除客户收货地址
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export const deleteCustomerAddress = (addressId: number) => {
   return http<null>({
@@ -85,6 +113,8 @@ export const deleteCustomerAddress = (addressId: number) => {
 
 /**
  * 设为默认收货地址
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export const setDefaultCustomerAddress = (addressId: number) => {
   return http<null>({
@@ -94,7 +124,11 @@ export const setDefaultCustomerAddress = (addressId: number) => {
   })
 }
 
-/** 将接口 VO 转为本地缓存结构 */
+/**
+ * 将接口 VO 转为本地缓存结构
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function customerAddressVOToSavedAddress(vo: CustomerAddressVO): SavedAddress {
   return {
     id: String(vo.id),

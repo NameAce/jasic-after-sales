@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 操作日志：分页查询、条件筛选与清理/删除；详情以右侧抽屉展示（对接 log 域接口）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -104,9 +106,10 @@ const detailOpen = ref(false);
 const detail = ref<RowData>({});
 
 /**
- * 作用：兼容分页或数组响应，取出日志表格行数组。
- * @param data - 日志列表接口返回的数据主体
- * @returns 可渲染表格的行数组
+ * 作用：从分页接口响应解析列表数组。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function pickRows(data: any) {
   if (Array.isArray(data)) return data;
@@ -115,9 +118,10 @@ function pickRows(data: any) {
 }
 
 /**
- * 作用：组装列表查询参数，并将日期范围写入 begin/end。
- * @param 无
- * @returns 可直接用于日志列表接口的查询对象
+ * 作用：构造数据或配置：buildListParams。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function buildListParams(): OperLogQuery {
   const p = { ...queryParams };
@@ -132,8 +136,10 @@ function buildListParams(): OperLogQuery {
 }
 
 /**
- * 从路由 query 同步筛选：支持 status、beginDate/endDate（或 beginTime/endTime）。
- * 首页「近7日失败操作」跳转约定：status=0 且近 7 日日期。
+ * 作用：应用配置或路由参数：applyFiltersFromRouteQuery。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function applyFiltersFromRouteQuery() {
   const statusRaw = route.query.status;
@@ -157,9 +163,10 @@ function applyFiltersFromRouteQuery() {
 }
 
 /**
- * 作用：请求操作日志分页并刷新表格与总数。
- * @param 无
- * @returns Promise，列表加载完成后结束
+ * 作用：加载当前 Tab/条件下表格数据。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadList() {
   clearListMsgs();
@@ -185,9 +192,10 @@ async function loadList() {
 }
 
 /**
- * 作用：查询：重置到第一页并拉取日志。
- * @param 无
- * @returns {void} 无
+ * 作用：处理交互事件：handleQuery。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleQuery() {
   queryParams.pageNum = 1;
@@ -195,9 +203,10 @@ function handleQuery() {
 }
 
 /**
- * 作用：重置筛选条件与分页为第一页默认值并刷新。
- * @param 无
- * @returns {void} 无
+ * 作用：重置查询条件并刷新列表：resetQuery。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function resetQuery() {
   dateRange.value = undefined;
@@ -225,10 +234,10 @@ function resetQuery() {
 }
 
 /**
- * 作用：分页或每页条数变化时刷新列表。
- * @param page - 目标页码
- * @param pageSize - 每页条数，可选
- * @returns {void} 无
+ * 作用：组件回调：onPageChange。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function onPageChange(page: number, pageSize?: number) {
   if (pageSize !== undefined && pageSize !== queryParams.pageSize) {
@@ -242,9 +251,10 @@ function onPageChange(page: number, pageSize?: number) {
 }
 
 /**
- * 作用：打开右侧详情抽屉并展示当前行数据。
- * @param row - 日志表格行
- * @returns {void} 无
+ * 作用：页面内业务方法：openDetail。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function openDetail(row: RowData) {
   detail.value = row;
@@ -252,9 +262,10 @@ function openDetail(row: RowData) {
 }
 
 /**
- * 作用：批量删除勾选的日志并清空选择。
- * @param 无
- * @returns Promise，删除完成后结束
+ * 作用：页面内业务方法：batchDelete。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function batchDelete() {
   if (!selectedRowKeys.value.length) return;
@@ -264,9 +275,10 @@ async function batchDelete() {
 }
 
 /**
- * 作用：清空全部操作日志后刷新并与勾选清零。
- * @param 无
- * @returns Promise，清空完成后结束
+ * 作用：页面内业务方法：cleanAll。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function cleanAll() {
   await cleanOperLog();
@@ -286,7 +298,9 @@ useRouteQueryFilterSync({
 </script>
 
 <template>
+  <!-- 操作日志：条件筛选、分页列表与清理；详情右侧抽屉展示 -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <!-- 筛选区：模块/操作人/类型/状态/日期；支持路由 query 带入后重置清 URL -->
     <ACard :bordered="false" class="card-wrapper">
       <AForm :model="queryParams" :label-col="{ span: 5, md: 7 }" class="oper-log-search-form">
         <div class="page-search-toolbar">
@@ -393,6 +407,7 @@ useRouteQueryFilterSync({
         </div>
       </AForm>
     </ACard>
+    <!-- 列表区：分页表格，行操作打开详情或批量清理 -->
     <ACard
       :title="pageMenuTitle"
       :bordered="false"
@@ -461,6 +476,7 @@ useRouteQueryFilterSync({
       </ATable>
     </ACard>
 
+    <!-- 详情抽屉：展示单条操作日志完整字段 -->
     <ADrawer v-model:open="detailOpen" title="操作日志详情" placement="right" :width="800" destroy-on-close>
       <ADescriptions bordered size="small" :column="2" :label-style="{ whiteSpace: 'nowrap' }">
         <ADescriptionsItem label="日志ID">{{ detail.id }}</ADescriptionsItem>

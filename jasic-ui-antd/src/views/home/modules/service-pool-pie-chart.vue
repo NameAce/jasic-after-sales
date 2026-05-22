@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 服务主体首页工单状态分布饼图：由 currentPool 各状态指标聚合（排除总量卡片）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
@@ -32,7 +34,13 @@ const chartData = computed(() => {
     }));
 });
 
-/** 点击扇区时按指标 routeTarget 跳转 */
+/**
+ * 作用：点击饼图扇区，按指标 routeTarget 跳转工单列表。
+ * @param dataIndex - 扇区下标
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleSliceClick(dataIndex: number) {
   const item = chartData.value[dataIndex];
   navigateHomeRoute(router, item?.routeTarget);
@@ -96,6 +104,12 @@ const { domRef, updateOptions } = useEcharts(
 
 const { width, height } = useElementSize(domRef);
 
+/**
+ * 作用：将 chartData 同步到环图 series。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function applyChartData() {
   await nextTick();
   updateOptions(opts => {
@@ -117,6 +131,12 @@ watch(
   { flush: 'post', deep: true }
 );
 
+/**
+ * 作用：跳转当前承接工单列表。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function goCurrentPoolPage() {
   router.push({
     name: 'after-sales_work-order',
@@ -126,6 +146,7 @@ function goCurrentPoolPage() {
 </script>
 
 <template>
+  <!-- 服务池饼图 -->
   <ACard :bordered="false" class="card-wrapper" :loading="loading">
     <template #extra>
       <a class="text-primary" href="javascript:;" @click.prevent="goCurrentPoolPage">当前工单</a>

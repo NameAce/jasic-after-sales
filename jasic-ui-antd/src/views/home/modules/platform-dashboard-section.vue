@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 平台超管看板区块：组织 KPI + 图表数据加载（与总部工单看板隔离）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { useHomeDashboardOnMount } from '../composables/use-home-dashboard-on-mount';
 import { usePlatformDashboard } from '../composables/use-platform-dashboard';
@@ -17,6 +19,7 @@ useHomeDashboardOnMount(loadPlatformDashboard, loaded);
 </script>
 
 <template>
+  <!-- 平台看板区块 -->
   <ASpin :spinning="loading && !loaded">
     <PlatformKpiCards v-if="showDashboard" />
   </ASpin>

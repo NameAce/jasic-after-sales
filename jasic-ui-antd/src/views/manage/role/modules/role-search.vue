@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 角色列表 — 搜索表单：角色名、状态等，emit reset/search。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { enableStatusOptions } from '@/constants/business';
 import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
@@ -27,6 +29,8 @@ const model = defineModel<Api.SystemManage.RoleSearchParams>('model', { required
  * 作用：触发父级重置查询条件。
  * @param 无
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function reset() {
   emit('reset');
@@ -36,6 +40,8 @@ function reset() {
  * 作用：触发父级执行搜索。
  * @param 无
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function search() {
   emit('search');
@@ -43,6 +49,7 @@ function search() {
 </script>
 
 <template>
+  <!-- 角色列表搜索表单 -->
   <ACard :bordered="false" class="card-wrapper">
     <AForm :model="model" :label-width="80">
       <div class="page-search-toolbar">

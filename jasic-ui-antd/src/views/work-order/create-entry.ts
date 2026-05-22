@@ -3,7 +3,7 @@
  *
  * @see jasic-ui `workOrder/index.vue` 建单入口
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 
 // 建单入口：代客户填写
@@ -23,7 +23,7 @@ export type CreateEntryMode =
  * @param currentTypeCode - 当前公司/网点类型编码（如 SITE_FIRST、SITE_SECOND）
  * @returns 下拉选项列表（value + label）
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function getCreateEntryOptions(currentTypeCode?: string) {
   const options: { value: CreateEntryMode; label: string }[] = [{ value: CREATE_ENTRY_PROXY, label: '代客户填写' }];

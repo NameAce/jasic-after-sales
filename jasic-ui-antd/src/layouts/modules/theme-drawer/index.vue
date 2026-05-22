@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 主题配置抽屉：集中展示暗色/布局/主题色/页面功能等子模块，显隐由 appStore.themeDrawerVisible 控制。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { SimpleScrollbar } from '@sa/materials';
 import { useAppStore } from '@/store/modules/app';
@@ -20,6 +22,7 @@ const appStore = useAppStore();
 </script>
 
 <template>
+  <!-- 主题配置抽屉入口 -->
   <ADrawer
     :open="appStore.themeDrawerVisible"
     :title="$t('theme.themeDrawerTitle')"

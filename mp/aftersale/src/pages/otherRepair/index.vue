@@ -185,7 +185,9 @@
   /**
    * 同步表单中心ID到UniForms
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const syncFormCenterIdToUniForms = () => {
     nextTick(() => {
       const id = formData.value.centerId
@@ -201,7 +203,9 @@
   /**
    * 页面显示
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   onShow(() => {
     // 是否从地图选点返回
     const fromMap = hasPendingServicePointPick()
@@ -255,7 +259,9 @@
   /**
    * 表单规则
    * @returns 表单规则
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const rules = computed(() => {
     const base: Record<string, { rules: { required?: boolean; errorMessage: string }[] }> = {
       centerId: {
@@ -280,7 +286,9 @@
    * 维修类型变化
    * @param val - 维修类型
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   watch(
     () => formData.value.repairType,
     (val) => {
@@ -297,7 +305,9 @@
   /**
    * 选择寄件信息
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const chooseShippingAddress = () => {
     uni.navigateTo({ url: '/pages/address/index?mode=selectShipping' })
   }
@@ -314,7 +324,9 @@
   /**
    * 构建非佳士品牌报修 payload（与佳士页同接口、同文件 ID 组装规则）
    * @returns payload
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const buildOtherRepairWorkOrderPayload = (): CreateCustomerWorkOrderDTO => {
     const rawId = formData.value.centerId
     const sid =
@@ -377,7 +389,9 @@
    * @param options.loadingTitle - 加载标题
    * @param options.redirect - 是否重定向
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const executeOtherRepairSubmit = async (options: {
     validate: boolean
     loadingTitle: string
@@ -397,7 +411,11 @@
     try {
       const res = await createCustomerWorkOrder(buildOtherRepairWorkOrderPayload())
       uni.hideLoading()
-      /** 关单后服务端会推「客户满意度评价通知」，需在创建工单时完成订阅授权 */
+      /**
+ * 关单后服务端会推「客户满意度评价通知」，需在创建工单时完成订阅授权
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       await requestEvaluationInviteSubscribe()
       uni.showToast({ title: res.msg, icon: 'none', duration: 1500 })
       if (options.redirect) {
@@ -421,7 +439,9 @@
   /**
    * 暂存非佳士品牌报修
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const stashForm = () => {
     // 暂存只保存本地草稿：不校验、不提交接口
     uni.showLoading({ title: '暂存中...' })
@@ -443,7 +463,9 @@
   /**
    * 重置：清空当前表单与网点展示；保留本地暂存键，再次进入页面（非地图返回）时回显暂存
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const resetForm = () => {
     needReapplyDraftAfterReset.value = true
     clearServicePointSelection()
@@ -471,7 +493,9 @@
   /**
    * 提交非佳士品牌报修
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const submitForm = () => {
     void executeOtherRepairSubmit({
       validate: true,

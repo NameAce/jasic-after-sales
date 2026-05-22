@@ -47,19 +47,47 @@
     defineProps<{
       historyTitle: string
       recordLabel: string
-      /** 用于跳转历史记录页 */
+      /**
+ * 用于跳转历史记录页
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       orderId: string
-      /** 后端 flows → processFlows，用于「流转记录」入口与历史页 */
+      /**
+ * 后端 flows → processFlows，用于「流转记录」入口与历史页
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       flowItems?: OrderDetailProcessFlowItem[]
-      /** 详情 `repairs` 末条下的 `faults`（map 后为 faultPoint.currentFaults） */
+      /**
+ * 详情 `repairs` 末条下的 `faults`（map 后为 faultPoint.currentFaults）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       repairFaults?: WorkOrderFaultVO[]
-      /** 全部 `repairs[].faults` 映射后的列表，写入 storage 供「查看历史记录」页回显 */
+      /**
+ * 全部 `repairs[].faults` 映射后的列表，写入 storage 供「查看历史记录」页回显
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       historyRecords?: FaultPointRecord[]
-      /** 单条 fault 无 createTime 时，用维修单创建时间兜底 */
+      /**
+ * 单条 fault 无 createTime 时，用维修单创建时间兜底
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       repairTimeFallback?: string
-      /** false：维修过程 Tab 内嵌（无外层白底 card） */
+      /**
+ * false：维修过程 Tab 内嵌（无外层白底 card）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       asCard?: boolean
-      /** 列表「已转单」仅查看详情时隐藏「查看历史记录」 */
+      /**
+ * 列表「已转单」仅查看详情时隐藏「查看历史记录」
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       showRepairHistoryLink?: boolean
     }>(),
     {
@@ -72,7 +100,11 @@
     }
   )
 
-  /** 仅展示含 repairs.faults.repairDesc / otherDesc 的行，并用于整块卡片显隐 */
+  /**
+ * 仅展示含 repairs.faults.repairDesc / otherDesc 的行，并用于整块卡片显隐
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const displayRepairFaultRows = computed(() =>
     (props.repairFaults || []).filter(
       (row) => hasVal(faultRowRepairDesc(row)) || hasVal(faultRowOtherDesc(row))
@@ -84,7 +116,9 @@
    * @param f 故障点记录对象
    * @param idx 索引
    * @returns 故障点记录键
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   function faultRowKey(f: WorkOrderFaultVO, idx: number) {
     return f.id != null ? String(f.id) : `f-${idx}`
   }
@@ -106,7 +140,9 @@
   /**
    * 打开维修历史记录页
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   function openRepairHistory() {
     const id = (props.orderId || '').trim()
     if (!id) return

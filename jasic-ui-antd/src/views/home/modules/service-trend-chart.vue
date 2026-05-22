@@ -2,6 +2,8 @@
 /**
  * 服务主体首页近七天事件趋势图：接单 / 完成 / 转出（数据来自 trend.series）。
  * 折线样式与 git line-chart.vue 一致。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
@@ -56,6 +58,12 @@ const { domRef, updateOptions } = useEcharts(() => ({
 
 const { width, height } = useElementSize(domRef);
 
+/**
+ * 作用：将 trendPayload 同步到多序列折线图。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function applyTrendData() {
   await nextTick();
   const payload = trendPayload.value;
@@ -80,12 +88,19 @@ watch(
   { flush: 'post', deep: true }
 );
 
+/**
+ * 作用：跳转当前处理工单列表。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function goWorkOrderPage() {
   router.push({ name: 'after-sales_work-order', query: { viewScope: 'CURRENT' } });
 }
 </script>
 
 <template>
+  <!-- 服务商趋势图 -->
   <ACard :bordered="false" class="card-wrapper" :loading="loading">
     <template #extra>
       <a class="text-primary" href="javascript:;" @click.prevent="goWorkOrderPage">工单列表</a>

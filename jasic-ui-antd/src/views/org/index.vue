@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 组织与客商：公司/类型、区域、合同、客户导入等多 Tab 业务聚合页（对接 org 域接口）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -326,9 +328,10 @@ const cityOptions = ref<RowData[]>([]);
 const districtOptions = ref<RowData[]>([]);
 
 /**
- * 作用：根据类型编码取公司类型的主体类型（HQ/SERVICE 等）。
- * @param typeCode - 类型编码
- * @returns 主体类型字符串，未匹配返回空串
+ * 作用：读取/解析：getCompanySubjectType。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function getCompanySubjectType(typeCode?: string) {
   const target = String(typeCode || '');
@@ -339,9 +342,10 @@ function getCompanySubjectType(typeCode?: string) {
 }
 
 /**
- * 作用：判断是否为总部类型公司。
- * @param typeCode - 类型编码
- * @returns 是否总部
+ * 作用：判断是否满足条件：isCompanyHqType。
+ * @returns boolean
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function isCompanyHqType(typeCode?: string) {
   return getCompanySubjectType(typeCode) === 'HQ';
@@ -418,9 +422,10 @@ const orgRegionFormRules = {
 };
 
 /**
- * 作用：根据类型编码解析类型显示名称。
- * @param typeCode - 类型编码
- * @returns 类型名称或空串
+ * 作用：读取/解析：getCompanyTypeLabel。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function getCompanyTypeLabel(typeCode?: string) {
   const target = String(typeCode || '');
@@ -430,9 +435,10 @@ function getCompanyTypeLabel(typeCode?: string) {
 }
 
 /**
- * 作用：拼接公司省/市/名称为展示用地区字符串。
- * @param record - 表格行
- * @returns 展示文案或 -
+ * 作用：格式化展示：formatCompanyRegion。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function formatCompanyRegion(record: RowData) {
   const parts = [record.provinceName, record.cityName, record.districtName]
@@ -467,6 +473,12 @@ const ORG_TAB_ACTION_COL_WIDTH: Record<TabKey, number> = {
   companyType: 220
 };
 
+/**
+ * 作用：按 Tab 生成操作列配置。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function orgActionColumn(tab: TabKey) {
   return createAntTableActionColumn({
     dataIndex: 'actions',
@@ -845,9 +857,10 @@ const crmTableScrollX = computed(() => {
 const { tableWrapperRef, scrollConfig } = useTableScroll(crmTableScrollX);
 
 /**
- * 作用：解析列表接口返回的行数组。
- * @param data - 分页或数组
- * @returns 行数据
+ * 作用：从分页接口响应解析列表数组。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function pickRows(data: any) {
   if (Array.isArray(data)) return data;
@@ -856,18 +869,20 @@ function pickRows(data: any) {
 }
 
 /**
- * 作用：解析分页 total。
- * @param data - 接口数据
- * @returns 总条数
+ * 作用：从分页接口响应解析总条数。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function pickTotal(data: any) {
   return Number(data?.total) || 0;
 }
 
 /**
- * 作用：懒加载总部/一级/二级公司下拉数据（CRM 相关共用）。
- * @param 无
- * @returns 返回 Promise，选项就绪后结束；已缓存则无请求
+ * 作用：加载数据：loadCompanyOptionsForCrm。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadCompanyOptionsForCrm() {
   if (hqCompanyOptions.value.length && firstCompanyOptions.value.length && secondCompanyOptions.value.length) {
@@ -885,9 +900,10 @@ async function loadCompanyOptionsForCrm() {
 }
 
 /**
- * 作用：按总部 ID 加载 CRM 导入用大区下拉选项。
- * @param hqCompanyId - 总部公司 ID，空则清空选项
- * @returns 返回 Promise，大区列表写入后结束（失败时清空选项）
+ * 作用：加载数据：loadCrmImportRegions。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadCrmImportRegions(hqCompanyId: number | undefined) {
   if (!hqCompanyId) {
@@ -903,9 +919,10 @@ async function loadCrmImportRegions(hqCompanyId: number | undefined) {
 }
 
 /**
- * 作用：拉取并缓存公司类型列表到公司类型选项。
- * @param 无
- * @returns 返回 Promise，请求写入 companyTypeOptions 后结束
+ * 作用：确保前置数据已加载：ensureCompanyTypeOptions。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function ensureCompanyTypeOptions() {
   const { data } = await listCompanyType();
@@ -914,9 +931,10 @@ async function ensureCompanyTypeOptions() {
 }
 
 /**
- * 作用：按当前 activeTab 加载对应列表数据。
- * @param 无
- * @returns 返回 Promise，当前 Tab 列表更新后结束
+ * 作用：加载当前 Tab/条件下表格数据。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadList() {
   clearListMsgs();
@@ -1047,14 +1065,20 @@ async function loadList() {
 }
 
 /**
- * 作用：大区 Tab 下总部筛选变更时刷新列表（筛选项不可清空，始终带总部公司 ID 请求）。
+ * 作用：执行查询（回到第一页）：handleRegionSearch。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleRegionSearch() {
   loadList();
 }
 
 /**
- * 作用：大区筛选项「总部公司」未选时默认第一项（仅路由进入大区 Tab 时调用，保证首屏请求带公司 ID）。
+ * 作用：应用配置或路由参数：applyDefaultRegionCompanyFilter。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function applyDefaultRegionCompanyFilter() {
   if (regionQueryCompanyId.value != null) return;
@@ -1064,7 +1088,10 @@ function applyDefaultRegionCompanyFilter() {
 }
 
 /**
- * 作用：加载总部下拉并应用大区筛选项默认值，供首屏列表请求使用。
+ * 作用：确保前置数据已加载：ensureRegionQueryCompanyReady。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function ensureRegionQueryCompanyReady() {
   await loadCompanyOptionsForCrm();
@@ -1072,7 +1099,10 @@ async function ensureRegionQueryCompanyReady() {
 }
 
 /**
- * 作用：总部一级签约筛选项「总部公司」未选时默认第一项（仅路由进入该 Tab 时调用，保证首屏请求带公司 ID）。
+ * 作用：应用配置或路由参数：applyDefaultHqFirstCompanyFilter。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function applyDefaultHqFirstCompanyFilter() {
   if (hqFirstQuery.hqCompanyId != null) return;
@@ -1082,7 +1112,10 @@ function applyDefaultHqFirstCompanyFilter() {
 }
 
 /**
- * 作用：加载总部下拉并应用签约筛选项默认值，供首屏列表请求使用。
+ * 作用：确保前置数据已加载：ensureHqFirstQueryCompanyReady。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function ensureHqFirstQueryCompanyReady() {
   await loadCompanyOptionsForCrm();
@@ -1090,8 +1123,10 @@ async function ensureHqFirstQueryCompanyReady() {
 }
 
 /**
- * 作用：打开大区新增/编辑抽屉并回填表单。
- * @param record - 编辑时传入行数据
+ * 作用：打开表单/抽屉：openRegionForm。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function openRegionForm(record?: RowData) {
   if (!regionQueryCompanyId.value && !record?.companyId) {
@@ -1107,7 +1142,10 @@ function openRegionForm(record?: RowData) {
 }
 
 /**
- * 作用：提交大区表单（新增或更新）。
+ * 作用：校验并提交：submitRegionForm。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitRegionForm() {
   try {
@@ -1134,8 +1172,10 @@ async function submitRegionForm() {
 }
 
 /**
- * 作用：删除大区记录。
- * @param record - 表格行
+ * 作用：删除记录：removeRegion。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function removeRegion(record: RowData) {
   const r = await deleteRegion(record.id, {
@@ -1146,7 +1186,10 @@ async function removeRegion(record: RowData) {
 }
 
 /**
- * 作用：加载总部一级 CRM 导入快照表格数据。
+ * 作用：加载数据：loadCrmHqRows。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadCrmHqRows() {
   if (!crmHqQuery.hqCompanyId) {
@@ -1190,7 +1233,10 @@ async function loadCrmHqRows() {
 }
 
 /**
- * 作用：加载一级二级 CRM 导入快照表格数据。
+ * 作用：加载数据：loadCrmFsRows。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadCrmFsRows() {
   if (!crmFsQuery.targetCompanyId) {
@@ -1234,7 +1280,10 @@ async function loadCrmFsRows() {
 }
 
 /**
- * 作用：打开「从 CRM 导入签约」抽屉并初始化筛选与列表。
+ * 作用：页面内业务方法：openHqCrmImport。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openHqCrmImport() {
   hqCrmImportOpen.value = true;
@@ -1252,7 +1301,10 @@ async function openHqCrmImport() {
 }
 
 /**
- * 作用：总部一级 CRM 导入筛选中总部变更时重置大区并刷新列表。
+ * 作用：组件回调：onCrmHqCompanyChange。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function onCrmHqCompanyChange() {
   crmHqQuery.regionId = undefined;
@@ -1269,7 +1321,10 @@ function onCrmHqCompanyChange() {
 }
 
 /**
- * 作用：总部一级 CRM 导入表格查询。
+ * 作用：执行查询（回到第一页）：handleCrmHqSearch。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleCrmHqSearch() {
   if (!crmHqQuery.hqCompanyId) {
@@ -1281,7 +1336,10 @@ function handleCrmHqSearch() {
 }
 
 /**
- * 作用：重置总部一级 CRM 导入筛选条件（保留当前总部）。
+ * 作用：重置查询条件并刷新列表：resetHqCrmQuery。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function resetHqCrmQuery() {
   const hqCompanyId = crmHqQuery.hqCompanyId;
@@ -1302,7 +1360,10 @@ function resetHqCrmQuery() {
 }
 
 /**
- * 作用：一级二级 CRM 导入表格查询。
+ * 作用：执行查询（回到第一页）：handleCrmFsSearch。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleCrmFsSearch() {
   if (!crmFsQuery.targetCompanyId) {
@@ -1314,7 +1375,10 @@ function handleCrmFsSearch() {
 }
 
 /**
- * 作用：重置一级二级 CRM 导入筛选条件。
+ * 作用：重置查询条件并刷新列表：resetFsCrmQuery。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function resetFsCrmQuery() {
   const targetCompanyId = crmFsQuery.targetCompanyId;
@@ -1330,17 +1394,20 @@ function resetFsCrmQuery() {
 }
 
 /**
- * 作用：生成表格行唯一 key（兼容多种 ID 字段）。
- * @param record - 行数据
- * @returns row-key 值
+ * 作用：表格相关：tableRowKey。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function tableRowKey(record: RowData) {
   return record.id ?? record.batchId ?? record.custId ?? `${record.areaCode ?? ''}-${record.typeCode ?? ''}`;
 }
 
 /**
- * 作用：切换子 Tab 并重置分页、按需预加载选项与列表。
- * @param tab - 目标 TabKey
+ * 作用：应用配置或路由参数：applyActiveTabByRoute。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function applyActiveTabByRoute(tab: TabKey) {
   activeTab.value = tab;
@@ -1382,7 +1449,10 @@ function applyActiveTabByRoute(tab: TabKey) {
 }
 
 /**
- * 作用：公司列表查询（重置第一页）。
+ * 作用：执行查询（回到第一页）：handleCompanySearch。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleCompanySearch() {
   companyQuery.pageNum = 1;
@@ -1390,7 +1460,10 @@ function handleCompanySearch() {
 }
 
 /**
- * 作用：重置公司筛选条件并查询。
+ * 作用：重置查询条件并刷新列表：resetCompanyQuery。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function resetCompanyQuery() {
   companyQuery.companyName = undefined;
@@ -1414,8 +1487,10 @@ function resetCompanyQuery() {
 const ORG_ROUTE_TAB_KEYS = new Set<TabKey>(['company', 'companyType', 'hqFirst', 'firstSecond', 'external', 'area']);
 
 /**
- * 首页组织治理卡片跳转：同步 Tab；公司 Tab 仅回显已有「状态」筛选项。
- * subjectType 无对应搜索表单项，只写入查询参数供列表接口过滤。
+ * 作用：应用配置或路由参数：applyFiltersFromRouteQuery。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function applyFiltersFromRouteQuery() {
   const tab = readRouteQueryString(route.query, 'activeTab') as TabKey;
@@ -1448,7 +1523,10 @@ useRouteQueryFilterSync({
 });
 
 /**
- * 作用：外部公司列表查询。
+ * 作用：执行查询（回到第一页）：handleExternalSearch。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleExternalSearch() {
   externalQuery.pageNum = 1;
@@ -1456,7 +1534,10 @@ function handleExternalSearch() {
 }
 
 /**
- * 作用：重置外部公司名称筛选并查询。
+ * 作用：重置查询条件并刷新列表：resetExternalQuery。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function resetExternalQuery() {
   externalQuery.companyName = '';
@@ -1464,7 +1545,10 @@ function resetExternalQuery() {
 }
 
 /**
- * 作用：总部一级签约列表总部筛选变更时刷新（筛选项不可清空，始终带总部公司 ID 请求）。
+ * 作用：执行查询（回到第一页）：handleHqFirstSearch。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleHqFirstSearch() {
   hqFirstQuery.pageNum = 1;
@@ -1472,7 +1556,10 @@ function handleHqFirstSearch() {
 }
 
 /**
- * 作用：一级二级关系列表筛选变更触发刷新。
+ * 作用：执行查询（回到第一页）：handleFirstSecondSearch。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleFirstSecondSearch() {
   firstSecondQuery.pageNum = 1;
@@ -1480,8 +1567,10 @@ function handleFirstSecondSearch() {
 }
 
 /**
- * 作用：签约页内部 Tabs（总部一级 / 一级二级）切换。
- * @param tab - Tab key
+ * 作用：处理交互事件：handleContractTabChange。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleContractTabChange(tab: string | number) {
   const next = String(tab);
@@ -1491,8 +1580,10 @@ function handleContractTabChange(tab: string | number) {
 }
 
 /**
- * 作用：签约表单中总部变更时加载其下属大区选项。
- * @param value - 选中的总部 ID
+ * 作用：组件回调：onHqFormHqCompanyChange。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function onHqFormHqCompanyChange(value: any) {
   hqForm.regionId = undefined;
@@ -1506,8 +1597,10 @@ async function onHqFormHqCompanyChange(value: any) {
 }
 
 /**
- * 作用：将后端 LocalDateTime / ISO 等串转为 `ADatePicker` `value-format="YYYY-MM-DD"` 所需的纯日期串；
- * 与 jasic-ui `el-date-picker` `yyyy-MM-dd` 一致，避免带时分秒时控件不回显。
+ * 作用：类型/值转换：toContractDatePickerValue。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function toContractDatePickerValue(v: unknown): string {
   if (v == null || v === '') return '';
@@ -1517,7 +1610,10 @@ function toContractDatePickerValue(v: unknown): string {
 }
 
 /**
- * 作用：下拉与表单 v-model 统一为有限 number，避免接口 number|string 与选项 value 类型不一致导致 ASelect 不回显。
+ * 作用：类型/值转换：toOptionalFiniteId。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function toOptionalFiniteId(v: unknown): number | undefined {
   if (v == null || v === '') return undefined;
@@ -1526,9 +1622,10 @@ function toOptionalFiniteId(v: unknown): number | undefined {
 }
 
 /**
- * 作用：根据路由 name 切换组织 Tab；若已是当前 Tab 则返回 false。
- * @param routeName - 路由 name
- * @returns 是否发生了 Tab 切换
+ * 作用：同步状态：syncActiveTabByRouteName。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function syncActiveTabByRouteName(routeName: unknown) {
   const routeKey = String(routeName || '');
@@ -1539,8 +1636,10 @@ function syncActiveTabByRouteName(routeName: unknown) {
 }
 
 /**
- * 作用：打开总部-一级签约抽屉并回填；加载大区选项。
- * @param record - 编辑行（可选）
+ * 作用：打开表单/抽屉：openHqForm。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openHqForm(record?: RowData) {
   await loadCompanyOptionsForCrm();
@@ -1570,7 +1669,10 @@ async function openHqForm(record?: RowData) {
 }
 
 /**
- * 作用：提交总部一级签约表单。
+ * 作用：校验并提交：submitHqForm。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitHqForm() {
   if (!hqForm.hqCompanyId) {
@@ -1594,8 +1696,10 @@ async function submitHqForm() {
 }
 
 /**
- * 作用：删除总部一级签约关系。
- * @param id - 记录 ID
+ * 作用：删除记录：removeHq。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function removeHq(id: number) {
   if (!hqFirstQuery.hqCompanyId) {
@@ -1610,8 +1714,10 @@ async function removeHq(id: number) {
 }
 
 /**
- * 作用：打开一级二级关系抽屉并回填。
- * @param record - 编辑行（可选）
+ * 作用：打开表单/抽屉：openFsForm。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openFsForm(record?: RowData) {
   if (!firstSecondQuery.targetCompanyId) {
@@ -1632,7 +1738,10 @@ async function openFsForm(record?: RowData) {
 }
 
 /**
- * 作用：提交一级二级关系表单。
+ * 作用：校验并提交：submitFsForm。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitFsForm() {
   if (!fsForm.firstCompanyId) {
@@ -1656,8 +1765,10 @@ async function submitFsForm() {
 }
 
 /**
- * 作用：删除一级二级关系。
- * @param id - 记录 ID
+ * 作用：删除记录：removeFs。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function removeFs(id: number) {
   if (!firstSecondQuery.targetCompanyId) {
@@ -1672,7 +1783,10 @@ async function removeFs(id: number) {
 }
 
 /**
- * 作用：执行总部一级 CRM 选中行导入。
+ * 作用：触发业务动作：triggerCrmHqImport。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function triggerCrmHqImport() {
   if (!crmHqQuery.hqCompanyId) {
@@ -1697,7 +1811,10 @@ async function triggerCrmHqImport() {
 }
 
 /**
- * 作用：执行一级二级 CRM 选中行导入。
+ * 作用：触发业务动作：triggerCrmFsImport。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function triggerCrmFsImport() {
   if (!crmFsQuery.targetCompanyId) {
@@ -1720,8 +1837,10 @@ async function triggerCrmFsImport() {
 }
 
 /**
- * 作用：打开外部公司 CRM 导入预览抽屉并触发加载。
- * @param custId - 客户主键 ID
+ * 作用：打开预览。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function openPreview(custId: string | number) {
   previewCustId.value = custId;
@@ -1731,7 +1850,10 @@ function openPreview(custId: string | number) {
 }
 
 /**
- * 作用：按预览抽屉中的 custId 拉取 CRM 导入预览 JSON。
+ * 作用：加载数据：loadPreview。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadPreview() {
   if (previewCustId.value === '' || previewCustId.value === undefined) {
@@ -1748,43 +1870,50 @@ async function loadPreview() {
 }
 
 /**
- * 作用：从 CRM 快照行解析用于导入的 snapshotId。
- * @param record - 表格行
- * @returns 快照 ID
+ * 作用：页面内业务方法：extractSnapshotId。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function extractSnapshotId(record: RowData) {
   return record.snapshotId ?? record.snapshotID ?? record.id;
 }
 
 /**
- * 作用：总部一级 CRM 导入表格行选中变更，同步 snapshotIds。
- * @param _keys - 选中 key（未使用）
- * @param selectedRows - 选中行
+ * 作用：组件回调：onSelectHqCrmRows。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function onSelectHqCrmRows(_keys: Array<string | number>, selectedRows: RowData[]) {
   selectedHqSnapshotIds.value = (selectedRows || []).map(extractSnapshotId).filter(id => id != null && id !== '');
 }
 
 /**
- * 作用：一级二级 CRM 导入表格行选中变更，同步 snapshotIds。
- * @param _keys - 选中 key（未使用）
- * @param selectedRows - 选中行
+ * 作用：组件回调：onSelectFsCrmRows。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function onSelectFsCrmRows(_keys: Array<string | number>, selectedRows: RowData[]) {
   selectedFsSnapshotIds.value = (selectedRows || []).map(extractSnapshotId).filter(id => id != null && id !== '');
 }
 
 /**
- * 作用：主列表在非 CRM 抽屉场景关闭行选择（返回 undefined）。
- * @returns undefined 表示无 rowSelection
+ * 作用：页面内业务方法：crmRowSelection。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function crmRowSelection() {
   return undefined;
 }
 
 /**
- * 作用：打开公司新增/编辑抽屉，加载省市区与类型选项并回填。
- * @param record - 编辑行（可选）
+ * 作用：打开表单/抽屉：openCompanyForm。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function openCompanyForm(record?: RowData) {
   loadProvinceOptions();
@@ -1835,7 +1964,10 @@ function openCompanyForm(record?: RowData) {
 }
 
 /**
- * 作用：校验并提交公司表单（新增或更新）。
+ * 作用：校验并提交：submitCompanyForm。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitCompanyForm() {
   try {
@@ -1861,8 +1993,10 @@ async function submitCompanyForm() {
 }
 
 /**
- * 作用：删除公司。
- * @param id - 公司 ID
+ * 作用：删除记录：removeCompany。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function removeCompany(id: number) {
   const r = await deleteCompany(id);
@@ -1871,8 +2005,10 @@ async function removeCompany(id: number) {
 }
 
 /**
- * 作用：打开公司类型新增/编辑表单。
- * @param record - 编辑行（可选）
+ * 作用：打开表单/抽屉：openCompanyTypeForm。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function openCompanyTypeForm(record?: RowData) {
   companyTypeForm.id = record?.id;
@@ -1885,7 +2021,10 @@ function openCompanyTypeForm(record?: RowData) {
 }
 
 /**
- * 作用：提交公司类型表单。
+ * 作用：校验并提交：submitCompanyTypeForm。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitCompanyTypeForm() {
   try {
@@ -1913,8 +2052,10 @@ async function submitCompanyTypeForm() {
 }
 
 /**
- * 作用：删除公司类型。
- * @param id - 类型 ID
+ * 作用：删除记录：removeCompanyType。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function removeCompanyType(id: number) {
   const r = await deleteCompanyType(id);
@@ -1923,8 +2064,10 @@ async function removeCompanyType(id: number) {
 }
 
 /**
- * 作用：打开「按类型编码分配菜单」抽屉并加载树与已选菜单 ID。
- * @param record - 公司类型行
+ * 作用：页面内业务方法：openCompanyTypeMenuAssign。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openCompanyTypeMenuAssign(record: RowData) {
   const typeCode = String(record.typeCode || '');
@@ -1960,7 +2103,10 @@ async function openCompanyTypeMenuAssign(record: RowData) {
 }
 
 /**
- * 作用：保存类型与菜单的绑定关系。
+ * 作用：校验并提交：submitCompanyTypeMenuAssign。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitCompanyTypeMenuAssign() {
   if (!companyTypeMenuTypeCode.value) return;
@@ -1976,7 +2122,10 @@ async function submitCompanyTypeMenuAssign() {
 }
 
 /**
- * 作用：加载省级行政区划选项（公司表单）。
+ * 作用：加载数据：loadProvinceOptions。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadProvinceOptions() {
   const { data } = await listAreaOptions();
@@ -1984,9 +2133,10 @@ async function loadProvinceOptions() {
 }
 
 /**
- * 作用：编辑公司时根据已有省、市代码加载市、区下拉。
- * @param provinceCode - 省代码
- * @param cityCode - 市代码
+ * 作用：加载数据：loadCompanyAreaOptionsForEdit。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadCompanyAreaOptionsForEdit(provinceCode?: string | number, cityCode?: string | number) {
   cityOptions.value = [];
@@ -2006,8 +2156,10 @@ async function loadCompanyAreaOptionsForEdit(provinceCode?: string | number, cit
 }
 
 /**
- * 作用：公司表单省份变更时重置市、区并加载市列表。
- * @param code - 省 areaCode
+ * 作用：组件回调：onCompanyProvinceChange。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function onCompanyProvinceChange(code?: any) {
   companyForm.cityCode = '';
@@ -2020,8 +2172,10 @@ async function onCompanyProvinceChange(code?: any) {
 }
 
 /**
- * 作用：公司表单城市变更时重置区并加载区列表。
- * @param code - 市 areaCode
+ * 作用：组件回调：onCompanyCityChange。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function onCompanyCityChange(code?: any) {
   companyForm.districtCode = '';
@@ -2032,7 +2186,10 @@ async function onCompanyCityChange(code?: any) {
 }
 
 /**
- * 作用：打开「从 CRM 选择公司」抽屉并重置到第一页列表。
+ * 作用：页面内业务方法：prefillCompanyByCrm。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function prefillCompanyByCrm() {
   companyCrmImportOpen.value = true;
@@ -2042,7 +2199,10 @@ async function prefillCompanyByCrm() {
 }
 
 /**
- * 作用：按 CRM 导入查询条件加载可选外部公司列表。
+ * 作用：加载数据：loadCompanyCrmImportList。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadCompanyCrmImportList() {
   companyCrmListMsgs.clearListMsgs();
@@ -2075,7 +2235,10 @@ async function loadCompanyCrmImportList() {
 }
 
 /**
- * 作用：CRM 导入抽屉内搜索（回到第一页）。
+ * 作用：执行查询（回到第一页）：handleCompanyCrmImportSearch。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleCompanyCrmImportSearch() {
   companyCrmImportQuery.pageNum = 1;
@@ -2083,7 +2246,10 @@ function handleCompanyCrmImportSearch() {
 }
 
 /**
- * 作用：重置 CRM 导入抽屉筛选并刷新列表。
+ * 作用：页面内业务方法：resetCompanyCrmImportSearch。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function resetCompanyCrmImportSearch() {
   companyCrmImportQuery.pageNum = 1;
@@ -2095,18 +2261,20 @@ function resetCompanyCrmImportSearch() {
 }
 
 /**
- * 作用：解析 CRM 导入公司表格行主键（与 row-key、勾选一致）。
- * @param record - 外部公司行
- * @returns 行主键
+ * 作用：页面内业务方法：resolveCompanyCrmImportRowKey。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function resolveCompanyCrmImportRowKey(record: RowData) {
   return (record.id ?? record.custId) as string | number;
 }
 
 /**
- * 作用：CRM 公司导入表格勾选变更；行为与操作列「选择」一致，选中即触发导入预览/回填。
- * @param keys - 当前勾选主键列表
- * @param selectedRows - 当前勾选行数据
+ * 作用：组件回调：onCompanyCrmImportRowSelectChange。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function onCompanyCrmImportRowSelectChange(keys: (string | number)[], selectedRows: RowData[]) {
   if (!keys.length) {
@@ -2134,8 +2302,10 @@ const companyCrmImportRowSelection = computed(() => ({
 }));
 
 /**
- * 作用：选中 CRM 一行后预览并带入公司表单或提示不可导入。
- * @param row - 外部公司行
+ * 作用：页面内业务方法：useCompanyCrmImportRow。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function useCompanyCrmImportRow(row: RowData) {
   const custId = row.custId ?? row.id;
@@ -2180,8 +2350,10 @@ async function useCompanyCrmImportRow(row: RowData) {
 }
 
 /**
- * 作用：公司 Tab 下的分页配置对象；非公司 Tab 返回 false。
- * @returns Pagination 配置或 false
+ * 作用：页面内业务方法：companyPagination。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function companyPagination() {
   if (activeTab.value !== 'company') return false;
@@ -2200,8 +2372,10 @@ function companyPagination() {
 }
 
 /**
- * 作用：总部一级签约 Tab 分页配置；非对应 Tab 返回 false。
- * @returns Pagination 配置或 false
+ * 作用：页面内业务方法：hqPagination。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function hqPagination() {
   if (activeTab.value !== 'hqFirst') return false;
@@ -2220,8 +2394,10 @@ function hqPagination() {
 }
 
 /**
- * 作用：一级二级关系 Tab 分页配置；非对应 Tab 返回 false。
- * @returns Pagination 配置或 false
+ * 作用：页面内业务方法：fsPagination。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function fsPagination() {
   if (activeTab.value !== 'firstSecond') return false;
@@ -2240,8 +2416,10 @@ function fsPagination() {
 }
 
 /**
- * 作用：外部公司 Tab 分页配置；非对应 Tab 返回 false。
- * @returns Pagination 配置或 false
+ * 作用：页面内业务方法：externalPagination。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function externalPagination() {
   if (activeTab.value !== 'external') return false;
@@ -2260,8 +2438,10 @@ function externalPagination() {
 }
 
 /**
- * 作用：合并各业务 Tab 的分页配置（短路返回首个有效）。
- * @returns Pagination 配置或 false
+ * 作用：页面内业务方法：mergedPagination。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function mergedPagination() {
   const p = companyPagination() || hqPagination() || fsPagination() || externalPagination() || false;
@@ -2269,8 +2449,10 @@ function mergedPagination() {
 }
 
 /**
- * 作用：主表格 pagination：公司类型/大区 Tab 无分页。
- * @returns Pagination 配置或 false
+ * 作用：表格相关：tablePagination。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function tablePagination() {
   const p = mergedPagination();
@@ -2295,7 +2477,9 @@ onMounted(() => {
 </script>
 
 <template>
+  <!-- 组织与客商：多 Tab（公司/类型/区域/合同/外部客户等）；筛选与列表随 activeTab 切换 -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <!-- 筛选区：合同子 Tab、公司/客户查询等（companyType Tab 无此卡片） -->
     <ACard v-if="activeTab !== 'companyType'" :bordered="false" class="card-wrapper">
       <ATabs
         v-if="isContractPageTab"
@@ -2517,6 +2701,7 @@ onMounted(() => {
         </div>
       </AForm>
     </ACard>
+    <!-- 列表区：工具栏（新增/CRM 导入等）与表格；操作列由 orgActionColumn 按 Tab 生成 -->
     <ACard
       :title="pageMenuTitle"
       :bordered="false"
@@ -2684,6 +2869,7 @@ onMounted(() => {
       </ATable>
     </ACard>
 
+    <!-- 抽屉区：签约关系、公司/类型、区域、CRM 预览与选择等 -->
     <ADrawer v-model:open="hqCrmImportOpen" title="从CRM导入签约" :width="contractCrmImportDrawerWidth">
       <AForm :model="crmHqQuery" layout="inline" class="company-crm-import-search mb-12px">
         <AFormItem label="总部公司">

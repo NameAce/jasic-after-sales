@@ -19,6 +19,8 @@ import type { CompanySimple, LoginResult, SysUserInfo } from '@/utils/permission
  *     2) 调 `chooseCompany({ companyId })` 让后端写入 session 上下文
  *     3) 用返回的 `SysUserInfo` 覆盖本地 info（含最新 perms 与 typeCode）
  *   任何一步失败都清掉本地 token，避免留下"半登录态"。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export async function finalizeMpLoginSession(
   loginRes: ApiResponse<LoginResult>,
@@ -42,7 +44,9 @@ export async function finalizeMpLoginSession(
        * 用户取消选公司：后端已 `StpUtil.login` 建了 session 但无公司上下文。
        * 临时写入 token 调一次 logout 让后端释放 session，再清理本地；
        * 任一步失败都忽略，保证用户能留在登录页重试。
-       */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       userStore.setToken(result.token)
       try {
         await logoutApi()
@@ -55,19 +59,31 @@ export async function finalizeMpLoginSession(
 
     const chosen = companies[index] as CompanySimple
 
-    /** http.ts 从 uni.getStorageSync('token') 取鉴权头，必须先写入 */
+    /**
+ * http.ts 从 uni.getStorageSync('token') 取鉴权头，必须先写入
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
     userStore.setToken(result.token)
 
     try {
       const chooseRes = await chooseCompany({ companyId: chosen.id })
       if (!chooseRes?.data) {
-        /** http 层对非 00000 已 toast；这里仅清理本地态即可 */
+        /**
+ * http 层对非 00000 已 toast；这里仅清理本地态即可
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
         userStore.clearUserInfo()
         return
       }
       info = chooseRes.data
     } catch {
-      /** reject 分支 http 层已展示 toast，避免重复提示；清 token 让用户重登 */
+      /**
+ * reject 分支 http 层已展示 toast，避免重复提示；清 token 让用户重登
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       userStore.clearUserInfo()
       return
     }

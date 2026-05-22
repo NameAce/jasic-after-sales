@@ -21,6 +21,8 @@ const storagePrefix = import.meta.env.VITE_STORAGE_PREFIX || '';
  * @param userId - 后端用户 ID（空则按访客处理）
  * @param roleKeys - 后端角色 `roleKey` 数组，需与权限判定口径一致（已去重则更佳）
  * @returns {string} 分区语义串
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function buildThemeStorageScopeId(userId: string, roleKeys: readonly string[]): string {
   const uid = String(userId || '').trim() || 'guest';
@@ -34,6 +36,8 @@ export function buildThemeStorageScopeId(userId: string, roleKeys: readonly stri
  *
  * @param scopeId - 分区语义串
  * @returns {string} Base64 URL 风格片段（无补齐 `=`）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function encodeScopeKeySegment(scopeId: string): string {
   return btoa(unescape(encodeURIComponent(scopeId)))
@@ -48,6 +52,8 @@ function encodeScopeKeySegment(scopeId: string): string {
  * @param baseKey - 逻辑键名，如 `themeSettings`、`themeColor`
  * @param scopeId - {@link buildThemeStorageScopeId} 产物
  * @returns {string} 带环境前缀的最终键名
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function scopedPhysicalKey(baseKey: string, scopeId: string): string {
   return `${storagePrefix}${baseKey}__scope__${encodeScopeKeySegment(scopeId)}`;
@@ -58,6 +64,8 @@ function scopedPhysicalKey(baseKey: string, scopeId: string): string {
  *
  * @param scopeId - 当前分区
  * @returns {string | null} 已记录的构建时间标记
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function readScopedPublishOverrideFlag(scopeId: string): string | null {
   const raw = localStorage.getItem(scopedPhysicalKey('themePublishOverrideFlag', scopeId));
@@ -75,6 +83,8 @@ export function readScopedPublishOverrideFlag(scopeId: string): string | null {
  * @param scopeId - 当前分区
  * @param buildTime - 通常为 Vite 注入的 BUILD_TIME
  * @returns {void}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function writeScopedPublishOverrideFlag(scopeId: string, buildTime: string): void {
   localStorage.setItem(scopedPhysicalKey('themePublishOverrideFlag', scopeId), JSON.stringify(buildTime));
@@ -85,6 +95,8 @@ export function writeScopedPublishOverrideFlag(scopeId: string, buildTime: strin
  *
  * @param scopeId - 当前分区
  * @returns {App.Theme.ThemeSetting | null} 反序列化结果
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function readScopedThemeSettings(scopeId: string): App.Theme.ThemeSetting | null {
   const raw = localStorage.getItem(scopedPhysicalKey('themeSettings', scopeId));
@@ -102,6 +114,8 @@ export function readScopedThemeSettings(scopeId: string): App.Theme.ThemeSetting
  * @param scopeId - 当前分区
  * @param value - 主题配置对象
  * @returns {void}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function writeScopedThemeSettings(scopeId: string, value: App.Theme.ThemeSetting): void {
   localStorage.setItem(scopedPhysicalKey('themeSettings', scopeId), JSON.stringify(value));
@@ -112,6 +126,8 @@ export function writeScopedThemeSettings(scopeId: string, value: App.Theme.Theme
  *
  * @param scopeId - 当前分区
  * @returns {string | null} 主色 hex 等
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function readScopedThemeColor(scopeId: string): string | null {
   const raw = localStorage.getItem(scopedPhysicalKey('themeColor', scopeId));
@@ -129,6 +145,8 @@ export function readScopedThemeColor(scopeId: string): string | null {
  * @param scopeId - 当前分区
  * @param color - 主色
  * @returns {void}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function writeScopedThemeColor(scopeId: string, color: string): void {
   localStorage.setItem(scopedPhysicalKey('themeColor', scopeId), JSON.stringify(color));
@@ -138,6 +156,8 @@ export function writeScopedThemeColor(scopeId: string, color: string): void {
  * 读取「无角色维度」旧版主题配置，仅用于升级兼容；新数据以分区键为准。
  *
  * @returns {App.Theme.ThemeSetting | null} 旧版缓存
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function readLegacyThemeSettings(): App.Theme.ThemeSetting | null {
   return localStg.get('themeSettings');
@@ -147,6 +167,8 @@ export function readLegacyThemeSettings(): App.Theme.ThemeSetting | null {
  * 读取旧版全局主色（供兼容 `setupLoading` 等在 Pinia 就绪前读取的场景）。
  *
  * @returns {string | null} 主色
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function readLegacyThemeColor(): string | null {
   return localStg.get('themeColor');
@@ -160,6 +182,8 @@ const DEFAULT_THEME_COLOR = '#646cff';
  *
  * @param scopeId - {@link buildThemeStorageScopeId} 产物
  * @returns {void}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function persistActiveThemeScopeId(scopeId: string): void {
   localStg.set('themeActiveScopeId', scopeId);
@@ -169,6 +193,8 @@ export function persistActiveThemeScopeId(scopeId: string): void {
  * 读取最近一次生效的主题分区标识。
  *
  * @returns {string | null} 分区语义串
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function readActiveThemeScopeId(): string | null {
   const raw = localStg.get('themeActiveScopeId');
@@ -180,6 +206,8 @@ export function readActiveThemeScopeId(): string | null {
  *
  * @param scopeId - 当前分区
  * @returns {void}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function clearScopedThemeCache(scopeId: string): void {
   localStorage.removeItem(scopedPhysicalKey('themeSettings', scopeId));
@@ -192,6 +220,8 @@ export function clearScopedThemeCache(scopeId: string): void {
  *
  * @param scopeId - 当前分区
  * @returns {void}
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function migrateLegacyThemeToScoped(scopeId: string): void {
   if (readScopedThemeSettings(scopeId)) return;
@@ -210,6 +240,8 @@ export function migrateLegacyThemeToScoped(scopeId: string): void {
  * 解析首屏 loading 使用的主色：优先「上次登录用户+角色」分区，其次旧版全局键，最后项目默认色。
  *
  * @returns {string} 主色 hex
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function resolveThemeColorForBoot(): string {
   const activeScopeId = readActiveThemeScopeId();

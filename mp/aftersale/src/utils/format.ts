@@ -13,6 +13,8 @@
  * - maskAddress(raw: unknown): string
  *
  * 注：`formatTimeHHMM` 为两端共用的 UI 时间展示函数，沿用既有调用点，不迁移、不改签名。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 
 /**
@@ -25,6 +27,8 @@
  *
  * @param raw 原始时间字符串
  * @returns 规范化后的字符串
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function formatIsoDateTime(raw: unknown): string {
   const s = String(raw ?? '').trim()
@@ -47,6 +51,8 @@ export function formatIsoDateTime(raw: unknown): string {
  * @param raw 原始金额
  * @param fallback 无法解析时的兜底值，默认空串
  * @returns 金额展示字符串
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function formatAmount(raw: unknown, fallback: string = ''): string {
   if (raw === undefined || raw === null || raw === '') return fallback
@@ -69,6 +75,8 @@ export function formatAmount(raw: unknown, fallback: string = ''): string {
  *
  * @param raw 原始手机号
  * @returns 脱敏后字符串
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function maskMobile(raw: unknown): string {
   const s = String(raw ?? '').trim()
@@ -86,6 +94,8 @@ export function maskMobile(raw: unknown): string {
  *
  * @param raw 原始地址
  * @returns 脱敏后字符串
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function maskAddress(raw: unknown): string {
   const s = String(raw ?? '').trim()
@@ -98,6 +108,8 @@ export function maskAddress(raw: unknown): string {
  * 格式化时间为 HH:MM 格式
  * @param date 日期
  * @returns 格式化后的时间
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function formatTimeHHMM(date: Date = new Date()): string {
   return `${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`

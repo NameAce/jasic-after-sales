@@ -1,4 +1,6 @@
 <template>
+  <!-- 承修方小程序（网点/总部工单处理、派工）：BaseButton。 @修改人 黄碧莲 @修改时间 2026-05-22 -->
+  <!-- 承修方小程序（网点/总部工单处理、派工）组件 BaseButton -->
   <view class="base-btn">
     <view class="base-btn-content">
       <slot />

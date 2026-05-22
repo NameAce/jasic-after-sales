@@ -1,7 +1,7 @@
 /**
  * 文件服务：上传、下载等二进制与附件相关接口。
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 import { request } from '../request';
 
@@ -37,7 +37,7 @@ interface UnbindBizFileParams extends FileBizParams {
  * @param file 文件二进制
  * @returns {Promise}
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function uploadSystemFile(file: Blob | File) {
   const formData = new FormData();
@@ -52,17 +52,23 @@ export function uploadSystemFile(file: Blob | File) {
   });
 }
 
-/** 作用：将文件绑定到业务实体。
+/**
+ * 作用：将已上传文件绑定到业务实体（工单故障图、凭证等）。
+ * @param data - 业务类型、业务 ID、fileIds
+ * @returns 操作结果 Promise
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function bindBizFiles(data: BindBizFilesParams) {
   return request({ url: '/system/file/biz/bind', method: 'post', data });
 }
 
-/** 作用：解除业务与文件的绑定关系。
+/**
+ * 作用：解除业务与文件的绑定关系。
+ * @param data - 业务类型、业务 ID、fileId
+ * @returns 操作结果 Promise
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function unbindBizFile(data: UnbindBizFileParams) {
   return request({ url: '/system/file/biz/unbind', method: 'post', data });

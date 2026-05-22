@@ -1,4 +1,5 @@
 <template>
+  <!-- 承修方小程序（网点/总部工单处理、派工）页面 order / components / OrderDetailFaultCard -->
   <view v-if="visible" class="od-card-box">
     <view class="od-section-header">
       <view class="section-mark"></view>
@@ -90,7 +91,11 @@
     return d === '其它故障' || d === '其他故障'
   })
 
-  /** 与 mp/aftersale `detail.vue` 一致：含「其它故障；3」等 */
+  /**
+ * 与 mp/aftersale `detail.vue` 一致：含「其它故障；3」等
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const faultDescContainsOtherFault = computed(() => {
     const raw = faultDescTrimmed.value
     if (!raw) return false

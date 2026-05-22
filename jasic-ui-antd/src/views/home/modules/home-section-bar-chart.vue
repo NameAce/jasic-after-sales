@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 通用首页分区条形图：将 HomeSectionVO 各指标 value 横向展示（平台治理等无趋势接口时使用）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
@@ -9,13 +11,14 @@ import type { HomeSectionVO } from '@/service/api';
 import { useEcharts } from '@/hooks/common/echarts';
 import { navigateHomeRoute } from '../composables/home-route-helpers';
 import { toDashboardCount } from '../composables/dashboard-helpers';
-import { HOME_SECTION_CHART_GRID } from '../composables/home-chart-theme';
+import { HOME_SECTION_BAR_COLORS, HOME_SECTION_CHART_GRID } from '../composables/home-chart-theme';
 
 defineOptions({
   name: 'HomeSectionBarChart'
 });
 
-const BAR_COLORS = ['#5da8ff', '#8e9dff', '#26deca', '#2dcf95', '#fcbc25', '#ec4786', '#865ec0', '#8c8c8c'];
+/** 条形图柱色：与 Soybean 首页色板同源，按指标顺序循环 */
+const BAR_COLORS = [...HOME_SECTION_BAR_COLORS];
 
 const props = withDefaults(
   defineProps<{
@@ -115,6 +118,12 @@ const { domRef, updateOptions } = useEcharts(
 
 const { width, height } = useElementSize(domRef);
 
+/**
+ * 作用：将 chartItems 同步到横向条形图 yAxis 与 series 数据。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function applyChartData() {
   await nextTick();
   updateOptions(opts => {
@@ -139,6 +148,7 @@ watch(
 </script>
 
 <template>
+  <!-- 首页区块柱状图 -->
   <ACard
     :bordered="false"
     class="home-section-chart-card card-wrapper"

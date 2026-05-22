@@ -3,6 +3,8 @@
  * @param have 已具备的权限列表
  * @param perm 权限
  * @returns 是否具备 perm 权限
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function permsInclude(have: readonly string[], perm: string): boolean {
   return have.includes(perm)
@@ -13,6 +15,8 @@ export function permsInclude(have: readonly string[], perm: string): boolean {
  * @param have 已具备的权限列表
  * @param need 需要的权限列表
  * @returns 是否具备 need 中任一权限
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function permsIncludeAny(have: readonly string[], need: readonly string[]): boolean {
   if (need.length === 0) return true
@@ -24,6 +28,8 @@ export function permsIncludeAny(have: readonly string[], need: readonly string[]
  * @param have 已具备的权限列表
  * @param need 需要的权限列表
  * @returns 是否具备 need 中全部权限
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function permsIncludeAll(have: readonly string[], need: readonly string[]): boolean {
   if (need.length === 0) return true

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 售后工单列表：状态统计、表格筛选、创建/详情抽屉与行内主操作（对接 work-order 接口）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, nextTick, onActivated, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -251,6 +253,8 @@ const columns = computed(() => {
  * 作用：从接口分页对象中取出列表数组。
  * @param data - 接口返回的分页或数组
  * @returns 表格行数组
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function pickRows(data: any) {
   if (Array.isArray(data)) return data;
@@ -263,6 +267,8 @@ function pickRows(data: any) {
  * @param data - 接口返回数据
  * @param fallback - 无法解析时的默认值
  * @returns 总条数
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function pickTotal(data: any, fallback: number) {
   const value = data?.total ?? data?.count ?? fallback;
@@ -272,6 +278,9 @@ function pickTotal(data: any, fallback: number) {
 /**
  * 作用：解析转单相关接口参数。
  * 说明：首页「已转出」须传 transferDirection=OUT（转出方视角）；是否转单=是 时同步传 hasTransfer=1 与搜索区一致。
+ * @returns 列表/统计接口共用的 hasTransfer、transferDirection 字段
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function buildTransferApiParams(): Pick<WorkOrderQuery, 'hasTransfer' | 'transferDirection'> {
   if (query.transferDirection === 'OUT') {
@@ -284,8 +293,10 @@ function buildTransferApiParams(): Pick<WorkOrderQuery, 'hasTransfer' | 'transfe
 }
 
 /**
- * 作用：构造状态统计接口参数，仅包含前端筛选字段。
+ * 作用：构造状态统计接口参数，仅包含前端筛选字段（不含 mainStatus，角标与当前 Tab 解耦）。
  * @returns 状态统计查询参数
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function buildStatusCountParams(): WorkOrderStatusCountQuery {
   return {
@@ -301,6 +312,8 @@ function buildStatusCountParams(): WorkOrderStatusCountQuery {
 /**
  * 作用：构造工单列表分页查询参数。
  * @returns 列表查询参数
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function buildListParams(): WorkOrderQuery {
   return {
@@ -317,8 +330,11 @@ function buildListParams(): WorkOrderQuery {
 }
 
 /**
- * 作用：将统计接口返回列表写入 statusCountMap。
+ * 作用：将统计接口返回列表写入 statusCountMap（供主状态 Segmented 角标展示）。
  * @param list - 各状态数量列表
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function syncStatusCountMap(list: unknown) {
   const next: Record<string, number> = {
@@ -343,11 +359,15 @@ function syncStatusCountMap(list: unknown) {
 
 /**
  * 作用：并行拉取工单列表与各状态数量。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadData() {
   clearListMsgs();
   loading.value = true;
   try {
+    // 列表与状态统计使用同一套筛选（buildListParams / buildStatusCountParams），避免 Tab 角标与表格不一致
     const [listRes, countRes] = await Promise.all([
       listWorkOrder(buildListParams()),
       countWorkOrderStatus(buildStatusCountParams())
@@ -376,6 +396,9 @@ async function loadData() {
 
 /**
  * 作用：裁剪查询条件中的字符串首尾空格。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function trimSearchFields() {
   query.orderNo = query.orderNo.trim();
@@ -386,6 +409,9 @@ function trimSearchFields() {
 
 /**
  * 作用：执行查询并重置到第一页。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleSearch() {
   trimSearchFields();
@@ -395,6 +421,9 @@ function handleSearch() {
 
 /**
  * 作用：切换「当前处理 / 历史」视图后重新加载。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleScopeChange() {
   query.pageNum = 1;
@@ -403,6 +432,9 @@ function handleScopeChange() {
 
 /**
  * 作用：主状态 Segmented 变更后重新加载列表。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleMainStatusChange() {
   query.pageNum = 1;
@@ -414,6 +446,9 @@ function handleMainStatusChange() {
  * 说明：视图范围 / 主状态 / 是否转单可能来自路由 query；若只改本地 query 而不清路由，
  * 刷新或从通知返回时仍会按旧 query 同步，表现为「默认 Tab、Segmented 未选中」。
  * 因此重置时顺带去掉上述路由参数（由本页独占的筛选项），并保持只发起一次列表请求。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function resetQuery() {
   query.pageNum = 1;
@@ -444,6 +479,9 @@ function resetQuery() {
  * 作用：表格分页变更（改 pageSize 时回到第一页，与 ant-design-vue Pagination 一致）。
  * @param page - 当前页码
  * @param pageSize - 每页条数（可选）
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleTableChange(page: number, pageSize?: number) {
   if (pageSize !== undefined && pageSize !== query.pageSize) {
@@ -459,6 +497,9 @@ function handleTableChange(page: number, pageSize?: number) {
 /**
  * 作用：打开工单详情抽屉。
  * @param row - 表格行数据
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function openDetail(row: RowData) {
   const wid = Number(row.id);
@@ -471,6 +512,9 @@ function openDetail(row: RowData) {
  * 作用：从列表点击操作按钮，打开详情并让抽屉执行指定动作。
  * @param row - 表格行数据
  * @param action - 动作编码
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function handleListAction(row: RowData, action: string) {
   const wid = Number(row.id);
@@ -478,11 +522,15 @@ async function handleListAction(row: RowData, action: string) {
   detailWorkOrderId.value = wid;
   detailOpen.value = true;
   await nextTick();
+  // 先打开抽屉再委托详情组件拉取详情并弹出派单/接单等子弹层
   await detailDrawerRef.value?.openActionFromList(action);
 }
 
 /**
- * 作用：根据路由 query.detailId 打开详情并清除相关 query 参数。
+ * 作用：根据路由 query.detailId 打开详情并清除相关 query 参数（通知中心等深链进入）。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function openDetailByRouteQuery() {
   const detailId = Number(route.query.detailId);
@@ -500,6 +548,9 @@ function openDetailByRouteQuery() {
 /**
  * 作用：从路由 query 同步到本地 query，并展开「是否转单」等折叠筛选项。
  * 首页「已转出」仅下发 transferDirection=OUT 时，前端补 hasTransfer=1 回显；再由 useRouteQueryFilterSync 触发列表查询。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function applyFiltersFromRouteQuery() {
   const q = route.query;
@@ -537,6 +588,10 @@ function applyFiltersFromRouteQuery() {
 
 /**
  * 作用：用户调整「是否转单」时，与 transferDirection=OUT（已转出）联动清理，避免 UI 与接口口径不一致。
+ * @param value - 下拉选中值
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleHasTransferChange(value: 0 | 1 | undefined | null) {
   if (value !== 1) {
@@ -561,9 +616,11 @@ onActivated(() => {
 </script>
 
 <template>
+  <!-- 工单列表：筛选 + 状态 Segmented + 表格（行操作来自 availableActions） -->
   <div class="work-order-page min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
     <ACard :bordered="false" size="small" class="work-order-search-card card-wrapper">
       <AForm :model="query" :label-col="{ span: 5, md: 7 }" class="work-order-search-form">
+        <!-- 一级视图：当前处理 vs 历史转出（历史仅只读 + 补寄件等例外操作） -->
         <div class="work-order-dual-filters">
           <div class="work-order-scope-section work-order-filter-strip">
             <ATabs
@@ -582,6 +639,7 @@ onActivated(() => {
               '--work-order-segmented-thumb-bg': workOrderStatusSegmentedThumbBg
             }"
           >
+            <!-- 主状态 Segmented：角标来自 countWorkOrderStatus，与表格 mainStatus 筛选联动 -->
             <span class="work-order-section-label">工单状态</span>
             <div class="work-order-status-segmented-wrap">
               <ASegmented
@@ -595,6 +653,7 @@ onActivated(() => {
           </div>
         </div>
         <ADivider class="work-order-search-divider" />
+        <!-- 折叠搜索区：支持路由 query 同步（首页跳转 viewScope/mainStatus/转单筛选） -->
         <div class="page-search-toolbar">
           <div class="page-search-toolbar__filters">
             <ARow :gutter="[16, 16]" wrap>
@@ -679,6 +738,7 @@ onActivated(() => {
         </div>
       </AForm>
     </ACard>
+    <!-- 表格区：当前处理展示操作列；工单号点击进入详情抽屉 -->
     <ACard
       :bordered="false"
       size="small"
@@ -737,6 +797,7 @@ onActivated(() => {
               {{ Number(record.hasTransfer) === 1 ? '是' : '否' }}
             </ATag>
           </template>
+          <!-- 行内主操作：resolveVisibleRowActionCodes 过滤后渲染；无动作时展示 readonlyReason -->
           <template v-else-if="column.key === 'actions'">
             <div class="work-order-actions-cell">
               <div
@@ -768,6 +829,7 @@ onActivated(() => {
       </ATable>
     </ACard>
 
+    <!-- 建单弹窗与详情抽屉：详情支持列表直达动作（openActionFromList） -->
     <WorkOrderCreateModals ref="createModalsRef" @created="loadData" />
     <WorkOrderDetailDrawer
       ref="detailDrawerRef"

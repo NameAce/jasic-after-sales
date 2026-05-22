@@ -17,6 +17,8 @@ type ParseShippingInfoOptions = {
  * @param shippingInfo 收货地址信息
  * @param options 解析选项
  * @returns 收货地址提交字段
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function resolveShippingSubmitFields(
   selectedAddress: SelectedShippingAddress | null,
@@ -48,6 +50,8 @@ export function resolveShippingSubmitFields(
  * 解析寄件快递单号提交字段
  * @param raw 原始数据
  * @returns 寄件快递单号提交字段
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function resolveSendExpressNoForSubmit(raw: unknown): string {
   if (typeof raw === 'string' || typeof raw === 'number') {

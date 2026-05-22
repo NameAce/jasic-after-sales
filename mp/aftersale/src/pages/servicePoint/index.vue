@@ -55,7 +55,9 @@
   /**
    * 加载附近网点（需定位 latitude / longitude，及 limit）
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const loadServicePoints = async (latitude: number, longitude: number) => {
     loading.value = true
     try {
@@ -74,7 +76,9 @@
 
   /**
    * 根据 getLocation 失败信息区分：权限拒绝、系统定位关闭、超时等
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const getLocationFailHint = (errMsg: string) => {
     const m = errMsg.toLowerCase()
     if (
@@ -93,7 +97,9 @@
 
   /**
    * 获取定位并加载附近网点；失败时引导去设置，返回后延迟/ onShow 补重试
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const requestLocationAndLoad = () => {
     loading.value = true
     uni.getLocation({
@@ -139,7 +145,9 @@
    * 选择网点
    * @param item - 网点
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const selectPoint = (item: ServicePointDTO) => {
     uni.setStorageSync('selectedServicePoint', item)
     uni.navigateBack()
@@ -149,7 +157,9 @@
    * 导航到网点
    * @param item - 网点
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const navigateToPoint = (item: ServicePointDTO) => {
     uni.openLocation({
       latitude: item.latitude,
@@ -166,7 +176,9 @@
    * 拨打电话
    * @param item - 网点
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const callPhone = (item: ServicePointDTO) => {
     uni.makePhoneCall({
       phoneNumber: item.phone,

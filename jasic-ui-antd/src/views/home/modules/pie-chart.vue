@@ -1,4 +1,9 @@
 <script setup lang="ts">
+/**
+ * 遗留业务首页工单状态分布环图（workOrderStatus，ALL 视角）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 import { computed, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useElementSize } from '@vueuse/core';
@@ -6,6 +11,7 @@ import { useAppStore } from '@/store/modules/app';
 import { useEcharts } from '@/hooks/common/echarts';
 import { $t } from '@/locales';
 import { WORK_ORDER_STATUS_LABELS, buildStatusChartItems } from '../composables/dashboard-helpers';
+import { HOME_PIE_CHART_COLORS } from '../composables/home-chart-theme';
 import { useBusinessHomeDashboard } from '../composables/use-business-home-dashboard';
 
 defineOptions({
@@ -40,7 +46,7 @@ const { domRef, updateOptions } = useEcharts(() => ({
   },
   series: [
     {
-      color: ['#5da8ff', '#8e9dff', '#fedc69', '#26deca'],
+      color: [...HOME_PIE_CHART_COLORS.slice(0, 4)],
       name: $t('page.home.workOrderStatusDistribution'),
       type: 'pie',
       radius: ['45%', '75%'],
@@ -70,6 +76,12 @@ const { domRef, updateOptions } = useEcharts(() => ({
 
 const { width, height } = useElementSize(domRef);
 
+/**
+ * 作用：将 chartData 同步到 ECharts 饼图 series。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function applyChartData() {
   await nextTick();
   updateOptions(opts => {
@@ -78,6 +90,12 @@ async function applyChartData() {
   });
 }
 
+/**
+ * 作用：语言切换后刷新图表标题与 series 名称文案。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function updateLocale() {
   updateOptions((opts, factory) => {
     const originOpts = factory();
@@ -104,12 +122,19 @@ watch(
   { flush: 'post', deep: true }
 );
 
+/**
+ * 作用：跳转工单列表（全网视角）。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function goWorkOrderStatusPage() {
   router.push({ name: 'after-sales_work-order', query: { viewScope: 'ALL' } });
 }
 </script>
 
 <template>
+  <!-- 饼图封装 -->
   <ACard :bordered="false" class="card-wrapper" :loading="loading">
     <template #extra>
       <a class="text-primary" href="javascript:;" @click.prevent="goWorkOrderStatusPage">状态明细</a>

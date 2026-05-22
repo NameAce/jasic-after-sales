@@ -24,6 +24,8 @@
  * 与 `mp/aftersale/src/utils/http.ts` 保持逐行结构对齐（MIRROR_FILE_PAIRS.md 基准）：
  *   命名（`resolveRequestUrl` / `requestWithUni`）、分支顺序、错误提示文案均一致，
  *   如需调整请同步修改双端文件。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 
 import {
@@ -35,24 +37,48 @@ import {
   API_MSG_TIMEOUT,
 } from '@/constants/apiMessages'
 
-/** 业务成功码 */
+/**
+ * 业务成功码
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export const API_SUCCESS_CODE = '00000'
-/** 登录失效业务码 */
+/**
+ * 登录失效业务码
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export const API_AUTH_EXPIRED = 'A0100'
-/** 无操作权限业务码 */
+/**
+ * 无操作权限业务码
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export const API_NO_PERMISSION = 'A0200'
 
-/** 统一后端响应结构（与 jasic-ui 一致） */
+/**
+ * 统一后端响应结构（与 jasic-ui 一致）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export type ApiResponse<T> = {
   code: string
   msg: string
   data: T
 }
 
-/** 模块级互斥：短时间内 A0100/401 并发只弹一次 modal */
+/**
+ * 模块级互斥：短时间内 A0100/401 并发只弹一次 modal
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 let authExpiredHandling = false
 
-/** 统一在错误提示前收起 loading，避免提示与 loading 叠层互相干扰。 */
+/**
+ * 统一在错误提示前收起 loading，避免提示与 loading 叠层互相干扰。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function safeHideLoading() {
   try {
     uni.hideLoading()
@@ -64,6 +90,8 @@ function safeHideLoading() {
 /**
  * 计算 API baseURL：`VITE_HTTP + '/api'`，与 jasic-ui 的 `axios.create({ baseURL: '/api' })` 对齐。
  * VITE_HTTP 不存在时回退为 `/api`，避免小程序端空字符串导致的相对路径拼接异常。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function resolveApiBase(): string {
   const raw = String(import.meta.env.VITE_HTTP || '').replace(/\/$/, '')
@@ -73,6 +101,8 @@ function resolveApiBase(): string {
 /**
  * 解析请求 URL：相对路径自动拼接 `VITE_HTTP + '/api'`
  * @param url 请求 URL（业务层约定为不含 `/api` 前缀的相对路径，如 `/system/work-order/list`）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function resolveRequestUrl(url: string | undefined): string {
   if (!url) return ''
@@ -84,11 +114,19 @@ function resolveRequestUrl(url: string | undefined): string {
 /**
  * 导出用于上传等非 `http()` 通道的同名拼接（api/file.ts 复用）
  * @param url 相对 URL（不含 `/api` 前缀）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function resolveHttpUrl(url: string): string {
   return resolveRequestUrl(url)
 }
 
+/**
+ * 作用：承修方小程序（网点/总部工单处理、派工）内方法：redirectToLogin。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function redirectToLogin() {
   uni.reLaunch({ url: '/pages/login/index' })
 }
@@ -96,6 +134,8 @@ function redirectToLogin() {
 /**
  * 处理授权过期：清 token → 弹窗 → reLaunch 登录页
  * 与 jasic-ui 契约一致：文案固定「登录已过期，请重新登录」，模块级互斥防止重复弹框。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleAuthExpired() {
   if (authExpiredHandling) return
@@ -123,6 +163,8 @@ function handleAuthExpired() {
 
 /**
  * 提取 HTTP 非 2xx 时的错误消息（兼容旧后端只回 message 的情况）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function pickHttpErrorMsg(data: unknown): string {
   if (data && typeof data === 'object') {
@@ -135,6 +177,8 @@ function pickHttpErrorMsg(data: unknown): string {
 
 /**
  * 按业务码处理响应：00000 → resolve；A0100 → 强登；A0200 → 无权限 toast；其他 → 失败 toast
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleResponseBody<T>(
   body: ApiResponse<T>,
@@ -185,7 +229,11 @@ function requestWithUni<T>(options: UniApp.RequestOptions): Promise<ApiResponse<
           reject(res.data as ApiResponse<T>)
           return
         }
-        /** DELETE 等接口可能返回 204 无响应体 */
+        /**
+ * DELETE 等接口可能返回 204 无响应体
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
         if (res.statusCode === 204) {
           resolve({
             code: API_SUCCESS_CODE,
@@ -225,10 +273,18 @@ function requestWithUni<T>(options: UniApp.RequestOptions): Promise<ApiResponse<
   })
 }
 
-/** 请求接口：相对路径会拼上 `.env` 的 `VITE_HTTP`（测试域） */
+/**
+ * 请求接口：相对路径会拼上 `.env` 的 `VITE_HTTP`（测试域）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export const http = requestWithUni
 
-/** 提取接口提示文案，统一优先使用后端返回。 */
+/**
+ * 提取接口提示文案，统一优先使用后端返回。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function getApiMessage<T>(res: ApiResponse<T> | null | undefined, fallback = ''): string {
   const msg = String(res?.msg ?? '').trim()
   return msg || fallback

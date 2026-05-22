@@ -7,12 +7,20 @@ export type UserProfile = {
   titleTag: string
   idLabel: string
   idValue: string
-  /** 登录后持久化在本地用户信息中的手机号 */
+  /**
+ * 登录后持久化在本地用户信息中的手机号
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   phone: string
   avatar: string
 }
 
-/** 根据 SysUserInfo 构建展示用的 UserProfile */
+/**
+ * 根据 SysUserInfo 构建展示用的 UserProfile
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function buildUserProfile(info: SysUserInfo): UserProfile {
   return {
     name: info.realName,
@@ -24,6 +32,12 @@ export function buildUserProfile(info: SysUserInfo): UserProfile {
   }
 }
 
+/**
+ * 作用：加载/请求：getRoleTitleTag。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function getRoleTitleTag(info: SysUserInfo): string {
   const code = info.currentTypeCode
   if (code?.startsWith('HQ')) return '总部管理员'
@@ -31,7 +45,11 @@ function getRoleTitleTag(info: SysUserInfo): string {
   return '维修工程师'
 }
 
-/** 个人中心功能菜单（link 可选，有则点击跳转） */
+/**
+ * 个人中心功能菜单（link 可选，有则点击跳转）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export type MyMenuItem = {
   icon: string
   label: string

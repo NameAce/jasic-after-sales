@@ -9,6 +9,8 @@ export type { WorkOrderMainStatus } from '@/models/order'
  *
  * PENDING_ASSIGN / PENDING_TECH_ACCEPT 共享「待接单/待派单」桶：具体文案由
  * `getPendingDisplayLabel` 根据当前用户权限与派单对象再细分。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export const ORDER_STATUS_TEXT_MAP: Record<WorkOrderMainStatus, string> = {
   PENDING_ASSIGN: '待派单',
@@ -22,6 +24,8 @@ export const ORDER_STATUS_TEXT_MAP: Record<WorkOrderMainStatus, string> = {
  * 类型守卫：判断值是否为合法 WorkOrderMainStatus
  * @param value 值
  * @returns 是否为合法 WorkOrderMainStatus
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function isOrderStatus(value: unknown): value is WorkOrderMainStatus {
   return (
@@ -33,7 +37,11 @@ export function isOrderStatus(value: unknown): value is WorkOrderMainStatus {
   )
 }
 
-/** 是否属于「待派单 / 待接单」（历史 `status === 'pending'` 桶的语义替代） */
+/**
+ * 是否属于「待派单 / 待接单」（历史 `status === 'pending'` 桶的语义替代）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function isPendingMainStatus(status: WorkOrderMainStatus | undefined | null): boolean {
   return (
     status === WORK_ORDER_MAIN_STATUS.PENDING_ASSIGN ||
@@ -45,6 +53,8 @@ export function isPendingMainStatus(status: WorkOrderMainStatus | undefined | nu
  * 工单状态描述文案（详情页顶部提示）
  * @param status 工单状态
  * @returns 工单状态描述文案
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function getStatusDesc(status: WorkOrderMainStatus): string {
   const map: Record<WorkOrderMainStatus, string> = {
@@ -61,6 +71,8 @@ export function getStatusDesc(status: WorkOrderMainStatus): string {
  * 工单状态 Material Icon 名称
  * @param status 工单状态
  * @returns 工单状态 Material Icon 名称
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function getStatusIcon(status: WorkOrderMainStatus): string {
   const map: Record<WorkOrderMainStatus, string> = {
@@ -78,6 +90,8 @@ export function getStatusIcon(status: WorkOrderMainStatus): string {
  * 五步进度：待派单 → 待接单 → 维修中 → 已完成 → 已关闭
  * @param status 工单状态
  * @returns 工单进度步骤索引
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function getStepIndex(status: WorkOrderMainStatus): number {
   const map: Record<WorkOrderMainStatus, number> = {

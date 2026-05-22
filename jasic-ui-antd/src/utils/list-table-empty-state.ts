@@ -18,18 +18,16 @@ function isNil(value: unknown): value is null | undefined {
  * @param listFetchErrorMsg - 列表请求失败时的提示（优先展示）
  * @param listEmptyBackendMsg - 请求成功且列表为空时，从接口解析的提示（可为空）
  * @param dataSource - 表格数据源
- * @param options.noDataLabel - 无后端文案时的兜底
  * @returns {ComputedRef} 供 `:locale` 绑定
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
-// 保持三参 + options 调用方式，第四项为可选配置对象
-// eslint-disable-next-line max-params
 export function createAntTableListLocale(
   listFetchErrorMsg: Ref<string>,
   listEmptyBackendMsg: Ref<string>,
-  dataSource: Ref<readonly unknown[]>,
-  options?: { noDataLabel?: string }
+  dataSource: Ref<readonly unknown[]>
 ) {
-  const noDataLabel = options?.noDataLabel ?? DEFAULT_NO_DATA;
+  const noDataLabel = DEFAULT_NO_DATA;
   return computed(() => {
     if (dataSource.value?.length) return {};
     const err = listFetchErrorMsg.value?.trim() || '';
@@ -47,6 +45,8 @@ export function createAntTableListLocale(
 /**
  * 作用：与 `createAntTableListLocale` 配套：在手动请求列表时维护错误/空列表后端文案。
  * @returns 文案 ref 与解析方法
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function useListRequestTableMsgs() {
   const listFetchErrorMsg = ref('');
@@ -59,6 +59,8 @@ export function useListRequestTableMsgs() {
 
   /**
    * 作用：若扁平结果为业务失败，写入错误文案并返回 true（调用方应清空表格数据）。
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
    */
   function consumeFlatError(flat: unknown): boolean {
     if (!isNil(flat) && typeof flat === 'object' && 'error' in flat) {
@@ -73,6 +75,8 @@ export function useListRequestTableMsgs() {
 
   /**
    * 作用：请求成功且未标记错误时，若列表为空则尝试从扁平结果取后端 msg。
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
    */
   function refreshEmptySuccessMsg(flat: unknown, rowCount: number) {
     if (rowCount === 0 && !listFetchErrorMsg.value) {

@@ -2,6 +2,8 @@
 /**
  * 列表页搜索工具栏：在「重置」旁展开/收起筛选项。
  * 仅当父级 `v-if="…showSearchFilterExpandToggle"`（筛选项多于 4 个）时渲染本组件。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { DownOutlined, UpOutlined } from '@ant-design/icons-vue';
 
@@ -19,6 +21,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
+  <!-- 通用组件：page-search-expand-button -->
   <ATooltip placement="top" :title="expanded ? '收起筛选' : '展开筛选'">
     <AButton
       type="text"

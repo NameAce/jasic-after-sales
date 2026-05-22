@@ -3,6 +3,8 @@
  * 参数配置 — 表单模式面板：按后端 groupKey 分组展示 Tab，每组内编辑该分组下的参数项。
  * 数据来源：GET /system/config/grouped（一次性返回各分组及配置项，默认不含 legacy）；
  * 保存动作：PUT /system/config/grouped（同组批量保存，事务内落库并在提交后刷新缓存）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, reactive, ref, watch } from 'vue';
 import type { FormInstance } from 'ant-design-vue';
@@ -48,8 +50,10 @@ const valueModelsByGroup = reactive<Record<string, Record<string, string>>>({});
 const formRef = ref<FormInstance | null>(null);
 
 /**
- * 解析分组接口 data 为分组数组。
- * @param data - 接口 data
+ * 作用：页面内业务方法：pickConfigGroups。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function pickConfigGroups(data: unknown) {
   return Array.isArray(data) ? (data as RowData[]) : [];
@@ -73,8 +77,10 @@ const groupTabs = computed(() => {
 const activeGroupItems = computed(() => itemsByGroup.value[activeGroupKey.value] || []);
 
 /**
- * 判断参数键名是否应按密钥输入框展示。
- * @param configKey - 参数键名
+ * 作用：判断是否满足条件：isSecretConfigKey。
+ * @returns boolean
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function isSecretConfigKey(configKey: string) {
   const key = String(configKey || '').toLowerCase();
@@ -82,9 +88,10 @@ function isSecretConfigKey(configKey: string) {
 }
 
 /**
- * 判断参数值是否适合多行文本框（路径、较长文案等）。
- * @param configKey - 参数键名
- * @param configValue - 当前参数值
+ * 作用：页面内业务方法：preferTextarea。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function preferTextarea(configKey: string, configValue: string) {
   const key = String(configKey || '');
@@ -93,25 +100,30 @@ function preferTextarea(configKey: string, configValue: string) {
 }
 
 /**
- * 判断参数是否为内置项（configType=1），内置项在表单模式仅展示不可改。
- * @param item - 配置行
+ * 作用：判断是否满足条件：isBuiltInConfig。
+ * @returns boolean
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function isBuiltInConfig(item: RowData) {
   return Number(item.configType) === 1;
 }
 
 /**
- * 判断表单项是否允许编辑：需有修改权限且非内置参数。
- * @param item - 配置行
+ * 作用：判断是否满足条件：isConfigItemEditable。
+ * @returns boolean
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function isConfigItemEditable(item: RowData) {
   return canUpdateConfig.value && !isBuiltInConfig(item);
 }
 
 /**
- * 初始化某一分组的可编辑值模型。
- * @param groupKey - 分组标识
- * @param items - 该分组配置行
+ * 作用：初始化：initGroupValueModels。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function initGroupValueModels(groupKey: string, items: RowData[]) {
   const model: Record<string, string> = {};
@@ -125,8 +137,10 @@ function initGroupValueModels(groupKey: string, items: RowData[]) {
 }
 
 /**
- * 将 grouped 接口数据写入分组列表与可编辑值模型。
- * @param groups - 配置分组列表
+ * 作用：应用配置或路由参数：applyGroupedConfig。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function applyGroupedConfig(groups: RowData[]) {
   configGroups.value = groups;
@@ -152,7 +166,10 @@ function applyGroupedConfig(groups: RowData[]) {
 }
 
 /**
- * 拉取配置分组及各分组配置项：调用 grouped 接口，默认不包含 legacy。
+ * 作用：加载数据：loadFormData。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadFormData() {
   loading.value = true;
@@ -171,11 +188,10 @@ async function loadFormData() {
 }
 
 /**
- * 将待保存配置行组装为分组批量保存入参（与后端 SysConfigGroupSaveDTO 对齐）。
- * 分组保存仅允许更新已存在记录的配置值与备注，定义字段须与库中一致。
- * @param groupKey - 当前 Tab 对应的分组标识
- * @param items - 本组内已修改的配置行
- * @param model - 当前分组可编辑值
+ * 作用：构造数据或配置：buildGroupSavePayload。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function buildGroupSavePayload(groupKey: string, items: RowData[], model: Record<string, string>) {
   return {
@@ -195,7 +211,10 @@ function buildGroupSavePayload(groupKey: string, items: RowData[], model: Record
 }
 
 /**
- * 保存当前分组内已修改的参数值。
+ * 作用：校验并提交：submitCurrentGroup。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitCurrentGroup() {
   if (!canUpdateConfig.value) {
@@ -232,7 +251,10 @@ async function submitCurrentGroup() {
 }
 
 /**
- * 刷新参数缓存并重新加载表单数据。
+ * 作用：处理交互事件：handleRefreshCache。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function handleRefreshCache() {
   const flat = await refreshConfigCache();
@@ -260,6 +282,7 @@ loadFormData();
 </script>
 
 <template>
+  <!-- 参数配置面板：按 groupKey 分 Tab，组内批量编辑后 PUT grouped 保存 -->
   <div class="config-form-panel">
     <div class="config-form-panel__body">
       <ASpin :spinning="loading">

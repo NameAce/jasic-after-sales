@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 公司地址簿：当前公司下联系人地址列表、默认地址与增删改（对接 company-address 接口）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, onMounted, reactive, ref } from 'vue';
 import { Cascader as ACascader } from 'ant-design-vue';
@@ -129,9 +131,10 @@ const columns = computed(() =>
 );
 
 /**
- * 作用：从接口分页对象中取出列表数组。
- * @param data - 接口返回数据
- * @returns 表格行数组
+ * 作用：从分页接口响应解析列表数组。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function pickRows(data: any) {
   if (Array.isArray(data)) return data;
@@ -140,7 +143,10 @@ function pickRows(data: any) {
 }
 
 /**
- * 作用：加载公司地址列表。
+ * 作用：加载当前 Tab/条件下表格数据。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadList() {
   clearListMsgs();
@@ -163,8 +169,10 @@ async function loadList() {
 }
 
 /**
- * 作用：将指定地址设为默认地址。
- * @param record - 表格行数据
+ * 作用：页面内业务方法：setDefault。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function setDefault(record: RowData) {
   const id = record.addressId ?? record.id;
@@ -174,7 +182,10 @@ async function setDefault(record: RowData) {
 }
 
 /**
- * 作用：打开新增抽屉并重置表单。
+ * 作用：页面内业务方法：openCreate。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function openCreate() {
   formTitle.value = '新增地址';
@@ -188,8 +199,10 @@ function openCreate() {
 }
 
 /**
- * 作用：打开编辑抽屉并根据完整地址拆解省市区与详细地址。
- * @param record - 表格行数据
+ * 作用：页面内业务方法：openEdit。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openEdit(record: RowData) {
   formTitle.value = '编辑地址';
@@ -208,7 +221,10 @@ async function openEdit(record: RowData) {
 }
 
 /**
- * 作用：校验并提交新增或编辑地址。
+ * 作用：校验并提交：submitForm。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitForm() {
   try {
@@ -243,8 +259,10 @@ async function submitForm() {
 }
 
 /**
- * 作用：删除指定地址。
- * @param record - 表格行数据
+ * 作用：删除记录：removeAddress。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function removeAddress(record: RowData) {
   const id = Number(record.id ?? record.addressId);
@@ -260,7 +278,9 @@ onMounted(async () => {
 </script>
 
 <template>
+  <!-- 公司地址簿：当前公司联系人地址列表、默认标记与增删改 -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <!-- 列表区：新增入口 + 表格行操作（编辑/设为默认/删除） -->
     <ACard :title="pageMenuTitle" :bordered="false" class="flex-col-stretch card-wrapper sm:flex-1-hidden">
       <div class="mb-12px">
         <AButton type="primary" @click="openCreate">新增地址</AButton>
@@ -300,6 +320,7 @@ onMounted(async () => {
       </ATable>
     </ACard>
 
+    <!-- 新增/编辑抽屉：省市区级联 + 详细地址拼接保存 -->
     <ADrawer v-model:open="formOpen" :title="formTitle" :width="400">
       <AForm ref="addressFormRef" class="mt-8px" layout="vertical" :model="formModel" :rules="addressFormRules as any">
         <AFormItem label="联系人" name="contactName" required>

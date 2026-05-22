@@ -1,4 +1,9 @@
 <script setup lang="ts">
+/**
+ * 内置页：pwd-login。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 import { computed, reactive } from 'vue';
 import { useAuthStore } from '@/store/modules/auth';
 import { useAntdForm, useFormRules } from '@/hooks/common/form';
@@ -37,6 +42,8 @@ const rules = computed<Record<keyof FormModel, App.Global.FormRule[]>>(() => {
  * 作用：校验并调用账号密码登录。
  * @param 无
  * @returns 返回 Promise，登录流程结束后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function handleSubmit() {
   await validate();
@@ -45,6 +52,7 @@ async function handleSubmit() {
 </script>
 
 <template>
+  <!-- 内置页：login/modules/pwd-login.vue -->
   <AForm ref="formRef" :model="model" :rules="rules" @keyup.enter="handleSubmit">
     <AFormItem name="userName" required>
       <AInput v-model:value="model.userName" size="large" :placeholder="$t('page.login.common.userNamePlaceholder')" />

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 个人中心：资料修改、改密、微信绑定状态与二维码等（对接 auth 用户信息接口）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, nextTick, onMounted, reactive, ref } from 'vue';
 import { Modal } from 'ant-design-vue';
@@ -118,9 +120,10 @@ const unbindFormRules = {
 };
 
 /**
- * 作用：将接口返回的微信绑定状态写入本地响应式对象。
- * @param raw - 接口原始数据
- * @returns {void} 无
+ * 作用：应用配置或路由参数：applyBindStatus。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function applyBindStatus(raw: unknown) {
   const data = (raw || {}) as Record<string, unknown>;
@@ -132,9 +135,10 @@ function applyBindStatus(raw: unknown) {
 }
 
 /**
- * 作用：将接口用户资料写入表单模型，并同步更新重置基线快照。
- * @param raw - 用户信息接口 data
- * @returns {void} 无
+ * 作用：应用配置或路由参数：applyProfileFormData。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function applyProfileFormData(raw: Record<string, unknown>) {
   const username = String(raw.username || raw.userName || '');
@@ -155,9 +159,10 @@ function applyProfileFormData(raw: Record<string, unknown>) {
 }
 
 /**
- * 作用：用本地基线快照回退资料表单（不依赖异步请求即可立刻生效）。
- * @param 无
- * @returns {void} 无
+ * 作用：页面内业务方法：restoreProfileFormFromBaseline。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function restoreProfileFormFromBaseline() {
   profileForm.username = profileBaseline.username;
@@ -168,9 +173,10 @@ function restoreProfileFormFromBaseline() {
 }
 
 /**
- * 作用：拉取当前用户资料并回填资料表单。
- * @param 无
- * @returns 返回 Promise，请求结束后结束
+ * 作用：加载数据：loadUserInfo。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadUserInfo() {
   const { data, error } = await fetchGetUserInfo();
@@ -180,9 +186,10 @@ async function loadUserInfo() {
 }
 
 /**
- * 作用：重置资料表单为最近一次服务端快照，并清理校验态；随后静默拉取最新资料。
- * @param 无
- * @returns 返回 Promise，重置流程结束后结束
+ * 作用：页面内业务方法：resetProfileForm。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function resetProfileForm() {
   restoreProfileFormFromBaseline();
@@ -193,9 +200,10 @@ async function resetProfileForm() {
 }
 
 /**
- * 作用：清空修改密码表单输入并恢复表单校验态。
- * @param 无
- * @returns 返回 Promise，重置流程结束后结束
+ * 作用：页面内业务方法：resetPasswordForm。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function resetPasswordForm() {
   passwordForm.currentPassword = '';
@@ -208,9 +216,10 @@ async function resetPasswordForm() {
 }
 
 /**
- * 作用：校验并提交个人资料修改。
- * @param 无
- * @returns 返回 Promise，提交流程结束后结束
+ * 作用：校验并提交：submitProfile。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitProfile() {
   try {
@@ -244,9 +253,10 @@ async function submitProfile() {
 }
 
 /**
- * 作用：校验并提交修改密码，成功后退出登录。
- * @param 无
- * @returns 返回 Promise，提交流程结束后结束
+ * 作用：校验并提交：submitPassword。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitPassword() {
   try {
@@ -271,9 +281,10 @@ async function submitPassword() {
 }
 
 /**
- * 作用：刷新微信绑定状态；若由未绑定变为已绑定则提示并刷新用户信息。
- * @param 无
- * @returns 返回 Promise，请求结束后结束
+ * 作用：页面内业务方法：refreshBindStatus。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function refreshBindStatus() {
   bindLoading.value = true;
@@ -296,9 +307,10 @@ async function refreshBindStatus() {
 }
 
 /**
- * 作用：请求生成微信绑定二维码并更新绑定状态与图片。
- * @param 无
- * @returns 返回 Promise，请求结束后结束
+ * 作用：页面内业务方法：generateBindQrcode。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function generateBindQrcode() {
   bindLoading.value = true;
@@ -325,9 +337,10 @@ async function generateBindQrcode() {
 }
 
 /**
- * 作用：校验密码后弹出确认框，确认则调用解绑并退出登录。
- * @param 无
- * @returns {void} 无
+ * 作用：处理交互事件：handleUnbindWechat。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function handleUnbindWechat() {
   try {
@@ -370,9 +383,11 @@ onMounted(async () => {
 </script>
 
 <template>
+  <!-- 个人中心：资料、改密与微信绑定（左栏表单 + 右栏绑定状态/二维码） -->
   <div class="min-h-500px overflow-hidden lt-sm:overflow-auto">
     <ARow :gutter="[16, 16]">
       <ACol :xs="24" :lg="14">
+        <!-- 基本信息：修改需校验当前密码 -->
         <ACard title="基本信息" :bordered="false">
           <AForm ref="profileFormRef" layout="vertical" :model="profileForm" :rules="profileFormRules as any">
             <AFormItem label="用户名">
@@ -407,6 +422,7 @@ onMounted(async () => {
           </AForm>
         </ACard>
 
+        <!-- 修改密码：新密码与确认密码一致性校验 -->
         <ACard title="修改密码" :bordered="false" class="mt-16px">
           <AForm ref="passwordFormRef" layout="vertical" :model="passwordForm" :rules="passwordFormRules as any">
             <AFormItem label="当前密码" name="currentPassword" required>
@@ -427,6 +443,7 @@ onMounted(async () => {
       </ACol>
 
       <ACol :xs="24" :lg="10" class="min-w-0">
+        <!-- 微信绑定：已绑定展示脱敏信息，未绑定展示扫码 -->
         <ACard :bordered="false" class="w-full">
           <template #title>
             <div class="flex items-center justify-between">

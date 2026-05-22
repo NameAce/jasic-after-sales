@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 「敬请期待」占位页：用于未完成菜单或演示路由，可通过默认插槽替换标题。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { $t } from '@/locales';
 
@@ -10,6 +12,7 @@ defineOptions({
 </script>
 
 <template>
+  <!-- 通用组件：look-forward -->
   <div class="size-full min-h-520px flex-col-center gap-24px overflow-hidden">
     <div class="flex text-400px text-primary">
       <SvgIcon local-icon="expectation" />

@@ -1,5 +1,7 @@
 /**
  * 工单动作元数据：与 jasic-ui `ACTION_META` 保持一致。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export const ACTION_META = {
   ASSIGN: { label: '派单', title: '派单', type: 'primary' },
@@ -11,15 +13,25 @@ export const ACTION_META = {
   CLOSE: { label: '关闭工单', title: '关闭工单', type: 'danger' },
 } as const
 
-/** 可识别动作 key（与 ACTION_META 一一对应） */
+/**
+ * 可识别动作 key（与 ACTION_META 一一对应）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export type WorkOrderActionKey = keyof typeof ACTION_META
 
-/** 动作 key 列表（用于遍历/排序） */
+/**
+ * 动作 key 列表（用于遍历/排序）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export const WORK_ORDER_ACTION_KEYS = Object.keys(ACTION_META) as WorkOrderActionKey[]
 
 /**
  * 判断输入是否为合法工单动作 key。
  * 说明：`RETURN_METHOD` 等不在 ACTION_META 中的动作会返回 false。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export const isWorkOrderActionKey = (value: unknown): value is WorkOrderActionKey =>
   typeof value === 'string' && value in ACTION_META
@@ -27,6 +39,8 @@ export const isWorkOrderActionKey = (value: unknown): value is WorkOrderActionKe
 /**
  * 后端与 `WorkOrderActionEnum` / `WorkOrderPermissionService.DETAIL_ACTION_ORDER` 对齐的别名。
  * 小程序列表「机器返回方式」与 `CLOSE` 使用同一套处理，统一映射为 `CLOSE`。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 const ACTION_CODE_ALIASES: Record<string, WorkOrderActionKey> = {
   RETURN_METHOD: 'CLOSE',
@@ -37,6 +51,8 @@ const ACTION_CODE_ALIASES: Record<string, WorkOrderActionKey> = {
  * - 将 `RETURN_METHOD` 等别名映射为 `ACTION_META` 中的 key；
  * - 仅保留 ACTION_META 中存在的动作；
  * - 去重（映射后去重，避免 RETURN_METHOD 与 CLOSE 同时存在时重复展示）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export const normalizeAvailableActions = (actions: unknown): WorkOrderActionKey[] => {
   if (!Array.isArray(actions)) return []
@@ -60,6 +76,8 @@ export const normalizeAvailableActions = (actions: unknown): WorkOrderActionKey[
 /**
  * 与后端详情页动作返回顺序一致（见 `WorkOrderPermissionService.DETAIL_ACTION_ORDER`），
  * 仅对列表会展示的动作排序，保证按钮位置稳定、与 jasic-ui 一致。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 const DISPLAY_ORDER: WorkOrderActionKey[] = [
   'ASSIGN',
@@ -71,6 +89,12 @@ const DISPLAY_ORDER: WorkOrderActionKey[] = [
   'CLOSE',
 ]
 
+/**
+ * 作用：承修方小程序（网点/总部工单处理、派工）内方法：sortWorkOrderActionsForDisplay。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export const sortWorkOrderActionsForDisplay = (keys: WorkOrderActionKey[]): WorkOrderActionKey[] => {
   const rank = (k: WorkOrderActionKey) => {
     const i = DISPLAY_ORDER.indexOf(k)
@@ -82,13 +106,19 @@ export const sortWorkOrderActionsForDisplay = (keys: WorkOrderActionKey[]): Work
 /**
  * 承修方小程序列表按钮文案。
  * CLOSE / RETURN_METHOD 在列表统一展示为「机器返回方式」，与详情底栏一致。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export const getContractorListActionLabel = (key: WorkOrderActionKey): string => {
   if (key === 'CLOSE') return '机器返回方式'
   return ACTION_META[key].label
 }
 
-/** 承修方小程序列表按钮样式：关闭/返回方式使用 outline，其余 primary */
+/**
+ * 承修方小程序列表按钮样式：关闭/返回方式使用 outline，其余 primary
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export const getContractorListActionClassName = (
   key: WorkOrderActionKey
 ): 'primary' | 'outline' => (key === 'CLOSE' ? 'outline' : 'primary')

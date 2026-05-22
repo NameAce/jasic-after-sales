@@ -1,4 +1,5 @@
 <template>
+  <!-- 售后客户端小程序（报修、工单、地址）页面 historicalRecord / index -->
   <view class="historical-record-page">
     <custom-nav-bar title="故障点历史记录" surface="sticky" />
     <view class="page-container">
@@ -77,13 +78,21 @@
   import type { FaultPointRecord } from '@/models/order'
   import { previewImages, resolvePreviewableUrl } from '@/utils/mediaPreview'
 
-  /** 与登记表单、详情页一致：选项值为「其它维修说明」时主文案用 otherDesc */
+  /**
+ * 与登记表单、详情页一致：选项值为「其它维修说明」时主文案用 otherDesc
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const OTHER_REPAIR_DESC = '其它维修说明'
 
   const hasStructuredRepairFields = (r: FaultPointRecord) =>
     r.faultDesc !== undefined || r.repairDesc !== undefined || r.otherDesc !== undefined
 
-  /** 旧缓存 description 曾为 faultDesc · repairDesc，仅取维修侧 */
+  /**
+ * 旧缓存 description 曾为 faultDesc · repairDesc，仅取维修侧
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const legacyDescriptionRepairOnly = (description: string) => {
     const d = String(description || '').trim()
     if (!d) return ''
@@ -93,7 +102,11 @@
     return d.slice(i + sep.length).trim()
   }
 
-  /** 维修说明主行：仅 repairDesc；为「其它维修说明」时用 otherDesc（不含 faultDesc） */
+  /**
+ * 维修说明主行：仅 repairDesc；为「其它维修说明」时用 otherDesc（不含 faultDesc）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const recordRepairLine = (r: FaultPointRecord) => {
     if (!hasStructuredRepairFields(r)) {
       return legacyDescriptionRepairOnly(String(r.description || ''))
@@ -106,7 +119,11 @@
   const showRepairDescSection = (r: FaultPointRecord) =>
     recordRepairLine(r).trim() !== OTHER_REPAIR_DESC
 
-  /** repairDesc 非「其它」且填写了 otherDesc 时展示补充块（避免与主行重复） */
+  /**
+ * repairDesc 非「其它」且填写了 otherDesc 时展示补充块（避免与主行重复）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const recordOtherSupplement = (r: FaultPointRecord) => {
     if (!hasStructuredRepairFields(r)) {
       return String(r.specialInfo || '').trim()
@@ -129,7 +146,9 @@
   /**
    * 历史维修记录列表
    * @returns 历史维修记录列表
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const records = ref<FaultPointRecord[]>([])
 
   const previewRecordImage = (record: FaultPointRecord, imgIndex: number) => {

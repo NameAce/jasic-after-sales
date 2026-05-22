@@ -1,12 +1,18 @@
 <script lang="ts" setup>
 /**
  * 登录等页面的波浪渐变背景：由主题色生成 palette 上的浅/深色圆环 SVG。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import { getColorPalette } from '@sa/utils';
 
 interface Props {
-  /** Theme color */
+  /**
+   * Theme color
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   themeColor: string;
 }
 
@@ -19,6 +25,7 @@ const darkColor = computed(() => getColorPalette(props.themeColor, 6));
 </script>
 
 <template>
+  <!-- 通用组件：wave-bg -->
   <div class="absolute-lt z-1 size-full overflow-hidden">
     <div class="absolute -right-300px -top-900px lt-sm:(-right-100px -top-1170px)">
       <svg height="1337" width="1337">

@@ -18,32 +18,78 @@
  * `sql/upgrade-20260415-remove-work-order-quote-menu.sql`），与本文件下列 `workorder:xxx`
  * 常量一一对应；如后端调整命名空间，只改本文件 `Perms.*` 的右值字符串，所有
  * `userStore.hasPermission(Perms.XXX)` 调用点自动生效。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export const Perms = {
-  /** 工单查询（sys_menu.perms = `workorder:list`） */
+  /**
+ * 工单查询（sys_menu.perms = `workorder:list`）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   WORKORDER_LIST: 'workorder:list',
-  /** 工单新增（sys_menu.perms = `workorder:add`） */
+  /**
+ * 工单新增（sys_menu.perms = `workorder:add`）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   WORKORDER_ADD: 'workorder:add',
-  /** 工单派单（sys_menu.perms = `workorder:assign`） */
+  /**
+ * 工单派单（sys_menu.perms = `workorder:assign`）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   WORKORDER_ASSIGN: 'workorder:assign',
-  /** 工单接单（sys_menu.perms = `workorder:accept`） */
+  /**
+ * 工单接单（sys_menu.perms = `workorder:accept`）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   WORKORDER_ACCEPT: 'workorder:accept',
-  /** 工单转单（sys_menu.perms = `workorder:transfer`） */
+  /**
+ * 工单转单（sys_menu.perms = `workorder:transfer`）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   WORKORDER_TRANSFER: 'workorder:transfer',
-  /** 工单报价（sys_menu.perms = `workorder:quote`） */
+  /**
+ * 工单报价（sys_menu.perms = `workorder:quote`）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   WORKORDER_QUOTE: 'workorder:quote',
-  /** 维修登记（sys_menu.perms = `workorder:repair`） */
+  /**
+ * 维修登记（sys_menu.perms = `workorder:repair`）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   WORKORDER_REPAIR: 'workorder:repair',
-  /** 复检登记（sys_menu.perms = `workorder:review`） */
+  /**
+ * 复检登记（sys_menu.perms = `workorder:review`）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   WORKORDER_REVIEW: 'workorder:review',
-  /** 工单关闭（sys_menu.perms = `workorder:close`） */
+  /**
+ * 工单关闭（sys_menu.perms = `workorder:close`）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   WORKORDER_CLOSE: 'workorder:close',
 } as const
 
-/** 后端主体类型 */
+/**
+ * 后端主体类型
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export type SubjectType = 'PLATFORM' | 'HQ' | 'SERVICE'
 
-/** 根据 typeCode 推导 subjectType */
+/**
+ * 根据 typeCode 推导 subjectType
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function getSubjectType(typeCode: string | undefined): SubjectType {
   if (!typeCode) return 'SERVICE'
   if (typeCode === 'PLATFORM') return 'PLATFORM'
@@ -51,7 +97,11 @@ export function getSubjectType(typeCode: string | undefined): SubjectType {
   return 'SERVICE'
 }
 
-/** 后端公司简要信息 */
+/**
+ * 后端公司简要信息
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export interface CompanySimple {
   id: number
   companyName: string
@@ -60,7 +110,11 @@ export interface CompanySimple {
   typeName: string
 }
 
-/** 对齐后端 SysUserVO */
+/**
+ * 对齐后端 SysUserVO
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export interface SysUserInfo {
   id: number
   username: string
@@ -79,7 +133,11 @@ export interface SysUserInfo {
   companies?: CompanySimple[]
 }
 
-/** 对齐后端 SysRoleVO（登录返回中 userInfo.roles） */
+/**
+ * 对齐后端 SysRoleVO（登录返回中 userInfo.roles）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export interface SysRoleInfo {
   id: number
   roleKey: string
@@ -95,7 +153,11 @@ export interface SysRoleInfo {
   remark?: string
 }
 
-/** 对齐后端 LoginVO */
+/**
+ * 对齐后端 LoginVO
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export interface LoginResult {
   token: string
   userInfo: SysUserInfo
@@ -106,6 +168,8 @@ export interface LoginResult {
 /**
  * 预设角色及其权限配置（Mock 阶段使用）
  * 对接后端后由 /auth/login 接口返回
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export const MockRoles = {
   hqAdmin: {

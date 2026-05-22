@@ -32,6 +32,12 @@ function isLegacyBackendRoute(route: ElegantConstRoute | BackendMenuRoute): bool
   );
 }
 
+/**
+ * 作用：构造/转换：normalizeBooleanMetaField。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function normalizeBooleanMetaField(value: unknown): boolean | undefined {
   if (value === null || value === undefined) return undefined;
   if (typeof value === 'boolean') return value;
@@ -42,12 +48,24 @@ function normalizeBooleanMetaField(value: unknown): boolean | undefined {
   return undefined;
 }
 
+/**
+ * 作用：构造/转换：normalizeNumberMetaField。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function normalizeNumberMetaField(value: unknown): number | undefined {
   if (value === null || value === undefined || value === '') return undefined;
   const num = Number(value);
   return Number.isNaN(num) ? undefined : num;
 }
 
+/**
+ * 作用：工具/模块方法：firstNonEmptyIconField。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function firstNonEmptyIconField(...vals: unknown[]): string {
   for (const v of vals) {
     if (v !== null && v !== undefined) {
@@ -58,6 +76,12 @@ function firstNonEmptyIconField(...vals: unknown[]): string {
   return '';
 }
 
+/**
+ * 作用：构造/转换：normalizeRouteMeta。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function normalizeRouteMeta(route: ElegantConstRoute | BackendMenuRoute): NonNullable<ElegantConstRoute['meta']> {
   const routeRecord = route as Record<string, unknown>;
   const rawMeta = (route.meta || {}) as RouteMetaLike;
@@ -93,6 +117,12 @@ function normalizeRouteMeta(route: ElegantConstRoute | BackendMenuRoute): NonNul
   return meta;
 }
 
+/**
+ * 作用：工具/模块方法：resolveFallbackOrder。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function resolveFallbackOrder(
   explicitOrder: number | null | undefined,
   siblingIndex: number,
@@ -193,6 +223,12 @@ function resolveBackendMenuPathSegment(routeRecord: Record<string, unknown>, has
   return explicit;
 }
 
+/**
+ * 作用：判断：isBackendLayoutPlaceholder。
+ * @returns boolean
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function isBackendLayoutPlaceholder(raw: unknown): boolean {
   if (raw === null || raw === undefined) return true;
   const s = String(raw).trim();
@@ -236,6 +272,12 @@ function resolveRegisteredViewKey(viewKey: string): string {
   return BACKEND_VIEW_KEY_ALIASES[viewKey] || viewKey;
 }
 
+/**
+ * 作用：工具/模块方法：resolveElegantComponentString。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function resolveElegantComponentString(params: {
   rawComponent: unknown;
   hasChildren: boolean;
@@ -351,6 +393,12 @@ export function normalizeAuthRoutesFromBackend(
   });
 }
 
+/**
+ * 作用：工具/模块方法：findRouteInTreeByName。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function findRouteInTreeByName(name: string, routes: ElegantConstRoute[]): ElegantConstRoute | null {
   for (const route of routes) {
     if (route.name === name) return route;
@@ -362,6 +410,12 @@ function findRouteInTreeByName(name: string, routes: ElegantConstRoute[]): Elega
   return null;
 }
 
+/**
+ * 作用：读取/解析：getFirstLeafRoute。
+ * @returns 对应类型
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function getFirstLeafRoute(routes: ElegantConstRoute[]): ElegantConstRoute | null {
   for (const route of routes) {
     if (route.children?.length) {

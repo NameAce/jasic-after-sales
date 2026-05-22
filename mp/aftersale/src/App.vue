@@ -1,4 +1,9 @@
 <script setup lang="ts">
+/**
+ * 售后客户端小程序（报修、工单、地址）根组件。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   import { onLaunch } from '@dcloudio/uni-app'
   onLaunch(() => {
     uni.requirePrivacyAuthorize({})

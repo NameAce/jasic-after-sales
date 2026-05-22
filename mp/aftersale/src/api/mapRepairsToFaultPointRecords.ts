@@ -1,9 +1,15 @@
 /**
  * 将详情 `repairs` 映射为故障点历史列表，与 contractor `mapWorkOrderRepairsToAllFaultPointRecords` 同源逻辑。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import type { FaultPointRecord } from '@/models/order'
 
-/** 与详情附件结构兼容（独立类型，避免与 `order.ts` 环依赖） */
+/**
+ * 与详情附件结构兼容（独立类型，避免与 `order.ts` 环依赖）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 type RepairHistoryFileItem = {
   previewUrl?: string
   preview_url?: string
@@ -13,14 +19,22 @@ type RepairHistoryFileItem = {
   sortNum?: number
 }
 
-/** 与 contractor `WorkOrderFaultPartVO` 对齐 */
+/**
+ * 与 contractor `WorkOrderFaultPartVO` 对齐
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 type CustomerFaultPartLike = {
   partName?: string
   partQty?: number
   sortNum?: number
 }
 
-/** 与 contractor `WorkOrderFaultVO` 映射所需字段对齐 */
+/**
+ * 与 contractor `WorkOrderFaultVO` 映射所需字段对齐
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export type CustomerRepairFaultForHistory = {
   faultDesc?: string
   repairDesc?: string
@@ -32,7 +46,11 @@ export type CustomerRepairFaultForHistory = {
   sortNum?: number
 }
 
-/** 与 contractor `WorkOrderRepairVO` 映射所需字段对齐 */
+/**
+ * 与 contractor `WorkOrderRepairVO` 映射所需字段对齐
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export type CustomerRepairForHistory = {
   companyName?: string
   createTime?: string
@@ -44,6 +62,12 @@ export type CustomerRepairForHistory = {
   otherImageFiles?: RepairHistoryFileItem[]
 }
 
+/**
+ * 作用：接口封装：resolveSysFileItemPreviewUrl。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function resolveSysFileItemPreviewUrl(item: unknown): string {
   if (item == null) return ''
   if (typeof item === 'string') return item.trim()
@@ -56,6 +80,12 @@ function resolveSysFileItemPreviewUrl(item: unknown): string {
   return ''
 }
 
+/**
+ * 作用：转换/构造：mapSysFileItemsToLabeledImages。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function mapSysFileItemsToLabeledImages(
   files: RepairHistoryFileItem[] | undefined,
   labelPrefix: string,
@@ -71,12 +101,24 @@ function mapSysFileItemsToLabeledImages(
     .filter((x): x is { url: string; label: string } => x != null)
 }
 
+/**
+ * 作用：接口封装：sortRepairsByCreateTime。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function sortRepairsByCreateTime(repairs: CustomerRepairForHistory[]): CustomerRepairForHistory[] {
   return repairs
     .slice()
     .sort((a, b) => String(a.createTime || '').localeCompare(String(b.createTime || '')))
 }
 
+/**
+ * 作用：转换/构造：parseRepairPartDesc。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function parseRepairPartDesc(partDesc: string): { name: string; count: number }[] {
   const raw = String(partDesc || '').trim()
   if (!raw) return []
@@ -95,6 +137,12 @@ function parseRepairPartDesc(partDesc: string): { name: string; count: number }[
   return out
 }
 
+/**
+ * 作用：接口封装：faultPartsFromFault。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function faultPartsFromFault(f: CustomerRepairFaultForHistory) {
   const list = Array.isArray(f.partList) ? f.partList : []
   return list
@@ -109,7 +157,11 @@ function faultPartsFromFault(f: CustomerRepairFaultForHistory) {
     .filter((x): x is { name: string; count: number } => x != null)
 }
 
-/** 单条维修登记 → 若干条故障点历史记录（与 contractor `mapOneWorkOrderRepairToFaultRecords` 一致） */
+/**
+ * 单条维修登记 → 若干条故障点历史记录（与 contractor `mapOneWorkOrderRepairToFaultRecords` 一致）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function mapOneRepairToFaultRecords(r: CustomerRepairForHistory): FaultPointRecord[] {
   const faults = Array.isArray(r.faults) ? r.faults : []
   const when = String(r.createTime || '')
@@ -152,6 +204,8 @@ function mapOneRepairToFaultRecords(r: CustomerRepairForHistory): FaultPointReco
 /**
  * 将详情接口 `repairs` 映射为故障点历史列表。
  * 与 contractor `mapWorkOrderRepairsToAllFaultPointRecords` 一致。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function mapCustomerRepairsToAllFaultPointRecords(
   repairs: CustomerRepairForHistory[] | undefined | null,

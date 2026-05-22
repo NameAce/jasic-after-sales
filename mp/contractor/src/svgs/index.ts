@@ -1,3 +1,9 @@
+/**
+ * 承修方小程序（网点/总部工单处理、派工）：index。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
+
 export { default as addressManualIcon } from './address-manual.svg'
 import addAPhotoIcon from './add-a-photo.svg'
 import completeCheckIcon from './complete-check.svg'

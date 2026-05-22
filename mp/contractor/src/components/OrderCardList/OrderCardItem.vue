@@ -128,7 +128,11 @@
       showInboundTransferTag?: OrderPredicate
       showTransferredTag?: OrderPredicate
       cardClass?: string
-      /** 维修中/已完成/已关闭是否展示网点名称、网点联系电话 */
+      /**
+ * 维修中/已完成/已关闭是否展示网点名称、网点联系电话
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       showRepairSiteRows?: boolean
     }>(),
     {
@@ -149,7 +153,11 @@
     return (order.desc ?? '').trim()
   }
 
-  /** 与详情「工单类型」一致：仅展示接口 `brandTypeLabel`，无则不占位 */
+  /**
+ * 与详情「工单类型」一致：仅展示接口 `brandTypeLabel`，无则不占位
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const orderTypeTagLabel = (order: OrderListItem) => (order.brandTypeLabel ?? '').trim()
 
   const orderTypeTagStyleClass = (order: OrderListItem) => {

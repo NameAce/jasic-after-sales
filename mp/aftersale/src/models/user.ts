@@ -9,23 +9,47 @@
  * - 因此本模块不再复用 contractor 侧 `SysUserInfo / CompanySimple` 结构，
  *   以避免把后端不存在的字段（`perms / roles / companies / currentCompanyId` 等）
  *   反向渗透到 C 端页面逻辑中。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 
 /**
  * 后端 `CustomerUserInfoVO`
  *
  * 字段与 `jasic-customer/.../CustomerUserInfoVO.java` 严格一一对应。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export interface CustomerUserInfo {
-  /** 客户ID */
+  /**
+ * 客户ID
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   userId?: number
-  /** 手机号 */
+  /**
+ * 手机号
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   phone?: string
-  /** 昵称 */
+  /**
+ * 昵称
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   nickname?: string
-  /** 头像URL */
+  /**
+ * 头像URL
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   avatar?: string
-  /** 是否需要完善资料 */
+  /**
+ * 是否需要完善资料
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   needProfileComplete?: boolean
 }
 
@@ -33,6 +57,8 @@ export interface CustomerUserInfo {
  * 后端 `CustomerLoginVO`
  *
  * 字段与 `jasic-customer/.../CustomerLoginVO.java` 严格一一对应。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export interface LoginResult {
   token: string

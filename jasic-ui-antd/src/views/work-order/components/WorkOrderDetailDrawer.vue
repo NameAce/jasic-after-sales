@@ -2,6 +2,8 @@
 /* eslint-disable vue/component-name-in-template-casing -- Ant Design Vue Input.TextArea */
 /**
  * 工单详情抽屉：展示工单全量信息、附件预览，以及派单/接单/转单/维修登记/复检/寄件凭证/关闭等列表动作对应的子弹层。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, reactive, ref, watch } from 'vue';
 import type { FormInstance } from 'ant-design-vue';
@@ -185,10 +187,11 @@ const repairProductModelFormRules = {
 const repairProductModelOptions = ref<string[]>([]);
 
 /**
- * 从分页结构或数组中取出数据行列表。
- *
+ * 作用：从分页结构或数组中取出数据行列表（派单/转单选项、故障配置等接口复用）。
  * @param data - 接口返回体或数组
- * @returns {unknown[]} 行数组
+ * @returns 行数组
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function pickRows(data: unknown) {
   if (Array.isArray(data)) return data;
@@ -200,10 +203,13 @@ function pickRows(data: unknown) {
 }
 
 /**
- * 从上传接口响应中解析文件主键 id。
+ * 作用：从上传接口响应中解析文件主键 id。
  *
  * @param raw - 上传成功响应体
- * @returns {number | undefined} 文件 id，无法解析时 undefined
+ * @returns number | undefined
+ 
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function pickUploadedFileId(raw: unknown): number | undefined {
   if (raw && typeof raw === 'object') {
@@ -216,10 +222,13 @@ function pickUploadedFileId(raw: unknown): number | undefined {
 }
 
 /**
- * 生成 Ant Design Upload 的 onRemove：从指定 fileId 数组中移除已删文件对应 id。
+ * 作用：生成 Ant Design Upload 的 onRemove：从指定 fileId 数组中移除已删文件对应 id。
  *
  * @param bucket - 存储本组上传 fileId 的数组
- * @returns {(file: UploadFile) => void} 移除回调
+ * @returns Upload 移除回调
+ 
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleDetailIdUploadRemove(bucket: number[]) {
   return (file: UploadFile) => {
@@ -234,7 +243,7 @@ function handleDetailIdUploadRemove(bucket: number[]) {
 // 当前详情对应的工单 id（与 props.workOrderId 同步）
 const id = computed(() => props.workOrderId);
 
-// 后端下发的当前用户可执行动作编码列表（过滤 RETURN_METHOD）
+// 后端下发的当前用户可执行动作编码（过滤 RETURN_METHOD，该码仅在关闭弹窗内使用）
 const availableActionCodes = computed(() => {
   const raw = detail.value?.availableActions;
   const list = Array.isArray(raw) ? raw : [];
@@ -242,10 +251,13 @@ const availableActionCodes = computed(() => {
 });
 
 /**
- * 判断详情数据中是否包含指定列表动作码。
+ * 作用：判断详情数据中是否包含指定列表动作码。
  *
  * @param action - 动作编码
- * @returns {boolean} 是否包含
+ * @returns boolean
+ 
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function hasAction(action: WorkOrderListActionCode) {
   return availableActionCodes.value.includes(action);
@@ -311,7 +323,7 @@ const currentRepairOptions = computed(() => {
   return [...optionSet];
 });
 
-// 复检表单根据首次故障推导的维修措施候选项
+// 复检维修说明候选项：按首次维修确认故障在 actionRepairFaultOptions 中取 repairOptions 并集
 const reviewRepairOptions = computed(() => {
   const optionSet = new Set<string>();
   reviewFaultItems.value.forEach(faultDesc => {
@@ -364,9 +376,10 @@ const reviewFormFieldCount = computed(() => {
 const reviewDrawerWidth = computed(() => adaptiveModalWidth(560, reviewFormFieldCount.value));
 
 /**
- * 根据当前工单 id 请求并写入详情数据。
- *
- * @returns {Promise<void>} 无返回值
+ * 作用：根据当前工单 id 请求并写入详情数据。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadDetail() {
   if (!id.value) {
@@ -396,10 +409,13 @@ watch(
 );
 
 /**
- * 按多个字段名顺序取详情中首个非空值。
+ * 作用：按多个字段名顺序取详情中首个非空值。
  *
  * @param keys - 字段名列表
- * @returns {unknown} 字段值或空字符串
+ * @returns unknown
+ 
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function valueByKeys(...keys: string[]) {
   const d = detail.value as Record<string, unknown>;
@@ -411,10 +427,13 @@ function valueByKeys(...keys: string[]) {
 }
 
 /**
- * 判断文本是否包含「其它/其他故障」表述。
+ * 作用：判断文本是否包含「其它/其他故障」表述。
  *
  * @param raw - 任意原始值
- * @returns {boolean} 是否命中
+ * @returns boolean
+ 
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function containsOtherFault(raw: unknown) {
   const text = normalizeText(raw);
@@ -490,10 +509,13 @@ const repairQuoteSummaryItems = computed<DetailInfoItem[]>(() => {
 });
 
 /**
- * 判断服务信息某字段是否应在详情中展示。
+ * 作用：判断服务信息某字段是否应在详情中展示。
  *
  * @param value - 字段原始值
- * @returns {boolean} 是否有有效展示值
+ * @returns boolean
+ 
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function serviceInfoFieldHasValue(value: unknown): boolean {
   if (value === undefined || value === null) return false;
@@ -584,30 +606,39 @@ const evaluationInfoItems = computed(() => {
 });
 
 /**
- * 将详情字段规范为附件对象数组。
+ * 作用：将详情字段规范为附件对象数组。
  *
  * @param value - 任意字段值
  * @returns {Array<Record<string, unknown>>} 附件数组
+ 
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function asFileList(value: unknown) {
   return Array.isArray(value) ? (value as Array<Record<string, unknown>>) : [];
 }
 
 /**
- * 附件展示文件名兜底。
+ * 作用：附件展示文件名兜底。
  *
  * @param file - 附件对象
- * @returns {string} 展示用文件名
+ * @returns string
+ 
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function fileDisplayName(file: Record<string, unknown>) {
   return textValue(file.fileName || file.originName || file.name || file.originalFilename, '附件');
 }
 
 /**
- * 解析附件可打开或可预览的 URL。
+ * 作用：解析附件可打开或可预览的 URL。
  *
  * @param file - 附件对象
- * @returns {string} URL 字符串
+ * @returns string
+ 
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function fileOpenUrl(file: Record<string, unknown>) {
   const raw = file.url || file.fileUrl || file.previewUrl || file.downloadUrl || file.path;
@@ -615,20 +646,26 @@ function fileOpenUrl(file: Record<string, unknown>) {
 }
 
 /**
- * 读取附件 MIME 类型（小写）。
+ * 作用：读取附件 MIME 类型（小写）。
  *
  * @param file - 附件对象
- * @returns {string} mime 类型字符串
+ * @returns string
+ 
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function fileMimeType(file: Record<string, unknown>) {
   return normalizeText(file.contentType || file.mimeType || file.fileType).toLowerCase();
 }
 
 /**
- * 推断附件扩展名（优先文件名，其次 URL 路径）。
+ * 作用：推断附件扩展名（优先文件名，其次 URL 路径）。
  *
  * @param file - 附件对象
- * @returns {string} 扩展名
+ * @returns string
+ 
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function fileExt(file: Record<string, unknown>) {
   const name = normalizeText(file.fileName || file.originName || file.name || file.originalFilename).toLowerCase();
@@ -639,10 +676,13 @@ function fileExt(file: Record<string, unknown>) {
 }
 
 /**
- * 判断附件是否为图片类型。
+ * 作用：判断附件是否为图片类型。
  *
  * @param file - 附件对象
- * @returns {boolean} 是否为图片
+ * @returns boolean
+ 
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function isImageFile(file: Record<string, unknown>) {
   const mime = fileMimeType(file);
@@ -651,10 +691,13 @@ function isImageFile(file: Record<string, unknown>) {
 }
 
 /**
- * 判断附件是否为视频类型。
+ * 作用：判断附件是否为视频类型。
  *
  * @param file - 附件对象
- * @returns {boolean} 是否为视频
+ * @returns boolean
+ 
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function isVideoFile(file: Record<string, unknown>) {
   const mime = fileMimeType(file);
@@ -663,10 +706,12 @@ function isVideoFile(file: Record<string, unknown>) {
 }
 
 /**
- * 打开图片/视频预览弹窗，其它类型则新窗口打开链接。
+ * 作用：打开图片/视频预览弹窗，其它类型则新窗口打开链接。
  *
  * @param file - 附件对象
- * @returns {void} 无返回值
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function openFilePreview(file: Record<string, unknown>) {
   const url = fileOpenUrl(file);
@@ -695,7 +740,7 @@ const flows = computed(() => (Array.isArray(detail.value.flows) ? detail.value.f
 const quotes = computed(() => (Array.isArray(detail.value.quotes) ? detail.value.quotes : []));
 // 维修登记记录列表
 const repairs = computed(() => (Array.isArray(detail.value.repairs) ? detail.value.repairs : []));
-// 故障点全历史扁平行（供履历表）
+// 故障点全历史扁平行：把 repairs[].faults 展开为表格行（已完成工单展示用）
 const faultPointHistoryRows = computed(() => {
   const rows: Array<Record<string, unknown>> = [];
   repairs.value.forEach((repair, repairIndex) => {
@@ -719,15 +764,25 @@ const faultPointHistoryRows = computed(() => {
   return rows;
 });
 
+/**
+ * 作用：将维修历程单项规范为可索引的对象类型（模板 v-for 用）。
+ * @param repair - 接口 repairs 数组元素
+ * @returns 维修记录对象
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function toRepairRow(repair: unknown): Record<string, unknown> {
   return repair as Record<string, unknown>;
 }
 
 /**
- * 将单次维修记录下的分组附件整理为展示用列表（仅非空分组）。
+ * 作用：将单次维修记录下的分组附件整理为展示用列表（仅非空分组）。
  *
  * @param repair - 单条维修记录
  * @returns {{ key: string; label: string; files: Array<Record<string, unknown>> }[]} 分组列表
+ 
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function repairAttachmentFileLists(repair: Record<string, unknown>) {
   return [
@@ -836,51 +891,66 @@ const faultPointColumns = applyDateTimeColumnRender([
 ]);
 
 /**
- * 将任意值格式化为展示字符串，空则用占位符。
+ * 作用：将任意值格式化为展示字符串，空则用占位符。
  *
  * @param value - 原始值
  * @param empty - 空值占位符，默认 -
- * @returns {string} 展示文本
+ * @returns string
+ 
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function textValue(value: unknown, empty = '-') {
   return formatDisplayValue(value, empty);
 }
 
 /**
- * 将任意值规范为 trim 后的字符串（null/undefined 视为空）。
+ * 作用：将任意值规范为 trim 后的字符串（null/undefined 视为空）。
  *
  * @param value - 原始值
- * @returns {string} 规范化字符串
+ * @returns string
+ 
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function normalizeText(value: unknown) {
   return value === null || value === undefined ? '' : String(value).trim();
 }
 
 /**
- * 故障多选项去重并去除空串。
+ * 作用：故障多选项去重并去除空串。
  *
  * @param items - 选项数组
  * @returns {string[]} 规范化后的故障文案数组
+ 
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function normalizeFaultItems(items: unknown[]) {
   return [...new Set((items || []).map(item => normalizeText(item)).filter(Boolean))];
 }
 
 /**
- * 维修措施多选项去空（不去重）。
+ * 作用：维修措施多选项去空（不去重）。
  *
  * @param items - 选项数组
  * @returns {string[]} 字符串数组
+ 
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function normalizeRepairItems(items: unknown[]) {
   return (items || []).map(item => normalizeText(item)).filter(Boolean);
 }
 
 /**
- * 将接口存储的故障描述按中英文分号拆成多选片段。
+ * 作用：将接口存储的故障描述按中英文分号拆成多选片段。
  *
  * @param rawFaultDesc - 原始描述串
  * @returns {string[]} 拆分后的非空片段
+ 
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function splitFaultDescSelections(rawFaultDesc: string) {
   if (!rawFaultDesc) return [];
@@ -891,9 +961,11 @@ function splitFaultDescSelections(rawFaultDesc: string) {
 }
 
 /**
- * 拉取当前工单的故障-维修联动配置，写入 actionRepairFaultOptions。
+ * 作用：拉取当前工单的故障-维修联动配置，写入 actionRepairFaultOptions。
  *
- * @returns {Promise<void>} 无返回值；无工单 id 时直接返回
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadRepairFaultConfig() {
   if (!id.value) return;
@@ -910,9 +982,11 @@ async function loadRepairFaultConfig() {
 }
 
 /**
- * 维修登记中故障多选变更时，联动清空备注、维修说明等关联字段。
+ * 作用：维修登记中故障多选变更时，联动清空备注、维修说明等关联字段。
  *
- * @returns {void} 无返回值
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleRepairFaultItemsChange() {
   repairForm.faultItems = normalizeFaultItems(repairForm.faultItems);
@@ -923,9 +997,11 @@ function handleRepairFaultItemsChange() {
 }
 
 /**
- * 维修登记中维修说明多选变更时，联动清空「其他维修说明」等。
+ * 作用：维修登记中维修说明多选变更时，联动清空「其他维修说明」等。
  *
- * @returns {void} 无返回值
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleRepairItemsChange() {
   repairForm.repairItems = normalizeRepairItems(repairForm.repairItems);
@@ -934,9 +1010,11 @@ function handleRepairItemsChange() {
 }
 
 /**
- * 复检登记表单中维修说明多选变更时，联动清空「其他维修说明」等。
+ * 作用：复检登记表单中维修说明多选变更时，联动清空「其他维修说明」等。
  *
- * @returns {void} 无返回值
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleReviewItemsChange() {
   reviewForm.repairItems = normalizeRepairItems(reviewForm.repairItems);
@@ -945,9 +1023,11 @@ function handleReviewItemsChange() {
 }
 
 /**
- * 打开派单抽屉并加载可选维修员列表。
+ * 作用：打开派单抽屉并加载可选维修员列表。
  *
- * @returns {Promise<void>} 无返回值
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openAssign() {
   if (!id.value) return;
@@ -978,9 +1058,11 @@ async function openAssign() {
 }
 
 /**
- * 提交派单；成功后提示、刷新详情并 emit success。
+ * 作用：提交派单；成功后提示、刷新详情并 emit success。
  *
- * @returns {Promise<void>} 校验失败时直接返回；成功时 resolve
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitAssign() {
   if (!id.value) return undefined;
@@ -1007,9 +1089,11 @@ async function submitAssign() {
 }
 
 /**
- * 打开维修员接单抽屉并重置表单。
+ * 作用：打开维修员接单抽屉并重置表单。
  *
- * @returns {void} 无返回值
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function openAccept() {
   techAcceptForm.faultJudge = '';
@@ -1020,9 +1104,11 @@ function openAccept() {
 }
 
 /**
- * 提交接单；选「无故障」时缓存载荷并打开关闭工单弹窗合并提交。
+ * 作用：提交接单；选「无故障」时缓存载荷并打开关闭工单弹窗合并提交。
  *
- * @returns {Promise<void>} 校验失败时直接返回
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitAccept() {
   if (!id.value) return undefined;
@@ -1038,6 +1124,7 @@ async function submitAccept() {
       payload.quoteAmount = techAcceptForm.quoteAmount;
       payload.quoteDesc = techAcceptForm.quoteDesc || undefined;
     }
+    // 无故障：先缓存接单载荷，关闭工单弹窗合并提交（避免两次接口往返）
     if (techAcceptForm.faultJudge === faultJudgeNoFault) {
       pendingTechAcceptPayload.value = payload;
       techAcceptOpen.value = false;
@@ -1056,10 +1143,13 @@ async function submitAccept() {
 }
 
 /**
- * 佳士品牌且未填机型时，维修/复检前需先走补录机型弹窗。
+ * 作用：佳士品牌且未填机型时，维修/复检前需先走补录机型弹窗。
  *
  * @param action - 列表动作码
- * @returns {boolean} 是否需补录机型
+ * @returns boolean
+ 
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function shouldSupplementRepairProductModel(action: WorkOrderListActionCode) {
   const brandType = normalizeText(detail.value.brandType);
@@ -1068,10 +1158,13 @@ function shouldSupplementRepairProductModel(action: WorkOrderListActionCode) {
 }
 
 /**
- * 按关键字拉取可选机型列表并写入 repairProductModelOptions。
+ * 作用：按关键字拉取可选机型列表并写入 repairProductModelOptions。
  *
  * @param keyword - 搜索关键字，默认空为全量
- * @returns {Promise<string[]>} 机型字符串数组
+ * @returns Promise<string[]>
+ 
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadRepairProductModelOptionList(keyword = '') {
   if (!id.value) {
@@ -1101,10 +1194,12 @@ async function loadRepairProductModelOptionList(keyword = '') {
 }
 
 /**
- * 打开补录机型弹窗并预拉选项；无可用机型时提示并关闭。
+ * 作用：打开补录机型弹窗并预拉选项；无可用机型时提示并关闭。
  *
  * @param action - 补录完成后要打开的列表动作
- * @returns {Promise<void>} 无返回值
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function prepareRepairProductModelDialog(action: WorkOrderListActionCode) {
   repairProductModelPendingAction.value = action;
@@ -1121,9 +1216,11 @@ async function prepareRepairProductModelDialog(action: WorkOrderListActionCode) 
 }
 
 /**
- * 提交补录机型，刷新详情后按 pending 打开维修或复检抽屉。
+ * 作用：提交补录机型，刷新详情后按 pending 打开维修或复检抽屉。
  *
- * @returns {Promise<void>} 无返回值
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitRepairProductModel() {
   if (!id.value) return;
@@ -1143,6 +1240,7 @@ async function submitRepairProductModel() {
     repairProductModelOpen.value = false;
     repairProductModelPendingAction.value = '';
     await loadDetail();
+    // 补录机型后按 pending 继续原动作子弹层
     if (nextAction === 'REPAIR_FINISH') openRepair();
     if (nextAction === 'REVIEW') openReview();
   } finally {
@@ -1155,6 +1253,9 @@ async function submitRepairProductModel() {
  *
  * @param partList - 配件行数组
  * @returns 错误文案或 null
+ 
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function getPartListError(partList: Array<{ partName: string; partQty?: number }>): string | null {
   let hasValidPart = false;
@@ -1177,7 +1278,11 @@ function getPartListError(partList: Array<{ partName: string; partQty?: number }
   return null;
 }
 
-/** 维修登记表单校验规则（与建维修订单：vertical + 红框 + 下方提示） */
+/**
+ * 维修登记表单校验规则（与建维修订单：vertical + 红框 + 下方提示）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 const repairFormRules = computed(() => {
   const rules: Record<string, unknown[]> = {
     quoteAmount: [
@@ -1254,7 +1359,11 @@ const repairFormRules = computed(() => {
   return rules;
 });
 
-/** 复检登记表单校验规则（与维修登记一致） */
+/**
+ * 复检登记表单校验规则：配件必填；有配置时须存在首次维修故障且维修说明多选合法
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 const reviewFormRules = computed(() => {
   const rules: Record<string, unknown[]> = {
     partList: [
@@ -1326,9 +1435,11 @@ const closeFormRules = computed(() => {
 });
 
 /**
- * 打开转单抽屉并加载目标公司选项。
+ * 作用：打开转单抽屉并加载目标公司选项。
  *
- * @returns {Promise<void>} 无返回值
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openTransfer() {
   if (!id.value) return;
@@ -1348,9 +1459,11 @@ async function openTransfer() {
 }
 
 /**
- * 提交转单请求并刷新详情。
+ * 作用：提交转单请求并刷新详情。
  *
- * @returns {Promise<void>} 校验失败时直接返回
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitTransfer() {
   if (!id.value) return undefined;
@@ -1377,9 +1490,11 @@ async function submitTransfer() {
 }
 
 /**
- * 打开维修登记抽屉：重置表单、预填报价、拉取故障配置。
+ * 作用：打开维修登记抽屉：重置表单、预填报价、拉取故障配置。
  *
- * @returns {void} 无返回值
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function openRepair() {
   const qa = detail.value.quoteAmount;
@@ -1402,9 +1517,11 @@ function openRepair() {
 }
 
 /**
- * 校验并提交维修登记（含配置化故障分支与附件 id）。
+ * 作用：校验并提交维修登记（含配置化故障分支与附件 id）。
  *
- * @returns {Promise<void>} 校验失败时直接返回；成功关闭抽屉并刷新
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 // eslint-disable-next-line complexity
 async function submitRepair() {
@@ -1445,9 +1562,10 @@ async function submitRepair() {
 }
 
 /**
- * 打开复检登记抽屉：重置表单并拉取故障配置。
- *
- * @returns {void} 无返回值
+ * 作用：打开复检登记抽屉；重置表单并拉取故障-维修联动配置（维修说明候选项依赖首次 REPAIR 登记）。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function openReview() {
   reviewForm.repairDesc = '';
@@ -1459,15 +1577,17 @@ function openReview() {
   reviewForm.machineImageFileIds = [];
   reviewForm.machineBarcodeImageFileIds = [];
   reviewForm.otherImageFileIds = [];
+  // 与维修登记共用配置接口，复检侧故障描述只读展示首次维修确认结果
   loadRepairFaultConfig();
   reviewOpen.value = true;
   queueMicrotask(() => reviewFormRef.value?.clearValidate());
 }
 
 /**
- * 校验并提交复检登记。
- *
- * @returns {Promise<void>} 校验失败时直接返回
+ * 作用：校验并提交复检登记（有配置时故障只读、维修说明多选；无配置时手填 repairDesc）。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 // eslint-disable-next-line complexity
 async function submitReview() {
@@ -1481,6 +1601,7 @@ async function submitReview() {
   try {
     const reviewResult = await reviewWorkOrder({
       workOrderId: id.value,
+      // 有故障-维修配置时故障项由首次维修登记带入，复检仅提交维修说明/配件/图片
       repairDesc: hasRepairFaultConfig.value ? undefined : reviewForm.repairDesc || undefined,
       repairItems: normalizeRepairItems(reviewForm.repairItems),
       otherDesc: normalizeText(reviewForm.otherDesc) || undefined,
@@ -1504,9 +1625,10 @@ async function submitReview() {
 }
 
 /**
- * 打开上传寄件凭证抽屉并清空已选 fileId。
- *
- * @returns {void} 无返回值
+ * 作用：打开上传寄件凭证抽屉并清空已选 fileId（邮寄工单补传寄件凭证）。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function openMail() {
   mailForm.senderVoucherFileIds = [];
@@ -1515,9 +1637,11 @@ function openMail() {
 }
 
 /**
- * 提交寄件凭证并刷新详情。
+ * 作用：提交寄件凭证并刷新详情。
  *
- * @returns {Promise<void>} 校验失败时直接返回
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitMail() {
   if (!id.value) return undefined;
@@ -1543,10 +1667,12 @@ async function submitMail() {
 }
 
 /**
- * 打开关闭工单抽屉并重置表单；可保留无故障接单待合并载荷。
+ * 作用：打开关闭工单抽屉并重置表单；可保留无故障接单待合并载荷。
  *
  * @param options - 可选；fromNoFaultTechAccept 为 true 时保留 pendingTechAcceptPayload
- * @returns {void} 无返回值
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function openClose(options: { fromNoFaultTechAccept?: boolean } = {}) {
   if (!options.fromNoFaultTechAccept) {
@@ -1560,9 +1686,11 @@ function openClose(options: { fromNoFaultTechAccept?: boolean } = {}) {
 }
 
 /**
- * 提交关闭工单；若存在 pending 接单载荷则与关闭字段合并调用接单接口。
+ * 作用：提交关闭工单；若存在 pending 接单载荷则与关闭字段合并调用接单接口。
  *
- * @returns {Promise<void>} 校验失败时直接返回
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function submitClose() {
   if (!id.value) return undefined;
@@ -1580,6 +1708,7 @@ async function submitClose() {
       closeReason: closeForm.closeReason.trim(),
       returnVoucherFileIds: closeForm.returnVoucherFileIds.length ? closeForm.returnVoucherFileIds : undefined
     };
+    // 无故障接单链路：关闭字段与待提交接单载荷合并为一次 techAccept
     if (pendingTechAcceptPayload.value) {
       closeResult = await techAcceptWorkOrder({
         ...pendingTechAcceptPayload.value,
@@ -1602,9 +1731,11 @@ async function submitClose() {
 }
 
 /**
- * 取消关闭工单：丢弃待合并接单载荷并关闭抽屉。
+ * 作用：取消关闭工单：丢弃待合并接单载荷并关闭抽屉。
  *
- * @returns {void} 无返回值
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function cancelCloseDialog() {
   pendingTechAcceptPayload.value = null;
@@ -1612,11 +1743,13 @@ function cancelCloseDialog() {
 }
 
 /**
- * 通用上传：调用系统上传接口并把返回的 fileId 追加到指定数组。
+ * 作用：通用上传：调用系统上传接口并把返回的 fileId 追加到指定数组。
  *
  * @param bucket - 存储 fileId 的响应式数组
  * @param opt - Ant Design Upload customRequest 参数
- * @returns {Promise<void>} 无返回值
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function runUploadToIds(bucket: number[], opt: UploadRequestOption) {
   try {
@@ -1626,6 +1759,7 @@ async function runUploadToIds(bucket: number[], opt: UploadRequestOption) {
       opt.onError?.(new Error('upload'));
       return;
     }
+    // 详情子弹层上传：仅存 fileId 数组，提交维修/复检/关闭时带给后端
     const fid = pickUploadedFileId(data);
     if (typeof fid === 'number') bucket.push(fid);
     opt.onSuccess?.(data as never, opt.file as never);
@@ -1635,40 +1769,48 @@ async function runUploadToIds(bucket: number[], opt: UploadRequestOption) {
 }
 
 /**
- * 维修登记：故障新图上传 customRequest。
+ * 作用：维修登记：故障新图上传 customRequest。
  *
  * @param opt - Upload 自定义请求参数
- * @returns {Promise<void>} 无返回值
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function customRequestRepairImage(opt: UploadRequestOption) {
   await runUploadToIds(repairForm.faultImageFileIds, opt);
 }
 
 /**
- * 复检登记：故障新图上传 customRequest。
+ * 作用：复检登记：故障新图上传 customRequest。
  *
  * @param opt - Upload 自定义请求参数
- * @returns {Promise<void>} 无返回值
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function customRequestReviewImage(opt: UploadRequestOption) {
   await runUploadToIds(reviewForm.faultImageFileIds, opt);
 }
 
 /**
- * 关闭工单：回寄凭证上传 customRequest。
+ * 作用：关闭工单：回寄凭证上传 customRequest。
  *
  * @param opt - Upload 自定义请求参数
- * @returns {Promise<void>} 无返回值
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function customRequestCloseVoucher(opt: UploadRequestOption) {
   await runUploadToIds(closeForm.returnVoucherFileIds, opt);
 }
 
 /**
- * 邮寄场景：寄件凭证单张上传，成功则覆盖 mailForm.senderVoucherFileIds。
+ * 作用：邮寄场景：寄件凭证单张上传，成功则覆盖 mailForm.senderVoucherFileIds。
  *
  * @param opt - Upload 自定义请求参数
- * @returns {Promise<void>} 无返回值
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function customRequestMailVoucher(opt: UploadRequestOption) {
   try {
@@ -1687,101 +1829,121 @@ async function customRequestMailVoucher(opt: UploadRequestOption) {
 }
 
 /**
- * 维修登记：故障旧图上传 customRequest。
+ * 作用：维修登记：故障旧图上传 customRequest。
  *
  * @param opt - Upload 自定义请求参数
- * @returns {Promise<void>} 无返回值
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function customRequestRepairOldImage(opt: UploadRequestOption) {
   await runUploadToIds(repairForm.faultOldImageFileIds, opt);
 }
 
 /**
- * 维修登记：机器正面照上传 customRequest。
+ * 作用：维修登记：机器正面照上传 customRequest。
  *
  * @param opt - Upload 自定义请求参数
- * @returns {Promise<void>} 无返回值
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function customRequestRepairMachineImage(opt: UploadRequestOption) {
   await runUploadToIds(repairForm.machineImageFileIds, opt);
 }
 
 /**
- * 维修登记：条码照上传 customRequest。
+ * 作用：维修登记：条码照上传 customRequest。
  *
  * @param opt - Upload 自定义请求参数
- * @returns {Promise<void>} 无返回值
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function customRequestRepairMachineBarcodeImage(opt: UploadRequestOption) {
   await runUploadToIds(repairForm.machineBarcodeImageFileIds, opt);
 }
 
 /**
- * 维修登记：其它图片上传 customRequest。
+ * 作用：维修登记：其它图片上传 customRequest。
  *
  * @param opt - Upload 自定义请求参数
- * @returns {Promise<void>} 无返回值
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function customRequestRepairOtherImage(opt: UploadRequestOption) {
   await runUploadToIds(repairForm.otherImageFileIds, opt);
 }
 
 /**
- * 复检登记：故障旧图上传 customRequest。
+ * 作用：复检登记：故障旧图上传 customRequest。
  *
  * @param opt - Upload 自定义请求参数
- * @returns {Promise<void>} 无返回值
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function customRequestReviewOldImage(opt: UploadRequestOption) {
   await runUploadToIds(reviewForm.faultOldImageFileIds, opt);
 }
 
 /**
- * 复检登记：机器正面照上传 customRequest。
+ * 作用：复检登记：机器正面照上传 customRequest。
  *
  * @param opt - Upload 自定义请求参数
- * @returns {Promise<void>} 无返回值
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function customRequestReviewMachineImage(opt: UploadRequestOption) {
   await runUploadToIds(reviewForm.machineImageFileIds, opt);
 }
 
 /**
- * 复检登记：条码照上传 customRequest。
+ * 作用：复检登记：条码照上传 customRequest。
  *
  * @param opt - Upload 自定义请求参数
- * @returns {Promise<void>} 无返回值
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function customRequestReviewMachineBarcodeImage(opt: UploadRequestOption) {
   await runUploadToIds(reviewForm.machineBarcodeImageFileIds, opt);
 }
 
 /**
- * 复检登记：其它图片上传 customRequest。
+ * 作用：复检登记：其它图片上传 customRequest。
  *
  * @param opt - Upload 自定义请求参数
- * @returns {Promise<void>} 无返回值
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function customRequestReviewOtherImage(opt: UploadRequestOption) {
   await runUploadToIds(reviewForm.otherImageFileIds, opt);
 }
 
 /**
- * 配件明细表追加一行空行。
+ * 作用：配件明细表追加一行空行。
  *
  * @param target - 配件数组引用
- * @returns {void} 无返回值
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function addPartRow(target: Array<{ partName: string; partQty?: number }>) {
   target.push({ partName: '', partQty: 1 });
 }
 
 /**
- * 删除配件明细一行（至少保留一行）。
+ * 作用：删除配件明细一行（至少保留一行）。
  *
  * @param target - 配件数组引用
  * @param index - 行下标
- * @returns {void} 无返回值
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function removePartRow(target: Array<{ partName: string; partQty?: number }>, index: number) {
   if (target.length <= 1) return;
@@ -1789,12 +1951,14 @@ function removePartRow(target: Array<{ partName: string; partQty?: number }>, in
 }
 
 /**
- * 执行工单动作子流程（派单/接单/转单/维修/复检/邮寄/关闭）；调用方需已保证 detail 已加载。
- *
+ * 作用：执行工单动作子流程（派单/接单/转单/维修/复检/邮寄/关闭）；调用方需已保证 detail 已加载。
  * @param code - 列表动作码
- * @returns {Promise<void>} 无返回值
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function dispatchWorkOrderAction(code: WorkOrderListActionCode) {
+  // 佳士条码工单缺机型时先弹补录机型，再打开原动作子弹层
   if (shouldSupplementRepairProductModel(code)) {
     await prepareRepairProductModelDialog(code);
     return;
@@ -1827,10 +1991,12 @@ async function dispatchWorkOrderAction(code: WorkOrderListActionCode) {
 }
 
 /**
- * 详情抽屉内点击操作按钮：与列表动作共用补录机型校验，不重复请求详情。
+ * 作用：详情抽屉内点击操作按钮：与列表动作共用补录机型校验，不重复请求详情。
  *
  * @param action - 列表动作码
- * @returns {Promise<void>} 无返回值
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openActionFromDetail(action: WorkOrderListActionCode) {
   if (!id.value || !detail.value || !Object.keys(detail.value).length) {
@@ -1841,13 +2007,15 @@ async function openActionFromDetail(action: WorkOrderListActionCode) {
 }
 
 /**
- * 列表页传入动作码时：先刷新详情再打开派单/接单/转单/维修/复检/邮寄/关闭等子流程（与 jasic-ui 行为一致）。
- *
+ * 作用：列表页传入动作码时，先刷新详情再打开派单/接单/转单/维修/复检/邮寄/关闭等子流程（与 jasic-ui 行为一致）。
  * @param action - 列表动作字符串
- * @returns {Promise<void>} 无返回值
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openActionFromList(action: string) {
   if (!id.value) return;
+  // 列表直达动作须先刷新详情，保证 availableActions 与详情区按钮一致
   await loadDetail();
   if (!detail.value || !Object.keys(detail.value).length) {
     window.$message?.error('加载工单失败');
@@ -1863,6 +2031,7 @@ defineExpose({
 </script>
 
 <template>
+  <!-- 工单详情主抽屉：只读信息区 + 顶部动作按钮 + 嵌套业务子弹层 -->
   <ADrawer
     :open="open"
     :width="1400"
@@ -1873,6 +2042,7 @@ defineExpose({
     <ASpin :spinning="loading">
       <!-- 块级包裹：避免 ASpace(inline-flex) 上 margin 不生效 / 外边距折叠 -->
       <div class="w-full pb-16px">
+        <!-- 动作按钮显隐由详情 availableActions 驱动；维修/复检走 openActionFromDetail 以触发机型补录 -->
         <ASpace wrap>
           <AButton v-if="showAssign" type="primary" size="small" @click="openAssign">派单</AButton>
           <AButton v-if="showAccept" type="primary" size="small" @click="openAccept">维修员接单</AButton>
@@ -1903,6 +2073,7 @@ defineExpose({
         </ASpace>
       </div>
 
+      <!-- 只读区：工单 / 商品 / 服务 / 故障及附件预览（数据来自 getWorkOrder） -->
       <div class="mb-8px text-14px text-gray-700">工单信息</div>
       <ADescriptions bordered size="small" :column="2" class="mb-16px">
         <ADescriptionsItem v-for="it in workOrderInfoItems" :key="it.key" :label="it.label" :span="it.span || 1">
@@ -2068,6 +2239,7 @@ defineExpose({
         </ADescriptionsItem>
       </ADescriptions>
 
+      <!-- 已完成工单才展示故障点全历史扁平行（维修+复检各阶段故障明细） -->
       <template v-if="showCompletedRepairInfo && faultPointHistoryRows.length">
         <div class="mb-8px text-14px text-gray-700">故障点信息（全部历史记录）</div>
         <ATable
@@ -2162,6 +2334,7 @@ defineExpose({
         </ADescriptions>
       </template>
 
+      <!-- 参与方、流转、报价：流程审计与多次报价记录 -->
       <div class="mb-8px text-14px text-gray-700">参与方</div>
       <ATable
         bordered
@@ -2196,6 +2369,7 @@ defineExpose({
           row-key="id"
         />
       </template>
+      <!-- 图片/视频内嵌预览；其它类型附件在 openFilePreview 中新窗口打开 -->
       <AModal v-model:open="previewOpen" :title="previewTitle || '附件预览'" :footer="null" :width="820" centered>
         <img v-if="previewType === 'image' && previewUrl" :src="previewUrl" class="max-h-70vh w-full object-contain" />
         <video
@@ -2210,6 +2384,7 @@ defineExpose({
       </AModal>
     </ASpin>
 
+    <!-- 子弹层：维修员接单（无故障时 submitAccept 转关闭工单合并提交） -->
     <ADrawer v-model:open="techAcceptOpen" title="维修员接单" :width="420">
       <AForm ref="techAcceptFormRef" layout="vertical" :model="techAcceptForm" :rules="techAcceptFormRules as any">
         <AFormItem label="故障判断" name="faultJudge" required>
@@ -2246,6 +2421,7 @@ defineExpose({
       </template>
     </ADrawer>
 
+    <!-- 子弹层：派单（加载 listAssignUserOptions，提交 assignWorkOrder） -->
     <ADrawer v-model:open="assignOpen" title="派单" :width="360">
       <AForm ref="assignFormRef" layout="vertical" :model="assignForm" :rules="assignFormRules as any">
         <AFormItem label="维修员" name="assignUserId" required>
@@ -2266,6 +2442,7 @@ defineExpose({
       </template>
     </ADrawer>
 
+    <!-- 子弹层：转单（选择目标公司 + 备注，提交 transferWorkOrder） -->
     <ADrawer v-model:open="transferOpen" title="转单" :width="360">
       <AForm ref="transferFormRef" layout="vertical" :model="transferForm" :rules="transferFormRules as any">
         <AFormItem label="目标公司" name="companyId" required>
@@ -2289,6 +2466,7 @@ defineExpose({
       </template>
     </ADrawer>
 
+    <!-- 子弹层：维修登记（故障-维修联动配置来自 listRepairFaultOptions） -->
     <ADrawer v-model:open="repairOpen" title="维修登记" :width="repairDrawerWidth">
       <AForm ref="repairFormRef" layout="vertical" :model="repairForm" :rules="repairFormRules as any">
         <AFormItem label="报价金额" name="quoteAmount">
@@ -2460,8 +2638,10 @@ defineExpose({
       </template>
     </ADrawer>
 
+    <!-- 子弹层：复检登记（故障区只读引用建单/首次维修；可编辑维修说明、配件、五类现场图） -->
     <ADrawer v-model:open="reviewOpen" title="复检登记" :width="reviewDrawerWidth">
       <AForm ref="reviewFormRef" layout="vertical" :model="reviewForm" :rules="reviewFormRules as any">
+        <!-- 只读区：客户报修故障 + 首次维修确认故障（无首次 REPAIR 记录时校验拦截提交） -->
         <AFormItem label="客户报修故障">
           <ATextarea :value="textValue(detail.faultDesc, '当前工单未记录故障描述')" :rows="2" disabled />
         </AFormItem>
@@ -2475,6 +2655,7 @@ defineExpose({
         <AFormItem v-if="showReviewFaultRemark" label="其它故障说明">
           <ATextarea :value="textValue(firstRepairConfirmedFaultRemark)" :rows="2" disabled />
         </AFormItem>
+        <!-- 有总部故障配置：维修说明多选（候选项由 firstRepairConfirmedFaultDesc 推导） -->
         <AFormItem v-if="hasRepairFaultConfig" label="维修说明" name="repairItems" required>
           <ASelect
             v-model:value="reviewForm.repairItems"
@@ -2488,6 +2669,7 @@ defineExpose({
             @change="handleReviewItemsChange"
           />
         </AFormItem>
+        <!-- 无配置：手填维修说明（与旧版 jasic-ui 一致） -->
         <AFormItem v-else label="维修说明" name="repairDesc" required>
           <ATextarea v-model:value="reviewForm.repairDesc" :rows="3" allow-clear placeholder="请输入维修说明" />
         </AFormItem>
@@ -2499,6 +2681,7 @@ defineExpose({
         >
           <ATextarea v-model:value="reviewForm.otherDesc" :rows="2" allow-clear placeholder="请输入其他维修说明" />
         </AFormItem>
+        <!-- 配件明细至少一行，校验规则与维修登记共用 getPartListError -->
         <AFormItem label="更换配件" name="partList" required>
           <div
             v-for="(item, idx) in reviewForm.partList"
@@ -2517,6 +2700,7 @@ defineExpose({
             </AButton>
           </div>
         </AFormItem>
+        <!-- 现场五类图：每格最多 1 张，customRequest 写入 reviewForm.*ImageFileIds -->
         <AFormItem label="故障处图片">
           <div class="grid grid-cols-2 gap-12px lg:grid-cols-3 xl:grid-cols-4">
             <div>
@@ -2625,6 +2809,7 @@ defineExpose({
       </template>
     </ADrawer>
 
+    <!-- 子弹层：补传寄件凭证（updateWorkOrderSendExpress，至少 1 张图） -->
     <ADrawer v-model:open="mailOpen" title="上传寄件单号" :width="420">
       <AForm ref="mailFormRef" layout="vertical" :model="mailForm" :rules="mailFormRules as any">
         <AFormItem label="寄件凭证" name="senderVoucherFileIds" required>
@@ -2655,6 +2840,7 @@ defineExpose({
       </template>
     </ADrawer>
 
+    <!-- 关闭工单：回寄方式/原因/凭证；可与无故障接单载荷合并一次 techAccept -->
     <ADrawer v-model:open="closeOpen" title="关闭工单" :width="420">
       <AForm ref="closeFormRef" layout="vertical" :model="closeForm" :rules="closeFormRules as any">
         <AFormItem label="返回方式" name="returnMethod" required>
@@ -2698,6 +2884,7 @@ defineExpose({
       </template>
     </ADrawer>
 
+    <!-- 佳士无机型时拦截维修/复检，补录成功后按 pending 动作继续 -->
     <ADrawer v-model:open="repairProductModelOpen" title="补录机型" :width="560">
       <AForm
         ref="repairProductModelFormRef"

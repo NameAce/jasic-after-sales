@@ -32,6 +32,11 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 承修方小程序（网点/总部工单处理、派工）：OrderCardList。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   import ListEmpty from '@/components/ListEmpty/ListEmpty.vue'
   import ListNoMore from '@/components/ListNoMore/ListNoMore.vue'
   import OrderCardItem from './OrderCardItem.vue'

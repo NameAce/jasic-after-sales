@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 菜单演示 — 页签标题：自定义 tab 文案并跳转带 query 的路由以验证多 Tab 行为。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { ref } from 'vue';
 import { useTabStore } from '@/store/modules/tab';
@@ -18,6 +20,8 @@ const tabLabel = ref('');
  * 作用：将当前 Tab 标题设为输入框内容。
  * @param 无
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function changeTabLabel() {
   tabStore.setTabLabel(tabLabel.value);
@@ -27,6 +31,8 @@ function changeTabLabel() {
  * 作用：恢复当前 Tab 标题为路由默认。
  * @param 无
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function resetTabLabel() {
   tabStore.resetTabLabel();
@@ -34,6 +40,7 @@ function resetTabLabel() {
 </script>
 
 <template>
+  <!-- 功能演示页：tab/index.vue -->
   <ASpace direction="vertical" :size="16">
     <ACard :title="$t('page.function.tab.tabOperate.title')" :bordered="false" size="small" class="card-wrapper">
       <ADivider orientation="left">{{ $t('page.function.tab.tabOperate.addTab') }}</ADivider>

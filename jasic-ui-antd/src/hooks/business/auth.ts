@@ -30,6 +30,8 @@ export function useAuth() {
    * 作用：判断是否至少拥有一个按钮权限码（用于表格操作列是否展示等「任一即可」场景）。
    * @param codes - 单个权限码或权限码数组
    * @returns 拥有任一权限时返回 true
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
    */
   function hasAnyAuth(codes: string | string[]) {
     return hasAuth(codes);

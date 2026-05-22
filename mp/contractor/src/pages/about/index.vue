@@ -1,4 +1,5 @@
 <template>
+  <!-- 承修方小程序（网点/总部工单处理、派工）页面 about / index -->
   <custom-nav-bar title="关于我们" surface="sticky" />
   <view class="page-index page-about">
     <scroll-view class="page-padding" scroll-y>
@@ -91,6 +92,11 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 承修方小程序（网点/总部工单处理、派工）：index。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
 </script>
 

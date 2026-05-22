@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 水平混合菜单：顶栏展示当前一级下的子级横向菜单，侧栏为一级图标列表。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import type { MenuInfo } from 'ant-design-vue/es/menu/src/interface';
@@ -25,14 +27,22 @@ const { selectedKey } = useMenu();
 // 顶栏下菜单区若启用 inverted，仅在非全局暗色时生效
 const inverted = computed(() => !themeStore.darkMode && themeStore.sider.inverted);
 
-/** 顶栏子菜单项点击 */
+/**
+ * 顶栏子菜单项点击
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleClickMenu(menuInfo: MenuInfo) {
   const key = menuInfo.key as RouteKey;
 
   routerPushByKeyWithMetaQuery(key);
 }
 
-/** 侧栏一级选中：仅叶子一级直接跳转 */
+/**
+ * 侧栏一级选中：仅叶子一级直接跳转
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleSelectMixMenu(menu: App.Global.Menu) {
   setActiveFirstLevelMenuKey(menu.key);
 
@@ -43,6 +53,7 @@ function handleSelectMixMenu(menu: App.Global.Menu) {
 </script>
 
 <template>
+  <!-- 布局子模块：horizontal-mix-menu -->
   <Teleport :to="`#${GLOBAL_HEADER_MENU_ID}`">
     <AMenu
       mode="horizontal"

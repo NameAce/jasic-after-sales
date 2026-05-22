@@ -2,6 +2,8 @@
  * 工单类型标签样式类：佳士橙色 / 非佳士灰色
  * @param orderTypeName 工单类型名称
  * @returns 工单类型标签样式类
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function getOrderTypeTagClass(orderTypeName: string): string {
   const name = (orderTypeName || '').trim()
@@ -13,6 +15,8 @@ export function getOrderTypeTagClass(orderTypeName: string): string {
  * 质保判定标签样式类：保内绿色 / 其余红色
  * @param warrantyClass 质保判定类
  * @returns 质保判定标签样式类
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function getWarrantyTagClass(warrantyClass: string): string {
   const w = (warrantyClass || '').trim()
@@ -23,6 +27,8 @@ export function getWarrantyTagClass(warrantyClass: string): string {
 /**
  * 故障判定标签样式类：有故障红色 / 无故障绿色
  * @param faultJudge 故障判定文案（与接单表单选项一致）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function getFaultJudgeTagClass(faultJudge: string): string {
   const t = (faultJudge || '').trim()

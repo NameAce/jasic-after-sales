@@ -74,10 +74,18 @@
     transferred: { text: '-', variant: 'neutral' as const }
   }
 
-  /** 总部更新时间 */
+  /**
+ * 总部更新时间
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   defineProps<{
     hqUpdatedAt: string
-    /** 全网实时统计 */
+    /**
+ * 全网实时统计
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
     hqNetworkStats: {
       pendingTechAccept: number
       processing: number

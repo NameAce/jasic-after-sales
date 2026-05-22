@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 主题抽屉 — 主题色：推荐色开关与各语义色 ColorPicker（info 可跟随主色）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { ColorPicker } from '@sa/materials';
 import { useThemeStore } from '@/store/modules/theme';
@@ -13,13 +15,18 @@ defineOptions({
 
 const themeStore = useThemeStore();
 
-/** 更新某一语义色并同步派生样式 */
+/**
+ * 更新某一语义色并同步派生样式
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleUpdateColor(color: string, key: App.Theme.ThemeColorKey) {
   themeStore.updateThemeColors(key, color);
 }
 </script>
 
 <template>
+  <!-- 布局子模块：theme-color -->
   <ADivider>{{ $t('theme.themeColor.title') }}</ADivider>
   <div class="flex-col-stretch gap-12px">
     <ATooltip placement="topLeft">

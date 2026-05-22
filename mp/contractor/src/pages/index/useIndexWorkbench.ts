@@ -17,6 +17,8 @@ import { isWorkOrderPendingTechAcceptMainStatus } from '@/utils/workOrderMainSta
 
 /**
  * 首页工作台：未转单列表、总部统计等
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function useIndexWorkbench() {
   const userStore = useUserStore()
@@ -25,7 +27,9 @@ export function useIndexWorkbench() {
    * 首页网点工作台工单列表查询参数（按权限决定待派/待接）
    * - 有派单权限：只看待派单（与订单列表「待派单」二级 Tab 一致，避免待派/待接混在同一列表）
    * - 仅接单权限：看待接单
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const SITE_LIST_PAGE_SIZE = 10
 
   const buildSiteWorkbenchListQuery = (pageNum: number): OrderListQuery => {
@@ -56,7 +60,11 @@ export function useIndexWorkbench() {
   })
   const siteStatusStats = ref(emptyTabCounts())
   const siteWorkbenchStats = computed(() => siteStatusStats.value)
-  /** 最近一次网点工作台 status-count 原始行（首卡文案与数量与接口 displayStatus / countNum 对齐） */
+  /**
+ * 最近一次网点工作台 status-count 原始行（首卡文案与数量与接口 displayStatus / countNum 对齐）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const siteStatusCountRows = ref<WorkOrderStatusCountVO[]>([])
 
   // 总部统计
@@ -123,7 +131,9 @@ export function useIndexWorkbench() {
 
   /**
    * @param force 为 true 时先等待进行中的刷新结束再拉取，避免派单等操作后复用派单前发起的请求导致列表不更新
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const refreshSiteWorkbench = async (force = false) => {
     if (!force && siteRefreshInFlight) return siteRefreshInFlight
     if (force && siteRefreshInFlight) {
@@ -198,7 +208,11 @@ export function useIndexWorkbench() {
     return '当前没有待接单的工单'
   })
 
-  /** 首卡：接口返回的 displayStatus + 对应 mainStatus 行的 countNum（无则回退文案与聚合值） */
+  /**
+ * 首卡：接口返回的 displayStatus + 对应 mainStatus 行的 countNum（无则回退文案与聚合值）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const sitePrimaryPendingStat = computed(() => {
     const canAssign = userStore.hasPermission(Perms.WORKORDER_ASSIGN)
     const code = canAssign ? 'PENDING_ASSIGN' : 'PENDING_TECH_ACCEPT'

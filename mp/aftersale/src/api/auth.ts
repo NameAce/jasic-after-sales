@@ -9,11 +9,21 @@ import type { CustomerUserInfo } from '@/models/user'
  *
  * C 端专属白名单：对应 jasic-ui `login`（PC 侧 `/api/auth/login`）；
  * C 端走 `/api/customer/auth/login`，与 contractor `/api/auth/mp-login` 并列为端侧专属登录端点。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export interface CustomerAuthLoginParams {
-  /** 微信 js_code；后端必填 */
+  /**
+ * 微信 js_code；后端必填
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   code: string
-  /** 手机号授权 code；可空（空时跳过手机号绑定） */
+  /**
+ * 手机号授权 code；可空（空时跳过手机号绑定）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   phoneCode?: string
 }
 
@@ -22,6 +32,8 @@ export interface CustomerAuthLoginParams {
  *
  * 后端 VO 仅包含 `token / userInfo`，不存在 contractor/jasic-ui 的
  * `needChooseCompany / companies` 多公司分支，故 C 端登录结果严格收敛为双字段。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export interface LoginResult {
   token: string
@@ -37,6 +49,8 @@ export interface LoginResult {
  *
  * @param data 客户认证登录参数
  * @returns 客户认证登录结果
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export const login = (data: CustomerAuthLoginParams) => {
   return http<LoginResult>({
@@ -55,6 +69,8 @@ export const login = (data: CustomerAuthLoginParams) => {
  * 不含 contractor/jasic-ui 的 `perms / companies / roles` 等字段。
  *
  * @returns 用户信息
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export const getUserInfo = () => {
   return http<CustomerUserInfo>({
@@ -70,6 +86,8 @@ export const getUserInfo = () => {
  * `jasic-customer/.../CustomerAuthController#logout`。
  *
  * @returns 空响应
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export const logout = () => {
   return http<null>({

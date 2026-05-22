@@ -6,6 +6,8 @@ import { ref, nextTick } from 'vue'
  * 说明（尤其 mp-weixin）：在 `await run()` 后立即把 `refresher-triggered` 置回 false，
  * 部分基础库会出现刷新头无法收起或触发「异步事件处理」类告警；因此在 finally 里
  * 先 `nextTick` 再短延迟后关闭，与社区常见写法一致。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function useScrollRefresher(run: () => Promise<void>) {
   const refresherTriggered = ref(false)

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 根组件：注入 Ant Design Vue 主题与中文、AppProvider、路由出口及可选全屏水印。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import { ConfigProvider } from 'ant-design-vue';
@@ -37,6 +39,7 @@ const watermarkProps = computed(() => {
 </script>
 
 <template>
+  <!-- 应用根组件：ConfigProvider 与路由出口 -->
   <ConfigProvider :theme="themeStore.antdTheme" :locale="antdLocale" :form="{ requiredMark: true }">
     <AppProvider>
       <RouterView class="bg-layout" />

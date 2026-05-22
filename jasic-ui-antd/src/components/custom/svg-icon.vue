@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 图标组件：优先渲染本地 SVG 雪碧（`localIcon`），否则走 Iconify 在线/离线图标。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, useAttrs } from 'vue';
 import { Icon } from '@iconify/vue';
@@ -12,11 +14,21 @@ defineOptions({ name: 'SvgIcon', inheritAttrs: false });
  *
  * - Support iconify and local svg icon
  * - If icon and localIcon are passed at the same time, localIcon will be rendered first
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 interface Props {
-  /** Iconify icon name */
+  /**
+   * Iconify icon name
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   icon?: string;
-  /** Local svg icon name */
+  /**
+   * Local svg icon name
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   localIcon?: string;
 }
 
@@ -45,6 +57,7 @@ const renderLocalIcon = computed(() => props.localIcon || !props.icon);
 </script>
 
 <template>
+  <!-- 通用组件：svg-icon -->
   <template v-if="renderLocalIcon">
     <svg aria-hidden="true" width="1em" height="1em" v-bind="bindAttrs">
       <use :xlink:href="symbolId" fill="currentColor" />

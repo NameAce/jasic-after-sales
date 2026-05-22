@@ -1,4 +1,5 @@
 <template>
+  <!-- 承修方小程序（网点/总部工单处理、派工）页面 order / components / OrderDetailEvaluateSection -->
   <view class="od-eval-section">
     <view class="od-eval-section-header">
       <view class="section-mark"></view>
@@ -52,6 +53,11 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 承修方小程序（网点/总部工单处理、派工） 组件：OrderDetailEvaluateSection。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   import { computed } from 'vue'
   import type { OrderDetail } from '@/models/order'
   import { hasStr } from '@/utils/value'

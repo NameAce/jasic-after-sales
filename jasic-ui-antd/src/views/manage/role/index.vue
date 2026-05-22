@@ -1,6 +1,8 @@
 <script setup lang="tsx">
 /**
  * 管理端演示 — 角色管理：分页列表、搜索与角色维护抽屉（含菜单/按钮授权入口）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { Button, Popconfirm, Tag } from 'ant-design-vue';
 import { tagColorEnabled } from '@/constants/list-status-tag';
@@ -118,6 +120,8 @@ const {
  * 作用：批量删除角色（示例占位）。
  * @param 无
  * @returns 返回 Promise，回调结束后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function handleBatchDelete() {
   // request
@@ -129,6 +133,8 @@ async function handleBatchDelete() {
  * 作用：删除单条角色（示例占位）。
  * @param id - 角色 id
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleDelete(_id: number) {
   // request
@@ -140,6 +146,8 @@ function handleDelete(_id: number) {
  * 作用：按 id 打开角色编辑。
  * @param id - 角色 id
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function edit(id: number) {
   handleEdit(id);
@@ -147,6 +155,7 @@ function edit(id: number) {
 </script>
 
 <template>
+  <!-- 管理端演示 — 角色列表与权限弹窗入口 -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
     <RoleSearch v-model:model="searchParams" @reset="resetSearchParams" @search="getDataByPage" />
     <ACard

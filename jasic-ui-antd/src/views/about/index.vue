@@ -1,11 +1,17 @@
 <script setup lang="ts">
 /**
  * 关于页：展示 package.json 中的项目名称、版本、生产/开发依赖表格及可选项目链接。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { $t } from '@/locales';
 import pkg from '~/package.json';
 
-/** package.json 在类型上未必声明 homepage/website，展示链接时单独断言 */
+/**
+ * package.json 在类型上未必声明 homepage/website，展示链接时单独断言
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 type PackageJsonWithLinks = typeof pkg & { homepage?: string; website?: string };
 const pkgMeta = pkg as PackageJsonWithLinks;
 
@@ -28,6 +34,8 @@ const { name, version, dependencies, devDependencies } = pkgMeta;
  * 作用：将 Object.entries 的单项转为依赖展示结构。
  * @param tuple - [包名, 版本号]
  * @returns PkgVersionInfo
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function transformVersionData(tuple: [string, string]): PkgVersionInfo {
   const [$name, $version] = tuple;
@@ -50,6 +58,7 @@ const latestBuildTime = BUILD_TIME;
 </script>
 
 <template>
+  <!-- 关于页 -->
   <ASpace direction="vertical" :size="16">
     <ACard :title="$t('page.about.title')" :bordered="false" size="small" class="card-wrapper">
       <p>{{ $t('page.about.introduction') }}</p>

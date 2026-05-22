@@ -9,13 +9,19 @@
  * （`WORK_ORDER_MAIN_STATUS_UI_LABEL`）与字面归一化工具
  * （`normalizeWorkOrderMainStatus`）继续留在此处，与
  * `api/workOrder.ts` 内 `MAIN_STATUS_TO_UI` 等价但不强制镜像至 contractor。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import type { WorkOrderMainStatus } from '@/models/order'
 
 export { WORK_ORDER_MAIN_STATUS } from '@/models/order'
 export type { WorkOrderMainStatus } from '@/models/order'
 
-/** 工单主状态 → 客户端 UI 中文桶（与 api/workOrder.ts 的 MAIN_STATUS_TO_UI 等价） */
+/**
+ * 工单主状态 → 客户端 UI 中文桶（与 api/workOrder.ts 的 MAIN_STATUS_TO_UI 等价）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export const WORK_ORDER_MAIN_STATUS_UI_LABEL: Record<WorkOrderMainStatus, string> = {
   PENDING_ASSIGN: '待接单',
   PENDING_TECH_ACCEPT: '待接单',
@@ -24,7 +30,11 @@ export const WORK_ORDER_MAIN_STATUS_UI_LABEL: Record<WorkOrderMainStatus, string
   CLOSED: '已关闭',
 }
 
-/** 规范化接口 mainStatus 字面（大写，连字符转下划线） */
+/**
+ * 规范化接口 mainStatus 字面（大写，连字符转下划线）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function normalizeWorkOrderMainStatus(mainStatus: string | undefined): string {
   return (mainStatus ?? '').trim().toUpperCase().replace(/-/g, '_')
 }

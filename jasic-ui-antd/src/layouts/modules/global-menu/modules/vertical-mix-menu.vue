@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 纵向混合菜单：左侧一级 + 可选固定/抽屉式子菜单，与 mix-menu 上下文联动。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import type { MenuInfo } from 'ant-design-vue/es/menu/src/interface';
@@ -44,7 +46,11 @@ const hasChildMenus = computed(() => childLevelMenus.value.length > 0);
 const showDrawer = computed(() => hasChildMenus.value && (drawerVisible.value || appStore.mixSiderFixed));
 const systemTitle = computed(() => authStore.userInfo.currentCompanyName || $t('system.title'));
 
-/** 点击一级：有子级则开抽屉，无子级则直接跳转 */
+/**
+ * 点击一级：有子级则开抽屉，无子级则直接跳转
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleSelectMixMenu(menu: App.Global.Menu) {
   setActiveFirstLevelMenuKey(menu.key);
 
@@ -55,7 +61,11 @@ function handleSelectMixMenu(menu: App.Global.Menu) {
   }
 }
 
-/** 鼠标离开混合区：关抽屉并在非固定模式下重算一级选中 */
+/**
+ * 鼠标离开混合区：关抽屉并在非固定模式下重算一级选中
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleResetActiveMenu() {
   setDrawerVisible(false);
 
@@ -73,7 +83,11 @@ const openKeys = computed(() => {
   return routeStore.getSelectedMenuKeyPath(selectedKey.value);
 });
 
-/** 子菜单项点击跳转 */
+/**
+ * 子菜单项点击跳转
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleClickMenu(menuInfo: MenuInfo) {
   const key = menuInfo.key as RouteKey;
 
@@ -82,6 +96,7 @@ function handleClickMenu(menuInfo: MenuInfo) {
 </script>
 
 <template>
+  <!-- 布局子模块：vertical-mix-menu -->
   <Teleport :to="`#${GLOBAL_SIDER_MENU_ID}`">
     <div class="h-full flex" @mouseleave="handleResetActiveMenu">
       <FirstLevelMenu

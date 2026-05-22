@@ -1,4 +1,9 @@
 <script setup lang="ts">
+/**
+ * 遗留业务首页横向汇总条形图（用户/角色或待办/消息，按权限切换数据源）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 import { computed, onMounted, reactive, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { listRole, listUser } from '@/service/api';
@@ -73,6 +78,8 @@ const chartItems = computed(() => {
  * @param requester - 请求函数
  * @param extractor - 从响应取 total/count
  * @returns 数字或 '--'
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function safeGetTotal(enabled: boolean, requester: () => Promise<any>, extractor: (res: any) => number) {
   if (!enabled) return '--';
@@ -86,6 +93,9 @@ async function safeGetTotal(enabled: boolean, requester: () => Promise<any>, ext
 
 /**
  * 作用：根据权限加载用户/角色或待办/消息汇总并刷新图表。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadSummary() {
   try {
@@ -139,6 +149,10 @@ watch(
 
 /**
  * 作用：点击柱状图条目跳转对应管理页或消息中心。
+ * @param key - user / role / todo / message
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function openSummaryPage(key: string) {
   if (key === 'user') {
@@ -221,6 +235,9 @@ const { domRef, updateOptions } = useEcharts(
 
 /**
  * 作用：将 summary/chartItems 同步到图表配置。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function updateChart() {
   updateOptions(opts => {
@@ -244,6 +261,7 @@ watch(
 </script>
 
 <template>
+  <!-- 创意横幅 -->
   <ACard
     :title="$t('page.home.summaryTitle')"
     :bordered="false"

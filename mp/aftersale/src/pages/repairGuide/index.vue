@@ -1,4 +1,5 @@
 <template>
+  <!-- 售后客户端小程序（报修、工单、地址）页面 repairGuide / index -->
   <view class="page-guide page-index">
     <custom-nav-bar title="报修指南" surface="sticky" />
     <view class="page-padding guide-body">
@@ -44,6 +45,11 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * 售后客户端小程序（报修、工单、地址）：index。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import {
     engineeringIcon,

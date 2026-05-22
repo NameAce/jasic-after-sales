@@ -1,4 +1,5 @@
 <template>
+  <!-- 承修方小程序（网点/总部工单处理、派工）组件 VoicePlaybackList -->
   <view v-if="items.length" class="voice-input-wrapper">
     <view class="voice-list">
       <view
@@ -33,7 +34,11 @@
   import { ref, watch, onUnmounted, nextTick } from 'vue'
   import { themeColor } from '@/theme/colors'
 
-  /** 播放条目：duration 为毫秒（可选，元数据未就绪时的显示回退） */
+  /**
+ * 播放条目：duration 为毫秒（可选，元数据未就绪时的显示回退）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   export interface VoicePlaybackItem {
     url: string
     duration?: number
@@ -42,12 +47,18 @@
   const props = withDefaults(
     defineProps<{
       items: VoicePlaybackItem[]
-      /** 是否展示删除按钮，点击后通过 `remove` 事件将 index 交给父级确认/提交 */
+      /**
+ * 是否展示删除按钮，点击后通过 `remove` 事件将 index 交给父级确认/提交
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       deletable?: boolean
       /**
        * 远程 http(s) 语音是否先 downloadFile 到本地再播，本地/平台路径自动直通
        * （部分端 InnerAudioContext 直播远程 URL 的兼容性差，默认开启以对齐 VoiceInputField 的本地 tempFilePath 行为）
-       */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       downloadable?: boolean
     }>(),
     {
@@ -63,24 +74,40 @@
 
   const playingIndex = ref(-1)
   const playProgress = ref(0)
-  /** 当前播放已播秒数（onTimeUpdate 写入，供模板响应式刷新） */
+  /**
+ * 当前播放已播秒数（onTimeUpdate 写入，供模板响应式刷新）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const playHeadSec = ref(0)
   /**
    * 切段播放前会 stop()，各端 onStop 可能晚于新 play()，导致误清 UI；
    * 对下一次 onStop 打标忽略。
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const ignoreNextAudioStop = ref(false)
   let ignoreNextAudioStopTimer: ReturnType<typeof setTimeout> | null = null
-  /** 上一次成功发起播放的地址，用于同段重播时 seek(0)，避免清空 src 触发各端 onError */
+  /**
+ * 上一次成功发起播放的地址，用于同段重播时 seek(0)，避免清空 src 触发各端 onError
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const lastVoicePlayPath = ref('')
 
-  /** 原始 url → 可播放的本地 tempFilePath（或原样 url） */
+  /**
+ * 原始 url → 可播放的本地 tempFilePath（或原样 url）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const resolvedPlaySrcMap = ref<Record<string, string>>({})
 
   /**
    * 解码得到的时长（秒），按「业务 url」索引。
    * 详情接口语音附件常无 duration 元数据，未播放时须展示该段总时长。
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const resolvedDurationSecByUrl = ref<Record<string, number>>({})
 
   const isRemoteHttpUrl = (url: string) => /^https?:\/\//i.test(url.trim())
@@ -157,7 +184,9 @@
 
   /**
    * 列表时长：未播放为总时长；播放中为已播秒数（随 currentTime 递增）
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const formatDisplayDuration = (item: VoicePlaybackItem, index: number) => {
     if (playingIndex.value === index) {
       return String(playHeadSec.value)
@@ -169,7 +198,11 @@
     return '0'
   }
 
-  /** 与 innerAudioContext.currentTime 同一套时间轴；元数据仅作回退 */
+  /**
+ * 与 innerAudioContext.currentTime 同一套时间轴；元数据仅作回退
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const getPlayTotalSec = (index: number): number => {
     const ctx = innerAudioContext?.duration
     if (typeof ctx === 'number' && ctx > 0 && !Number.isNaN(ctx)) {
@@ -237,7 +270,11 @@
     })
   }
 
-  /** 无 duration 元数据时静默解码，使未播放态也显示该段总秒数 */
+  /**
+ * 无 duration 元数据时静默解码，使未播放态也显示该段总秒数
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   let voiceDurationProbeSeq = 0
   async function probeDecodedDurationSec(playableSrc: string, logicalUrl: string): Promise<void> {
     const create = uni.createInnerAudioContext
@@ -398,7 +435,9 @@
   /**
    * 只抛事件，具体的确认弹窗与列表变更交给父级（VoiceInputField 等）。
    * 本地仅做播放态兜底：父级提交删除后，items 长度变化会触发 watcher 统一停止播放。
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onRemoveClick = (index: number) => {
     if (!props.deletable) return
     if (index < 0 || index >= props.items.length) return
@@ -408,7 +447,9 @@
   /**
    * items 长度缩短即视为有条目被移除，统一停止播放；避免因 index 偏移导致
    * 正在播放样式错位或继续驱动已不存在的条目。
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   let prevItemsLen = props.items.length
   watch(
     () => props.items.length,

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 业务首页顶部横幅：问候语 + 待办/消息/工单汇总（数据来自首页聚合接口）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
@@ -55,7 +57,13 @@ const statisticData = computed<StatisticData[]>(() => {
   return items;
 });
 
-/** 点击统计项跳转对应业务页 */
+/**
+ * 作用：点击右上角统计项跳转工单列表或消息中心。
+ * @param key - project / todo / message
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleStatisticClick(key: StatisticData['key']) {
   if (key === 'project') {
     router.push({
@@ -71,12 +79,19 @@ function handleStatisticClick(key: StatisticData['key']) {
   router.push({ path: '/notify', query: { box: 'HISTORY' } });
 }
 
+/**
+ * 作用：跳转个人中心。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function openUserCenter() {
   router.push({ path: '/user-center' });
 }
 </script>
 
 <template>
+  <!-- 遗留业务首页横幅：问候 + 工单/待办/消息统计（useBusinessHomeDashboard） -->
   <ACard :bordered="false" class="card-wrapper" :loading="loading">
     <ARow :gutter="[16, 16]">
       <ACol :span="24" :md="18">

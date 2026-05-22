@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 菜单演示页：多 Tab 同路由不同 query 时展示当前 query，用于验证页签与路由同步。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
@@ -16,6 +18,7 @@ const routeQuery = computed(() => JSON.stringify(route.query));
 </script>
 
 <template>
+  <!-- 功能演示页：multi-tab/index.vue -->
   <div>
     <LookForward>
       <div>

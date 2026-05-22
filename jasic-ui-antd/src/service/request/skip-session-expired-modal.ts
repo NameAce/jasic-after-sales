@@ -6,7 +6,7 @@ import { router } from '@/router';
  * 典型原因：后端在登录失败、主动登出、刷新 token 等场景也会返回与「未登录」相同的业务码，
  * 若仍弹不可点遮罩的 Modal，会与登录页/登出跳转叠层，表现为整页卡住。
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 const SESSION_EXPIRED_MODAL_SKIP_URL_PARTS = [
   'auth/logout',
@@ -18,10 +18,11 @@ const SESSION_EXPIRED_MODAL_SKIP_URL_PARTS = [
 ] as const;
 
 /**
+ * 作用：判断当前请求 URL 是否应跳过「登录已过期」全屏 Modal（登出/登录/刷新等接口）。
  * @param requestUrl - axios `config.url`（可能为相对路径）
- * @returns 为 true 时不应弹会话过期 Modal，改由后续逻辑（如 toast）或调用方自行处理
+ * @returns 为 true 时不弹会话过期 Modal，改由 toast 或调用方处理
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function shouldSkipSessionExpiredModalForUrl(requestUrl: string): boolean {
   const u = requestUrl.toLowerCase();
@@ -29,9 +30,10 @@ export function shouldSkipSessionExpiredModalForUrl(requestUrl: string): boolean
 }
 
 /**
- * 登录路由上任意接口返回「会话失效」码时，只应用表单/Toast 等提示，不弹全屏重新登录 Modal。
+ * 作用：登录路由上返回会话失效码时，仅用表单/Toast 提示，不弹全屏重新登录 Modal。
+ * @returns 当前是否在 login 路由
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function shouldSkipSessionExpiredModalOnLoginRoute(): boolean {
   return String(router.currentRoute.value.name || '') === 'login';

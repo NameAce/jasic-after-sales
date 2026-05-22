@@ -1,3 +1,9 @@
+/**
+ * 承修方小程序（网点/总部工单处理、派工）：index。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
+
 import { createPinia } from 'pinia'
 import persist from 'pinia-plugin-persistedstate'
 

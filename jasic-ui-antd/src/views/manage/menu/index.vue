@@ -1,6 +1,8 @@
 <script setup lang="tsx">
 /**
  * 管理端演示 — 菜单管理：树形表格、路由页选择与菜单增删改（对接 Mock/演示接口）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { ref } from 'vue';
 import type { Ref } from 'vue';
@@ -180,6 +182,8 @@ const editingData: Ref<Api.SystemManage.Menu | null> = ref(null);
  * 作用：打开新增菜单弹窗。
  * @param 无
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleAdd() {
   operateType.value = 'add';
@@ -190,6 +194,8 @@ function handleAdd() {
  * 作用：批量删除菜单（示例占位）。
  * @param 无
  * @returns 返回 Promise，回调结束后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function handleBatchDelete() {
   // request
@@ -201,6 +207,8 @@ async function handleBatchDelete() {
  * 作用：删除单条菜单（示例占位）。
  * @param id - 菜单 id
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleDelete(_id: number) {
   // request
@@ -212,6 +220,8 @@ function handleDelete(_id: number) {
  * 作用：打开编辑菜单弹窗。
  * @param item - 菜单行
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleEdit(item: Api.SystemManage.Menu) {
   operateType.value = 'edit';
@@ -224,6 +234,8 @@ function handleEdit(item: Api.SystemManage.Menu) {
  * 作用：为指定父级打开新增子菜单弹窗。
  * @param item - 父菜单
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleAddChildMenu(item: Api.SystemManage.Menu) {
   operateType.value = 'addChild';
@@ -240,6 +252,8 @@ const allPages = ref<string[]>([]);
  * 作用：拉取全部页面名称列表。
  * @param 无
  * @returns 返回 Promise，请求结束后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function getAllPages() {
   const { data: pages } = await fetchGetAllPages();
@@ -250,6 +264,8 @@ async function getAllPages() {
  * 作用：初始化页面：加载全部路由页面选项。
  * @param 无
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function init() {
   getAllPages();
@@ -260,6 +276,7 @@ init();
 </script>
 
 <template>
+  <!-- 管理端演示 — 菜单树表与操作弹窗 -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
     <ACard
       :title="pageMenuTitle"

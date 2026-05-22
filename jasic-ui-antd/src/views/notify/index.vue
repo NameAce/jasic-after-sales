@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 站内通知：待办与历史分页列表、角标数量与标记已读（对接 notify 接口）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -42,9 +44,10 @@ const route = useRoute();
 const pageMenuTitle = useRouteMenuTitle();
 
 /**
- * 作用：返回分页初始状态对象。
- * @param 无
- * @returns 含 pageNum、pageSize 的对象
+ * 作用：页面内业务方法：defaultPageState。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function defaultPageState() {
   return { pageNum: 1, pageSize: 10 };
@@ -93,9 +96,10 @@ const columns = applyDateTimeColumnRender([
 ]);
 
 /**
- * 作用：从分页响应中取出消息行数组。
- * @param data - 接口数据
- * @returns 行数组
+ * 作用：从分页接口响应解析列表数组。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function pickRows(data: any) {
   if (Array.isArray(data)) return data;
@@ -104,9 +108,10 @@ function pickRows(data: any) {
 }
 
 /**
- * 作用：请求待办数量并更新 todoCount。
- * @param 无
- * @returns 返回 Promise，请求结束后结束
+ * 作用：页面内业务方法：refreshTodoCount。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function refreshTodoCount() {
   const { data } = await getNotifyTodoCount();
@@ -114,9 +119,10 @@ async function refreshTodoCount() {
 }
 
 /**
- * 作用：按当前 Tab 与分页拉取消息列表。
- * @param 无
- * @returns 返回 Promise，列表加载结束后结束
+ * 作用：加载当前 Tab/条件下表格数据。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadList() {
   clearListMsgs();
@@ -147,18 +153,20 @@ async function loadList() {
 }
 
 /**
- * 作用：并行刷新待办数与当前列表。
- * @param 无
- * @returns 返回 Promise，全部完成后结束
+ * 作用：加载数据：loadPage。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadPage() {
   await Promise.all([refreshTodoCount(), loadList()]);
 }
 
 /**
- * 作用：将待办状态码转为中文展示文案。
- * @param status - 状态字符串
- * @returns 展示文案或原值
+ * 作用：页面内业务方法：statusLabel。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function statusLabel(status: string | undefined) {
   if (!status) return '-';
@@ -166,9 +174,10 @@ function statusLabel(status: string | undefined) {
 }
 
 /**
- * 作用：将待办状态码映射为 Tag 颜色。
- * @param status - 状态字符串
- * @returns Ant Design Tag 颜色名
+ * 作用：页面内业务方法：statusColor。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function statusColor(status: string | undefined) {
   if (!status) return 'default';
@@ -176,9 +185,10 @@ function statusColor(status: string | undefined) {
 }
 
 /**
- * 作用：切换待处理/历史 Tab 并刷新列表与角标。
- * @param key - Tab key
- * @returns {void} 无
+ * 作用：处理交互事件：handleTabChange。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleTabChange(key: string | number) {
   activeTab.value = String(key) as TabKey;
@@ -187,10 +197,10 @@ function handleTabChange(key: string | number) {
 }
 
 /**
- * 作用：分页变更时更新当前 Tab 的 pageNum/pageSize（改 pageSize 时回到第 1 页）。
- * @param page - 当前页码
- * @param pageSize - 每页条数，可选
- * @returns {void} 无
+ * 作用：处理交互事件：handleTableChange。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleTableChange(page: number, pageSize?: number) {
   const ps = pageState[activeTab.value];
@@ -205,9 +215,10 @@ function handleTableChange(page: number, pageSize?: number) {
 }
 
 /**
- * 作用：将单条消息标为已读并刷新列表。
- * @param row - 表格行
- * @returns 返回 Promise，刷新完成后结束
+ * 作用：页面内业务方法：markRead。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function markRead(row: RowData) {
   const id = row.messageId ?? row.id;
@@ -217,9 +228,10 @@ async function markRead(row: RowData) {
 }
 
 /**
- * 作用：从消息行解析可跳转的工单 ID（优先 routeValue，其次 bizId）。
- * @param row - 表格行
- * @returns 有效工单 ID 或 null
+ * 作用：页面内业务方法：resolveWorkOrderId。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function resolveWorkOrderId(row: RowData) {
   const routeValueId = Number(row?.routeValue);
@@ -232,9 +244,10 @@ function resolveWorkOrderId(row: RowData) {
 }
 
 /**
- * 作用：点击消息跳转工单详情；待处理时先标记已读。
- * @param row - 表格行
- * @returns 返回 Promise，跳转与刷新完成后结束
+ * 作用：页面内业务方法：openMessage。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function openMessage(row: RowData) {
   const workOrderId = resolveWorkOrderId(row);
@@ -261,6 +274,12 @@ async function openMessage(row: RowData) {
 }
 
 /** 首页通知动态等入口：按 query.box 回显待办/历史 Tab */
+/**
+ * 作用：应用配置或路由参数：applyFiltersFromRouteQuery。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function applyFiltersFromRouteQuery() {
   if (!('box' in route.query)) return;
   const box = readRouteQueryString(route.query, 'box').toUpperCase();
@@ -276,9 +295,11 @@ useRouteQueryFilterSync({
 </script>
 
 <template>
+  <!-- 站内通知：待办/历史 Tab、角标数量；行点击跳转业务，待办可标记已读 -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
     <ACard :title="pageMenuTitle" :bordered="false" class="flex-col-stretch card-wrapper sm:flex-1-hidden">
       <div class="mb-12px">待办通知数：{{ todoCount }}</div>
+      <!-- 待处理 vs 历史记录：分页状态按 Tab 独立维护 -->
       <ATabs :active-key="activeTab" size="small" class="mb-12px" @change="handleTabChange">
         <ATabPane key="TODO" tab="待处理" />
         <ATabPane key="HISTORY" tab="历史记录" />

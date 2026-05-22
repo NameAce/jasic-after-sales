@@ -84,7 +84,9 @@
 
   /**
    * 校验失败时滚到对应项并尽量聚焦可输入控件
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const goToFirstInvalidField = (fieldKey: string, requestFocus: boolean) => {
     triggerScrollIntoView(scrollIntoView, fieldKey)
     if (!requestFocus) return
@@ -108,13 +110,19 @@
     detail: ''
   })
 
-  /** picker mode=region 绑定的 [省,市,区] */
+  /**
+ * picker mode=region 绑定的 [省,市,区]
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const regionValue = ref<string[]>(['', '', ''])
 
   /**
    * 地区文本
    * @returns 地区文本
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const regionText = computed(() => {
     const { province, city, county } = form
     if (!province && !city && !county) return ''
@@ -124,7 +132,9 @@
   /**
    * 页面加载
    * @param options - 选项
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   onLoad((options?: Record<string, string>) => {
     const id = options?.id
     if (id) {
@@ -146,7 +156,9 @@
   /**
    * 地区选择变化
    * @param e - 事件
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onRegionChange = (e: { detail: { value: string[] } }) => {
     const v = e.detail.value
     regionValue.value = v
@@ -157,7 +169,9 @@
 
   /**
    * 保存
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const save = async () => {
     const name = form.name.trim()
     const phone = form.phone.trim()

@@ -1,4 +1,5 @@
 <template>
+  <!-- 承修方小程序（网点/总部工单处理、派工）页面 index / index -->
   <view class="index-page-root" :class="{ 'index-page-root--hq': isHqView }">
     <CustomNavBar
       class="workbench-nav"
@@ -83,14 +84,26 @@
 
   const appStore = useAppStore()
   const userStore = useUserStore()
-  /** 是否是总部工作台 */
-  /** 总部首页：显式权限或主体为总部（与 currentTypeCode 以 HQ 开头一致，避免权限数组未同步时整页空白） */
+  /**
+ * 是否是总部工作台
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
+  /**
+ * 总部首页：显式权限或主体为总部（与 currentTypeCode 以 HQ 开头一致，避免权限数组未同步时整页空白）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const isHqView = computed(() => {
     const code = userStore.userInfo?.currentTypeCode
     return !!code?.startsWith('HQ')
   })
 
-  /** 工作台数据 */
+  /**
+ * 工作台数据
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const {
     siteWorkbenchStats,
     orderList,
@@ -125,7 +138,9 @@
 
   /**
    * 工作台行内操作：ASSIGN 打开派单弹窗，其余动作与工单库列表一致跳转详情
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const dispatchWorkbenchAction = (actionKey: WorkOrderActionKey, orderId: string) => {
     if (actionKey === 'ASSIGN') {
       openAssignModal(orderId)
@@ -142,9 +157,17 @@
     navigateWorkOrderAction(actionKey, orderId)
   }
 
-  /** 总部更新时间 */
+  /**
+ * 总部更新时间
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const hqUpdatedAt = ref(formatTimeHHMM())
-  /** 显示时间 */
+  /**
+ * 显示时间
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   onShow(() => {
     hqUpdatedAt.value = formatTimeHHMM()
     if (!isHqView.value) {
@@ -173,28 +196,50 @@
     }
   })
 
-  /** 页面标题 */
+  /**
+ * 页面标题
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const pageTitle = computed(() => {
     if (isHqView.value) return '总部管理工作台'
     if (userStore.hasPermission(Perms.WORKORDER_ASSIGN)) return '派单工作台'
     return '接单工作台'
   })
 
-  /** 可派单人员列表 */
+  /**
+ * 可派单人员列表
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const technicianList = ref<Technician[]>([])
 
-  /** 当前订单ID */
+  /**
+ * 当前订单ID
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const currentOrderId = ref('')
-  /** 选中技术人员ID */
+  /**
+ * 选中技术人员ID
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const selectedTechId = ref<number | string | null>(null)
-  /** 是否显示派单模态框 */
+  /**
+ * 是否显示派单模态框
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const showAssignModal = ref(false)
 
   /**
    * 打开派单模态框
    * @param orderId 订单ID
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const openAssignModal = async (orderId: string | number) => {
     const openedFor = String(orderId ?? '').trim()
     currentOrderId.value = openedFor
@@ -233,7 +278,9 @@
    * 跳转到订单详情
    * @param order 订单
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onOrderClick = (order: OrderListItem) => {
     uni.navigateTo({
       url: `/pages/order/detail?id=${order.id}&status=${order.status}`
@@ -243,7 +290,9 @@
   /**
    * 关闭派单模态框
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const closeAssignModal = () => {
     showAssignModal.value = false
     currentOrderId.value = ''
@@ -254,7 +303,9 @@
   /**
    * 确认派单
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onAssignConfirm = async (payload: {
     workOrderId: string | number
     selectedTechId: number | string
@@ -291,7 +342,9 @@
    * 跳转到订单列表
    * @param secondaryTab 二级Tab
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const goToOrderListTab = (
     secondaryTab: 'all' | 'pending' | 'pending_accept' | 'processing' | 'completed'
   ) => {
@@ -306,7 +359,9 @@
    * 接单：进入详情填写故障判定与维修报价，用户提交后再调接单接口（与工单列表一致）
    * @param orderId 订单ID
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onAcceptOrder = (orderId: string) => {
     const id = Number(orderId)
     if (!Number.isFinite(id) || id <= 0) {

@@ -1,3 +1,9 @@
+/**
+ * 模块：views/manage/menu/modules/shared.ts。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
+
 // 路由 component 字段中 layout 前缀
 const LAYOUT_PREFIX = 'layout.';
 // 路由 component 字段中页面视图前缀

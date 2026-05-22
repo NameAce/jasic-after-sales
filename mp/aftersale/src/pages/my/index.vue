@@ -156,7 +156,9 @@
   /**
    * 加载工单统计
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const loadCounts = async () => {
     try {
       const res = await countCustomerWorkOrderStatus()
@@ -173,7 +175,9 @@
 
   /**
    * 页面显示
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   onShow(() => {
     if (!isLoggedIn()) {
       switchTabThen(TAB_HOME, () => {
@@ -188,7 +192,9 @@
    * 跳转工单列表
    * @param tabIndex - 工单状态索引
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const goToOrderList = (tabIndex = 0) => {
     const q = tabIndex > 0 ? `?tab=${tabIndex}` : ''
     uni.navigateTo({ url: `/pages/order/list${q}` })
@@ -197,7 +203,9 @@
   /**
    * 跳转收货地址
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const goToAddress = () => {
     uni.navigateTo({ url: '/pages/address/index' })
   }
@@ -205,7 +213,9 @@
   /**
    * 跳转关于我们
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const goToAbout = () => {
     uni.navigateTo({ url: '/pages/about/index' })
   }
@@ -213,7 +223,9 @@
   /**
    * 退出登录
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const handleLogout = () => {
     uni.showModal({
       title: '提示',

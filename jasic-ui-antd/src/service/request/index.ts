@@ -1,7 +1,7 @@
 /**
  * HTTP 请求实例：主后端 createFlatRequest、多 baseURL 的 createRequest，统一鉴权与业务错误码处理。
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 import { Modal } from 'ant-design-vue';
 import type { AxiosError } from 'axios';
@@ -19,17 +19,17 @@ import type { RequestInstanceState } from './type';
 
 /** 开发环境且开启代理时，请求将走 Vite 代理前缀
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 const isHttpProxy = import.meta.env.DEV && import.meta.env.VITE_HTTP_PROXY === 'Y';
 const { baseURL, otherBaseURL } = getServiceBaseURL(import.meta.env, isHttpProxy);
 
 /**
  * 作用：将环境变量中的逗号分隔错误码解析为去空白的字符串数组。
- * @param raw 原始字符串
- * @returns {string[]} 错误码列表
+ * @param raw - 原始字符串（逗号分隔）
+ * @returns 错误码列表
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 function parseCodeList(raw: string | undefined) {
   return (raw?.split(',') || []).map(c => c.trim()).filter(Boolean);
@@ -39,11 +39,11 @@ type ExceptionRouteName = '403' | '404' | '500';
 
 /**
  * 作用：跳转到统一异常页（403/404/500），携带接口返回的 msg；避免同文案重复 replace。
- * @param routeName 目标异常路由名
- * @param msg 接口 msg/message，展示在异常页
- * @returns {void}
+ * @param routeName - 目标异常路由名
+ * @param msg - 接口 msg/message，展示在异常页
+ * @returns void
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 function redirectToExceptionPage(routeName: ExceptionRouteName, msg?: string) {
   const current = router.currentRoute.value;
@@ -60,9 +60,9 @@ function redirectToExceptionPage(routeName: ExceptionRouteName, msg?: string) {
 
 /**
  * 作用：判断当前是否处于首页相关路由，用于无权限时在首页仅弹消息而不跳 403。
- * @returns {boolean} 是否在首页
+ * @returns 是否在首页
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 function isOnHomeRoute() {
   const current = router.currentRoute.value;
@@ -72,6 +72,14 @@ function isOnHomeRoute() {
   return routeName === 'root' || routeName === 'home' || routePath === '/' || routePath.startsWith('/home');
 }
 
+/**
+ * 作用：展示无权限错误；首页仅 toast，其它路由跳转 403 异常页。
+ * @param state - 请求实例状态（toast 去重栈）
+ * @param message - 提示文案
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function showForbiddenError(state: RequestInstanceState, message: string) {
   if (isOnHomeRoute()) {
     showErrorMsg(state, message || '没有操作权限');
@@ -80,6 +88,13 @@ function showForbiddenError(state: RequestInstanceState, message: string) {
   redirectToExceptionPage('403', message);
 }
 
+/**
+ * 作用：按 HTTP 状态码处理 403/404/5xx，跳转对应异常页或首页 toast。
+ * @param ctx - 含 state、httpStatus、文案等上下文
+ * @returns 已处理为 true，否则 false
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function tryHandleHttpStatusError(ctx: {
   state: RequestInstanceState;
   httpStatus: number | undefined;
@@ -114,7 +129,7 @@ if (apifoxToken) {
  * 作用：主后端扁平请求实例：附加 Authorization、按业务码处理登出/无权限/500、转换 data 与网络错误提示。
  * @remarks 与 `@sa/axios` createFlatRequest 配置对象配对导出
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export const request = createFlatRequest<App.Service.Response, RequestInstanceState>(
   {
@@ -220,7 +235,7 @@ export const request = createFlatRequest<App.Service.Response, RequestInstanceSt
     onError(error) {
       /** 业务码失败已在 `onBackendFail` 里提示，避免与 `showErrorMsg` 重复
        * @修改人 黄碧莲
-       * @修改时间 2026-05-14
+       * @修改时间 2026-05-22
        */
       if ((error as AxiosError)?.code === BACKEND_ERROR_CODE) {
         return;
@@ -267,7 +282,7 @@ export const request = createFlatRequest<App.Service.Response, RequestInstanceSt
  * 作用：演示/第二基地址请求实例（成功判断与数据结构不同于主接口）。
  * @remarks 使用 demo 服务 baseURL 与独立 token 头格式
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export const demoRequest = createRequest<App.Service.DemoResponse>(
   {

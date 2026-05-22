@@ -2,6 +2,8 @@
 /**
  * 网点管理 — 承修方网点工单只读列表抽屉（`GET /system/work-order/hq-site-orders`）。
  * 由网点汇总表点击承修网点名称打开，支持状态筛选与工单号/客户/条码关键词检索。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, reactive, ref, watch } from 'vue';
 import { workOrderMainStatusTagColor } from '@/constants/list-status-tag';
@@ -70,6 +72,12 @@ const columns = applyDateTimeColumnRender(rawColumns);
 const detailOpen = ref(false);
 const detailWorkOrderId = ref<number | null>(null);
 
+/**
+ * 作用：从分页接口响应解析列表数组。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function pickRows(data: unknown) {
   if (Array.isArray(data)) return data;
   if (data && typeof data === 'object' && Array.isArray((data as { records?: unknown }).records)) {
@@ -78,6 +86,12 @@ function pickRows(data: unknown) {
   return [];
 }
 
+/**
+ * 作用：从分页接口响应解析总条数。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function pickTotal(data: unknown) {
   if (data && typeof data === 'object' && 'total' in data) {
     return Number((data as { total?: unknown }).total) || 0;
@@ -86,7 +100,10 @@ function pickTotal(data: unknown) {
 }
 
 /**
- * 作用：将搜索框关键词映射为接口查询字段（与承修方小程序网点明细一致）。
+ * 作用：应用配置或路由参数：applySearchKeywordToParams。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function applySearchKeywordToParams(params: WorkOrderHqSiteOrdersQuery) {
   const q = searchKeyword.value.trim();
@@ -103,7 +120,10 @@ function applySearchKeywordToParams(params: WorkOrderHqSiteOrdersQuery) {
 }
 
 /**
- * 作用：加载当前承修方网点下的只读工单分页列表。
+ * 作用：加载数据：loadOrderList。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function loadOrderList() {
   const siteId = siteCompanyId.value;
@@ -143,22 +163,46 @@ async function loadOrderList() {
   }
 }
 
+/**
+ * 作用：执行查询（回到第一页）：handleSearch。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleSearch() {
   orderQuery.pageNum = 1;
   loadOrderList();
 }
 
+/**
+ * 作用：执行查询（回到第一页）：handleResetSearch。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleResetSearch() {
   searchKeyword.value = '';
   handleSearch();
 }
 
+/**
+ * 作用：处理交互事件：handleStatusChange。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleStatusChange(val: string | number) {
   displayStatus.value = String(val) as WorkOrderHqSiteOrdersDisplayStatus;
   orderQuery.pageNum = 1;
   loadOrderList();
 }
 
+/**
+ * 作用：处理交互事件：handleTableChange。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleTableChange(page: number, pageSize?: number) {
   orderQuery.pageNum = page;
   if (pageSize) orderQuery.pageSize = pageSize;
@@ -166,7 +210,10 @@ function handleTableChange(page: number, pageSize?: number) {
 }
 
 /**
- * 作用：打开工单详情抽屉（总部只读查看，不在此抽屉内执行列表操作）。
+ * 作用：页面内业务方法：openOrderDetail。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function openOrderDetail(row: RowData) {
   const wid = Number(row.id);
@@ -176,7 +223,10 @@ function openOrderDetail(row: RowData) {
 }
 
 /**
- * 作用：由网点汇总页传入行数据，打开本抽屉并加载该网点工单列表。
+ * 作用：页面内业务方法：open。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function open(record: RowData) {
   const siteId = Number(record.siteCompanyId);
@@ -207,6 +257,7 @@ defineExpose({ open });
 </script>
 
 <template>
+  <!-- 网点工单抽屉：按主状态 Segmented + 关键词筛选该网点下工单列表 -->
   <ADrawer v-model:open="drawerOpen" :title="drawerTitle" :width="1100" destroy-on-close>
     <div class="flex-col-stretch gap-12px">
       <ASegmented :value="displayStatus" :options="statusSegmentOptions" @change="handleStatusChange" />

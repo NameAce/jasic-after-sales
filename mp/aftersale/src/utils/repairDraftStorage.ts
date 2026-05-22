@@ -39,16 +39,38 @@ export interface JasicRepairDraft {
   formData: JasicRepairDraftForm
   selectedCenterDisplay: string
   showSupplementSection: boolean
-  /** 条码查询是否曾返回故障描述（用于恢复下拉是否展示） */
+  /**
+ * 条码查询是否曾返回故障描述（用于恢复下拉是否展示）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   barcodeQueryHasFaultDescription?: boolean
-  /** 条码查询返回的故障描述下拉项 */
+  /**
+ * 条码查询返回的故障描述下拉项
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   faultDescriptionOptions?: { text: string; value: string }[]
-  /** 最近一次条码查询接口 data，用于恢复故障区展示与提交入参（与页面 lastBarcodeInfo 一致） */
+  /**
+ * 最近一次条码查询接口 data，用于恢复故障区展示与提交入参（与页面 lastBarcodeInfo 一致）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   lastBarcodeInfo?: BarcodeInfoDTO | null
-  /** 有条码但查询失败时须填故障说明备注 */
+  /**
+ * 有条码但查询失败时须填故障说明备注
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   queryFailedWithBarcode?: boolean
 }
 
+/**
+ * 作用：提交/变更：saveOtherRepairDraft。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function saveOtherRepairDraft(snapshot: OtherRepairDraft): void {
   try {
     uni.setStorageSync(KEY_OTHER, JSON.stringify(snapshot))
@@ -57,6 +79,12 @@ export function saveOtherRepairDraft(snapshot: OtherRepairDraft): void {
   }
 }
 
+/**
+ * 作用：加载/请求：loadOtherRepairDraft。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function loadOtherRepairDraft(): OtherRepairDraft | null {
   try {
     const raw = uni.getStorageSync(KEY_OTHER)
@@ -69,6 +97,12 @@ export function loadOtherRepairDraft(): OtherRepairDraft | null {
   }
 }
 
+/**
+ * 作用：状态：clearOtherRepairDraft。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function clearOtherRepairDraft(): void {
   try {
     uni.removeStorageSync(KEY_OTHER)
@@ -77,6 +111,12 @@ export function clearOtherRepairDraft(): void {
   }
 }
 
+/**
+ * 作用：状态：applyOtherRepairDraft。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function applyOtherRepairDraft(
   draft: OtherRepairDraft | null,
   formData: Ref<OtherRepairDraftForm>,
@@ -108,6 +148,12 @@ export function applyOtherRepairDraft(
   showSupplementSection.value = !!draft.showSupplementSection
 }
 
+/**
+ * 作用：提交/变更：saveJasicRepairDraft。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function saveJasicRepairDraft(snapshot: JasicRepairDraft): void {
   try {
     uni.setStorageSync(KEY_JASIC, JSON.stringify(snapshot))
@@ -116,6 +162,12 @@ export function saveJasicRepairDraft(snapshot: JasicRepairDraft): void {
   }
 }
 
+/**
+ * 作用：加载/请求：loadJasicRepairDraft。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function loadJasicRepairDraft(): JasicRepairDraft | null {
   try {
     const raw = uni.getStorageSync(KEY_JASIC)
@@ -128,6 +180,12 @@ export function loadJasicRepairDraft(): JasicRepairDraft | null {
   }
 }
 
+/**
+ * 作用：状态：clearJasicRepairDraft。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function clearJasicRepairDraft(): void {
   try {
     uni.removeStorageSync(KEY_JASIC)
@@ -136,6 +194,12 @@ export function clearJasicRepairDraft(): void {
   }
 }
 
+/**
+ * 作用：状态：applyJasicRepairDraft。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function applyJasicRepairDraft(
   draft: JasicRepairDraft | null,
   formData: Ref<JasicRepairDraftForm>,

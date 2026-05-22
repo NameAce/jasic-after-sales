@@ -28,6 +28,12 @@ type EnumOption = { code: string; desc: string };
 type TargetMeta = RowData;
 type DialogForm = RowData;
 
+/**
+ * 作用：构造数据或配置：buildDefaultQuery。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function buildDefaultQuery(): NotifySceneConfigQuery {
   return {
     pageNum: 1,
@@ -39,6 +45,12 @@ function buildDefaultQuery(): NotifySceneConfigQuery {
   };
 }
 
+/**
+ * 作用：构造数据或配置：buildFieldMappingRow。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function buildFieldMappingRow() {
   return { field: '', value: '' };
 }
@@ -124,6 +136,12 @@ const bizTypeOptions = computed(() => {
   return Array.from(new Set(items)).map(v => ({ label: v, value: v }));
 });
 
+/**
+ * 作用：读取/解析：getSceneMeta。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function getSceneMeta(sceneCode: string) {
   return sceneOptions.value.find(item => item.sceneCode === sceneCode) || null;
 }
@@ -253,18 +271,36 @@ const previewMappingColumns = [
   { title: '渲染结果', dataIndex: 'value', key: 'value', width: 220 }
 ];
 
+/**
+ * 作用：从分页接口响应解析列表数组。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function pickRows(data: unknown) {
   if (Array.isArray(data)) return data;
   if (Array.isArray((data as { records?: unknown })?.records)) return (data as { records: RowData[] }).records;
   return [];
 }
 
+/**
+ * 作用：页面内业务方法：trimValue。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function trimValue(value: unknown) {
   if (value === null || value === undefined) return null;
   const text = String(value).trim();
   return text || null;
 }
 
+/**
+ * 作用：判断是否满足条件：isMiniProgramTarget。
+ * @returns boolean
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function isMiniProgramTarget(targetMetaOrType?: TargetMeta | string) {
   if (!targetMetaOrType) return false;
   if (typeof targetMetaOrType === 'string') return targetMetaOrType.startsWith('MP_SUBSCRIBE_');
@@ -272,17 +308,35 @@ function isMiniProgramTarget(targetMetaOrType?: TargetMeta | string) {
   return isMiniProgramTarget(String(targetMetaOrType.targetType || ''));
 }
 
+/**
+ * 作用：构造数据或配置：buildReceiverDesc。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function buildReceiverDesc(targetMeta: TargetMeta) {
   const parts = [targetMeta.receiverTypeDesc, targetMeta.receiverDesc].filter(Boolean);
   return parts.length ? parts.join(' / ') : '-';
 }
 
+/**
+ * 作用：格式化展示：formatRouteType。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function formatRouteType(routeType?: string) {
   if (!routeType) return '-';
   const matched = routeTypeOptions.value.find(item => item.code === routeType);
   return matched ? matched.desc : routeType;
 }
 
+/**
+ * 作用：加载数据：loadOptions。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function loadOptions() {
   optionsLoading.value = true;
   try {
@@ -299,11 +353,23 @@ async function loadOptions() {
   }
 }
 
+/**
+ * 作用：确保前置数据已加载：ensureOptionsLoaded。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function ensureOptionsLoaded() {
   if (optionsLoaded.value) return;
   await loadOptions();
 }
 
+/**
+ * 作用：构造数据或配置：buildQueryParams。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function buildQueryParams(): NotifySceneConfigQuery {
   const params: NotifySceneConfigQuery = { ...queryParams };
   return Object.fromEntries(
@@ -311,6 +377,12 @@ function buildQueryParams(): NotifySceneConfigQuery {
   ) as NotifySceneConfigQuery;
 }
 
+/**
+ * 作用：加载当前 Tab/条件下表格数据。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function loadList() {
   clearListMsgs();
   loading.value = true;
@@ -334,16 +406,34 @@ async function loadList() {
   }
 }
 
+/**
+ * 作用：处理交互事件：handleQuery。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleQuery() {
   queryParams.pageNum = 1;
   loadList();
 }
 
+/**
+ * 作用：重置查询条件并刷新列表：resetQuery。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function resetQuery() {
   Object.assign(queryParams, buildDefaultQuery());
   loadList();
 }
 
+/**
+ * 作用：组件回调：onPageChange。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function onPageChange(page: number, pageSize?: number) {
   if (pageSize !== undefined && pageSize !== queryParams.pageSize) {
     queryParams.pageSize = pageSize;
@@ -356,7 +446,10 @@ function onPageChange(page: number, pageSize?: number) {
 }
 
 /**
- * 作用：规整单条通知目标配置，默认值与详情接口回显合并（与 jasic-ui `normalizeDetailForm` 一致）。
+ * 作用：页面内业务方法：normalizeTargetConfigItem。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function normalizeTargetConfigItem(item?: RowData | null): RowData {
   return {
@@ -389,6 +482,12 @@ function normalizeTargetConfigItem(item?: RowData | null): RowData {
   };
 }
 
+/**
+ * 作用：页面内业务方法：normalizeDetailForm。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function normalizeDetailForm(data: RowData): DialogForm {
   const form: DialogForm = {
     sceneCode: data.sceneCode || '',
@@ -407,7 +506,10 @@ function normalizeDetailForm(data: RowData): DialogForm {
 }
 
 /**
- * 作用：将详情回显与场景注册目标对齐，确保每个场景目标都有表单行且以接口值为准。
+ * 作用：页面内业务方法：mergeDialogTargetConfigs。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function mergeDialogTargetConfigs() {
   if (!dialogForm.value) return;
@@ -421,6 +523,12 @@ function mergeDialogTargetConfigs() {
   );
 }
 
+/**
+ * 作用：读取/解析：getTargetForm。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function getTargetForm(targetType: string): RowData {
   if (!dialogForm.value) return {};
   let targetForm = dialogForm.value.targetConfigs.find((item: RowData) => item.targetType === targetType);
@@ -433,12 +541,24 @@ function getTargetForm(targetType: string): RowData {
 }
 
 /** 从目标元数据读取字符串字段，空值统一为 '' */
+/**
+ * 作用：页面内业务方法：metaText。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function metaText(value: unknown): string {
   if (value === null || value === undefined) return '';
   return String(value);
 }
 
 /** 从目标元数据构建字段映射行，无配置时返回一行空模板 */
+/**
+ * 作用：构造数据或配置：buildFieldMappingFromMeta。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function buildFieldMappingFromMeta(targetMeta?: TargetMeta) {
   const mapping = targetMeta?.fieldMapping;
   if (!Array.isArray(mapping) || !mapping.length) {
@@ -450,6 +570,12 @@ function buildFieldMappingFromMeta(targetMeta?: TargetMeta) {
   }));
 }
 
+/**
+ * 作用：构造数据或配置：buildTargetFormByMeta。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function buildTargetFormByMeta(targetMeta?: TargetMeta) {
   const enabled = typeof targetMeta?.defaultEnabled === 'number' ? targetMeta.defaultEnabled : 0;
   return {
@@ -474,6 +600,12 @@ function buildTargetFormByMeta(targetMeta?: TargetMeta) {
   };
 }
 
+/**
+ * 作用：应用配置或路由参数：applyDefaultValuesIfBlank。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function applyDefaultValuesIfBlank(targetMeta: TargetMeta, targetForm: RowData) {
   if (!targetForm.titleTemplate) targetForm.titleTemplate = targetMeta.defaultTitleTemplate || '';
   if (!targetForm.contentTemplate) targetForm.contentTemplate = targetMeta.defaultContentTemplate || '';
@@ -494,6 +626,12 @@ function applyDefaultValuesIfBlank(targetMeta: TargetMeta, targetForm: RowData) 
 
 /**
  * 作用：切换通知目标 Tab 时，确保目标表单已初始化并补齐默认模板。 */
+/**
+ * 作用：处理交互事件：handleTargetTabChange。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleTargetTabChange(targetType: string | number) {
   activeTargetType.value = String(targetType);
   const targetMeta = currentSceneTargetMetas.value.find(item => item.targetType === activeTargetType.value);
@@ -505,6 +643,12 @@ function handleTargetTabChange(targetType: string | number) {
 
 /**
  * 作用：记录打开弹窗时各通知目标的启用状态，供 Tab 标签展示「未启用 / 停用」区分。 */
+/**
+ * 作用：页面内业务方法：snapshotInitialTargetEnabled。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function snapshotInitialTargetEnabled() {
   const snapshot: Record<string, number> = {};
   currentSceneTargetMetas.value.forEach(targetMeta => {
@@ -515,7 +659,10 @@ function snapshotInitialTargetEnabled() {
 }
 
 /**
- * 作用：返回 Tab 上展示的目标启用状态标签（已启用 / 未启用 / 停用）。
+ * 作用：读取/解析：getTargetTabTag。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function getTargetTabTag(targetMeta: TargetMeta) {
   const targetForm = getTargetForm(targetMeta.targetType);
@@ -530,7 +677,10 @@ function getTargetTabTag(targetMeta: TargetMeta) {
 }
 
 /**
- * 作用：解析默认展示 Tab（与 jasic-ui 打开弹窗时 checkedTargetTypes 取已启用目标一致）。
+ * 作用：页面内业务方法：resolveInitialActiveTargetType。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function resolveInitialActiveTargetType(targetConfigs: RowData[]) {
   const ordered = targetConfigs.filter(item => trimValue(item?.targetType));
@@ -541,6 +691,12 @@ function resolveInitialActiveTargetType(targetConfigs: RowData[]) {
 
 /**
  * 作用：打开配置弹窗时初始化各目标表单，并按详情回显定位默认 Tab。 */
+/**
+ * 作用：初始化：initDialogTargetTabs。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function initDialogTargetTabs() {
   const targetConfigs = (dialogForm.value?.targetConfigs as RowData[]) || [];
   const tabs = visibleTargetTabMetas.value;
@@ -554,10 +710,22 @@ function initDialogTargetTabs() {
     resolved && tabs.some(item => item.targetType === resolved) ? resolved : tabs[0]?.targetType || '';
 }
 
+/**
+ * 作用：页面内业务方法：addFieldMapping。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function addFieldMapping(targetType: string) {
   getTargetForm(targetType).fieldMapping.push(buildFieldMappingRow());
 }
 
+/**
+ * 作用：删除记录：removeFieldMapping。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function removeFieldMapping(targetType: string, index: number) {
   const fieldMapping = getTargetForm(targetType).fieldMapping as Array<{
     field: string;
@@ -567,6 +735,12 @@ function removeFieldMapping(targetType: string, index: number) {
   if (!fieldMapping.length) fieldMapping.push(buildFieldMappingRow());
 }
 
+/**
+ * 作用：页面内业务方法：openDetailDialog。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function openDetailDialog(sceneCode: string, mode: 'view' | 'edit') {
   await ensureOptionsLoaded();
   const flat = await getNotifyScene(sceneCode);
@@ -580,16 +754,34 @@ async function openDetailDialog(sceneCode: string, mode: 'view' | 'edit') {
 
 /**
  * 作用：列表行点击场景名称时打开查看弹窗（样式与通知记录页业务编号入口一致）。 */
+/**
+ * 作用：页面内业务方法：openSceneViewFromRow。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function openSceneViewFromRow(row: RowData) {
   if (!hasAuth('system:notifyScene:view') || !row.sceneCode) return;
   openDetailDialog(String(row.sceneCode), 'view');
 }
 
 /** 场景名称是否展示为可点击的查看入口 */
+/**
+ * 作用：页面内业务方法：canOpenSceneViewFromName。
+ * @returns boolean
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function canOpenSceneViewFromName(row: RowData) {
   return hasAuth('system:notifyScene:view') && Boolean(row.sceneCode);
 }
 
+/**
+ * 作用：构造数据或配置：buildSubmitPayload。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function buildSubmitPayload(): NotifySceneConfigSaveDTO | null {
   if (!dialogForm.value) return null;
   const targetConfigs: NotifySceneTargetConfigDTO[] = [];
@@ -629,6 +821,12 @@ function buildSubmitPayload(): NotifySceneConfigSaveDTO | null {
   };
 }
 
+/**
+ * 作用：校验并提交：submitSceneConfig。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function submitSceneConfig() {
   const payload = buildSubmitPayload();
   if (!payload || !dialogForm.value?.sceneCode) return;
@@ -643,6 +841,12 @@ async function submitSceneConfig() {
   }
 }
 
+/**
+ * 作用：构造数据或配置：buildPreviewVariablesText。
+ * @returns 对应类型或 void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function buildPreviewVariablesText() {
   const variables: Record<string, string> = {};
   (dialogForm.value?.variables || []).forEach((item: RowData) => {
@@ -651,6 +855,12 @@ function buildPreviewVariablesText() {
   return JSON.stringify(variables, null, 2);
 }
 
+/**
+ * 作用：打开预览。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function openPreviewDialog(targetMeta: TargetMeta) {
   const targetForm = getTargetForm(targetMeta.targetType);
   previewForm.sceneCode = dialogForm.value?.sceneCode || '';
@@ -673,6 +883,12 @@ function openPreviewDialog(targetMeta: TargetMeta) {
   previewOpen.value = true;
 }
 
+/**
+ * 作用：加载数据：loadPreview。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function loadPreview() {
   let variables: Record<string, string> = {};
   try {
@@ -716,7 +932,9 @@ onMounted(async () => {
 </script>
 
 <template>
+  <!-- 通知场景：场景定义、渠道/模板绑定与试发（多抽屉分步配置） -->
   <div class="min-h-500px flex-col-stretch gap-16px overflow-hidden lt-sm:overflow-auto">
+    <!-- 筛选区：场景名称、编码、业务类型、状态等 -->
     <ACard :bordered="false" class="card-wrapper">
       <AForm :model="queryParams" :label-col="{ span: 5, md: 7 }">
         <div class="page-search-toolbar">
@@ -804,6 +1022,7 @@ onMounted(async () => {
       </AForm>
     </ACard>
 
+    <!-- 列表区：场景表格，场景名可进入查看/配置抽屉 -->
     <ACard
       :title="pageMenuTitle"
       :bordered="false"
@@ -870,6 +1089,7 @@ onMounted(async () => {
       </ATable>
     </ACard>
 
+    <!-- 抽屉：场景查看/编辑（渠道、模板、试发等分步配置） -->
     <ADrawer
       v-model:open="dialogOpen"
       :title="dialogMode === 'view' ? '查看通知场景配置' : '编辑通知场景配置'"

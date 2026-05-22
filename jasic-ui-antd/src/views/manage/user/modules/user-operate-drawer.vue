@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 用户列表 — 新增/编辑抽屉：表单校验、角色选择与提交。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, ref, watch } from 'vue';
 import { enableStatusOptions, userGenderOptions } from '@/constants/business';
@@ -55,6 +57,8 @@ const model = ref(createDefaultModel());
  * 作用：创建用户新增/编辑表单项的默认值。
  * @param 无
  * @returns 默认模型
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function createDefaultModel(): Model {
   return {
@@ -82,6 +86,8 @@ const roleOptions = ref<CommonType.Option<string>[]>([]);
  * 作用：请求全部角色并合并当前用户已有角色为选项。
  * @param 无
  * @returns 返回 Promise，请求结束后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function getRoleOptions() {
   const { error, data } = await fetchGetAllRoles();
@@ -108,6 +114,8 @@ async function getRoleOptions() {
  * 作用：按操作类型初始化表单（编辑时合并行数据）。
  * @param 无
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function handleInitModel() {
   model.value = createDefaultModel();
@@ -121,6 +129,8 @@ function handleInitModel() {
  * 作用：关闭抽屉。
  * @param 无
  * @returns {void} 无
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function closeDrawer() {
   visible.value = false;
@@ -130,6 +140,8 @@ function closeDrawer() {
  * 作用：校验表单并模拟提交成功（示例页未接真实接口）。
  * @param 无
  * @returns 返回 Promise，校验与提示完成后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function handleSubmit() {
   await validate();
@@ -150,6 +162,7 @@ watch(visible, () => {
 </script>
 
 <template>
+  <!-- 用户新增/编辑抽屉表单 -->
   <ADrawer v-model:open="visible" :title="title" :width="360">
     <AForm ref="formRef" layout="vertical" :model="model" :rules="rules">
       <AFormItem :label="$t('page.manage.user.userName')" name="userName" required>

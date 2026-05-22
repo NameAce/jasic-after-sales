@@ -195,7 +195,9 @@
 <script setup lang="ts">
   /**
    * 工单库：路由仅要求登录；列表 Tab 与操作按钮用 Perms + userStore.hasPermission / canAny / canAll。
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   import { ref, computed, nextTick, watch } from 'vue'
   import { onLoad, onShow } from '@dcloudio/uni-app'
   import { themeColors } from '@/theme/colors'
@@ -280,7 +282,9 @@
   /**
    * 列表 `currentAcceptCompanyName`（映射为 `siteName`）与当前登录主体公司名一致时，
    * 才允许除查看外的操作。任一方无有效名称时不收紧（兼容旧数据）。总部「总部处理」不参与此限制。
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const isOrderAcceptedByCurrentCompany = (order: OrderListItem) => {
     if (isHqProcessView.value) return true
     const acceptName = String(order.siteName ?? '').trim()
@@ -293,7 +297,9 @@
    * 未转单/总部处理 Tab：由其他网点转入时展示「转单」标记，紧跟在质保等标签后
    * @param order 工单
    * @returns 是否展示转单标记
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const showInboundTransferTag = (order: OrderListItem) => {
     if (primaryTab.value !== 'untransferred') return false
     return hasInboundTransferFromSite(order.transferFromSite)
@@ -303,16 +309,26 @@
   // 状态文本映射
   const statusTextMap = ORDER_STATUS_TEXT_MAP
 
-  /** 待接单：仅 mainStatus=PENDING_TECH_ACCEPT */
+  /**
+ * 待接单：仅 mainStatus=PENDING_TECH_ACCEPT
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const isOrderPendingTechAccept = (order: OrderListItem) => order.status === 'PENDING_TECH_ACCEPT'
 
-  /** 待派单：PENDING_ASSIGN（且接口原始 mainStatus 非 PENDING_TECH_ACCEPT 兜底） */
+  /**
+ * 待派单：PENDING_ASSIGN（且接口原始 mainStatus 非 PENDING_TECH_ACCEPT 兜底）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const isOrderPendingAssign = (order: OrderListItem) =>
     order.status === 'PENDING_ASSIGN' && !isWorkOrderPendingTechAcceptMainStatus(order.mainStatus)
 
   /**
    * 列表卡片状态文案：派单员视角按接口 mainStatus 区分「待派单 / 待接单」
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const listStatusText = (order: OrderListItem) => {
     const status = order.status
     if (userStore.hasPermission(Perms.WORKORDER_ASSIGN) && isPendingMainStatus(status)) {
@@ -321,7 +337,11 @@
     return statusTextMap[status]
   }
 
-  /** 兼容字段类型未同步时读取当前处理人姓名 */
+  /**
+ * 兼容字段类型未同步时读取当前处理人姓名
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const getAssignedUserName = (order: OrderListItem) =>
     ((order as { assignedUserName?: string }).assignedUserName ?? '').trim()
 
@@ -367,7 +387,9 @@
    * 将指定二级 Tab 滚入横向 scroll-view 可视区域（避免「已关闭」等项在屏外点不到/看不见）
    * @param tab 二级Tab
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const scrollSecondaryTabIntoView = (tab: SecondaryTab) => {
     secondaryTabScrollIntoView.value = ''
     nextTick(() => {
@@ -380,7 +402,9 @@
    * 设置一级Tab
    * @param tab 一级Tab
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const setPrimaryTab = (tab: PrimaryTab) => {
     primaryTab.value = tab
     secondaryTab.value = 'all'
@@ -398,14 +422,20 @@
    * 设置二级Tab
    * @param tab 二级Tab
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const setSecondaryTab = (tab: SecondaryTab) => {
     secondaryTab.value = tab
     scrollSecondaryTabIntoView(tab)
     refreshOrders()
   }
 
-  /** 地址簿选中的寄件信息（onShow 写入，与 ReturnMethodModal 的 initial-mail 合并） */
+  /**
+ * 地址簿选中的寄件信息（onShow 写入，与 ReturnMethodModal 的 initial-mail 合并）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const mailReturnAddressOverride = ref<{
     receiverName: string
     receiverPhone: string
@@ -417,7 +447,9 @@
    * - 首次/返回列表均由 onShow 走该路径，避免 onLoad+onShow 各拉一次重复请求；
    * - 下拉刷新 / 普通 Tab 操作仍汇聚到该路径；
    * - 并发保护由 refreshOrders + loadMoreOrders 内部 requestVersion/loadingMore 处理。
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const refreshListEntry = async (useScrollRefresherUi: boolean) => {
     if (showBranchView.value) {
       baseOrderList.value = []
@@ -432,7 +464,9 @@
 
   /**
    * 页面加载：只同步解析外部路由与 Tab 状态，列表请求在 onShow 统一拉取（与首次 onShow 合并为一次请求）
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   onLoad((options?: Record<string, string>) => {
     const picked = takeSelectedShippingAddress()
     if (picked) {
@@ -467,7 +501,9 @@
   /**
    * 页面显示：消费跨页回跳参数并复用统一刷新主路径
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   onShow(async () => {
     if (!hasParsedEntryOptions.value) return
     const picked = takeSelectedShippingAddress()
@@ -507,7 +543,9 @@
    * 二级 Tab → 列表接口 mainStatus
    * - 待派单：PENDING_ASSIGN
    * - 待接单：PENDING_TECH_ACCEPT
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const secondaryTabToMainStatus = (tab: SecondaryTab): string | undefined => {
     if (tab === 'all') return undefined
     if (tab === 'pending') {
@@ -527,7 +565,9 @@
    * 构造 query，仅 `pageNum` 不同；否则翻页会出现数据漂移/错位。
    *
    * @param targetPageNum - 目标页码
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const buildListQuery = (targetPageNum: number): OrderListQuery => {
     const q = searchQuery.value?.trim()
     const primary = primaryTab.value
@@ -557,7 +597,9 @@
   /**
    * 刷新工单列表
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const refreshOrders = async () => {
     const currentVersion = ++requestVersion.value
     try {
@@ -587,7 +629,9 @@
   /**
    * 触底加载下一页
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const loadMoreOrders = async () => {
     if (showBranchView.value) return
     if (loadingMore.value) return
@@ -614,7 +658,11 @@
     }
   }
 
-  /** 列表数据与接口分页一致；一级/二级 Tab 与搜索在 refreshOrders / loadMoreOrders 中通过 query 请求服务端筛选。 */
+  /**
+ * 列表数据与接口分页一致；一级/二级 Tab 与搜索在 refreshOrders / loadMoreOrders 中通过 query 请求服务端筛选。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const orderList = computed<OrderListItem[]>(() => baseOrderList.value)
 
   // 搜索：防抖后刷新列表（接口仅支持工单号/条码等字段时，可按需扩展 query）
@@ -704,13 +752,17 @@
   /**
    * 维修员列表
    * @returns 维修员列表
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const technicianList = ref<Technician[]>([])
 
   /**
    * 转单网点列表
    * @returns 转单网点列表
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   type TransferNetworkItem = { id: string | number; name: string; [k: string]: any }
   const transferTargetOptions = ref<TransferNetworkItem[]>([])
   const networkList = computed(() => transferTargetOptions.value)
@@ -719,7 +771,9 @@
    * 打开转单弹窗
    * @param orderId 当前转单工单ID
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const openTransferModal = async (orderId: string) => {
     currentTransferOrderId.value = orderId
     // 每次打开都重置上一次选择，避免串单
@@ -758,7 +812,9 @@
    * 确认转单
    * @param payload 转单数据
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onTransferConfirm = async (payload: { selectedNetwork: any; reason: string }) => {
     if (!payload.selectedNetwork) {
       uni.showToast({ title: '请选择转单网点', icon: 'none' })
@@ -812,7 +868,9 @@
    * 打开派单弹窗
    * @param orderId 当前派单工单ID
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const openAssignModal = (orderId: string | number) => {
     const openedFor = String(orderId ?? '').trim()
     currentOrderId.value = openedFor
@@ -856,7 +914,9 @@
   /**
    * 关闭派单弹窗
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const closeAssignModal = () => {
     showAssignModal.value = false
     currentOrderId.value = ''
@@ -868,7 +928,9 @@
    * 确认派单：PUT `/api/system/work-order/assign`（assignedUserId + workOrderId）
    * @param payload 所选维修员
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onAssignConfirm = async (payload: {
     workOrderId: string | number
     selectedTechId: number | string
@@ -906,7 +968,9 @@
    * 跳转到工单详情（仅查看；故障点登记需通过「维修登记」「复检登记」按钮进入并带 action）
    * @param order 工单
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onOrderClick = (order: OrderListItem) => {
     const viewOnly =
       primaryTab.value === 'transferred' || !isOrderAcceptedByCurrentCompany(order)
@@ -922,7 +986,9 @@
    * @param branch 网点
    * @param tab 二级Tab
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const goToBranchDetail = (branch: BranchItem, tab: SecondaryTab = 'all') => {
     uni.navigateTo({
       url: `/pages/order/branch-detail?id=${branch.id}&name=${encodeURIComponent(branch.name)}&tab=${encodeURIComponent(tab)}&total=${branch.total}&pending=${branch.pending}&processing=${branch.processing}&completed=${branch.completed}`
@@ -934,14 +1000,20 @@
     isOrderAcceptedByCurrentCompany
   })
 
-  /** 列表行内操作按钮（避免模板内重复调用 getVisibleActions） */
+  /**
+ * 列表行内操作按钮（避免模板内重复调用 getVisibleActions）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const resolveListRowActions = (order: OrderListItem) => getVisibleActions(order)
 
   /**
    * 接单：进入详情填写故障判定与维修报价，用户提交后再调接单接口（与首页一致）
    * @param orderId 工单ID
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onAcceptOrder = (orderId: string) => {
     const id = Number(orderId)
     if (!Number.isFinite(id) || id <= 0) {
@@ -957,7 +1029,9 @@
    * 维修登记
    * @param orderId 工单ID
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onRepairRegister = (orderId: string) => {
     uni.navigateTo({ url: `/pages/order/detail?id=${orderId}&action=repair` })
   }
@@ -969,7 +1043,11 @@
   const currentReturnOrderDetail = ref<OrderDetail>()
   // 当前选择的机器返回方式（展示/状态）
   const currentReturnMethodType = ref<'' | 'self' | 'mail'>('')
-  /** 「无故障」闭环：关闭工单 PUT 需携带刚确认的返回方式 */
+  /**
+ * 「无故障」闭环：关闭工单 PUT 需携带刚确认的返回方式
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const closeOrderReturnMethodPayload = ref<ReturnMethodConfirmPayload | null>(null)
   // 工单关闭弹窗
   const showCloseOrderModal = ref(false)
@@ -996,7 +1074,9 @@
    * 打开机器返回方式弹窗
    * @param orderId 工单ID
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onReturnMethod = (orderId: string) => {
     currentReturnOrderId.value = orderId
     currentReturnOrderDetail.value = undefined
@@ -1016,7 +1096,9 @@
    * 确认机器返回方式：有故障直接关单；无故障先弹关单原因，确认后再关单（入参含返回方式）
    * @param data 机器返回方式数据
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onReturnMethodConfirm = async (data: ReturnMethodConfirmPayload) => {
     currentReturnMethodType.value = data.type
     const id = Number(currentReturnOrderId.value)
@@ -1078,7 +1160,9 @@
    * 确认工单关闭
    * @param reason 关闭原因
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onCloseOrderConfirm = async (reason: string) => {
     const id = Number(currentReturnOrderId.value)
     if (!Number.isFinite(id) || id <= 0) {
@@ -1132,7 +1216,9 @@
    * 复检登记：进入详情，与维修登记同款表单，顶部状态为已完成
    * @param orderId 工单ID
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onRecheck = (orderId: string) => {
     uni.navigateTo({
       url: `/pages/order/detail?id=${orderId}&status=COMPLETED&action=recheck`
@@ -1141,7 +1227,9 @@
 
   /**
    * 动作统一分发：将工单动作语义映射到当前页面既有行为实现。
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const workOrderActionHandlers: Record<
     'ASSIGN' | 'TECH_ACCEPT' | 'TRANSFER' | 'REPAIR_FINISH' | 'REVIEW' | 'CLOSE',
     (orderId: string) => void
@@ -1161,7 +1249,9 @@
    * @param actionKey 工单动作 key
    * @param orderId 工单ID
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const dispatchWorkOrderAction = (actionKey: WorkOrderActionKey, orderId: string | number) => {
     const id = String(orderId ?? '').trim()
     if (!id) {

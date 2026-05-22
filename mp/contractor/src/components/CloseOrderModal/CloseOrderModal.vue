@@ -1,4 +1,5 @@
 <template>
+  <!-- 承修方小程序（网点/总部工单处理、派工）组件 CloseOrderModal -->
   <CommonModal
     v-model="visible"
     :title="noFaultRequired ? '工单关闭原因（无故障）' : '工单关闭原因'"
@@ -50,11 +51,17 @@
   /**
    * 组件属性
    * @param modelValue 是否显示弹窗
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const props = withDefaults(
     defineProps<{
       modelValue: boolean
-      /** 无故障关单链路：关闭原因必填（文案与校验提示） */
+      /**
+ * 无故障关单链路：关闭原因必填（文案与校验提示）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       noFaultRequired?: boolean
     }>(),
     { noFaultRequired: false }
@@ -64,7 +71,9 @@
    * 组件事件
    * @param e 事件
    * @param v 值
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const emit = defineEmits<{
     (e: 'update:modelValue', value: boolean): void
     (e: 'confirm', reason: string): void
@@ -73,7 +82,9 @@
   /**
    * 是否显示弹窗
    * @returns 是否显示弹窗
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const visible = computed({
     get: () => props.modelValue,
     set: (val) => emit('update:modelValue', val)
@@ -84,14 +95,18 @@
 
   /**
    * 取消
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onCancel = () => {
     visible.value = false
   }
 
   /**
    * 确认提交
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onConfirm = () => {
     const text = reason.value.trim()
     if (!text) {

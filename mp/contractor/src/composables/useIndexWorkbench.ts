@@ -22,6 +22,8 @@ import { Perms } from '@/utils/permissions'
 
 /**
  * 首页工作台：未转单列表、总部统计等
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 export function useIndexWorkbench() {
   const userStore = useUserStore()
@@ -31,7 +33,9 @@ export function useIndexWorkbench() {
    * - 仅派单权限：看待派单
    * - 仅接单权限：看待接单
    * - 同时具备派单+接单：不限定 mainStatus，交由后端按数据范围返回待处理列表
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const buildSiteWorkbenchListQuery = (): OrderListQuery => {
     const canAssign = userStore.hasPermission(Perms.WORKORDER_ASSIGN)
     const canAccept = userStore.hasPermission(Perms.WORKORDER_ACCEPT)
@@ -48,7 +52,11 @@ export function useIndexWorkbench() {
     return query
   }
 
-  /** 首页统计卡桶（pending 合并 PENDING_ASSIGN + PENDING_TECH_ACCEPT，保留 UI 四卡分组） */
+  /**
+ * 首页统计卡桶（pending 合并 PENDING_ASSIGN + PENDING_TECH_ACCEPT，保留 UI 四卡分组）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   type WorkbenchStats = { pending: number; processing: number; completed: number; closed: number }
 
   const emptyStats = (): WorkbenchStats => ({
@@ -106,7 +114,9 @@ export function useIndexWorkbench() {
    * @param options 刷新选项
    * @param options.force 是否强制刷新
    * @returns Promise<void>
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const refreshSiteWorkbench = async (options?: { force?: boolean }) => {
     const force = options?.force === true
     if (siteRefreshInFlight) {
@@ -142,7 +152,9 @@ export function useIndexWorkbench() {
   /**
    * 刷新总部工作台
    * @returns Promise<void>
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const refreshHqWorkbench = async () => {
     if (hqRefreshInFlight) return hqRefreshInFlight
     hqRefreshInFlight = doRefreshHqWorkbench().finally(() => {
@@ -155,7 +167,9 @@ export function useIndexWorkbench() {
    * 是否可以接单
    * @param order 订单
    * @returns boolean
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const canEngineerAcceptOrder = (order: OrderListItem) =>
     canCurrentSiteOperateTransferredOrder(
       !!order.transferred,
@@ -166,7 +180,9 @@ export function useIndexWorkbench() {
   /**
    * 状态文本映射（按派单权限覆盖 PENDING_ASSIGN / PENDING_TECH_ACCEPT 文案）
    * @returns Record<WorkOrderMainStatus, string>
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const statusTextMap = computed<Record<WorkOrderMainStatus, string>>(() => {
     const pendingLabel = userStore.hasPermission(Perms.WORKORDER_ASSIGN) ? '待派单' : '待接单'
     return {
@@ -180,7 +196,9 @@ export function useIndexWorkbench() {
    * 是否显示派单按钮：mainStatus 为 PENDING_ASSIGN（与工单列表一致）
    * @param order 订单
    * @returns boolean
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const showDispatchOrderButton = (order: OrderListItem) => {
     if (!userStore.hasPermission(Perms.WORKORDER_ASSIGN)) return false
     if (!isPendingMainStatus(order.status)) return false
@@ -192,7 +210,9 @@ export function useIndexWorkbench() {
    * 是否显示接单按钮：mainStatus 为 PENDING_TECH_ACCEPT（派单员且已派给自己时与本人待接本地态）
    * @param order 订单
    * @returns boolean
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const showAcceptOrderButton = (order: OrderListItem) => {
     if (!userStore.hasPermission(Perms.WORKORDER_ACCEPT)) return false
     if (!canEngineerAcceptOrder(order)) return false
@@ -214,7 +234,9 @@ export function useIndexWorkbench() {
    * 获取订单列表状态文本
    * @param order 订单
    * @returns string
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const getOrderListStatusText = (order: OrderListItem) => {
     if (!isPendingMainStatus(order.status)) return statusTextMap.value[order.status]
     return getPendingDisplayLabel(
@@ -227,7 +249,9 @@ export function useIndexWorkbench() {
   /**
    * 工作台列表标题
    * @returns string
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const workbenchListTitle = computed(() => {
     if (userStore.hasPermission(Perms.WORKORDER_ASSIGN)) return '待派工单'
     return '待接工单'
@@ -236,7 +260,9 @@ export function useIndexWorkbench() {
   /**
    * 工作台空列表标题
    * @returns string
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const workbenchEmptyTitle = computed(() => {
     if (userStore.canAll([Perms.WORKORDER_ASSIGN, Perms.WORKORDER_ACCEPT])) return '暂无待派工单'
     if (userStore.hasPermission(Perms.WORKORDER_ASSIGN)) return '暂无待派单工单'
@@ -246,7 +272,9 @@ export function useIndexWorkbench() {
   /**
    * 工作台空列表描述
    * @returns string
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const workbenchEmptyDesc = computed(() => {
     if (userStore.canAll([Perms.WORKORDER_ASSIGN, Perms.WORKORDER_ACCEPT]))
       return '当前没有待派单或待接单的工单'
@@ -257,7 +285,9 @@ export function useIndexWorkbench() {
   /**
    * 待派单/待接单标签
    * @returns string
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const pendingStatLabel = computed(() =>
     userStore.hasPermission(Perms.WORKORDER_ASSIGN) ? '待派单' : '待接单'
   )
@@ -266,7 +296,9 @@ export function useIndexWorkbench() {
    * 是否显示 inbound 转单标签
    * @param order 订单
    * @returns boolean
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const showInboundTransferTag = (order: OrderListItem) =>
     hasInboundTransferFromSite(order.transferFromSite)
 
@@ -274,7 +306,9 @@ export function useIndexWorkbench() {
    * 是否显示 transferred 转单标签
    * @param order 订单
    * @returns boolean
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const showTransferredTag = (order: OrderListItem) => !!order.transferred
 
   return {

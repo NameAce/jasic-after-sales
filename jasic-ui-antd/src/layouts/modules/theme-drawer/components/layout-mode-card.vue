@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 四种布局模式的缩略示意图卡片，点击切换 `themeStore.layout.mode`（可整体禁用，如移动端）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import type { TooltipPlacement } from 'ant-design-vue/es/tooltip';
 import { themeLayoutModeRecord } from '@/constants/app';
@@ -11,22 +13,38 @@ defineOptions({
 });
 
 interface Props {
-  /** Layout mode */
+  /**
+   * Layout mode
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   mode: UnionKey.ThemeLayoutMode;
-  /** Disabled */
+  /**
+   * Disabled
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   disabled?: boolean;
 }
 
 const props = defineProps<Props>();
 
 interface Emits {
-  /** Layout mode change */
+  /**
+   * Layout mode change
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   (e: 'update:mode', mode: UnionKey.ThemeLayoutMode): void;
 }
 
 const emit = defineEmits<Emits>();
 
-/** 各布局示意图在 Tooltip、flex 分区上的展示配置 */
+/**
+ * 各布局示意图在 Tooltip、flex 分区上的展示配置
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 type LayoutConfig = Record<
   UnionKey.ThemeLayoutMode,
   {
@@ -64,7 +82,11 @@ const layoutConfig: LayoutConfig = {
   }
 };
 
-/** 选中某一布局模式并向上 v-model:mode 同步 */
+/**
+ * 选中某一布局模式并向上 v-model:mode 同步
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleChangeMode(mode: UnionKey.ThemeLayoutMode) {
   if (props.disabled) return;
 
@@ -73,6 +95,7 @@ function handleChangeMode(mode: UnionKey.ThemeLayoutMode) {
 </script>
 
 <template>
+  <!-- 布局子模块：layout-mode-card -->
   <div class="flex-center flex-wrap gap-x-32px gap-y-16px">
     <div
       v-for="(item, key) in layoutConfig"

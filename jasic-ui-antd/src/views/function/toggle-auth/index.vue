@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 菜单演示 — 切换登录账号：用于验证不同角色下菜单与权限展示（非生产逻辑）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
@@ -57,6 +59,8 @@ const loginAccount = ref<AccountKey>('super');
  * 作用：切换演示账号并重新登录、初始化 Tab 后整页刷新。
  * @param account - 目标账号配置
  * @returns 返回 Promise，登录与刷新流程结束后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function handleToggleAccount(account: Account) {
   loginAccount.value = account.key;
@@ -70,6 +74,7 @@ async function handleToggleAccount(account: Account) {
 </script>
 
 <template>
+  <!-- 功能演示页：toggle-auth/index.vue -->
   <ASpace direction="vertical" :size="16">
     <ACard :title="$t('route.function_toggle-auth')" :bordered="false" size="small" class="card-wrapper">
       <ADescriptions layout="vertical" bordered size="small" :column="1">

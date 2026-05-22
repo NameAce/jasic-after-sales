@@ -230,7 +230,11 @@
   import type { WorkOrderRepairFaultOptionVO } from '@/api/workOrder'
 
   const OTHER_REPAIR_DESC = '其它维修说明'
-  /** 与后端 WorkOrderServiceImpl.OTHER_FAULT_LABEL 对齐 */
+  /**
+ * 与后端 WorkOrderServiceImpl.OTHER_FAULT_LABEL 对齐
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const OTHER_FAULT_LABEL = '其它故障'
 
   type ReplacePartRowModel = { id: number; part: string; quantity: string }
@@ -243,16 +247,30 @@
    * - 维修登记：按 `faultOptions` 展示「维修确认故障」多选，并过滤"维修说明"下拉
    * - 复检登记：按 jasic-ui 规则沿用首次维修的故障描述，当前页不再采集 faultItems/faultRemark
    * - 无配置时：隐藏「维修确认故障」，"维修说明"退化为只有「其它维修说明」
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const props = withDefaults(
     defineProps<{
       isRecheck?: boolean
       faultOptions?: WorkOrderRepairFaultOptionVO[]
-      /** 复检登记时用于只读回显首次维修确认故障 */
+      /**
+ * 复检登记时用于只读回显首次维修确认故障
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       firstRepairFaultDesc?: string
-      /** 复检登记时用于只读回显首次故障备注 */
+      /**
+ * 复检登记时用于只读回显首次故障备注
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       firstRepairFaultRemark?: string
-      /** 复检：确认故障项，用于按故障过滤「维修说明」候选（与维修登记 faultItems 语义对齐） */
+      /**
+ * 复检：确认故障项，用于按故障过滤「维修说明」候选（与维修登记 faultItems 语义对齐）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       recheckConfirmFaultItems?: string[]
     }>(),
     {
@@ -277,15 +295,27 @@
       }))
   })
 
-  /** 故障与维修配置是否存在（无配置走 repairDesc 手工兜底） */
+  /**
+ * 故障与维修配置是否存在（无配置走 repairDesc 手工兜底）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const hasRepairFaultConfig = computed(() => normalizedFaultOptions.value.length > 0)
 
-  /** 维修登记 tab：是否展示「维修确认故障」多选（配置非空 + 非复检） */
+  /**
+ * 维修登记 tab：是否展示「维修确认故障」多选（配置非空 + 非复检）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const showFaultItemsSelect = computed(
     () => !props.isRecheck && hasRepairFaultConfig.value
   )
 
-  /** 维修确认故障候选（含末尾追加的「其它故障」） */
+  /**
+ * 维修确认故障候选（含末尾追加的「其它故障」）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const faultItemOptions = computed(() => {
     const seen = new Set<string>()
     const out: string[] = []
@@ -299,7 +329,11 @@
     return out
   })
 
-  /** 维修登记：选中 faultItems 对应的 repairOptions 并集 + 末尾「其它维修说明」 */
+  /**
+ * 维修登记：选中 faultItems 对应的 repairOptions 并集 + 末尾「其它维修说明」
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const faultFilteredRepairOptions = computed(() => {
     const selected = new Set(faultItems.value || [])
     const seen = new Set<string>()
@@ -317,7 +351,11 @@
     return out
   })
 
-  /** 复检：按只读「维修确认故障」过滤维修说明候选 */
+  /**
+ * 复检：按只读「维修确认故障」过滤维修说明候选
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const recheckFaultFilteredRepairOptions = computed(() => {
     const items = (props.recheckConfirmFaultItems || []).map((x) => String(x || '').trim()).filter(Boolean)
     const selected = new Set(items)
@@ -336,7 +374,11 @@
     return out
   })
 
-  /** 兜底：复检 / 无配置场景继续使用"所有 repairOptions 并集 + 其它维修说明" */
+  /**
+ * 兜底：复检 / 无配置场景继续使用"所有 repairOptions 并集 + 其它维修说明"
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const allRepairOptions = computed(() => {
     const seen = new Set<string>()
     const out: string[] = []
@@ -352,7 +394,11 @@
     return out
   })
 
-  /** 当前维修说明下拉：维修登记按 faultItems；复检按确认故障项；否则全量 */
+  /**
+ * 当前维修说明下拉：维修登记按 faultItems；复检按确认故障项；否则全量
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const repairDescOptions = computed(() => {
     if (showFaultItemsSelect.value) return faultFilteredRepairOptions.value
     if (
@@ -365,26 +411,53 @@
     return allRepairOptions.value
   })
 
-  /** 维修确认故障（多选） */
+  /**
+ * 维修确认故障（多选）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const faultItems = defineModel<string[]>('faultItems', { default: () => [] })
-  /** 其它故障说明（faultItems 含「其它故障」时必填） */
+  /**
+ * 其它故障说明（faultItems 含「其它故障」时必填）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const faultRemark = defineModel<string>('faultRemark', { default: '' })
-  /** 维修说明（多选） */
+  /**
+ * 维修说明（多选）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const repairDesc = defineModel<string[]>('repairDesc', { default: () => [] })
-  /** 其它维修说明 */
+  /**
+ * 其它维修说明
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const otherRepairDesc = defineModel<string>('otherRepairDesc', { default: '' })
   /** 更换配件（多行；已删除行不会出现在提交数据中）
-   * defineModel 的 default 不能引用本 setup 内声明的变量，首行 id 用字面量 */
+   * defineModel 的 default 不能引用本 setup 内声明的变量，首行 id 用字面量
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const replaceParts = defineModel<ReplacePartRowModel[]>('replaceParts', {
     default: () => [{ id: 1, part: '', quantity: '' }]
   })
 
-  /** faultItems 含「其它故障」时展示 faultRemark 输入框 */
+  /**
+ * faultItems 含「其它故障」时展示 faultRemark 输入框
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const showFaultRemarkInput = computed(
     () => showFaultItemsSelect.value && (faultItems.value || []).includes(OTHER_FAULT_LABEL)
   )
 
-  /** 复检登记：只读展示首次维修确认故障（优先用父组件传入，否则回退空串） */
+  /**
+ * 复检登记：只读展示首次维修确认故障（优先用父组件传入，否则回退空串）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const reviewFaultDescDisplay = computed(() => String(props.firstRepairFaultDesc || '').trim())
   const reviewFaultRemarkDisplay = computed(() => String(props.firstRepairFaultRemark || '').trim())
 
@@ -405,17 +478,37 @@
     const nextId = maxReplacePartRowId(prev) + 1
     replaceParts.value = [{ id: nextId, part: '', quantity: '' }]
   }
-  /** 故障点旧图片 */
+  /**
+ * 故障点旧图片
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const faultOldImages = defineModel<unknown[]>('faultOldImages', { default: () => [] })
-  /** 故障点新图片 */
+  /**
+ * 故障点新图片
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const faultPointImages = defineModel<unknown[]>('faultPointImages', { default: () => [] })
-  /** 机器正面照片 */
+  /**
+ * 机器正面照片
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const machineFrontImages = defineModel<unknown[]>('machineFrontImages', { default: () => [] })
-  /** 机器条码照片 */
+  /**
+ * 机器条码照片
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const machineBarcodeImages = defineModel<unknown[]>('machineBarcodeImages', {
     default: () => []
   })
-  /** 其它图片 */
+  /**
+ * 其它图片
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const otherImages = defineModel<unknown[]>('otherImages', { default: () => [] })
 
   const showFaultItemsDropdown = ref(false)
@@ -692,7 +785,9 @@
       /**
        * 其它图片多选：已选缩略图需横向排列；原 1/3 列宽过窄会被迫竖排。
        * 与「机器条码图片」同一行且排在条码右侧（占第 2～3 列），避免独占一行看起来像跑到条码「上方」。
-       */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
       .upload-grid-item--other-files {
         grid-column: 2 / -1;
 

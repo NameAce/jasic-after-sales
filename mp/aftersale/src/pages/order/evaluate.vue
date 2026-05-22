@@ -1,4 +1,5 @@
 <template>
+  <!-- 售后客户端小程序（报修、工单、地址）页面 order / evaluate -->
   <custom-nav-bar
     title="服务评价"
     surface="frosted"
@@ -128,7 +129,9 @@
 
   /**
    * 与工单详情同源：拉取详情填充维修员与工单号展示
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const loadDetailForHeader = async () => {
     const id = workOrderId.value
     if (!id) return
@@ -149,7 +152,11 @@
     }
   }
 
-  /** 与 `list.vue` 中 `navigateTo` 的 `events` 键名一致，用于返回前通知上一页刷新列表 */
+  /**
+ * 与 `list.vue` 中 `navigateTo` 的 `events` 键名一致，用于返回前通知上一页刷新列表
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const WORK_ORDER_EVALUATED_EVENT = 'workOrderEvaluated'
 
   type OpenerEventChannel = { emit: (eventName: string, ...args: unknown[]) => void }
@@ -181,12 +188,18 @@
     photos: []
   })
 
-  /** 为 false 时隐藏维修成果上传 */
+  /**
+ * 为 false 时隐藏维修成果上传
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const showEvaluatePhotoUpload = false
 
   /**
    * 表单校验（与提交评价接口一致：仅三项评分 + 工单 ID 为必填）
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const validateForm = () => {
     if (!formData.efficiencyRating || !formData.qualityRating || !formData.satisfactionRating) {
       uni.showToast({
@@ -203,7 +216,9 @@
 
   /**
    * 提交评价
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const submit = async () => {
     if (!validateForm()) return
     if (!workOrderId.value) {

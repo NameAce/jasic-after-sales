@@ -1,4 +1,5 @@
 <template>
+  <!-- 承修方小程序（网点/总部工单处理、派工）组件 UploadSendExpressModal -->
   <view v-if="visible" class="upload-express-mask" @click.self="onCancel">
     <view class="upload-express-card" @click.stop>
       <view class="upload-express-title">上传寄件单号</view>
@@ -41,7 +42,9 @@
    * - 字段对齐后端 `WorkOrderSendExpressDTO`：sendExpressNo（必填）+ senderVoucherFileIds（可选）
    * - 选择图片后立即走 `/system/file/upload` 上传，拿到 fileId 暂存
    * - 确认时回抛给父组件 submit（PUT `/system/work-order/send-express`）
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   import { ref, watch } from 'vue'
   import { uploadSystemFile } from '@/api/file'
 

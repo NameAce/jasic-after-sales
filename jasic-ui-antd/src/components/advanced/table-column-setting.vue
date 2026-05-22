@@ -1,6 +1,8 @@
 <script setup lang="ts" generic="T extends Record<string, unknown>, K = never">
 /**
  * 表格列配置弹层：拖拽排序 + 勾选显示列，结果通过 v-model:columns 回写。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { VueDraggable } from 'vue-draggable-plus';
 import { $t } from '@/locales';
@@ -15,6 +17,7 @@ const columns = defineModel<AntDesign.TableColumnCheck[]>('columns', {
 </script>
 
 <template>
+  <!-- 通用组件：table-column-setting -->
   <APopover placement="bottomRight" trigger="click">
     <AButton size="small">
       <template #icon>

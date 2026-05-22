@@ -3,6 +3,8 @@
  * 平台超管（subjectType=PLATFORM）首页「治理看板」：
  * - 基础配置 KPI 卡片置顶（组织/账号图表之上）；
  * - 组织治理饼图（左）+ 账号治理柱状图（右），图表区占满剩余高度。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { useHomeDashboardOnMount } from './composables/use-home-dashboard-on-mount';
 import { usePlatformDashboard } from './composables/use-platform-dashboard';
@@ -23,6 +25,7 @@ useHomeDashboardOnMount(loadPlatformDashboard, loaded);
 </script>
 
 <template>
+  <!-- 平台治理看板：横幅 + 基础配置四卡 + 组织饼图 / 账号条形图 -->
   <div class="home-dashboard">
     <PlatformHeaderBanner class="home-dashboard__shrink" />
     <HomeMetricCards

@@ -1,4 +1,8 @@
-/** SVG 静态资源 URL 汇总；在页面中 `import { xxxIcon } from '@/svgs'`（uni-app 下自动导入不可靠，请显式导入） */
+/**
+ * SVG 静态资源 URL 汇总；在页面中 `import { xxxIcon } from '@/svgs'`（uni-app 下自动导入不可靠，请显式导入）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export { default as addressManualIcon } from './address-manual.svg'
 export { default as arrowForwardIcon } from './arrow-forward.svg'
 export { default as assignmentLateIcon } from './assignment-late.svg'

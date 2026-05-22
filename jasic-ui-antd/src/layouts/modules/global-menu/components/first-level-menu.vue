@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 混合布局共用的一级菜单列：图标 + 文案（可折叠为仅图标），底部折叠按钮。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import { createReusableTemplate } from '@vueuse/core';
@@ -30,13 +32,29 @@ interface Emits {
 const emit = defineEmits<Emits>();
 
 interface MixMenuItemProps {
-  /** Menu item label */
+  /**
+   * Menu item label
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   label: App.Global.Menu['label'];
-  /** Menu item icon */
+  /**
+   * Menu item icon
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   icon: App.Global.Menu['icon'];
-  /** Active menu item */
+  /**
+   * Active menu item
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   active: boolean;
-  /** Mini size */
+  /**
+   * Mini size
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   isMini?: boolean;
 }
 const [DefineMixMenuItem, MixMenuItem] = createReusableTemplate<MixMenuItemProps>();
@@ -51,12 +69,20 @@ const selectedBgColor = computed(() => {
   return darkMode ? dark : light;
 });
 
-/** 点击某一一级菜单项 */
+/**
+ * 点击某一一级菜单项
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleClickMixMenu(menu: App.Global.Menu) {
   emit('select', menu);
 }
 
-/** 底部箭头：切换侧栏折叠（由父级处理 appStore） */
+/**
+ * 底部箭头：切换侧栏折叠（由父级处理 appStore）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function toggleSiderCollapse() {
   emit('toggleSiderCollapse');
 }

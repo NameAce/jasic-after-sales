@@ -5,7 +5,7 @@ import { request } from '../request';
  * - PC 主链路：`/auth/login`、`/auth/user-info`、`/auth/menus`、`/auth/choose-company`、`/auth/logout`
  * - mp-* 接口：兼容保留链路，默认不由 PC 登录入口触发
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 
 /**
@@ -14,7 +14,7 @@ import { request } from '../request';
  * @param password - 明文密码（后端仅校验非空，不做固定格式限制）
  * @returns {Promise} 请求封装结果
  * @修改人 黄碧莲
- * @修改时间 2026-05-20
+ * @修改时间 2026-05-22
  */
 export function fetchLogin(userName: string, password: string) {
   return request<Api.Auth.LoginResponse>({
@@ -29,7 +29,7 @@ export function fetchLogin(userName: string, password: string) {
 
 /** 小程序登录（兼容保留；默认不由 PC 登录入口触发）
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function fetchMpLogin(data: Api.Auth.MpLoginParams) {
   return request<Api.Auth.LoginResponse>({
@@ -41,7 +41,7 @@ export function fetchMpLogin(data: Api.Auth.MpLoginParams) {
 
 /** 小程序账号认领绑定并登录（兼容保留；默认不由 PC 登录入口触发）
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function fetchMpBindLogin(data: Api.Auth.MpBindLoginParams) {
   return request<Api.Auth.LoginResponse>({
@@ -53,7 +53,7 @@ export function fetchMpBindLogin(data: Api.Auth.MpBindLoginParams) {
 
 /** 小程序侧确认绑定并登录（兼容保留；默认不由 PC 登录入口触发）
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function fetchMpBindConfirm(data: Api.Auth.MpBindConfirmParams) {
   return request<Api.Auth.LoginResponse>({
@@ -65,7 +65,7 @@ export function fetchMpBindConfirm(data: Api.Auth.MpBindConfirmParams) {
 
 /** 获取当前用户信息（与 jasic-ui `GET /auth/user-info`、后端 `SysAuthController#getUserInfo` 一致）
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function fetchGetUserInfo() {
   return request<Api.Auth.BackendUserInfo>({ url: '/auth/user-info', method: 'get' });
@@ -73,7 +73,7 @@ export function fetchGetUserInfo() {
 
 /** 拉取侧边鉴权菜单树（动态路由数据源）
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function fetchGetMenus() {
   return request<Api.Route.AuthMenusResponse>({ url: '/auth/menus', method: 'get' });
@@ -81,7 +81,7 @@ export function fetchGetMenus() {
 
 /** 后端要求选择公司主体时提交选择
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function fetchChooseCompany(data: Api.Auth.ChooseCompanyParams) {
   return request<Api.Auth.BackendUserInfo>({
@@ -93,7 +93,7 @@ export function fetchChooseCompany(data: Api.Auth.ChooseCompanyParams) {
 
 /** 与 jasic-ui `PUT /auth/profile`（updateProfile）一致；成功后返回最新用户信息（与 getUserInfo 结构相同）
  * @修改人 黄碧莲
- * @修改时间 2026-05-21
+ * @修改时间 2026-05-22
  */
 export function fetchUpdateProfile(data: Partial<Api.Auth.BackendUserInfo>) {
   return request<Api.Auth.BackendUserInfo>({ url: '/auth/profile', method: 'put', data });
@@ -101,7 +101,7 @@ export function fetchUpdateProfile(data: Partial<Api.Auth.BackendUserInfo>) {
 
 /** 修改当前用户密码
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function fetchChangePassword(data: Api.Auth.ChangePasswordParams) {
   return request<null>({
@@ -113,7 +113,7 @@ export function fetchChangePassword(data: Api.Auth.ChangePasswordParams) {
 
 /** 与 jasic-ui `GET /auth/wechat-bind/status` 一致
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function fetchGetWechatBindStatus() {
   return request<Api.Auth.WechatBindStatus>({ url: '/auth/wechat-bind/status', method: 'get' });
@@ -121,7 +121,7 @@ export function fetchGetWechatBindStatus() {
 
 /** 与 jasic-ui `POST /auth/wechat-bind/qrcode` 一致
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function fetchCreateWechatBindQrcode() {
   return request<Api.Auth.WechatBindQrcode>({ url: '/auth/wechat-bind/qrcode', method: 'post' });
@@ -129,7 +129,7 @@ export function fetchCreateWechatBindQrcode() {
 
 /** 与 jasic-ui `POST /auth/wechat-bind/unbind` 一致
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function fetchUnbindWechat(data?: Api.Auth.UnbindWechatParams) {
   return request<null>({ url: '/auth/wechat-bind/unbind', method: 'post', data });
@@ -137,7 +137,7 @@ export function fetchUnbindWechat(data?: Api.Auth.UnbindWechatParams) {
 
 /** 退出登录
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function fetchLogout() {
   return request<null>({
@@ -153,7 +153,7 @@ export function fetchLogout() {
  *
  * @param refreshToken Refresh token
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function fetchRefreshToken(refreshToken: string) {
   return request<Api.Auth.LoginToken>({
@@ -171,7 +171,7 @@ export function fetchRefreshToken(refreshToken: string) {
  * @param msg 错误信息
  * @returns {Promise}
  * @修改人 黄碧莲
- * @修改时间 2026-05-14
+ * @修改时间 2026-05-22
  */
 export function fetchCustomBackendError(code: string, msg: string) {
   return request({ url: '/auth/error', params: { code, msg } });

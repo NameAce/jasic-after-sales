@@ -1,4 +1,5 @@
 <template>
+  <!-- 承修方小程序（网点/总部工单处理、派工）页面 order / detail -->
   <CustomNavBar
     title="工单详情"
     surface="sticky"
@@ -322,14 +323,20 @@
   const appStore = useAppStore()
   const userStore = useUserStore()
 
-  /** 无故障「维修完成」会走机器返回方式并关单，需工单关闭权限 */
+  /**
+ * 无故障「维修完成」会走机器返回方式并关单，需工单关闭权限
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const canCloseWorkOrder = computed(() => userStore.hasPermission(Perms.WORKORDER_CLOSE))
 
   const OTHER_REPAIR_LABEL = '其它维修说明'
 
   /**
    * 复检回显：按 、,，;； 拆成多选（如 `3;33` 勾 `3` 与 `33`），保留原文、不做配置改写
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const splitEchoRepairItemStrings = (items: string[]) => {
     const sep = /[、,，;；]+/
     const out: string[] = []
@@ -347,7 +354,11 @@
 
   // 当前 Tab
   const currentTab = ref(0)
-  /** 维修登记/复检入口：仅在首次拉取详情后根据机器型号校正 Tab，避免重复 loadDetail 抢切用户当前 Tab */
+  /**
+ * 维修登记/复检入口：仅在首次拉取详情后根据机器型号校正 Tab，避免重复 loadDetail 抢切用户当前 Tab
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const repairEntryTabInitialized = ref(false)
   // 工单状态
   const orderStatus = ref<WorkOrderMainStatus>('PENDING_ASSIGN')
@@ -355,7 +366,11 @@
   const orderId = ref('')
   // 接单操作
   const detailEntryAction = ref<DetailEntryAction>('')
-  /** 列表「已转单」Tab 点入：仅查看，不展示操作按钮与派单底栏 */
+  /**
+ * 列表「已转单」Tab 点入：仅查看，不展示操作按钮与派单底栏
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const detailViewOnly = ref(false)
 
   // ==================== 表单状态 ====================
@@ -373,11 +388,19 @@
   const showCloseOrderModal = ref(false)
   // 由「维修完成」打开返回方式弹窗时为 true，仅此时确认返回方式后再弹关闭工单
   const pendingNoFaultRepairAfterReturnMethod = ref(false)
-  /** 无故障闭环：关闭工单接口需带上用户刚确认的返回方式（与 CloseOrderModal 配套） */
+  /**
+ * 无故障闭环：关闭工单接口需带上用户刚确认的返回方式（与 CloseOrderModal 配套）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const closeOrderReturnMethodPayload = ref<ReturnMethodConfirmPayload | null>(null)
   // 返回方式类型
   const returnMethodType = ref<'' | 'self' | 'mail'>('')
-  /** 无故障维修完成链路：是否已在当前操作中请求过订阅（用于兜底重试） */
+  /**
+ * 无故障维修完成链路：是否已在当前操作中请求过订阅（用于兜底重试）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const noFaultSubscribeRequested = ref(false)
 
   watch(faultJudgeSelect, (v) => {
@@ -391,13 +414,27 @@
    * 详情加载后快照：当前入口是否走「须补录机型」策略。
    * - 维修登记：无机型即须补录（任意品牌）
    * - 复检登记：仅佳士且无机型时须补录
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const machineModelSupplementRequired = ref(false)
-  /** 机型补录弹窗显隐 */
+  /**
+ * 机型补录弹窗显隐
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const showMachineModelSupplement = ref(false)
-  /** 机型补录弹窗锁定的工单ID（打开弹窗瞬间快照） */
+  /**
+ * 机型补录弹窗锁定的工单ID（打开弹窗瞬间快照）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const machineModelSupplementWorkOrderId = ref(0)
-  /** 进入「维修登记」补录流程时，自动弹窗只触发一次 */
+  /**
+ * 进入「维修登记」补录流程时，自动弹窗只触发一次
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const machineModelAutoOpened = ref(false)
 
   const needSupplementMachineModel = computed(() => {
@@ -408,18 +445,34 @@
     return !hasVal(order.value.product?.model)
   })
 
-  /** 维修确认故障多选（对应后端 WorkOrderRepairDTO.faultItems） */
+  /**
+ * 维修确认故障多选（对应后端 WorkOrderRepairDTO.faultItems）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const faultItemsSelect = ref<string[]>([])
-  /** 其它故障说明（faultItems 含「其它故障」时必填） */
+  /**
+ * 其它故障说明（faultItems 含「其它故障」时必填）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const faultRemarkInput = ref('')
-  /** 与后端 WorkOrderServiceImpl.OTHER_FAULT_LABEL / 登记表单一致 */
+  /**
+ * 与后端 WorkOrderServiceImpl.OTHER_FAULT_LABEL / 登记表单一致
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const OTHER_FAULT_LABEL = '其它故障'
   const repairDescSelect = ref<string[]>([])
   // 其它维修说明
   const otherRepairDesc = ref('')
   let replacePartRowUid = 0
   const nextReplacePartRowId = () => ++replacePartRowUid
-  /** 更换配件多行（删除的行不会提交） */
+  /**
+ * 更换配件多行（删除的行不会提交）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const replaceParts = ref<{ id: number; part: string; quantity: string }[]>([
     { id: nextReplacePartRowId(), part: '', quantity: '' }
   ])
@@ -437,7 +490,11 @@
   // ==================== 工单数据 ====================
   // 工单详情
   const order = ref<OrderDetail>(createEmptyOrderDetail())
-  /** 从地址簿选择回寄信息后覆盖弹窗内收件字段（与接口回显合并） */
+  /**
+ * 从地址簿选择回寄信息后覆盖弹窗内收件字段（与接口回显合并）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const mailReturnAddressOverride = ref<{
     receiverName: string
     receiverPhone: string
@@ -464,13 +521,19 @@
     }
   })
 
-  /** 历史记录页等跳转用工单标识 */
+  /**
+ * 历史记录页等跳转用工单标识
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const orderNavId = computed(() => String(order.value.id || orderId.value || '').trim())
 
   /**
    * 复检登记只读「维修确认故障」：优先与 repairRegistrationEcho 同源（最近一次非复检维修 faults），
    * 避免误用全量历史记录第 0 条。
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const firstRepairFaultDescText = computed(() => {
     const items = order.value.repairRegistrationEcho?.confirmFaultItems
     if (items?.length) return items.join('、')
@@ -493,7 +556,11 @@
     return ''
   })
 
-  /** 复检：维修说明下拉过滤用的确认故障项列表 */
+  /**
+ * 复检：维修说明下拉过滤用的确认故障项列表
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const recheckConfirmFaultItems = computed(() => {
     const items = order.value.repairRegistrationEcho?.confirmFaultItems
     if (items?.length) return items
@@ -527,11 +594,19 @@
     canCompleteNoFaultRepair: canCloseWorkOrder
   })
 
-  /** 与列表 `isOrderPendingAssign` 一致：真·待派单（非 mainStatus 已进待接单） */
+  /**
+ * 与列表 `isOrderPendingAssign` 一致：真·待派单（非 mainStatus 已进待接单）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const isOrderDetailPendingAssign = (d: OrderDetail) =>
     d.status === 'PENDING_ASSIGN' && !isWorkOrderPendingTechAcceptMainStatus(d.mainStatus)
 
-  /** 派单权限下：已指派给他人则仅查看（与 list.vue `isDispatcherOrderAssignedToOther` 一致） */
+  /**
+ * 派单权限下：已指派给他人则仅查看（与 list.vue `isDispatcherOrderAssignedToOther` 一致）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const dispatcherDetailAssignedToOther = computed(() => {
     if (!userStore.hasPermission(Perms.WORKORDER_ASSIGN)) return false
     const aid = order.value.assignedUserId
@@ -547,7 +622,9 @@
    * 待派单：各 Tab 底部展示「派单」。
    * - 与列表一致：`availableActions` 含 ASSIGN 优先；无动作列表时按待派单状态兜底。
    * - `action=accept` 为接单填写入口，底部已有报价/完成按钮，避免双 fixed 条重叠故不展示派单。
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const showDetailAssignButton = computed(() => {
     if (detailViewOnly.value) return false
     if (!userStore.hasPermission(Perms.WORKORDER_ASSIGN)) return false
@@ -561,7 +638,11 @@
     return isOrderDetailPendingAssign(order.value)
   })
 
-  /** 主内容底部留白：维修过程底栏 + 全 Tab 派单底栏 */
+  /**
+ * 主内容底部留白：维修过程底栏 + 全 Tab 派单底栏
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const detailHasBottomBar = computed(
     () => !detailViewOnly.value && (hasBottomActionBar.value || showDetailAssignButton.value)
   )
@@ -651,7 +732,9 @@
    * 维修登记入口：将客户申请中的故障描述（详情 `fault.desc` / `fault.faultExplain`）
    * 映射为「维修确认故障」多选初值；与 `OrderDetailFaultCard` 展示口径一致。
    * 仅在 faultItems 尚未选择时由 loadDetail 调用。
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const deriveFaultItemsPrefillFromCustomerFault = (
     faultDescRaw: string | undefined,
     faultExplainRaw: string | undefined,
@@ -725,7 +808,11 @@
     }
   }
 
-  /** 复检登记：把最近一次维修登记的选项/说明/配件/图片回显到登记表单 */
+  /**
+ * 复检登记：把最近一次维修登记的选项/说明/配件/图片回显到登记表单
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const applyRecheckRepairRegistrationEcho = (echo: OrderDetail['repairRegistrationEcho']) => {
     if (!echo) return
 
@@ -814,7 +901,9 @@
   /**
    * 加载工单详情
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const loadDetail = async () => {
     if (!orderId.value) return
     try {
@@ -957,7 +1046,9 @@
 
   /**
    * 打开机型补录弹窗（jasic-ui：无启用机型时不可打开，需先维护故障与维修配置）
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const openMachineModelSupplement = async () => {
     const wid = resolveWorkOrderId()
     if (!wid) {
@@ -984,7 +1075,11 @@
     showMachineModelSupplement.value = true
   }
 
-  /** 弹窗确认：调 PUT /repair-product-model 写入后刷新详情，让「维修过程」后续能拿到 repair-fault-options */
+  /**
+ * 弹窗确认：调 PUT /repair-product-model 写入后刷新详情，让「维修过程」后续能拿到 repair-fault-options
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onMachineModelSupplementConfirm = async (productModel: string) => {
     const wid = machineModelSupplementWorkOrderId.value
     if (!wid) {
@@ -1011,7 +1106,11 @@
     // 取消：仍缺机型且当前入口要求补录时，提交会再次拦截并可再次打开弹窗
   }
 
-  /** 维修报价选填：空为未填；有内容则须为有效非负数 */
+  /**
+ * 维修报价选填：空为未填；有内容则须为有效非负数
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const parseOptionalRepairQuoteAmount = (
     raw: string
   ): { ok: true; value?: number } | { ok: false } => {
@@ -1025,7 +1124,9 @@
   /**
    * 维修完成（无故障）：先打开机器返回方式；填完关单原因后仅调关闭工单接口（不调 tech-accept）
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onRepairComplete = async () => {
     if (!canCloseWorkOrder.value) {
       uni.showToast({ title: '暂无工单关闭权限', icon: 'none' })
@@ -1060,7 +1161,9 @@
 
   /**
    * 无故障维修完成：携带返回方式数据调用维修员接单接口（tech-accept）
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const submitCloseOrderWithReturnPayload = async (
     payload: ReturnMethodConfirmPayload,
     closeReason: string
@@ -1125,7 +1228,9 @@
    * 确认机器返回方式
    * @param data 数据
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onReturnMethodConfirm = async (data: ReturnMethodConfirmPayload) => {
     returnMethodType.value = data.type
 
@@ -1146,7 +1251,9 @@
    * 确认工单关闭（无故障：仅 PUT /api/system/work-order/close，携带返回方式与关闭原因）
    * @param reason 关闭原因
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onCloseOrderConfirm = async (reason: string) => {
     if (!canOperateTransferredOrder.value) {
       uni.showToast({ title: '转出网点不可操作此工单', icon: 'none' })
@@ -1167,7 +1274,9 @@
   /**
    * 提交报价（有故障）：仅调维修员接单接口（tech-accept），成功后刷新详情进入后续维修登记流程
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onSubmitQuote = async () => {
     if (!canOperateTransferredOrder.value) {
       uni.showToast({ title: '转出网点不可操作此工单', icon: 'none' })
@@ -1210,7 +1319,9 @@
   /**
    * 提交故障点登记（POST `/api/system/work-order/repair`）或复检登记（POST `/api/system/work-order/review`）
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onSubmitFaultPoint = async () => {
     if (!canOperateTransferredOrder.value) {
       uni.showToast({ title: '转出网点不可操作此工单', icon: 'none' })
@@ -1293,7 +1404,9 @@
     /**
      * 维修登记报价选填：仅当用户填写了金额或说明时才随 repair 提交；
      * 未填写时不传 quote 字段，避免详情缺省 0.00 被误当成改价。
-     */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
     let repairQuoteForSubmit: { quoteAmount?: number; quoteDesc?: string } | undefined
     if (!isRecheck) {
       const quoteDescTrim = (quoteDescInput.value || '').trim()

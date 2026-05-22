@@ -1,7 +1,9 @@
 <script setup lang="ts">
 /**
  * 通用首页分区饼图：由 HomeSectionVO 指标聚合（可排除总量类指标）。
- * 工单状态分布建议开启 showZeroInLegend：接口会返回待接单等全量状态，值为 0 时仍展示图例项，扇区仅渲染 value > 0。
+ * 工单状态分布建议开启 workOrderPoolPie：值为 0 时仍展示图例项，扇区仅渲染 value > 0。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
@@ -22,7 +24,7 @@ defineOptions({
   name: 'HomeSectionPieChart'
 });
 
-/** 默认扇区色板：与组织治理饼图 git 四色环图一致 */
+// 默认扇区色板：与组织治理饼图四色环图一致
 const PIE_COLORS = [...HOME_PIE_COLORS];
 
 const props = withDefaults(
@@ -67,12 +69,13 @@ const props = withDefaults(
 
 const router = useRouter();
 
-/** 图例是否展示 0 值项（承接池饼图固定为 true） */
+// 图例是否展示 0 值项（承接池饼图固定为 true）
 const showZeroLegend = computed(() => props.workOrderPoolPie || props.showZeroInLegend);
 
-/** 参与分区的全部指标（含 0 值，用于图例） */
+// 参与分区的全部指标（含 0 值，用于图例）
 const legendItems = computed(() => {
   if (props.workOrderPoolPie) {
+    // 承接池：固定五种主状态顺序，含待接单 0 值占位
     return buildWorkOrderPoolPieLegendItems(
       props.section,
       props.colorByCode,
@@ -98,7 +101,7 @@ const legendItems = computed(() => {
     });
 });
 
-/** 实际渲染扇区：仅 value > 0 */
+// 实际渲染扇区：仅 value > 0（全 0 时仍可展示图例占位）
 const chartData = computed(() => legendItems.value.filter(item => item.value > 0));
 
 const hasRenderableData = computed(() => chartData.value.length > 0);
@@ -108,6 +111,13 @@ const hasLegendOnlyZero = computed(
 
 const seriesColors = computed(() => (props.colors?.length ? props.colors : PIE_COLORS));
 
+/**
+ * 作用：饼图扇区点击后按指标 routeTarget 跳转业务页。
+ * @param dataIndex - ECharts 点击事件的 dataIndex（对应 chartData 下标）
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleSliceClick(dataIndex: number) {
   const item = chartData.value[dataIndex];
   navigateHomeRoute(router, item?.routeTarget);
@@ -152,11 +162,18 @@ const { domRef, updateOptions } = useEcharts(
 
 const { width, height } = useElementSize(domRef);
 
+/**
+ * 作用：将 legendItems / chartData 同步到 ECharts（含响应式图例布局与圆心半径）。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function applyChartData() {
   await nextTick();
   const w = width.value;
   updateOptions(opts => {
     opts.title = props.showCardTitle ? { text: '' } : buildHomePieChartInlineTitle(props.chartTitle);
+    // 宽屏右侧图例、窄屏底部图例，与容器宽度联动
     opts.legend = {
       ...resolvePieLegendLayout(w),
       itemStyle: { borderWidth: 0 },
@@ -202,6 +219,12 @@ watch(
   { flush: 'post', deep: true }
 );
 
+/**
+ * 作用：点击卡片右上角额外链接（如「当前工单」）跳转。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function openExtraLink() {
   if (!props.extraLinkRoute?.name) return;
   router.push({
@@ -212,6 +235,7 @@ function openExtraLink() {
 </script>
 
 <template>
+  <!-- 分区饼图：workOrderPoolPie 时固定五态图例（含 0 值），扇区点击走 routeTarget -->
   <ACard
     :bordered="false"
     class="card-wrapper"

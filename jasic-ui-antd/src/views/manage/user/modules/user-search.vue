@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 用户列表 — 搜索表单：状态、性别、关键词等，emit reset/search。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, nextTick } from 'vue';
 import { enableStatusOptions, userGenderOptions } from '@/constants/business';
@@ -45,6 +47,8 @@ const rules = computed<Record<RuleKey, App.Global.FormRule>>(() => {
  * 作用：先交由父级恢复 `apiParams` 默认查询条件，再清理校验态。
  * 说明：若先调用 Form `resetFields`，会按注册时快照回写，可能与父级默认值不一致，导致「重置后默认条件丢失」。
  * @returns 返回 Promise，父级赋值与校验清理完成后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function reset() {
   emit('reset');
@@ -56,6 +60,8 @@ async function reset() {
  * 作用：校验通过后通知父级触发搜索。
  * @param 无
  * @returns 返回 Promise，校验通过后结束
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function search() {
   await validate();
@@ -64,6 +70,7 @@ async function search() {
 </script>
 
 <template>
+  <!-- 用户列表搜索表单 -->
   <ACard :bordered="false" class="card-wrapper">
     <AForm
       ref="formRef"

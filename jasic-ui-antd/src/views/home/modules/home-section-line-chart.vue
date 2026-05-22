@@ -1,7 +1,9 @@
 <script setup lang="ts">
 /**
- * 通用首页分区折线图：将 HomeSectionVO 各指标按类目展示为折线（平台组织治理等）。
- * 折线/面积主色与 git `platform-oper-log-chart` 一致；数据点颜色可沿用组织治理饼图色板。
+ * 通用首页分区折线图：将 HomeSectionVO 各指标按类目展示为折线（平台账号治理等）。
+ * 折线/面积主色与 platform-oper-log-chart 一致；数据点颜色可沿用组织治理饼图色板。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
@@ -57,6 +59,13 @@ const chartItems = computed(() => {
     });
 });
 
+/**
+ * 作用：折线图数据点点击后按指标 routeTarget 跳转。
+ * @param dataIndex - ECharts 点击 dataIndex
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handlePointClick(dataIndex: number) {
   const item = chartItems.value[dataIndex];
   navigateHomeRoute(router, item?.routeTarget);
@@ -108,6 +117,12 @@ const { domRef, updateOptions } = useEcharts(
 
 const { width, height } = useElementSize(domRef);
 
+/**
+ * 作用：将 chartItems 同步到 ECharts 单线面积图。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 async function applyChartData() {
   await nextTick();
   updateOptions(opts => {
@@ -137,6 +152,12 @@ watch(
   { flush: 'post', deep: true }
 );
 
+/**
+ * 作用：点击卡片右上角额外链接跳转。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function openExtraLink() {
   if (!props.extraLinkRoute?.name) return;
   router.push({
@@ -147,6 +168,7 @@ function openExtraLink() {
 </script>
 
 <template>
+  <!-- 首页区块折线图 -->
   <ACard :bordered="false" class="card-wrapper" :loading="loading">
     <template v-if="extraLinkText && extraLinkRoute" #extra>
       <a class="text-primary" href="javascript:;" @click.prevent="openExtraLink">{{ extraLinkText }}</a>

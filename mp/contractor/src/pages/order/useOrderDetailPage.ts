@@ -8,24 +8,50 @@ import type { WorkOrderActionKey } from '@/constants/orderActions'
 
 export type DetailEntryAction = 'accept' | 'repair' | 'recheck' | ''
 
-/** 维修过程 Tab 下方 Extra Cards 三段布局（互斥） */
+/**
+ * 维修过程 Tab 下方 Extra Cards 三段布局（互斥）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export type OrderDetailRepairExtrasLayout = 'pending' | 'active_repair' | 'readonly_summary'
 
+/**
+ * 作用：判断：isDetailEntryAction。
+ * @returns boolean
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function isDetailEntryAction(value: unknown): value is DetailEntryAction {
   return value === 'accept' || value === 'repair' || value === 'recheck' || value === ''
 }
 
+/**
+ * 作用：判断：shouldOpenRepairTab。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function shouldOpenRepairTab(action: DetailEntryAction): boolean {
   return action === 'accept' || action === 'repair' || action === 'recheck'
 }
 
+/**
+ * 作用：组合式：useOrderDetailPage。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 export function useOrderDetailPage(options: {
   order: Ref<OrderDetail>
   orderStatus: Ref<WorkOrderMainStatus>
   detailEntryAction: Ref<DetailEntryAction>
   currentTab: Ref<number>
   faultJudgeSelect: Ref<string>
-  /** 无故障「维修完成」依赖关单权限；无权限时不应占底部操作栏 */
+  /**
+ * 无故障「维修完成」依赖关单权限；无权限时不应占底部操作栏
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   canCompleteNoFaultRepair?: Ref<boolean>
 }) {
   const { order, orderStatus, detailEntryAction, currentTab, faultJudgeSelect, canCompleteNoFaultRepair } =
@@ -100,7 +126,11 @@ export function useOrderDetailPage(options: {
 
   const showEvaluateTab = computed(() => isClosed.value)
 
-  /** 仅当详情接口返回 repairs 下 faults（映射为 currentFaults）时展示故障点区块 */
+  /**
+ * 仅当详情接口返回 repairs 下 faults（映射为 currentFaults）时展示故障点区块
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const hasFaultPoint = computed(
     () => (order.value.faultPoint?.currentFaults?.length ?? 0) > 0
   )

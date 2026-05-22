@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 系统 Logo + 标题：点击回首页，标题优先展示当前公司名称。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import { useAuthStore } from '@/store/modules/auth';
@@ -11,7 +13,11 @@ defineOptions({
 });
 
 interface Props {
-  /** Whether to show the title */
+  /**
+   * Whether to show the title
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   showTitle?: boolean;
 }
 
@@ -25,6 +31,7 @@ const systemTitle = computed(() => authStore.userInfo.currentCompanyName || $t('
 </script>
 
 <template>
+  <!-- 侧栏/顶栏 Logo 区域 -->
   <RouterLink to="/" class="w-full flex-center nowrap-hidden">
     <SystemLogo class="size-32px" />
     <h2 v-show="showTitle" class="pl-8px text-16px text-primary font-bold transition duration-300 ease-in-out">

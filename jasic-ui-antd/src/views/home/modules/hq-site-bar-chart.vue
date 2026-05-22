@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 总部看板：网点待接单排行（横向条形，Top10）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed, nextTick, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
@@ -66,6 +68,9 @@ const { width, height } = useElementSize(domRef);
 
 /**
  * 作用：将网点待接单 TopN 同步到横向条形图。
+ * @returns Promise
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 async function syncChart() {
   await nextTick();
@@ -107,6 +112,9 @@ watch(
 
 /**
  * 作用：跳转工单列表（全网范围）。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 function goWorkOrderPage() {
   router.push({ name: 'after-sales_work-order', query: { viewScope: 'ALL' } });
@@ -118,6 +126,7 @@ onMounted(() => {
 </script>
 
 <template>
+  <!-- 总部网点柱状图 -->
   <ACard :bordered="false" class="card-wrapper" :loading="loading">
     <template #extra>
       <a class="text-primary" href="javascript:;" @click.prevent="goWorkOrderPage">

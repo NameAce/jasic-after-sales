@@ -27,7 +27,11 @@
     acceptor: OrderDetail['acceptor']
   }>()
 
-  /** 优先详情 `currentAcceptCompanyPhone`，兼容同源的 `sitePhone` */
+  /**
+ * 优先详情 `currentAcceptCompanyPhone`，兼容同源的 `sitePhone`
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const outletPhoneDisplay = computed(() => {
     const a = props.acceptor
     return String(a.currentAcceptCompanyPhone ?? a.sitePhone ?? '').trim()

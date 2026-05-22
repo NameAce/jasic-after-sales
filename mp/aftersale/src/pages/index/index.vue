@@ -147,7 +147,11 @@
     taskCompleteIcon,
     tvGenIcon
   } from '@/svgs'
-  /** 首页报修卡片背景（本地 static，小程序用 image 更稳） */
+  /**
+ * 首页报修卡片背景（本地 static，小程序用 image 更稳）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const cardJasicBg = '/static/images/card-jasic-bg.jpg'
   const cardOtherBg = '/static/images/card-other-bg.jpg'
 
@@ -175,7 +179,9 @@
   /**
    * 空工单
    * @returns LatestOrderDTO
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const emptyOrder: LatestOrderDTO = {
     id: '',
     description: '',
@@ -189,7 +195,9 @@
   /**
    * 加载最新工单
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const loadLatest = async () => {
     if (!isLoggedIn()) {
       latestOrder.value = emptyOrder
@@ -206,7 +214,9 @@
   /**
    * 页面显示
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   onShow(() => {
     loadLatest()
   })
@@ -214,7 +224,9 @@
   /**
    * 跳转到佳士报修
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const goToJasicRepair = () => {
     if (!requireLogin()) return
     uni.navigateTo({ url: '/pages/jasicRepair/index' })
@@ -223,7 +235,9 @@
   /**
    * 跳转到非佳士报修
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const goToOtherRepair = () => {
     if (!requireLogin()) return
     uni.navigateTo({ url: '/pages/otherRepair/index' })
@@ -232,7 +246,9 @@
   /**
    * 跳转到报修指南
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const goToRepairGuide = () => {
     if (!requireLogin()) return
     uni.navigateTo({ url: '/pages/repairGuide/index' })
@@ -241,7 +257,9 @@
   /**
    * 跳转到工单列表
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const goToOrderList = () => {
     if (!requireLogin()) return
     uni.navigateTo({ url: '/pages/order/list' })
@@ -250,7 +268,9 @@
   /**
    * 跳转到已关闭工单列表
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const goToClosedOrderList = () => {
     if (!requireLogin()) return
     uni.navigateTo({ url: '/pages/order/list?tab=4' })
@@ -259,7 +279,9 @@
   /**
    * 跳转到工单详情
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const goToOrderDetail = () => {
     if (!requireLogin()) return
     const id = latestOrder.value.id

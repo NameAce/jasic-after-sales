@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 水平混合（反转）：顶栏为一级菜单，侧栏为当前一级下的子菜单（与默认 horizontal-mix 区域对调）。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import type { MenuInfo } from 'ant-design-vue/es/menu/src/interface';
@@ -30,7 +32,11 @@ const {
 } = useMixMenuContext();
 const { selectedKey } = useMenu();
 
-/** 顶栏一级点击：更新激活一级；无子级时直接跳转该路由 */
+/**
+ * 顶栏一级点击：更新激活一级；无子级时直接跳转该路由
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleSelectMixMenu(menuInfo: MenuInfo) {
   const key = menuInfo.key as RouteKey;
 
@@ -50,7 +56,11 @@ const openKeys = computed(() => {
   return routeStore.getSelectedMenuKeyPath(selectedKey.value);
 });
 
-/** 侧栏子菜单项点击跳转 */
+/**
+ * 侧栏子菜单项点击跳转
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function handleClickMenu(menuInfo: MenuInfo) {
   const key = menuInfo.key as RouteKey;
 
@@ -59,6 +69,7 @@ function handleClickMenu(menuInfo: MenuInfo) {
 </script>
 
 <template>
+  <!-- 布局子模块：reversed-horizontal-mix-menu -->
   <Teleport :to="`#${GLOBAL_HEADER_MENU_ID}`">
     <AMenu
       mode="horizontal"

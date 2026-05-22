@@ -108,14 +108,18 @@
   /**
    * 切换用户协议
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const toggleAgreement = () => {
     agreed.value = !agreed.value
   }
   /**
    * 提示用户先阅读并同意用户协议和隐私政策
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const promptAgreementFirst = () => {
     scrollPageToFormFieldKey('loginAgreement')
     uni.showToast({ title: '请先阅读并同意用户协议和隐私政策', icon: 'none', duration: 1500 })
@@ -123,7 +127,9 @@
 
   /**
    * 微信小程序：授权手机号回调里用 e.detail.code 作为 phoneCode，再搭配 uni.login 的 code 请求后端
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const onGetPhoneNumber = async (e: { detail: { code?: string } }) => {
     const phoneCode = e.detail?.code ?? ''
     if (!phoneCode) {
@@ -150,7 +156,9 @@
    * 非微信小程序端兜底：C 端登录强依赖微信 `wx.login` 返回的 js_code，
    * 后端 `CustomerWechatLoginDTO.code` 标注 `@NotBlank`，传空值必然 400。
    * 故非微信环境直接提示用户切换至微信小程序，不再调用接口空转。
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const handlePhoneLogin = () => {
     if (!agreed.value) {
       promptAgreementFirst()
@@ -166,7 +174,9 @@
   /**
    * 打开用户协议
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const openAgreement = () => {
     uni.showToast({ title: '查看用户协议', icon: 'none', duration: 1500 })
   }
@@ -174,7 +184,9 @@
   /**
    * 打开隐私政策
    * @returns void
-   */
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
   const openPrivacy = () => {
     uni.showToast({ title: '查看隐私政策', icon: 'none', duration: 1500 })
   }

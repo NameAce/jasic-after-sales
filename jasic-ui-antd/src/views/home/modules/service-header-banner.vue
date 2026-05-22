@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
  * 服务主体首页顶部横幅：接口标题 + 用户问候 + 已转出快捷统计。
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
  */
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
@@ -24,17 +26,29 @@ const canViewWorkOrder = computed(() => hasAuth('workorder:list'));
 /** 已转出指标（用于右上角统计与点击跳转） */
 const transferMetric = computed(() => transfer.value?.metrics?.[0]);
 
+/**
+ * 作用：跳转个人中心。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function openUserCenter() {
   router.push({ path: '/user-center' });
 }
 
-/** 点击已转出统计跳转工单列表（使用后端 routeTarget） */
+/**
+ * 作用：点击已转出统计跳转工单列表（使用后端 routeTarget，含 hasTransfer 补全）。
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
 function openTransferList() {
   navigateHomeRoute(router, transferMetric.value?.routeTarget);
 }
 </script>
 
 <template>
+  <!-- 服务商横幅 -->
   <ACard :bordered="false" class="card-wrapper" :loading="loading">
     <ARow :gutter="[16, 16]">
       <ACol :span="24" :md="18">
