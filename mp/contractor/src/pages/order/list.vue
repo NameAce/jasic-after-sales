@@ -122,7 +122,7 @@
         :empty-title="listEmptyTitle"
         :empty-desc="listEmptyDesc"
         :show-inbound-transfer-tag="showInboundTransferTag"
-        :show-transferred-tag="(order) => !!order.transferred && !isHqUser"
+        :show-transferred-tag="(order) => !!order.transferred && !isHqUser && !isHistoryListView"
         :show-repair-site-rows="false"
         :show-no-more="orderList.length > 0 && hasLoadedAll"
         @order-click="onOrderClick"
@@ -142,7 +142,7 @@
             <text class="value">{{ order.transferNetwork }}</text>
           </view>
         </template>
-        <!-- 操作：按接口 availableActions（viewScope=CURRENT）渲染，无动作时不占位 -->
+        <!-- 操作：按接口 availableActions（CURRENT/HISTORY）渲染，无动作时不占位 -->
         <template #actions="{ order }">
           <view v-if="resolveListRowActions(order).length > 0" class="action-wrap">
             <button
@@ -189,6 +189,13 @@
       no-fault-required
       @confirm="onCloseOrderConfirm"
     />
+
+    <!-- 上传寄件单号弹窗（历史转出列表 UPLOAD_SEND_EXPRESS 动作） -->
+    <UploadSendExpressModal
+      v-model:visible="showUploadSendExpressModal"
+      :work-order-id="currentUploadSendExpressOrderId"
+      @confirm="onUploadSendExpressConfirm"
+    />
   </view>
 </template>
 
@@ -212,6 +219,7 @@
   } from '@/components/AssignTechnicianModal/AssignTechnicianModal.vue'
   import ReturnMethodModal from '@/components/ReturnMethodModal/ReturnMethodModal.vue'
   import CloseOrderModal from '@/components/CloseOrderModal/CloseOrderModal.vue'
+  import UploadSendExpressModal from '@/components/UploadSendExpressModal/UploadSendExpressModal.vue'
   import {
     applyWorkOrderListSearchKeyword,
     assignWorkOrder,
@@ -222,6 +230,7 @@
     closeWorkOrder,
     transferWorkOrder,
     listTransferTargetOptions,
+    updateWorkOrderSendExpress,
     WORK_ORDER_FAULT_CLOSE_REASON,
     type OrderListQuery,
     type ReturnMethodConfirmPayload
@@ -259,11 +268,18 @@
 
   // ==================== 角色相关计算属性 ====================
 
-  // 一级Tab文案：总部显示"总部处理/网点工单"，其他角色显示"未转单/已转单"
+  // 一级Tab文案：总部显示"总部处理/网点工单"，其他角色显示"当前处理/历史转出"
   const primaryTabLabels = computed<[string, string]>(() => {
     if (isHqUser.value) return ['总部处理', '网点工单']
-    return ['未转单', '已转单']
+    return ['当前处理', '历史转出']
   })
+
+  /**
+   * 非总部「历史转出」Tab：列表走 viewScope=HISTORY，按钮按接口 availableActions 展示
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-24
+   */
+  const isHistoryListView = computed(() => !isHqUser.value && primaryTab.value === 'transferred')
 
   // 一级 Tab 列表（总部/其他角色文案由 primaryTabLabels 控制）
   const primaryTabs = computed(() => {
@@ -294,11 +310,11 @@
   }
 
   /**
-   * 未转单/总部处理 Tab：由其他网点转入时展示「转单」标记，紧跟在质保等标签后
+   * 当前处理/总部处理 Tab：由其他网点转入时展示「转单」标记，紧跟在质保等标签后
    * @param order 工单
    * @returns 是否展示转单标记
    * @修改人 黄碧莲
-   * @修改时间 2026-05-22
+   * @修改时间 2026-05-24
    */
   const showInboundTransferTag = (order: OrderListItem) => {
     if (primaryTab.value !== 'untransferred') return false
@@ -577,12 +593,8 @@
       pageNum: targetPageNum,
       pageSize,
       companyId: userStore.userInfo?.currentCompanyId,
-      // 与后端约定：仅 viewScope=CURRENT 时列表项才填充 availableActions
-      viewScope: 'CURRENT'
-    }
-    // 仅「已转派/网点工单」tab 需要按转派维度筛选；未转派列表不传 hasTransfer，避免后端按 hasTransfer=0 收窄结果
-    if (primary === 'transferred') {
-      query.hasTransfer = 1
+      // CURRENT / HISTORY 均会填充 availableActions；非总部历史转出走 HISTORY 口径
+      viewScope: primary === 'transferred' && !isHqUser.value ? 'HISTORY' : 'CURRENT'
     }
 
     // 与接口约定一致：含中文→客户姓名模糊；长数字→条码；否则工单号模糊（避免多条件 AND 同时传）
@@ -973,9 +985,7 @@
    */
   const onOrderClick = (order: OrderListItem) => {
     const viewOnly =
-      primaryTab.value === 'transferred' || !isOrderAcceptedByCurrentCompany(order)
-        ? '&viewOnly=1'
-        : ''
+      isHistoryListView.value || !isOrderAcceptedByCurrentCompany(order) ? '&viewOnly=1' : ''
     uni.navigateTo({
       url: `/pages/order/detail?id=${order.id}&status=${order.status}${viewOnly}`
     })
@@ -997,7 +1007,8 @@
 
   const { getVisibleActions, hasVisibleAction } = useWorkOrderVisibleActions({
     primaryTab,
-    isOrderAcceptedByCurrentCompany
+    isOrderAcceptedByCurrentCompany,
+    isHistoryListView
   })
 
   /**
@@ -1225,13 +1236,60 @@
     })
   }
 
+  // 上传寄件单号弹窗（历史转出 UPLOAD_SEND_EXPRESS）
+  const showUploadSendExpressModal = ref(false)
+  const currentUploadSendExpressOrderId = ref('')
+
+  /**
+   * 打开上传寄件单号弹窗
+   * @param orderId 工单 ID
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-24
+   */
+  const onUploadSendExpress = (orderId: string) => {
+    currentUploadSendExpressOrderId.value = orderId
+    showUploadSendExpressModal.value = true
+  }
+
+  /**
+   * 确认上传寄件单号：提交后刷新历史转出列表
+   * @param payload 寄件单号与凭证
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-24
+   */
+  const onUploadSendExpressConfirm = async (payload: {
+    workOrderId: number
+    sendExpressNo: string
+    senderVoucherFileIds?: number[]
+  }) => {
+    uni.showLoading({ title: '提交中...' })
+    try {
+      const res = await updateWorkOrderSendExpress(payload)
+      showUploadSendExpressModal.value = false
+      uni.showToast({ title: getApiMessage(res, '提交成功'), icon: 'none', duration: 1500 })
+      setTimeout(() => {
+        refreshOrders()
+      }, 300)
+    } catch {
+      // updateWorkOrderSendExpress / http 内已 toast
+    } finally {
+      uni.hideLoading()
+    }
+  }
+
   /**
    * 动作统一分发：将工单动作语义映射到当前页面既有行为实现。
    * @修改人 黄碧莲
-   * @修改时间 2026-05-22
+   * @修改时间 2026-05-24
    */
   const workOrderActionHandlers: Record<
-    'ASSIGN' | 'TECH_ACCEPT' | 'TRANSFER' | 'REPAIR_FINISH' | 'REVIEW' | 'CLOSE',
+    | 'ASSIGN'
+    | 'TECH_ACCEPT'
+    | 'TRANSFER'
+    | 'REPAIR_FINISH'
+    | 'REVIEW'
+    | 'CLOSE'
+    | 'UPLOAD_SEND_EXPRESS',
     (orderId: string) => void
   > = {
     ASSIGN: (orderId) => openAssignModal(orderId),
@@ -1241,7 +1299,8 @@
     },
     REPAIR_FINISH: (orderId) => onRepairRegister(orderId),
     REVIEW: (orderId) => onRecheck(orderId),
-    CLOSE: (orderId) => onReturnMethod(orderId)
+    CLOSE: (orderId) => onReturnMethod(orderId),
+    UPLOAD_SEND_EXPRESS: (orderId) => onUploadSendExpress(orderId)
   }
 
   /**
@@ -1259,7 +1318,11 @@
       return
     }
     const orderRow = orderList.value.find((o) => o.id === id)
-    if (orderRow && !isOrderAcceptedByCurrentCompany(orderRow)) {
+    if (
+      orderRow &&
+      !isHistoryListView.value &&
+      !isOrderAcceptedByCurrentCompany(orderRow)
+    ) {
       uni.showToast({ title: '受理方非您所在主体，仅可查看', icon: 'none' })
       return
     }

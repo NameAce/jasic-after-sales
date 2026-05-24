@@ -13,7 +13,7 @@ import { canCurrentSiteOperateTransferredOrder } from '@/utils/orderTransfer'
 /**
  * 列表/工作台行内操作按钮
  * @修改人 黄碧莲
- * @修改时间 2026-05-22
+ * @修改时间 2026-05-24
  */
 export type WorkOrderVisibleAction = {
   key: WorkOrderActionKey
@@ -25,50 +25,64 @@ export type WorkOrderVisibleActionsPrimaryTab = 'untransferred' | 'transferred'
 
 export type UseWorkOrderVisibleActionsOptions = {
   /**
- * 一级 Tab：已转单不展示操作按钮
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 一级 Tab：当前处理走展示层过滤；历史转出按接口 availableActions 渲染
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-24
+   */
   primaryTab: Ref<WorkOrderVisibleActionsPrimaryTab> | ComputedRef<WorkOrderVisibleActionsPrimaryTab>
   /**
- * 受理方是否为当前登录主体公司
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 受理方是否为当前登录主体公司（仅当前处理 Tab 生效）
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-24
+   */
   isOrderAcceptedByCurrentCompany: (order: OrderListItem) => boolean
+  /**
+   * 是否为历史转出列表视图（非总部 + 历史转出 Tab）
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-24
+   */
+  isHistoryListView?: Ref<boolean> | ComputedRef<boolean>
 }
 
 /**
  * 工单列表/工作台行内按钮：仅依据接口 `availableActions` 渲染。
- * 前端仅做承修方必守的展示层过滤（已转单 Tab、受理主体、转单网点约束等）。
+ * 当前处理 Tab 保留承修方必守的展示层过滤；历史转出 Tab 信任后端权限结果。
  * @修改人 黄碧莲
- * @修改时间 2026-05-22
+ * @修改时间 2026-05-24
  */
 export function useWorkOrderVisibleActions(options: UseWorkOrderVisibleActionsOptions) {
   const userStore = useUserStore()
 
   /**
+   * 是否处于历史转出列表（viewScope=HISTORY）
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-24
+   */
+  const isHistoryListView = () => options.isHistoryListView?.value === true
+
+  /**
    * 从列表项解析可展示动作（与后端 `WorkOrderPermissionService.listAvailableActions` 对齐）。
-   * - 仅 `viewScope=CURRENT` 时列表接口会填充 `availableActions`；
+   * - `viewScope=CURRENT` / `HISTORY` 时列表接口会填充 `availableActions`；
    * - `RETURN_METHOD` 在 normalize 阶段映射为 `CLOSE`（列表统一展示「机器返回方式」）；
-   * - 承修方小程序列表暂不展示「上传寄件单号」。
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * - 当前处理列表暂不展示「上传寄件单号」；历史转出保留后端下发的该动作。
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-24
+   */
   const getOrderAvailableActions = (order: OrderListItem): WorkOrderActionKey[] => {
-    const normalized = normalizeAvailableActions(order.availableActions).filter(
-      (key) => key !== 'UPLOAD_SEND_EXPRESS'
-    )
+    let normalized = normalizeAvailableActions(order.availableActions)
+    if (!isHistoryListView()) {
+      normalized = normalized.filter((key) => key !== 'UPLOAD_SEND_EXPRESS')
+    }
     return sortWorkOrderActionsForDisplay(normalized)
   }
 
   /**
-   * 展示层约束：后端已做权限与实例校验，此处仅保留小程序必守规则
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 展示层约束：当前处理 Tab 保留小程序必守规则；历史转出 Tab 直接信任后端 availableActions
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-24
+   */
   const isActionAllowed = (order: OrderListItem, actionKey: WorkOrderActionKey) => {
-    if (options.primaryTab.value === 'transferred') return false
+    if (isHistoryListView()) return true
     if (!options.isOrderAcceptedByCurrentCompany(order)) return false
 
     if (actionKey === 'TECH_ACCEPT' || actionKey === 'REPAIR_FINISH') {
@@ -90,9 +104,9 @@ export function useWorkOrderVisibleActions(options: UseWorkOrderVisibleActionsOp
 
   /**
    * 解析当前行应展示的操作按钮（与后端 `DETAIL_ACTION_ORDER` 一致）
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-24
+   */
   const getVisibleActions = (order: OrderListItem): WorkOrderVisibleAction[] => {
     const allowedKeys = getOrderAvailableActions(order).filter((key) =>
       isActionAllowed(order, key)
@@ -101,10 +115,10 @@ export function useWorkOrderVisibleActions(options: UseWorkOrderVisibleActionsOp
   }
 
   /**
- * 当前行是否包含指定动作（用于点击前二次校验，避免列表刷新滞后）
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 当前行是否包含指定动作（用于点击前二次校验，避免列表刷新滞后）
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-24
+   */
   const hasVisibleAction = (order: OrderListItem, actionKey: WorkOrderActionKey) =>
     getOrderAvailableActions(order).some(
       (key) => key === actionKey && isActionAllowed(order, key)
