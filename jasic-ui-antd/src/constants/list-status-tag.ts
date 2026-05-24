@@ -65,16 +65,7 @@ const USER_ROLE_KEY_TAG_COLORS: Record<string, string> = {
  * @修改人 黄碧莲
  * @修改时间 2026-05-24
  */
-const USER_ROLE_TAG_PALETTE = [
-  'success',
-  'magenta',
-  'geekblue',
-  'volcano',
-  'green',
-  'gold',
-  'blue',
-  'error'
-] as const;
+const USER_ROLE_TAG_PALETTE = ['success', 'magenta', 'geekblue', 'volcano', 'green', 'gold', 'blue', 'error'] as const;
 
 /**
  * 用户列表「角色」列 Tag 颜色：优先按 role_key 预设，否则按 role_key 哈希取色，保证同名角色颜色稳定。
@@ -83,13 +74,16 @@ const USER_ROLE_TAG_PALETTE = [
  * @修改时间 2026-05-24
  */
 export function userRoleTagColor(roleKeyOrSeed: string | number | undefined): string {
-  const key = String(roleKeyOrSeed ?? '').trim().toLowerCase();
+  const key = String(roleKeyOrSeed ?? '')
+    .trim()
+    .toLowerCase();
   if (!key) return 'default';
   const preset = USER_ROLE_KEY_TAG_COLORS[key];
   if (preset) return preset;
   let hash = 0;
   for (let i = 0; i < key.length; i += 1) {
-    hash = (hash * 31 + key.charCodeAt(i)) | 0;
+    // 角色 key 较短，用 imul 模拟 32 位累加即可，避免位运算触发 no-bitwise
+    hash = Math.imul(31, hash) + key.charCodeAt(i);
   }
   return USER_ROLE_TAG_PALETTE[Math.abs(hash) % USER_ROLE_TAG_PALETTE.length];
 }

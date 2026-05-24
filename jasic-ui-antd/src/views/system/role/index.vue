@@ -574,10 +574,7 @@ onMounted(async () => {
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'roleName'">
-            <ATag
-              v-if="record.roleName"
-              :color="userRoleTagColor(record.roleKey || record.id || record.roleName)"
-            >
+            <ATag v-if="record.roleName" :color="userRoleTagColor(record.roleKey || record.id || record.roleName)">
               {{ record.roleName }}
             </ATag>
             <span v-else>-</span>
