@@ -142,7 +142,7 @@
             <text class="value">{{ order.transferNetwork }}</text>
           </view>
         </template>
-        <!-- 操作：按接口 availableActions（CURRENT/HISTORY）渲染，无动作时不占位 -->
+        <!-- 操作：当前处理按 availableActions 渲染；历史转出仅展示「上传寄件单号」例外动作 -->
         <template #actions="{ order }">
           <view v-if="resolveListRowActions(order).length > 0" class="action-wrap">
             <button
@@ -190,7 +190,7 @@
       @confirm="onCloseOrderConfirm"
     />
 
-    <!-- 上传寄件单号弹窗（历史转出列表 UPLOAD_SEND_EXPRESS 动作） -->
+    <!-- 上传寄件单号弹窗（UPLOAD_SEND_EXPRESS 动作） -->
     <UploadSendExpressModal
       v-model:visible="showUploadSendExpressModal"
       :work-order-id="currentUploadSendExpressOrderId"
@@ -275,7 +275,7 @@
   })
 
   /**
-   * 非总部「历史转出」Tab：列表走 viewScope=HISTORY，按钮按接口 availableActions 展示
+   * 非总部「历史转出」Tab：列表走 viewScope=HISTORY，行内仅展示「上传寄件单号」例外动作
    * @修改人 黄碧莲
    * @修改时间 2026-05-24
    */
@@ -1236,7 +1236,7 @@
     })
   }
 
-  // 上传寄件单号弹窗（历史转出 UPLOAD_SEND_EXPRESS）
+  // 上传寄件单号弹窗（UPLOAD_SEND_EXPRESS）
   const showUploadSendExpressModal = ref(false)
   const currentUploadSendExpressOrderId = ref('')
 
@@ -1320,6 +1320,7 @@
     const orderRow = orderList.value.find((o) => o.id === id)
     if (
       orderRow &&
+      actionKey !== 'UPLOAD_SEND_EXPRESS' &&
       !isHistoryListView.value &&
       !isOrderAcceptedByCurrentCompany(orderRow)
     ) {
