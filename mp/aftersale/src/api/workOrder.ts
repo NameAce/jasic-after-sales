@@ -1678,6 +1678,8 @@ export const getCustomerWorkOrderBarcodeInfo = (params: { barcode: string }) => 
     url: '/customer/work-order/barcode-info',
     method: 'GET',
     data: params,
+    /** 由报修页在 hideLoading 后统一 toast 接口 msg，避免 loading 遮挡 */
+    skipErrorToast: true,
   })
 }
 

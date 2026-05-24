@@ -5,7 +5,7 @@
       <text class="section-title">商品信息</text>
     </view>
     <view class="od-apply-info-list">
-      <!-- 机型：仅展示（仅维修登记入口缺机型时由 detail.vue 触发补录弹窗） -->
+      <!-- 机型：仅展示；佳士维修/复检登记缺机型时由 detail.vue 触发补录弹窗 -->
       <view v-if="hasVal(product.model)" class="info-item">
         <text class="info-label">机器型号</text>
         <text class="info-value">{{ product.model }}</text>
@@ -47,14 +47,14 @@
   /**
    * 商品信息卡片：
    * - 机型只读展示；不再在卡片内自由输入（避免用户绕过后端校验写入空/非法机型）。
-   * - 「须补录机型」时（维修登记缺机型，或复检且佳士缺机型）渲染「点击补录机器型号」，由父组件 detail.vue 唤起 MachineModelSupplementModal。
+   * - 「须补录机型」时（佳士品牌维修/复检登记缺机型）渲染「点击补录机器型号」，由父组件 detail.vue 唤起 MachineModelSupplementModal。
  * @修改人 黄碧莲
  * @修改时间 2026-05-22
  */
   const props = defineProps<{
     product: OrderDetail['product']
     /**
- * 是否需要补录机型入口（父级 detail：维修登记无机型，或复检佳士无机型）
+ * 是否需要补录机型入口（父级 detail：佳士品牌维修/复检登记无机型）
  * @修改人 黄碧莲
  * @修改时间 2026-05-22
  */

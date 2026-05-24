@@ -222,11 +222,11 @@
   })
 
   /**
-   * 跳转到佳士报修
+   * 跳转到佳士品牌报修页（扫码、查询在报修页内完成）
    * @returns void
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const goToJasicRepair = () => {
     if (!requireLogin()) return
     uni.navigateTo({ url: '/pages/jasicRepair/index' })

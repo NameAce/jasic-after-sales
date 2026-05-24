@@ -1,5 +1,6 @@
 import { http } from '@/utils/http'
 import type { SavedAddress } from '@/utils/addressStorage'
+import { parseFullAddressLine } from '@/utils/parseAddressRegion'
 
 // --- CompanyAddress ---
 
@@ -146,20 +147,21 @@ export const setDefaultCompanyAddress = (addressId: number) => {
 }
 
 /**
- * 将公司地址列表 VO 转为本地缓存结构（无省市区拆分时，整段放入 detail 供展示与编辑）
+ * 将公司地址列表 VO 转为本地缓存结构（接口仅 address 整段时解析省市区，供编辑页 region picker 回显）
  * @修改人 黄碧莲
  * @修改时间 2026-05-22
  */
 export function companyAddressVOToSavedAddress(vo: CompanyAddressVO): SavedAddress {
   const line = typeof vo.address === 'string' ? vo.address.trim() : ''
+  const { province, city, county, detail } = parseFullAddressLine(line)
   return {
     id: String(vo.id),
     name: vo.contactName,
     phone: vo.contactPhone,
-    province: '',
-    city: '',
-    county: '',
-    detail: line,
+    province,
+    city,
+    county,
+    detail: detail || (province || city ? '' : line),
     ...(line ? { fullAddress: line } : {}),
     isDefault: vo.isDefault
   }

@@ -73,6 +73,7 @@
   import { triggerScrollIntoView } from '@/utils/formFieldScrollFocus'
   import { addCompanyAddress, updateCompanyAddress } from '@/api/companyAddress'
   import { loadAddresses, saveAddresses, type SavedAddress } from '@/utils/addressStorage'
+  import { resolveSavedAddressRegion } from '@/utils/parseAddressRegion'
   import { themeColors } from '@/theme/colors'
 
   const scrollIntoView = ref('')
@@ -136,27 +137,34 @@
   })
 
   /**
+   * 编辑回显：写入表单与 region picker（与 aftersale 一致；公司地址仅整段时需先解析省市区）
+   * @param found 本地缓存地址
+   */
+  const fillFormFromSaved = (found: SavedAddress) => {
+    const region = resolveSavedAddressRegion(found)
+    form.name = found.name
+    form.phone = found.phone
+    form.province = region.province
+    form.city = region.city
+    form.county = region.county
+    form.detail = region.detail
+    form.isDefault = found.isDefault ?? 0
+    regionValue.value = [region.province, region.city, region.county]
+  }
+
+  /**
    * 页面加载
    * @param options - 选项
  * @修改人 黄碧莲
  * @修改时间 2026-05-22
  */
   onLoad((options?: Record<string, string>) => {
-    const id = decodeURIComponent(String(options?.id ?? '')).trim()
-    if (id) {
-      editId.value = id
-      // 加载地址列表
-      const found = loadAddresses().find((a) => String(a.id) === id)
-      if (found) {
-        form.name = found.name
-        form.phone = found.phone
-        form.province = found.province
-        form.city = found.city
-        form.county = found.county
-        form.detail = found.detail
-        form.isDefault = found.isDefault ?? 0
-        regionValue.value = [found.province, found.city, found.county]
-      }
+    const id = String(options?.id ?? '').trim()
+    if (!id) return
+    editId.value = id
+    const found = loadAddresses().find((a) => String(a.id) === id)
+    if (found) {
+      fillFormFromSaved(found)
     }
   })
 

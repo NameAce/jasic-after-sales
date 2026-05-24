@@ -5,7 +5,7 @@
     surface="sticky"
     :color="themeColors.textBg"
     :background="themeColors.primary"
-    :show-shadow="false"
+    :shadow="false"
   />
   <view class="page-container order-detail-page">
     <!-- 状态栏 -->
@@ -166,13 +166,7 @@
             </template>
             <!-- 维修中 -->
             <template v-else-if="repairExtrasLayout === 'active_repair'">
-              <!-- 维修/复检登记默认在「维修过程」Tab，补录入口需在此区重复展示（与 jasic-ui 先补机型再登记一致） -->
-              <OrderDetailProductCard
-                v-if="!detailViewOnly && needSupplementMachineModel"
-                :product="order.product"
-                :need-supplement="true"
-                @supplement="openMachineModelSupplement"
-              />
+              <!-- 须补录机型时不在「维修过程」展示商品信息，由强制补录弹窗处理；申请内容 Tab 保留补录入口 -->
               <OrderDetailRepairMetaCard
                 v-model:repair-quote="repairQuoteInput"
                 v-model:quote-desc="quoteDescInput"
@@ -225,12 +219,11 @@
       @confirm="onCloseOrderConfirm"
     />
 
-    <!-- 机型补录弹窗：维修登记无机型时自动弹出/可手动补录；复检仅佳士无机型时 -->
+    <!-- 机型补录弹窗：佳士品牌维修/复检登记无机型时自动弹出或可手动补录 -->
     <MachineModelSupplementModal
-      v-model:visible="showMachineModelSupplement"
+      :visible="showMachineModelSupplement"
       :work-order-id="machineModelSupplementWorkOrderId"
       @confirm="onMachineModelSupplementConfirm"
-      @cancel="onMachineModelSupplementCancel"
     />
 
     <!-- 待派单：全 Tab 底部固定派单（样式与维修登记「提交维修登记」一致） -->
@@ -411,9 +404,8 @@
 
   // 维修中 - 故障点登记
   /**
-   * 详情加载后快照：当前入口是否走「须补录机型」策略。
-   * - 维修登记：无机型即须补录（任意品牌）
-   * - 复检登记：仅佳士且无机型时须补录
+   * 详情加载后快照：当前入口是否走「须补录机型」策略（与管理端 jasic-ui 一致）。
+   * - 维修登记 / 复检登记：仅佳士品牌且无机器型号时须补录
  * @修改人 黄碧莲
  * @修改时间 2026-05-22
  */
@@ -912,14 +904,12 @@
       if (isOrderStatus(detail.status)) {
         orderStatus.value = detail.status
       }
-      // 维修登记：无机型即须补录；复检：沿用佳士无机型须补录（与 jasic-ui 复检一致）
+      // 维修/复检登记：仅佳士无机型须补录（与 jasic-ui REPAIR_FINISH / REVIEW 一致）
       const repairOrRecheck =
         detailEntryAction.value === 'repair' || detailEntryAction.value === 'recheck'
       const missingModel = !hasVal(detail.product?.model)
       machineModelSupplementRequired.value =
-        repairOrRecheck &&
-        missingModel &&
-        (detailEntryAction.value === 'repair' || !!detail.brand?.isJiashi)
+        repairOrRecheck && missingModel && !!detail.brand?.isJiashi
 
       // 待接单·接单入口：用详情当前报价（quotes → repair.faultJudge 等）回显表单
       if (
@@ -1100,10 +1090,6 @@
     } finally {
       uni.hideLoading()
     }
-  }
-
-  const onMachineModelSupplementCancel = () => {
-    // 取消：仍缺机型且当前入口要求补录时，提交会再次拦截并可再次打开弹窗
   }
 
   /**

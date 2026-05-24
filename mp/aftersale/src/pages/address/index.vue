@@ -40,11 +40,10 @@
           <text class="empty-desc">可通过上方「从微信导入」或「手动填写」添加</text>
         </view>
 
-        <view v-if="isSelectMode && addresses.length > 0">
+        <view v-if="isSelectMode && addresses.length > 0" class="addr-swipe-item">
           <view
             v-for="item in visibleAddresses"
             :key="item.id"
-            class="addr-swipe-item"
             @click="selectAddressForRepair(item)"
           >
             <view class="addr-card">
@@ -62,7 +61,7 @@
           </view>
         </view>
 
-        <!-- 地址卡片：左滑露出删除 -->
+        <!-- 地址卡片：左滑露出删除（原生 view 包裹多条 swipe-item，便于 flex gap 生效） -->
         <uni-swipe-action v-if="!isSelectMode && addresses.length > 0">
           <view class="addr-swipe-item">
             <uni-swipe-action-item
@@ -71,7 +70,8 @@
               :right-options="swipeDeleteOptions"
               @click="onSwipeItemClick($event, item.id)"
             >
-              <view class="addr-card" @click="goEdit(item.id)">
+              <!-- 卡片主体不跳转编辑，仅编辑图标与「设为默认」行各自响应 -->
+              <view class="addr-card">
                 <view class="addr-top">
                   <view class="addr-top-left">
                     <text class="addr-name">{{ item.name }}</text>
@@ -87,8 +87,12 @@
                     <uni-icons type="compose" size="20" :color="themeColor.textLabel" />
                   </view>
                 </view>
-                <view v-if="item.isDefault !== 1" class="addr-actions" @click.stop>
-                  <text class="link-primary" @click="setAsDefault(item.id)">设为默认</text>
+                <view
+                  v-if="item.isDefault !== 1"
+                  class="addr-actions"
+                  @click.stop="setAsDefault(item.id)"
+                >
+                  <text class="link-primary">设为默认</text>
                 </view>
               </view>
             </uni-swipe-action-item>
@@ -134,10 +138,10 @@
   const navTitle = computed(() => (isSelectMode.value ? '选择寄件信息' : '我的地址'))
 
   /**
- * 左滑「删除」按钮样式（与 $danger 一致）
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 左滑「删除」按钮样式（与 $danger 一致）
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const swipeDeleteOptions = [
     {
       text: '删除',
@@ -165,9 +169,9 @@
 
   /**
    * 从服务端拉取地址列表并同步本地缓存（供编辑页读取）
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const refresh = async () => {
     try {
       const res = await listCustomerAddress()
@@ -194,9 +198,9 @@
 
   /**
    * 页面显示时刷新地址列表
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   onShow(() => {
     refresh()
   })
@@ -205,18 +209,18 @@
    * 格式化地址
    * @param a 地址对象
    * @returns 格式化后的地址
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const fullAddress = (a: SavedAddress) => {
     return `${a.province}${a.city}${a.county}${a.detail}`
   }
 
   /**
    * 调起微信收货地址（主要支持微信小程序；其他端会失败并提示）
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const importFromWeChat = () => {
     uni.chooseAddress({
       success: (res) => {
@@ -267,9 +271,9 @@
 
   /**
    * 跳转到手动填写地址页面
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const goManualAdd = () => {
     uni.navigateTo({ url: '/pages/address/edit' })
   }
@@ -277,9 +281,9 @@
   /**
    * 跳转到编辑地址页面
    * @param id 地址ID
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const goEdit = (id: string) => {
     uni.navigateTo({ url: `/pages/address/edit?id=${encodeURIComponent(id)}` })
   }
@@ -292,9 +296,9 @@
   /**
    * 设为默认地址
    * @param id 地址ID
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const setAsDefault = (id: string) => {
     const idNum = Number(id)
     if (!Number.isFinite(idNum)) {
@@ -318,9 +322,9 @@
   /**
    * 删除地址
    * @param id 地址ID
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const removeAddress = (id: string) => {
     uni.showModal({
       title: '提示',
@@ -454,6 +458,10 @@
     }
   }
 
+  /**
+   * 已保存地址列表：用原生 view 包住多条子项，再通过 flex-column-gap 留出卡片间距。
+   * 自定义组件（uni-swipe-action）外壳不参与 gap，间距需落在原生容器上。
+   */
   .addr-swipe-item {
     @include flex-column-gap;
   }
@@ -533,6 +541,12 @@
       margin-top: 20rpx;
       padding-top: 20rpx;
       border-top: 2rpx solid $border-lighter;
+      min-height: 72rpx;
+      box-sizing: border-box;
+
+      &:active {
+        opacity: 0.75;
+      }
     }
 
     .link-primary {

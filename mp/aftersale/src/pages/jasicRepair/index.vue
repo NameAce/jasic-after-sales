@@ -12,7 +12,7 @@
           </view>
           <view class="header-text">
             <view>商品查询</view>
-            <text>请输入或扫描产品条形码查询状态</text>
+            <text>输入满22位自动查询，也可扫码或点「查询」</text>
           </view>
         </view>
         <!-- 搜索框 -->
@@ -188,7 +188,7 @@
 
 <script setup lang="ts">
   import { ref, computed, watch, nextTick, type Ref } from 'vue'
-  import { onShow } from '@dcloudio/uni-app'
+  import { onLoad, onShow } from '@dcloudio/uni-app'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import BaseButton from '@/components/BaseButton/BaseButton.vue'
   import RepairTypeSelector from '@/components/RepairTypeSelector/RepairTypeSelector.vue'
@@ -222,7 +222,7 @@
     type CreateCustomerWorkOrderDTO
   } from '@/api/workOrder'
   import { requestEvaluationInviteSubscribe } from '@/utils/requestEvaluationInviteSubscribe'
-  import { API_SUCCESS_CODE } from '@/utils/http'
+  import { API_SUCCESS_CODE, getApiMessage } from '@/utils/http'
   import {
     scrollPageToFormFieldKey,
     scrollToFirstInvalidUniFormField
@@ -237,6 +237,8 @@
   } from '@/utils/repairDraftStorage'
   import { takeSelectedShippingAddress, type SelectedShippingAddress } from '@/utils/addressStorage'
   import { parseUnknownError } from '@/utils/errorMessage'
+  import { scanProductBarcode } from '@/utils/scanProductBarcode'
+  import { hideLoadingThenShowBarcodeQueryToast } from '@/utils/barcodeQueryToast'
   import {
     resolveSendExpressNoForSubmit,
     resolveShippingSubmitFields
@@ -461,6 +463,35 @@
  * @修改时间 2026-05-22
  */
   const isApplyingJasicRepairDraft = ref(false)
+  /**
+   * 首页扫码进入时携带的条码：须在暂存恢复后仍保留，并触发一次自动查询
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
+  const entryBarcodeFromHomeScan = ref('')
+
+  /** 佳士商品条码满该长度后自动触发查询（与档案条码位数一致） */
+  const BARCODE_AUTO_QUERY_LENGTH = 22
+  /** 避免同一条码重复请求、与扫码/进入页查询并发 */
+  const barcodeQueryInFlight = ref(false)
+  const lastAutoQueriedBarcode = ref('')
+  /** 仅最新一次 checkWarranty 可更新 UI / 弹 toast（避免 onShow 静默重查吞掉扫码成功提示） */
+  const barcodeQuerySeq = ref(0)
+
+  /**
+   * 手动输入条码达到指定长度时自动查询
+   * @param raw - 当前输入框条码
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
+  const tryAutoQueryWhenBarcodeLengthReached = (raw: string) => {
+    if (isApplyingJasicRepairDraft.value) return
+    const code = String(raw ?? '').trim()
+    if (code.length < BARCODE_AUTO_QUERY_LENGTH) return
+    if (barcodeQueryInFlight.value) return
+    if (code === lastAutoQueriedBarcode.value) return
+    void checkWarranty()
+  }
 
   /**
    * 应用佳士报修暂存（包装以配合 watch 跳过破坏性重置）
@@ -509,10 +540,26 @@
   }
 
   /**
+   * 路由参数：首页扫码带入的条码（进入后自动查询，无需再点「查询」）
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
+  onLoad((options?: Record<string, string>) => {
+    const code = String(options?.barcode ?? options?.warrantyCode ?? '').trim()
+    if (!code) return
+    try {
+      entryBarcodeFromHomeScan.value = decodeURIComponent(code)
+    } catch {
+      entryBarcodeFromHomeScan.value = code
+    }
+    formData.value.warrantyCode = entryBarcodeFromHomeScan.value
+  })
+
+  /**
    * 页面显示：合并暂存恢复与网点回写后的统一收尾（避免重复分支）
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   onShow(() => {
     const fromMap = hasPendingServicePointPick()
     applyStorageSelection()
@@ -534,9 +581,21 @@
       getFormRef()?.clearValidate?.(['shippingInfo'])
     }
 
+    // 首页扫码条码优先于暂存中的条码
+    const homeScanCode = entryBarcodeFromHomeScan.value.trim()
+    if (homeScanCode) {
+      formData.value.warrantyCode = homeScanCode
+    }
+
     syncFormCenterIdToUniForms()
     nextTick(() => {
       syncShowFaultRemarkFromState()
+      if (homeScanCode) {
+        entryBarcodeFromHomeScan.value = ''
+        lastAutoQueriedBarcode.value = homeScanCode
+        void checkWarranty()
+        return
+      }
       tryAutoQueryBarcodeOnEnter(fromMap)
     })
     if (fromMap) {
@@ -567,30 +626,42 @@
   })
 
   /**
-   * 扫描条形码
+   * 扫描条形码：写入条码后立即查询保修（无需再点「查询」）
    * @returns void
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
-  const handleScan = () => {
-    // 扫描条形码
-    uni.scanCode({
-      // 成功回调
-      success: (res) => {
-        // 设置条形码
-        formData.value.warrantyCode = res.result
-      }
-    })
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
+  const handleScan = async () => {
+    const scanRes = await scanProductBarcode({ toastOnCancel: true })
+    if (scanRes.status === 'cancel') return
+    if (scanRes.status === 'empty') {
+      uni.showToast({ title: '未识别到条形码', icon: 'none', duration: TOAST_DURATION })
+      return
+    }
+    const code = scanRes.code.trim()
+    // 先标记已处理条码，避免 watch / onShow 静默重查；并作废进行中的查询（iOS 扫码返回常触发 onShow）
+    lastAutoQueriedBarcode.value = code
+    barcodeQuerySeq.value += 1
+    formData.value.warrantyCode = code
+    void checkWarranty()
   }
+
+  /**
+   * 条码查询失败提示：优先接口 `msg`（如「当前条码未维护档案信息」）
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
+  const pickBarcodeQueryErrorMsg = (err: unknown) =>
+    getApiMessage(err as { msg?: string } | null | undefined, parseUnknownError(err, '查询失败'))
 
   /**
    * 查询保修
    * @param options.silentToast - 进入页自动查询时不弹成功提示，避免打扰
    * @param options.skipClearFaultFieldsWhenNoOptions - 自动查询且接口无故障下拉时不清空已填备注（与暂存恢复配合）
    * @returns void
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const checkWarranty = async (options?: {
     silentToast?: boolean
     skipClearFaultFieldsWhenNoOptions?: boolean
@@ -602,14 +673,32 @@
       scrollPageToFormFieldKey('warrantyCode')
       return uni.showToast({ title: '请输入条形码', icon: 'none', duration: TOAST_DURATION })
     }
-    // 显示加载中
-    uni.showLoading({ title: '查询中...' })
-    // 尝试查询保修
+    const queryingBarcode = String(formData.value.warrantyCode ?? '').trim()
+    const seq = ++barcodeQuerySeq.value
+    barcodeQueryInFlight.value = true
+    uni.showLoading({ title: '查询中...', mask: true })
     try {
-      // 查询保修
-      const res = await getCustomerWorkOrderBarcodeInfo({ barcode: formData.value.warrantyCode })
-      // 隐藏加载中
-      uni.hideLoading()
+      const res = await getCustomerWorkOrderBarcodeInfo({ barcode: queryingBarcode })
+      if (seq !== barcodeQuerySeq.value) return
+
+      if (res.code !== API_SUCCESS_CODE) {
+        faultDescriptionOptionsFromApi.value = []
+        barcodeQueryHasFaultDescription.value = false
+        lastBarcodeInfo.value = null
+        queryFailedWithBarcode.value = !!String(formData.value.warrantyCode ?? '').trim()
+        nextTick(() => syncShowFaultRemarkFromState())
+        const failMsg = getApiMessage(res, '查询失败')
+        hideLoadingThenShowBarcodeQueryToast({ title: failMsg, kind: 'fail', icon: 'none' })
+        return
+      }
+
+      const successMsg = getApiMessage(res, '查询成功')
+      if (!silentToast) {
+        hideLoadingThenShowBarcodeQueryToast({ title: successMsg, kind: 'success' })
+      } else {
+        uni.hideLoading()
+      }
+
       const info = res.data
       const row = info && typeof info === 'object' ? (info as Record<string, unknown>) : null
       const mapped = mapBarcodeFaultOptions(row?.faultOptions)
@@ -631,37 +720,26 @@
             syncShowFaultRemarkFromState()
           })
         } else {
-          nextTick(() => {
-            syncShowFaultRemarkFromState()
-          })
+          nextTick(() => syncShowFaultRemarkFromState())
         }
       } else {
-        nextTick(() => {
-          syncShowFaultRemarkFromState()
-        })
-      }
-      // 显示提示（自动查询不弹成功 toast）
-      if (!silentToast) {
-        uni.showToast({
-          title: res.msg,
-          icon: res.code === API_SUCCESS_CODE ? 'success' : 'none',
-          duration: TOAST_DURATION
-        })
+        nextTick(() => syncShowFaultRemarkFromState())
       }
     } catch (err: unknown) {
-      uni.hideLoading()
+      if (seq !== barcodeQuerySeq.value) return
       faultDescriptionOptionsFromApi.value = []
       barcodeQueryHasFaultDescription.value = false
       lastBarcodeInfo.value = null
       queryFailedWithBarcode.value = !!String(formData.value.warrantyCode ?? '').trim()
-      nextTick(() => {
-        syncShowFaultRemarkFromState()
-      })
-      uni.showToast({
-        title: parseUnknownError(err, '查询失败'),
-        icon: 'none',
-        duration: TOAST_DURATION
-      })
+      nextTick(() => syncShowFaultRemarkFromState())
+      // 失败一律展示接口 msg（扫码/手动查询均适用）；silentToast 仅抑制成功提示
+      const errMsg = pickBarcodeQueryErrorMsg(err)
+      hideLoadingThenShowBarcodeQueryToast({ title: errMsg, kind: 'fail', icon: 'none' })
+    } finally {
+      if (seq === barcodeQuerySeq.value) {
+        barcodeQueryInFlight.value = false
+        lastAutoQueriedBarcode.value = queryingBarcode
+      }
     }
   }
 
@@ -674,6 +752,9 @@
     if (fromMapPick) return
     const code = String(formData.value.warrantyCode ?? '').trim()
     if (!code) return
+    // 扫码返回会触发 onShow：若条码刚查过/正在查，不再静默重查（第二次 hideLoading 会导致 iOS 成功 toast 不显示）
+    if (code === lastAutoQueriedBarcode.value) return
+    if (barcodeQueryInFlight.value) return
     void checkWarranty({ silentToast: true, skipClearFaultFieldsWhenNoOptions: true })
   }
 
@@ -731,6 +812,10 @@
         showFaultDescDropdown.value = false
         draftFaultDesc.value = []
         queryFailedWithBarcode.value = false
+        const code = String(val ?? '').trim()
+        if (code.length < BARCODE_AUTO_QUERY_LENGTH) {
+          lastAutoQueriedBarcode.value = ''
+        }
       }
       // 如果条形码为空，则清空故障描述
       if (!val) {
@@ -741,6 +826,7 @@
           syncShowFaultRemarkFromState()
         })
       }
+      tryAutoQueryWhenBarcodeLengthReached(String(val ?? ''))
     },
     { immediate: true }
   )
@@ -995,6 +1081,7 @@
     barcodeQueryHasFaultDescription.value = false
     faultDescriptionOptionsFromApi.value = []
     queryFailedWithBarcode.value = false
+    lastAutoQueriedBarcode.value = ''
     // 设置需要重新应用暂存为true
     needReapplyDraftAfterReset.value = true
     // 清除网点选择

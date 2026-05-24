@@ -76,10 +76,10 @@
 
   const userStore = useUserStore()
   /**
- * 与 list.vue 一致：总部用户不在卡片上展示「已转单」角标
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 与 list.vue 一致：总部用户不在卡片上展示「已转单」角标
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const isHqUser = computed(() => {
     const code = userStore.userInfo?.currentTypeCode
     return !!code?.startsWith('HQ')
@@ -87,9 +87,9 @@
 
   /**
    * 由其他网点转入本网点时展示「转单」标记（与 list.vue 未转单 Tab 逻辑同源，网点明细无一级 Tab 故始终按转入判断）
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const showInboundTransferTag = (order: OrderListItem) =>
     hasInboundTransferFromSite(order.transferFromSite)
 
@@ -167,9 +167,9 @@
   /**
    * 页面加载
    * @param options 页面参数
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   onLoad((options) => {
     activeTab.value = parseInitialTab(options?.tab)
     const id = Number(options?.id)
@@ -203,9 +203,9 @@
   /**
    * 跳转到工单详情
    * @param order 工单
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const onOrderClick = (order: OrderListItem) => {
     uni.navigateTo({
       url: `/pages/order/detail?id=${order.id}&status=${order.status}`
@@ -225,9 +225,9 @@
    * 设置二级Tab栏
    * @param val 二级Tab栏值
    * @returns void
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const setTab = (val: string) => {
     activeTab.value = parseInitialTab(val)
   }
@@ -239,9 +239,9 @@
    * 列表卡片状态文案
    * @param order 工单
    * @returns 状态文本
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const listStatusText = (order: OrderListItem) => {
     if (order.status === 'PENDING_TECH_ACCEPT') return '待接单'
     if (order.status === 'PENDING_ASSIGN') return '待派单'
@@ -250,9 +250,9 @@
 
   /**
    * 加载更多工单
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const loadMoreBranchOrders = async () => {
     if (!siteCompanyId.value) return
     if (loadingMore.value || hasLoadedAll.value) return
@@ -277,22 +277,22 @@
   /**
    * 空列表标题
    * @returns 空列表标题
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const listEmptyTitle = computed(() => (searchQuery.value?.trim() ? '未找到相关工单' : '暂无工单'))
 
   /**
    * 空列表描述
    * @returns 空列表描述
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   /**
- * 与 list.vue 工单列表空状态描述一致
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 与 list.vue 工单列表空状态描述一致
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const listEmptyDesc = computed(() =>
     searchQuery.value?.trim() ? '试试更换关键词或清空搜索' : '当前筛选条件下没有工单'
   )

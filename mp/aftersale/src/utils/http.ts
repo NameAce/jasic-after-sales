@@ -162,10 +162,20 @@ function pickHttpErrorMsg(data: unknown): string {
  * @修改人 黄碧莲
  * @修改时间 2026-05-22
  */
+/**
+ * 扩展 uni.request 选项：允许调用方在 hideLoading 后自行展示接口 msg（避免与 loading 叠层）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-22
+ */
+export type HttpRequestOptions = UniApp.RequestOptions & {
+  skipErrorToast?: boolean
+}
+
 function handleResponseBody<T>(
   body: ApiResponse<T>,
   resolve: (v: ApiResponse<T>) => void,
   reject: (v: ApiResponse<T>) => void,
+  skipErrorToast?: boolean,
 ) {
   if (body.code === API_SUCCESS_CODE) {
     resolve(body)
@@ -181,11 +191,14 @@ function handleResponseBody<T>(
     reject(body)
     return
   }
-  uni.showToast({ icon: 'none', title: body.msg || API_MSG_OPERATION_FAILED, duration: 1500 })
+  if (!skipErrorToast) {
+    uni.showToast({ icon: 'none', title: body.msg || API_MSG_OPERATION_FAILED, duration: 1500 })
+  }
   reject(body)
 }
 
-function requestWithUni<T>(options: UniApp.RequestOptions): Promise<ApiResponse<T>> {
+function requestWithUni<T>(options: HttpRequestOptions): Promise<ApiResponse<T>> {
+  const skipErrorToast = options.skipErrorToast === true
   return new Promise<ApiResponse<T>>((resolve, reject) => {
     const token = uni.getStorageSync('token') || ''
 
@@ -204,7 +217,9 @@ function requestWithUni<T>(options: UniApp.RequestOptions): Promise<ApiResponse<
         }
         if (res.statusCode < 200 || res.statusCode >= 300) {
           const msg = pickHttpErrorMsg(res.data)
-          uni.showToast({ icon: 'none', title: msg, duration: 1500 })
+          if (!skipErrorToast) {
+            uni.showToast({ icon: 'none', title: msg, duration: 1500 })
+          }
           reject(res.data as ApiResponse<T>)
           return
         }
@@ -223,7 +238,9 @@ function requestWithUni<T>(options: UniApp.RequestOptions): Promise<ApiResponse<
         }
         const raw = res.data as Partial<ApiResponse<T>> | null | undefined
         if (!raw || typeof raw !== 'object' || typeof raw.code !== 'string') {
-          uni.showToast({ icon: 'none', title: API_MSG_BAD_RESPONSE, duration: 1500 })
+          if (!skipErrorToast) {
+            uni.showToast({ icon: 'none', title: API_MSG_BAD_RESPONSE, duration: 1500 })
+          }
           reject(res.data as ApiResponse<T>)
           return
         }
@@ -235,15 +252,18 @@ function requestWithUni<T>(options: UniApp.RequestOptions): Promise<ApiResponse<
           },
           resolve,
           reject,
+          skipErrorToast,
         )
       },
       fail(err) {
         const msg = err.errMsg?.includes('timeout') ? API_MSG_TIMEOUT : API_MSG_NETWORK_ERROR
-        uni.showToast({
-          icon: 'none',
-          title: msg,
-          duration: 1500,
-        })
+        if (!skipErrorToast) {
+          uni.showToast({
+            icon: 'none',
+            title: msg,
+            duration: 1500,
+          })
+        }
         reject(err)
       },
     })

@@ -1,10 +1,10 @@
 <template>
-  <!-- 小程序里 @click.self 常无效，子元素点击会冒泡到蒙层导致误关；用卡片区 @click.stop 拦截 -->
-  <view v-if="visible" class="mms-mask" @click="onCancel">
+  <!-- 佳士缺机型强制补录：无取消、蒙层不可关，须从列表选中机型并确认后才由父级关闭 -->
+  <view v-if="visible" class="mms-mask" @touchmove.stop.prevent>
     <view class="mms-card" @click.stop>
       <view class="mms-title">补录机器型号</view>
       <view class="mms-tip">
-        维修登记时若无机器型号须先补录；佳士品牌工单复检登记前若无机器型号亦须补录。补录后不可再次修改。请从下方已启用机型列表中选择。
+        佳士品牌工单在维修登记或复检登记前若无机器型号须先补录。补录后不可再次修改。请从下方已启用机型列表中选择。
       </view>
       <view class="mms-field">
         <input
@@ -23,7 +23,7 @@
           <view
             v-for="opt in options"
             :key="opt"
-            :class="['mms-option', keyword === opt && 'is-active']"
+            :class="['mms-option', pickedModel === opt && 'is-active']"
             @click="onOptionPick(opt)"
           >
             <text class="mms-option-text">{{ opt }}</text>
@@ -31,7 +31,6 @@
         </scroll-view>
       </view>
       <view class="mms-actions">
-        <view class="mms-btn mms-btn--cancel" @click="onCancel">取消</view>
         <view
           :class="['mms-btn', 'mms-btn--confirm', !canSubmit && 'is-disabled']"
           @click="onConfirm"
@@ -45,10 +44,10 @@
 
 <script setup lang="ts">
   /**
-   * 机器型号补录弹窗（与管理端 jasic-ui 行为一致：须从归属总部已启用机型中选择）
+   * 佳士缺机型强制补录弹窗：须从归属总部已启用机型列表中点选一项后确认，不可取消或点蒙层关闭。
    * - 打开时用空 keyword 拉候选，并保存全量列表用于确认校验
-   * - 用户输入时防抖再查（300ms）
-   * - 确定：所选/输入的型号须在全量已启用列表中
+   * - 用户输入时防抖再查（300ms）；仅点选列表项视为已选机型
+   * - 确认：所选型号须在全量已启用列表中，成功后由父级关闭弹窗
  * @修改人 黄碧莲
  * @修改时间 2026-05-22
  */
@@ -61,12 +60,12 @@
   }>()
 
   const emit = defineEmits<{
-    (e: 'update:visible', val: boolean): void
     (e: 'confirm', productModel: string): void
-    (e: 'cancel'): void
   }>()
 
   const keyword = ref('')
+  /** 用户从候选列表点选的机型（未点选前不可确认，弹窗亦不可关闭） */
+  const pickedModel = ref('')
   const options = ref<string[]>([])
   /**
  * 打开弹窗时「全量」已启用机型，用于与后端一致：仅允许选库内型号
@@ -77,7 +76,10 @@
   const loading = ref(false)
   let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
-  const canSubmit = computed(() => keyword.value.trim().length > 0)
+  const canSubmit = computed(() => {
+    const val = pickedModel.value.trim()
+    return !!val && enabledAllModels.value.includes(val)
+  })
 
   const loadOptions = async (kw: string) => {
     if (!props.workOrderId) return
@@ -96,6 +98,8 @@
   }
 
   const onKeywordInput = () => {
+    // 搜索词变更后须重新从列表点选，避免仅输入文字绕过点选约束
+    pickedModel.value = ''
     if (debounceTimer) clearTimeout(debounceTimer)
     debounceTimer = setTimeout(() => {
       void loadOptions(keyword.value.trim())
@@ -104,21 +108,17 @@
 
   const onOptionPick = (opt: string) => {
     keyword.value = opt
-  }
-
-  const onCancel = () => {
-    emit('update:visible', false)
-    emit('cancel')
+    pickedModel.value = opt
   }
 
   const onConfirm = () => {
-    const val = keyword.value.trim()
-    if (!val) {
-      uni.showToast({ title: '请填写或选择机器型号', icon: 'none' })
+    if (!canSubmit.value) {
+      uni.showToast({ title: '请从列表中选择机器型号', icon: 'none' })
       return
     }
+    const val = pickedModel.value.trim()
     if (!enabledAllModels.value.length) {
-      uni.showToast({ title: '未加载到可选机型，请关闭后重试', icon: 'none' })
+      uni.showToast({ title: '未加载到可选机型，请稍后重试', icon: 'none' })
       return
     }
     if (!enabledAllModels.value.includes(val)) {
@@ -133,6 +133,7 @@
     (vis) => {
       if (vis) {
         keyword.value = ''
+        pickedModel.value = ''
         options.value = []
         enabledAllModels.value = []
         void loadOptions('')
@@ -226,20 +227,16 @@
 
   .mms-actions {
     @include flex-row;
-    justify-content: flex-end;
-    gap: $space-sm;
+    justify-content: stretch;
     padding-top: $space-sm;
   }
 
   .mms-btn {
+    flex: 1;
+    text-align: center;
     font-size: 26rpx;
     padding: 14rpx 28rpx;
     border-radius: $radius-sm;
-  }
-
-  .mms-btn--cancel {
-    color: $text-secondary;
-    background: $bg-light;
   }
 
   .mms-btn--confirm {

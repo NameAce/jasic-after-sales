@@ -26,7 +26,7 @@
         </view>
         <view class="header-text">
           <view>商品查询</view>
-          <text>请输入或扫描产品条形码查询状态</text>
+          <text>输入满22位自动查询，也可扫码或点「查询」</text>
         </view>
       </view>
       <view class="search-box">
@@ -282,6 +282,8 @@
     resolveShippingSubmitFields
   } from '@/utils/shippingSubmitFields'
   import { toastIfMediaUploading } from '@/utils/mediaUploadLock'
+  import { scanProductBarcode } from '@/utils/scanProductBarcode'
+  import { showBarcodeQueryToast } from '@/utils/barcodeQueryToast'
 
   // 用户商店
   const appStore = useAppStore()
@@ -708,6 +710,27 @@
   // 提交中（避免重复点击）
   const submitting = ref(false)
 
+  /** 佳士商品条码满该长度后自动触发查询（与档案条码位数一致） */
+  const BARCODE_AUTO_QUERY_LENGTH = 22
+  /** 避免同一条码重复请求、与扫码/进入页查询并发 */
+  const barcodeQueryInFlight = ref(false)
+  const lastAutoQueriedBarcode = ref('')
+
+  /**
+   * 手动输入条码达到指定长度时自动查询
+   * @param raw - 当前输入框条码
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
+  const tryAutoQueryWhenBarcodeLengthReached = (raw: string) => {
+    if (isRestoringDraft.value || isRestoringTabSnapshot.value) return
+    const code = String(raw ?? '').trim()
+    if (code.length < BARCODE_AUTO_QUERY_LENGTH) return
+    if (barcodeQueryInFlight.value) return
+    if (code === lastAutoQueriedBarcode.value) return
+    void checkWarranty()
+  }
+
   // 用于避免“回显草稿”时触发 warrantyCode 监听器清空数据
   const isRestoringDraft = ref(false)
   /**
@@ -802,18 +825,21 @@
   )
 
   /**
-   * 扫描条形码
+   * 扫描条形码：写入条码后立即查询（无需再点「查询」）
    * @returns void
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
-  const handleScan = () => {
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
+  const handleScan = async () => {
     if (toastIfMediaUploading()) return
-    uni.scanCode({
-      success: (res) => {
-        formData.value.warrantyCode = res.result
-      }
-    })
+    const scanRes = await scanProductBarcode({ toastOnCancel: true })
+    if (scanRes.status === 'cancel') return
+    if (scanRes.status === 'empty') {
+      uni.showToast({ title: '未识别到条形码', icon: 'none', duration: 1500 })
+      return
+    }
+    formData.value.warrantyCode = scanRes.code
+    void checkWarranty()
   }
 
   /**
@@ -851,6 +877,8 @@
     if (!formData.value.warrantyCode) {
       return uni.showToast({ title: '请输入条形码', icon: 'none', duration: 1500 })
     }
+    const queryingBarcode = String(formData.value.warrantyCode ?? '').trim()
+    barcodeQueryInFlight.value = true
     uni.showLoading({ title: '查询中...' })
     const upstreamTid = Number(formData.value.targetCompanyId)
     let request: ReturnType<typeof getProxyCreateBarcodeInfo>
@@ -906,9 +934,9 @@
 
       if (!silentToast) {
         const title = msg.trim() || info?.warrantyStatus || '查询成功'
-        uni.showToast({ title, icon: 'none', duration: 1500 })
+        showBarcodeQueryToast({ title, kind: 'success', icon: 'none' })
       }
-    } catch {
+    } catch (err: unknown) {
       uni.hideLoading()
       faultDescriptionOptionsFromApi.value = []
       barcodeQueryHasFaultDescription.value = false
@@ -925,6 +953,16 @@
         }
       }
       nextTick(() => syncShowFaultRemarkFromState())
+      if (!silentToast) {
+        const failMsg = getApiMessage(
+          err as { msg?: string } | null | undefined,
+          '查询失败'
+        )
+        showBarcodeQueryToast({ title: failMsg, kind: 'fail', icon: 'none' })
+      }
+    } finally {
+      barcodeQueryInFlight.value = false
+      lastAutoQueriedBarcode.value = queryingBarcode
     }
   }
 
@@ -1102,6 +1140,10 @@
         faultDescriptionOptionsFromApi.value = []
         queryFailedWithBarcode.value = false
         warrantyQueried.value = false
+        const code = String(val ?? '').trim()
+        if (code.length < BARCODE_AUTO_QUERY_LENGTH) {
+          lastAutoQueriedBarcode.value = ''
+        }
       }
       if (!val) {
         formData.value.faultDescription = []
@@ -1110,6 +1152,7 @@
       } else {
         nextTick(() => syncShowFaultRemarkFromState())
       }
+      tryAutoQueryWhenBarcodeLengthReached(String(val ?? ''))
     }
   )
 

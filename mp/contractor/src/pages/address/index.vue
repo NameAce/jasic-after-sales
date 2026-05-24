@@ -70,7 +70,7 @@
               :right-options="swipeDeleteOptions"
               @click="onSwipeItemClick($event, item.id)"
             >
-              <view class="addr-card" @click="goEdit(item.id)">
+              <view class="addr-card">
                 <view class="addr-top">
                   <view class="addr-top-left">
                     <text class="addr-name">{{ item.name }}</text>
@@ -86,8 +86,12 @@
                     <uni-icons type="compose" size="20" :color="themeColor.textLabel" />
                   </view>
                 </view>
-                <view v-if="item.isDefault !== 1" class="addr-actions" @click.stop>
-                  <text class="link-primary" @click="setAsDefault(item.id)">设为默认</text>
+                <view
+                  v-if="item.isDefault !== 1"
+                  class="addr-actions"
+                  @click.stop="setAsDefault(item.id)"
+                >
+                  <text class="link-primary">设为默认</text>
                 </view>
               </view>
             </uni-swipe-action-item>
@@ -134,10 +138,10 @@
   const navTitle = computed(() => (isSelectMode.value ? '选择寄件信息' : '我的地址'))
 
   /**
- * 左滑「删除」按钮样式（与 $danger 一致）
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 左滑「删除」按钮样式（与 $danger 一致）
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const swipeDeleteOptions = [
     {
       text: '删除',
@@ -167,9 +171,9 @@
 
   /**
    * 从服务端拉取地址列表并同步本地缓存（供编辑页读取）
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const refresh = async () => {
     try {
       const res = await listCompanyAddress()
@@ -197,9 +201,9 @@
 
   /**
    * 页面显示时刷新地址列表
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   onShow(() => {
     refresh()
   })
@@ -208,14 +212,14 @@
    * 格式化地址
    * @param a 地址对象
    * @returns 格式化后的地址
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   /**
- * 优先展示接口返回的 fullAddress，否则拼接省市区与详细地址
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * 优先展示接口返回的 fullAddress，否则拼接省市区与详细地址
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const fullAddress = (a: SavedAddress) => {
     const line = a.fullAddress?.trim()
     if (line) return line
@@ -224,9 +228,9 @@
 
   /**
    * 调起微信收货地址（主要支持微信小程序；其他端会失败并提示）
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const importFromWeChat = () => {
     uni.chooseAddress({
       success: (res) => {
@@ -274,9 +278,9 @@
 
   /**
    * 跳转到手动填写地址页面
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const goManualAdd = () => {
     uni.navigateTo({ url: '/pages/address/edit' })
   }
@@ -284,9 +288,9 @@
   /**
    * 跳转到编辑地址页面
    * @param id 地址ID
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const goEdit = (id: string) => {
     uni.navigateTo({ url: `/pages/address/edit?id=${encodeURIComponent(id)}` })
   }
@@ -299,9 +303,9 @@
   /**
    * 设为默认地址
    * @param id 地址ID
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const setAsDefault = (id: string) => {
     const idNum = Number(id)
     if (!Number.isFinite(idNum)) {
@@ -325,9 +329,9 @@
   /**
    * 删除地址
    * @param id 地址ID
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-22
+   */
   const removeAddress = (id: string) => {
     uni.showModal({
       title: '提示',
@@ -546,6 +550,12 @@
       margin-top: 20rpx;
       padding-top: 20rpx;
       border-top: 2rpx solid $border-lighter;
+      min-height: 72rpx;
+      box-sizing: border-box;
+
+      &:active {
+        opacity: 0.75;
+      }
     }
 
     .link-primary {

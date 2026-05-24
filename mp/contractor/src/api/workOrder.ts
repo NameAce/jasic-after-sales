@@ -2222,6 +2222,8 @@ export async function getProxyCreateBarcodeInfo(barcode: string): Promise<Barcod
     header: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
+    /** 由报修页在 hideLoading 后统一 toast 接口 msg，避免 iOS 上 1500ms 失败提示过短 */
+    skipErrorToast: true,
   })
 
   return {
@@ -2249,6 +2251,7 @@ export async function getUpstreamFirstCreateBarcodeInfo(
     header: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
+    skipErrorToast: true,
   })
 
   return {
@@ -2300,6 +2303,7 @@ export async function getUpstreamHqCreateBarcodeInfo(
     header: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
+    skipErrorToast: true,
   })
 
   return {

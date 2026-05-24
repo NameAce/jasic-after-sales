@@ -7,7 +7,10 @@
     :background="themeColors.primary"
     :shadow="false"
   />
-  <view class="page-container page-index order-detail-page">
+  <view
+    class="page-container page-index order-detail-page"
+    :class="{ 'order-detail-page--ios': isIOSPlatform }"
+  >
     <!-- 导航栏 -->
     <view class="top-section">
       <!-- 工单状态 -->
@@ -31,10 +34,7 @@
       </view>
     </view>
 
-    <view
-      class="main-content page-padding"
-      :class="{ 'has-fixed-bottom-btn': showAssignDispatchBar || currentTab === 0 }"
-    >
+    <view class="main-content page-padding">
       <view class="content-wrap">
         <!-- 标签容器 -->
         <view class="tab-container">
@@ -354,13 +354,6 @@
               </template>
             </view>
           </view>
-
-          <!-- 联系受理网点（待派单时底部为「派单」，电话见 service/受理信息） -->
-          <base-button v-if="currentTab === 0 && !showAssignDispatchBar">
-            <view class="btn btn-primary action-wrap" @click="goToContact">
-              <image class="btn-icon" :src="contactPhoneIcon" mode="aspectFit" />联系受理网点
-            </view>
-          </base-button>
         </template>
 
         <!-- ===== Tab 1 外部卡片（单容器：避免多根节点各自吃 content-wrap 的 gap；Tab 内无 section 时与 Tab 白底衔接） ===== -->
@@ -445,7 +438,6 @@
             <view class="fault-point-info">
               <view class="history-header">
                 <text class="history-title">最近维修记录</text>
-                <view class="history-btn" @click="repairHistoryRecord">查看历史记录</view>
               </view>
               <view class="history-record">
                 <view class="record-top">
@@ -463,47 +455,20 @@
         </view>
       </view>
     </view>
-
-    <base-button v-if="showAssignDispatchBar">
-      <view class="btn btn-primary action-wrap" @click="openAssignModal">派单</view>
-    </base-button>
-
-    <AssignTechnicianModal
-      v-model="showAssignModal"
-      v-model:selected-tech-id="selectedTechId"
-      :technician-list="assignTechnicianList"
-      :assign-work-order-id="orderId"
-      title="指派维修员"
-      @close="closeAssignModal"
-      @confirm="onAssignConfirm"
-    />
   </view>
 </template>
 
 <script setup lang="ts">
-  import { ref, computed, watch, nextTick } from 'vue'
+  import { ref, computed, watch } from 'vue'
   import { onLoad, onShow } from '@dcloudio/uni-app'
-  import BaseButton from '@/components/BaseButton/BaseButton.vue'
-  import AssignTechnicianModal, {
-    type Technician
-  } from '@/components/AssignTechnicianModal/AssignTechnicianModal.vue'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
-  import {
-    assignWorkOrder,
-    getCustomerWorkOrder,
-    listAssignUserOptions,
-    type OrderDetail
-  } from '@/api/workOrder'
+  import { getCustomerWorkOrder, type OrderDetail } from '@/api/workOrder'
   import { WORK_ORDER_MAIN_STATUS } from '@/models/order'
-  import { useUserStore } from '@/stores'
-  import { getApiMessage } from '@/utils/http'
   import { getStatusDesc } from '@/utils/orderStatus'
-  import { WORK_ORDER_REPAIR_FAULTS_HISTORY_STORAGE_KEY } from '@/constants/historicalRecord'
   import VoicePlaybackList, {
     type VoicePlaybackItem
   } from '@/components/VoicePlaybackList/VoicePlaybackList.vue'
   import {
-    contactPhoneIcon,
     playCircleIcon,
     statusBuildCircleIcon,
     statusCheckCircleIcon,
@@ -529,8 +494,6 @@
     }
   }
 
-  const userStore = useUserStore()
-
   /**
    * 按状态同步默认 Tab：待接单看申请内容，其余看维修过程
    * @修改人 黄碧莲
@@ -550,6 +513,9 @@
   const orderStatus = ref('')
   // 工单ID
   const orderId = ref<string>('')
+
+  /** 是否 iOS（用于底部额外 safe-area 留白） */
+  const isIOSPlatform = ref(false)
 
   // 工单信息
   const order = ref<OrderDetail>({
@@ -601,28 +567,11 @@
   })
 
   /**
-   * `mainStatus === PENDING_ASSIGN` 时展示底部派单（需具备网点侧 token 才能调 system 接口）
-   * @修改人 黄碧莲
-   * @修改时间 2026-05-22
-   */
-  const showAssignDispatchBar = computed(
-    () =>
-      String(order.value.mainStatus ?? '')
-        .trim()
-        .toUpperCase()
-        .replace(/-/g, '_') === WORK_ORDER_MAIN_STATUS.PENDING_ASSIGN
-  )
-
-  /**
    * 详情顶栏状态标题：与列表「待接单」等 Tab 中文桶一致，不再单独展示「待派单」
    * @修改人 黄碧莲
    * @修改时间 2026-05-22
    */
   const orderStatusBannerText = computed(() => orderStatus.value)
-
-  const showAssignModal = ref(false)
-  const assignTechnicianList = ref<Technician[]>([])
-  const selectedTechId = ref<number | string | null>(null)
 
   /**
    * 页面加载
@@ -632,6 +581,13 @@
    * @修改时间 2026-05-22
    */
   onLoad((options: any) => {
+    try {
+      const platform = String(uni.getSystemInfoSync().platform || '').toLowerCase()
+      isIOSPlatform.value = platform === 'ios'
+    } catch {
+      isIOSPlatform.value = false
+    }
+
     orderId.value = String(options?.id || options?.orderId || '')
 
     const rawStatus = options?.status
@@ -990,17 +946,6 @@
   })
 
   /**
-   * 受理网点电话（用于「联系受理网点」拨号）：与接口 `currentAcceptCompanyPhone` 同源，勿用客户 `customerMobile`。
-   * @修改人 黄碧莲
-   * @修改时间 2026-05-22
-   */
-  const contactPhone = computed(() => {
-    const fromOutlet = String(order.value.acceptor.currentAcceptCompanyPhone ?? '').trim()
-    if (fromOutlet) return fromOutlet
-    return String(order.value.service.sitePhone ?? order.value.acceptor.sitePhone ?? '').trim()
-  })
-
-  /**
    * 状态描述
    * @returns string
    * @修改人 黄碧莲
@@ -1127,118 +1072,6 @@
       currentTab.value = 1
     }
   })
-
-  /**
-   * 跳转到故障点维修记录
-   * @returns void
-   * @修改人 黄碧莲
-   * @修改时间 2026-05-22
-   */
-  const repairHistoryRecord = () => {
-    const id = orderId.value
-    if (!id) {
-      uni.showToast({ title: '缺少工单编号', icon: 'none', duration: 1500 })
-      return
-    }
-    try {
-      uni.setStorageSync(
-        WORK_ORDER_REPAIR_FAULTS_HISTORY_STORAGE_KEY,
-        JSON.stringify(order.value.faultPoint?.records ?? [])
-      )
-    } catch {
-      /* 存储失败仍跳转，历史页展示空 */
-    }
-    uni.navigateTo({
-      url: `/pages/historicalRecord/index?orderId=${encodeURIComponent(id)}&mode=repairs`
-    })
-  }
-
-  /**
-   * 跳转到联系受理网点
-   * @returns void
-   * @修改人 黄碧莲
-   * @修改时间 2026-05-22
-   */
-  const goToContact = () => {
-    const phone = contactPhone.value
-    if (!phone) {
-      uni.showToast({ title: '暂无网点电话', icon: 'none', duration: 1500 })
-      return
-    }
-    uni.makePhoneCall({ phoneNumber: phone })
-  }
-
-  const closeAssignModal = () => {
-    showAssignModal.value = false
-    assignTechnicianList.value = []
-    selectedTechId.value = null
-  }
-
-  const openAssignModal = async () => {
-    const openedFor = String(orderId.value ?? '').trim()
-    if (!openedFor) {
-      uni.showToast({ title: '缺少工单编号', icon: 'none', duration: 1500 })
-      return
-    }
-    showAssignModal.value = true
-    selectedTechId.value = null
-    assignTechnicianList.value = []
-
-    const workOrderId = Number(openedFor)
-    if (!Number.isFinite(workOrderId) || workOrderId <= 0) return
-    try {
-      uni.showLoading({ title: '加载可派单人员...' })
-      const list = await listAssignUserOptions(workOrderId)
-      const selfId = Number(userStore.userInfo?.userId)
-      assignTechnicianList.value = list.map((u) => ({
-        id: u.id,
-        name:
-          Number(u.id) === selfId
-            ? `${u.realName || u.phone || `用户${u.id}`}（本人）`
-            : u.realName || u.phone || `用户${u.id}`,
-        phone: u.phone || '',
-        avatar: '',
-        desc: u.phone || '',
-        isRecommend: false,
-        distance: '',
-        time: '',
-        isBusy: false
-      }))
-    } finally {
-      uni.hideLoading()
-    }
-  }
-
-  const onAssignConfirm = async (payload: {
-    workOrderId: string | number
-    selectedTechId: number | string
-  }) => {
-    const workOrderId = Number(payload.workOrderId ?? orderId.value)
-    if (!Number.isFinite(workOrderId) || workOrderId <= 0) {
-      uni.showToast({ title: '工单ID无效', icon: 'none' })
-      return
-    }
-    const assignedUserId = Number(payload?.selectedTechId)
-    if (!Number.isFinite(assignedUserId) || assignedUserId <= 0) {
-      uni.showToast({ title: '维修员ID无效', icon: 'none' })
-      return
-    }
-    const selfId = Number(userStore.userInfo?.userId)
-    const isSelf = Number.isFinite(selfId) && selfId > 0 && assignedUserId === selfId
-    try {
-      const res = await assignWorkOrder({ workOrderId, assignedUserId })
-      if (isSelf) {
-        uni.showToast({ title: '已派单给自己，可在「待接单」中接单', icon: 'none', duration: 1500 })
-      } else {
-        uni.showToast({ title: getApiMessage(res, '派单成功'), icon: 'none', duration: 1500 })
-      }
-      closeAssignModal()
-      await nextTick()
-      await loadDetail()
-    } catch {
-      /* http 层已 toast */
-    }
-  }
 
   /**
    * 预览故障图片
@@ -1393,13 +1226,13 @@
     z-index: 1;
     background: transparent;
     box-sizing: border-box;
+    /* 默认底部留白；iOS 再叠加 Home 指示条安全区（见 .order-detail-page--ios） */
+    padding-bottom: 40rpx;
   }
 
-  /* tab 下有 BaseButton（fixed）时，给内容留出底部空间避免遮挡 */
-  .main-content.page-padding.has-fixed-bottom-btn {
-    /* BaseButton 实际占用：24(top)+80(content)+24(bottom)+safe-area，再额外留 32rpx 缓冲 */
-    padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
-    padding-bottom: calc(160rpx + constant(safe-area-inset-bottom));
+  .order-detail-page--ios .main-content.page-padding {
+    padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+    padding-bottom: calc(20rpx + constant(safe-area-inset-bottom));
   }
 
   .content-wrap {
@@ -1568,21 +1401,6 @@
     border: none;
   }
 
-  .action-wrap {
-    @include btn-reset;
-
-    .btn-icon {
-      width: $font-xxl;
-      height: $font-xxl;
-      margin-right: $space-sm;
-      flex-shrink: 0;
-    }
-
-    &:active {
-      opacity: 0.9;
-    }
-  }
-
   .fault-details {
     @include flex-column;
     gap: $space-lg;
@@ -1675,19 +1493,8 @@
     gap: $space-lg;
 
     .history-header {
-      @include flex-between;
-
       .history-title {
         @include info-label;
-      }
-
-      .history-btn {
-        padding: $space-xs $space-md;
-        background-color: rgba($primary, 0.1);
-        color: $primary;
-        font-size: $font-sm;
-        font-weight: bold;
-        border-radius: $radius-round;
       }
     }
 
