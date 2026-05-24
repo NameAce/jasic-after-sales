@@ -48,3 +48,48 @@ export function workOrderMainStatusTagColor(status: string | undefined): string 
   };
   return map[s] || 'default';
 }
+
+/** 常见系统角色 role_key → Tag 色（同一角色全站列表颜色一致）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-24
+ */
+const USER_ROLE_KEY_TAG_COLORS: Record<string, string> = {
+  platform_admin: 'purple',
+  admin: 'warning',
+  'js-admin': 'orange',
+  repairer: 'green',
+  dispatcher: 'cyan'
+};
+
+/** 未命中预设 role_key 时按标识哈希分配的 Tag 色板（相邻角色尽量不同色）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-24
+ */
+const USER_ROLE_TAG_PALETTE = [
+  'success',
+  'magenta',
+  'geekblue',
+  'volcano',
+  'green',
+  'gold',
+  'blue',
+  'error'
+] as const;
+
+/**
+ * 用户列表「角色」列 Tag 颜色：优先按 role_key 预设，否则按 role_key 哈希取色，保证同名角色颜色稳定。
+ * @param roleKeyOrSeed - 角色 role_key；缺失时可传角色 id 或名称作为兜底种子
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-24
+ */
+export function userRoleTagColor(roleKeyOrSeed: string | number | undefined): string {
+  const key = String(roleKeyOrSeed ?? '').trim().toLowerCase();
+  if (!key) return 'default';
+  const preset = USER_ROLE_KEY_TAG_COLORS[key];
+  if (preset) return preset;
+  let hash = 0;
+  for (let i = 0; i < key.length; i += 1) {
+    hash = (hash * 31 + key.charCodeAt(i)) | 0;
+  }
+  return USER_ROLE_TAG_PALETTE[Math.abs(hash) % USER_ROLE_TAG_PALETTE.length];
+}

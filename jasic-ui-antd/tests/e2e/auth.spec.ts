@@ -9,12 +9,7 @@ import type { Page } from '@playwright/test';
 const LOGIN_PAGE_TEXT = {
   userNamePlaceholder: '请输入用户名或手机号',
   passwordPlaceholder: '请输入密码',
-  phonePlaceholder: '请输入手机号',
-  codePlaceholder: '请输入验证码',
-  confirmPasswordPlaceholder: '请再次输入密码',
-  forgetPassword: '忘记密码？',
-  confirm: /确\s*认/,
-  back: /返\s*回/
+  confirm: /确\s*认/
 } as const;
 
 /**
@@ -40,19 +35,6 @@ test.describe('Web 黑盒冒烟 - 登录入口', () => {
     await openPasswordLoginPage(page);
 
     await expect(page.getByRole('button', { name: LOGIN_PAGE_TEXT.confirm })).toBeVisible();
-  });
-
-  test('点击忘记密码后应切换到重置密码表单', async ({ page }) => {
-    await openPasswordLoginPage(page);
-
-    // 这里验证模块切换结果，只关注用户可见表单，不耦合路由内部实现细节。
-    await page.getByRole('button', { name: LOGIN_PAGE_TEXT.forgetPassword }).click();
-
-    await expect(page.getByPlaceholder(LOGIN_PAGE_TEXT.phonePlaceholder)).toBeVisible();
-    await expect(page.getByPlaceholder(LOGIN_PAGE_TEXT.codePlaceholder)).toBeVisible();
-    await expect(page.getByPlaceholder(LOGIN_PAGE_TEXT.passwordPlaceholder)).toBeVisible();
-    await expect(page.getByPlaceholder(LOGIN_PAGE_TEXT.confirmPasswordPlaceholder)).toBeVisible();
-    await expect(page.getByRole('button', { name: LOGIN_PAGE_TEXT.back })).toBeVisible();
   });
 
   test('配置测试账号后可执行真实账号密码登录', async ({ page }) => {

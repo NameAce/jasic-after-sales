@@ -7,7 +7,7 @@
 import { computed, nextTick, onMounted, reactive, ref } from 'vue';
 import type { FormInstance } from 'ant-design-vue';
 import type { Key } from 'ant-design-vue/es/_util/type';
-import { tagColorEnabled } from '@/constants/list-status-tag';
+import { tagColorEnabled, userRoleTagColor } from '@/constants/list-status-tag';
 import {
   type SysRoleVO,
   addRole,
@@ -573,7 +573,16 @@ onMounted(async () => {
         :scroll="scrollConfig"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'dataScope'">
+          <template v-if="column.key === 'roleName'">
+            <ATag
+              v-if="record.roleName"
+              :color="userRoleTagColor(record.roleKey || record.id || record.roleName)"
+            >
+              {{ record.roleName }}
+            </ATag>
+            <span v-else>-</span>
+          </template>
+          <template v-else-if="column.key === 'dataScope'">
             {{ dataScopeMap[record.dataScope] || record.dataScope || '-' }}
           </template>
           <template v-else-if="column.key === 'status'">

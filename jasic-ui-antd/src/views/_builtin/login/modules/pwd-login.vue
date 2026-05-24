@@ -7,7 +7,6 @@
 import { computed, reactive } from 'vue';
 import { useAuthStore } from '@/store/modules/auth';
 import { useAntdForm, useFormRules } from '@/hooks/common/form';
-import { useRouterPush } from '@/hooks/common/router';
 import { $t } from '@/locales';
 
 defineOptions({
@@ -15,7 +14,6 @@ defineOptions({
 });
 
 const authStore = useAuthStore();
-const { toggleLoginModule } = useRouterPush();
 const { formRef, validate } = useAntdForm();
 
 interface FormModel {
@@ -65,11 +63,9 @@ async function handleSubmit() {
       />
     </AFormItem>
     <ASpace direction="vertical" size="large" class="w-full">
-      <div class="flex-y-center justify-between">
+      <!-- 产品要求不展示「忘记密码」入口，重置密码模块仍保留供后续按需开放 -->
+      <div class="flex-y-center">
         <ACheckbox>{{ $t('page.login.pwdLogin.rememberMe') }}</ACheckbox>
-        <AButton type="text" @click="toggleLoginModule('reset-pwd')">
-          {{ $t('page.login.pwdLogin.forgetPassword') }}
-        </AButton>
       </div>
       <AButton type="primary" block size="large" shape="round" :loading="authStore.loginLoading" @click="handleSubmit">
         {{ $t('common.confirm') }}
