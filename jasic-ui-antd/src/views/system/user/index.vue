@@ -37,8 +37,8 @@ import PageSearchExpandButton from '@/components/custom/page-search-expand-butto
 
 type RowData = Record<string, any>;
 
-/** 操作列宽：本页 6 个链接按钮一排展示 */
-const USER_ACTION_COL_WIDTH = 520;
+/** 操作列宽：本页最多 6 个链接按钮一排展示 */
+const USER_ACTION_COL_WIDTH = 320;
 /** 行内操作相关按钮权限（任一即可展示操作列） */
 const USER_ROW_ACTION_AUTH_CODES = [
   'system:user:update',
@@ -58,7 +58,7 @@ const showUserTableActionColumn = computed(
     (authStore.userInfo.currentSubjectType === 'HQ' && hasAuth(['system:region:list', 'system:region:assign']))
 );
 
-const userListTableScrollMinX = computed(() => 1040 + (showUserTableActionColumn.value ? USER_ACTION_COL_WIDTH : 0));
+const userListTableScrollMinX = computed(() => 1220 + (showUserTableActionColumn.value ? USER_ACTION_COL_WIDTH : 0));
 // 表格区域滚动 Hook
 const { tableWrapperRef, scrollConfig } = useTableScroll(userListTableScrollMinX);
 const pageMenuTitle = useRouteMenuTitle();
@@ -169,8 +169,20 @@ const columns = computed(() =>
         width: 220,
         ellipsis: true
       },
+      {
+        title: '角色',
+        dataIndex: 'roles',
+        key: 'roles',
+        width: 180,
+        ellipsis: true
+      },
       { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
-      { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 180 }
+      {
+        title: '创建时间',
+        dataIndex: 'createTime',
+        key: 'createTime',
+        width: 180
+      }
     ]),
     showUserTableActionColumn.value,
     createAntTableActionColumn({ width: USER_ACTION_COL_WIDTH })
@@ -187,6 +199,18 @@ function pickRows(data: any) {
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.records)) return data.records;
   return [];
+}
+
+/**
+ * 作用：从用户行数据中解析当前公司下角色名称列表，供列表「角色」列展示。
+ * @param record - 用户列表行
+ * @returns 角色名称数组（无角色时为空数组）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-24
+ */
+function formatUserRoleLabels(record: RowData): string[] {
+  if (!Array.isArray(record.roles)) return [];
+  return record.roles.map((role: RowData) => String(role?.roleName ?? role?.roleKey ?? '').trim()).filter(Boolean);
 }
 
 /**
@@ -732,7 +756,15 @@ async function submitAssignRegions() {
         :scroll="scrollConfig"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
+          <template v-if="column.key === 'roles'">
+            <ASpace v-if="formatUserRoleLabels(record).length" :size="4" wrap>
+              <ATag v-for="label in formatUserRoleLabels(record)" :key="label" color="processing">
+                {{ label }}
+              </ATag>
+            </ASpace>
+            <span v-else>-</span>
+          </template>
+          <template v-else-if="column.key === 'status'">
             <ATag :color="tagColorEnabled(record.status === 1)">
               {{ record.status === 1 ? '启用' : '停用' }}
             </ATag>

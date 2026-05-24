@@ -1,3 +1,4 @@
+import process from 'node:process';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 

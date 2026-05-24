@@ -61,6 +61,7 @@
   "devDependencies": {
     "@elegant-router/vue": "0.3.8",
     "@iconify/json": "2.2.417",
+    "@playwright/test": "^1.60.0",
     "@sa/scripts": "workspace:*",
     "@sa/uno-preset": "workspace:*",
     "@soybeanjs/eslint-config": "1.7.5",

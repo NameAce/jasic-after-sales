@@ -61,9 +61,10 @@ import {
   updateRoleTemplate,
   updateSyncTask
 } from '@/service/api';
+import { useAuthStore } from '@/store/modules/auth';
+import { useAuth } from '@/hooks/business/auth';
 import { adaptiveModalFormGridClass, adaptiveModalWidth } from '@/hooks/common/modal-form-layout';
 import { useRouteMenuTitle } from '@/hooks/common/route-menu-title';
-import { useAuth } from '@/hooks/business/auth';
 import { usePageSearchFilterCollapse } from '@/hooks/common/page-search-filter-collapse';
 import { useTableScroll } from '@/hooks/common/table';
 import {
@@ -89,6 +90,12 @@ type ModuleKey = 'dict' | 'config' | 'notifyTemplate' | 'barcode' | 'syncTask' |
 const route = useRoute();
 const pageMenuTitle = useRouteMenuTitle();
 const { hasAuth } = useAuth();
+const authStore = useAuthStore();
+
+/** 故障维修配置：当前为总部账号（列表筛选默认不选归属总部，后端按当前总部收口） */
+const isFaultRepairHqUser = computed(() => authStore.userInfo.currentSubjectType === 'HQ');
+/** 故障维修配置：当前为平台超管（列表筛选须选择归属总部） */
+const isFaultRepairPlatformUser = computed(() => authStore.userInfo.currentSubjectType === 'PLATFORM');
 
 const dictSearchFilter = usePageSearchFilterCollapse(3);
 const notifySearchFilter = usePageSearchFilterCollapse(3);
@@ -492,16 +499,36 @@ async function ensureFaultCompanyOptions() {
 }
 
 /**
- * 作用：应用配置或路由参数：applyDefaultFaultRepairCompanyFilter。
+ * 作用：故障维修配置列表 — 按身份回填「归属总部」筛选默认值。
+ * 总部账号不自动选中（后端 list 接口会按当前登录总部收口）；平台超管默认选第一个总部。
  * @returns void
  * @修改人 黄碧莲
- * @修改时间 2026-05-22
+ * @修改时间 2026-05-24
  */
 function applyDefaultFaultRepairCompanyFilter() {
   if (faultQuery.companyId != null) return;
+  // 总部用户：保持空选，查询时不传 companyId，由后端解析当前总部
+  if (isFaultRepairHqUser.value) return;
   const list = faultCompanyOptions.value;
   if (!list.length) return;
   faultQuery.companyId = Number(list[0].id ?? list[0].value);
+}
+
+/**
+ * 作用：平台超管查询故障维修配置前校验是否已选归属总部，避免后端报「缺少目标公司上下文」。
+ * @returns 校验通过为 true
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-24
+ */
+function ensureFaultRepairListQueryReady(): boolean {
+  if (activeKey.value !== 'fault' || !isFaultRepairPlatformUser.value) {
+    return true;
+  }
+  if (faultQuery.companyId != null) {
+    return true;
+  }
+  window.$message?.warning('请选择归属总部');
+  return false;
 }
 
 /**
@@ -1014,6 +1041,11 @@ async function loadList() {
     }
     if (activeKey.value === 'fault') {
       await ensureFaultCompanyOptions();
+      if (!ensureFaultRepairListQueryReady()) {
+        rows.value = [];
+        total.value = 0;
+        return;
+      }
     }
     if (activeKey.value === 'barcode') {
       await ensureBarcodeHqOptions();
@@ -2953,10 +2985,10 @@ onActivated(async () => {
                   <AFormItem label="归属总部" class="m-0">
                     <ASelect
                       v-model:value="faultQuery.companyId"
-                      allow-clear
+                      :allow-clear="isFaultRepairHqUser"
                       show-search
                       option-filter-prop="label"
-                      placeholder="请选择总部"
+                      :placeholder="isFaultRepairPlatformUser ? '请选择总部（必选）' : '默认当前总部'"
                       class="w-full"
                       :options="
                         faultCompanyOptions.map((c: RowData) => ({

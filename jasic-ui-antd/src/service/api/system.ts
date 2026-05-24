@@ -59,6 +59,8 @@ export interface SysUserVO {
   currentTypeCode?: string;
   currentSubjectType?: string;
   perms?: string[];
+  /** 当前公司下已分配角色（列表与详情接口均可能返回） */
+  roles?: SysRoleVO[];
   createTime?: string;
 }
 
