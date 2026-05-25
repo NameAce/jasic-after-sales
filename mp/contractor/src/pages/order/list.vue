@@ -208,7 +208,7 @@
    * @修改时间 2026-05-22
    */
   import { ref, computed, nextTick, watch } from 'vue'
-  import { onLoad, onShow } from '@dcloudio/uni-app'
+  import { onLoad, onShow, onHide } from '@dcloudio/uni-app'
   import { themeColors } from '@/theme/colors'
   import { useAppStore, useUserStore } from '@/stores'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
@@ -744,7 +744,8 @@
     refresherTriggered: orderListRefresherTriggered,
     onRefresherRefresh: onOrderListRefresherRefresh,
     onRefresherRestore: onOrderListRefresherRestore,
-    runWithRefresherFeedback: runOrderListWithRefresherFeedback
+    runWithRefresherFeedback: runOrderListWithRefresherFeedback,
+    resetScrollRefresher: resetOrderListRefresher
   } = useScrollRefresher(async () => {
     await refreshOrders()
   })
@@ -753,9 +754,29 @@
     refresherTriggered: branchViewRefresherTriggered,
     onRefresherRefresh: onBranchViewRefresherRefresh,
     onRefresherRestore: onBranchViewRefresherRestore,
-    runWithRefresherFeedback: runBranchViewWithRefresherFeedback
+    runWithRefresherFeedback: runBranchViewWithRefresherFeedback,
+    resetScrollRefresher: resetBranchViewRefresher
   } = useScrollRefresher(async () => {
     await refreshBranches()
+  })
+
+  /**
+   * Tab / 列表视图切换时复位两侧 refresher，避免下拉动画残留挡住一级、二级 Tab 点击
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-25
+   */
+  const resetAllListRefreshers = () => {
+    resetOrderListRefresher()
+    resetBranchViewRefresher()
+  }
+
+  watch([primaryTab, secondaryTab, showBranchView], () => {
+    resetAllListRefreshers()
+  })
+
+  /** 离开工单库页时兜底，防止返回后 refresher 仍处于 triggered */
+  onHide(() => {
+    resetAllListRefreshers()
   })
 
   // ==================== 派单员操作 ====================

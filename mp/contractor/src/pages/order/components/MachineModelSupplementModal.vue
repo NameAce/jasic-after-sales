@@ -1,5 +1,5 @@
 <template>
-  <!-- 佳士缺机型强制补录：无取消、蒙层不可关，须从列表选中机型并确认后才由父级关闭 -->
+  <!-- 佳士缺机型强制补录：蒙层不可关，可点「返回」离开详情；须从列表选中机型并确认后才由父级关闭 -->
   <view v-if="visible" class="mms-mask" @touchmove.stop.prevent>
     <view class="mms-card" @click.stop>
       <view class="mms-title">补录机器型号</view>
@@ -31,6 +31,7 @@
         </scroll-view>
       </view>
       <view class="mms-actions">
+        <view class="mms-btn mms-btn--back" @click="onBack">返回</view>
         <view
           :class="['mms-btn', 'mms-btn--confirm', !canSubmit && 'is-disabled']"
           @click="onConfirm"
@@ -44,7 +45,7 @@
 
 <script setup lang="ts">
   /**
-   * 佳士缺机型强制补录弹窗：须从归属总部已启用机型列表中点选一项后确认，不可取消或点蒙层关闭。
+   * 佳士缺机型强制补录弹窗：须从归属总部已启用机型列表中点选一项后确认；可点「返回」回到上一页，不可点蒙层关闭。
    * - 打开时用空 keyword 拉候选，并保存全量列表用于确认校验
    * - 用户输入时防抖再查（300ms）；仅点选列表项视为已选机型
    * - 确认：所选型号须在全量已启用列表中，成功后由父级关闭弹窗
@@ -61,6 +62,7 @@
 
   const emit = defineEmits<{
     (e: 'confirm', productModel: string): void
+    (e: 'back'): void
   }>()
 
   const keyword = ref('')
@@ -109,6 +111,20 @@
   const onOptionPick = (opt: string) => {
     keyword.value = opt
     pickedModel.value = opt
+  }
+
+  /**
+   * 返回上一页（维修员暂无法补录机型时退出详情）
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-25
+   */
+  const onBack = () => {
+    emit('back')
+    uni.navigateBack({
+      fail: () => {
+        uni.switchTab({ url: '/pages/order/list' })
+      }
+    })
   }
 
   const onConfirm = () => {
@@ -228,6 +244,7 @@
   .mms-actions {
     @include flex-row;
     justify-content: stretch;
+    gap: $space-md;
     padding-top: $space-sm;
   }
 
@@ -237,6 +254,12 @@
     font-size: 26rpx;
     padding: 14rpx 28rpx;
     border-radius: $radius-sm;
+  }
+
+  .mms-btn--back {
+    color: $text-slate-700;
+    background: $bg-light;
+    border: 2rpx solid $border-slate;
   }
 
   .mms-btn--confirm {

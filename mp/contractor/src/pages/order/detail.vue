@@ -224,6 +224,7 @@
       :visible="showMachineModelSupplement"
       :work-order-id="machineModelSupplementWorkOrderId"
       @confirm="onMachineModelSupplementConfirm"
+      @back="showMachineModelSupplement = false"
     />
 
     <!-- 待派单：全 Tab 底部固定派单（样式与维修登记「提交维修登记」一致） -->
