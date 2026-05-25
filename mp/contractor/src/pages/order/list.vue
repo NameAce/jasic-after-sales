@@ -56,6 +56,7 @@
       refresher-enabled
       :refresher-triggered="branchViewRefresherTriggered"
       @refresherrefresh="onBranchViewRefresherRefresh"
+      @refresherrestore="onBranchViewRefresherRestore"
       @scrolltolower="loadMoreBranches"
     >
       <!-- 网点统计概览 -->
@@ -114,6 +115,7 @@
       refresher-enabled
       :refresher-triggered="orderListRefresherTriggered"
       @refresherrefresh="onOrderListRefresherRefresh"
+      @refresherrestore="onOrderListRefresherRestore"
       @scrolltolower="loadMoreOrders"
     >
       <OrderCardList
@@ -469,12 +471,21 @@
   const refreshListEntry = async (useScrollRefresherUi: boolean) => {
     if (showBranchView.value) {
       baseOrderList.value = []
-      if (useScrollRefresherUi) await onBranchViewRefresherRefresh()
-      else await refreshBranches()
+      if (useScrollRefresherUi) {
+        await runBranchViewWithRefresherFeedback()
+      } else {
+        await refreshBranches()
+      }
       return
     }
-    if (useScrollRefresherUi) await onOrderListRefresherRefresh()
-    else await refreshOrders()
+    if (useScrollRefresherUi) {
+      await runOrderListWithRefresherFeedback(async () => {
+        await refreshOrders()
+        if (isHqUser.value) await refreshBranches()
+      })
+      return
+    }
+    await refreshOrders()
     if (isHqUser.value) await refreshBranches()
   }
 
@@ -731,14 +742,18 @@
 
   const {
     refresherTriggered: orderListRefresherTriggered,
-    onRefresherRefresh: onOrderListRefresherRefresh
+    onRefresherRefresh: onOrderListRefresherRefresh,
+    onRefresherRestore: onOrderListRefresherRestore,
+    runWithRefresherFeedback: runOrderListWithRefresherFeedback
   } = useScrollRefresher(async () => {
     await refreshOrders()
   })
 
   const {
     refresherTriggered: branchViewRefresherTriggered,
-    onRefresherRefresh: onBranchViewRefresherRefresh
+    onRefresherRefresh: onBranchViewRefresherRefresh,
+    onRefresherRestore: onBranchViewRefresherRestore,
+    runWithRefresherFeedback: runBranchViewWithRefresherFeedback
   } = useScrollRefresher(async () => {
     await refreshBranches()
   })

@@ -9,6 +9,7 @@
       refresher-enabled
       :refresher-triggered="refresherTriggered"
       @refresherrefresh="onRefresherRefresh"
+      @refresherrestore="onRefresherRestore"
       @scrolltolower="loadMoreAddresses"
     >
       <view class="page-index page-padding section">
@@ -190,7 +191,7 @@
     }
   }
 
-  const { refresherTriggered, onRefresherRefresh } = useScrollRefresher(async () => {
+  const { refresherTriggered, onRefresherRefresh, onRefresherRestore } = useScrollRefresher(async () => {
     await refresh()
   })
 

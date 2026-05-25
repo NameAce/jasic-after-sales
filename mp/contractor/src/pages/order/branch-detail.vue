@@ -38,6 +38,7 @@
         refresher-enabled
         :refresher-triggered="refresherTriggered"
         @refresherrefresh="onRefresherRefresh"
+        @refresherrestore="onRefresherRestore"
         @scrolltolower="loadMoreBranchOrders"
       >
         <!-- 与 list.vue 一致：scroll-view 内直接挂 OrderCardList，卡片间距由 order-pages 中 .list-container 承担 -->
@@ -179,7 +180,7 @@
     refreshBranchOrders()
   })
 
-  const { refresherTriggered, onRefresherRefresh } = useScrollRefresher(async () => {
+  const { refresherTriggered, onRefresherRefresh, onRefresherRestore } = useScrollRefresher(async () => {
     await refreshBranchOrders()
   })
 
