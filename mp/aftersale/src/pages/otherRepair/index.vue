@@ -143,6 +143,7 @@
   } from '@/utils/repairDraftStorage'
   import { takeSelectedShippingAddress, type SelectedShippingAddress } from '@/utils/addressStorage'
   import { parseUnknownError } from '@/utils/errorMessage'
+  import { hideRequestLoading, showApiToast, showRequestLoading } from '@/utils/uiFeedback'
   import {
     resolveSendExpressNoForSubmit,
     resolveShippingSubmitFields
@@ -407,23 +408,22 @@
       }
     }
 
-    uni.showLoading({ title: options.loadingTitle })
     try {
+      // createCustomerWorkOrder 是 POST，http.ts 已自动管理 loading
       const res = await createCustomerWorkOrder(buildOtherRepairWorkOrderPayload())
-      uni.hideLoading()
       /**
  * 关单后服务端会推「客户满意度评价通知」，需在创建工单时完成订阅授权
  * @修改人 黄碧莲
  * @修改时间 2026-05-22
  */
       await requestEvaluationInviteSubscribe()
-      uni.showToast({ title: res.msg, icon: 'none', duration: 1500 })
       if (options.redirect) {
         clearOtherRepairDraft()
-        setTimeout(() => {
-          uni.redirectTo({ url: `/pages/order/list` })
-        }, 1500)
+        // 等 toast 1500ms 阻塞期结束再跳转，确保用户能看完成功提示
+        await showApiToast(res.msg || '提交成功')
+        uni.redirectTo({ url: `/pages/order/list` })
       } else {
+        void showApiToast(res.msg || '提交成功')
         saveOtherRepairDraft({
           formData: JSON.parse(JSON.stringify(formData.value)) as OtherRepairDraftForm,
           selectedCenterDisplay: selectedCenterDisplay.value,
@@ -431,8 +431,7 @@
         })
       }
     } catch {
-      uni.hideLoading()
-      /* 失败提示由 http 层使用接口 msg */
+      /* 失败提示由 http 层使用接口 msg；loading 在 http.ts finally 中已关闭 */
     }
   }
 
@@ -444,19 +443,19 @@
  */
   const stashForm = () => {
     // 暂存只保存本地草稿：不校验、不提交接口
-    uni.showLoading({ title: '暂存中...' })
+    showRequestLoading('暂存中...')
     try {
       saveOtherRepairDraft({
         formData: JSON.parse(JSON.stringify(formData.value)) as OtherRepairDraftForm,
         selectedCenterDisplay: selectedCenterDisplay.value,
         showSupplementSection: showSupplementSection.value
       })
-      uni.hideLoading()
-      uni.showToast({ title: '已暂存', icon: 'none', duration: 1500 })
+      void showApiToast('已暂存')
     } catch (err: unknown) {
-      uni.hideLoading()
       const msg = parseUnknownError(err, '暂存失败')
-      uni.showToast({ title: msg, icon: 'none', duration: 1500 })
+      void showApiToast(msg)
+    } finally {
+      hideRequestLoading()
     }
   }
 

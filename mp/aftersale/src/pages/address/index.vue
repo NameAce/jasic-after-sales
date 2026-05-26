@@ -125,6 +125,7 @@
   import { addressManualIcon, wechatChatIcon } from '@/svgs'
   import ListNoMore from '@/components/ListNoMore/ListNoMore.vue'
   import { useScrollRefresher } from '@/utils/useScrollRefresher'
+  import { showApiToast } from '@/utils/uiFeedback'
 
   // 保存地址列表
   const addresses = ref<SavedAddress[]>([])
@@ -224,7 +225,7 @@
   const importFromWeChat = () => {
     uni.chooseAddress({
       success: (res) => {
-        uni.showLoading({ title: '保存中', mask: true })
+        // addCustomerAddress 是 POST，http.ts 已自动管理 loading
         addCustomerAddress({
           province: res.provinceName,
           city: res.cityName,
@@ -250,21 +251,14 @@
             list.unshift(next)
             saveAddresses(list)
             refresh()
-            uni.showToast({ title: '已保存', icon: 'none', duration: 1500 })
+            void showApiToast('已保存')
           })
           .catch(() => {
             /* http 已 toast */
           })
-          .finally(() => {
-            uni.hideLoading()
-          })
       },
       fail: () => {
-        uni.showToast({
-          title: '请在微信小程序内使用或检查授权',
-          icon: 'none',
-          duration: 1500
-        })
+        void showApiToast('请在微信小程序内使用或检查授权')
       }
     })
   }
@@ -302,20 +296,17 @@
   const setAsDefault = (id: string) => {
     const idNum = Number(id)
     if (!Number.isFinite(idNum)) {
-      uni.showToast({ title: '无法设为默认', icon: 'none', duration: 1500 })
+      void showApiToast('无法设为默认')
       return
     }
-    uni.showLoading({ title: '设置中', mask: true })
+    // setDefaultCustomerAddress 是 PUT，http.ts 已自动管理 loading
     setDefaultCustomerAddress(idNum)
       .then(() => refresh())
       .then(() => {
-        uni.showToast({ title: '已设为默认', icon: 'none', duration: 1500 })
+        void showApiToast('已设为默认')
       })
       .catch(() => {
         /* http 已 toast */
-      })
-      .finally(() => {
-        uni.hideLoading()
       })
   }
 
@@ -338,7 +329,7 @@
           addresses.value = list
           return
         }
-        uni.showLoading({ title: '删除中', mask: true })
+        // deleteCustomerAddress 是 DELETE，http.ts 已自动管理 loading
         deleteCustomerAddress(idNum)
           .then(() => {
             const list = loadAddresses().filter((a) => a.id !== id)
@@ -347,13 +338,10 @@
             return refresh()
           })
           .then(() => {
-            uni.showToast({ title: '已删除', icon: 'none', duration: 1500 })
+            void showApiToast('已删除')
           })
           .catch(() => {
             /* http 已 toast */
-          })
-          .finally(() => {
-            uni.hideLoading()
           })
       }
     })

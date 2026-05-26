@@ -1,8 +1,12 @@
 /**
  * 佳士报修「商品查询」结果 toast：按文案长度延长；iOS 失败提示额外加长（无 success 图标时体感偏短）
+ *
+ * 自 7.x 起，底层走统一 `showApiToast`，自动带 mask 阻塞操作（满足「过了时间才能继续操作」要求）。
  * @修改人 黄碧莲
- * @修改时间 2026-05-22
+ * @修改时间 2026-05-26
  */
+
+import { showApiToast } from '@/utils/uiFeedback'
 
 export type BarcodeQueryToastKind = 'success' | 'fail'
 
@@ -56,7 +60,8 @@ export function showBarcodeQueryToast(options: {
   const duration = barcodeQueryToastDuration(title, kind)
   const icon = options.icon ?? (kind === 'success' ? 'success' : 'none')
   const run = () => {
-    uni.showToast({ title, icon, duration })
+    // 走统一封装：自动 mask + duration 阻塞，避免 iOS 上提示被立即覆盖
+    void showApiToast(title, { icon, duration })
   }
   if (kind === 'fail' && isIOSPlatform()) {
     setTimeout(run, 80)

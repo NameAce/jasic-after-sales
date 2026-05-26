@@ -1,8 +1,10 @@
 /**
  * 媒体文件上传占用标记（如 MediaUploadField），用于在上传未完成时拦截同页其它操作。
  * @修改人 黄碧莲
- * @修改时间 2026-05-22
+ * @修改时间 2026-05-26
  */
+
+import { showApiToast } from '@/utils/uiFeedback'
 
 let mediaUploadDepth = 0
 
@@ -43,10 +45,6 @@ export function isMediaUploading(): boolean {
  */
 export function toastIfMediaUploading(): boolean {
   if (!isMediaUploading()) return false
-  uni.showToast({
-    title: '当前正在上传数据，请稍等',
-    icon: 'none',
-    duration: 2000
-  })
+  void showApiToast('当前正在上传数据，请稍等', { duration: 2000 })
   return true
 }

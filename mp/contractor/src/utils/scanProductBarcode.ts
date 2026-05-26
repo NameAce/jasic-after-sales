@@ -1,8 +1,10 @@
 /**
  * 调起小程序扫码并返回产品条码（佳士报修商品查询共用）
  * @修改人 黄碧莲
- * @修改时间 2026-05-22
+ * @修改时间 2026-05-26
  */
+
+import { showApiToast } from '@/utils/uiFeedback'
 
 export type ScanProductBarcodeResult =
   | { status: 'ok'; code: string }
@@ -35,7 +37,7 @@ export function scanProductBarcode(
       },
       fail: () => {
         if (toastOnCancel) {
-          uni.showToast({ title: '扫码已取消', icon: 'none', duration: 1500 })
+          void showApiToast('扫码已取消')
         }
         resolve({ status: 'cancel' })
       }

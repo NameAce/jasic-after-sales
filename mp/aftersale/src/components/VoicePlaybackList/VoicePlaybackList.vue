@@ -33,6 +33,7 @@
 <script setup lang="ts">
   import { ref, watch, onUnmounted, nextTick } from 'vue'
   import { themeColor } from '@/constants/theme'
+  import { showApiToast } from '@/utils/uiFeedback'
 
   /**
  * 播放条目：duration 为毫秒（可选，元数据未就绪时的显示回退）
@@ -153,7 +154,7 @@
       return local
     } catch (e) {
       console.error('download voice failed', e)
-      uni.showToast({ title: '语音下载失败', icon: 'none', duration: 1500 })
+      void showApiToast('语音下载失败')
       return null
     }
   }
@@ -384,7 +385,7 @@
   const playVoice = async (item: VoicePlaybackItem, index: number) => {
     if (!item.url) return
     if (!innerAudioContext) {
-      uni.showToast({ title: '当前环境不支持播放', icon: 'none', duration: 1500 })
+      void showApiToast('当前环境不支持播放')
       return
     }
     if (playingIndex.value === index) {

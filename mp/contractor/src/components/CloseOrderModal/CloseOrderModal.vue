@@ -47,6 +47,7 @@
 <script setup lang="ts">
   import { ref, computed } from 'vue'
   import CommonModal from '@/components/CommonModal/CommonModal.vue'
+  import { showApiToast } from '@/utils/uiFeedback'
 
   /**
    * 组件属性
@@ -110,10 +111,9 @@
   const onConfirm = () => {
     const text = reason.value.trim()
     if (!text) {
-      uni.showToast({
-        title: props.noFaultRequired ? '请填写关闭原因（无故障必填）' : '请输入关闭原因',
-        icon: 'none'
-      })
+      void showApiToast(
+        props.noFaultRequired ? '请填写关闭原因（无故障必填）' : '请输入关闭原因'
+      )
       return
     }
     emit('confirm', text)

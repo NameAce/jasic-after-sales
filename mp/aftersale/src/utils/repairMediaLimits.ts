@@ -1,8 +1,10 @@
 /**
  * 故障补充：1 视频 + 最多 3 张图
  * @修改人 黄碧莲
- * @修改时间 2026-05-22
+ * @修改时间 2026-05-26
  */
+import { showApiToast } from '@/utils/uiFeedback'
+
 export function validateFaultMediaSelection(
   tempFiles: { fileType?: string }[]
 ): boolean {
@@ -13,11 +15,11 @@ export function validateFaultMediaSelection(
     else if (file.fileType === 'image') imageCount++
   }
   if (videoCount > 1) {
-    uni.showToast({ title: '最多只能上传1个视频', icon: 'none', duration: 1500 })
+    void showApiToast('最多只能上传1个视频')
     return false
   }
   if (imageCount > 3) {
-    uni.showToast({ title: '最多只能上传3张图片', icon: 'none', duration: 1500 })
+    void showApiToast('最多只能上传3张图片')
     return false
   }
   return true

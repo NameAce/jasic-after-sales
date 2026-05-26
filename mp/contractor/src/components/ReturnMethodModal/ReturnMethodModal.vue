@@ -131,6 +131,7 @@
   import MediaUploadField from '@/components/MediaUploadField/MediaUploadField.vue'
   import { isValidCnMobile } from '@/utils/validation'
   import { collectVoucherFileIds, hasUnuploadedMediaItems } from '@/utils/workOrderFileIds'
+  import { showApiToast } from '@/utils/uiFeedback'
   import { editIcon } from '@/svgs'
 
   type InitialMailFields = {
@@ -332,7 +333,7 @@
  */
   const onConfirm = () => {
     if (returnType.value !== 'self' && returnType.value !== 'mail') {
-      uni.showToast({ title: '请选择机器返回方式', icon: 'none' })
+      void showApiToast('请选择机器返回方式')
       return
     }
     if (returnType.value === 'self') {
@@ -345,28 +346,28 @@
     const phone = receiverPhone.value.trim()
     const addr = receiverAddress.value.trim()
     if (!name) {
-      uni.showToast({ title: '请填写收货人', icon: 'none' })
+      void showApiToast('请填写收货人')
       return
     }
     if (!phone) {
-      uni.showToast({ title: '请填写联系电话', icon: 'none' })
+      void showApiToast('请填写联系电话')
       return
     }
     if (!isValidCnMobile(phone)) {
-      uni.showToast({ title: '请输入11位手机号', icon: 'none' })
+      void showApiToast('请输入11位手机号')
       return
     }
     if (!addr) {
-      uni.showToast({ title: '请填写收货地址', icon: 'none' })
+      void showApiToast('请填写收货地址')
       return
     }
     if (hasUnuploadedMediaItems(receiptFileList.value)) {
-      uni.showToast({ title: '图片正在上传，请稍候再试', icon: 'none' })
+      void showApiToast('图片正在上传，请稍候再试')
       return
     }
     const returnVoucherFileIds = collectVoucherFileIds(receiptFileList.value)
     if (!returnVoucherFileIds.length) {
-      uni.showToast({ title: '请上传回寄快递单号照片', icon: 'none' })
+      void showApiToast('请上传回寄快递单号照片')
       return
     }
     const receiptImagePaths = receiptUrlsFromFileList(receiptFileList.value)

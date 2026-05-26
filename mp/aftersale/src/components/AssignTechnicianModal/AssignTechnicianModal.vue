@@ -62,6 +62,7 @@
  */
   import { computed, ref, watch } from 'vue'
   import CommonModal from '@/components/CommonModal/CommonModal.vue'
+  import { showApiToast } from '@/utils/uiFeedback'
 
   const DEFAULT_ASSIGN_AVATAR = '/static/images/worker.png'
 
@@ -148,17 +149,17 @@
 
   const onConfirm = () => {
     if (selectedId.value === null || selectedId.value === undefined || selectedId.value === '') {
-      uni.showToast({ title: '请选择维修员', icon: 'none' })
+      void showApiToast('请选择维修员')
       return
     }
     const tech = props.technicianList.find((t) => t.id === selectedId.value)
     if (!tech) {
-      uni.showToast({ title: '所选维修员不存在', icon: 'none' })
+      void showApiToast('所选维修员不存在')
       return
     }
     const wid = props.assignWorkOrderId
     if (wid === null || wid === undefined || wid === '') {
-      uni.showToast({ title: '工单信息缺失，请关闭后重试', icon: 'none' })
+      void showApiToast('工单信息缺失，请关闭后重试')
       return
     }
     emit('confirm', { workOrderId: wid, selectedTechId: selectedId.value, technician: tech })

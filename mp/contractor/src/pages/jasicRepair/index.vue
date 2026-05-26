@@ -267,6 +267,7 @@
     type WorkOrderUpstreamCreateDTO
   } from '@/api/workOrder'
   import { getApiMessage } from '@/utils/http'
+  import { hideRequestLoading, showApiToast, showRequestLoading } from '@/utils/uiFeedback'
   import { MOBILE_PATTERN } from '@/utils/validation'
   import { validateFaultMediaSelection } from '@/utils/repairMediaLimits'
   import {
@@ -835,7 +836,7 @@
     const scanRes = await scanProductBarcode({ toastOnCancel: true })
     if (scanRes.status === 'cancel') return
     if (scanRes.status === 'empty') {
-      uni.showToast({ title: '未识别到条形码', icon: 'none', duration: 1500 })
+      void showApiToast('未识别到条形码')
       return
     }
     formData.value.warrantyCode = scanRes.code
@@ -875,11 +876,13 @@
     const preserveFaultFieldsWhenHasOptions = options?.preserveFaultFieldsWhenHasOptions ?? false
     if (!silentToast && toastIfMediaUploading()) return
     if (!formData.value.warrantyCode) {
-      return uni.showToast({ title: '请输入条形码', icon: 'none', duration: 1500 })
+      void showApiToast('请输入条形码')
+      return
     }
     const queryingBarcode = String(formData.value.warrantyCode ?? '').trim()
     barcodeQueryInFlight.value = true
-    uni.showLoading({ title: '查询中...' })
+    // 条码查询是 GET 接口，业务侧手动加 loading 给用户反馈"正在查询"
+    showRequestLoading('查询中...')
     const upstreamTid = Number(formData.value.targetCompanyId)
     let request: ReturnType<typeof getProxyCreateBarcodeInfo>
     if (repairEntryTab.value === 'upstream') {
@@ -899,7 +902,7 @@
 
     try {
       const { data: info, msg } = await request
-      uni.hideLoading()
+      hideRequestLoading()
       // 故障描述下拉严格使用条码查询返回的 faultOptions
       const list = mapFaultOptionsToSelect(info?.faultOptions, info?.otherFaultLabel)
       faultDescriptionOptionsFromApi.value = list
@@ -937,7 +940,7 @@
         showBarcodeQueryToast({ title, kind: 'success', icon: 'none' })
       }
     } catch (err: unknown) {
-      uni.hideLoading()
+      hideRequestLoading()
       faultDescriptionOptionsFromApi.value = []
       barcodeQueryHasFaultDescription.value = false
       lastBarcodeInfo.value = null
@@ -1354,10 +1357,10 @@
       const tab = repairEntryTab.value
       uni.setStorageSync(draftStorageKey(tab), buildTabDraftPayload())
       uni.setStorageSync(DRAFT_LAST_TAB_KEY, tab)
-      uni.showToast({ title: '暂存成功', icon: 'none', duration: 1500 })
+      void showApiToast('暂存成功')
     } catch (_e) {
       void _e
-      uni.showToast({ title: '暂存失败', icon: 'none', duration: 1500 })
+      void showApiToast('暂存失败')
     }
   }
 
@@ -1377,7 +1380,7 @@
       success: (res) => {
         if (res.confirm) {
           resetFormState()
-          uni.showToast({ title: '已重置', icon: 'none', duration: 1500 })
+          void showApiToast('已重置')
         }
       }
     })
@@ -1393,7 +1396,7 @@
     if (submitting.value) return
     if (toastIfMediaUploading()) return
     if (!userStore.hasPermission(Perms.WORKORDER_ADD)) {
-      uni.showToast({ title: '暂无权限', icon: 'none', duration: 1500 })
+      void showApiToast('暂无权限')
       return
     }
 
@@ -1401,13 +1404,13 @@
       getFormRef() as { validate?: () => Promise<unknown> } | null
     )?.validate?.()
     if (!validatePromise) {
-      uni.showToast({ title: '请完善必填项', icon: 'none', duration: 1500 })
+      void showApiToast('请完善必填项')
       return
     }
     validatePromise
       .then(() => {
         if (formData.value.warrantyCode && !warrantyQueried.value) {
-          uni.showToast({ title: '请先查询商品', icon: 'none', duration: 1500 })
+          void showApiToast('请先查询商品')
           return
         }
 
@@ -1419,7 +1422,7 @@
         performSubmit()
       })
       .catch(() => {
-        uni.showToast({ title: '请完善必填项', icon: 'none', duration: 1500 })
+        void showApiToast('请完善必填项')
       })
   }
 
@@ -1437,14 +1440,14 @@
       hasUnuploadedMediaItems(asUnknownArray(formData.value.shippingCode)) ||
       hasUnuploadedMediaItems(asUnknownArray(formData.value.voiceList))
     ) {
-      uni.showToast({ title: '图片/语音正在上传，请稍候再试', icon: 'none', duration: 1500 })
+      void showApiToast('图片/语音正在上传，请稍候再试')
       return
     }
     submitting.value = true
 
     showWarrantyModal.value = false
-    uni.showLoading({ title: '提交中...' })
 
+    // 提交工单是 POST 写接口，http.ts 自动显示带 mask 的 loading
     const request =
       repairEntryTab.value === 'upstream'
         ? userStore.isPrimaryDealer
@@ -1452,10 +1455,7 @@
           : createUpstreamFirstWorkOrder(buildUpstreamFirstCreateDto())
         : createProxyWorkOrder(buildProxyCreateDto())
     request
-      .then((res) => {
-        uni.hideLoading()
-        uni.showToast({ title: getApiMessage(res, '提交成功'), duration: 1500 })
-
+      .then(async (res) => {
         // 提交成功后仅清理当前 tab 的暂存，并恢复初始填写状态
         const submittedTab = repairEntryTab.value
         try {
@@ -1474,14 +1474,13 @@
         }
         resetFormState()
 
-        setTimeout(() => {
-          appStore.markOrderListScrollRefresherOnNextShow()
-          uni.switchTab({ url: '/pages/order/list' })
-        }, 1500)
+        // 提示完成后再跳转工单列表，保证用户能看完"提交成功"
+        await showApiToast(getApiMessage(res, '提交成功'))
+        appStore.markOrderListScrollRefresherOnNextShow()
+        uni.switchTab({ url: '/pages/order/list' })
       })
       .catch(() => {
-        // http 层和 api 层已统一提示，这里只兜底恢复按钮态
-        uni.hideLoading()
+        // http 层与 api 层已统一 showApiToast；此处不再处理
       })
       .finally(() => {
         submitting.value = false
@@ -1597,7 +1596,7 @@
   const confirmSubmit = () => {
     if (toastIfMediaUploading()) return
     if (!userStore.hasPermission(Perms.WORKORDER_ADD)) {
-      uni.showToast({ title: '暂无权限', icon: 'none', duration: 1500 })
+      void showApiToast('暂无权限')
       return
     }
     performSubmit()

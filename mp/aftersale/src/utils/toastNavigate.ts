@@ -3,6 +3,8 @@
  * @修改人 黄碧莲
  * @修改时间 2026-05-22
  */
+import { showApiToast } from '@/utils/uiFeedback'
+
 export const TAB_HOME = '/pages/index/index'
 /**
  * tabBar 我的
@@ -59,8 +61,8 @@ export function showToastThen(
   const title = options?.title ?? '操作成功'
   const icon = options?.icon ?? 'success'
   const navigateType = options?.navigateType ?? 'switchTab'
-  uni.showToast({ title, icon, duration })
-  setTimeout(() => {
+  // 走统一 showApiToast：自动 mask 阻塞，duration 结束后再跳，避免「toast 还没看清就跳页」
+  void showApiToast(title, { icon, duration }).then(() => {
     if (navigateType === 'navigateTo') {
       uni.navigateTo({ url })
     } else if (navigateType === 'reLaunch') {
@@ -68,5 +70,5 @@ export function showToastThen(
     } else {
       switchToTab(url)
     }
-  }, duration)
+  })
 }

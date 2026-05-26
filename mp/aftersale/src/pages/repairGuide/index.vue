@@ -58,6 +58,7 @@
     submitRepairIcon,
     taskCompleteIcon
   } from '@/svgs'
+  import { showApiToast } from '@/utils/uiFeedback'
 
   const steps = [
     {
@@ -102,7 +103,7 @@
     uni.makePhoneCall({
       phoneNumber: '400-888-9999',
       fail: () => {
-        uni.showToast({ title: '拨打失败', icon: 'none', duration: 1500 })
+        void showApiToast('拨打失败')
       }
     })
   }

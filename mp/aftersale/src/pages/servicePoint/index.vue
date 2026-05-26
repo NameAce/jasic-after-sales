@@ -66,6 +66,7 @@
     mapNearbyToServicePoint,
     type ServicePointDTO
   } from '@/api/servicePoint'
+  import { showApiToast } from '@/utils/uiFeedback'
 
   /** 网点列表 */
   const servicePointList = ref<ServicePointDTO[]>([])
@@ -218,7 +219,7 @@
       name: item.companyName,
       address: item.address,
       fail: () => {
-        uni.showToast({ title: '打开地图失败', icon: 'none', duration: 1500 })
+        void showApiToast('打开地图失败')
       }
     })
   }
@@ -234,7 +235,7 @@
     uni.makePhoneCall({
       phoneNumber: item.phone,
       fail: () => {
-        uni.showToast({ title: '拨打电话失败', icon: 'none', duration: 1500 })
+        void showApiToast('拨打电话失败')
       }
     })
   }

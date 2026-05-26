@@ -61,6 +61,7 @@
   import { ref, computed, onUnmounted } from 'vue'
   import { uploadCustomerFile } from '@/api/file'
   import type { VoicePlaybackItem } from '@/components/VoicePlaybackList/VoicePlaybackList.vue'
+  import { hideRequestLoading, showApiToast, showRequestLoading } from '@/utils/uiFeedback'
 
   /**
  * 语音条目：tempFilePath 为录制后本地临时文件，url 为上传回服务端的可访问地址
@@ -291,7 +292,7 @@
  */
   const startRecord = async () => {
     if (!recorderManager) {
-      uni.showToast({ title: '当前环境不支持录音', icon: 'none', duration: 1500 })
+      void showApiToast('当前环境不支持录音')
       return
     }
     if (recordSessionPending.value) return
@@ -314,7 +315,7 @@
     } catch (e) {
       recordSessionPending.value = false
       console.error('recorder.start', e)
-      uni.showToast({ title: '无法开始录音', icon: 'none', duration: 1500 })
+      void showApiToast('无法开始录音')
     }
   }
 
@@ -437,7 +438,7 @@
       if (discardNextRecording.value) {
         discardNextRecording.value = false
         clearSlideGesture()
-        uni.showToast({ title: '已取消', icon: 'none', duration: 1500 })
+        void showApiToast('已取消')
         return
       }
 
@@ -446,14 +447,14 @@
       const duration = typeof res.duration === 'number' ? res.duration : 0
       const tempFilePath = res.tempFilePath as string | undefined
       if (!tempFilePath) {
-        uni.showToast({ title: '未生成录音文件', icon: 'none', duration: 1500 })
+        void showApiToast('未生成录音文件')
         return
       }
       if (duration < MIN_DURATION_MS) {
-        uni.showToast({ title: '录音时间太短', icon: 'none', duration: 1500 })
+        void showApiToast('录音时间太短')
         return
       }
-      uni.showLoading({ title: '上传中...' })
+      showRequestLoading('上传中...')
       try {
         const uploaded = await uploadCustomerFile(tempFilePath)
         const record: VoiceItem = {
@@ -466,9 +467,9 @@
       } catch (err: unknown) {
         const msg =
           (err as { message?: string })?.message || (err as { msg?: string })?.msg || '语音上传失败'
-        uni.showToast({ title: msg, icon: 'none', duration: 1500 })
+        void showApiToast(msg)
       } finally {
-        uni.hideLoading()
+        hideRequestLoading()
       }
     })
 
@@ -481,7 +482,7 @@
       clearSlideGesture()
       clearRecordingTimer()
       console.error('录音错误', err)
-      uni.showToast({ title: '录音失败，请重试', icon: 'none', duration: 1500 })
+      void showApiToast('录音失败，请重试')
     })
   }
 

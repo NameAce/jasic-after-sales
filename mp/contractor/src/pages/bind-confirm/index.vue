@@ -71,6 +71,7 @@
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import { mpBindConfirm as mpBindConfirmApi } from '@/api/auth'
   import { getApiMessage, type ApiResponse } from '@/utils/http'
+  import { showApiToast } from '@/utils/uiFeedback'
   import { finalizeMpLoginSession } from '@/utils/mpSession'
   import type { LoginResult } from '@/utils/permissions'
   import { ASSET_IMAGES } from '@/constants/assets'
@@ -101,26 +102,26 @@
   }
 
   const handleNonWeixin = () => {
-    uni.showToast({ title: '请在微信小程序中完成扫码绑定', icon: 'none' })
+    void showApiToast('请在微信小程序中完成扫码绑定')
   }
 
   const handleBindConfirm = async (e: { detail?: { errMsg?: string; code?: string } }) => {
     if (!bindTicket.value) {
-      uni.showToast({ title: '绑定凭证无效', icon: 'none' })
+      void showApiToast('绑定凭证无效')
       return
     }
 
     const errMsg = e?.detail?.errMsg ?? ''
     if (errMsg !== 'getPhoneNumber:ok') {
       if (errMsg.includes('deny') || errMsg.includes('cancel')) {
-        uni.showToast({ title: '需要授权手机号才能完成绑定', icon: 'none' })
+        void showApiToast('需要授权手机号才能完成绑定')
       }
       return
     }
 
     const phoneCode = e?.detail?.code
     if (!phoneCode) {
-      uni.showToast({ title: '未获取到手机号授权，请升级微信后重试', icon: 'none' })
+      void showApiToast('未获取到手机号授权，请升级微信后重试')
       return
     }
 
@@ -130,10 +131,11 @@
         uni.login({ provider: 'weixin', success: resolve, fail: reject })
       })
       if (!wxLogin.code) {
-        uni.showToast({ title: '获取微信登录凭证失败，请重试', icon: 'none' })
+        void showApiToast('获取微信登录凭证失败，请重试')
         return
       }
 
+      // 扫码绑定确认是 POST 写接口，http.ts 自动显示带 mask 的 loading
       const loginRes = await mpBindConfirmApi({
         bindTicket: bindTicket.value,
         code: wxLogin.code,
@@ -142,10 +144,8 @@
       const result = loginRes.data
 
       if (result.status === 'UNBIND' || !result.token || !result.userInfo) {
-        uni.showToast({
-          title: getApiMessage(loginRes, '绑定失败，请核对 PC 账号或重新扫码'),
-          icon: 'none',
-          duration: 2800
+        void showApiToast(getApiMessage(loginRes, '绑定失败，请核对 PC 账号或重新扫码'), {
+          duration: 2800,
         })
         return
       }
@@ -153,7 +153,7 @@
       await finalizeMpLoginSession(loginRes as ApiResponse<LoginResult>, result as LoginResult)
     } catch (err) {
       const message = err instanceof Error ? err.message : '绑定失败，请稍后重试'
-      uni.showToast({ title: message || '绑定失败，请稍后重试', icon: 'none' })
+      void showApiToast(message || '绑定失败，请稍后重试')
     } finally {
       isSubmitting.value = false
     }

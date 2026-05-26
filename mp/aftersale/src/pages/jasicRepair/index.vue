@@ -243,6 +243,7 @@
     resolveSendExpressNoForSubmit,
     resolveShippingSubmitFields
   } from '@/utils/shippingSubmitFields'
+  import { hideRequestLoading, showApiToast, showRequestLoading } from '@/utils/uiFeedback'
 
   const TOAST_DURATION = 1500
 
@@ -635,7 +636,7 @@
     const scanRes = await scanProductBarcode({ toastOnCancel: true })
     if (scanRes.status === 'cancel') return
     if (scanRes.status === 'empty') {
-      uni.showToast({ title: '未识别到条形码', icon: 'none', duration: TOAST_DURATION })
+      void showApiToast('未识别到条形码')
       return
     }
     const code = scanRes.code.trim()
@@ -671,12 +672,14 @@
     // 如果条形码为空，则显示提示
     if (!formData.value.warrantyCode) {
       scrollPageToFormFieldKey('warrantyCode')
-      return uni.showToast({ title: '请输入条形码', icon: 'none', duration: TOAST_DURATION })
+      void showApiToast('请输入条形码')
+      return
     }
     const queryingBarcode = String(formData.value.warrantyCode ?? '').trim()
     const seq = ++barcodeQuerySeq.value
     barcodeQueryInFlight.value = true
-    uni.showLoading({ title: '查询中...', mask: true })
+    // 条码查询是 GET，需显式给用户「查询中」反馈
+    showRequestLoading('查询中...')
     try {
       const res = await getCustomerWorkOrderBarcodeInfo({ barcode: queryingBarcode })
       if (seq !== barcodeQuerySeq.value) return
@@ -696,7 +699,7 @@
       if (!silentToast) {
         hideLoadingThenShowBarcodeQueryToast({ title: successMsg, kind: 'success' })
       } else {
-        uni.hideLoading()
+        hideRequestLoading()
       }
 
       const info = res.data
@@ -1003,37 +1006,26 @@
       }
     }
 
-    uni.showLoading({ title: options.loadingTitle })
-
     try {
+      // createCustomerWorkOrder 是 POST，http.ts 已自动管理 loading
       const res = await createCustomerWorkOrder(buildJasicWorkOrderPayload())
-      uni.hideLoading()
       /**
  * 关单后服务端会推「客户满意度评价通知」，需在创建工单时完成订阅授权
  * @修改人 黄碧莲
  * @修改时间 2026-05-22
  */
       await requestEvaluationInviteSubscribe()
-      uni.showToast({ title: res.msg, icon: 'none', duration: TOAST_DURATION })
-      // 如果需要重定向，则清除暂存并重定向
       if (options.redirect) {
         clearJasicRepairDraft()
-        setTimeout(() => {
-          uni.redirectTo({
-            url: `/pages/order/list`
-          })
-        }, TOAST_DURATION)
+        // 等 toast 1500ms 阻塞期结束再跳转，确保用户能看完成功提示
+        await showApiToast(res.msg || '提交成功')
+        uni.redirectTo({ url: `/pages/order/list` })
       } else {
-        // 保存佳士报修暂存
+        void showApiToast(res.msg || '提交成功')
         saveJasicRepairDraft(buildJasicRepairDraftSnapshot())
       }
     } catch (err: unknown) {
-      uni.hideLoading()
-      uni.showToast({
-        title: parseUnknownError(err, '提交失败'),
-        icon: 'none',
-        duration: TOAST_DURATION
-      })
+      void showApiToast(parseUnknownError(err, '提交失败'))
     }
   }
 
@@ -1053,18 +1045,14 @@
  */
   const stashForm = () => {
     // 暂存只保存本地草稿：不校验、不提交接口
-    uni.showLoading({ title: '暂存中...' })
+    showRequestLoading('暂存中...')
     try {
       saveJasicRepairDraft(buildJasicRepairDraftSnapshot())
-      uni.hideLoading()
-      uni.showToast({ title: '已暂存', icon: 'none', duration: TOAST_DURATION })
+      void showApiToast('已暂存')
     } catch (err: unknown) {
-      uni.hideLoading()
-      uni.showToast({
-        title: parseUnknownError(err, '暂存失败'),
-        icon: 'none',
-        duration: TOAST_DURATION
-      })
+      void showApiToast(parseUnknownError(err, '暂存失败'))
+    } finally {
+      hideRequestLoading()
     }
   }
 

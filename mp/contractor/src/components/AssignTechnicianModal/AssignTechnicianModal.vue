@@ -62,6 +62,7 @@
   import { ASSET_IMAGES } from '@/constants/assets'
   import { WECHAT_TMPL_WORKORDER_ASSIGN_NOTICE } from '@/constants/subscribeMessage'
   import { requestWorkOrderSubscribeWithTemplateIds } from '@/utils/requestWorkOrderSubscribe'
+  import { showApiToast } from '@/utils/uiFeedback'
 
   /**
  * 派单弹窗：未设置头像时使用默认维修员形象
@@ -227,17 +228,17 @@
  */
   const onConfirm = async () => {
     if (selectedId.value === null || selectedId.value === undefined || selectedId.value === '') {
-      uni.showToast({ title: '请选择维修员', icon: 'none' })
+      void showApiToast('请选择维修员')
       return
     }
     const tech = props.technicianList.find((t) => t.id === selectedId.value)
     if (!tech) {
-      uni.showToast({ title: '所选维修员不存在', icon: 'none' })
+      void showApiToast('所选维修员不存在')
       return
     }
     const wid = props.assignWorkOrderId
     if (wid === null || wid === undefined || wid === '') {
-      uni.showToast({ title: '工单信息缺失，请关闭后重试', icon: 'none' })
+      void showApiToast('工单信息缺失，请关闭后重试')
       return
     }
     await requestWorkOrderSubscribeWithTemplateIds([WECHAT_TMPL_WORKORDER_ASSIGN_NOTICE])

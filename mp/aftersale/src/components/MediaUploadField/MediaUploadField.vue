@@ -99,6 +99,7 @@
   import { uploadCustomerFile } from '@/api/file'
   import { validateFaultMediaSelection } from '@/utils/repairMediaLimits'
   import { isVideoMediaItem } from '@/utils/workOrderFileIds'
+  import { hideRequestLoading, showApiToast, showRequestLoading } from '@/utils/uiFeedback'
 
   const props = withDefaults(
     defineProps<{
@@ -246,7 +247,7 @@
       unknown
     >[]
 
-    uni.showLoading({ title: '上传中...' })
+    showRequestLoading('上传中...')
     try {
       for (const file of pending) {
         const localPath = pickLocalPath(file)
@@ -271,9 +272,9 @@
     } catch (err: unknown) {
       const msg =
         (err as { message?: string })?.message || (err as { msg?: string })?.msg || '上传失败'
-      uni.showToast({ title: msg, icon: 'none', duration: 1500 })
+      void showApiToast(msg)
     } finally {
-      uni.hideLoading()
+      hideRequestLoading()
     }
   }
 
@@ -287,7 +288,7 @@
     const current = mixedFileList.value
     const remain = limitNum.value - current.length
     if (remain <= 0) {
-      uni.showToast({ title: `最多选择 ${limitNum.value} 个文件`, icon: 'none', duration: 1500 })
+      void showApiToast(`最多选择 ${limitNum.value} 个文件`)
       return
     }
     uni.chooseMedia({
@@ -300,7 +301,7 @@
       fail: (err) => {
         const msg = (err as { errMsg?: string })?.errMsg || ''
         if (!/cancel/i.test(msg)) {
-          uni.showToast({ title: '选择文件失败', icon: 'none', duration: 1500 })
+          void showApiToast('选择文件失败')
         }
       }
     })
@@ -341,7 +342,7 @@
       if (!path) continue
       const maxSz = props.maxFileSize ?? 10 * 1024 * 1024
       if (typeof f.size === 'number' && f.size > maxSz) {
-        uni.showToast({ title: '文件过大', icon: 'none', duration: 1500 })
+        void showApiToast('文件过大')
         continue
       }
       const ft = f.fileType === 'video' ? 'video' : 'image'
@@ -405,7 +406,7 @@
         uni.previewMedia({
           sources: [{ url: src, type: 'video' }],
           fail: () => {
-            uni.showToast({ title: '无法预览视频', icon: 'none', duration: 1500 })
+            void showApiToast('无法预览视频')
           }
         })
       }

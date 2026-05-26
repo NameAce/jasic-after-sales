@@ -81,6 +81,7 @@
   import { useIndexWorkbench } from './useIndexWorkbench'
   import { assignWorkOrder, listAssignUserOptions } from '@/api/workOrder'
   import { getApiMessage } from '@/utils/http'
+  import { hideRequestLoading, showApiToast, showRequestLoading } from '@/utils/uiFeedback'
 
   const appStore = useAppStore()
   const userStore = useUserStore()
@@ -249,8 +250,9 @@
 
     const workOrderId = Number(openedFor)
     if (!Number.isFinite(workOrderId) || workOrderId <= 0) return
+    // 可派单人员是 GET 查询接口，业务侧手动加 loading 让用户感知"正在加载维修员"
+    showRequestLoading('加载可派单人员...')
     try {
-      uni.showLoading({ title: '加载可派单人员...' })
       const list = await listAssignUserOptions(workOrderId)
       if (String(currentOrderId.value).trim() !== openedFor) return
       const selfId = Number(userStore.userInfo?.id)
@@ -270,7 +272,7 @@
       }))
       technicianList.value = mapped
     } finally {
-      uni.hideLoading()
+      hideRequestLoading()
     }
   }
 
@@ -312,29 +314,28 @@
   }) => {
     const workOrderId = Number(payload.workOrderId ?? currentOrderId.value)
     if (!Number.isFinite(workOrderId) || workOrderId <= 0) {
-      uni.showToast({ title: '工单ID无效', icon: 'none' })
+      void showApiToast('工单ID无效')
       return
     }
 
     const assignedUserId = Number(payload?.selectedTechId)
     if (!Number.isFinite(assignedUserId) || assignedUserId <= 0) {
-      uni.showToast({ title: '维修员ID无效', icon: 'none' })
+      void showApiToast('维修员ID无效')
       return
     }
     const selfId = Number(userStore.userInfo?.id)
     const isSelf = Number.isFinite(selfId) && selfId > 0 && assignedUserId === selfId
     try {
+      // 派单是 PUT 写接口，http.ts 自动显示带 mask 的 loading
       const res = await assignWorkOrder({ workOrderId, assignedUserId })
-      if (isSelf) {
-        uni.showToast({ title: '已派单给自己，可在「待接单」中接单', icon: 'none', duration: 1500 })
-      } else {
-        uni.showToast({ title: getApiMessage(res, '派单成功'), icon: 'none', duration: 1500 })
-      }
       closeAssignModal()
       await nextTick()
-      await refreshSiteWorkbench(true)
+      // 工作台刷新与提示并行，toast mask 期内数据已更新
+      refreshSiteWorkbench(true)
+      const tip = isSelf ? '已派单给自己，可在「待接单」中接单' : getApiMessage(res, '派单成功')
+      await showApiToast(tip)
     } catch {
-      // assignWorkOrder / http 内已 toast
+      // assignWorkOrder / http 内已 showApiToast
     }
   }
 
@@ -365,7 +366,7 @@
   const onAcceptOrder = (orderId: string) => {
     const id = Number(orderId)
     if (!Number.isFinite(id) || id <= 0) {
-      uni.showToast({ title: '工单ID无效', icon: 'none' })
+      void showApiToast('工单ID无效')
       return
     }
     uni.navigateTo({

@@ -28,6 +28,7 @@
 | styles | `mp/aftersale/src/styles/variables.scss` | `mp/contractor/src/styles/variables.scss` | 双端并列（公共段 + 扩展段模板一致） |
 | config | `mp/aftersale/.gitignore` | `mp/contractor/.gitignore` | contractor |
 | http | `mp/aftersale/src/utils/http.ts` | `mp/contractor/src/utils/http.ts` | aftersale（`handleResponseBody` 抽取写法 + 分支顺序） |
+| http/ui | `mp/aftersale/src/utils/uiFeedback.ts` | `mp/contractor/src/utils/uiFeedback.ts` | 双端并列（`showApiToast / showRequestLoading / hideRequestLoading / forceHideRequestLoading` 字面 1:1） |
 | constants | `mp/aftersale/src/constants/apiMessages.ts` | `mp/contractor/src/constants/apiMessages.ts` | 双端并列（6 条常量字面一致） |
 | api/auth | `mp/aftersale/src/api/auth.ts` | `mp/contractor/src/api/auth.ts` | 双端并列（`login / chooseCompany / getUserInfo / logout` 对齐 jasic-ui，C 端 `mp-login-*` 入口保留） |
 | models/user | `mp/aftersale/src/models/user.ts` | `mp/contractor/src/models/user.ts` | 双端并列（`SysUserInfo / CompanySimple / LoginResult` 同形，C 端 `perms / companies` 保留为 optional） |
@@ -264,12 +265,24 @@ mp 双端的 HTTP 契约层、登录流、工单状态枚举与权限模型以 j
 
 ### Toast / Modal / Icon 字典
 
-- Toast 参数字面（双端镜像，禁止漂移）：
+- Toast 与 Loading 统一入口（双端镜像，禁止漂移）：
 
   ```ts
-  uni.showToast({ icon: 'none', title: <文案>, duration: 1500 })
+  // 文件：mp/{aftersale,contractor}/src/utils/uiFeedback.ts
+  import {
+    showApiToast,           // 接口提示：默认 1500ms + mask 阻塞，可 await 后再跳转 / 刷新
+    showApiToastThen,       // toast 后再执行 after 动作的语法糖
+    showRequestLoading,     // 手动开 loading（GET 查询、文件上传等非 http.ts 内的写场景）
+    hideRequestLoading,     // 手动关 loading，与 showRequestLoading 引用计数配对
+    forceHideRequestLoading // 强关（用于全局事件，如登录失效 modal 前清掉 loading）
+  } from '@/utils/uiFeedback'
   ```
 
+  - **业务页面禁止直接调用** `uni.showLoading / uni.hideLoading / uni.showToast`，一律改用 `uiFeedback` 提供的封装。
+  - `utils/http.ts` 已根据 method 自动接管 loading：`POST / PUT / DELETE / PATCH` 自动 `showRequestLoading`，请求结束 `hideRequestLoading`；并发请求由 `uiFeedback` 内部引用计数保证「同屏只显示一次 loading」。
+  - `http<T>({ loading: true })` 可强制为 `GET` 也加 loading；`http<T>({ loading: false })` 可关闭写接口的自动 loading；`loadingTitle` 自定义文案。
+  - 失败 / 业务码 toast 由 `http.ts` 内部统一走 `showApiToast`，业务层不再重复 toast。
+  - 成功 toast 仍由业务层根据需要触发，调用 `await showApiToast('xxx')` 后再做跳转 / 刷新，避免「提示还没看完就跳页」。
   - 业务页面禁止使用 `icon: 'success' | 'error' | 'loading'`；成功态走页面内提示或导航，不走 toast。
   - 文案优先走 `@/constants/apiMessages` 常量或 `getApiMessage(res, fallback)`，禁止硬编码「成功」「失败」等 UI 文案。
 - Modal 参数字面（仅用于登录失效 / 关键二次确认）：

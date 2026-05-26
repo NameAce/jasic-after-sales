@@ -1,6 +1,7 @@
 import { useUserStore } from '@/stores/modules/user'
 import { chooseCompany, logout as logoutApi } from '@/api/auth'
 import { getApiMessage, type ApiResponse } from '@/utils/http'
+import { showApiToast } from '@/utils/uiFeedback'
 import type { CompanySimple, LoginResult, SysUserInfo } from '@/utils/permissions'
 
 /**
@@ -90,8 +91,7 @@ export async function finalizeMpLoginSession(
   }
 
   userStore.login(result.token, info)
-  uni.showToast({ title: getApiMessage(loginRes, '登录成功'), icon: 'none', duration: 1500 })
-  setTimeout(() => {
-    uni.reLaunch({ url: '/pages/index/index' })
-  }, 500)
+  // 等 toast 完整展示完再 reLaunch，避免提示还没看清页面就被替换
+  await showApiToast(getApiMessage(loginRes, '登录成功'))
+  uni.reLaunch({ url: '/pages/index/index' })
 }

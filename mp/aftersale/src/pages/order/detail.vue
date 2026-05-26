@@ -463,6 +463,7 @@
   import { onLoad, onShow } from '@dcloudio/uni-app'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import { getCustomerWorkOrder, type OrderDetail } from '@/api/workOrder'
+  import { showApiToast } from '@/utils/uiFeedback'
   import { WORK_ORDER_MAIN_STATUS } from '@/models/order'
   import { getStatusDesc } from '@/utils/orderStatus'
   import VoicePlaybackList, {
@@ -1111,19 +1112,19 @@
   const previewFaultVideo = () => {
     const videoUrl = String(order.value.fault.videoUrl ?? '').trim()
     if (!videoUrl) {
-      uni.showToast({ title: '暂无可播放视频', icon: 'none', duration: 1500 })
+      void showApiToast('暂无可播放视频')
       return
     }
     if (typeof uni.previewMedia === 'function') {
       uni.previewMedia({
         sources: [{ url: videoUrl, type: 'video' }],
         fail: () => {
-          uni.showToast({ title: '无法预览视频', icon: 'none', duration: 1500 })
+          void showApiToast('无法预览视频')
         }
       })
       return
     }
-    uni.showToast({ title: '当前端不支持视频预览', icon: 'none', duration: 1500 })
+    void showApiToast('当前端不支持视频预览')
   }
 </script>
 

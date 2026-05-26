@@ -162,6 +162,7 @@
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import { mpBindLogin as mpBindLoginApi, mpLogin as mpLoginApi } from '@/api/auth'
   import { getApiMessage, type ApiResponse } from '@/utils/http'
+  import { showApiToast } from '@/utils/uiFeedback'
   import { finalizeMpLoginSession } from '@/utils/mpSession'
   import type { LoginResult } from '@/utils/permissions'
   import { ASSET_IMAGES } from '@/constants/assets'
@@ -296,7 +297,7 @@
     setTimeout(() => {
       termsError.value = false
     }, 1200)
-    uni.showToast({ title: '请先阅读并同意下方协议', icon: 'none' })
+    void showApiToast('请先阅读并同意下方协议')
   }
 
   /**
@@ -310,7 +311,7 @@
       promptTermsFirst()
       return
     }
-    uni.showToast({ title: '请在微信小程序中打开承修方端完成登录', icon: 'none' })
+    void showApiToast('请在微信小程序中打开承修方端完成登录')
   }
 
   const closeBindPanel = () => {
@@ -330,15 +331,15 @@
   const handleBindSubmit = async () => {
     const usernameOrPhone = bindUsername.value.trim()
     if (!usernameOrPhone) {
-      uni.showToast({ title: '请输入用户名或手机号', icon: 'none' })
+      void showApiToast('请输入用户名或手机号')
       return
     }
     if (!bindPassword.value) {
-      uni.showToast({ title: '请输入密码', icon: 'none' })
+      void showApiToast('请输入密码')
       return
     }
     if (!pendingPhoneCode.value) {
-      uni.showToast({ title: '请重新进行手机号一键登录', icon: 'none' })
+      void showApiToast('请重新进行手机号一键登录')
       closeBindPanel()
       return
     }
@@ -349,9 +350,10 @@
         uni.login({ provider: 'weixin', success: resolve, fail: reject })
       })
       if (!wxLogin.code) {
-        uni.showToast({ title: '获取微信登录凭证失败，请重试', icon: 'none' })
+        void showApiToast('获取微信登录凭证失败，请重试')
         return
       }
+      // 绑定登录是 POST 写接口，http.ts 自动显示带 mask 的 loading
       const loginRes = await mpBindLoginApi({
         code: wxLogin.code,
         usernameOrPhone,
@@ -361,10 +363,7 @@
       const result = loginRes.data as LoginResult & { status?: string }
 
       if (!result.token || !result.userInfo) {
-        uni.showToast({
-          title: getApiMessage(loginRes, '绑定失败，请检查账号密码'),
-          icon: 'none'
-        })
+        void showApiToast(getApiMessage(loginRes, '绑定失败，请检查账号密码'))
         return
       }
 
@@ -372,7 +371,7 @@
       await finalizeMpLoginSession(loginRes as ApiResponse<LoginResult>, result as LoginResult)
     } catch (err) {
       const message = err instanceof Error ? err.message : '绑定失败，请稍后重试'
-      uni.showToast({ title: message || '绑定失败，请稍后重试', icon: 'none' })
+      void showApiToast(message || '绑定失败，请稍后重试')
     } finally {
       isLoggingIn.value = false
     }
@@ -394,13 +393,13 @@
     const errMsg = e?.detail?.errMsg ?? ''
     if (errMsg !== 'getPhoneNumber:ok') {
       if (errMsg.includes('deny') || errMsg.includes('cancel')) {
-        uni.showToast({ title: '需要授权手机号才能完成登录', icon: 'none' })
+        void showApiToast('需要授权手机号才能完成登录')
       }
       return
     }
     const phoneCode = e?.detail?.code
     if (!phoneCode) {
-      uni.showToast({ title: '未获取到手机号授权，请升级微信后重试', icon: 'none' })
+      void showApiToast('未获取到手机号授权，请升级微信后重试')
       return
     }
 
@@ -410,9 +409,10 @@
         uni.login({ provider: 'weixin', success: resolve, fail: reject })
       })
       if (!wxLogin.code) {
-        uni.showToast({ title: '获取微信登录凭证失败，请重试', icon: 'none' })
+        void showApiToast('获取微信登录凭证失败，请重试')
         return
       }
+      // 一键登录是 POST 写接口，http.ts 自动显示带 mask 的 loading
       const loginRes = await mpLoginApi({ code: wxLogin.code, phoneCode })
       const result = loginRes.data
 
@@ -421,23 +421,19 @@
         bindUsername.value = ''
         bindPassword.value = ''
         showBindPanel.value = true
-        uni.showToast({ title: '请绑定已有承修方账号', icon: 'none' })
+        void showApiToast('请绑定已有承修方账号')
         return
       }
 
       if (!result.token || !result.userInfo) {
-        uni.showToast({
-          title: getApiMessage(loginRes, '登录失败，请重试'),
-          icon: 'none',
-          duration: 2800
-        })
+        void showApiToast(getApiMessage(loginRes, '登录失败，请重试'), { duration: 2800 })
         return
       }
 
       await finalizeMpLoginSession(loginRes as ApiResponse<LoginResult>, result as LoginResult)
     } catch (err) {
       const message = err instanceof Error ? err.message : '登录失败，请稍后重试'
-      uni.showToast({ title: message || '登录失败，请稍后重试', icon: 'none' })
+      void showApiToast(message || '登录失败，请稍后重试')
     } finally {
       isLoggingIn.value = false
     }

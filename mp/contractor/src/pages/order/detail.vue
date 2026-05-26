@@ -296,6 +296,7 @@
   import { isWorkOrderPendingTechAcceptMainStatus } from '@/utils/workOrderMainStatus'
   import { Perms } from '@/utils/permissions'
   import { getApiMessage } from '@/utils/http'
+  import { hideRequestLoading, showApiToast, showRequestLoading } from '@/utils/uiFeedback'
   import { takeSelectedShippingAddress } from '@/utils/addressStorage'
   import { hasVal } from '@/utils/value'
   import { resolvePreviewableUrl } from '@/utils/mediaPreview'
@@ -655,7 +656,7 @@
   const openAssignModal = () => {
     const openedFor = orderNavId.value.trim()
     if (!openedFor) {
-      uni.showToast({ title: '工单ID无效', icon: 'none' })
+      void showApiToast('工单ID无效')
       return
     }
     currentAssignWorkOrderId.value = openedFor
@@ -694,28 +695,27 @@
   }) => {
     const workOrderId = Number(payload.workOrderId ?? currentAssignWorkOrderId.value)
     if (!Number.isFinite(workOrderId) || workOrderId <= 0) {
-      uni.showToast({ title: '工单ID无效', icon: 'none' })
+      void showApiToast('工单ID无效')
       return
     }
     const assignedUserId = Number(payload?.selectedTechId)
     if (!Number.isFinite(assignedUserId) || assignedUserId <= 0) {
-      uni.showToast({ title: '维修员ID无效', icon: 'none' })
+      void showApiToast('维修员ID无效')
       return
     }
     const selfId = Number(userStore.userInfo?.id)
     const isSelf = Number.isFinite(selfId) && selfId > 0 && assignedUserId === selfId
     try {
+      // 派单是 PUT 写接口，http.ts 自动显示带 mask 的 loading
       const res = await assignWorkOrder({ workOrderId, assignedUserId })
-      if (isSelf) {
-        uni.showToast({ title: '已派单给自己，可在「待接单」中接单', icon: 'none' })
-      } else {
-        uni.showToast({ title: getApiMessage(res, '派单成功'), icon: 'none', duration: 1500 })
-      }
       closeAssignModal()
       await nextTick()
-      await loadDetail()
+      // 详情刷新与提示并行：toast mask 阻塞期内详情已更新
+      loadDetail()
+      const tip = isSelf ? '已派单给自己，可在「待接单」中接单' : getApiMessage(res, '派单成功')
+      await showApiToast(tip)
     } catch {
-      // assignWorkOrder / http 内已 toast
+      // assignWorkOrder / http 内已 showApiToast
     }
   }
 
@@ -1043,24 +1043,22 @@
   const openMachineModelSupplement = async () => {
     const wid = resolveWorkOrderId()
     if (!wid) {
-      uni.showToast({ title: '工单ID无效', icon: 'none' })
+      void showApiToast('工单ID无效')
       return
     }
+    // 候选机型查询是 GET 接口，业务侧手动加 loading 让用户感知"正在拉取候选"
+    showRequestLoading()
     try {
-      uni.showLoading({ title: '加载中...', mask: true })
       const options = await listRepairProductModelOptions(wid, { keyword: '' })
       if (!options.length) {
-        uni.showToast({
-          title: '当前归属总部未配置启用机型，请先维护故障与维修配置',
-          icon: 'none'
-        })
+        void showApiToast('当前归属总部未配置启用机型，请先维护故障与维修配置')
         return
       }
     } catch {
-      // listRepairProductModelOptions 内可能已 toast
+      // listRepairProductModelOptions 内可能已 showApiToast
       return
     } finally {
-      uni.hideLoading()
+      hideRequestLoading()
     }
     machineModelSupplementWorkOrderId.value = wid
     showMachineModelSupplement.value = true
@@ -1077,19 +1075,17 @@
       showMachineModelSupplement.value = false
       return
     }
-    uni.showLoading({ title: '提交中...' })
     try {
+      // updateRepairProductModel 是 PUT 写接口，http.ts 自动显示带 mask 的 loading
       await updateRepairProductModel({ workOrderId: wid, productModel })
       showMachineModelSupplement.value = false
       if (order.value.product) {
         order.value.product.model = productModel
       }
       await loadDetail()
-      uni.showToast({ title: '机器型号补录成功', icon: 'none' })
+      await showApiToast('机器型号补录成功')
     } catch {
-      // updateRepairProductModel 内已 toast
-    } finally {
-      uni.hideLoading()
+      // updateRepairProductModel 内已 showApiToast
     }
   }
 
@@ -1116,25 +1112,25 @@
  */
   const onRepairComplete = async () => {
     if (!canCloseWorkOrder.value) {
-      uni.showToast({ title: '暂无工单关闭权限', icon: 'none' })
+      void showApiToast('暂无工单关闭权限')
       return
     }
     if (!canOperateTransferredOrder.value) {
-      uni.showToast({ title: '转出网点不可操作此工单', icon: 'none' })
+      void showApiToast('转出网点不可操作此工单')
       return
     }
     if (faultJudgeSelect.value !== '无故障') {
-      uni.showToast({ title: '请选择「无故障」', icon: 'none' })
+      void showApiToast('请选择「无故障」')
       return
     }
     const parsed = parseOptionalRepairQuoteAmount(repairQuoteInput.value)
     if (!parsed.ok) {
-      uni.showToast({ title: '维修报价格式不正确', icon: 'none' })
+      void showApiToast('维修报价格式不正确')
       return
     }
     const wid = resolveWorkOrderId()
     if (!wid) {
-      uni.showToast({ title: '工单ID无效', icon: 'none' })
+      void showApiToast('工单ID无效')
       return
     }
     noFaultSubscribeRequested.value = false
@@ -1157,18 +1153,18 @@
   ) => {
     const wid = resolveWorkOrderId()
     if (!wid) {
-      uni.showToast({ title: '工单ID无效', icon: 'none' })
+      void showApiToast('工单ID无效')
       return
     }
     const cr = (closeReason || '').trim()
     if (!cr) {
-      uni.showToast({ title: '请填写关闭原因（无故障必填）', icon: 'none' })
+      void showApiToast('请填写关闭原因（无故障必填）')
       return
     }
 
     const parsedQuote = parseOptionalRepairQuoteAmount(repairQuoteInput.value)
     if (!parsedQuote.ok) {
-      uni.showToast({ title: '维修报价格式不正确', icon: 'none' })
+      void showApiToast('维修报价格式不正确')
       return
     }
     const qd = (quoteDescInput.value || '').trim()
@@ -1191,23 +1187,16 @@
           }
         : base
 
-    uni.showLoading({ title: '提交中...' })
     try {
+      // 无故障关单 = PUT tech-accept 写接口，http.ts 自动显示带 mask 的 loading
       const res = await techAcceptWorkOrder(dto)
       appStore.markOrderListScrollRefresherOnNextShow()
       closeOrderReturnMethodPayload.value = null
-      uni.showToast({
-        title: getApiMessage(res, '工单已关闭'),
-        icon: 'none',
-        duration: 1500
-      })
-      setTimeout(() => {
-        uni.navigateBack()
-      }, 1500)
+      // 提示完成后再返回上页，保证用户能看完提示
+      await showApiToast(getApiMessage(res, '工单已关闭'))
+      uni.navigateBack()
     } catch {
-      // techAcceptWorkOrder 内已 toast
-    } finally {
-      uni.hideLoading()
+      // techAcceptWorkOrder 内已 showApiToast
     }
   }
 
@@ -1221,17 +1210,16 @@
   const onReturnMethodConfirm = async (data: ReturnMethodConfirmPayload) => {
     returnMethodType.value = data.type
 
-    uni.showToast({
-      title: `已选择${data.type === 'self' ? '自提' : '回寄'}`,
-      icon: 'none'
-    })
     if (pendingNoFaultRepairAfterReturnMethod.value) {
       pendingNoFaultRepairAfterReturnMethod.value = false
       closeOrderReturnMethodPayload.value = data
-      setTimeout(() => {
-        showCloseOrderModal.value = true
-      }, 400)
+      // 先弹"已选择 xx"并等待 toast 完成，再弹关单原因弹窗，避免两个交互重叠造成误操作
+      await showApiToast(`已选择${data.type === 'self' ? '自提' : '回寄'}`)
+      showCloseOrderModal.value = true
+      return
     }
+    // 非「无故障」分支只是单纯选择，提示用户即可
+    void showApiToast(`已选择${data.type === 'self' ? '自提' : '回寄'}`)
   }
 
   /**
@@ -1243,12 +1231,12 @@
  */
   const onCloseOrderConfirm = async (reason: string) => {
     if (!canOperateTransferredOrder.value) {
-      uni.showToast({ title: '转出网点不可操作此工单', icon: 'none' })
+      void showApiToast('转出网点不可操作此工单')
       return
     }
     const payload = closeOrderReturnMethodPayload.value
     if (!payload) {
-      uni.showToast({ title: '请先完成机器返回方式', icon: 'none' })
+      void showApiToast('请先完成机器返回方式')
       return
     }
     if (!noFaultSubscribeRequested.value) {
@@ -1266,27 +1254,27 @@
  */
   const onSubmitQuote = async () => {
     if (!canOperateTransferredOrder.value) {
-      uni.showToast({ title: '转出网点不可操作此工单', icon: 'none' })
+      void showApiToast('转出网点不可操作此工单')
       return
     }
     if (faultJudgeSelect.value !== '有故障') {
-      uni.showToast({ title: '请选择「有故障」', icon: 'none' })
+      void showApiToast('请选择「有故障」')
       return
     }
     const qd = (quoteDescInput.value || '').trim()
     const parsed = parseOptionalRepairQuoteAmount(repairQuoteInput.value)
     if (!parsed.ok) {
-      uni.showToast({ title: '维修报价格式不正确', icon: 'none' })
+      void showApiToast('维修报价格式不正确')
       return
     }
     const wid = resolveWorkOrderId()
     if (!wid) {
-      uni.showToast({ title: '工单ID无效', icon: 'none' })
+      void showApiToast('工单ID无效')
       return
     }
     await requestWorkOrderSubscribe()
-    uni.showLoading({ title: '提交中...' })
     try {
+      // 接单 = PUT tech-accept 写接口，http.ts 自动显示带 mask 的 loading
       const res = await techAcceptWorkOrder({
         workOrderId: wid,
         faultJudge: '有故障',
@@ -1294,12 +1282,11 @@
         ...(qd ? { quoteDesc: qd } : {})
       })
       appStore.markOrderListScrollRefresherOnNextShow()
-      uni.showToast({ title: getApiMessage(res, '接单成功'), icon: 'none', duration: 1500 })
-      await loadDetail()
+      // 详情刷新与提示并行，避免用户等过长
+      loadDetail()
+      await showApiToast(getApiMessage(res, '接单成功'))
     } catch {
-      // api 内已 toast
-    } finally {
-      uni.hideLoading()
+      // api 内已 showApiToast
     }
   }
 
@@ -1311,12 +1298,12 @@
  */
   const onSubmitFaultPoint = async () => {
     if (!canOperateTransferredOrder.value) {
-      uni.showToast({ title: '转出网点不可操作此工单', icon: 'none' })
+      void showApiToast('转出网点不可操作此工单')
       return
     }
 
     if (needSupplementMachineModel.value) {
-      uni.showToast({ title: '请先补录机器型号', icon: 'none' })
+      void showApiToast('请先补录机器型号')
       openMachineModelSupplement()
       return
     }
@@ -1331,23 +1318,23 @@
     const hasRepairFaultConfig = (repairFaultOptions.value || []).length > 0
     if (!isRecheck && hasRepairFaultConfig) {
       if (faultItemsTrimmed.length === 0) {
-        uni.showToast({ title: '请选择维修确认故障', icon: 'none' })
+        void showApiToast('请选择维修确认故障')
         return
       }
       if (faultItemsTrimmed.includes(OTHER_FAULT_LABEL) && !faultRemarkTrimmed) {
-        uni.showToast({ title: '请填写其它故障说明', icon: 'none' })
+        void showApiToast('请填写其它故障说明')
         return
       }
     }
 
     const repairItems = repairDescSelect.value.map((x) => String(x || '').trim()).filter(Boolean)
     if (repairItems.length === 0) {
-      uni.showToast({ title: '请选择维修说明', icon: 'none' })
+      void showApiToast('请选择维修说明')
       return
     }
     const hasOtherRepairDesc = repairItems.includes(OTHER_REPAIR_LABEL)
     if (hasOtherRepairDesc && !(otherRepairDesc.value || '').trim()) {
-      uni.showToast({ title: '请输入其它维修说明', icon: 'none' })
+      void showApiToast('请输入其它维修说明')
       return
     }
 
@@ -1359,7 +1346,7 @@
       const qty = Number(qtyStr)
       if (!partName && !qtyStr) continue
       if (!partName || !qtyStr || Number.isNaN(qty) || qty <= 0) {
-        uni.showToast({ title: '请完整填写每项配件名称与数量', icon: 'none' })
+        void showApiToast('请完整填写每项配件名称与数量')
         return
       }
       completePartRows.push({ part: partName, qty })
@@ -1374,14 +1361,14 @@
     ]
     for (const list of mediaLists) {
       if (hasUnuploadedMediaItems(list)) {
-        uni.showToast({ title: '图片正在上传，请稍候再试', icon: 'none' })
+        void showApiToast('图片正在上传，请稍候再试')
         return
       }
     }
 
     const wid = resolveWorkOrderId()
     if (!wid) {
-      uni.showToast({ title: '工单ID无效', icon: 'none' })
+      void showApiToast('工单ID无效')
       return
     }
 
@@ -1399,7 +1386,7 @@
       const quoteDescTrim = (quoteDescInput.value || '').trim()
       const qFromInput = parseOptionalRepairQuoteAmount(String(repairQuoteInput.value || '').trim())
       if (!qFromInput.ok) {
-        uni.showToast({ title: '维修报价格式不正确', icon: 'none' })
+        void showApiToast('维修报价格式不正确')
         return
       }
       const hasInputAmount = qFromInput.value !== undefined
@@ -1412,8 +1399,8 @@
       }
     }
 
-    uni.showLoading({ title: '提交中...' })
     try {
+      // 维修/复检登记是 POST 写接口，http.ts 自动显示带 mask 的 loading
       const reviewDto: WorkOrderReviewDTO = {
         faultNewImageFileIds: collectVoucherFileIds(asUnknownArray(faultPointImages.value)),
         faultOldImageFileIds: collectVoucherFileIds(asUnknownArray(faultOldImages.value)),
@@ -1457,21 +1444,13 @@
             workOrderId: wid
           } satisfies WorkOrderRepairDTO)
       appStore.markOrderListScrollRefresherOnNextShow()
-      // 先关闭 loading，再等待原生层切换完成后展示成功提示，避免真机上与 loading 叠闪。
-      uni.hideLoading()
-      await new Promise<void>((resolve) => {
-        setTimeout(() => resolve(), 120)
+      // http.ts 已在 finally 自动 hideLoading；toast 内部会先 forceHide loading 再展示，无视觉叠层
+      await showApiToast(getApiMessage(res, isRecheck ? '复检登记已提交' : '登记成功'), {
+        duration: 2000,
       })
-      uni.showToast({
-        title: getApiMessage(res, isRecheck ? '复检登记已提交' : '登记成功'),
-        icon: 'none',
-        duration: 2000
-      })
-      setTimeout(() => {
-        uni.navigateBack()
-      }, 2200)
+      uni.navigateBack()
     } catch {
-      // 失败提示已在 http 层处理；此处不再 hideLoading，避免冲掉失败提示。
+      // 失败提示已在 http 层 showApiToast 处理
     }
   }
 </script>

@@ -1,8 +1,10 @@
 /**
  * 将接口或本地路径转为可预览的完整 URL（与 MediaUploadField 中逻辑一致）
  * @修改人 黄碧莲
- * @修改时间 2026-05-22
+ * @修改时间 2026-05-26
  */
+import { showApiToast } from '@/utils/uiFeedback'
+
 export function resolvePreviewableUrl(url: unknown): string {
   const raw = String(url ?? '').trim()
   if (!raw) return ''
@@ -49,10 +51,10 @@ export function previewVideo(url: unknown): void {
     uni.previewMedia({
       sources: [{ url: src, type: 'video' }],
       fail: () => {
-        uni.showToast({ title: '无法预览视频', icon: 'none', duration: 1500 })
+        void showApiToast('无法预览视频')
       }
     })
   } else {
-    uni.showToast({ title: '当前环境不支持视频预览', icon: 'none', duration: 1500 })
+    void showApiToast('当前环境不支持视频预览')
   }
 }

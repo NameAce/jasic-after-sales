@@ -47,6 +47,7 @@
  */
   import { ref, watch } from 'vue'
   import { uploadSystemFile } from '@/api/file'
+  import { hideRequestLoading, showApiToast, showRequestLoading } from '@/utils/uiFeedback'
 
   const props = defineProps<{
     visible: boolean
@@ -83,12 +84,13 @@
         const path = res.tempFilePaths?.[0]
         if (!path) return
         previewPath.value = path
-        uni.showLoading({ title: '上传中...' })
+        // 上传走 uploadSystemFile（uni.uploadFile，不经 http.ts），业务侧手动加 loading
+        showRequestLoading('上传中...')
         try {
           const uploaded = await uploadSystemFile(path)
           const fid = Number(uploaded.fileId)
           if (!Number.isFinite(fid) || fid <= 0) {
-            uni.showToast({ title: '上传失败：未获取到凭证文件ID', icon: 'none', duration: 1800 })
+            void showApiToast('上传失败：未获取到凭证文件ID', { duration: 1800 })
             previewPath.value = ''
             voucherFileId.value = 0
             return
@@ -97,9 +99,9 @@
         } catch (e) {
           previewPath.value = ''
           voucherFileId.value = 0
-          uni.showToast({ title: (e as Error)?.message || '上传失败', icon: 'none' })
+          void showApiToast((e as Error)?.message || '上传失败')
         } finally {
-          uni.hideLoading()
+          hideRequestLoading()
         }
       }
     })
@@ -108,12 +110,12 @@
   const onConfirm = () => {
     const wid = Number(props.workOrderId)
     if (!Number.isFinite(wid) || wid <= 0) {
-      uni.showToast({ title: '工单ID无效', icon: 'none' })
+      void showApiToast('工单ID无效')
       return
     }
     const no = sendExpressNoInput.value.trim()
     if (!no) {
-      uni.showToast({ title: '请输入寄件快递单号', icon: 'none' })
+      void showApiToast('请输入寄件快递单号')
       return
     }
     emit('confirm', {

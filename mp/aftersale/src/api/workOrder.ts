@@ -5,6 +5,7 @@ import {
   type CustomerRepairForHistory,
 } from '@/api/mapRepairsToFaultPointRecords'
 import { formatAmount, formatIsoDateTime } from '@/utils/format'
+import { showApiToast } from '@/utils/uiFeedback'
 
 export type FaultPointMaintenanceRecord = FaultPointRecord
 
@@ -871,7 +872,7 @@ export async function fetchCustomerWorkOrderOutletPhone(workOrderId: string): Pr
 export async function fetchOrderRepairFaultRecords(id: string): Promise<FaultPointMaintenanceRecord[]> {
   const wid = String(id || '').trim()
   if (!wid) {
-    uni.showToast({ title: '工单ID无效', icon: 'none' })
+    void showApiToast('工单ID无效')
     throw new Error('工单ID无效')
   }
   const res = await getCustomerWorkOrder({ id: wid })

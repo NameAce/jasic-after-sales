@@ -225,6 +225,7 @@
   import { themeColors } from '@/constants/theme'
   import { emptyOrderListIcon, photoCameraIcon, scheduleIcon } from '@/svgs'
   import { useScrollRefresher } from '@/utils/useScrollRefresher'
+  import { hideRequestLoading, showApiToast, showRequestLoading } from '@/utils/uiFeedback'
 
   // 工单状态标签（UI 文案仅用于展示，接口筛选统一走后端 `tabStatus` 展示态枚举：
   // WAIT_ACCEPT / IN_PROGRESS / COMPLETED / CLOSED，见 `CustomerWorkOrderQuery`）
@@ -570,34 +571,38 @@
    */
   const submitUpload = async () => {
     if (!uploadImagePath.value) {
-      uni.showToast({ title: '请先选择快递单照片', icon: 'none', duration: 1500 })
+      void showApiToast('请先选择快递单照片')
       return
     }
+    // 上传文件接口走 uploadFile（不在 http.ts 内），需要手动管理 loading
+    showRequestLoading('上传中...')
     try {
-      uni.showLoading({ title: '上传中...' })
       const uploaded = await uploadCustomerFile(uploadImagePath.value)
       const fileId = Number(uploaded.fileId)
       const workOrderId = Number(currentUploadId.value)
       if (!Number.isFinite(fileId) || fileId <= 0) {
-        uni.hideLoading()
-        uni.showToast({ title: '上传失败：未获取到凭证文件ID', icon: 'none', duration: 1800 })
+        hideRequestLoading()
+        void showApiToast('上传失败：未获取到凭证文件ID', { duration: 1800 })
         return
       }
       if (!Number.isFinite(workOrderId) || workOrderId <= 0) {
-        uni.hideLoading()
-        uni.showToast({ title: '工单ID无效，请重试', icon: 'none', duration: 1800 })
+        hideRequestLoading()
+        void showApiToast('工单ID无效，请重试', { duration: 1800 })
         return
       }
+      // 提前关上传 loading；下面 PUT 由 http.ts 自动接管 loading
+      hideRequestLoading()
       await updateCustomerWorkOrderSenderVoucher({
         senderVoucherFileIds: [fileId],
         workOrderId
       })
-      uni.hideLoading()
-      uni.showToast({ title: '上传成功', icon: 'none', duration: 1500 })
+      // toast 与列表刷新并行：刷新数据在 1500ms toast 阻塞期内悄悄完成
+      const toastDone = showApiToast('上传成功')
       closeUploadModal()
       reloadOrderList()
+      await toastDone
     } catch {
-      uni.hideLoading()
+      hideRequestLoading()
       /* 失败提示由 http 层使用接口 msg */
     }
   }

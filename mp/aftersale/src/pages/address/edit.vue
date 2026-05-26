@@ -74,6 +74,7 @@
   import { addCustomerAddress, updateCustomerAddress } from '@/api/customerAddress'
   import { loadAddresses, saveAddresses, type SavedAddress } from '@/utils/addressStorage'
   import { themeColors } from '@/constants/theme'
+  import { showApiToast } from '@/utils/uiFeedback'
 
   const scrollIntoView = ref('')
   const focusField = ref('')
@@ -177,22 +178,22 @@
     const phone = form.phone.trim()
     const detail = form.detail.trim()
     if (!name) {
-      uni.showToast({ title: '请填写收件人', icon: 'none', duration: 1500 })
+      void showApiToast('请填写收件人')
       goToFirstInvalidField('name', true)
       return
     }
     if (!/^1\d{10}$/.test(phone)) {
-      uni.showToast({ title: '请输入正确手机号', icon: 'none', duration: 1500 })
+      void showApiToast('请输入正确手机号')
       goToFirstInvalidField('phone', true)
       return
     }
     if (!form.province || !form.city) {
-      uni.showToast({ title: '请选择所在地区', icon: 'none', duration: 1500 })
+      void showApiToast('请选择所在地区')
       goToFirstInvalidField('region', false)
       return
     }
     if (!detail) {
-      uni.showToast({ title: '请填写详细地址', icon: 'none', duration: 1500 })
+      void showApiToast('请填写详细地址')
       goToFirstInvalidField('detail', true)
       return
     }
@@ -202,10 +203,10 @@
     if (editId.value) {
       const idNum = Number(editId.value)
       if (!Number.isFinite(idNum)) {
-        uni.showToast({ title: '地址无效，请删除后重新添加', icon: 'none', duration: 2000 })
+        void showApiToast('地址无效，请删除后重新添加', { duration: 2000 })
         return
       }
-      uni.showLoading({ title: '保存中', mask: true })
+      // updateCustomerAddress 是 PUT，http.ts 已自动管理 loading
       try {
         await updateCustomerAddress({
           id: idNum,
@@ -229,17 +230,16 @@
         if (idx >= 0) list[idx] = payload
         else list.unshift(payload)
         saveAddresses(list)
-        uni.showToast({ title: '已保存', icon: 'none', duration: 1500 })
-        setTimeout(() => uni.navigateBack(), 400)
+        // 等 toast 1500ms 阻塞期结束再返回上一页，确保用户能看完成功提示
+        await showApiToast('已保存')
+        uni.navigateBack()
       } catch {
         /* http 已 toast */
-      } finally {
-        uni.hideLoading()
       }
       return
     }
 
-    uni.showLoading({ title: '保存中', mask: true })
+    // addCustomerAddress 是 POST，http.ts 已自动管理 loading
     try {
       const res = await addCustomerAddress({
         province: form.province,
@@ -262,12 +262,11 @@
       }
       list.unshift(payload)
       saveAddresses(list)
-      uni.showToast({ title: '已保存', icon: 'none', duration: 1500 })
-      setTimeout(() => uni.navigateBack(), 400)
+      // 等 toast 1500ms 阻塞期结束再返回上一页，确保用户能看完成功提示
+      await showApiToast('已保存')
+      uni.navigateBack()
     } catch {
       /* http 已 toast */
-    } finally {
-      uni.hideLoading()
     }
   }
 </script>

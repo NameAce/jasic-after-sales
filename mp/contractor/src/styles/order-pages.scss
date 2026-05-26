@@ -89,6 +89,7 @@
 
   .search-box {
     @include flex-row;
+    align-items: center;
     background-color: $bg-hover;
     border-radius: $radius-lg;
     height: 88rpx;
@@ -100,13 +101,36 @@
       margin-right: $space-sm;
     }
 
-    .search-input {
+    .search-input-wrap {
+      position: relative;
       flex: 1;
+      min-width: 0;
+      height: 100%;
+    }
+
+    .search-input {
+      width: 100%;
       height: 100%;
       font-size: $font-md;
       color: $text-slate-900;
       background: transparent;
       border: none;
+      box-sizing: border-box;
+
+      &--with-clear {
+        padding-right: 64rpx;
+      }
+    }
+
+    .search-clear-hit {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      z-index: 2;
+      @include flex-center;
+      width: 64rpx;
+      height: 100%;
     }
 
     .placeholder-text {

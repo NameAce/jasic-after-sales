@@ -105,6 +105,7 @@
   import { computed, reactive, ref } from 'vue'
   import { onLoad } from '@dcloudio/uni-app'
   import { evaluateCustomerWorkOrder, getCustomerWorkOrder } from '@/api/workOrder'
+  import { showApiToast } from '@/utils/uiFeedback'
   import FormItemAnchor from '@/components/FormItemAnchor/FormItemAnchor.vue'
   import MediaUploadField from '@/components/MediaUploadField/MediaUploadField.vue'
   import BaseButton from '@/components/BaseButton/BaseButton.vue'
@@ -202,15 +203,10 @@
  */
   const validateForm = () => {
     if (!formData.efficiencyRating || !formData.qualityRating || !formData.satisfactionRating) {
-      uni.showToast({
-        title: '请完成评分',
-        icon: 'none',
-        duration: 1500
-      })
+      void showApiToast('请完成评分')
       triggerScrollIntoView(scrollIntoView, 'ratings')
       return false
     }
-
     return true
   }
 
@@ -222,17 +218,13 @@
   const submit = async () => {
     if (!validateForm()) return
     if (!workOrderId.value) {
-      uni.showToast({
-        title: '工单参数无效',
-        icon: 'none',
-        duration: 1500
-      })
+      void showApiToast('工单参数无效')
       return
     }
     if (submitting.value) return
     submitting.value = true
-    uni.showLoading({ title: '提交中...', mask: true })
     try {
+      // evaluateCustomerWorkOrder 是 POST/PUT，http.ts 已自动管理 loading
       const content = formData.feedback.trim()
       const res = await evaluateCustomerWorkOrder({
         qualityScore: formData.qualityRating,
@@ -241,19 +233,13 @@
         workOrderId: workOrderId.value,
         ...(content ? { content } : {})
       })
-      uni.showToast({
-        title: res.msg,
-        icon: 'none',
-        duration: 1500
-      })
       openerEventChannel?.emit(WORK_ORDER_EVALUATED_EVENT)
-      setTimeout(() => {
-        uni.navigateBack()
-      }, 1500)
+      // 等 toast 1500ms 阻塞期结束再返回上一页，确保用户能看完成功提示
+      await showApiToast(res.msg || '评价提交成功')
+      uni.navigateBack()
     } catch {
       /* 失败提示由 http 层处理 */
     } finally {
-      uni.hideLoading()
       submitting.value = false
     }
   }

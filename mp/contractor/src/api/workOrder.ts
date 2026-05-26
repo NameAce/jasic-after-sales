@@ -1,4 +1,5 @@
 import { getApiMessage, http } from '@/utils/http'
+import { showApiToast } from '@/utils/uiFeedback'
 import type {
   BranchItem,
   FaultPointRecord,
@@ -1497,7 +1498,7 @@ export async function getWorkOrder(id: string) {
   const wid = String(id || '').trim()
   if (!wid) {
     const msg = '工单ID无效'
-    uni.showToast({ title: msg, icon: 'none' })
+    void showApiToast(msg)
     throw new Error(msg)
   }
   const res = await http<WorkOrderDetailVO>({
@@ -1510,7 +1511,7 @@ export async function getWorkOrder(id: string) {
   const vo = res.data
   if (vo == null || typeof vo !== 'object') {
     const msg = '工单详情数据为空'
-    uni.showToast({ title: msg, icon: 'none' })
+    void showApiToast(msg)
     throw new Error(msg)
   }
   return mapWorkOrderDetailToOrderDetail(vo)
@@ -1525,7 +1526,7 @@ export async function getWorkOrderRepairFaultRecords(id: string): Promise<FaultP
   const wid = String(id || '').trim()
   if (!wid) {
     const msg = '工单ID无效'
-    uni.showToast({ title: msg, icon: 'none' })
+    void showApiToast(msg)
     throw new Error(msg)
   }
   const res = await http<WorkOrderDetailVO>({
@@ -1538,7 +1539,7 @@ export async function getWorkOrderRepairFaultRecords(id: string): Promise<FaultP
   const vo = res.data
   if (vo == null || typeof vo !== 'object') {
     const msg = '工单详情数据为空'
-    uni.showToast({ title: msg, icon: 'none' })
+    void showApiToast(msg)
     throw new Error(msg)
   }
   return mapWorkOrderRepairsToAllFaultPointRecords(vo.repairs)

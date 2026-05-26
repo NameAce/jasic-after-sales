@@ -54,6 +54,7 @@
  */
   import { ref, watch, computed } from 'vue'
   import { listRepairProductModelOptions } from '@/api/workOrder'
+  import { showApiToast } from '@/utils/uiFeedback'
 
   const props = defineProps<{
     visible: boolean
@@ -129,16 +130,16 @@
 
   const onConfirm = () => {
     if (!canSubmit.value) {
-      uni.showToast({ title: '请从列表中选择机器型号', icon: 'none' })
+      void showApiToast('请从列表中选择机器型号')
       return
     }
     const val = pickedModel.value.trim()
     if (!enabledAllModels.value.length) {
-      uni.showToast({ title: '未加载到可选机型，请稍后重试', icon: 'none' })
+      void showApiToast('未加载到可选机型，请稍后重试')
       return
     }
     if (!enabledAllModels.value.includes(val)) {
-      uni.showToast({ title: '请选择已启用的机器型号', icon: 'none' })
+      void showApiToast('请选择已启用的机器型号')
       return
     }
     emit('confirm', val)

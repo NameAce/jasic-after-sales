@@ -71,6 +71,7 @@
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import FormItemAnchor from '@/components/FormItemAnchor/FormItemAnchor.vue'
   import { triggerScrollIntoView } from '@/utils/formFieldScrollFocus'
+  import { showApiToast } from '@/utils/uiFeedback'
   import { addCompanyAddress, updateCompanyAddress } from '@/api/companyAddress'
   import { loadAddresses, saveAddresses, type SavedAddress } from '@/utils/addressStorage'
   import { resolveSavedAddressRegion } from '@/utils/parseAddressRegion'
@@ -192,22 +193,22 @@
     const phone = form.phone.trim()
     const detail = form.detail.trim()
     if (!name) {
-      uni.showToast({ title: '请填写收件人', icon: 'none', duration: 1500 })
+      void showApiToast('请填写收件人')
       goToFirstInvalidField('name', true)
       return
     }
     if (!/^1\d{10}$/.test(phone)) {
-      uni.showToast({ title: '请输入正确手机号', icon: 'none', duration: 1500 })
+      void showApiToast('请输入正确手机号')
       goToFirstInvalidField('phone', true)
       return
     }
     if (!form.province || !form.city) {
-      uni.showToast({ title: '请选择所在地区', icon: 'none', duration: 1500 })
+      void showApiToast('请选择所在地区')
       goToFirstInvalidField('region', false)
       return
     }
     if (!detail) {
-      uni.showToast({ title: '请填写详细地址', icon: 'none', duration: 1500 })
+      void showApiToast('请填写详细地址')
       goToFirstInvalidField('detail', true)
       return
     }
@@ -217,11 +218,11 @@
     if (editId.value) {
       const idNum = Number(editId.value)
       if (!Number.isFinite(idNum)) {
-        uni.showToast({ title: '地址无效，请删除后重新添加', icon: 'none', duration: 2000 })
+        void showApiToast('地址无效，请删除后重新添加', { duration: 2000 })
         return
       }
-      uni.showLoading({ title: '保存中', mask: true })
       try {
+        // updateCompanyAddress 是 PUT 写接口，http.ts 自动显示带 mask 的 loading
         const fullAddress = `${form.province}${form.city}${form.county}${detail}`
         await updateCompanyAddress({
           id: idNum,
@@ -245,18 +246,17 @@
         if (idx >= 0) list[idx] = payload
         else list.unshift(payload)
         saveAddresses(list)
-        uni.showToast({ title: '已保存', icon: 'none', duration: 1500 })
-        setTimeout(() => uni.navigateBack(), 400)
+        // 提示完成后再返回上页，保证用户能看完"已保存"
+        await showApiToast('已保存')
+        uni.navigateBack()
       } catch {
-        /* http 已 toast */
-      } finally {
-        uni.hideLoading()
+        /* http 已 showApiToast */
       }
       return
     }
 
-    uni.showLoading({ title: '保存中', mask: true })
     try {
+      // addCompanyAddress 是 POST 写接口，http.ts 自动显示带 mask 的 loading
       const fullAddressLine = `${form.province}${form.city}${form.county || ''}${detail}`
       const res = await addCompanyAddress({
         address: fullAddressLine,
@@ -276,12 +276,10 @@
       }
       list.unshift(payload)
       saveAddresses(list)
-      uni.showToast({ title: '已保存', icon: 'none', duration: 1500 })
-      setTimeout(() => uni.navigateBack(), 400)
+      await showApiToast('已保存')
+      uni.navigateBack()
     } catch {
-      /* http 已 toast */
-    } finally {
-      uni.hideLoading()
+      /* http 已 showApiToast */
     }
   }
 </script>

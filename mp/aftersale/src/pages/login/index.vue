@@ -99,6 +99,7 @@
   import { login } from '@/api/auth'
   import { scrollPageToFormFieldKey } from '@/utils/formFieldScrollFocus'
   import { showToastThen, TAB_HOME } from '@/utils/toastNavigate'
+  import { showApiToast } from '@/utils/uiFeedback'
   // 是否同意用户协议
   const agreed = ref(false)
 
@@ -122,7 +123,7 @@
  */
   const promptAgreementFirst = () => {
     scrollPageToFormFieldKey('loginAgreement')
-    uni.showToast({ title: '请先阅读并同意用户协议和隐私政策', icon: 'none', duration: 1500 })
+    void showApiToast('请先阅读并同意用户协议和隐私政策')
   }
 
   /**
@@ -133,10 +134,10 @@
   const onGetPhoneNumber = async (e: { detail: { code?: string } }) => {
     const phoneCode = e.detail?.code ?? ''
     if (!phoneCode) {
-      uni.showToast({ title: '需要授权手机号才能登录', icon: 'none', duration: 1500 })
+      void showApiToast('需要授权手机号才能登录')
       return
     }
-    uni.showLoading({ title: '登录中...' })
+    // login 接口走 http.ts，自动管理 loading；这里不再手动 showLoading
     try {
       const loginRes = await new Promise<{ code: string }>((resolve, reject) => {
         uni.login({ provider: 'weixin', success: resolve, fail: reject })
@@ -144,11 +145,9 @@
       const res = await login({ code: loginRes.code, phoneCode })
       userStore.setUserInfo(res.data.userInfo)
       uni.setStorageSync('token', res.data.token)
-      uni.hideLoading()
       showToastThen(TAB_HOME, { title: res.msg || '登录成功', duration: 1500 })
     } catch {
-      uni.hideLoading()
-      /* 失败提示由 http 层使用接口 msg */
+      /* 失败提示由 http 层使用接口 msg；loading 在 http.ts finally 中已关闭 */
     }
   }
 
@@ -164,11 +163,7 @@
       promptAgreementFirst()
       return
     }
-    uni.showToast({
-      title: '请在微信小程序内完成登录',
-      icon: 'none',
-      duration: 1800,
-    })
+    void showApiToast('请在微信小程序内完成登录', { duration: 1800 })
   }
 
   /**
@@ -178,7 +173,7 @@
  * @修改时间 2026-05-22
  */
   const openAgreement = () => {
-    uni.showToast({ title: '查看用户协议', icon: 'none', duration: 1500 })
+    void showApiToast('查看用户协议')
   }
 
   /**
@@ -188,7 +183,7 @@
  * @修改时间 2026-05-22
  */
   const openPrivacy = () => {
-    uni.showToast({ title: '查看隐私政策', icon: 'none', duration: 1500 })
+    void showApiToast('查看隐私政策')
   }
 </script>
 

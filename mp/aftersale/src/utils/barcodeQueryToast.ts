@@ -1,9 +1,13 @@
 /**
  * 佳士报修「商品查询」结果 toast：按文案长度延长展示时长。
  * 微信小程序 loading / toast 共用通道，须在 hideLoading 完成后再延迟弹出。
+ *
+ * 自 7.x 起底层走统一 `showApiToast`，自动带 mask 阻塞操作（满足「过了时间才能继续操作」要求）。
  * @修改人 黄碧莲
- * @修改时间 2026-05-22
+ * @修改时间 2026-05-26
  */
+
+import { forceHideRequestLoading, showApiToast } from '@/utils/uiFeedback'
 
 export type BarcodeQueryToastKind = 'success' | 'fail'
 
@@ -73,7 +77,8 @@ export function showBarcodeQueryToast(options: {
     kind === 'success' ? 'none' : (options.icon ?? 'none')
   const delay = toastDelayAfterHideLoading(kind)
   setTimeout(() => {
-    uni.showToast({ title, icon, duration })
+    // 走统一封装：自动 mask + duration 阻塞，避免 iOS 上提示被立即覆盖
+    void showApiToast(title, { icon, duration })
   }, delay)
 }
 
@@ -85,10 +90,7 @@ export function hideLoadingThenShowBarcodeQueryToast(options: {
   kind?: BarcodeQueryToastKind
   icon?: UniApp.ShowToastOptions['icon']
 }): void {
-  try {
-    uni.hideLoading()
-  } catch {
-    /* 无 loading 时忽略 */
-  }
+  // 强关 loading（含计数）后再走统一 toast，保证 toast 完整可见且阻塞期内 loading 不残留
+  forceHideRequestLoading()
   showBarcodeQueryToast(options)
 }

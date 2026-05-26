@@ -11,12 +11,26 @@
             :color="themeColors.textMuted"
             class="search-icon"
           ></uni-icons>
-          <input
-            v-model="searchQuery"
-            class="search-input"
-            placeholder="搜索工单号或故障描述"
-            placeholder-class="placeholder-text"
-          />
+          <view class="search-input-wrap">
+            <input
+              :value="searchQuery"
+              class="search-input"
+              :class="{ 'search-input--with-clear': showSearchClear }"
+              :placeholder="searchInputPlaceholder"
+              placeholder-class="placeholder-text"
+              confirm-type="search"
+              @input="onSearchInput"
+              @blur="onSearchInputBlur"
+            />
+            <view
+              v-if="showSearchClear"
+              class="search-clear-hit"
+              @touchstart.stop.prevent="onSearchClear"
+              @click.stop="onSearchClear"
+            >
+              <uni-icons type="closeempty" size="18" :color="themeColors.textMuted" />
+            </view>
+          </view>
         </view>
 
         <!-- 一级 Tab 栏 -->
@@ -223,7 +237,6 @@
   import CloseOrderModal from '@/components/CloseOrderModal/CloseOrderModal.vue'
   import UploadSendExpressModal from '@/components/UploadSendExpressModal/UploadSendExpressModal.vue'
   import {
-    applyWorkOrderListSearchKeyword,
     assignWorkOrder,
     listHqSiteSummary,
     listAssignUserOptions,
@@ -251,6 +264,7 @@
   import { takeSelectedShippingAddress } from '@/utils/addressStorage'
   import { storeIcon } from '@/svgs'
   import { useScrollRefresher } from '@/utils/useScrollRefresher'
+  import { hideRequestLoading, showApiToast, showRequestLoading } from '@/utils/uiFeedback'
   import { isWorkOrderPendingTechAcceptMainStatus } from '@/utils/workOrderMainStatus'
   import type { WorkOrderActionKey } from '@/constants/orderActions'
   import { useWorkOrderVisibleActions } from '@/composables/useWorkOrderVisibleActions'
@@ -365,6 +379,23 @@
 
   // 搜索关键词
   const searchQuery = ref('')
+
+  /** 是否展示清除按钮（有非空关键词时） */
+  const showSearchClear = computed(() => !!searchQuery.value.trim())
+
+  /** 工单列表仅按 orderNo 模糊；总部「网点工单」Tab 按网点名称筛汇总 */
+  const searchInputPlaceholder = computed(() =>
+    showBranchView.value ? '搜索网点名称' : '搜索工单号'
+  )
+
+  /**
+   * 搜索框输入：使用 :value + @input，避免小程序端 v-model 程序化清空不同步
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-26
+   */
+  const onSearchInput = (e: { detail?: { value?: string } }) => {
+    searchQuery.value = String(e.detail?.value ?? '')
+  }
   // 一级Tab
   const primaryTab = ref<PrimaryTab>('untransferred')
   // 二级Tab
@@ -400,6 +431,8 @@
 
   // 搜索输入防抖（避免每个字符都打接口）
   const searchDebounceTimer = ref<ReturnType<typeof setTimeout> | null>(null)
+  /** 点击清除时置位，避免 blur 与 clear 竞态导致输入框未清空 */
+  const clearingSearch = ref(false)
 
   /**
    * 将指定二级 Tab 滚入横向 scroll-view 可视区域（避免「已关闭」等项在屏外点不到/看不见）
@@ -608,8 +641,7 @@
       viewScope: primary === 'transferred' && !isHqUser.value ? 'HISTORY' : 'CURRENT'
     }
 
-    // 与接口约定一致：含中文→客户姓名模糊；长数字→条码；否则工单号模糊（避免多条件 AND 同时传）
-    applyWorkOrderListSearchKeyword(query, q)
+    if (q) query.orderNo = q
 
     const ms = secondaryTabToMainStatus(secondary)
     if (ms !== undefined) query.mainStatus = ms
@@ -702,6 +734,49 @@
       }, 300)
     }
   )
+
+  /**
+   * 搜索输入框失焦时立即触发一次刷新：
+   * - 清理防抖定时器，避免紧接着再触发一次延迟请求；
+   * - 保持与当前视图一致：网点视图刷新网点，工单视图刷新工单。
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-26
+   */
+  const onSearchInputBlur = () => {
+    if (clearingSearch.value) return
+    if (searchDebounceTimer.value) {
+      clearTimeout(searchDebounceTimer.value)
+      searchDebounceTimer.value = null
+    }
+    if (showBranchView.value) {
+      refreshBranches()
+      return
+    }
+    refreshOrders()
+  }
+
+  /**
+   * 点击清除图标：清空关键词并立即刷新当前列表（工单列表 / 网点汇总）
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-26
+   */
+  const onSearchClear = () => {
+    if (!searchQuery.value.trim()) return
+    clearingSearch.value = true
+    if (searchDebounceTimer.value) {
+      clearTimeout(searchDebounceTimer.value)
+      searchDebounceTimer.value = null
+    }
+    searchQuery.value = ''
+    if (showBranchView.value) {
+      void refreshBranches()
+    } else {
+      void refreshOrders()
+    }
+    nextTick(() => {
+      clearingSearch.value = false
+    })
+  }
   // 空列表标题（根据搜索关键词判断）
   const listEmptyTitle = computed(() => (searchQuery.value?.trim() ? '未找到相关工单' : '暂无工单'))
 
@@ -831,11 +906,12 @@
 
     const workOrderId = Number(orderId)
     if (!Number.isFinite(workOrderId) || workOrderId <= 0) {
-      uni.showToast({ title: '工单ID无效', icon: 'none' })
+      void showApiToast('工单ID无效')
       return
     }
 
-    uni.showLoading({ title: '加载网点...' })
+    // 网点列表是 GET 查询接口（默认不显示 loading），但弹窗打开需要可见反馈，故业务侧手动加 loading
+    showRequestLoading('加载网点...')
     try {
       const list = await listTransferTargetOptions(workOrderId)
       transferTargetOptions.value = list.map((c) => ({
@@ -844,15 +920,15 @@
         raw: c
       }))
       if (!transferTargetOptions.value.length) {
-        uni.showToast({ title: '暂无可转单目标', icon: 'none' })
+        void showApiToast('暂无可转单目标')
         currentTransferOrderId.value = ''
         return
       }
       showTransferModal.value = true
     } catch {
-      // http.ts 内已 toast；这里兜底避免 loading 不消失
+      // http.ts 内已统一 showApiToast；这里不重复提示
     } finally {
-      uni.hideLoading()
+      hideRequestLoading()
     }
   }
 
@@ -865,30 +941,30 @@
    */
   const onTransferConfirm = async (payload: { selectedNetwork: any; reason: string }) => {
     if (!payload.selectedNetwork) {
-      uni.showToast({ title: '请选择转单网点', icon: 'none' })
+      void showApiToast('请选择转单网点')
       return
     }
     if (!payload.reason?.trim()) {
-      uni.showToast({ title: '请填写转单原因', icon: 'none' })
+      void showApiToast('请填写转单原因')
       return
     }
 
     const workOrderId = Number(currentTransferOrderId.value)
     const targetCompanyId = Number(payload.selectedNetwork?.id)
     if (!Number.isFinite(workOrderId) || workOrderId <= 0) {
-      uni.showToast({ title: '工单ID无效', icon: 'none' })
+      void showApiToast('工单ID无效')
       return
     }
     if (!Number.isFinite(targetCompanyId) || targetCompanyId <= 0) {
-      uni.showToast({ title: '目标网点ID无效', icon: 'none' })
+      void showApiToast('目标网点ID无效')
       return
     }
 
     // 与「提交报价」一致：校验通过后、业务请求前弹出工单订阅消息授权（仍在用户点击链路内）
     await requestWorkOrderSubscribe()
 
-    uni.showLoading({ title: '正在提交...' })
     try {
+      // 写接口 transferWorkOrder 走 PUT，http.ts 自动显示带 mask 的 loading
       const res = await transferWorkOrder({
         workOrderId,
         targetCompanyId,
@@ -901,14 +977,13 @@
       transferReason.value = ''
       currentTransferOrderId.value = ''
 
+      // 先刷新列表（用户在 toast 期间看到新数据，体验更顺）；再 await 提示以阻塞后续交互
       await nextTick()
       await refreshOrders()
 
-      uni.showToast({ title: getApiMessage(res, '转单已提交'), icon: 'none', duration: 1500 })
+      await showApiToast(getApiMessage(res, '转单已提交'))
     } catch {
-      // http.ts / api 内已 toast；这里兜底避免 loading 不消失
-    } finally {
-      uni.hideLoading()
+      // http.ts / api 内已 showApiToast；这里不重复
     }
   }
 
@@ -985,30 +1060,27 @@
   }) => {
     const workOrderId = Number(payload.workOrderId ?? currentOrderId.value)
     if (!Number.isFinite(workOrderId) || workOrderId <= 0) {
-      uni.showToast({ title: '工单ID无效', icon: 'none' })
+      void showApiToast('工单ID无效')
       return
     }
 
     const assignedUserId = Number(payload?.selectedTechId)
     if (!Number.isFinite(assignedUserId) || assignedUserId <= 0) {
-      uni.showToast({ title: '维修员ID无效', icon: 'none' })
+      void showApiToast('维修员ID无效')
       return
     }
     const selfId = Number(userStore.userInfo?.id)
     const isSelf = Number.isFinite(selfId) && selfId > 0 && assignedUserId === selfId
     try {
+      // 派单是 PUT 写接口，http.ts 自动显示带 mask 的 loading
       const res = await assignWorkOrder({ workOrderId, assignedUserId })
-      if (isSelf) {
-        uni.showToast({ title: '已派单给自己，可在「待接单」中接单', icon: 'none' })
-      } else {
-        uni.showToast({ title: getApiMessage(res, '派单成功'), icon: 'none', duration: 1500 })
-      }
       closeAssignModal()
-      setTimeout(() => {
-        refreshOrders()
-      }, 300)
+      // 列表刷新与提示并行：toast mask 期间数据已刷好，关闭后用户即可看到最新状态
+      refreshOrders()
+      const tip = isSelf ? '已派单给自己，可在「待接单」中接单' : getApiMessage(res, '派单成功')
+      await showApiToast(tip)
     } catch {
-      // assignWorkOrder / http 内已 toast
+      // assignWorkOrder / http 内已 showApiToast
     }
   }
 
@@ -1064,7 +1136,7 @@
   const onAcceptOrder = (orderId: string) => {
     const id = Number(orderId)
     if (!Number.isFinite(id) || id <= 0) {
-      uni.showToast({ title: '工单ID无效', icon: 'none' })
+      void showApiToast('工单ID无效')
       return
     }
     uni.navigateTo({
@@ -1150,7 +1222,7 @@
     currentReturnMethodType.value = data.type
     const id = Number(currentReturnOrderId.value)
     if (!Number.isFinite(id) || id <= 0) {
-      uni.showToast({ title: '工单ID无效', icon: 'none' })
+      void showApiToast('工单ID无效')
       return
     }
 
@@ -1172,35 +1244,30 @@
             }
           : base
 
-      uni.showLoading({ title: '提交中...' })
       try {
+        // 关单是 PUT 写接口，http.ts 自动显示带 mask 的 loading
         const res = await closeWorkOrder(dto)
         closeOrderReturnMethodPayload.value = null
-        uni.showToast({ title: getApiMessage(res, '工单已关闭'), icon: 'none', duration: 1500 })
-        setTimeout(() => {
-          refreshOrders()
-        }, 300)
+        // 列表刷新与提示并行，toast 阻塞期内数据已就绪
+        refreshOrders()
+        await showApiToast(getApiMessage(res, '工单已关闭'))
       } catch {
-        // closeWorkOrder 内已 toast
-      } finally {
-        uni.hideLoading()
+        // closeWorkOrder 内已 showApiToast
       }
       return
     }
 
     if (judge === '无故障') {
-      uni.showToast({
-        title: `工单 ${currentReturnOrderId.value} 已选择 ${data.type === 'self' ? '自提' : '回寄'}`,
-        icon: 'none'
-      })
       closeOrderReturnMethodPayload.value = data
-      setTimeout(() => {
-        showCloseOrderModal.value = true
-      }, 500)
+      // 提示选择结果并等待用户看完后再弹出关单原因弹窗，避免两次交互重叠
+      await showApiToast(
+        `工单 ${currentReturnOrderId.value} 已选择 ${data.type === 'self' ? '自提' : '回寄'}`
+      )
+      showCloseOrderModal.value = true
       return
     }
 
-    uni.showToast({ title: '工单状态未就绪，请稍后重试', icon: 'none' })
+    void showApiToast('工单状态未就绪，请稍后重试')
   }
 
   /**
@@ -1213,18 +1280,18 @@
   const onCloseOrderConfirm = async (reason: string) => {
     const id = Number(currentReturnOrderId.value)
     if (!Number.isFinite(id) || id <= 0) {
-      uni.showToast({ title: '工单ID无效', icon: 'none' })
+      void showApiToast('工单ID无效')
       return
     }
     const payload = closeOrderReturnMethodPayload.value
     if (!payload) {
-      uni.showToast({ title: '请先完成机器返回方式', icon: 'none' })
+      void showApiToast('请先完成机器返回方式')
       return
     }
 
     const cr = (reason || '').trim()
     if (!cr) {
-      uni.showToast({ title: '请填写关闭原因（无故障必填）', icon: 'none' })
+      void showApiToast('请填写关闭原因（无故障必填）')
       return
     }
 
@@ -1243,19 +1310,15 @@
           }
         : base
 
-    uni.showLoading({ title: '正在关闭...' })
     try {
+      // 关单是 PUT 写接口，http.ts 自动显示带 mask 的 loading
       const res = await closeWorkOrder(dto)
       closeOrderReturnMethodPayload.value = null
-      uni.showToast({ title: getApiMessage(res, '工单已关闭'), icon: 'none', duration: 1500 })
-      // 关闭成功后刷新列表（避免本地状态与后端不一致）
-      setTimeout(() => {
-        refreshOrders()
-      }, 300)
+      // 关闭成功后刷新列表与提示并行，避免本地状态与后端不一致
+      refreshOrders()
+      await showApiToast(getApiMessage(res, '工单已关闭'))
     } catch {
-      // closeWorkOrder 内已 toast；这里兜底避免 loading 不消失
-    } finally {
-      uni.hideLoading()
+      // closeWorkOrder 内已 showApiToast
     }
   }
 
@@ -1298,18 +1361,15 @@
     sendExpressNo: string
     senderVoucherFileIds?: number[]
   }) => {
-    uni.showLoading({ title: '提交中...' })
     try {
+      // 上传寄件单号是 PUT 写接口，http.ts 自动显示带 mask 的 loading
       const res = await updateWorkOrderSendExpress(payload)
       showUploadSendExpressModal.value = false
-      uni.showToast({ title: getApiMessage(res, '提交成功'), icon: 'none', duration: 1500 })
-      setTimeout(() => {
-        refreshOrders()
-      }, 300)
+      // 历史转出列表刷新与提示并行
+      refreshOrders()
+      await showApiToast(getApiMessage(res, '提交成功'))
     } catch {
-      // updateWorkOrderSendExpress / http 内已 toast
-    } finally {
-      uni.hideLoading()
+      // updateWorkOrderSendExpress / http 内已 showApiToast
     }
   }
 
@@ -1350,7 +1410,7 @@
   const dispatchWorkOrderAction = (actionKey: WorkOrderActionKey, orderId: string | number) => {
     const id = String(orderId ?? '').trim()
     if (!id) {
-      uni.showToast({ title: '工单ID无效', icon: 'none' })
+      void showApiToast('工单ID无效')
       return
     }
     const orderRow = orderList.value.find((o) => o.id === id)
@@ -1360,15 +1420,15 @@
       !isHistoryListView.value &&
       !isOrderAcceptedByCurrentCompany(orderRow)
     ) {
-      uni.showToast({ title: '受理方非您所在主体，仅可查看', icon: 'none' })
+      void showApiToast('受理方非您所在主体，仅可查看')
       return
     }
     if (orderRow && !hasVisibleAction(orderRow, actionKey)) {
-      uni.showToast({ title: '当前工单状态已变更，请刷新后重试', icon: 'none' })
+      void showApiToast('当前工单状态已变更，请刷新后重试')
       return
     }
     if (!(actionKey in workOrderActionHandlers)) {
-      uni.showToast({ title: '暂不支持该操作', icon: 'none' })
+      void showApiToast('暂不支持该操作')
       return
     }
     workOrderActionHandlers[actionKey as keyof typeof workOrderActionHandlers](id)

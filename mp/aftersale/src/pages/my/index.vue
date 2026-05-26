@@ -232,15 +232,13 @@
       content: '确定要退出登录吗？',
       success: async (res) => {
         if (!res.confirm) return
-        uni.showLoading({ title: '退出中...', mask: true })
         let logoutMsg = '已退出登录'
         try {
+          // http.ts 已根据 POST 自动显示 loading；这里不再手动管理
           const res = await logout()
           logoutMsg = res.msg || logoutMsg
         } catch {
           /* http 层已提示；仍清理本地，避免无法退出 */
-        } finally {
-          uni.hideLoading()
         }
         userStore.clearUserInfo()
         uni.removeStorageSync('token')
