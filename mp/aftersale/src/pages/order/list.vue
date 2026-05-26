@@ -10,13 +10,25 @@
             :color="themeColors.textMuted"
             class="search-icon"
           ></uni-icons>
-          <input
-            v-model="searchKeyword"
-            class="search-input"
-            placeholder="请输入工单号"
-            placeholder-class="placeholder-text"
-            confirm-type="search"
-          />
+          <view class="search-input-wrap">
+            <input
+              :value="searchKeyword"
+              class="search-input"
+              :class="{ 'search-input--with-clear': showSearchClear }"
+              placeholder="请输入工单号"
+              placeholder-class="placeholder-text"
+              confirm-type="search"
+              @input="onSearchInput"
+            />
+            <view
+              v-if="showSearchClear"
+              class="search-clear-hit"
+              @touchstart.stop.prevent="onSearchClear"
+              @click.stop="onSearchClear"
+            >
+              <uni-icons type="closeempty" size="18" :color="themeColors.textMuted" />
+            </view>
+          </view>
         </view>
         <!-- 工单状态标签 -->
         <scroll-view class="tabs" scroll-x :show-scrollbar="false">
@@ -256,6 +268,28 @@
    * @修改时间 2026-05-22
    */
   const searchKeyword = ref('')
+
+  /** 有搜索关键词时展示清除按钮 */
+  const showSearchClear = computed(() => !!searchKeyword.value.trim())
+
+  /**
+   * 搜索框输入：:value + @input，避免小程序端程序化清空不同步
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-26
+   */
+  const onSearchInput = (e: { detail?: { value?: string } }) => {
+    searchKeyword.value = String(e.detail?.value ?? '')
+  }
+
+  /**
+   * 点击清除：清空关键词（列表由 displayOrderList 计算属性自动更新）
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-26
+   */
+  const onSearchClear = () => {
+    if (!searchKeyword.value.trim()) return
+    searchKeyword.value = ''
+  }
 
   /**
    * 是否包含条码
@@ -658,6 +692,7 @@
 
     .search-box {
       @include flex-row;
+      align-items: center;
       background-color: $bg-hover;
       height: 88rpx;
       border-radius: $radius-lg;
@@ -668,12 +703,35 @@
         margin-right: $space-sm;
       }
 
-      .search-input {
+      .search-input-wrap {
+        position: relative;
         flex: 1;
+        min-width: 0;
+        height: 100%;
+      }
+
+      .search-input {
+        width: 100%;
         height: 100%;
         font-size: $font-md;
         color: $text-slate-900;
         background: transparent;
+        box-sizing: border-box;
+
+        &--with-clear {
+          padding-right: 64rpx;
+        }
+      }
+
+      .search-clear-hit {
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 2;
+        @include flex-center;
+        width: 64rpx;
+        height: 100%;
       }
     }
 
