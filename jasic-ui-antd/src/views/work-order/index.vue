@@ -28,8 +28,10 @@ type RowData = Record<string, any>;
 
 // 搜索区筛选项超过 4 个时可折叠
 const workOrderSearchFilter = usePageSearchFilterCollapse(5);
-// 权限钩子（如「建维修订单」按钮）
+// 权限钩子（如「建维修订单」按钮、待派单 Tab）
 const { hasAuth } = useAuth();
+/** 是否具备工单派单权限（sys_menu.perms = workorder:assign） */
+const canAssignWorkOrder = computed(() => hasAuth('workorder:assign'));
 
 type MainStatusTab = 'ALL' | 'PENDING_ASSIGN' | 'PENDING_TECH_ACCEPT' | 'IN_PROGRESS' | 'COMPLETED' | 'CLOSED';
 
@@ -123,39 +125,45 @@ const activeMainStatus = computed({
   }
 });
 
-// 主状态 Tab 元数据（文案 + 对应数量）
-const statusTabOptions = computed(() => [
-  {
-    value: 'ALL' as const,
-    label: '全部',
-    count: statusCountMap.value.ALL || 0
-  },
-  {
-    value: 'PENDING_ASSIGN' as const,
-    label: '待派单',
-    count: statusCountMap.value.PENDING_ASSIGN || 0
-  },
-  {
-    value: 'PENDING_TECH_ACCEPT' as const,
-    label: '待接单',
-    count: statusCountMap.value.PENDING_TECH_ACCEPT || 0
-  },
-  {
-    value: 'IN_PROGRESS' as const,
-    label: '维修中',
-    count: statusCountMap.value.IN_PROGRESS || 0
-  },
-  {
-    value: 'COMPLETED' as const,
-    label: '已完成',
-    count: statusCountMap.value.COMPLETED || 0
-  },
-  {
-    value: 'CLOSED' as const,
-    label: '已关闭',
-    count: statusCountMap.value.CLOSED || 0
+// 主状态 Tab 元数据（文案 + 对应数量）；无派单权限时不展示「待派单」
+const statusTabOptions = computed(() => {
+  const tabs = [
+    {
+      value: 'ALL' as const,
+      label: '全部',
+      count: statusCountMap.value.ALL || 0
+    },
+    {
+      value: 'PENDING_ASSIGN' as const,
+      label: '待派单',
+      count: statusCountMap.value.PENDING_ASSIGN || 0
+    },
+    {
+      value: 'PENDING_TECH_ACCEPT' as const,
+      label: '待接单',
+      count: statusCountMap.value.PENDING_TECH_ACCEPT || 0
+    },
+    {
+      value: 'IN_PROGRESS' as const,
+      label: '维修中',
+      count: statusCountMap.value.IN_PROGRESS || 0
+    },
+    {
+      value: 'COMPLETED' as const,
+      label: '已完成',
+      count: statusCountMap.value.COMPLETED || 0
+    },
+    {
+      value: 'CLOSED' as const,
+      label: '已关闭',
+      count: statusCountMap.value.CLOSED || 0
+    }
+  ];
+  if (!canAssignWorkOrder.value) {
+    return tabs.filter(item => item.value !== 'PENDING_ASSIGN');
   }
-]);
+  return tabs;
+});
 
 // Segmented 组件用的选项（标签含数量）
 const statusSegmentOptions = computed(() =>
@@ -546,6 +554,25 @@ function openDetailByRouteQuery() {
 }
 
 /**
+ * 作用：无派单权限时禁止停留在「待派单」筛选（含路由深链与 Segmented 选中态）。
+ * @returns 是否已清理 mainStatus（调用方可用 skipRouteFilterReload 避免重复请求）
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-26
+ */
+function ensureMainStatusAllowedForAssignPermission(): boolean {
+  if (canAssignWorkOrder.value || query.mainStatus !== 'PENDING_ASSIGN') {
+    return false;
+  }
+  query.mainStatus = '';
+  if ('mainStatus' in route.query) {
+    const nextQuery = Object.fromEntries(Object.entries(route.query).filter(([key]) => key !== 'mainStatus'));
+    skipRouteFilterReload.value = true;
+    router.replace({ query: nextQuery });
+  }
+  return true;
+}
+
+/**
  * 作用：从路由 query 同步到本地 query，并展开「是否转单」等折叠筛选项。
  * 首页「已转出」仅下发 transferDirection=OUT 时，前端补 hasTransfer=1 回显；再由 useRouteQueryFilterSync 触发列表查询。
  * @returns void
@@ -561,8 +588,17 @@ function applyFiltersFromRouteQuery() {
   }
   if ('mainStatus' in q) {
     const routeMainStatus = readRouteQueryString(q, 'mainStatus').toUpperCase();
-    query.mainStatus = MAIN_STATUS_SET.has(routeMainStatus) ? routeMainStatus : '';
+    // 无派单权限时忽略首页/通知带入的 PENDING_ASSIGN，并清理 URL 避免刷新后仍选中
+    if (routeMainStatus === 'PENDING_ASSIGN' && !canAssignWorkOrder.value) {
+      query.mainStatus = '';
+      const nextQuery = Object.fromEntries(Object.entries(q).filter(([key]) => key !== 'mainStatus'));
+      skipRouteFilterReload.value = true;
+      router.replace({ query: nextQuery });
+    } else {
+      query.mainStatus = MAIN_STATUS_SET.has(routeMainStatus) ? routeMainStatus : '';
+    }
   }
+  ensureMainStatusAllowedForAssignPermission();
   if ('transferDirection' in q) {
     const routeTransferDirection = readRouteQueryString(q, 'transferDirection').toUpperCase();
     query.transferDirection = routeTransferDirection === 'OUT' ? 'OUT' : undefined;
