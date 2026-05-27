@@ -122,6 +122,7 @@ export interface SysMenuVO {
   orderNum?: number;
   isVisible?: number;
   status?: number;
+  remark?: string;
   children?: SysMenuVO[];
 }
 

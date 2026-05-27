@@ -7,6 +7,7 @@ import type { CustomRoute, ElegantConstRoute, ElegantRoute } from '@elegant-rout
 import { generatedRoutes } from '../elegant/routes';
 import { layouts, views } from '../elegant/imports';
 import { transformElegantRoutesToVueRoutes } from '../elegant/transform';
+import { resolveDefaultRouteKeepAlive, wrapVueRoutesForKeepAlive } from '../helpers/keep-alive';
 
 /** 追加在生成路由之外的自定义路由（如 exception 分组）
  * @修改人 黄碧莲
@@ -69,10 +70,20 @@ export function createStaticRoutes() {
   const authRoutes: ElegantRoute[] = [];
 
   [...customRoutes, ...generatedRoutes].forEach(item => {
-    if (item.meta?.constant) {
-      constantRoutes.push(item);
+    const isConstantRoute = Boolean(item.meta?.constant);
+    const shouldKeepAlive = resolveDefaultRouteKeepAlive(String(item.name), isConstantRoute);
+    const normalizedItem: ElegantRoute = {
+      ...item,
+      meta: {
+        ...(item.meta || {}),
+        keepAlive: shouldKeepAlive
+      }
+    };
+
+    if (isConstantRoute) {
+      constantRoutes.push(normalizedItem);
     } else {
-      authRoutes.push(item);
+      authRoutes.push(normalizedItem);
     }
   });
 
@@ -107,5 +118,6 @@ export function createStaticRoutes() {
  * @修改时间 2026-05-14
  */
 export function getAuthVueRoutes(routes: ElegantConstRoute[]) {
-  return transformElegantRoutesToVueRoutes(routes, layouts, views);
+  const vueRoutes = transformElegantRoutesToVueRoutes(routes, layouts, views);
+  return wrapVueRoutesForKeepAlive(vueRoutes);
 }

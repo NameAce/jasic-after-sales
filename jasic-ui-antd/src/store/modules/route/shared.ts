@@ -10,6 +10,8 @@ import { useSvgIcon } from '@/hooks/common/icon';
 import { getRouteMenuTitle } from '@/utils/route-menu-title';
 import { $t } from '@/locales';
 import { getRoutePath } from '@/router/elegant/transform';
+import { getCacheRouteNamesFromVueRoutes, resolveMenuRouteKeepAlive } from '@/router/helpers/keep-alive';
+import { parseKeepAliveFromRemark, getMenuKeepAliveFromStorage } from '@/utils/menu-keep-alive-config';
 
 type RouteMetaLike = Partial<NonNullable<ElegantConstRoute['meta']>> & Record<string, unknown>;
 type BackendMenuRoute = Api.Route.BackendMenuRoute;
@@ -112,7 +114,9 @@ function normalizeRouteMeta(route: ElegantConstRoute | BackendMenuRoute): NonNul
   meta.activeMenu = (rawMeta.activeMenu || routeRecord.activeMenu) as NonNullable<
     ElegantConstRoute['meta']
   >['activeMenu'];
-  meta.keepAlive = normalizeBooleanMetaField(rawMeta.keepAlive ?? routeRecord.keepAlive);
+  meta.keepAlive = normalizeBooleanMetaField(
+    rawMeta.keepAlive ?? routeRecord.keepAlive ?? routeRecord.keep_alive
+  );
 
   return meta;
 }
@@ -372,6 +376,22 @@ export function normalizeAuthRoutesFromBackend(
       routeName
     }) as ElegantConstRoute['component'];
 
+    const isConstantRoute = Boolean(
+      normalizeBooleanMetaField((routeRecord.constant ?? normalizedMeta.constant) as unknown)
+    );
+    const menuType = String(routeRecord.menuType ?? route.menuType ?? '');
+    const menuId = routeRecord.id ?? route.id;
+    const remarkKeepAlive = parseKeepAliveFromRemark(String(routeRecord.remark ?? ''));
+    const storageKeepAlive = getMenuKeepAliveFromStorage(menuId as string | number);
+    const configuredKeepAlive = normalizedMeta.keepAlive ?? remarkKeepAlive ?? storageKeepAlive;
+    const routeKeepAlive = resolveMenuRouteKeepAlive({
+      routeName,
+      isConstant: isConstantRoute,
+      menuType,
+      hasChildren,
+      backendKeepAlive: configuredKeepAlive
+    });
+
     const normalized: ElegantConstRoute = {
       ...route,
       name: routeName,
@@ -380,7 +400,9 @@ export function normalizeAuthRoutesFromBackend(
       meta: {
         ...normalizedMeta,
         order: resolveFallbackOrder(normalizedMeta.order, siblingIndex, siblingCount),
-        hideInMenu: normalizedMeta.hideInMenu ?? false
+        hideInMenu: normalizedMeta.hideInMenu ?? false,
+        // 是否缓存由菜单管理页配置（remark 标记 + 本地缓存），仅页面菜单 C 且开启时生效。
+        keepAlive: routeKeepAlive
       },
       children: undefined
     };
@@ -636,18 +658,7 @@ function getGlobalMenuByBaseRoute(route: RouteLocationNormalizedLoaded | Elegant
  * @修改时间 2026-05-14
  */
 export function getCacheRouteNames(routes: RouteRecordRaw[]) {
-  const cacheNames: LastLevelRouteKey[] = [];
-
-  routes.forEach(route => {
-    // only get last two level route, which has component
-    route.children?.forEach(child => {
-      if (child.component && child.meta?.keepAlive) {
-        cacheNames.push(child.name as LastLevelRouteKey);
-      }
-    });
-  });
-
-  return cacheNames;
+  return getCacheRouteNamesFromVueRoutes(routes);
 }
 
 /**

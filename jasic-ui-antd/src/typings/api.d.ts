@@ -202,6 +202,9 @@ declare namespace Api {
       orderNum?: number;
       isVisible?: string | number | boolean;
       menuType?: string;
+      id?: string | number;
+      remark?: string;
+      keepAlive?: boolean | number;
       children?: BackendMenuRoute[];
     }
 

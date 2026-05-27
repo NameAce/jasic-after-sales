@@ -37,7 +37,7 @@ const showMenuTableActionColumn = computed(() =>
   hasAuth(['system:menu:update', 'system:menu:add', 'system:menu:publish', 'system:menu:remove'])
 );
 
-const menuTreeTableScrollMinX = computed(() => 1090 + (showMenuTableActionColumn.value ? MENU_ACTION_COL_WIDTH : 0));
+const menuTreeTableScrollMinX = computed(() => 1180 + (showMenuTableActionColumn.value ? MENU_ACTION_COL_WIDTH : 0));
 const { tableWrapperRef, scrollConfig } = useTableScroll(menuTreeTableScrollMinX);
 
 const loading = ref(false);
@@ -285,7 +285,8 @@ function openAdd(parent?: RowData) {
   Object.assign(formModel, {
     id: undefined,
     parentId: parent?.id ?? 0,
-    menuType: 'M',
+    // 新增子级时默认「菜单(C)」，便于直接配置路由与组件
+    menuType: parent ? 'C' : 'M',
     subjectType: parent?.subjectType || subjectType.value,
     menuName: '',
     path: '',
@@ -413,7 +414,7 @@ async function openPublishDialog(menu: RowData, returnToForm: boolean) {
   publishDialogTitle.value = `${menu?.id ? '发布菜单' : '保存并发布'} - ${menu?.menuName || ''}`;
   publishReturnToForm.value = returnToForm;
 
-  publishForm.menu = menu;
+  publishForm.menu = { ...menu };
   publishForm.targetTypeCodes = [];
   publishForm.targetTemplateIds = [];
   publishForm.syncExistingCompanies = true;
@@ -457,20 +458,7 @@ function closePublishDialog() {
  * @修改时间 2026-05-22
  */
 function createMenuPayload(): SysMenuDTO {
-  return {
-    id: formModel.id,
-    parentId: formModel.parentId ?? 0,
-    menuType: formModel.menuType as 'M' | 'C' | 'F',
-    subjectType: String(formModel.subjectType),
-    menuName: String(formModel.menuName).trim(),
-    path: String(formModel.path || '').trim(),
-    component: String(formModel.component || '').trim(),
-    perms: String(formModel.perms || '').trim(),
-    icon: String(formModel.icon || '').trim(),
-    orderNum: Number(formModel.orderNum ?? 0),
-    isVisible: Number(formModel.isVisible ?? 1),
-    status: Number(formModel.status ?? 1)
-  };
+  return { ...formModel } as SysMenuDTO;
 }
 
 /**
@@ -505,8 +493,9 @@ async function submitPublish() {
 
   publishLoading.value = true;
   try {
+    const menuPayload = { ...(publishForm.menu as RowData) } as SysMenuDTO;
     const res = await publishMenu({
-      menu: { ...publishForm.menu },
+      menu: menuPayload,
       targetTypeCodes: [...publishForm.targetTypeCodes],
       targetTemplateIds: [...publishForm.targetTemplateIds],
       syncExistingCompanies: publishForm.syncExistingCompanies

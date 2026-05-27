@@ -39,15 +39,21 @@ export function setupElegantRouter() {
       const key = routeName as RouteKey;
 
       const constantRoutes: RouteKey[] = ['login', 'choose-company', '403', '404', '500'];
+      const excludeKeepAliveRoutes: RouteKey[] = ['home'];
 
       const meta: Partial<RouteMeta> = {
         title: key,
         i18nKey: `route.${key}` as App.I18n.I18nKey
       };
 
-      if (constantRoutes.includes(key)) {
+      const isConstantRoute = constantRoutes.includes(key);
+
+      if (isConstantRoute) {
         meta.constant = true;
       }
+
+      // 默认开启业务页缓存；常量页与首页显式排除。
+      meta.keepAlive = !isConstantRoute && !excludeKeepAliveRoutes.includes(key);
 
       return meta;
     }
