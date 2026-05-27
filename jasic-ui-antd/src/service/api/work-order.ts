@@ -273,12 +273,17 @@ export function getUpstreamFirstCreateBarcodeInfo(params?: Query) {
 
 /**
  * 作用：上游一级建单可选目标网点列表。
- * @returns 网点选项 Promise
+ * @param options.skipErrorToast - 为 true 时不弹全局错误 toast，由页面用接口 msg 自行提示
+ * @returns 网点选项 Promise（扁平结果 `{ data, error, response }`）
  * @修改人 黄碧莲
- * @修改时间 2026-05-22
+ * @修改时间 2026-05-27
  */
-export function listUpstreamFirstCreateTargetOptions() {
-  return request({ url: '/system/work-order/create/upstream-first/target-options', method: 'get' });
+export function listUpstreamFirstCreateTargetOptions(options?: { skipErrorToast?: boolean }) {
+  return request({
+    url: '/system/work-order/create/upstream-first/target-options',
+    method: 'get',
+    skipErrorToast: options?.skipErrorToast === true
+  });
 }
 
 /**

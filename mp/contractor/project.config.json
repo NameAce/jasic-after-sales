@@ -1,0 +1,7 @@
+{
+  "description": "微信小程序工程配置（编译时合并进 dist，关闭无依赖文件过滤）",
+  "setting": {
+    "ignoreDevUnusedFiles": false,
+    "ignoreUploadUnusedFiles": false
+  }
+}

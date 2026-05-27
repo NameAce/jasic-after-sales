@@ -18,7 +18,7 @@
         <text class="info-label">维修方式</text>
         <view class="tag-primary">{{ serviceModeLabel }}</view>
       </view>
-      <!-- 与 mp/aftersale 申请内容一致：到店/送店不展示寄件信息、寄件凭证 -->
+      <!-- 与 mp/aftersale 申请内容一致：到店维修不展示寄件信息、寄件凭证 -->
       <template v-if="!isInStoreRepair">
         <view v-if="hasVal(senderInfoPlain)" class="info-item align-top">
           <text class="info-label shrink">寄件信息</text>
@@ -71,7 +71,7 @@
   })
 
   /**
- * 到店/送店类维修：与 aftersale `isInStoreRepair` 一致
+ * 到店类维修：与 aftersale `isInStoreRepair` 一致（兼容历史「送店」文案）
  * @修改人 黄碧莲
  * @修改时间 2026-05-22
  */

@@ -104,6 +104,20 @@
 				"navigationBarTitleText": "关于我们",
 				"navigationStyle": "custom"
 			}
+		},
+		{
+			"path": "pages/feedback/index",
+			"style": {
+				"navigationBarTitleText": "投诉与建议",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/profile/edit",
+			"style": {
+				"navigationBarTitleText": "更换信息",
+				"navigationStyle": "custom"
+			}
 		}
 	],
 	"tabBar": {

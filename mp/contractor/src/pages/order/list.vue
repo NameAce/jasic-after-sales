@@ -138,7 +138,9 @@
         :empty-title="listEmptyTitle"
         :empty-desc="listEmptyDesc"
         :show-inbound-transfer-tag="showInboundTransferTag"
-        :show-transferred-tag="(order) => !!order.transferred && !isHqUser && !isHistoryListView"
+        :show-transferred-tag="
+          (order) => !!order.transferred && !isHqUser && !isHistoryListView && !isSelfBuiltListView
+        "
         :show-repair-site-rows="false"
         :show-no-more="orderList.length > 0 && hasLoadedAll"
         @order-click="onOrderClick"
@@ -269,7 +271,7 @@
   import type { WorkOrderActionKey } from '@/constants/orderActions'
   import { useWorkOrderVisibleActions } from '@/composables/useWorkOrderVisibleActions'
 
-  type PrimaryTab = 'untransferred' | 'transferred'
+  type PrimaryTab = 'untransferred' | 'transferred' | 'self_built'
   type SecondaryTab = 'all' | 'pending' | 'pending_accept' | 'processing' | 'completed' | 'closed'
 
   // 应用商店
@@ -297,12 +299,25 @@
    */
   const isHistoryListView = computed(() => !isHqUser.value && primaryTab.value === 'transferred')
 
-  // 一级 Tab 列表（总部/其他角色文案由 primaryTabLabels 控制）
+  /**
+   * 二级经销商「自建工单」Tab：展示当前公司代客填写（PROXY_SELF）与报修一级（UPSTREAM_FIRST）建单记录
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-27
+   */
+  const isSelfBuiltListView = computed(
+    () => !isHqUser.value && userStore.isSecondaryDealer && primaryTab.value === 'self_built'
+  )
+
+  // 一级 Tab 列表（总部/其他角色文案由 primaryTabLabels 控制；二级经销商在「历史转出」后增加「自建工单」）
   const primaryTabs = computed(() => {
-    return [
-      { label: primaryTabLabels.value[0], value: 'untransferred' as PrimaryTab },
-      { label: primaryTabLabels.value[1], value: 'transferred' as PrimaryTab }
+    const tabs: Array<{ label: string; value: PrimaryTab }> = [
+      { label: primaryTabLabels.value[0], value: 'untransferred' },
+      { label: primaryTabLabels.value[1], value: 'transferred' }
     ]
+    if (!isHqUser.value && userStore.isSecondaryDealer) {
+      tabs.push({ label: '自建工单', value: 'self_built' })
+    }
+    return tabs
   })
 
   // 是否显示网点概览视图（总部 + 网点工单tab）
@@ -538,8 +553,16 @@
     }
     const rawPrimary = String(options?.primaryTab ?? '').trim()
     const rawSecondary = String(options?.secondaryTab ?? '').trim()
-    if (rawPrimary === 'untransferred' || rawPrimary === 'transferred') {
-      primaryTab.value = rawPrimary
+    if (
+      rawPrimary === 'untransferred' ||
+      rawPrimary === 'transferred' ||
+      rawPrimary === 'self_built'
+    ) {
+      if (rawPrimary === 'self_built' && (isHqUser.value || !userStore.isSecondaryDealer)) {
+        primaryTab.value = 'untransferred'
+      } else {
+        primaryTab.value = rawPrimary as PrimaryTab
+      }
     }
     if (
       rawSecondary === 'all' ||
@@ -576,7 +599,11 @@
     }
     const target = appStore.consumeOrderListNavTarget()
     if (target) {
-      primaryTab.value = target.primaryTab
+      const nextPrimary =
+        target.primaryTab === 'self_built' && (isHqUser.value || !userStore.isSecondaryDealer)
+          ? 'untransferred'
+          : target.primaryTab
+      primaryTab.value = nextPrimary
       let sec = target.secondaryTab
       if (sec === 'pending_accept' && !userStore.hasPermission(Perms.WORKORDER_ASSIGN))
         sec = 'pending'
@@ -639,6 +666,12 @@
       companyId: userStore.userInfo?.currentCompanyId,
       // CURRENT / HISTORY 均会填充 availableActions；非总部历史转出走 HISTORY 口径
       viewScope: primary === 'transferred' && !isHqUser.value ? 'HISTORY' : 'CURRENT'
+    }
+
+    // 二级经销商自建工单：代客填写 + 报修一级（与 viewScope 组合由后端按 createEntryTypes 解析）
+    if (primary === 'self_built' && !isHqUser.value) {
+      query.createEntryTypes = ['PROXY_SELF', 'UPSTREAM_FIRST']
+      query.viewScope = 'CURRENT'
     }
 
     if (q) query.orderNo = q

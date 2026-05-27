@@ -336,7 +336,7 @@
                 <text class="info-label">维修方式</text>
                 <view class="tag-primary">{{ serviceModeLabel }}</view>
               </view>
-              <!-- 到店/送店维修不显示寄件信息与寄件快递单号（兼容文案与 STORE 编码） -->
+              <!-- 到店维修不显示寄件信息与寄件快递单号（兼容历史「送店」文案与 STORE 编码） -->
               <template v-if="!isInStoreRepair">
                 <view v-if="hasStr(order.service.senderInfo)" class="info-item align-top">
                   <text class="info-label shrink">寄件信息</text>
@@ -899,7 +899,7 @@
   })
 
   /**
-   * 是否到店/送店类维修（与寄件信息互斥；兼容「送店维修」、STORE 等）
+   * 是否到店类维修（与寄件信息互斥；兼容历史「送店维修」、STORE 等）
    * @修改人 黄碧莲
    * @修改时间 2026-05-22
    */

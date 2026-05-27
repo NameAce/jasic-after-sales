@@ -1,7 +1,7 @@
 <template>
   <view class="page-index page-padding">
-    <!-- 报修入口：代客户填写需填客户手机；报修一级/报修佳士无需手机 -->
-    <view class="repair-entry-tabs-wrap">
+    <!-- 报修入口：代客户填写需填客户手机；二级展示「报修一级」；一级不展示「报修佳士」 -->
+    <view v-if="showUpstreamRepairTab" class="repair-entry-tabs-wrap">
       <view class="repair-entry-tabs">
         <view
           :class="['tab-item', repairEntryTab === 'proxy' && 'active']"
@@ -18,6 +18,8 @@
       </view>
     </view>
 
+    <!-- 报修一级填写区：无可选目标一级时遮罩禁填（Tab 仍可切回代客户填写） -->
+    <view class="repair-main" :class="{ 'repair-main--blocked': secondaryUpstreamFormBlocked }">
     <!-- 商品查询 -->
     <view class="card card-shadow">
       <view class="card-header">
@@ -137,7 +139,15 @@
               :disabled="isUpstreamTargetSingleOption"
               :placeholder="`请选择${upstreamTargetCompanyLabel}`"
             />
-            <view v-if="isUpstreamTargetSingleOption && upstreamTargetDisplay" class="target-auto-tip">
+            <!-- 仅一级「报修佳士」展示自动回填提示；二级「报修一级」单项回显时不展示 -->
+            <view
+              v-if="
+                userStore.isPrimaryDealer &&
+                isUpstreamTargetSingleOption &&
+                upstreamTargetDisplay
+              "
+              class="target-auto-tip"
+            >
               <text>已自动回填：{{ upstreamTargetDisplay }}</text>
             </view>
           </uni-forms-item>
@@ -197,15 +207,34 @@
         </view>
       </view>
     </uni-forms>
-  </view>
+    <view
+      v-if="secondaryUpstreamFormBlocked"
+      class="repair-main-block-mask"
+      @touchmove.stop.prevent
+      @click.stop="onBlockedRepairBodyClick"
+    />
+    </view>
 
   <!-- 底部按钮 -->
   <base-button>
-    <view class="btn btn-secondary" @click="handleSaveDraft">暂存</view>
-    <view class="btn btn-secondary" @click="handleResetForm">重置</view>
+    <view
+      class="btn btn-secondary"
+      :class="{ 'btn--disabled': secondaryUpstreamFormBlocked }"
+      @click="handleSaveDraft"
+    >
+      暂存
+    </view>
+    <view
+      class="btn btn-secondary"
+      :class="{ 'btn--disabled': secondaryUpstreamFormBlocked }"
+      @click="handleResetForm"
+    >
+      重置
+    </view>
     <view
       v-if="userStore.hasPermission(Perms.WORKORDER_ADD)"
       class="btn btn-primary"
+      :class="{ 'btn--disabled': secondaryUpstreamFormBlocked }"
       @click="handleSubmitClick"
     >
       提交
@@ -233,6 +262,7 @@
         </view>
       </view>
     </view>
+  </view>
   </view>
 </template>
 
@@ -291,15 +321,38 @@
   const userStore = useUserStore()
 
   /**
-   * 一级经销商标签
-   * @returns 一级经销商标签
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
-  const upstreamTabLabel = computed(() => (userStore.isPrimaryDealer ? '报修佳士' : '报修一级'))
+   * 是否展示「报修一级」入口（一级经销商不展示「报修佳士」）
+   */
+  const showUpstreamRepairTab = computed(() => !userStore.isPrimaryDealer)
+
+  /** 二级经销商 upstream 入口标签 */
+  const upstreamTabLabel = computed(() => '报修一级')
 
   // 维修入口标签
   const repairEntryTab = ref<'proxy' | 'upstream'>('proxy')
+
+  /** 二级「报修一级」：无可选目标一级时的默认提示文案 */
+  const DEFAULT_NO_UPSTREAM_TARGET_MSG =
+    '当前网点未配置目标一级，无法填写报修一级，请联系管理员处理。'
+
+  /** 弹窗展示文案（接口失败时优先使用后端 msg） */
+  const secondaryNoUpstreamTargetMessage = ref(DEFAULT_NO_UPSTREAM_TARGET_MSG)
+
+  /** 二级报修一级：目标一级候选为空时禁止填写 */
+  const secondaryUpstreamTargetBlocked = ref(false)
+
+  /**
+   * 是否处于二级「报修一级」上下文（与 showUpstreamRepairTab 口径一致）
+   */
+  const isSecondaryUpstreamRepairContext = () =>
+    repairEntryTab.value === 'upstream' && !userStore.isPrimaryDealer
+
+  /**
+   * 二级报修一级表单是否处于禁填态（仅 upstream tab + 无可选目标一级）
+   */
+  const secondaryUpstreamFormBlocked = computed(
+    () => isSecondaryUpstreamRepairContext() && secondaryUpstreamTargetBlocked.value
+  )
   // 是否显示客户手机号码
   const showContactMobileField = computed(() => repairEntryTab.value === 'proxy')
 
@@ -333,7 +386,7 @@
     contactMobile: '',
     // 客户姓名（仅代客户填写）
     customerName: '',
-    // 维修路径（STORE=送店 / MAIL=邮寄，与售后端一致）
+    // 维修路径（STORE=到店 / MAIL=邮寄，与售后端一致）
     repairType: 'STORE' as 'STORE' | 'MAIL',
     // 故障描述
     faultDescription: [] as string[],
@@ -536,29 +589,81 @@
   }
 
   /**
-   * 二级经销商无码兜底：拉取可上报的一级网点列表填充到"目标一级"选择项。
-   * 场景：切换到 upstream tab、未输入条码或条码查询失败时使用。
- * @修改人 黄碧莲
- * @修改时间 2026-05-22
- */
-  const loadUpstreamFirstTargetOptionsForSecondary = async () => {
-    if (userStore.isPrimaryDealer) return
-    if (repairEntryTab.value !== 'upstream') return
+   * 弹出「无可选目标一级」提示（使用 uni.showModal，避免与接口 toast 叠层导致看不见）
+   */
+  const presentNoUpstreamTargetModal = (message?: string) => {
+    const content =
+      String(message ?? secondaryNoUpstreamTargetMessage.value).trim() ||
+      DEFAULT_NO_UPSTREAM_TARGET_MSG
+    void nextTick(() => {
+      uni.showModal({
+        title: '报修提示',
+        content,
+        showCancel: false,
+        confirmText: '我知道了',
+      })
+    })
+  }
+
+  /**
+   * 将目标一级候选写入表单并同步 targetCompanyId
+   */
+  const applyUpstreamTargetCompanyOptions = (opts: { text: string; value: string }[]) => {
+    upstreamTargetCompanyOptions.value = opts
+    if (opts.length === 1) {
+      formData.value.targetCompanyId = opts[0].value
+      return
+    }
+    const cur = Number(formData.value.targetCompanyId)
+    const curInOpts = opts.some((o) => Number(o.value) === cur)
+    if (!curInOpts) formData.value.targetCompanyId = ''
+  }
+
+  /**
+   * 二级「报修一级」：根据目标一级候选更新禁填态；无可选时弹窗提示。
+   * @param showModalWhenBlocked 无可选目标一级时是否弹出提示
+   */
+  const refreshSecondaryUpstreamTargetBlockState = (showModalWhenBlocked = false) => {
+    if (!isSecondaryUpstreamRepairContext()) {
+      secondaryUpstreamTargetBlocked.value = false
+      return
+    }
+    const blocked = upstreamTargetCompanyOptions.value.length === 0
+    secondaryUpstreamTargetBlocked.value = blocked
+    if (blocked && showModalWhenBlocked) {
+      presentNoUpstreamTargetModal()
+    }
+  }
+
+  /**
+   * 拉取 target-options 并更新禁填态（进入报修一级 / 无码兜底 / 条码查询失败后调用）。
+   * 接口失败或列表为空时弹窗提示并禁止填写；skipErrorToast 避免与弹窗争抢展示。
+   * @param showModalWhenBlocked 拉取结束后无可选目标一级时是否弹窗
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-27
+   */
+  const ensureSecondaryUpstreamTargetOptions = async (showModalWhenBlocked = false) => {
+    if (!isSecondaryUpstreamRepairContext()) {
+      secondaryUpstreamTargetBlocked.value = false
+      return
+    }
     try {
-      const list: SysCompanySimpleVO[] = await listUpstreamFirstCreateTargetOptions()
-      const opts = mapTargetCompanyOptionsToSelect(list)
-      upstreamTargetCompanyOptions.value = opts
-      if (opts.length === 1) {
-        formData.value.targetCompanyId = opts[0].value
-      } else {
-        const cur = Number(formData.value.targetCompanyId)
-        const curInOpts = opts.some((o) => Number(o.value) === cur)
-        if (!curInOpts) formData.value.targetCompanyId = ''
+      const list: SysCompanySimpleVO[] = await listUpstreamFirstCreateTargetOptions({
+        skipErrorToast: true,
+      })
+      applyUpstreamTargetCompanyOptions(mapTargetCompanyOptionsToSelect(list))
+      if (upstreamTargetCompanyOptions.value.length > 0) {
+        secondaryNoUpstreamTargetMessage.value = DEFAULT_NO_UPSTREAM_TARGET_MSG
       }
-    } catch {
+    } catch (err: unknown) {
       upstreamTargetCompanyOptions.value = []
       formData.value.targetCompanyId = ''
+      secondaryNoUpstreamTargetMessage.value = getApiMessage(
+        err as { msg?: string } | null | undefined,
+        '当前公司未配置可报修的一级公司'
+      )
     }
+    refreshSecondaryUpstreamTargetBlockState(showModalWhenBlocked)
   }
 
   /**
@@ -833,6 +938,10 @@
    */
   const handleScan = async () => {
     if (toastIfMediaUploading()) return
+    if (secondaryUpstreamFormBlocked.value) {
+      refreshSecondaryUpstreamTargetBlockState(true)
+      return
+    }
     const scanRes = await scanProductBarcode({ toastOnCancel: true })
     if (scanRes.status === 'cancel') return
     if (scanRes.status === 'empty') {
@@ -875,6 +984,10 @@
     const skipClearFaultFieldsWhenNoOptions = options?.skipClearFaultFieldsWhenNoOptions ?? false
     const preserveFaultFieldsWhenHasOptions = options?.preserveFaultFieldsWhenHasOptions ?? false
     if (!silentToast && toastIfMediaUploading()) return
+    if (secondaryUpstreamFormBlocked.value) {
+      refreshSecondaryUpstreamTargetBlockState(true)
+      return
+    }
     if (!formData.value.warrantyCode) {
       void showApiToast('请输入条形码')
       return
@@ -912,6 +1025,12 @@
       lastBarcodeInfo.value = info && typeof info === 'object' ? info : null
       warrantyQueried.value = true
       syncUpstreamTargetCompanyFromBarcodeInfo(info)
+      if (isSecondaryUpstreamRepairContext()) {
+        if (upstreamTargetCompanyOptions.value.length === 0) {
+          secondaryNoUpstreamTargetMessage.value = DEFAULT_NO_UPSTREAM_TARGET_MSG
+        }
+        refreshSecondaryUpstreamTargetBlockState(true)
+      }
 
       if (!hasFd) {
         if (!skipClearFaultFieldsWhenNoOptions) {
@@ -952,7 +1071,7 @@
           formData.value.targetCompanyId = ''
         } else {
           // 二级报修一级：条码查询失败时拉兜底的"目标一级"列表
-          void loadUpstreamFirstTargetOptionsForSecondary()
+          void ensureSecondaryUpstreamTargetOptions(true)
         }
       }
       nextTick(() => syncShowFaultRemarkFromState())
@@ -1051,6 +1170,9 @@
         // 若恢复态中已有条码信息，优先从 lastBarcodeInfo 重建"目标"候选
         if (lastBarcodeInfo.value && repairEntryTab.value === 'upstream') {
           syncUpstreamTargetCompanyFromBarcodeInfo(lastBarcodeInfo.value)
+          if (!userStore.isPrimaryDealer) {
+            refreshSecondaryUpstreamTargetBlockState(true)
+          }
         } else {
           upstreamTargetCompanyOptions.value = []
         }
@@ -1061,7 +1183,9 @@
           !userStore.isPrimaryDealer
         ) {
           // 二级经销商 upstream tab 且无条码 → 直接拉"目标一级"兜底
-          void loadUpstreamFirstTargetOptionsForSecondary()
+          void ensureSecondaryUpstreamTargetOptions(true)
+        } else {
+          refreshSecondaryUpstreamTargetBlockState(false)
         }
       })
     }
@@ -1074,6 +1198,7 @@
  */
   const setRepairEntryTab = (tab: 'proxy' | 'upstream') => {
     if (toastIfMediaUploading()) return
+    if (!showUpstreamRepairTab.value && tab === 'upstream') return
     if (tab === repairEntryTab.value) return
     const from = repairEntryTab.value
     tabFormSnapshots.value = {
@@ -1082,9 +1207,9 @@
     }
     repairEntryTab.value = tab
     applyRepairEntryTabSnapshot(tabFormSnapshots.value[tab] ?? null)
-    // 二级经销商切到 upstream tab 时，若当前无条码查询结果，自动拉"目标一级"列表
-    if (tab === 'upstream' && !userStore.isPrimaryDealer && !lastBarcodeInfo.value) {
-      void loadUpstreamFirstTargetOptionsForSecondary()
+    // 切回代客户填写时解除禁填；upstream 的目标一级校验在 applyRepairEntryTabSnapshot 内完成
+    if (tab === 'proxy') {
+      refreshSecondaryUpstreamTargetBlockState(false)
     }
   }
 
@@ -1353,6 +1478,10 @@
  */
   const handleSaveDraft = () => {
     if (toastIfMediaUploading()) return
+    if (secondaryUpstreamFormBlocked.value) {
+      refreshSecondaryUpstreamTargetBlockState(true)
+      return
+    }
     try {
       const tab = repairEntryTab.value
       uni.setStorageSync(draftStorageKey(tab), buildTabDraftPayload())
@@ -1372,6 +1501,10 @@
  */
   const handleResetForm = () => {
     if (toastIfMediaUploading()) return
+    if (secondaryUpstreamFormBlocked.value) {
+      refreshSecondaryUpstreamTargetBlockState(true)
+      return
+    }
     uni.showModal({
       title: '确认重置',
       content: '将清空本次填写内容，是否继续？',
@@ -1395,6 +1528,10 @@
   const handleSubmitClick = () => {
     if (submitting.value) return
     if (toastIfMediaUploading()) return
+    if (secondaryUpstreamFormBlocked.value) {
+      refreshSecondaryUpstreamTargetBlockState(true)
+      return
+    }
     if (!userStore.hasPermission(Perms.WORKORDER_ADD)) {
       void showApiToast('暂无权限')
       return
@@ -1435,6 +1572,10 @@
   const performSubmit = () => {
     if (submitting.value) return
     if (toastIfMediaUploading()) return
+    if (secondaryUpstreamFormBlocked.value) {
+      refreshSecondaryUpstreamTargetBlockState(true)
+      return
+    }
     if (
       hasUnuploadedMediaItems(asUnknownArray(formData.value.images)) ||
       hasUnuploadedMediaItems(asUnknownArray(formData.value.shippingCode)) ||
@@ -1477,6 +1618,13 @@
         // 提示完成后再跳转工单列表，保证用户能看完"提交成功"
         await showApiToast(getApiMessage(res, '提交成功'))
         appStore.markOrderListScrollRefresherOnNextShow()
+        // 二级「报修一级」提交后进入工单库「自建工单」Tab，便于查看刚创建的 UPSTREAM_FIRST 工单
+        if (submittedTab === 'upstream' && !userStore.isPrimaryDealer) {
+          appStore.setOrderListNavTarget({
+            primaryTab: 'self_built',
+            secondaryTab: 'all'
+          })
+        }
         uni.switchTab({ url: '/pages/order/list' })
       })
       .catch(() => {
@@ -1503,7 +1651,8 @@
         uni.removeStorageSync(DRAFT_KEY_LEGACY)
         return
       }
-      const tab = d.repairEntryTab === 'upstream' ? 'upstream' : 'proxy'
+      const tab =
+        d.repairEntryTab === 'upstream' && showUpstreamRepairTab.value ? 'upstream' : 'proxy'
       uni.setStorageSync(draftStorageKey(tab), {
         formType,
         savedAt: Date.now(),
@@ -1544,6 +1693,9 @@
       } else if (snapUpstream) {
         activeTab = 'upstream'
       } else {
+        activeTab = 'proxy'
+      }
+      if (!showUpstreamRepairTab.value) {
         activeTab = 'proxy'
       }
 
@@ -1593,8 +1745,17 @@
     showWarrantyModal.value = false
   }
 
+  /** 禁填遮罩点击：再次弹出无可选目标一级提示 */
+  const onBlockedRepairBodyClick = () => {
+    refreshSecondaryUpstreamTargetBlockState(true)
+  }
+
   const confirmSubmit = () => {
     if (toastIfMediaUploading()) return
+    if (secondaryUpstreamFormBlocked.value) {
+      refreshSecondaryUpstreamTargetBlockState(true)
+      return
+    }
     if (!userStore.hasPermission(Perms.WORKORDER_ADD)) {
       void showApiToast('暂无权限')
       return
@@ -1616,6 +1777,22 @@
     }
   }
 
+  .repair-main {
+    position: relative;
+  }
+
+  .repair-main-block-mask {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    background-color: rgba($bg-card, 0.72);
+  }
+
+  .btn--disabled {
+    opacity: 0.45;
+    pointer-events: none;
+  }
+
   .target-auto-tip {
     margin-top: $space-xs;
     font-size: $font-sm;
@@ -1625,10 +1802,15 @@
   // 区块标题
   .section {
     margin-top: $space-lg;
+
+    .section-header {
+      margin-top: 0;
+    }
   }
 
   .section-header {
     @include flex-between;
+    margin-top: $space-lg;
     margin-bottom: $space-md;
     padding: 0 $space-xs;
 
@@ -1875,6 +2057,12 @@
       @include flex-row;
       width: 100%;
       gap: $space-md;
+
+      &--single {
+        .btn-confirm {
+          flex: 1;
+        }
+      }
 
       button {
         flex: 1;

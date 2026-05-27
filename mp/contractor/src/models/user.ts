@@ -56,7 +56,8 @@ export type MyMenuItem = {
   link?: string
 }
 
-export const DEFAULT_MY_MENU: MyMenuItem[] = [
+/** 个人中心「常用功能」菜单 */
+export const DEFAULT_MY_COMMON_MENU: MyMenuItem[] = [
   {
     icon: 'post_add',
     label: '建维修订单',
@@ -67,10 +68,25 @@ export const DEFAULT_MY_MENU: MyMenuItem[] = [
     label: '地址管理',
     link: '/pages/address/index',
   },
+]
+
+/** 个人中心「系统设置」菜单 */
+export const DEFAULT_MY_SYSTEM_MENU: MyMenuItem[] = [
+  {
+    icon: 'feedback',
+    label: '投诉与建议',
+    link: '/pages/feedback/index',
+  },
   {
     icon: 'info',
     label: '关于我们',
     link: '/pages/about/index',
   },
+]
+
+/** 全量菜单（兼容旧引用） */
+export const DEFAULT_MY_MENU: MyMenuItem[] = [
+  ...DEFAULT_MY_COMMON_MENU,
+  ...DEFAULT_MY_SYSTEM_MENU,
 ]
 

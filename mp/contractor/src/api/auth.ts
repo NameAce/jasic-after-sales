@@ -96,6 +96,8 @@ export async function mpBindLogin(payload: MpBindLoginPayload) {
     method: 'POST',
     data: payload,
     header: { 'Content-Type': 'application/json' },
+    // 绑定失败提示由登录页直接使用接口返回的 msg，避免 http 层兜底文案覆盖后端语义
+    skipErrorToast: true,
   })
 }
 
@@ -171,5 +173,28 @@ export async function getUserInfo() {
   return http<SysUserInfo>({
     url: '/auth/user-info',
     method: 'GET',
+  })
+}
+
+/**
+ * B 端小程序资料修改入参（对齐后端 `MpProfileUpdateDTO`）
+ *
+ * `realName` 对应页面展示的昵称；`avatar` 为上传后的可访问 URL。
+ */
+export type MpProfileUpdatePayload = {
+  realName?: string
+  avatar?: string
+}
+
+/**
+ * B 端小程序修改头像与展示昵称（`PUT /api/auth/mp-profile`）
+ *
+ * 与 PC 账号中心 `updateProfile` 分离，不要求当前密码。
+ */
+export async function updateMpProfile(payload: MpProfileUpdatePayload) {
+  return http<SysUserInfo>({
+    url: '/auth/mp-profile',
+    method: 'PUT',
+    data: payload,
   })
 }

@@ -7,18 +7,18 @@ import { CREATE_ENTRY_PROXY, type CreateEntryMode } from './create-entry';
 
 // 服务方式：邮寄维修
 export const SERVICE_MODE_MAIL = 'MAIL' as const;
-// 服务方式：送店维修
+// 服务方式：到店维修
 export const SERVICE_MODE_STORE = 'STORE' as const;
 
 // 「其它故障」默认展示文案
 export const DEFAULT_OTHER_FAULT_LABEL = '其它故障';
 
-/** 与 contractor `REPAIR_TYPE_OPTIONS` 文案一致：送店维修 / 邮寄维修
+/** 与 contractor `REPAIR_TYPE_OPTIONS` 文案一致：到店维修 / 邮寄维修
  * @修改人 黄碧莲
  * @修改时间 2026-05-22
  */
 export const SERVICE_MODE_OPTIONS = [
-  { label: '送店维修', value: SERVICE_MODE_STORE },
+  { label: '到店维修', value: SERVICE_MODE_STORE },
   { label: '邮寄维修', value: SERVICE_MODE_MAIL }
 ] as const;
 

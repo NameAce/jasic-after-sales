@@ -35,6 +35,17 @@ function parseCodeList(raw: string | undefined) {
   return (raw?.split(',') || []).map(c => c.trim()).filter(Boolean);
 }
 
+/**
+ * 作用：判断当前请求是否由调用方自行展示错误（跳过全局 message）。
+ * @param config - Axios 请求配置
+ * @returns 是否跳过全局错误 toast
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-27
+ */
+function shouldSkipErrorToast(config: { skipErrorToast?: boolean } | undefined) {
+  return config?.skipErrorToast === true;
+}
+
 type ExceptionRouteName = '403' | '404' | '500';
 
 /**
@@ -225,7 +236,9 @@ export const request = createFlatRequest<App.Service.Response, RequestInstanceSt
         return null;
       }
 
-      showErrorMsg(request.state, responseMsg);
+      if (!shouldSkipErrorToast(response.config)) {
+        showErrorMsg(request.state, responseMsg);
+      }
 
       return null;
     },
@@ -238,6 +251,10 @@ export const request = createFlatRequest<App.Service.Response, RequestInstanceSt
        * @修改时间 2026-05-22
        */
       if ((error as AxiosError)?.code === BACKEND_ERROR_CODE) {
+        return;
+      }
+
+      if (shouldSkipErrorToast((error as AxiosError).config)) {
         return;
       }
 

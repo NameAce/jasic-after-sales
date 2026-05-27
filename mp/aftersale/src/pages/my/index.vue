@@ -5,7 +5,7 @@
       <custom-nav-bar title="我的" surface="transparent" tone="light" :show-back="false" />
       <!-- 用户信息 -->
       <view class="user-info">
-        <view class="avatar-container">
+        <view class="avatar-container" hover-class="avatar-container-hover" @click="openAvatarPreview">
           <view class="avatar-wrap">
             <image class="avatar-img" :src="avatarUrl" mode="aspectFill" />
           </view>
@@ -13,7 +13,7 @@
             <image class="star-icon" :src="starBadgeIcon" mode="aspectFit" />
           </view>
         </view>
-        <view class="user-details">
+        <view class="user-details" @click="openProfileEdit">
           <text class="username">{{ userName }}</text>
           <view class="user-id-wrap">
             <text class="user-id">{{ phoneText }}</text>
@@ -91,6 +91,13 @@
           <text class="card-title">系统设置</text>
         </view>
         <view class="list-group">
+          <view class="list-item" @click="goToFeedback">
+            <view class="list-item-left">
+              <image class="headset-mic-icon" :src="headsetMicIcon" mode="aspectFit" />
+              <text class="list-item-text">投诉与建议</text>
+            </view>
+            <uni-icons type="right" size="12" :color="themeColors.textMuted"></uni-icons>
+          </view>
           <view class="list-item" @click="goToAbout">
             <view class="list-item-left">
               <image class="info-circle-icon" :src="infoCircleIcon" mode="aspectFit" />
@@ -106,21 +113,49 @@
         <text class="logout-text">退出登录</text>
       </view>
     </view>
+
+    <!-- 头像全屏预览：蒙版底部提供更换头像 / 更换信息 -->
+    <view v-if="avatarPreviewVisible" class="avatar-preview-mask" @click="closeAvatarPreview">
+      <view class="avatar-preview-center" @click.stop>
+        <image class="avatar-preview-image" :src="avatarUrl" mode="aspectFit" />
+      </view>
+      <view class="avatar-preview-footer" @click.stop>
+        <!-- #ifdef MP-WEIXIN -->
+        <button
+          class="preview-action-btn"
+          open-type="chooseAvatar"
+          @chooseavatar="onChooseAvatarFromPreview"
+        >
+          更换头像
+        </button>
+        <!-- #endif -->
+        <!-- #ifndef MP-WEIXIN -->
+        <view class="preview-action-btn" @click="onChangeAvatarFallback">更换头像</view>
+        <!-- #endif -->
+        <view class="preview-action-btn" @click="openProfileEditFromPreview">更换信息</view>
+      </view>
+      <view class="avatar-preview-safe" />
+    </view>
+
   </view>
 </template>
 
 <script setup lang="ts">
   import { computed, ref } from 'vue'
-  import { onShow } from '@dcloudio/uni-app'
+  import { onHide, onShow } from '@dcloudio/uni-app'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import { useUserStore } from '@/stores'
-  import { logout } from '@/api/auth'
+  import { getUserInfo, logout, updateProfile } from '@/api/auth'
+  import { uploadCustomerFile } from '@/api/file'
+  import { resolveAvatarDisplayUrl, resolveAvatarUrlForSubmit } from '@/utils/profileAvatar'
+  import { showApiToast } from '@/utils/uiFeedback'
   import { countCustomerWorkOrderStatus, type MyOrderCountsDTO } from '@/api/workOrder'
   import { isLoggedIn } from '@/utils/auth'
   import { themeColors } from '@/constants/theme'
   import {
     assignmentLateIcon,
     cancelPresentationIcon,
+    headsetMicIcon,
     infoCircleIcon,
     locationOnIcon,
     repairingIcon,
@@ -129,15 +164,20 @@
   } from '@/svgs'
   import { showToastThen, switchTabThen, TAB_HOME } from '@/utils/toastNavigate'
 
+  const PROFILE_EDIT_URL = '/pages/profile/edit'
+
   // 用户商店
   const userStore = useUserStore()
 
   // 默认头像（本地 static）
   const defaultAvatar = '/static/images/default-avatar.jpg'
 
-  // 用户头像
-  // (userStore.userInfo as any)?.avatar || defaultAvatar)
-  const avatarUrl = computed(() => String(defaultAvatar))
+  const avatarPreviewVisible = ref(false)
+
+  /** 用户头像：优先后端保存的微信头像 URL，无则默认图 */
+  const avatarUrl = computed(() =>
+    resolveAvatarDisplayUrl(userStore.userInfo?.avatar, defaultAvatar),
+  )
 
   // 用户名（后端 `CustomerUserInfoVO.nickname`，缺省用兜底文案）
   const userName = computed(() => String(userStore.userInfo?.nickname || '佳士用户'))
@@ -152,6 +192,96 @@
     completed: 0,
     closed: 0
   })
+
+  /**
+   * 刷新当前登录客户资料（头像、昵称等与后端同步）
+   */
+  const refreshUserInfo = async () => {
+    try {
+      const res = await getUserInfo()
+      if (res.data) userStore.setUserInfo(res.data)
+    } catch {
+      /* 失败时沿用本地缓存 */
+    }
+  }
+
+  /**
+   * 头像预览蒙版与原生 tabBar 联动：微信 tabBar 层级高于普通 view，预览时需先隐藏 tabBar。
+   */
+  const syncTabBarForAvatarPreview = (visible: boolean) => {
+    if (visible) {
+      uni.hideTabBar({ animation: false })
+      return
+    }
+    uni.showTabBar({ animation: false })
+  }
+
+  /** 全屏预览当前头像 */
+  const openAvatarPreview = () => {
+    avatarPreviewVisible.value = true
+    syncTabBarForAvatarPreview(true)
+  }
+
+  const closeAvatarPreview = () => {
+    if (!avatarPreviewVisible.value) return
+    avatarPreviewVisible.value = false
+    syncTabBarForAvatarPreview(false)
+  }
+
+  /** 跳转「更换信息」页（点击昵称或预览蒙版底部按钮） */
+  const goProfileEdit = () => {
+    uni.navigateTo({ url: PROFILE_EDIT_URL })
+  }
+
+  const openProfileEdit = () => {
+    goProfileEdit()
+  }
+
+  const openProfileEditFromPreview = () => {
+    closeAvatarPreview()
+    goProfileEdit()
+  }
+
+  /** 仅更新头像并同步 userStore */
+  const saveAvatarOnly = async (displayPath: string) => {
+    uni.showLoading({ title: '保存中', mask: true })
+    try {
+      const avatar = await resolveAvatarUrlForSubmit(
+        displayPath,
+        userStore.userInfo?.avatar,
+        uploadCustomerFile,
+        defaultAvatar,
+      )
+      if (avatar === undefined) return
+      const res = await updateProfile({ avatar })
+      userStore.setUserInfo(res.data)
+      void showApiToast('头像已更新')
+    } catch {
+      /* http 层已提示 */
+    } finally {
+      uni.hideLoading()
+    }
+  }
+
+  const onChooseAvatarFromPreview = async (e: { detail?: { avatarUrl?: string } }) => {
+    const url = String(e.detail?.avatarUrl ?? '').trim()
+    if (!url) return
+    closeAvatarPreview()
+    await saveAvatarOnly(url)
+  }
+
+  const onChangeAvatarFallback = () => {
+    closeAvatarPreview()
+    uni.chooseImage({
+      count: 1,
+      sizeType: ['compressed'],
+      sourceType: ['album', 'camera'],
+      success: async (res) => {
+        const path = res.tempFilePaths?.[0]
+        if (path) await saveAvatarOnly(path)
+      },
+    })
+  }
 
   /**
    * 加载工单统计
@@ -185,7 +315,15 @@
       })
       return
     }
+    void refreshUserInfo()
     loadCounts()
+  })
+
+  /** 离开页面时若预览仍打开，恢复 tabBar，避免其它 tab 页底部栏消失 */
+  onHide(() => {
+    if (!avatarPreviewVisible.value) return
+    avatarPreviewVisible.value = false
+    syncTabBarForAvatarPreview(false)
   })
 
   /**
@@ -208,6 +346,11 @@
  */
   const goToAddress = () => {
     uni.navigateTo({ url: '/pages/address/index' })
+  }
+
+  /** 跳转投诉与建议 */
+  const goToFeedback = () => {
+    uni.navigateTo({ url: '/pages/feedback/index' })
   }
 
   /**
@@ -274,9 +417,13 @@
     .avatar-container {
       position: relative;
 
+      &-hover {
+        opacity: 0.92;
+      }
+
       .avatar-wrap {
-        width: 160rpx;
-        height: 160rpx;
+        width: 140rpx;
+        height: 140rpx;
         border-radius: 50%;
         background-color: $primary-contrast;
         overflow: hidden;
@@ -355,6 +502,8 @@
     }
 
     .card-header {
+      padding-bottom: -sm;
+
       &.border-b {
         border-bottom: 2rpx solid $border-lighter;
       }
@@ -464,7 +613,8 @@
     flex-shrink: 0;
   }
 
-  .page-my .info-circle-icon {
+  .page-my .info-circle-icon,
+  .page-my .headset-mic-icon {
     width: 38rpx;
     height: 38rpx;
     display: block;
@@ -486,5 +636,69 @@
       font-weight: 600;
       font-size: $font-lg;
     }
+  }
+
+  .avatar-preview-mask {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 99999;
+    background-color: rgba(0, 0, 0, 0.88);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .avatar-preview-center {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48rpx;
+    box-sizing: border-box;
+  }
+
+  .avatar-preview-image {
+    width: 100%;
+    max-height: 70vh;
+  }
+
+  .avatar-preview-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 32rpx;
+    padding: 32rpx 48rpx calc(32rpx + env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.45) 100%);
+  }
+
+  .preview-action-btn {
+    min-width: 240rpx;
+    padding: 24rpx 40rpx;
+    border-radius: 48rpx;
+    background-color: rgba(255, 255, 255, 0.16);
+    color: #fff;
+    font-size: 30rpx;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.4;
+    border: 2rpx solid rgba(255, 255, 255, 0.35);
+    box-sizing: border-box;
+
+    &::after {
+      border: none;
+    }
+  }
+
+  button.preview-action-btn {
+    margin: 0;
+    padding: 24rpx 40rpx;
+  }
+
+  .avatar-preview-safe {
+    height: 0;
   }
 </style>

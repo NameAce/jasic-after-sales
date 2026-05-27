@@ -844,7 +844,7 @@
   watch(
     () => formData.value.repairType,
     (val) => {
-      // 如果维修路径为送店，则清空寄件信息
+      // 如果维修路径为到店维修，则清空寄件信息
       if (val === 'STORE') {
         // 清空寄件信息
         formData.value.shippingInfo = ''

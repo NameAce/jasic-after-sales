@@ -161,6 +161,7 @@
   import { onBackPress, onShow } from '@dcloudio/uni-app'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import { mpBindLogin as mpBindLoginApi, mpLogin as mpLoginApi } from '@/api/auth'
+  import { API_MSG_NETWORK_ERROR } from '@/constants/apiMessages'
   import { getApiMessage, type ApiResponse } from '@/utils/http'
   import { showApiToast } from '@/utils/uiFeedback'
   import { finalizeMpLoginSession } from '@/utils/mpSession'
@@ -323,6 +324,18 @@
   }
 
   /**
+   * 展示 mp-bind-login 接口返回的 msg（无 msg 时不弹 toast，避免前端兜底覆盖后端文案）
+   * @param res 接口响应或 http reject 体
+   * @returns void
+   */
+  const showMpBindLoginMsg = (res: ApiResponse<unknown> | null | undefined) => {
+    const msg = getApiMessage(res, '')
+    if (msg) {
+      void showApiToast(msg)
+    }
+  }
+
+  /**
    * 认领绑定并登录（/api/auth/mp-bind-login）
    * @returns void
  * @修改人 黄碧莲
@@ -363,15 +376,23 @@
       const result = loginRes.data as LoginResult & { status?: string }
 
       if (!result.token || !result.userInfo) {
-        void showApiToast(getApiMessage(loginRes, '绑定失败，请检查账号密码'))
+        showMpBindLoginMsg(loginRes)
         return
       }
 
       closeBindPanel()
       await finalizeMpLoginSession(loginRes as ApiResponse<LoginResult>, result as LoginResult)
     } catch (err) {
-      const message = err instanceof Error ? err.message : '绑定失败，请稍后重试'
-      void showApiToast(message || '绑定失败，请稍后重试')
+      const apiErr = err as ApiResponse<LoginResult>
+      if (apiErr && typeof apiErr === 'object' && typeof apiErr.code === 'string') {
+        showMpBindLoginMsg(apiErr)
+        return
+      }
+      if (err instanceof Error && err.message) {
+        void showApiToast(err.message)
+        return
+      }
+      void showApiToast(API_MSG_NETWORK_ERROR)
     } finally {
       isLoggingIn.value = false
     }

@@ -128,6 +128,10 @@ export type OrderListQuery = {
   relatedCompanyIds?: number[]
   subjectType?: string
   viewScope?: 'CURRENT' | 'HISTORY' | 'ALL'
+  /** 建单入口（单值，与 createEntryTypes 二选一） */
+  createEntryType?: string
+  /** 建单入口（多值）：二级「自建工单」Tab 传 PROXY_SELF、UPSTREAM_FIRST */
+  createEntryTypes?: string[]
 }
 
 export type OrderListPage = {
@@ -213,6 +217,8 @@ function buildWorkOrderQueryString(params: OrderListQuery): string {
   appendQueryParam(parts, 'relatedCompanyIds', params.relatedCompanyIds)
   appendQueryParam(parts, 'subjectType', params.subjectType)
   appendQueryParam(parts, 'viewScope', params.viewScope)
+  appendQueryParam(parts, 'createEntryType', params.createEntryType)
+  appendQueryParam(parts, 'createEntryTypes', params.createEntryTypes)
   return parts.join('&')
 }
 
@@ -2269,13 +2275,14 @@ export async function getUpstreamFirstCreateBarcodeInfo(
  * @修改人 黄碧莲
  * @修改时间 2026-05-22
  */
-export async function listUpstreamFirstCreateTargetOptions() {
+export async function listUpstreamFirstCreateTargetOptions(options?: { skipErrorToast?: boolean }) {
   const res = await http<SysCompanySimpleVO[]>({
     url: '/system/work-order/create/upstream-first/target-options',
     method: 'GET',
     header: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
+    skipErrorToast: options?.skipErrorToast === true,
   })
   const list = res.data
   return Array.isArray(list) ? list : []

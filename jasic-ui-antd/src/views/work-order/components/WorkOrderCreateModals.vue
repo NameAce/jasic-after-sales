@@ -30,7 +30,12 @@ import {
   getUpstreamHqCreateBarcodeInfo,
   listUpstreamFirstCreateTargetOptions
 } from '@/service/api';
-import { isFlatRequestFailed, notifyOnceSuccessFromFlatResult } from '@/service/request/shared';
+import {
+  getFlatErrorMsg,
+  getFlatResponseMsg,
+  isFlatRequestFailed,
+  notifyOnceSuccessFromFlatResult
+} from '@/service/request/shared';
 import { useAuthStore } from '@/store/modules/auth';
 import { adaptiveModalWidth } from '@/hooks/common/modal-form-layout';
 import { createAntTableActionColumn } from '@/utils/table-action-width';
@@ -84,6 +89,15 @@ const createSubmitting = ref(false);
 const createBarcodeLoading = ref(false);
 // 补充信息区块折叠状态
 const createSupplementExpanded = ref(false);
+
+/** 二级「报修一级」无条码：target-options 无可选一级时的默认提示 */
+const DEFAULT_UPSTREAM_FIRST_TARGET_MSG = '当前网点未配置目标一级，无法填写报修一级，请联系管理员处理。';
+
+/** 无可选目标一级时的弹窗文案（接口失败时优先使用后端 msg） */
+const upstreamFirstTargetBlockMessage = ref(DEFAULT_UPSTREAM_FIRST_TARGET_MSG);
+
+/** 二级报修一级无条码：目标一级候选为空时禁止填写整单表单 */
+const upstreamFirstTargetBlocked = ref(false);
 
 // 地址表单省市区级联选项
 const companyAddressRegionOptions = ref<RegionCascaderOption[]>([]);
@@ -154,6 +168,16 @@ const createTargetCompanyLabel = computed(() =>
 const createTargetCompanySelectPlaceholder = computed(() => `请选择${createTargetCompanyLabel.value}`);
 // 仅有一个可选网点时自动带出
 const isCreateTargetAutoFilled = computed(() => (createForm.targetCompanyOptions || []).length <= 1);
+
+/** 是否处于「报修一级」且无条码场景（依赖 target-options 拉取默认一级） */
+const isCreateUpstreamFirstNoBarcodeContext = computed(
+  () => createForm.entryMode === CREATE_ENTRY_UPSTREAM_FIRST && !normalizeText(createForm.barcode)
+);
+
+/** 报修一级无条码且 target-options 无数据：整表禁填 */
+const isCreateUpstreamFirstFormBlocked = computed(
+  () => isCreateUpstreamFirstNoBarcodeContext.value && upstreamFirstTargetBlocked.value
+);
 
 /**
  * 作用：判断故障选项是否属于「其它故障」类（与小程序 isOtherFaultSelection 语义对齐）。
@@ -318,6 +342,8 @@ function resetCreateFormToEntry(entry: CreateEntryMode) {
   const d = buildDefaultCreateForm();
   d.entryMode = entry;
   assignCreateForm(d);
+  upstreamFirstTargetBlocked.value = false;
+  upstreamFirstTargetBlockMessage.value = DEFAULT_UPSTREAM_FIRST_TARGET_MSG;
 }
 
 /**
@@ -343,7 +369,7 @@ function handleCreateEntryModeChange(entryMode: CreateEntryMode) {
   nextForm.faultMediaFiles = cloneFaultMediaItems(createForm.faultMediaFiles);
   nextForm.faultVoiceFiles = cloneFileItems(createForm.faultVoiceFiles);
   assignCreateForm(nextForm);
-  syncCreateEntryDefaults();
+  syncCreateEntryDefaults(entryMode === CREATE_ENTRY_UPSTREAM_FIRST);
 }
 
 /**
@@ -368,38 +394,84 @@ function toggleCreateSupplementSection() {
 }
 
 /**
- * 作用：二级网点「报修一级」且无条码时拉取默认一级受理网点。
+ * 作用：弹出「无可选目标一级」提示（Modal 单条展示接口 msg，避免与全局 toast 重复）。
+ * @param message - 可选覆盖文案
  * @returns void
  * @修改人 黄碧莲
- * @修改时间 2026-05-22
+ * @修改时间 2026-05-27
  */
-async function syncCreateEntryDefaults() {
-  if (createForm.entryMode !== CREATE_ENTRY_UPSTREAM_FIRST || normalizeText(createForm.barcode)) {
+function presentUpstreamFirstTargetBlockedModal(message?: string) {
+  const content = String(message ?? upstreamFirstTargetBlockMessage.value).trim() || DEFAULT_UPSTREAM_FIRST_TARGET_MSG;
+  Modal.info({
+    title: '报修提示',
+    content,
+    okText: '我知道了',
+    maskClosable: false
+  });
+}
+
+/**
+ * 作用：根据 target-options 结果更新「报修一级无条码」禁填态。
+ * @param showModalWhenBlocked - 禁填时是否弹出提示
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-27
+ */
+function refreshUpstreamFirstTargetBlockState(showModalWhenBlocked = false) {
+  if (!isCreateUpstreamFirstNoBarcodeContext.value) {
+    upstreamFirstTargetBlocked.value = false;
     return;
   }
-  try {
-    const { data } = await listUpstreamFirstCreateTargetOptions();
-    const listRaw = Array.isArray(data) ? data : (data as { records?: unknown[] })?.records || [];
-    const list = listRaw.map((r: Record<string, unknown>) => normalizeTargetCompanyOption(r)).filter(Boolean) as Array<{
-      id: number;
-      companyName: string;
-    }>;
-    if (!list.length || list.length !== 1) {
-      createForm.targetCompanyId = undefined;
-      createForm.targetCompanyName = '';
-      createForm.targetCompanyOptions = list;
-      window.$message?.error('当前二级网点未带出唯一一级网点，请联系管理员排查');
-      return;
-    }
-    const target = list[0]!;
-    createForm.targetCompanyId = target.id;
-    createForm.targetCompanyName = target.companyName || '';
-    createForm.targetCompanyOptions = list;
-  } catch {
+  const blocked = (createForm.targetCompanyOptions || []).length === 0;
+  upstreamFirstTargetBlocked.value = blocked;
+  if (blocked && showModalWhenBlocked) {
+    presentUpstreamFirstTargetBlockedModal();
+  }
+}
+
+/**
+ * 作用：二级网点「报修一级」且无条码时拉取默认一级受理网点。
+ * @param showModalWhenBlocked - 拉取结束且无可选一级时是否弹窗提示
+ * @returns void
+ * @修改人 黄碧莲
+ * @修改时间 2026-05-27
+ */
+async function syncCreateEntryDefaults(showModalWhenBlocked = false) {
+  if (createForm.entryMode !== CREATE_ENTRY_UPSTREAM_FIRST || normalizeText(createForm.barcode)) {
+    refreshUpstreamFirstTargetBlockState(false);
+    return;
+  }
+  const res = await listUpstreamFirstCreateTargetOptions({ skipErrorToast: true });
+  if (isFlatRequestFailed(res)) {
     createForm.targetCompanyId = undefined;
     createForm.targetCompanyName = '';
     createForm.targetCompanyOptions = [];
+    upstreamFirstTargetBlockMessage.value = getFlatErrorMsg(res, DEFAULT_UPSTREAM_FIRST_TARGET_MSG);
+    refreshUpstreamFirstTargetBlockState(showModalWhenBlocked);
+    return;
   }
+  const data = res.data;
+  const listRaw = Array.isArray(data) ? data : (data as { records?: unknown[] })?.records || [];
+  const list = listRaw.map((r: Record<string, unknown>) => normalizeTargetCompanyOption(r)).filter(Boolean) as Array<{
+    id: number;
+    companyName: string;
+  }>;
+  createForm.targetCompanyOptions = list;
+  if (list.length === 1) {
+    const target = list[0]!;
+    createForm.targetCompanyId = target.id;
+    createForm.targetCompanyName = target.companyName || '';
+    upstreamFirstTargetBlockMessage.value = DEFAULT_UPSTREAM_FIRST_TARGET_MSG;
+  } else if (list.length > 1) {
+    createForm.targetCompanyId = undefined;
+    createForm.targetCompanyName = '';
+    upstreamFirstTargetBlockMessage.value = DEFAULT_UPSTREAM_FIRST_TARGET_MSG;
+  } else {
+    createForm.targetCompanyId = undefined;
+    createForm.targetCompanyName = '';
+    upstreamFirstTargetBlockMessage.value = getFlatResponseMsg(res, DEFAULT_UPSTREAM_FIRST_TARGET_MSG);
+  }
+  refreshUpstreamFirstTargetBlockState(showModalWhenBlocked);
 }
 
 /**
@@ -570,7 +642,7 @@ async function queryCreateBarcodeInfo(options: { preserveTargetSelection?: boole
       faultItems: [],
       faultRemark: ''
     });
-    await syncCreateEntryDefaults();
+    await syncCreateEntryDefaults(false);
   } finally {
     createBarcodeLoading.value = false;
   }
@@ -820,13 +892,17 @@ function validateSendInfo(): boolean {
  * @修改时间 2026-05-22
  */
 function validateCreateBeforeSubmit(): boolean {
+  if (isCreateUpstreamFirstFormBlocked.value) {
+    presentUpstreamFirstTargetBlockedModal();
+    return false;
+  }
   const barcode = normalizeText(createForm.barcode);
   if (barcode && (!createForm.barcodeQueried || createForm.queriedBarcode !== barcode)) {
     window.$message?.error('请先查询商品，再提交');
     return false;
   }
   if (createForm.entryMode === CREATE_ENTRY_UPSTREAM_FIRST && !createForm.targetCompanyId) {
-    window.$message?.error('当前二级网点未带出一级网点，请联系管理员排查');
+    presentUpstreamFirstTargetBlockedModal(upstreamFirstTargetBlockMessage.value || '请选择目标一级或联系管理员排查');
     return false;
   }
   if (createForm.entryMode === CREATE_ENTRY_UPSTREAM_HQ && !createForm.targetCompanyId) {
@@ -1318,7 +1394,7 @@ watch(
     const normalizedBarcode = normalizeText(value);
     if (!normalizedBarcode) {
       resetCreateQueryState();
-      syncCreateEntryDefaults();
+      syncCreateEntryDefaults(true);
       return;
     }
     if (createForm.barcodeQueried && normalizedBarcode !== createForm.queriedBarcode) {
@@ -1341,7 +1417,7 @@ async function open(entry?: CreateEntryMode) {
   companyAddressDialogMode.value = 'manage';
   createDrawerOpen.value = true;
   loadCompanyAddressList();
-  await syncCreateEntryDefaults();
+  await syncCreateEntryDefaults(createForm.entryMode === CREATE_ENTRY_UPSTREAM_FIRST);
 }
 
 defineExpose({
@@ -1385,219 +1461,237 @@ defineExpose({
         :closable="false"
       />
 
-      <div class="create-section">
-        <div class="create-section__head">
-          <span class="create-section__bar" />
-          <span class="create-section__title">商品查询</span>
-        </div>
-        <AInputSearch
-          v-model:value="createForm.barcode"
-          placeholder="请输入产品条形码"
-          :loading="createBarcodeLoading"
-          enter-button="查询"
-          @search="queryCreateBarcodeInfo()"
-        />
-      </div>
-
-      <AForm
-        ref="createFormRef"
-        class="work-order-create-form"
-        :model="createForm"
-        :rules="createFormRules as any"
-        layout="vertical"
+      <div
+        class="work-order-create-body"
+        :class="{ 'work-order-create-body--blocked': isCreateUpstreamFirstFormBlocked }"
       >
         <div class="create-section">
           <div class="create-section__head">
             <span class="create-section__bar" />
-            <span class="create-section__title">必填信息</span>
+            <span class="create-section__title">商品查询</span>
           </div>
-          <ARow :gutter="[12, 0]">
-            <!-- 仅代客户填写展示客户手机；上游报修由后端带出发起方信息 -->
-            <ACol v-if="showCreateCustomerFields" :span="24" :md="12">
-              <AFormItem label="客户手机号码" name="customerMobile" class="mb-12px" required>
-                <AInput v-model:value="createForm.customerMobile" allow-clear placeholder="请输入客户手机号码" />
-              </AFormItem>
-            </ACol>
-            <ACol v-if="showCreateTargetCompany" :span="24" :md="12">
-              <AFormItem :label="createTargetCompanyLabel" name="targetCompanyId" class="mb-12px" required>
-                <ASelect
-                  v-model:value="createForm.targetCompanyId"
-                  :placeholder="createTargetCompanySelectPlaceholder"
-                  show-search
-                  option-filter-prop="label"
-                  :disabled="isCreateTargetAutoFilled"
-                  :options="createForm.targetCompanyOptions.map(o => ({ label: o.companyName, value: o.id }))"
-                  @change="handleCreateTargetCompanyChange"
-                />
-              </AFormItem>
-            </ACol>
-            <ACol :span="24" :md="12">
-              <AFormItem label="选择维修路径" name="serviceMode" class="mb-12px" required>
-                <ASelect
-                  v-model:value="createForm.serviceMode"
-                  placeholder="请选择维修路径"
-                  :options="[...SERVICE_MODE_OPTIONS]"
-                />
-              </AFormItem>
-            </ACol>
-            <ACol v-if="createBarcodeQueryHasFaultDescription" :span="24">
-              <AFormItem
-                label="故障描述"
-                name="faultItems"
-                class="mb-12px"
-                :required="createBarcodeQueryHasFaultDescription"
-              >
-                <ASelect
-                  v-model:value="createForm.faultItems"
-                  mode="multiple"
-                  max-tag-count="responsive"
-                  :placeholder="createFaultPlaceholder"
-                  :disabled="isCreateFaultSelectDisabled"
-                  :options="effectiveCreateFaultOptions.map(t => ({ label: t, value: t }))"
-                />
-              </AFormItem>
-            </ACol>
-            <ACol v-if="showCreateFaultRemark" :span="24">
-              <AFormItem label="故障说明备注" name="faultRemark" class="mb-0" :required="showCreateFaultRemark">
-                <ATextarea
-                  v-model:value="createForm.faultRemark"
-                  :rows="3"
-                  allow-clear
-                  placeholder="请输入故障说明备注"
-                />
-              </AFormItem>
-            </ACol>
-            <!-- 邮寄维修：寄件信息只读摘要 + 地址簿选择（提交前 validateSendInfo 校验） -->
-            <ACol v-if="isCreateMailMode" :span="24">
-              <AFormItem label="寄件信息" class="mb-0" :required="isCreateMailMode">
-                <ATextarea
-                  :value="createShippingAddressSummary"
-                  :rows="3"
-                  disabled
-                  placeholder="请选择寄件信息"
-                  class="rounded-6px"
-                />
-                <div class="mt-10px flex flex-wrap gap-8px">
-                  <AButton type="primary" size="small" @click="openCompanyAddressDialog('select')">
-                    选择寄件信息
-                  </AButton>
-                  <AButton size="small" @click="loadCompanyAddressList({ preserveSelection: true })">刷新</AButton>
-                </div>
-                <AAlert
-                  v-if="!companyAddressLoading && !companyAddressList.length"
-                  type="warning"
-                  show-icon
-                  class="mt-10px rounded-8px"
-                  message="当前公司还没有可用地址，请先维护公司地址簿后再提交邮寄维修工单。"
-                  :closable="false"
-                />
-              </AFormItem>
-            </ACol>
-          </ARow>
+          <AInputSearch
+            v-model:value="createForm.barcode"
+            placeholder="请输入产品条形码"
+            :loading="createBarcodeLoading"
+            :disabled="isCreateUpstreamFirstFormBlocked"
+            enter-button="查询"
+            @search="queryCreateBarcodeInfo()"
+          />
         </div>
 
-        <!-- 补充说明默认折叠：故障媒体、语音、邮寄快递单号凭证等选填 -->
-        <div class="create-section create-section--supplement">
-          <div
-            class="create-section__head create-section__head--row create-section__head--click"
-            @click="toggleCreateSupplementSection"
-          >
-            <div class="min-w-0 flex flex-1 items-center gap-8px">
+        <AForm
+          ref="createFormRef"
+          class="work-order-create-form"
+          :model="createForm"
+          :rules="createFormRules as any"
+          layout="vertical"
+        >
+          <div class="create-section">
+            <div class="create-section__head">
               <span class="create-section__bar" />
-              <span class="create-section__title">补充说明</span>
-              <span class="truncate text-12px text-gray-500 font-normal">选填</span>
+              <span class="create-section__title">必填信息</span>
             </div>
-            <AButton type="link" size="small" class="shrink-0 !px-4px" @click.stop="toggleCreateSupplementSection">
-              {{ createSupplementExpanded ? '收缩' : '展开' }}
-            </AButton>
-          </div>
-          <div v-show="createSupplementExpanded" class="create-section__body">
-            <!-- 补充区上传：故障媒体/语音、邮寄快递单号凭证（配额见 FAULT_MEDIA_* 常量） -->
-            <AFormItem class="mb-12px" :colon="false">
-              <template #label>
-                <div class="create-form-item-label-row">
-                  <span class="create-form-item-label-title">故障视频/图片</span>
-                  <span class="create-form-item-label-tip create-form-item-label-tip--gray">限1个视频、3张图</span>
-                </div>
-              </template>
-              <AUpload
-                class="create-upload-picture-card"
-                list-type="picture-card"
-                :max-count="FAULT_MEDIA_MAX_TOTAL"
-                multiple
-                accept=".jpg,.jpeg,.png,.webp,.mp4,.mov,image/jpeg,image/png,image/webp,video/mp4,video/quicktime"
-                :open-file-dialog-on-click="!isFaultMediaAtLimit()"
-                :before-upload="beforeUploadFaultMedia"
-                :custom-request="runFaultMediaUpload"
-                :on-remove="handleCreateUploadRemove(createForm.faultMediaFiles)"
-              >
-                <div v-if="!isFaultMediaAtLimit()" class="create-upload-card-trigger">
-                  <span class="create-upload-card-trigger__plus">+</span>
-                  <span class="create-upload-card-trigger__text">上传</span>
-                </div>
-              </AUpload>
-            </AFormItem>
-            <AFormItem class="mb-12px" :colon="false">
-              <template #label>
-                <div class="create-form-item-label-row">
-                  <span class="create-form-item-label-title">语音说明</span>
-                  <span class="create-form-item-label-tip create-form-item-label-tip--gray">
-                    支持 mp3 / wav / amr / aac，单个不超过 10MB，最多 6 个
-                  </span>
-                </div>
-              </template>
-              <div class="create-upload-voice">
-                <AUpload
-                  list-type="text"
-                  :max-count="FAULT_VOICE_MAX_COUNT"
-                  multiple
-                  accept=".mp3,.wav,.amr,.aac,audio/mpeg,audio/wav,audio/amr,audio/aac"
-                  :open-file-dialog-on-click="!isFaultVoiceAtLimit()"
-                  :before-upload="beforeUploadFaultVoice"
-                  :custom-request="o => runFileUpload(o, createForm.faultVoiceFiles)"
-                  :on-remove="handleCreateUploadRemove(createForm.faultVoiceFiles)"
-                  :show-upload-list="{ showPreviewIcon: false, showDownloadIcon: false }"
+            <ARow :gutter="[12, 0]">
+              <!-- 仅代客户填写展示客户手机；上游报修由后端带出发起方信息 -->
+              <ACol v-if="showCreateCustomerFields" :span="24" :md="12">
+                <AFormItem label="客户手机号码" name="customerMobile" class="mb-12px" required>
+                  <AInput v-model:value="createForm.customerMobile" allow-clear placeholder="请输入客户手机号码" />
+                </AFormItem>
+              </ACol>
+              <ACol v-if="showCreateTargetCompany" :span="24" :md="12">
+                <AFormItem :label="createTargetCompanyLabel" name="targetCompanyId" class="mb-12px" required>
+                  <ASelect
+                    v-model:value="createForm.targetCompanyId"
+                    :placeholder="createTargetCompanySelectPlaceholder"
+                    show-search
+                    option-filter-prop="label"
+                    :disabled="isCreateTargetAutoFilled"
+                    :options="createForm.targetCompanyOptions.map(o => ({ label: o.companyName, value: o.id }))"
+                    @change="handleCreateTargetCompanyChange"
+                  />
+                </AFormItem>
+              </ACol>
+              <ACol :span="24" :md="12">
+                <AFormItem label="选择维修路径" name="serviceMode" class="mb-12px" required>
+                  <ASelect
+                    v-model:value="createForm.serviceMode"
+                    placeholder="请选择维修路径"
+                    :options="[...SERVICE_MODE_OPTIONS]"
+                  />
+                </AFormItem>
+              </ACol>
+              <ACol v-if="createBarcodeQueryHasFaultDescription" :span="24">
+                <AFormItem
+                  label="故障描述"
+                  name="faultItems"
+                  class="mb-12px"
+                  :required="createBarcodeQueryHasFaultDescription"
                 >
-                  <AButton v-if="!isFaultVoiceAtLimit()" size="small" type="primary" ghost>选择语音文件</AButton>
-                </AUpload>
+                  <ASelect
+                    v-model:value="createForm.faultItems"
+                    mode="multiple"
+                    max-tag-count="responsive"
+                    :placeholder="createFaultPlaceholder"
+                    :disabled="isCreateFaultSelectDisabled"
+                    :options="effectiveCreateFaultOptions.map(t => ({ label: t, value: t }))"
+                  />
+                </AFormItem>
+              </ACol>
+              <ACol v-if="showCreateFaultRemark" :span="24">
+                <AFormItem label="故障说明备注" name="faultRemark" class="mb-0" :required="showCreateFaultRemark">
+                  <ATextarea
+                    v-model:value="createForm.faultRemark"
+                    :rows="3"
+                    allow-clear
+                    placeholder="请输入故障说明备注"
+                  />
+                </AFormItem>
+              </ACol>
+              <!-- 邮寄维修：寄件信息只读摘要 + 地址簿选择（提交前 validateSendInfo 校验） -->
+              <ACol v-if="isCreateMailMode" :span="24">
+                <AFormItem label="寄件信息" class="mb-0" :required="isCreateMailMode">
+                  <ATextarea
+                    :value="createShippingAddressSummary"
+                    :rows="3"
+                    disabled
+                    placeholder="请选择寄件信息"
+                    class="rounded-6px"
+                  />
+                  <div class="mt-10px flex flex-wrap gap-8px">
+                    <AButton type="primary" size="small" @click="openCompanyAddressDialog('select')">
+                      选择寄件信息
+                    </AButton>
+                    <AButton size="small" @click="loadCompanyAddressList({ preserveSelection: true })">刷新</AButton>
+                  </div>
+                  <AAlert
+                    v-if="!companyAddressLoading && !companyAddressList.length"
+                    type="warning"
+                    show-icon
+                    class="mt-10px rounded-8px"
+                    message="当前公司还没有可用地址，请先维护公司地址簿后再提交邮寄维修工单。"
+                    :closable="false"
+                  />
+                </AFormItem>
+              </ACol>
+            </ARow>
+          </div>
+
+          <!-- 补充说明默认折叠：故障媒体、语音、邮寄快递单号凭证等选填 -->
+          <div class="create-section create-section--supplement">
+            <div
+              class="create-section__head create-section__head--row create-section__head--click"
+              @click="toggleCreateSupplementSection"
+            >
+              <div class="min-w-0 flex flex-1 items-center gap-8px">
+                <span class="create-section__bar" />
+                <span class="create-section__title">补充说明</span>
+                <span class="truncate text-12px text-gray-500 font-normal">选填</span>
               </div>
-            </AFormItem>
-            <template v-if="isCreateMailMode">
-              <AFormItem class="mb-0" :colon="false">
+              <AButton type="link" size="small" class="shrink-0 !px-4px" @click.stop="toggleCreateSupplementSection">
+                {{ createSupplementExpanded ? '收缩' : '展开' }}
+              </AButton>
+            </div>
+            <div v-show="createSupplementExpanded" class="create-section__body">
+              <!-- 补充区上传：故障媒体/语音、邮寄快递单号凭证（配额见 FAULT_MEDIA_* 常量） -->
+              <AFormItem class="mb-12px" :colon="false">
                 <template #label>
                   <div class="create-form-item-label-row">
-                    <span class="create-form-item-label-title">寄件快递单号</span>
-                    <span class="create-form-item-label-tip create-form-item-label-tip--gray">限2张图片</span>
+                    <span class="create-form-item-label-title">故障视频/图片</span>
+                    <span class="create-form-item-label-tip create-form-item-label-tip--gray">限1个视频、3张图</span>
                   </div>
                 </template>
                 <AUpload
                   class="create-upload-picture-card"
                   list-type="picture-card"
-                  :max-count="SENDER_VOUCHER_MAX_COUNT"
+                  :max-count="FAULT_MEDIA_MAX_TOTAL"
                   multiple
-                  accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                  :open-file-dialog-on-click="!isSenderVoucherAtLimit()"
-                  :before-upload="beforeUploadFaultImage"
-                  :custom-request="runSenderVoucherUpload"
-                  :on-remove="handleCreateUploadRemove(createForm.senderVoucherFiles)"
+                  accept=".jpg,.jpeg,.png,.webp,.mp4,.mov,image/jpeg,image/png,image/webp,video/mp4,video/quicktime"
+                  :open-file-dialog-on-click="!isFaultMediaAtLimit()"
+                  :before-upload="beforeUploadFaultMedia"
+                  :custom-request="runFaultMediaUpload"
+                  :on-remove="handleCreateUploadRemove(createForm.faultMediaFiles)"
                 >
-                  <div v-if="!isSenderVoucherAtLimit()" class="create-upload-card-trigger">
+                  <div v-if="!isFaultMediaAtLimit()" class="create-upload-card-trigger">
                     <span class="create-upload-card-trigger__plus">+</span>
-                    <span class="create-upload-card-trigger__text">凭证</span>
+                    <span class="create-upload-card-trigger__text">上传</span>
                   </div>
                 </AUpload>
               </AFormItem>
-            </template>
+              <AFormItem class="mb-12px" :colon="false">
+                <template #label>
+                  <div class="create-form-item-label-row">
+                    <span class="create-form-item-label-title">语音说明</span>
+                    <span class="create-form-item-label-tip create-form-item-label-tip--gray">
+                      支持 mp3 / wav / amr / aac，单个不超过 10MB，最多 6 个
+                    </span>
+                  </div>
+                </template>
+                <div class="create-upload-voice">
+                  <AUpload
+                    list-type="text"
+                    :max-count="FAULT_VOICE_MAX_COUNT"
+                    multiple
+                    accept=".mp3,.wav,.amr,.aac,audio/mpeg,audio/wav,audio/amr,audio/aac"
+                    :open-file-dialog-on-click="!isFaultVoiceAtLimit()"
+                    :before-upload="beforeUploadFaultVoice"
+                    :custom-request="o => runFileUpload(o, createForm.faultVoiceFiles)"
+                    :on-remove="handleCreateUploadRemove(createForm.faultVoiceFiles)"
+                    :show-upload-list="{ showPreviewIcon: false, showDownloadIcon: false }"
+                  >
+                    <AButton v-if="!isFaultVoiceAtLimit()" size="small" type="primary" ghost>选择语音文件</AButton>
+                  </AUpload>
+                </div>
+              </AFormItem>
+              <template v-if="isCreateMailMode">
+                <AFormItem class="mb-0" :colon="false">
+                  <template #label>
+                    <div class="create-form-item-label-row">
+                      <span class="create-form-item-label-title">寄件快递单号</span>
+                      <span class="create-form-item-label-tip create-form-item-label-tip--gray">限2张图片</span>
+                    </div>
+                  </template>
+                  <AUpload
+                    class="create-upload-picture-card"
+                    list-type="picture-card"
+                    :max-count="SENDER_VOUCHER_MAX_COUNT"
+                    multiple
+                    accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                    :open-file-dialog-on-click="!isSenderVoucherAtLimit()"
+                    :before-upload="beforeUploadFaultImage"
+                    :custom-request="runSenderVoucherUpload"
+                    :on-remove="handleCreateUploadRemove(createForm.senderVoucherFiles)"
+                  >
+                    <div v-if="!isSenderVoucherAtLimit()" class="create-upload-card-trigger">
+                      <span class="create-upload-card-trigger__plus">+</span>
+                      <span class="create-upload-card-trigger__text">凭证</span>
+                    </div>
+                  </AUpload>
+                </AFormItem>
+              </template>
+            </div>
           </div>
-        </div>
-      </AForm>
+        </AForm>
+        <div
+          v-if="isCreateUpstreamFirstFormBlocked"
+          class="work-order-create-body__mask"
+          @click="presentUpstreamFirstTargetBlockedModal()"
+        />
+      </div>
     </div>
 
     <!-- 建单提交：先表单校验，再 validateCreateBeforeSubmit / 邮寄 validateSendInfo，无条码可二次确认 -->
     <template #footer>
       <div class="flex justify-end gap-12px">
         <AButton @click="createDrawerOpen = false">取消</AButton>
-        <AButton type="primary" :loading="createSubmitting" @click="submitCreate">提交</AButton>
+        <AButton
+          type="primary"
+          :loading="createSubmitting"
+          :disabled="isCreateUpstreamFirstFormBlocked"
+          @click="submitCreate"
+        >
+          提交
+        </AButton>
       </div>
     </template>
   </ADrawer>
@@ -1715,6 +1809,26 @@ defineExpose({
 <style scoped>
 .work-order-create-entry-segmented :deep(.ant-segmented) {
   border-radius: 8px;
+}
+
+.work-order-create-body {
+  position: relative;
+}
+
+.work-order-create-body--blocked :deep(.ant-input),
+.work-order-create-body--blocked :deep(.ant-input-search),
+.work-order-create-body--blocked :deep(.ant-select),
+.work-order-create-body--blocked :deep(.ant-input-number),
+.work-order-create-body--blocked :deep(textarea.ant-input) {
+  pointer-events: none;
+}
+
+.work-order-create-body__mask {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.45);
 }
 
 /* 表单项之间留白（原先 margin-bottom:0 会压掉 mb-12px 等工具类） */

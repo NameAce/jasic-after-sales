@@ -115,10 +115,15 @@ export const getContractorListActionLabel = (key: WorkOrderActionKey): string =>
 }
 
 /**
- * 承修方小程序列表按钮样式：关闭/返回方式使用 outline，其余 primary
+ * 承修方小程序列表按钮样式：
+ * - 「机器返回方式」(CLOSE) 与「维修登记」等主操作一致，使用 primary（主色实心）；
+ * - 「转单」「复检」沿用原「机器返回方式」的 outline（描边）样式。
  * @修改人 黄碧莲
- * @修改时间 2026-05-22
+ * @修改时间 2026-05-27
  */
 export const getContractorListActionClassName = (
   key: WorkOrderActionKey
-): 'primary' | 'outline' => (key === 'CLOSE' ? 'outline' : 'primary')
+): 'primary' | 'outline' => {
+  if (key === 'TRANSFER' || key === 'REVIEW') return 'outline'
+  return 'primary'
+}

@@ -21,7 +21,7 @@ export type WorkOrderVisibleAction = {
   className: 'primary' | 'outline'
 }
 
-export type WorkOrderVisibleActionsPrimaryTab = 'untransferred' | 'transferred'
+export type WorkOrderVisibleActionsPrimaryTab = 'untransferred' | 'transferred' | 'self_built'
 
 export type UseWorkOrderVisibleActionsOptions = {
   /**

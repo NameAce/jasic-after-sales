@@ -5,10 +5,12 @@
  */
 
 export { default as addressManualIcon } from './address-manual.svg'
+export { default as infoCircleIcon } from './info-circle.svg'
 import addAPhotoIcon from './add-a-photo.svg'
 import completeCheckIcon from './complete-check.svg'
 import editIcon from './edit.svg'
 import emptyOrderListIcon from './empty-order-list.svg'
+import headsetMicIcon from './headset-mic.svg'
 import hqMenuIcon from './hq-menu.svg'
 import menuInfoIcon from './menu-info.svg'
 import locationOnIcon from './location-on.svg'
@@ -35,6 +37,7 @@ export {
   completeCheckIcon,
   editIcon,
   emptyOrderListIcon,
+  headsetMicIcon,
   hqMenuIcon,
   menuInfoIcon,
   locationOnIcon,

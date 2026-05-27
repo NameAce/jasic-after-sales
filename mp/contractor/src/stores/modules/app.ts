@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export type OrderListNavTarget = {
-  primaryTab: 'untransferred' | 'transferred'
+  primaryTab: 'untransferred' | 'transferred' | 'self_built'
   secondaryTab: 'all' | 'pending' | 'pending_accept' | 'processing' | 'completed' | 'closed'
 } | null
 

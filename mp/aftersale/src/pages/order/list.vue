@@ -1032,6 +1032,15 @@
           &.primary {
             @include btn-primary-solid;
           }
+
+          /* 与 contractor order-pages `.btn-action.outline` 对齐，供次要操作描边展示 */
+          &.outline {
+            @include btn-outline;
+
+            &:active {
+              background-color: $tag-brand-bg;
+            }
+          }
         }
       }
     }

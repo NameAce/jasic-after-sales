@@ -80,6 +80,29 @@ export const getUserInfo = () => {
 }
 
 /**
+ * 客户资料修改入参（对齐后端 `CustomerProfileUpdateDTO`）
+ *
+ * 字段均可选；传 null 的字段后端不更新。小程序「我的」页保存时通常同时提交昵称与头像 URL。
+ */
+export interface CustomerProfileUpdateParams {
+  nickname?: string
+  avatar?: string
+}
+
+/**
+ * 修改当前客户资料（C 端专属 `PUT /api/customer/auth/profile`）
+ *
+ * 成功后返回最新 `CustomerUserInfo`，调用方应写入 userStore。
+ */
+export const updateProfile = (data: CustomerProfileUpdateParams) => {
+  return http<CustomerUserInfo>({
+    url: '/customer/auth/profile',
+    method: 'PUT',
+    data,
+  })
+}
+
+/**
  * 退出登录（C 端专属接口 `/api/customer/auth/logout`）
  *
  * 对应 jasic-ui `logout` 的 C 端实现。真源：
