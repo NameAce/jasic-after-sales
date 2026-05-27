@@ -18,6 +18,9 @@ import com.jasic.aftersales.system.service.WechatMiniProgramService;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -25,7 +28,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Mini program subscribe message sender.
+ * 小程序订阅消息发送器。
+ *
+ * <p>当前发送器负责把通知中心生成的模板变量渲染成微信订阅消息 payload，
+ * 并统一处理小程序场景选择、模板字段格式兼容和微信发送异常转换。</p>
  *
  * @author Zoro
  * @date 2026/04/21
@@ -33,21 +39,29 @@ import java.util.regex.Pattern;
 @Service
 public class MiniProgramSubscribeSender implements NotifyChannelSender {
 
-    /**PLACEHOLDER_PATTERN 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
+    /** 模板占位符格式，统一解析 `${variable}` 形式的变量引用。 */
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\$\\{([A-Za-z0-9_]+)}");
+    /** 微信 time 类字段统一命名为 `time + 序号`，发送前需要做专项格式兼容。 */
+    private static final Pattern WECHAT_TIME_FIELD_PATTERN = Pattern.compile("^time\\d+$");
+    /** 企业微信截图已确认目标格式为 `yyyy-MM-dd HH:mm:ss`，这里统一按该格式输出。 */
+    private static final DateTimeFormatter WECHAT_TIME_OUTPUT_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    /** 兼容数据库常见的“年月日 时:分:秒”字符串。 */
+    private static final DateTimeFormatter COMMON_DATE_TIME_SECONDS_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    /** 兼容数据库常见的“年月日 时:分”字符串；秒数缺失时默认补 `00`。 */
+    private static final DateTimeFormatter COMMON_DATE_TIME_MINUTES_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
-    /**
-     * 微信小程序程序服务依赖。
-     */
+    /** 微信小程序服务，负责真正调用微信订阅消息发送接口。 */
     @Resource
     private WechatMiniProgramService wechatMiniProgramService;
 
     /**
-     * 处理supports业务逻辑。
+     * 判断当前 sender 是否支持指定渠道。
      *
-     * <p>说明：该方法用于执行业务流程编排，确保调用链路清晰可维护。</p>
-     * @param channelType channelType，当前业务处理所需的输入值。
-     * @return 业务处理结果
+     * @param channelType 渠道类型编码
+     * @return 支持返回 true，否则返回 false
      */
     @Override
     public boolean supports(String channelType) {
@@ -55,10 +69,10 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
     }
 
     /**
-     * 发送小程序程序订阅发送。
+     * 发送小程序订阅消息。
      *
-     * @param context 上下文对象，承载当前操作人、公司和数据范围。
-     * @return 业务处理结果
+     * @param context 发送上下文，包含派发记录、渠道配置和模板变量
+     * @return 发送结果
      */
     @Override
     public NotifyChannelSendResult send(NotifyChannelSendContext context) {
@@ -102,7 +116,8 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
                     "Mini program field mapping is missing"
             );
         }
-        // 小程序归属端必须来自场景目标配置，避免再次用接收人类型或旧 sceneCode 后缀猜测 B/C 端。
+
+        // 小程序归属端必须来自场景目标配置，避免再根据接收对象类型或 sceneCode 后缀猜测 B/C 端。
         WechatMiniProgramScene scene = resolveScene(channelConfig.getChannelScene());
         if (scene == null) {
             return NotifyChannelSendResult.skipped(
@@ -110,6 +125,7 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
                     "Mini program scene is invalid"
             );
         }
+
         Map<String, Object> variables = payload.getVariables() == null ? Collections.emptyMap() : payload.getVariables();
         String pagePath;
         JSONObject data;
@@ -163,10 +179,10 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
     }
 
     /**
-     * 解析场景。
+     * 解析小程序归属场景。
      *
-     * @param channelScene 配置中的小程序场景
-     * @return 业务处理结果
+     * @param channelScene 配置中的小程序场景编码
+     * @return 解析后的微信小程序场景；无法识别时返回 null
      */
     private WechatMiniProgramScene resolveScene(String channelScene) {
         NotifyChannelSceneEnum configuredScene = NotifyChannelSceneEnum.getByCode(channelScene);
@@ -179,11 +195,11 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
     }
 
     /**
-     * 构建数据。
+     * 组装微信订阅消息 data 数据。
      *
-     * @param fieldMapping 业务映射数据，用于批量组装或快速查找。
-     * @param variables variables，当前业务处理所需的输入值。
-     * @return 业务处理结果
+     * @param fieldMapping 字段映射配置
+     * @param variables 模板变量
+     * @return 微信订阅消息 data
      */
     private JSONObject buildData(List<NotifyChannelFieldMappingDTO> fieldMapping, Map<String, Object> variables) {
         JSONObject data = JSONUtil.createObj();
@@ -191,17 +207,81 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
             if (item == null || StrUtil.isBlank(item.getField()) || StrUtil.isBlank(item.getValue())) {
                 continue;
             }
-            data.set(item.getField().trim(), render(item.getValue(), variables));
+            String fieldName = item.getField().trim();
+            String renderedValue = render(item.getValue(), variables);
+            // 微信会按模板字段类型严格校验内容格式，这里在下发前集中做 time 字段兼容，
+            // 避免 LocalDateTime 默认字符串 `2026-05-27T14:30:45` 被微信判定为非法值。
+            data.set(fieldName, normalizeWechatFieldValue(fieldName, renderedValue));
         }
         return data;
     }
 
     /**
-     * 渲染小程序程序订阅发送。
+     * 按模板字段类型兜底格式，避免每个通知场景重复处理相同的微信格式约束。
      *
-     * @param template template，当前业务处理所需的输入值。
-     * @param variables variables，当前业务处理所需的输入值。
-     * @return 业务处理结果
+     * @param fieldName 微信模板字段名
+     * @param renderedValue 模板渲染后的值
+     * @return 兜底格式化后的字段值
+     */
+    private String normalizeWechatFieldValue(String fieldName, String renderedValue) {
+        if (StrUtil.isBlank(fieldName) || StrUtil.isBlank(renderedValue)) {
+            return renderedValue;
+        }
+        if (WECHAT_TIME_FIELD_PATTERN.matcher(fieldName).matches()) {
+            return normalizeWechatTimeValue(renderedValue);
+        }
+        return renderedValue;
+    }
+
+    /**
+     * 把项目里常见时间输出转换成微信侧确认可接受的完整时间格式。
+     *
+     * @param value 原始时间字符串
+     * @return 转换后的时间字符串；无法识别时保留原值，避免误伤其它文本
+     */
+    private String normalizeWechatTimeValue(String value) {
+        String trimmedValue = StrUtil.trim(value);
+        if (StrUtil.isBlank(trimmedValue)) {
+            return trimmedValue;
+        }
+        if (trimmedValue.matches("^\\d{1,2}:\\d{2}(~\\d{1,2}:\\d{2})?$")) {
+            return trimmedValue;
+        }
+        LocalDateTime parsedValue = parseLocalDateTime(trimmedValue);
+        if (parsedValue == null) {
+            return trimmedValue;
+        }
+        return parsedValue.format(WECHAT_TIME_OUTPUT_FORMATTER);
+    }
+
+    /**
+     * 兼容当前通知链路最常见的时间字符串格式。
+     *
+     * @param value 时间字符串
+     * @return 解析成功返回时间对象，否则返回 null
+     */
+    private LocalDateTime parseLocalDateTime(String value) {
+        DateTimeFormatter[] supportedFormatters = new DateTimeFormatter[]{
+                DateTimeFormatter.ISO_LOCAL_DATE_TIME,
+                COMMON_DATE_TIME_SECONDS_FORMATTER,
+                COMMON_DATE_TIME_MINUTES_FORMATTER
+        };
+        for (DateTimeFormatter formatter : supportedFormatters) {
+            try {
+                return LocalDateTime.parse(value, formatter);
+            } catch (DateTimeParseException ignored) {
+                // 继续尝试后续兼容格式，避免单一格式不匹配直接放弃时间兜底。
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 渲染模板字符串。
+     *
+     * @param template 模板文本
+     * @param variables 模板变量
+     * @return 渲染后的文本
      */
     private String render(String template, Map<String, Object> variables) {
         if (template == null) {
@@ -219,9 +299,10 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
     }
 
     /**
-     * 判断是否用户NotSubscribed。
+     * 判断是否属于用户未订阅场景。
      *
-     * @param message 提示或消息文本，用于异常返回或通知内容。
+     * @param message 异常消息
+     * @return 用户未订阅返回 true，否则返回 false
      */
     private boolean isUserNotSubscribed(String message) {
         if (StrUtil.isBlank(message)) {
@@ -234,7 +315,3 @@ public class MiniProgramSubscribeSender implements NotifyChannelSender {
                 || StrUtil.contains(message, "用户未订阅");
     }
 }
-
-
-
-

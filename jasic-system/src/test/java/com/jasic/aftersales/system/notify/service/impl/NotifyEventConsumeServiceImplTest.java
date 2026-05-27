@@ -340,6 +340,7 @@ public class NotifyEventConsumeServiceImplTest {
         Assert.assertEquals(NotifyReceiverTypeEnum.CUSTOMER.getCode(), dispatch.getReceiverType());
         Assert.assertEquals("openid-9001", dispatch.getReceiverAddress());
         NotifyDispatchPayload payload = JSONUtil.toBean(dispatch.getPayloadJson(), NotifyDispatchPayload.class);
+        Assert.assertEquals("2026-05-16 18:00:00", payload.getVariables().get("closedTime"));
         Assert.assertEquals("客户评价邀请-MP_SUBSCRIBE_C", payload.getTemplateName());
     }
 

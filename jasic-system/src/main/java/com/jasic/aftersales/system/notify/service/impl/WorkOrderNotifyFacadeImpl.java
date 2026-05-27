@@ -22,10 +22,12 @@ import com.jasic.aftersales.system.notify.service.NotifyMessageService;
 import com.jasic.aftersales.system.notify.service.WorkOrderNotifyFacade;
 import com.jasic.aftersales.system.notify.support.NotifyConstants;
 import com.jasic.aftersales.system.notify.support.NotifySceneCode;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.util.Objects;
 
 /**
  * Work order notification facade implementation.
@@ -33,6 +35,7 @@ import javax.annotation.Resource;
  * @author Zoro
  * @date 2026/04/18
  */
+@Slf4j
 @Service
 public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
 
@@ -55,7 +58,9 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
     public void publishAcceptEvent(NotifyWorkOrderAcceptEventDTO dto) {
         validateAcceptEvent(dto);
         String eventKey = buildAcceptEventKey(dto);
-        if (notifyEventService.getByEventKey(eventKey) != null) {
+        SysNotifyEvent existingEvent = notifyEventService.getByEventKey(eventKey);
+        if (existingEvent != null) {
+            validateSameAcceptEventSnapshot(existingEvent, dto, eventKey);
             return;
         }
         SysNotifyEvent notifyEvent = buildEvent(
@@ -447,11 +452,43 @@ public class WorkOrderNotifyFacadeImpl implements WorkOrderNotifyFacade {
      * @return 业务处理结果
      */
     private String buildAcceptEventKey(NotifyWorkOrderAcceptEventDTO dto) {
-        return String.format("%s:%s:%s",
+        return String.format("%s:%s:%s:%s",
                 NotifyConstants.EVENT_KEY_PREFIX_WORK_ORDER_ACCEPT,
                 dto.getWorkOrderId(),
+                StrUtil.trim(dto.getOrderNo()),
                 dto.getCurrentAcceptCompanyId()
         );
+    }
+
+    /**
+     * 校验待派单通知幂等命中的事件是否确实属于同一张工单。
+     *
+     * <p>待派单事件的幂等键已经包含工单ID、工单编号和当前承接公司。
+     * 正常情况下，命中旧事件只能说明同一业务动作被重复触发，可以安全跳过。
+     * 如果命中的事件主表和当前工单快照不一致，说明通知运行表存在脏数据或人工写入错误，
+     * 此时必须显式失败，避免再次出现“新工单被旧事件吞掉”的静默漏通知。</p>
+     *
+     * @param existingEvent 已存在的事件
+     * @param dto 当前待发布的待派单通知参数
+     * @param eventKey 本次命中的幂等键
+     */
+    private void validateSameAcceptEventSnapshot(SysNotifyEvent existingEvent, NotifyWorkOrderAcceptEventDTO dto,
+                                                 String eventKey) {
+        boolean sameEvent = Objects.equals(existingEvent.getBizId(), dto.getWorkOrderId())
+                && Objects.equals(StrUtil.trim(existingEvent.getBizNo()), StrUtil.trim(dto.getOrderNo()))
+                && Objects.equals(existingEvent.getEventType(), NotifyEventTypeEnum.WORK_ORDER_ACCEPT.getCode())
+                && Objects.equals(existingEvent.getSceneCode(), NotifySceneCode.WORK_ORDER_ACCEPT.getCode());
+        if (sameEvent) {
+            return;
+        }
+        log.error("待派单通知幂等键冲突。eventKey={}, existingEventId={}, existingBizId={}, existingBizNo={}, currentBizId={}, currentBizNo={}",
+                eventKey,
+                existingEvent.getId(),
+                existingEvent.getBizId(),
+                existingEvent.getBizNo(),
+                dto.getWorkOrderId(),
+                dto.getOrderNo());
+        throw new ServiceException("待派单通知幂等键冲突，请检查通知运行数据");
     }
 
     /**buildTransferInEventKey 业务数据，统一收口字段清洗、默认值处理和返回对象组装规则。

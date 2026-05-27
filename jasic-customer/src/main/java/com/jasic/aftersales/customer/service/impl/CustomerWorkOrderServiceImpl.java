@@ -62,6 +62,7 @@ import com.jasic.aftersales.system.mapper.WorkOrderFlowMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderQuoteMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderRepairMapper;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderAcceptEventDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderEvaluatedEventDTO;
 import com.jasic.aftersales.system.notify.service.WorkOrderNotifyFacade;
 import com.jasic.aftersales.system.service.IFaultRepairConfigService;
@@ -283,6 +284,9 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
 
         saveCreateFlow(workOrder.getId(), customerId, serviceCompany.getId(), workOrder.getMainStatus());
         workOrderParticipantService.initParticipants(workOrder, "SERVICE");
+        // C 端建单后工单同样会立即进入目标服务网点的待派单池，
+        // 这里复用 B 端待派单通知事件，确保网点侧能及时感知新报修并执行后续派单。
+        publishCreateAcceptNotifyEvent(workOrder);
         return workOrder.getId();
     }
 
@@ -659,6 +663,32 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         notifyEvent.setAssignedUserName(resolveSystemUserDisplayName(workOrder.getAssignedUserId()));
         notifyEvent.setCurrentAcceptCompanyId(workOrder.getCurrentAcceptCompanyId());
         workOrderNotifyFacade.publishEvaluatedEvent(notifyEvent);
+    }
+
+    /**
+     * 发布 C 端建单后的 B 端待派单通知事件。
+     *
+     * <p>C 端客户提交报修后，当前受理网点已经明确，且工单主状态直接进入 `PENDING_ASSIGN`。
+     * 因此这里需要在客户链路中同步补发待派单事件，把“新报修已进入网点待派单池”这一事实
+     * 统一交给通知模块分发表处理，避免只有 B 端自建工单才会触发派单提醒。</p>
+     *
+     * @param workOrder 建单成功后的工单快照
+     */
+    private void publishCreateAcceptNotifyEvent(WorkOrder workOrder) {
+        if (workOrder == null || workOrder.getId() == null || workOrder.getCurrentAcceptCompanyId() == null) {
+            return;
+        }
+        SysCompany currentAcceptCompany = sysCompanyMapper.selectById(workOrder.getCurrentAcceptCompanyId());
+        NotifyWorkOrderAcceptEventDTO notifyEvent = new NotifyWorkOrderAcceptEventDTO();
+        notifyEvent.setWorkOrderId(workOrder.getId());
+        notifyEvent.setOrderNo(workOrder.getOrderNo());
+        notifyEvent.setCurrentAcceptCompanyId(workOrder.getCurrentAcceptCompanyId());
+        notifyEvent.setCurrentAcceptCompanyName(normalizeText(
+                currentAcceptCompany == null ? null : currentAcceptCompany.getCompanyName()
+        ));
+        notifyEvent.setCustomerName(resolveCustomerDisplayNameForNotify(workOrder));
+        notifyEvent.setCustomerMobile(normalizeText(workOrder.getCustomerMobile()));
+        workOrderNotifyFacade.publishAcceptEvent(notifyEvent);
     }
 
     /**
@@ -2354,7 +2384,6 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return text.isEmpty() ? null : text;
     }
 }
-
 
 
 

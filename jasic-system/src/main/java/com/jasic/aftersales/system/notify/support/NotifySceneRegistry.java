@@ -90,7 +90,7 @@ public class NotifySceneRegistry {
     /**
      * C 端网点转单固定提示文案。
      */
-    private static final String CUSTOMER_TRANSFER_FIXED_TIP = "您的工单已转由其他网点继续处理，请留意后续联系。";
+    private static final String CUSTOMER_TRANSFER_FIXED_TIP = "已转入新网点维修。";
 
     /**
      * 已注册的通知场景列表。
@@ -746,6 +746,7 @@ public class NotifySceneRegistry {
         variables.add(buildVariableMeta("currentAcceptCompanyId", "当前承接网点ID", "3001"));
         variables.add(buildVariableMeta("currentAcceptCompanyName", "当前承接网点名称", "深圳南山服务网点"));
         variables.add(buildCustomerNameVariable());
+        variables.add(buildVariableMeta("customerMobile", "客户联系电话", "13800138000"));
         return variables;
     }
 

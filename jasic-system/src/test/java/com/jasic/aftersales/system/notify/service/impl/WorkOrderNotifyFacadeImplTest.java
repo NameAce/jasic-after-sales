@@ -1,5 +1,6 @@
 package com.jasic.aftersales.system.notify.service.impl;
 
+import com.jasic.aftersales.common.exception.ServiceException;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderAcceptEventDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderAcceptedEventDTO;
 import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderEvaluatedEventDTO;
@@ -42,8 +43,47 @@ public class WorkOrderNotifyFacadeImplTest {
         facade.publishAcceptEvent(dto);
 
         Assert.assertNotNull(eventServiceState.createdEvent);
+        Assert.assertEquals("WORK_ORDER_ACCEPT:101:GD202605180001:501",
+                eventServiceState.createdEvent.getEventKey());
         Assert.assertEquals(Long.valueOf(NotifyConstants.EVENT_RECEIVER_ID_PLACEHOLDER),
                 eventServiceState.createdEvent.getReceiverId());
+    }
+
+    /**
+     * 待派单通知幂等命中旧事件时，如果事件快照和当前工单不一致，应显式失败。
+     *
+     * <p>该用例覆盖测试环境清理不完整、旧通知运行数据残留等场景，
+     * 防止新工单因为命中旧事件键而被静默跳过通知发布。</p>
+     *
+     * @throws Exception 反射异常
+     */
+    @Test
+    public void shouldRejectAcceptEventKeyConflictWhenSnapshotMismatch() throws Exception {
+        WorkOrderNotifyFacadeImpl facade = new WorkOrderNotifyFacadeImpl();
+        EventServiceState eventServiceState = new EventServiceState();
+        SysNotifyEvent existingEvent = new SysNotifyEvent();
+        existingEvent.setId(9001L);
+        existingEvent.setEventKey("WORK_ORDER_ACCEPT:101:GD202605180001:501");
+        existingEvent.setEventType("WORK_ORDER_ACCEPT");
+        existingEvent.setSceneCode(NotifySceneCode.WORK_ORDER_ACCEPT.getCode());
+        existingEvent.setBizId(999L);
+        existingEvent.setBizNo("GD202605170009");
+        eventServiceState.existingEvent = existingEvent;
+        setField(facade, "notifyEventService", createNotifyEventServiceProxy(eventServiceState));
+        setField(facade, "notifyMessageService", createNotifyMessageServiceProxy());
+
+        NotifyWorkOrderAcceptEventDTO dto = new NotifyWorkOrderAcceptEventDTO();
+        dto.setWorkOrderId(101L);
+        dto.setOrderNo("GD202605180001");
+        dto.setCurrentAcceptCompanyId(501L);
+
+        try {
+            facade.publishAcceptEvent(dto);
+            Assert.fail("待派单通知幂等键冲突时应抛出业务异常");
+        } catch (ServiceException ex) {
+            Assert.assertEquals("待派单通知幂等键冲突，请检查通知运行数据", ex.getMessage());
+        }
+        Assert.assertNull(eventServiceState.createdEvent);
     }
 
     /**
@@ -110,7 +150,7 @@ public class WorkOrderNotifyFacadeImplTest {
             public Object invoke(Object proxy, Method method, Object[] args) {
                 String name = method.getName();
                 if ("getByEventKey".equals(name)) {
-                    return null;
+                    return state.existingEvent;
                 }
                 if ("createEvent".equals(name)) {
                     state.createdEvent = (SysNotifyEvent) args[0];
@@ -205,6 +245,9 @@ public class WorkOrderNotifyFacadeImplTest {
      * 事件服务调用状态。
      */
     private static class EventServiceState {
+        /**existingEvent 字段，用于模拟数据库中已存在的通知事件。*/
+        private SysNotifyEvent existingEvent;
+
         /**createdEvent 字段，用于当前类内部业务处理。*/
         private SysNotifyEvent createdEvent;
     }

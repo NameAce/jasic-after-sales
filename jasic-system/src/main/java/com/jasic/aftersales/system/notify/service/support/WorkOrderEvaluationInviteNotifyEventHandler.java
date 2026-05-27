@@ -12,6 +12,8 @@ import com.jasic.aftersales.system.notify.support.NotifyReceiverSnapshot;
 import com.jasic.aftersales.system.notify.support.NotifySceneCode;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -28,6 +30,10 @@ import java.util.Objects;
  */
 @Component
 public class WorkOrderEvaluationInviteNotifyEventHandler implements NotifyEventHandler {
+
+    /** 评价通知完成时间统一快照成完整时间字符串，避免分发重试时被序列化成时间戳。 */
+    private static final DateTimeFormatter CLOSED_TIME_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     /**
      * {@inheritDoc}
@@ -135,7 +141,22 @@ public class WorkOrderEvaluationInviteNotifyEventHandler implements NotifyEventH
         // 评价邀请模板中的联系电话统一解释为服务网点对外联系电话，
         // 这里要把业务层已经按统一规则兜底后的电话快照写入变量，避免模板字段为空。
         variables.put("companyPhone", payload.getCompanyPhone());
-        variables.put("closedTime", payload.getClosedTime());
+        // 评价邀请的完成时间会跨越 dispatch payload 快照和自动重试链路，
+        // 这里直接固化成模板最终展示值，避免 LocalDateTime 在反序列化后退化成时间戳。
+        variables.put("closedTime", formatClosedTime(payload.getClosedTime()));
         return variables;
+    }
+
+    /**
+     * 把工单关闭时间转换成模板变量最终展示值。
+     *
+     * @param closedTime 工单关闭时间
+     * @return 模板可直接渲染的时间字符串；缺失时返回 null
+     */
+    private String formatClosedTime(LocalDateTime closedTime) {
+        if (closedTime == null) {
+            return null;
+        }
+        return closedTime.format(CLOSED_TIME_FORMATTER);
     }
 }

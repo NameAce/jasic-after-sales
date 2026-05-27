@@ -500,6 +500,7 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(Long.valueOf(2002L), notifyFacade.acceptEvents.get(0).getCurrentAcceptCompanyId());
         Assert.assertEquals("深圳南山服务网点", notifyFacade.acceptEvents.get(0).getCurrentAcceptCompanyName());
         Assert.assertEquals("13800138000", notifyFacade.acceptEvents.get(0).getCustomerName());
+        Assert.assertEquals("13800138000", notifyFacade.acceptEvents.get(0).getCustomerMobile());
     }
 
     /**
@@ -3441,5 +3442,4 @@ public class WorkOrderServiceImplTest {
         }
     }
 }
-
 

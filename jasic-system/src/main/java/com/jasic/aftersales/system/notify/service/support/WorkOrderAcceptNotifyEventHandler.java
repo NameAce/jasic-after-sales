@@ -110,6 +110,9 @@ public class WorkOrderAcceptNotifyEventHandler implements NotifyEventHandler {
         variables.put("currentAcceptCompanyId", payload.getCurrentAcceptCompanyId());
         variables.put("currentAcceptCompanyName", payload.getCurrentAcceptCompanyName());
         variables.put("customerName", payload.getCustomerName());
+        // 待派单通知模板已经允许直接展示客户联系电话，
+        // 这里需要把建单时固化下来的手机号快照一并透传给模板渲染层。
+        variables.put("customerMobile", payload.getCustomerMobile());
         return variables;
     }
 }

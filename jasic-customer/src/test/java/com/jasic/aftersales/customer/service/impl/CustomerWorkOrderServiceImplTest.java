@@ -45,6 +45,17 @@ import com.jasic.aftersales.system.mapper.WorkOrderFlowMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderQuoteMapper;
 import com.jasic.aftersales.system.mapper.WorkOrderRepairMapper;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyAssignedEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyEvaluationInviteEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyReadByBizDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoCompleteDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyTodoInvalidateDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderAcceptEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderAcceptedEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderEvaluatedEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderTransferInEventDTO;
+import com.jasic.aftersales.system.notify.domain.dto.NotifyWorkOrderTransferNoticeEventDTO;
+import com.jasic.aftersales.system.notify.service.WorkOrderNotifyFacade;
 import com.jasic.aftersales.system.service.IFaultRepairConfigService;
 import com.jasic.aftersales.system.service.ISysConfigService;
 import com.jasic.aftersales.system.service.SysFileService;
@@ -198,6 +209,7 @@ public class CustomerWorkOrderServiceImplTest {
         setField(service, "workOrderMapper", createInsertWorkOrderMapperProxy(insertedWorkOrder));
         setField(service, "workOrderFlowMapper", createWorkOrderFlowMapperProxy(insertedFlows));
         setField(service, "sysFileService", createNoopSysFileServiceProxy());
+        setField(service, "workOrderNotifyFacade", new RecordingWorkOrderNotifyFacade());
         setField(service, "workOrderNoGenerator", new WorkOrderNoGenerator() {
             /**nextOrderNo 处理逻辑，服务于当前类的业务编排和数据转换。
 @return 处理后的业务结果。*/
@@ -242,6 +254,68 @@ public class CustomerWorkOrderServiceImplTest {
     }
 
     /**验证ResolveDefaultHqCompanyForNonBarcodeCreate，保证相关业务规则在回归场景下保持稳定。*/
+    @Test
+    /**验证C端建单成功后，会同步向目标网点发布B端待派单通知。*/
+    public void shouldPublishAcceptNotifyEventAfterCustomerCreate() throws Exception {
+        CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
+        CUser customer = new CUser();
+        customer.setId(201L);
+        customer.setNickname("客户B");
+        customer.setPhone("13900139000");
+        customer.setStatus(1);
+        WorkOrder[] insertedWorkOrder = new WorkOrder[1];
+        List<WorkOrderFlow> insertedFlows = new ArrayList<>();
+        RecordingWorkOrderNotifyFacade notifyFacade = new RecordingWorkOrderNotifyFacade();
+
+        setField(service, "cUserMapper", createCUserMapperProxy(customer));
+        setField(service, "sysCompanyMapper", createCompanyMapperProxy(buildFirstCompany(), buildHqCompany()));
+        setField(service, "machineBarcodeMapper", createMachineBarcodeMapperProxy(buildMachineBarcode(21L)));
+        setField(service, "faultRepairConfigService", createFaultRepairConfigServiceProxy(91L, "Fault A"));
+        setField(service, "workOrderMapper", createInsertWorkOrderMapperProxy(insertedWorkOrder));
+        setField(service, "workOrderFlowMapper", createWorkOrderFlowMapperProxy(insertedFlows));
+        setField(service, "sysFileService", createNoopSysFileServiceProxy());
+        setField(service, "workOrderNotifyFacade", notifyFacade);
+        setField(service, "workOrderNoGenerator", new WorkOrderNoGenerator() {
+            /**nextOrderNo 业务动作，返回固定工单号，便于断言通知快照字段。*/
+            @Override
+            public String nextOrderNo() {
+                return "JSWX2026042200002";
+            }
+        });
+        setField(service, "workOrderParticipantService", new WorkOrderParticipantService() {
+            /**initParticipants 业务动作，当前用例只验证通知触发，不额外扩展参与方断言。*/
+            @Override
+            public void initParticipants(WorkOrder workOrder, String createSubjectType) {
+            }
+        });
+
+        CustomerWorkOrderCreateDTO dto = new CustomerWorkOrderCreateDTO();
+        dto.setBrandType(BrandTypeEnum.JASIC);
+        dto.setBarcode("JASIC-001");
+        dto.setServiceCompanyId(11L);
+        dto.setServiceMode("STORE");
+        dto.setFaultItems(Collections.singletonList("Fault A"));
+
+        runWithCustomerLoginContext(201L, new ThrowingRunnable() {
+            /**run 业务动作，执行一次完整C端建单并验证通知副作用。*/
+            @Override
+            public void run() throws Exception {
+                service.create(dto);
+            }
+        });
+
+        Assert.assertNotNull(insertedWorkOrder[0]);
+        Assert.assertEquals(1, insertedFlows.size());
+        Assert.assertEquals(1, notifyFacade.acceptEvents.size());
+        Assert.assertEquals(insertedWorkOrder[0].getId(), notifyFacade.acceptEvents.get(0).getWorkOrderId());
+        Assert.assertEquals("JSWX2026042200002", notifyFacade.acceptEvents.get(0).getOrderNo());
+        Assert.assertEquals(Long.valueOf(11L), notifyFacade.acceptEvents.get(0).getCurrentAcceptCompanyId());
+        Assert.assertEquals(buildFirstCompany().getCompanyName(), notifyFacade.acceptEvents.get(0).getCurrentAcceptCompanyName());
+        Assert.assertEquals("客户B", notifyFacade.acceptEvents.get(0).getCustomerName());
+        Assert.assertEquals("13900139000", notifyFacade.acceptEvents.get(0).getCustomerMobile());
+    }
+
+    /**验证非条码建单会按系统参数解析默认归属总部。*/
     @Test
     public void shouldResolveDefaultHqCompanyForNonBarcodeCreate() throws Exception {
         CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
@@ -1398,6 +1472,68 @@ public class CustomerWorkOrderServiceImplTest {
 @param target target 字段参数。
 @param fieldName 名称文本，用于展示、匹配或保存业务对象名称。
 @param value value 字段参数。*/
+    /**RecordingWorkOrderNotifyFacade 测试替身，用于记录C端链路发布出的通知事件快照。*/
+    private static class RecordingWorkOrderNotifyFacade implements WorkOrderNotifyFacade {
+
+        /**acceptEvents 字段，用于收集建单后发布的待派单通知事件。*/
+        private final List<NotifyWorkOrderAcceptEventDTO> acceptEvents = new ArrayList<>();
+
+        /**evaluatedEvents 字段，用于兼容现有客户评价通知测试。*/
+        private final List<NotifyWorkOrderEvaluatedEventDTO> evaluatedEvents = new ArrayList<>();
+
+        /**publishAcceptEvent 业务动作，记录待派单通知事件，供断言C端建单后是否已触发。*/
+        @Override
+        public void publishAcceptEvent(NotifyWorkOrderAcceptEventDTO dto) {
+            acceptEvents.add(dto);
+        }
+
+        /**publishTransferInEvent 业务动作，当前测试替身不关心该通知场景。*/
+        @Override
+        public void publishTransferInEvent(NotifyWorkOrderTransferInEventDTO dto) {
+        }
+
+        /**publishAssignedEvent 业务动作，当前测试替身不关心该通知场景。*/
+        @Override
+        public void publishAssignedEvent(NotifyAssignedEventDTO dto) {
+        }
+
+        /**publishAcceptedEvent 业务动作，当前测试替身不关心该通知场景。*/
+        @Override
+        public void publishAcceptedEvent(NotifyWorkOrderAcceptedEventDTO dto) {
+        }
+
+        /**publishTransferNoticeEvent 业务动作，当前测试替身不关心该通知场景。*/
+        @Override
+        public void publishTransferNoticeEvent(NotifyWorkOrderTransferNoticeEventDTO dto) {
+        }
+
+        /**publishEvaluationInviteEvent 业务动作，当前测试替身不关心该通知场景。*/
+        @Override
+        public void publishEvaluationInviteEvent(NotifyEvaluationInviteEventDTO dto) {
+        }
+
+        /**publishEvaluatedEvent 业务动作，记录客户评价完成通知，保持既有测试可复用。*/
+        @Override
+        public void publishEvaluatedEvent(NotifyWorkOrderEvaluatedEventDTO dto) {
+            evaluatedEvents.add(dto);
+        }
+
+        /**markReadByBiz 业务动作，当前测试替身不关心已读回写。*/
+        @Override
+        public void markReadByBiz(NotifyReadByBizDTO dto) {
+        }
+
+        /**completeTodoByBizAndReceiver 业务动作，当前测试替身不关心待办完成。*/
+        @Override
+        public void completeTodoByBizAndReceiver(NotifyTodoCompleteDTO dto) {
+        }
+
+        /**invalidateTodoByBiz 业务动作，当前测试替身不关心待办作废。*/
+        @Override
+        public void invalidateTodoByBiz(NotifyTodoInvalidateDTO dto) {
+        }
+    }
+
     private void setField(Object target, String fieldName, Object value) throws Exception {
         Field field = CustomerWorkOrderServiceImpl.class.getDeclaredField(fieldName);
         field.setAccessible(true);

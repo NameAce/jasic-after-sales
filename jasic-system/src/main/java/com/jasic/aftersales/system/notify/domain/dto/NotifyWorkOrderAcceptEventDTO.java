@@ -37,4 +37,8 @@ public class NotifyWorkOrderAcceptEventDTO implements Serializable {
     /** 客户名称快照 */
     @ApiModelProperty(value = "客户名称快照")
     private String customerName;
+
+    /** 客户联系电话快照 */
+    @ApiModelProperty(value = "客户联系电话快照")
+    private String customerMobile;
 }

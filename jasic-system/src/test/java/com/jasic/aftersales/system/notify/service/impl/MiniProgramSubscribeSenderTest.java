@@ -18,6 +18,7 @@ import org.junit.Test;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -100,6 +101,35 @@ public class MiniProgramSubscribeSenderTest {
     }
 
     /**
+     * time 类型字段应转换成微信 `time.DATA` 可接受的时间格式，避免 `LocalDateTime#toString()` 触发 47003。
+     *
+     * @throws Exception 反射异常
+     */
+    @Test
+    public void shouldNormalizeWechatTimeFieldValue() throws Exception {
+        MiniProgramSubscribeSender sender = new MiniProgramSubscribeSender();
+        SendCapture capture = new SendCapture();
+        setField(sender, "wechatMiniProgramService", createWechatService(capture));
+
+        Map<String, Object> variables = new LinkedHashMap<>();
+        variables.put("workOrderId", 88L);
+        variables.put("closedTime", LocalDateTime.of(2026, 5, 27, 14, 30, 45));
+
+        NotifyChannelSendResult result = sender.send(buildContext(
+                "WORK_ORDER_EVALUATION_INVITE",
+                NotifyReceiverTypeEnum.CUSTOMER.getCode(),
+                "openid-customer",
+                "C",
+                "time4",
+                "${closedTime}",
+                variables
+        ));
+
+        Assert.assertEquals(NotifyDispatchStatusEnum.SUCCESS.getCode(), result.getDispatchStatus());
+        Assert.assertEquals("2026-05-27 14:30:45", capture.data.getStr("time4"));
+    }
+
+    /**
      * 构造发送上下文。
      *
      * @param sceneCode 场景编码
@@ -109,18 +139,34 @@ public class MiniProgramSubscribeSenderTest {
      * @return 发送上下文
      */
     private NotifyChannelSendContext buildContext(String sceneCode, String receiverType, String openid, String channelScene) {
+        Map<String, Object> variables = new LinkedHashMap<>();
+        variables.put("workOrderId", 88L);
+        variables.put("orderNo", "WO-88");
+        return buildContext(sceneCode, receiverType, openid, channelScene, "thing1", "${orderNo}", variables);
+    }
+
+    /**
+     * 构造支持自定义字段映射与变量的发送上下文，便于覆盖不同模板字段规则。
+     *
+     * @param sceneCode 场景编码
+     * @param receiverType 接收对象类型
+     * @param openid 接收人 openid
+     * @param channelScene 显式小程序场景
+     * @param fieldName 模板字段名
+     * @param fieldValueTemplate 模板字段取值模板
+     * @param variables 变量快照
+     * @return 发送上下文
+     */
+    private NotifyChannelSendContext buildContext(String sceneCode, String receiverType, String openid, String channelScene,
+                                                  String fieldName, String fieldValueTemplate, Map<String, Object> variables) {
         NotifyTemplateChannelConfig config = new NotifyTemplateChannelConfig();
         config.setTemplateId("wx-template-001");
         config.setChannelScene(channelScene);
         config.setPagePathTemplate("pages/order/detail?workOrderId=${workOrderId}");
         NotifyChannelFieldMappingDTO fieldMapping = new NotifyChannelFieldMappingDTO();
-        fieldMapping.setField("thing1");
-        fieldMapping.setValue("${orderNo}");
+        fieldMapping.setField(fieldName);
+        fieldMapping.setValue(fieldValueTemplate);
         config.setFieldMapping(Collections.singletonList(fieldMapping));
-
-        Map<String, Object> variables = new LinkedHashMap<>();
-        variables.put("workOrderId", 88L);
-        variables.put("orderNo", "WO-88");
 
         NotifyDispatchPayload payload = new NotifyDispatchPayload();
         payload.setSceneCode(sceneCode);

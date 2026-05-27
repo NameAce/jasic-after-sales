@@ -155,7 +155,7 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     /**REGISTER_STAGE_RECHECK 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String REGISTER_STAGE_RECHECK = "RECHECK";
     /**CUSTOMER_TRANSFER_NOTIFY_TIP 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
-    private static final String CUSTOMER_TRANSFER_NOTIFY_TIP = "您的工单已转由其他网点继续处理，请留意后续联系。";
+    private static final String CUSTOMER_TRANSFER_NOTIFY_TIP = "已转入新网点维修。";
     /**WORK_ORDER_FILE_BIZ_TYPES 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final List<SysFileBizTypeEnum> WORK_ORDER_FILE_BIZ_TYPES = Arrays.asList(
             SysFileBizTypeEnum.WORK_ORDER_FAULT_IMAGE,
@@ -1765,6 +1765,9 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         eventDTO.setCurrentAcceptCompanyId(workOrder.getCurrentAcceptCompanyId());
         eventDTO.setCurrentAcceptCompanyName(currentCompany == null ? null : normalizeNullableText(currentCompany.getCompanyName()));
         eventDTO.setCustomerName(resolveCustomerDisplayName(workOrder.getCustomerName(), workOrder.getCustomerMobile()));
+        // 待派单模板中的联系电话同样按客户联系电话解释，
+        // 因此这里直接固化工单快照里的手机号，避免模板渲染阶段再次查询主表。
+        eventDTO.setCustomerMobile(normalizeNullableText(workOrder.getCustomerMobile()));
         workOrderNotifyFacade.publishAcceptEvent(eventDTO);
     }
 
@@ -4383,7 +4386,6 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
 }
-
 
 
 
