@@ -4,7 +4,7 @@
   <view class="base-btn">
     <view class="base-btn-content">
       <slot />
-      <slot name="submit" />
+      <slot v-if="$slots.submit" name="submit" />
     </view>
   </view>
 </template>

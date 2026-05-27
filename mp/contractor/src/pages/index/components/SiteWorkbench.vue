@@ -33,7 +33,7 @@
       @order-click="(o) => emit('order-click', o)"
     >
       <template #actions="{ order }">
-        <view v-if="getVisibleActions(order).length > 0" class="action-wrap">
+        <view class="action-wrap">
           <button
             v-for="action in getVisibleActions(order)"
             :key="`${order.id}-${action.key}`"

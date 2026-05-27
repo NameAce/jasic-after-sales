@@ -10,9 +10,10 @@
       </view>
       <view v-else class="custom-nav-bar__side-spacer" />
       <text class="custom-nav-bar__title" :style="titleStyle">{{ title }}</text>
-      <view class="custom-nav-bar__right">
+      <view v-if="$slots.right" class="custom-nav-bar__right">
         <slot name="right" />
       </view>
+      <view v-else class="custom-nav-bar__right custom-nav-bar__right--placeholder" />
     </view>
 
     <slot />
@@ -366,6 +367,11 @@
       @include nav-right-placeholder;
       @include flex-row;
       justify-content: flex-end;
+    }
+
+    .custom-nav-bar__right--placeholder {
+      @include nav-right-placeholder;
+      flex-shrink: 0;
     }
   }
 

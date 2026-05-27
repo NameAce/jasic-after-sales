@@ -147,22 +147,24 @@
       >
         <!-- 额外信息（维修方式由 OrderCardList 正文区统一展示） -->
         <template #extra-info="{ order }">
-          <view v-if="getAssignedUserName(order)" class="info-item">
-            <text class="label">当前维修人员</text>
-            <text class="value value-repair-assignee">{{ getAssignedUserName(order) }}</text>
-          </view>
-          <view v-if="isHqProcessView && order.source" class="info-item">
-            <text class="label">申请来源</text>
-            <text class="value">{{ order.source }}</text>
-          </view>
-          <view v-if="isHqProcessView && order.transferNetwork" class="info-item">
-            <text class="label">被转单网点</text>
-            <text class="value">{{ order.transferNetwork }}</text>
+          <view class="order-card-extra-info">
+            <view v-if="getAssignedUserName(order)" class="info-item">
+              <text class="label">当前维修人员</text>
+              <text class="value value-repair-assignee">{{ getAssignedUserName(order) }}</text>
+            </view>
+            <view v-if="isHqProcessView && order.source" class="info-item">
+              <text class="label">申请来源</text>
+              <text class="value">{{ order.source }}</text>
+            </view>
+            <view v-if="isHqProcessView && order.transferNetwork" class="info-item">
+              <text class="label">被转单网点</text>
+              <text class="value">{{ order.transferNetwork }}</text>
+            </view>
           </view>
         </template>
         <!-- 操作：当前处理按 availableActions 渲染；历史转出仅展示「上传寄件单号」例外动作 -->
         <template #actions="{ order }">
-          <view v-if="resolveListRowActions(order).length > 0" class="action-wrap">
+          <view class="action-wrap">
             <button
               v-for="action in resolveListRowActions(order)"
               :key="`${order.id}-${action.key}`"

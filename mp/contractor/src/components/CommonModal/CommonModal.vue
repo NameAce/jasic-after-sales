@@ -12,9 +12,8 @@
 
       <!-- 标题 -->
       <view v-if="$slots.header || title" class="cm-header">
-        <slot name="header">
-          <text class="cm-title">{{ title }}</text>
-        </slot>
+        <slot v-if="$slots.header" name="header" />
+        <text v-else class="cm-title">{{ title }}</text>
       </view>
 
       <!-- 内容 -->

@@ -10,11 +10,12 @@
       :show-back="false"
     >
       <template #left>
-        <view v-if="!isHqView" class="avatar-wrap">
-          <image class="icon-primary" :src="personPinCircleIcon" mode="aspectFit" />
-        </view>
-        <view v-else class="avatar-wrap avatar-wrap--hq">
-          <image :src="hqMenuIcon" mode="aspectFit" />
+        <view class="avatar-wrap" :class="{ 'avatar-wrap--hq': isHqView }">
+          <image
+            :class="{ 'icon-primary': !isHqView }"
+            :src="isHqView ? hqMenuIcon : personPinCircleIcon"
+            mode="aspectFit"
+          />
         </view>
       </template>
     </CustomNavBar>
