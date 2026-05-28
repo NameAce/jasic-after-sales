@@ -1355,6 +1355,12 @@ export interface WorkOrderListQuery {
  * @修改时间 2026-05-22
  */
   tabStatus?: string
+  /**
+   * 单搜索框关键字：后端按当前受理网点名称、网点电话做模糊匹配
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-28
+   */
+  keyword?: string
 }
 
 /**
@@ -1369,6 +1375,7 @@ export interface WorkOrderListQuery {
  */
 export const listCustomerWorkOrder = (data?: WorkOrderListQuery) => {
   const tabStatus = String(data?.tabStatus ?? '').trim()
+  const keyword = String(data?.keyword ?? '').trim()
   return http<WorkOrderListPageDTO>({
     url: '/customer/work-order/list',
     method: 'GET',
@@ -1376,6 +1383,7 @@ export const listCustomerWorkOrder = (data?: WorkOrderListQuery) => {
       pageNum: data?.pageNum ?? 1,
       pageSize: data?.pageSize ?? 10,
       ...(tabStatus ? { tabStatus } : {}),
+      ...(keyword ? { keyword } : {}),
     },
   })
 }
