@@ -58,6 +58,7 @@ CALL truncate_table_if_exists('work_order_participant');
 CALL truncate_table_if_exists('work_order_flow');
 CALL truncate_table_if_exists('work_order_evaluation');
 CALL truncate_table_if_exists('work_order');
+CALL truncate_table_if_exists('sys_feedback');
 
 -- -------------------------------------------
 -- 2. 清空客户侧业务数据

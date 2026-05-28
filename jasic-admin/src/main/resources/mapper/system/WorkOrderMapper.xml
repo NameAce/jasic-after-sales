@@ -104,6 +104,7 @@
             w.assigned_user_id AS assignedUserId,
             su.real_name AS assignedUserName,
             w.create_company_id AS createCompanyId,
+            w.create_entry_type AS createEntryType,
             w.hq_company_id AS hqCompanyId,
             w.has_transfer AS hasTransfer,
             w.transfer_count AS transferCount,

@@ -520,7 +520,32 @@ CREATE TABLE `work_order` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='宸ュ崟涓昏〃';
 
 -- -------------------------------------------
--- 22. 瀹搞儱宕熼梽鍕鐞?-- -------------------------------------------
+-- 22. 平台反馈单
+-- -------------------------------------------
+DROP TABLE IF EXISTS `sys_feedback`;
+CREATE TABLE `sys_feedback` (
+  `id`                   bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `submitter_type`       varchar(64)     NOT NULL COMMENT '提交主体类型（CUSTOMER/SERVICE_COMPANY_USER）',
+  `submitter_id`         bigint unsigned NOT NULL COMMENT '提交人ID',
+  `submitter_name`       varchar(128)    DEFAULT NULL COMMENT '提交人姓名快照',
+  `submit_company_id`    bigint unsigned DEFAULT NULL COMMENT '提交网点ID',
+  `submit_source_type`   varchar(64)     NOT NULL COMMENT '提交来源类型（CUSTOMER_WORK_ORDER/CUSTOMER_DIRECT/SERVICE_COMPANY）',
+  `submit_source_name`   varchar(128)    NOT NULL COMMENT '提交来源名称快照',
+  `contact_phone`        varchar(32)     DEFAULT NULL COMMENT '联系电话快照',
+  `related_work_order_id` bigint unsigned DEFAULT NULL COMMENT '关联工单ID',
+  `hq_company_id`        bigint unsigned NOT NULL COMMENT '归属总部ID',
+  `content`              varchar(500)    NOT NULL COMMENT '反馈内容',
+  `status`               varchar(32)     NOT NULL COMMENT '反馈状态（UNACCEPTED/ACCEPTED）',
+  `accept_user_id`       bigint unsigned DEFAULT NULL COMMENT '受理人系统用户ID',
+  `accept_user_name`     varchar(128)    DEFAULT NULL COMMENT '受理人姓名快照',
+  `accept_time`          datetime        DEFAULT NULL COMMENT '受理时间',
+  `create_time`          datetime        NOT NULL COMMENT '创建时间',
+  `update_time`          datetime        NOT NULL COMMENT '更新时间',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='平台反馈单';
+
+-- -------------------------------------------
+-- 23. 瀹搞儱宕熼梽鍕鐞?-- -------------------------------------------
 DROP TABLE IF EXISTS `sys_file`;
 CREATE TABLE `sys_file` (
   `id`                bigint unsigned  NOT NULL AUTO_INCREMENT COMMENT '涓婚敭',
