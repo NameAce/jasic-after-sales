@@ -43,7 +43,8 @@ const DISPATCH_DEAD_STATUS = ['PENDING', 'PROCESSING', 'FAILED'];
 
 const pageMenuTitle = useRouteMenuTitle();
 const { hasAuth } = useAuth();
-const traceSearchFilter = usePageSearchFilterCollapse(5);
+// 搜索项共 6 个（工单号/通知场景/通知目标/事件状态/分发状态/时间范围），仅超过 4 个时展示展开按钮
+const traceSearchFilter = usePageSearchFilterCollapse(6);
 
 const loading = ref(false);
 const rows = ref<RowData[]>([]);

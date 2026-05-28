@@ -95,6 +95,13 @@
 			}
 		},
 		{
+			"path": "pages/feedback/apply",
+			"style": {
+				"navigationBarTitleText": "投诉与建议申请",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/feedback/list",
 			"style": {
 				"navigationBarTitleText": "已提交反馈",

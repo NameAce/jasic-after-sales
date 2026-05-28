@@ -211,6 +211,7 @@ const routeMap: RouteMap = {
   "org": "/org",
   "system": "/system",
   "system_branch": "/system/branch",
+  "system_feedback": "/system/feedback",
   "system_menu": "/system/menu",
   "system_notify-scene": "/system/notify-scene",
   "system_notify-trace": "/system/notify-trace",

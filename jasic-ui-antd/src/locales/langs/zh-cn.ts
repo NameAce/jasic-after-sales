@@ -207,6 +207,7 @@ const local: App.I18n.Schema = {
     org: '组织管理',
     system: '系统管理',
     system_branch: '网点管理',
+    system_feedback: '投诉与建议',
     system_menu: '菜单管理',
     'system_notify-scene': '通知场景配置',
     'system_notify-trace': '通知记录',

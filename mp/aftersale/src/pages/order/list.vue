@@ -15,10 +15,11 @@
               :value="searchKeyword"
               class="search-input"
               :class="{ 'search-input--with-clear': showSearchClear }"
-              placeholder="请输入工单号"
+              placeholder="请输入网点名称或电话"
               placeholder-class="placeholder-text"
               confirm-type="search"
               @input="onSearchInput"
+              @blur="onSearchBlur"
             />
             <view
               v-if="showSearchClear"
@@ -64,25 +65,19 @@
             <view class="empty-icon-wrap">
               <image class="empty-list-illus" :src="emptyOrderListIcon" mode="aspectFit" />
             </view>
-            <text class="empty-title">暂无相关工单</text>
+            <text class="empty-title">{{
+              appliedKeyword ? '暂无匹配结果' : '暂无相关工单'
+            }}</text>
             <text class="empty-desc">{{
-              currentTab === 0 ? '当前没有任何工单记录' : `当前没有"${tabs[currentTab]}"的工单`
+              appliedKeyword
+                ? '当前关键词没有匹配的工单，可清空关键词或更换筛选条件后再试'
+                : currentTab === 0
+                  ? '当前没有任何工单记录'
+                  : `当前没有"${tabs[currentTab]}"的工单`
             }}</text>
           </view>
           <view
-            v-else-if="!loading && orderList.length > 0 && displayOrderList.length === 0"
-            class="empty-hint"
-          >
-            <view class="empty-icon-wrap">
-              <image class="empty-list-illus" :src="emptyOrderListIcon" mode="aspectFit" />
-            </view>
-            <text class="empty-title">暂无匹配结果</text>
-            <text class="empty-desc"
-              >当前关键词在已加载的工单中没有匹配项，可清空关键词、下拉刷新或上拉加载更多后再试</text
-            >
-          </view>
-          <view
-            v-for="order in displayOrderList"
+            v-for="order in orderList"
             :key="`${order.id}-${order.orderNo}`"
             class="order-card"
             @click="goToOrderDetail(order.id, order.status)"
@@ -224,7 +219,7 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, computed } from 'vue'
+  import { ref, computed, nextTick } from 'vue'
   import { onLoad, onShow } from '@dcloudio/uni-app'
   import {
     listCustomerWorkOrder,
@@ -263,11 +258,15 @@
   /** 列表请求序号：下拉刷新可打断进行中的首屏加载，并保证仅最新一次结果生效 */
   const listLoadSeq = ref(0)
   /**
-   * 模糊筛选关键词（仅过滤当前已加载到本地的列表，不额外请求接口）
+   * 搜索框输入值（仅绑定 UI，失焦后才提交为 appliedKeyword 并请求列表）
    * @修改人 黄碧莲
-   * @修改时间 2026-05-22
+   * @修改时间 2026-05-28
    */
   const searchKeyword = ref('')
+  /** 已提交给接口的 keyword，分页/Tab 切换/loadMore 均沿用该值 */
+  const appliedKeyword = ref('')
+  /** 点击清除时置位，避免 blur 与 clear 竞态导致重复请求 */
+  const clearingSearch = ref(false)
 
   /** 有搜索关键词时展示清除按钮 */
   const showSearchClear = computed(() => !!searchKeyword.value.trim())
@@ -282,13 +281,32 @@
   }
 
   /**
-   * 点击清除：清空关键词（列表由 displayOrderList 计算属性自动更新）
+   * 搜索框失焦：将当前输入提交为 keyword 并刷新列表（与输入过程中不打接口）
    * @修改人 黄碧莲
-   * @修改时间 2026-05-26
+   * @修改时间 2026-05-28
+   */
+  const onSearchBlur = () => {
+    if (clearingSearch.value) return
+    const next = searchKeyword.value.trim()
+    if (next === appliedKeyword.value) return
+    appliedKeyword.value = next
+    reloadOrderList()
+  }
+
+  /**
+   * 点击清除：清空关键词并立即按无 keyword 重新拉取列表
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-28
    */
   const onSearchClear = () => {
-    if (!searchKeyword.value.trim()) return
+    if (!searchKeyword.value.trim() && !appliedKeyword.value) return
+    clearingSearch.value = true
     searchKeyword.value = ''
+    appliedKeyword.value = ''
+    void reloadOrderList()
+    nextTick(() => {
+      clearingSearch.value = false
+    })
   }
 
   /**
@@ -379,41 +397,10 @@
   }
 
   /**
-   * 在已加载的 orderList 上做前端模糊匹配（与 Tab、分页接口数据一致，不单独打 keyword 接口）
-   * @修改人 黄碧莲
-   * @修改时间 2026-05-22
-   */
-  const displayOrderList = computed(() => {
-    const list = orderList.value
-    const kw = searchKeyword.value.trim().toLowerCase()
-    if (!kw) return list
-    return list.filter((o) => {
-      const blob = [
-        o.orderNo,
-        o.description,
-        o.qrCode,
-        o.modelName,
-        o.phone,
-        o.customerMobile,
-        o.customerName,
-        o.centerName,
-        o.displayStatus,
-        o.brandTypeLabel,
-        o.repairType,
-        o.price,
-        o.time
-      ]
-        .map((x) => String(x ?? '').toLowerCase())
-        .join('\u0000')
-      return blob.includes(kw)
-    })
-  })
-
-  /**
-   * 加载工单列表
+   * 加载工单列表（keyword 由 appliedKeyword 提供，仅在搜索框失焦或清除时变更）
    * @returns void
    * @修改人 黄碧莲
-   * @修改时间 2026-05-22
+   * @修改时间 2026-05-28
    */
   const loadOrderList = async (reset = false) => {
     if (!reset) {
@@ -431,10 +418,12 @@
       loadingMore.value = true
     }
     try {
+      const kw = appliedKeyword.value.trim()
       const res = await listCustomerWorkOrder({
         pageNum: targetPage,
         pageSize,
-        tabStatus: tabStatusMap[currentTab.value]
+        tabStatus: tabStatusMap[currentTab.value],
+        ...(kw ? { keyword: kw } : {}),
       })
       if (seq !== listLoadSeq.value) return
       const records = res.data?.records ?? []

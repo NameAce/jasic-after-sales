@@ -11,11 +11,17 @@
             :color="themeColors.textMuted"
             class="search-icon"
           ></uni-icons>
-          <view class="search-input-wrap">
+          <view
+            class="search-input-wrap"
+            :class="{ 'search-input-wrap--with-scan': showSearchScan }"
+          >
             <input
               :value="searchQuery"
               class="search-input"
-              :class="{ 'search-input--with-clear': showSearchClear }"
+              :class="{
+                'search-input--with-clear': showSearchClear,
+                'search-input--with-scan': showSearchScan
+              }"
               :placeholder="searchInputPlaceholder"
               placeholder-class="placeholder-text"
               confirm-type="search"
@@ -29,6 +35,14 @@
               @click.stop="onSearchClear"
             >
               <uni-icons type="closeempty" size="18" :color="themeColors.textMuted" />
+            </view>
+            <view
+              v-if="showSearchScan"
+              class="search-scan-hit"
+              @touchstart.stop.prevent
+              @click.stop="onSearchScan"
+            >
+              <uni-icons type="scan" size="20" :color="themeColors.primary" />
             </view>
           </view>
         </view>
@@ -269,6 +283,7 @@
   import { storeIcon } from '@/svgs'
   import { useScrollRefresher } from '@/utils/useScrollRefresher'
   import { hideRequestLoading, showApiToast, showRequestLoading } from '@/utils/uiFeedback'
+  import { scanProductBarcode } from '@/utils/scanProductBarcode'
   import { isWorkOrderPendingTechAcceptMainStatus } from '@/utils/workOrderMainStatus'
   import type { WorkOrderActionKey } from '@/constants/orderActions'
   import { useWorkOrderVisibleActions } from '@/composables/useWorkOrderVisibleActions'
@@ -394,15 +409,20 @@
   const getAssignedUserName = (order: OrderListItem) =>
     ((order as { assignedUserName?: string }).assignedUserName ?? '').trim()
 
-  // 搜索关键词
+  // 搜索关键词（输入框绑定；失焦后提交为 appliedSearchKeyword 再请求列表）
   const searchQuery = ref('')
+  /** 已提交给列表接口的 keyword */
+  const appliedSearchKeyword = ref('')
 
   /** 是否展示清除按钮（有非空关键词时） */
   const showSearchClear = computed(() => !!searchQuery.value.trim())
 
-  /** 工单列表仅按 orderNo 模糊；总部「网点工单」Tab 按网点名称筛汇总 */
+  /** 工单列表视图才展示输入框内扫码按钮（网点汇总 Tab 不适用条码） */
+  const showSearchScan = computed(() => !showBranchView.value)
+
+  /** 工单列表仅按 keyword 模糊；总部「网点工单」Tab 按网点名称筛汇总 */
   const searchInputPlaceholder = computed(() =>
-    showBranchView.value ? '搜索网点名称' : '搜索工单号'
+    showBranchView.value ? '搜索网点名称' : '搜索手机号/条码/型号'
   )
 
   /**
@@ -412,6 +432,37 @@
    */
   const onSearchInput = (e: { detail?: { value?: string } }) => {
     searchQuery.value = String(e.detail?.value ?? '')
+  }
+
+  /**
+   * 提交 keyword 并刷新工单列表（失焦、扫码成功后共用）
+   * @param keyword 搜索关键字
+   * @returns void
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-28
+   */
+  const applySearchKeywordAndRefreshOrders = (keyword: string) => {
+    const next = keyword.trim()
+    searchQuery.value = next
+    appliedSearchKeyword.value = next
+    void refreshOrders()
+  }
+
+  /**
+   * 扫码搜索：扫到条码后回显到输入框，并立即按 keyword 查询列表
+   * @returns void
+   * @修改人 黄碧莲
+   * @修改时间 2026-05-28
+   */
+  const onSearchScan = async () => {
+    if (showBranchView.value) return
+    const scanRes = await scanProductBarcode({ toastOnCancel: true })
+    if (scanRes.status === 'cancel') return
+    if (scanRes.status === 'empty') {
+      void showApiToast('未识别到条形码')
+      return
+    }
+    applySearchKeywordAndRefreshOrders(scanRes.code)
   }
   // 一级Tab
   const primaryTab = ref<PrimaryTab>('untransferred')
@@ -446,9 +497,7 @@
   // 横向二级 Tab 滚动定位（与各 tab 节点 id 前缀 `order-list-sec-` 对应）
   const secondaryTabScrollIntoView = ref('')
 
-  // 搜索输入防抖（避免每个字符都打接口）
-  const searchDebounceTimer = ref<ReturnType<typeof setTimeout> | null>(null)
-  /** 点击清除时置位，避免 blur 与 clear 竞态导致输入框未清空 */
+  /** 点击清除时置位，避免 blur 与 clear 竞态导致重复请求 */
   const clearingSearch = ref(false)
 
   /**
@@ -658,7 +707,7 @@
    * @修改时间 2026-05-22
    */
   const buildListQuery = (targetPageNum: number): OrderListQuery => {
-    const q = searchQuery.value?.trim()
+    const q = appliedSearchKeyword.value?.trim()
     const primary = primaryTab.value
     const secondary = secondaryTab.value
 
@@ -676,7 +725,7 @@
       query.viewScope = 'CURRENT'
     }
 
-    if (q) query.orderNo = q
+    if (q) query.keyword = q
 
     const ms = secondaryTabToMainStatus(secondary)
     if (ms !== undefined) query.mainStatus = ms
@@ -755,38 +804,20 @@
    */
   const orderList = computed<OrderListItem[]>(() => baseOrderList.value)
 
-  // 搜索：防抖后刷新列表（接口仅支持工单号/条码等字段时，可按需扩展 query）
-  watch(
-    () => searchQuery.value,
-    () => {
-      if (searchDebounceTimer.value) clearTimeout(searchDebounceTimer.value)
-      searchDebounceTimer.value = setTimeout(() => {
-        if (showBranchView.value) {
-          refreshBranches()
-          return
-        }
-        refreshOrders()
-      }, 300)
-    }
-  )
-
   /**
-   * 搜索输入框失焦时立即触发一次刷新：
-   * - 清理防抖定时器，避免紧接着再触发一次延迟请求；
-   * - 保持与当前视图一致：网点视图刷新网点，工单视图刷新工单。
+   * 搜索输入框失焦：提交 keyword 并刷新当前视图列表
    * @修改人 黄碧莲
-   * @修改时间 2026-05-26
+   * @修改时间 2026-05-28
    */
   const onSearchInputBlur = () => {
     if (clearingSearch.value) return
-    if (searchDebounceTimer.value) {
-      clearTimeout(searchDebounceTimer.value)
-      searchDebounceTimer.value = null
-    }
     if (showBranchView.value) {
       refreshBranches()
       return
     }
+    const next = searchQuery.value.trim()
+    if (next === appliedSearchKeyword.value) return
+    appliedSearchKeyword.value = next
     refreshOrders()
   }
 
@@ -796,13 +827,10 @@
    * @修改时间 2026-05-26
    */
   const onSearchClear = () => {
-    if (!searchQuery.value.trim()) return
+    if (!searchQuery.value.trim() && !appliedSearchKeyword.value) return
     clearingSearch.value = true
-    if (searchDebounceTimer.value) {
-      clearTimeout(searchDebounceTimer.value)
-      searchDebounceTimer.value = null
-    }
     searchQuery.value = ''
+    appliedSearchKeyword.value = ''
     if (showBranchView.value) {
       void refreshBranches()
     } else {
@@ -812,12 +840,16 @@
       clearingSearch.value = false
     })
   }
-  // 空列表标题（根据搜索关键词判断）
-  const listEmptyTitle = computed(() => (searchQuery.value?.trim() ? '未找到相关工单' : '暂无工单'))
+  // 空列表标题（根据已提交的搜索关键词判断）
+  const listEmptyTitle = computed(() =>
+    appliedSearchKeyword.value?.trim() ? '未找到相关工单' : '暂无工单'
+  )
 
-  // 空列表描述（根据搜索关键词判断）
+  // 空列表描述（根据已提交的搜索关键词判断）
   const listEmptyDesc = computed(() =>
-    searchQuery.value?.trim() ? '试试更换关键词或清空搜索' : '当前筛选条件下没有工单'
+    appliedSearchKeyword.value?.trim()
+      ? '试试更换关键词或清空搜索'
+      : '当前筛选条件下没有工单'
   )
 
   // ==================== 网点列表（总部-网点工单） ====================
@@ -1472,6 +1504,36 @@
 
 <style lang="scss" scoped>
   .order-list-page {
+    /* 扫码在输入框最右侧；有清除按钮时清除位左移，避免重叠 */
+    .search-input-wrap--with-scan {
+      .search-clear-hit {
+        right: 64rpx;
+      }
+    }
+
+    .search-input--with-scan {
+      padding-right: 64rpx;
+    }
+
+    .search-input--with-clear.search-input--with-scan {
+      padding-right: 128rpx;
+    }
+
+    .search-scan-hit {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      z-index: 2;
+      @include flex-center;
+      width: 64rpx;
+      height: 100%;
+
+      &:active {
+        opacity: 0.75;
+      }
+    }
+
     /* 插槽渲染在 OrderCardList 内，需穿透 scoped */
     :deep(.value-repair-assignee) {
       color: $emerald-600;

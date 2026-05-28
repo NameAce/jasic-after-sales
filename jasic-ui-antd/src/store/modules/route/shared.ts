@@ -256,6 +256,10 @@ function isBackendLayoutPlaceholder(raw: unknown): boolean {
  * @修改时间 2026-05-14
  */
 const BACKEND_VIEW_KEY_ALIASES: Record<string, string> = {
+  // 售后菜单“受理投诉与建议”历史配置可能下发 component=feedback 或 routeName=after-sales_feedback
+  // 前端实际页面文件是 views/system/feedback/index.vue，对应注册键 system_feedback。
+  feedback: 'system_feedback',
+  'after-sales_feedback': 'system_feedback',
   'log_oper-log': 'log',
   'org_company-type': 'org',
   org_company: 'org',

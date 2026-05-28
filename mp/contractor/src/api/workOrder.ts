@@ -122,6 +122,8 @@ export type OrderListQuery = {
  */
   mainStatus?: string
   orderByColumn?: string
+  /** 小程序单搜索框关键字：后端按手机号、条形码、机器型号模糊匹配 */
+  keyword?: string
   orderNo?: string
   pageNum?: number
   pageSize?: number
@@ -211,6 +213,7 @@ function buildWorkOrderQueryString(params: OrderListQuery): string {
   appendQueryParam(parts, 'isAsc', params.isAsc)
   appendQueryParam(parts, 'mainStatus', params.mainStatus)
   appendQueryParam(parts, 'orderByColumn', params.orderByColumn)
+  appendQueryParam(parts, 'keyword', params.keyword)
   appendQueryParam(parts, 'orderNo', params.orderNo)
   appendQueryParam(parts, 'pageNum', params.pageNum ?? 1)
   appendQueryParam(parts, 'pageSize', params.pageSize ?? 10)
