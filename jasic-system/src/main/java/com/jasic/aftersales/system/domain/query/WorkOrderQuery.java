@@ -28,17 +28,25 @@ public class WorkOrderQuery extends PageQuery {
     @ApiModelProperty(value = "工单号（模糊）")
     private String orderNo;
 
+    /** 小程序单搜索框关键字，按手机号、条形码、机器型号做模糊查询。 */
+    @ApiModelProperty(value = "小程序单搜索框关键字（手机号/条形码/机器型号模糊）")
+    private String keyword;
+
     /** 客户姓名（模糊） */
     @ApiModelProperty(value = "客户姓名（模糊）")
     private String customerName;
 
-    /** 客户手机号 */
-    @ApiModelProperty(value = "客户手机号")
+    /** 客户手机号（模糊） */
+    @ApiModelProperty(value = "客户手机号（模糊）")
     private String customerMobile;
 
     /** 条码（模糊） */
     @ApiModelProperty(value = "条码（模糊）")
     private String barcode;
+
+    /** 机器型号（模糊） */
+    @ApiModelProperty(value = "机器型号（模糊）")
+    private String productModel;
 
     /** 主状态 */
     @ApiModelProperty(value = "主状态", allowableValues = "PENDING_ASSIGN,PENDING_TECH_ACCEPT,IN_PROGRESS,COMPLETED,CLOSED")

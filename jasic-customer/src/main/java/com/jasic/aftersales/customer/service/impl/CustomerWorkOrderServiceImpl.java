@@ -412,6 +412,14 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         LambdaQueryWrapper<WorkOrder> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WorkOrder::getCustomerId, customerId)
                 .orderByDesc(WorkOrder::getCreateTime);
+        Set<Long> matchedCompanyIds = resolveCurrentAcceptCompanyIds(query);
+        if (matchedCompanyIds != null) {
+            if (matchedCompanyIds.isEmpty()) {
+                return PageResult.of(Collections.emptyList(), 0L, query.getPageNum(), query.getPageSize());
+            }
+            // 小程序只有一个网点关键字输入框，因此这里统一按“名称或电话命中任一即可”过滤当前受理网点。
+            wrapper.in(WorkOrder::getCurrentAcceptCompanyId, matchedCompanyIds);
+        }
         applyTabStatusFilter(wrapper, query.getTabStatus());
         Page<WorkOrder> result = workOrderMapper.selectPage(page, wrapper);
         List<WorkOrder> records = result.getRecords();
@@ -1285,6 +1293,35 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         if (WorkOrderStatusConstants.DisplayStatus.CLOSED.equals(tabStatus)) {
             wrapper.eq(WorkOrder::getMainStatus, WorkOrderStatusConstants.MainStatus.CLOSED);
         }
+    }
+
+    /**
+     * 解析当前受理网点关键字命中的公司ID集合。
+     *
+     * <p>小程序侧只有一个文本输入框，因此后端把同一个关键字同时应用到“网点名称”和“网点电话”
+     * 两个字段上，只要任一字段模糊命中，就认为当前受理网点满足筛选条件。</p>
+     *
+     * @param query 查询参数
+     * @return 命中的公司ID集合；返回 null 表示本次未传网点关键字，不应追加网点过滤
+     */
+    private Set<Long> resolveCurrentAcceptCompanyIds(CustomerWorkOrderQuery query) {
+        String keyword = normalizeText(query == null ? null : query.getKeyword());
+        if (keyword == null) {
+            return null;
+        }
+        LambdaQueryWrapper<SysCompany> wrapper = new LambdaQueryWrapper<>();
+        wrapper.select(SysCompany::getId)
+                .and(companyWrapper -> companyWrapper.like(SysCompany::getCompanyName, keyword)
+                        .or()
+                        .like(SysCompany::getContactPhone, keyword));
+        List<SysCompany> companies = sysCompanyMapper.selectList(wrapper);
+        if (companies == null || companies.isEmpty()) {
+            return Collections.emptySet();
+        }
+        return companies.stream()
+                .map(SysCompany::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
     }
 
     /**
@@ -2391,4 +2428,3 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return text.isEmpty() ? null : text;
     }
 }
-

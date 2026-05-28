@@ -1224,9 +1224,11 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
         target.setViewScope(query.getViewScope());
         target.setAccessContext(query.getAccessContext());
         target.setOrderNo(query.getOrderNo());
+        target.setKeyword(query.getKeyword());
         target.setCustomerName(query.getCustomerName());
         target.setCustomerMobile(query.getCustomerMobile());
         target.setBarcode(query.getBarcode());
+        target.setProductModel(query.getProductModel());
         target.setDisplayStatus(query.getDisplayStatus());
         target.setHasTransfer(query.getHasTransfer());
         // 已转出统计必须与列表 transferDirection=OUT 口径一致，不能退回 hasTransfer。
@@ -4386,6 +4388,5 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     }
 
 }
-
 
 

@@ -139,9 +139,11 @@ public class WorkOrderPermissionService {
         if (query != null) {
             scopedQuery.setViewScope(query.getViewScope());
             scopedQuery.setOrderNo(query.getOrderNo());
+            scopedQuery.setKeyword(query.getKeyword());
             scopedQuery.setCustomerName(query.getCustomerName());
             scopedQuery.setCustomerMobile(query.getCustomerMobile());
             scopedQuery.setBarcode(query.getBarcode());
+            scopedQuery.setProductModel(query.getProductModel());
             scopedQuery.setMainStatus(query.getMainStatus());
             scopedQuery.setDisplayStatus(query.getDisplayStatus());
             scopedQuery.setHasTransfer(query.getHasTransfer());
@@ -677,7 +679,6 @@ public class WorkOrderPermissionService {
     }
 
 }
-
 
 
 

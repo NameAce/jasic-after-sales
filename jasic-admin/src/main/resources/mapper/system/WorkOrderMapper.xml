@@ -83,6 +83,23 @@
         </choose>
     </sql>
 
+    <sql id="WorkOrderKeywordCondition">
+        AND (
+            w.customer_mobile LIKE CONCAT('%', #{query.keyword}, '%')
+            OR w.barcode LIKE CONCAT('%', #{query.keyword}, '%')
+            OR w.product_model LIKE CONCAT('%', #{query.keyword}, '%')
+        )
+    </sql>
+
+    <sql id="WorkOrderSingleTextOrderNoCondition">
+        AND (
+            w.order_no LIKE CONCAT('%', #{query.orderNo}, '%')
+            OR w.customer_mobile LIKE CONCAT('%', #{query.orderNo}, '%')
+            OR w.barcode LIKE CONCAT('%', #{query.orderNo}, '%')
+            OR w.product_model LIKE CONCAT('%', #{query.orderNo}, '%')
+        )
+    </sql>
+
     <!-- 工单分页列表 -->
     <select id="selectWorkOrderPage" resultType="com.jasic.aftersales.system.domain.vo.WorkOrderListVO">
         SELECT
@@ -274,16 +291,24 @@
                 </choose>
             </if>
             <if test="query.orderNo != null and query.orderNo != ''">
-                AND w.order_no LIKE CONCAT('%', #{query.orderNo}, '%')
+                <!-- 小程序列表只有一个搜索框，历史上会把输入值放到 orderNo，这里兼容为多字段模糊检索。 -->
+                <include refid="WorkOrderSingleTextOrderNoCondition" />
+            </if>
+            <if test="query.keyword != null and query.keyword != ''">
+                <!-- keyword 是后续前端可直接使用的单框参数，避免再把业务关键字伪装成工单号。 -->
+                <include refid="WorkOrderKeywordCondition" />
             </if>
             <if test="query.customerName != null and query.customerName != ''">
                 AND w.customer_name LIKE CONCAT('%', #{query.customerName}, '%')
             </if>
             <if test="query.customerMobile != null and query.customerMobile != ''">
-                AND w.customer_mobile = #{query.customerMobile}
+                AND w.customer_mobile LIKE CONCAT('%', #{query.customerMobile}, '%')
             </if>
             <if test="query.barcode != null and query.barcode != ''">
                 AND w.barcode LIKE CONCAT('%', #{query.barcode}, '%')
+            </if>
+            <if test="query.productModel != null and query.productModel != ''">
+                AND w.product_model LIKE CONCAT('%', #{query.productModel}, '%')
             </if>
             <if test="query.mainStatus != null and query.mainStatus != ''">
                 AND w.main_status = #{query.mainStatus}
@@ -551,16 +576,24 @@
                 </choose>
             </if>
             <if test="query.orderNo != null and query.orderNo != ''">
-                AND w.order_no LIKE CONCAT('%', #{query.orderNo}, '%')
+                <!-- 状态统计必须沿用列表单框检索口径，否则搜索后 Tab 数量会与列表不一致。 -->
+                <include refid="WorkOrderSingleTextOrderNoCondition" />
+            </if>
+            <if test="query.keyword != null and query.keyword != ''">
+                <!-- keyword 是后续前端可直接使用的单框参数，按手机号、条形码和机器型号统一模糊检索。 -->
+                <include refid="WorkOrderKeywordCondition" />
             </if>
             <if test="query.customerName != null and query.customerName != ''">
                 AND w.customer_name LIKE CONCAT('%', #{query.customerName}, '%')
             </if>
             <if test="query.customerMobile != null and query.customerMobile != ''">
-                AND w.customer_mobile = #{query.customerMobile}
+                AND w.customer_mobile LIKE CONCAT('%', #{query.customerMobile}, '%')
             </if>
             <if test="query.barcode != null and query.barcode != ''">
                 AND w.barcode LIKE CONCAT('%', #{query.barcode}, '%')
+            </if>
+            <if test="query.productModel != null and query.productModel != ''">
+                AND w.product_model LIKE CONCAT('%', #{query.productModel}, '%')
             </if>
             <if test="query.displayStatus != null and query.displayStatus != '' and query.displayStatus != 'ALL'">
                 <include refid="HqSiteDisplayStatusCondition" />

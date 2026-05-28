@@ -79,6 +79,24 @@ public class WorkOrderMapperXmlContractTest {
                 "<if test=\"query.transferDirection != 'OUT' and query.accessContext.dataScope == 'SELF' and query.accessContext.currentUserId != null\">"));
     }
 
+    /**shouldSupportMiniProgramSingleTextFuzzySearch 校验小程序单框搜索在列表和统计中保持同源。*/
+    @Test
+    public void shouldSupportMiniProgramSingleTextFuzzySearch() throws IOException {
+        String xml = new String(Files.readAllBytes(resolveMapperPath()), StandardCharsets.UTF_8);
+        String normalized = xml.replace("\r\n", "\n");
+
+        Assert.assertTrue(normalized.contains("<sql id=\"WorkOrderKeywordCondition\">"));
+        Assert.assertTrue(normalized.contains("<sql id=\"WorkOrderSingleTextOrderNoCondition\">"));
+        Assert.assertTrue(normalized.contains("w.customer_mobile LIKE CONCAT('%', #{query.keyword}, '%')"));
+        Assert.assertTrue(normalized.contains("w.barcode LIKE CONCAT('%', #{query.keyword}, '%')"));
+        Assert.assertTrue(normalized.contains("w.product_model LIKE CONCAT('%', #{query.keyword}, '%')"));
+        Assert.assertTrue(normalized.contains("w.customer_mobile LIKE CONCAT('%', #{query.orderNo}, '%')"));
+        Assert.assertTrue(normalized.contains("w.barcode LIKE CONCAT('%', #{query.orderNo}, '%')"));
+        Assert.assertTrue(normalized.contains("w.product_model LIKE CONCAT('%', #{query.orderNo}, '%')"));
+        Assert.assertEquals(2, countOccurrences(normalized, "<include refid=\"WorkOrderSingleTextOrderNoCondition\" />"));
+        Assert.assertEquals(2, countOccurrences(normalized, "<include refid=\"WorkOrderKeywordCondition\" />"));
+    }
+
     /**resolveMapperPath 数据访问操作，为服务层提供数据库查询或写入结果。
 @return 查询或解析得到的业务对象。*/
     private Path resolveMapperPath() {

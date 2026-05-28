@@ -6,6 +6,7 @@ import cn.dev33.satoken.context.SaTokenContextForThreadLocalStorage;
 import cn.dev33.satoken.context.model.SaRequest;
 import cn.dev33.satoken.context.model.SaResponse;
 import cn.dev33.satoken.context.model.SaStorage;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jasic.aftersales.common.constant.WorkOrderConfigConstants;
 import com.jasic.aftersales.common.constant.WorkOrderCreateEntryConstants;
 import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
@@ -17,6 +18,7 @@ import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderCreateDTO;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderEvaluateDTO;
 import com.jasic.aftersales.customer.domain.dto.CustomerWorkOrderSenderVoucherDTO;
 import com.jasic.aftersales.customer.domain.entity.CUser;
+import com.jasic.aftersales.customer.domain.query.CustomerWorkOrderQuery;
 import com.jasic.aftersales.customer.domain.vo.CustomerBarcodeInfoVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerNearbyServiceCompanyVO;
 import com.jasic.aftersales.customer.domain.vo.CustomerServiceCompanyOptionVO;
@@ -80,6 +82,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 
 /**
  * C端工单服务测试
@@ -496,6 +499,41 @@ public class CustomerWorkOrderServiceImplTest {
         Assert.assertEquals(2, options.size());
         Assert.assertEquals("0755-00000031", options.get(0).getContactPhone());
         Assert.assertTrue(options.get(0).getAddress().contains("Service"));
+    }
+
+    /**验证单个网点关键字会同时匹配网点名称和网点电话，保证小程序单输入框筛选口径稳定。*/
+    @Test
+    public void shouldResolveCurrentAcceptCompanyIdsBySingleKeyword() throws Exception {
+        CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
+        setField(service, "sysCompanyMapper", createCompanyKeywordMapperProxy(
+                "0755",
+                buildNearbyCompany(31L, "Service A", "FIRST", "113.0000", "23.0000")
+        ));
+        CustomerWorkOrderQuery query = new CustomerWorkOrderQuery();
+        query.setKeyword("0755");
+
+        Method method = CustomerWorkOrderServiceImpl.class
+                .getDeclaredMethod("resolveCurrentAcceptCompanyIds", CustomerWorkOrderQuery.class);
+        method.setAccessible(true);
+
+        @SuppressWarnings("unchecked")
+        Set<Long> companyIds = (Set<Long>) method.invoke(service, query);
+
+        Assert.assertEquals(Collections.singleton(31L), companyIds);
+    }
+
+    /**验证网点关键字为空白时不追加当前受理网点过滤，避免影响原有分页结果。*/
+    @Test
+    public void shouldSkipCurrentAcceptCompanyFilterWhenKeywordBlank() throws Exception {
+        CustomerWorkOrderServiceImpl service = new CustomerWorkOrderServiceImpl();
+        CustomerWorkOrderQuery query = new CustomerWorkOrderQuery();
+        query.setKeyword("   ");
+
+        Method method = CustomerWorkOrderServiceImpl.class
+                .getDeclaredMethod("resolveCurrentAcceptCompanyIds", CustomerWorkOrderQuery.class);
+        method.setAccessible(true);
+
+        Assert.assertNull(method.invoke(service, query));
     }
 
     /**验证BuildListVoWithBrandTypeAndServiceModeLabels，保证相关业务规则在回归场景下保持稳定。*/
@@ -975,6 +1013,39 @@ public class CustomerWorkOrderServiceImplTest {
                     return result;
                 }
                 if ("selectList".equals(method.getName())) {
+                    List<SysCompany> result = new ArrayList<>();
+                    Collections.addAll(result, companies);
+                    return result;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (SysCompanyMapper) Proxy.newProxyInstance(
+                SysCompanyMapper.class.getClassLoader(),
+                new Class<?>[]{SysCompanyMapper.class},
+                handler
+        );
+    }
+
+    /**createCompanyKeywordMapperProxy 业务测试替身，校验单关键字会同时落到网点名称和网点电话两个模糊条件。*/
+    private SysCompanyMapper createCompanyKeywordMapperProxy(final String expectedKeyword, final SysCompany... companies) {
+        InvocationHandler handler = new InvocationHandler() {
+            /**invoke 处理逻辑，验证当前查询包装器是否按预期拼装网点关键字条件。*/
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectList".equals(method.getName())) {
+                    @SuppressWarnings("unchecked")
+                    LambdaQueryWrapper<SysCompany> wrapper = (LambdaQueryWrapper<SysCompany>) args[0];
+                    String sqlSegment = wrapper.getSqlSegment();
+                    Assert.assertTrue(sqlSegment.contains("company_name"));
+                    Assert.assertTrue(sqlSegment.contains("contact_phone"));
+                    int keywordHitCount = 0;
+                    for (Object value : wrapper.getParamNameValuePairs().values()) {
+                        if (expectedKeyword.equals(value)) {
+                            keywordHitCount++;
+                        }
+                    }
+                    Assert.assertTrue(keywordHitCount >= 2);
                     List<SysCompany> result = new ArrayList<>();
                     Collections.addAll(result, companies);
                     return result;
