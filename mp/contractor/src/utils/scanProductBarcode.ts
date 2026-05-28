@@ -14,6 +14,8 @@ export type ScanProductBarcodeResult =
 export type ScanProductBarcodeOptions = {
   /** 用户取消扫码时是否提示，默认 false */
   toastOnCancel?: boolean
+  /** 限定扫码类型；不传则使用系统默认（条码 + 二维码） */
+  scanType?: Array<'barCode' | 'qrCode' | 'datamatrix' | 'pdf417'>
 }
 
 /**
@@ -25,8 +27,10 @@ export function scanProductBarcode(
   options?: ScanProductBarcodeOptions
 ): Promise<ScanProductBarcodeResult> {
   const toastOnCancel = options?.toastOnCancel === true
+  const scanType = options?.scanType
   return new Promise((resolve) => {
     uni.scanCode({
+      ...(scanType?.length ? { scanType } : {}),
       success: (res) => {
         const code = String(res.result ?? '').trim()
         if (code) {

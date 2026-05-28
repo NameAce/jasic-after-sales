@@ -38,7 +38,8 @@ export default defineConfig({
         api: 'modern-compiler', // 或 'modern'，建议用 'modern-compiler'
         // 抑制依赖包(node_modules)里的 Sass deprecation 警告，避免刷屏
         quietDeps: true,
-        silenceDeprecations: ['legacy-js-api', 'global-builtin'],
+        // color-functions：uni-ui 等依赖仍使用 darken() 等旧色函数
+        silenceDeprecations: ['legacy-js-api', 'global-builtin', 'color-functions'],
         additionalData: `
           @use "@/styles/variables.scss" as *;
           @use "@/styles/mixins.scss" as *;

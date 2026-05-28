@@ -5,24 +5,30 @@
       <view class="page-index list-content">
         <view class="search-wrap">
           <view class="search-box">
-            <view class="search-input-wrap">
+            <view
+              class="search-input-wrap"
+              :class="{ 'search-input-wrap--with-clear': dateFilterActive }"
+            >
               <uni-datetime-picker
-                v-model="daterange"
+                ref="datePickerRef"
+                :model-value="daterange"
                 type="daterange"
                 rangeSeparator="至"
                 return-type="string"
                 :border="false"
                 :clear-icon="false"
+                @update:model-value="handleDateRangeModelUpdate"
+                @input="handleDateRangeModelUpdate"
                 @change="handleDateRangeChange"
               />
-            </view>
-            <view
-              v-if="showDateClear"
-              class="search-clear-hit"
-              @touchstart.stop.prevent="handleDateRangeClear"
-              @click.stop="handleDateRangeClear"
-            >
-              <uni-icons type="closeempty" size="18" color="#94a3b8" />
+              <view
+                v-if="dateFilterActive"
+                class="search-clear-hit"
+                @touchstart.stop.prevent="handleDateRangeClear"
+                @click.stop="handleDateRangeClear"
+              >
+                <uni-icons type="closeempty" size="18" color="#94a3b8" />
+              </view>
             </view>
           </view>
         </view>
@@ -50,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, ref } from 'vue'
+  import { nextTick, ref } from 'vue'
   import { onShow } from '@dcloudio/uni-app'
   import CustomNavBar from '@/components/CustomNavBar/CustomNavBar.vue'
   import BaseButton from '@/components/BaseButton/BaseButton.vue'
@@ -65,11 +71,40 @@
 
   const records = ref<FeedbackListItem[]>([])
   const daterange = ref<string[]>([])
+  /** 是否展示日期清空按钮（独立状态，避免小程序端 v-model 不同步） */
+  const dateFilterActive = ref(false)
+  /** 日期组件实例，清空时同步调用组件内部 clear */
+  const datePickerRef = ref<{ clear?: () => void } | null>(null)
 
   /**
-   * 日期范围有值时展示清空按钮，便于一键恢复全部记录。
+   * 统一解析日期范围组件返回值。
+   * 小程序端 `v-model` 偶发不同步，需同时兼容 `@change` 直传数组、字符串及 `detail` 包装。
    */
-  const showDateClear = computed(() => daterange.value.length > 0)
+  const resolveDateRangeValue = (payload: unknown): string[] => {
+    let raw: unknown = payload
+    if (raw && typeof raw === 'object' && 'detail' in (raw as Record<string, unknown>)) {
+      raw = (raw as { detail: unknown }).detail
+    }
+    if (Array.isArray(raw)) {
+      return raw.map((item) => String(item ?? '').trim())
+    }
+    const text = String(raw ?? '').trim()
+    if (!text) return []
+    return text.split(',').map((item) => item.trim())
+  }
+
+  /**
+   * 判断日期范围是否已选择（任一端非空即视为有筛选）。
+   */
+  const hasDateRangeValue = (range: unknown) =>
+    resolveDateRangeValue(range).some((item) => item.length > 0)
+
+  /**
+   * 同步日期筛选激活态，供清空按钮显隐与列表查询共用。
+   */
+  const syncDateFilterActive = (range: unknown) => {
+    dateFilterActive.value = hasDateRangeValue(range)
+  }
 
   /**
    * 统一格式化后端时间，保证列表展示稳定。
@@ -97,7 +132,7 @@
    * 拉取反馈列表，支持按提交日期区间筛选。
    */
   const loadList = async () => {
-    const [beginCreateTime = '', endCreateTime = ''] = daterange.value
+    const [beginCreateTime = '', endCreateTime = ''] = resolveDateRangeValue(daterange.value)
     try {
       const res = await listFeedback({
         pageNum: 1,
@@ -113,10 +148,39 @@
   }
 
   /**
-   * 日期范围变更后自动刷新列表，不再提供单独搜索与重置按钮。
+   * 处理 `update:model-value` / `input`，保证父级状态与组件一致。
    */
-  const handleDateRangeChange = () => {
-    void loadList()
+  const handleDateRangeModelUpdate = (payload: unknown) => {
+    daterange.value = resolveDateRangeValue(payload)
+    syncDateFilterActive(daterange.value)
+  }
+
+  /**
+   * 日期范围确认后刷新列表。
+   * 微信小程序部分场景 `@change` 不传值，需在 nextTick 回读 model，必要时按“已确认选择”兜底亮显清空按钮。
+   */
+  const handleDateRangeChange = (payload: unknown) => {
+    const resolved = resolveDateRangeValue(payload)
+    if (hasDateRangeValue(resolved)) {
+      daterange.value = resolved
+      syncDateFilterActive(resolved)
+      void loadList()
+      return
+    }
+
+    void nextTick(() => {
+      const synced = resolveDateRangeValue(daterange.value)
+      if (hasDateRangeValue(synced)) {
+        daterange.value = synced
+        syncDateFilterActive(synced)
+      } else if (payload === undefined || payload === null) {
+        // 小程序端常见：change 触发但不带参数，此时组件内已展示选中日期
+        dateFilterActive.value = true
+      } else {
+        syncDateFilterActive(synced)
+      }
+      void loadList()
+    })
   }
 
   /**
@@ -124,6 +188,8 @@
    */
   const handleDateRangeClear = () => {
     daterange.value = []
+    dateFilterActive.value = false
+    datePickerRef.value?.clear?.()
     void loadList()
   }
 
@@ -194,13 +260,25 @@
     flex: 1;
     min-width: 0;
     height: 100%;
+
+    /* 为右侧自定义清空按钮预留空间，避免与日期文案重叠 */
+    &--with-clear {
+      :deep(.uni-date-x) {
+        padding-right: 64rpx;
+        box-sizing: border-box;
+      }
+    }
   }
 
   .search-clear-hit {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 3;
     @include flex-center;
     width: 64rpx;
     height: 100%;
-    flex-shrink: 0;
   }
 
   :deep(.uni-date) {

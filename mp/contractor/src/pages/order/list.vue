@@ -39,7 +39,7 @@
             <view
               v-if="showSearchScan"
               class="search-scan-hit"
-              @touchstart.stop.prevent
+              @touchstart.stop.prevent="onSearchScan"
               @click.stop="onSearchScan"
             >
               <uni-icons type="scan" size="20" :color="themeColors.primary" />
@@ -413,6 +413,8 @@
   const searchQuery = ref('')
   /** 已提交给列表接口的 keyword */
   const appliedSearchKeyword = ref('')
+  /** 扫码进行中，避免连点重复调起相机 */
+  const scanningBarcode = ref(false)
 
   /** 是否展示清除按钮（有非空关键词时） */
   const showSearchClear = computed(() => !!searchQuery.value.trim())
@@ -449,20 +451,28 @@
   }
 
   /**
-   * 扫码搜索：扫到条码后回显到输入框，并立即按 keyword 查询列表
+   * 扫码搜索：调起条形码扫描，回显到输入框并立即按 keyword 查询列表
    * @returns void
    * @修改人 黄碧莲
    * @修改时间 2026-05-28
    */
   const onSearchScan = async () => {
-    if (showBranchView.value) return
-    const scanRes = await scanProductBarcode({ toastOnCancel: true })
-    if (scanRes.status === 'cancel') return
-    if (scanRes.status === 'empty') {
-      void showApiToast('未识别到条形码')
-      return
+    if (showBranchView.value || scanningBarcode.value) return
+    scanningBarcode.value = true
+    try {
+      const scanRes = await scanProductBarcode({
+        toastOnCancel: true,
+        scanType: ['barCode']
+      })
+      if (scanRes.status === 'cancel') return
+      if (scanRes.status === 'empty') {
+        void showApiToast('未识别到条形码')
+        return
+      }
+      applySearchKeywordAndRefreshOrders(scanRes.code)
+    } finally {
+      scanningBarcode.value = false
     }
-    applySearchKeywordAndRefreshOrders(scanRes.code)
   }
   // 一级Tab
   const primaryTab = ref<PrimaryTab>('untransferred')

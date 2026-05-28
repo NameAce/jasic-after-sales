@@ -39,7 +39,8 @@ export default defineConfig({
         // 依赖（node_modules）里的 Sass 弃用提示太吵：统一静默依赖告警
         quietDeps: true,
         // 临时静默 Sass 弃用告警（等上游依赖迁移后可移除）
-        silenceDeprecations: ['legacy-js-api', 'global-builtin'],
+        // color-functions：uni-ui 等依赖仍使用 darken() 等旧色函数
+        silenceDeprecations: ['legacy-js-api', 'global-builtin', 'color-functions'],
         additionalData: `
           @use "@/styles/variables.scss" as *;
           @use "@/styles/mixins.scss" as *;
