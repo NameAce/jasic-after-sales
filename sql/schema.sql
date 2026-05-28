@@ -539,6 +539,7 @@ CREATE TABLE `sys_feedback` (
   `accept_user_id`       bigint unsigned DEFAULT NULL COMMENT '受理人系统用户ID',
   `accept_user_name`     varchar(128)    DEFAULT NULL COMMENT '受理人姓名快照',
   `accept_time`          datetime        DEFAULT NULL COMMENT '受理时间',
+  `accept_reply`         varchar(200)    DEFAULT NULL COMMENT '受理回复',
   `create_time`          datetime        NOT NULL COMMENT '创建时间',
   `update_time`          datetime        NOT NULL COMMENT '更新时间',
   PRIMARY KEY (`id`)

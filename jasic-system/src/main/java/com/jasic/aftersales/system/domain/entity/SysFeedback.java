@@ -70,4 +70,7 @@ public class SysFeedback extends BaseEntity {
 
     /** 受理时间 */
     private LocalDateTime acceptTime;
+
+    /** 受理回复 */
+    private String acceptReply;
 }

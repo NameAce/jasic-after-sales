@@ -46,10 +46,9 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
- * 平台反馈单 Service 实现。
+ * 平台反馈单服务实现。
  *
- * <p>该实现直接负责反馈单的核心业务规则落地，包括：
- * 提交内容校验、提交来源快照、默认总部配置读取、我的列表与详情查询、总部后台管理查询，以及受理并发保护。</p>
+ * <p>负责反馈提交、我的反馈查询、后台管理查询、首次受理和修改受理。</p>
  *
  * @author Codex
  * @date 2026/05/28
@@ -57,53 +56,41 @@ import java.util.stream.Collectors;
 @Service
 public class SysFeedbackServiceImpl implements ISysFeedbackService {
 
-    /** 默认总部系统参数键 */
+    /** 默认总部配置键。 */
     private static final String DEFAULT_HQ_COMPANY_ID_CONFIG_KEY = "default.hq.company.id";
 
-    /** 正常状态值 */
+    /** 启用状态值。 */
     private static final Integer STATUS_ENABLED = 1;
 
-    /** 终端用户直接提交时的来源名称 */
+    /** 终端用户直接提交时的来源名称。 */
     private static final String CUSTOMER_DIRECT_SOURCE_NAME = "终端用户";
 
-    /** 只传日期时使用的格式 */
+    /** 仅传日期时的格式。 */
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-    /** 传入完整时间时使用的格式 */
+    /** 传完整时间时的格式。 */
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-    /** 反馈Mapper */
     @Resource
     private SysFeedbackMapper sysFeedbackMapper;
 
-    /** 工单Mapper */
     @Resource
     private WorkOrderMapper workOrderMapper;
 
-    /** 公司Mapper */
     @Resource
     private SysCompanyMapper sysCompanyMapper;
 
-    /** 系统用户Mapper */
     @Resource
     private SysUserMapper sysUserMapper;
 
-    /** 系统参数Service */
     @Resource
     private ISysConfigService sysConfigService;
 
-    /** 公司类型Service */
     @Resource
     private ISysCompanyTypeService sysCompanyTypeService;
 
     /**
      * 终端用户提交反馈。
-     *
-     * @param customerId 当前终端用户ID
-     * @param submitterName 提交人姓名快照
-     * @param contactPhone 联系电话快照
-     * @param content 反馈内容
-     * @return 新建反馈ID
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -112,8 +99,6 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
             throw new ServiceException("当前终端用户不存在");
         }
         String normalizedContent = normalizeAndValidateContent(content);
-
-        // 终端用户提交时，需要先按“最新工单”口径解析来源快照和总部归属。
         CustomerFeedbackSourceSnapshot sourceSnapshot = resolveCustomerFeedbackSourceSnapshot(customerId);
 
         SysFeedback entity = new SysFeedback();
@@ -131,16 +116,13 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
         entity.setAcceptUserId(null);
         entity.setAcceptUserName(null);
         entity.setAcceptTime(null);
+        entity.setAcceptReply(null);
         sysFeedbackMapper.insert(entity);
         return entity.getId();
     }
 
     /**
-     * 分页查询终端用户自己的反馈列表。
-     *
-     * @param customerId 当前终端用户ID
-     * @param query 分页参数
-     * @return 分页结果
+     * 查询终端用户自己的反馈列表。
      */
     @Override
     public PageResult<SysFeedbackVO> listCustomerPage(Long customerId, SysFeedbackMyQuery query) {
@@ -153,16 +135,11 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
         wrapper.eq(SysFeedback::getSubmitterType, FeedbackSubmitterTypeEnum.CUSTOMER.getCode())
                 .eq(SysFeedback::getSubmitterId, customerId)
                 .orderByDesc(SysFeedback::getCreateTime);
-        Page<SysFeedback> result = sysFeedbackMapper.selectPage(page, wrapper);
-        return buildPageResult(result, actualQuery);
+        return buildPageResult(sysFeedbackMapper.selectPage(page, wrapper), actualQuery);
     }
 
     /**
      * 查询终端用户自己的反馈详情。
-     *
-     * @param customerId 当前终端用户ID
-     * @param feedbackId 反馈ID
-     * @return 反馈详情
      */
     @Override
     public SysFeedbackVO getCustomerDetail(Long customerId, Long feedbackId) {
@@ -181,10 +158,7 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
     }
 
     /**
-     * 当前网点用户提交反馈。
-     *
-     * @param dto 提交参数
-     * @return 新建反馈ID
+     * 网点用户提交反馈。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -212,15 +186,13 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
         entity.setAcceptUserId(null);
         entity.setAcceptUserName(null);
         entity.setAcceptTime(null);
+        entity.setAcceptReply(null);
         sysFeedbackMapper.insert(entity);
         return entity.getId();
     }
 
     /**
-     * 分页查询当前网点用户自己的反馈列表。
-     *
-     * @param query 分页参数
-     * @return 分页结果
+     * 查询网点用户自己的反馈列表。
      */
     @Override
     public PageResult<SysFeedbackVO> listCurrentServiceUserPage(SysFeedbackMyQuery query) {
@@ -231,15 +203,11 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
         wrapper.eq(SysFeedback::getSubmitterType, FeedbackSubmitterTypeEnum.SERVICE_COMPANY_USER.getCode())
                 .eq(SysFeedback::getSubmitterId, currentUser.getId())
                 .orderByDesc(SysFeedback::getCreateTime);
-        Page<SysFeedback> result = sysFeedbackMapper.selectPage(page, wrapper);
-        return buildPageResult(result, actualQuery);
+        return buildPageResult(sysFeedbackMapper.selectPage(page, wrapper), actualQuery);
     }
 
     /**
-     * 查询当前网点用户自己的反馈详情。
-     *
-     * @param feedbackId 反馈ID
-     * @return 反馈详情
+     * 查询网点用户自己的反馈详情。
      */
     @Override
     public SysFeedbackVO getCurrentServiceUserDetail(Long feedbackId) {
@@ -256,10 +224,7 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
     }
 
     /**
-     * 分页查询后台管理列表。
-     *
-     * @param query 查询参数
-     * @return 分页结果
+     * 查询后台管理列表。
      */
     @Override
     public PageResult<SysFeedbackVO> listManagePage(SysFeedbackManageQuery query) {
@@ -276,7 +241,6 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
             wrapper.like(SysFeedback::getSubmitSourceName, actualQuery.getSubmitSourceName().trim());
         }
 
-        // 提交时间和受理时间都按区间查询，兼容 yyyy-MM-dd 和 yyyy-MM-dd HH:mm:ss 两种传参格式。
         LocalDateTime beginCreateTime = parseRangeDateTime(actualQuery.getBeginCreateTime(), false, "提交开始时间格式不正确");
         LocalDateTime endCreateTime = parseRangeDateTime(actualQuery.getEndCreateTime(), true, "提交结束时间格式不正确");
         LocalDateTime beginAcceptTime = parseRangeDateTime(actualQuery.getBeginAcceptTime(), false, "受理开始时间格式不正确");
@@ -286,7 +250,6 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
                 .ge(beginAcceptTime != null, SysFeedback::getAcceptTime, beginAcceptTime)
                 .le(endAcceptTime != null, SysFeedback::getAcceptTime, endAcceptTime);
 
-        // 后台页签对应的状态条件和默认排序必须由后端兜底，避免前端漏传时出现排序口径漂移。
         if (FeedbackManageViewTypeEnum.UNACCEPTED == viewType) {
             wrapper.eq(SysFeedback::getStatus, FeedbackStatusEnum.UNACCEPTED.getCode())
                     .orderByAsc(SysFeedback::getCreateTime);
@@ -297,15 +260,11 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
             wrapper.orderByDesc(SysFeedback::getCreateTime);
         }
 
-        Page<SysFeedback> result = sysFeedbackMapper.selectPage(page, wrapper);
-        return buildPageResult(result, actualQuery);
+        return buildPageResult(sysFeedbackMapper.selectPage(page, wrapper), actualQuery);
     }
 
     /**
-     * 查询后台管理详情。
-     *
-     * @param feedbackId 反馈ID
-     * @return 反馈详情
+     * 查询后台详情。
      */
     @Override
     public SysFeedbackVO getManageDetail(Long feedbackId) {
@@ -318,9 +277,7 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
     }
 
     /**
-     * 总部后台受理反馈。
-     *
-     * @param dto 受理参数
+     * 首次受理反馈。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -329,14 +286,8 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
         if (dto == null || dto.getId() == null) {
             throw new ServiceException("反馈ID不能为空");
         }
-
-        SysFeedback updateEntity = new SysFeedback();
-        updateEntity.setStatus(FeedbackStatusEnum.ACCEPTED.getCode());
-        updateEntity.setAcceptUserId(currentUser.getId());
-        updateEntity.setAcceptUserName(resolveSystemUserSnapshotName(currentUser));
-        updateEntity.setAcceptTime(LocalDateTime.now());
-
-        // 受理动作只允许从未受理更新到已受理，这里使用状态条件做原子更新，避免并发覆盖受理人和受理时间。
+        String normalizedAcceptReply = normalizeAndValidateAcceptReply(dto.getAcceptReply());
+        SysFeedback updateEntity = buildAcceptUpdateEntity(currentUser, normalizedAcceptReply);
         int rows = sysFeedbackMapper.update(updateEntity, new LambdaUpdateWrapper<SysFeedback>()
                 .eq(SysFeedback::getId, dto.getId())
                 .eq(SysFeedback::getStatus, FeedbackStatusEnum.UNACCEPTED.getCode()));
@@ -355,11 +306,49 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
     }
 
     /**
+     * 修改已受理反馈。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateAccept(SysFeedbackAcceptDTO dto) {
+        SysUser currentUser = requireCurrentSystemUserBySubject(SubjectTypeEnum.HQ, "当前主体不是总部，不能修改受理");
+        if (dto == null || dto.getId() == null) {
+            throw new ServiceException("反馈ID不能为空");
+        }
+        String normalizedAcceptReply = normalizeAndValidateAcceptReply(dto.getAcceptReply());
+        SysFeedback updateEntity = buildAcceptUpdateEntity(currentUser, normalizedAcceptReply);
+        int rows = sysFeedbackMapper.update(updateEntity, new LambdaUpdateWrapper<SysFeedback>()
+                .eq(SysFeedback::getId, dto.getId())
+                .eq(SysFeedback::getStatus, FeedbackStatusEnum.ACCEPTED.getCode()));
+        if (rows > 0) {
+            return;
+        }
+
+        SysFeedback existing = sysFeedbackMapper.selectById(dto.getId());
+        if (existing == null) {
+            throw new ServiceException("反馈不存在");
+        }
+        if (FeedbackStatusEnum.UNACCEPTED.getCode().equals(existing.getStatus())) {
+            throw new ServiceException("当前反馈未受理，不能修改受理");
+        }
+        throw new ServiceException("修改受理失败");
+    }
+
+    /**
+     * 构建受理更新实体。
+     */
+    private SysFeedback buildAcceptUpdateEntity(SysUser currentUser, String acceptReply) {
+        SysFeedback updateEntity = new SysFeedback();
+        updateEntity.setStatus(FeedbackStatusEnum.ACCEPTED.getCode());
+        updateEntity.setAcceptUserId(currentUser.getId());
+        updateEntity.setAcceptUserName(resolveSystemUserSnapshotName(currentUser));
+        updateEntity.setAcceptTime(LocalDateTime.now());
+        updateEntity.setAcceptReply(acceptReply);
+        return updateEntity;
+    }
+
+    /**
      * 构建分页结果。
-     *
-     * @param result 分页查询结果
-     * @param query 查询参数
-     * @return 平台统一分页对象
      */
     private PageResult<SysFeedbackVO> buildPageResult(Page<SysFeedback> result, PageQuery query) {
         List<SysFeedbackVO> records = result.getRecords().stream()
@@ -369,10 +358,7 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
     }
 
     /**
-     * 转换反馈实体为返回对象。
-     *
-     * @param entity 反馈实体
-     * @return 反馈返回对象
+     * 实体转返回对象。
      */
     private SysFeedbackVO convertToVO(SysFeedback entity) {
         SysFeedbackVO vo = new SysFeedbackVO();
@@ -381,14 +367,10 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
     }
 
     /**
-     * 解析终端用户提交时的来源快照。
-     *
-     * @param customerId 终端用户ID
-     * @return 来源快照
+     * 解析终端用户来源快照。
      */
     private CustomerFeedbackSourceSnapshot resolveCustomerFeedbackSourceSnapshot(Long customerId) {
         Long defaultHqCompanyId = resolveDefaultHqCompanyId();
-
         WorkOrder latestWorkOrder = workOrderMapper.selectOne(new LambdaQueryWrapper<WorkOrder>()
                 .eq(WorkOrder::getCustomerId, customerId)
                 .orderByDesc(WorkOrder::getCreateTime)
@@ -397,7 +379,6 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
             return buildCustomerDirectSnapshot(defaultHqCompanyId);
         }
 
-        // 客户工单后续可能会转单到总部，因此优先取建单时确定的服务网点，再兼容回退到当前承接方。
         Long serviceCompanyId = latestWorkOrder.getCreateCompanyId() != null
                 ? latestWorkOrder.getCreateCompanyId()
                 : latestWorkOrder.getCurrentAcceptCompanyId();
@@ -416,9 +397,6 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
 
     /**
      * 构建终端用户直接提交快照。
-     *
-     * @param defaultHqCompanyId 默认总部ID
-     * @return 来源快照
      */
     private CustomerFeedbackSourceSnapshot buildCustomerDirectSnapshot(Long defaultHqCompanyId) {
         CustomerFeedbackSourceSnapshot snapshot = new CustomerFeedbackSourceSnapshot();
@@ -430,11 +408,7 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
     }
 
     /**
-     * 解析工单归属总部ID。
-     *
-     * @param workOrder 最新工单
-     * @param defaultHqCompanyId 默认总部ID
-     * @return 可用的总部ID
+     * 解析工单总部归属。
      */
     private Long resolveWorkOrderHqCompanyId(WorkOrder workOrder, Long defaultHqCompanyId) {
         if (workOrder == null || workOrder.getHqCompanyId() == null) {
@@ -448,10 +422,7 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
     }
 
     /**
-     * 解析后台管理视图类型。
-     *
-     * @param viewTypeCode 前端传入的视图编码
-     * @return 视图枚举，未传时默认全部
+     * 解析后台视图类型。
      */
     private FeedbackManageViewTypeEnum resolveManageViewType(String viewTypeCode) {
         if (!StringUtils.hasText(viewTypeCode)) {
@@ -465,12 +436,7 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
     }
 
     /**
-     * 解析区间查询时间。
-     *
-     * @param text 前端传入的时间文本
-     * @param endOfDay 是否按当天结束时间解析
-     * @param errorMessage 格式错误提示
-     * @return 解析后的时间
+     * 解析区间时间。
      */
     private LocalDateTime parseRangeDateTime(String text, boolean endOfDay, String errorMessage) {
         String normalized = normalizeNullableText(text);
@@ -489,10 +455,7 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
     }
 
     /**
-     * 校验并规范化反馈内容。
-     *
-     * @param content 原始内容
-     * @return 去除首尾空白后的内容
+     * 校验反馈内容。
      */
     private String normalizeAndValidateContent(String content) {
         String normalized = normalizeNullableText(content);
@@ -509,10 +472,21 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
     }
 
     /**
-     * 解析系统用户展示姓名快照。
-     *
-     * @param user 系统用户
-     * @return 展示姓名
+     * 校验受理回复。
+     */
+    private String normalizeAndValidateAcceptReply(String acceptReply) {
+        String normalized = normalizeNullableText(acceptReply);
+        if (normalized == null) {
+            throw new ServiceException("受理回复不能为空");
+        }
+        if (normalized.length() > 200) {
+            throw new ServiceException("受理回复长度不能超过200个字符");
+        }
+        return normalized;
+    }
+
+    /**
+     * 解析系统用户姓名快照。
      */
     private String resolveSystemUserSnapshotName(SysUser user) {
         String realName = normalizeNullableText(user == null ? null : user.getRealName());
@@ -523,11 +497,7 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
     }
 
     /**
-     * 获取并校验当前系统用户。
-     *
-     * @param subjectType 期望主体类型
-     * @param invalidMessage 主体不匹配时的提示
-     * @return 当前系统用户
+     * 校验当前系统用户。
      */
     private SysUser requireCurrentSystemUserBySubject(SubjectTypeEnum subjectType, String invalidMessage) {
         if (subjectType == null || !subjectType.getCode().equals(SecurityContext.getCurrentSubjectType())) {
@@ -548,9 +518,7 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
     }
 
     /**
-     * 解析默认总部ID。
-     *
-     * @return 默认总部ID
+     * 解析默认总部。
      */
     private Long resolveDefaultHqCompanyId() {
         String configValue = normalizeNullableText(sysConfigService == null ? null : sysConfigService.getValueByKey(DEFAULT_HQ_COMPANY_ID_CONFIG_KEY));
@@ -571,11 +539,7 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
     }
 
     /**
-     * 查询并校验启用中的公司。
-     *
-     * @param companyId 公司ID
-     * @param missingMessage 自定义提示
-     * @return 公司实体
+     * 查询并校验公司。
      */
     private SysCompany requireEnabledCompany(Long companyId, String missingMessage) {
         SysCompany company = findEnabledCompany(companyId);
@@ -587,9 +551,6 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
 
     /**
      * 查询启用中的公司。
-     *
-     * @param companyId 公司ID
-     * @return 公司实体，不可用时返回null
      */
     private SysCompany findEnabledCompany(Long companyId) {
         if (companyId == null) {
@@ -603,10 +564,7 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
     }
 
     /**
-     * 判断公司是否为总部主体。
-     *
-     * @param company 公司实体
-     * @return true表示总部
+     * 判断是否总部公司。
      */
     private boolean isHqCompany(SysCompany company) {
         if (company == null || !StringUtils.hasText(company.getTypeCode())) {
@@ -618,10 +576,7 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
     }
 
     /**
-     * 规范化可为空文本。
-     *
-     * @param text 原始文本
-     * @return 去除首尾空白后的文本，空白返回null
+     * 规范化可空文本。
      */
     private String normalizeNullableText(String text) {
         return StringUtils.hasText(text) ? text.trim() : null;
@@ -629,22 +584,15 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
 
     /**
      * 终端用户来源快照。
-     *
-     * <p>这里单独封装内部快照对象，是为了把“来源类型、来源名称、关联工单、归属总部”作为一组原子结果返回，
-     * 避免多个返回值在调用处被拆散后出现字段组合不一致的问题。</p>
      */
     private static class CustomerFeedbackSourceSnapshot {
 
-        /** 提交来源类型 */
         private String submitSourceType;
 
-        /** 提交来源名称 */
         private String submitSourceName;
 
-        /** 关联工单ID */
         private Long relatedWorkOrderId;
 
-        /** 归属总部ID */
         private Long hqCompanyId;
 
         public String getSubmitSourceType() {

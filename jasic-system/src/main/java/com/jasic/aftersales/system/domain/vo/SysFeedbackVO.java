@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
  * 平台反馈单返回对象。
  *
  * <p>该对象统一用于终端用户、网点用户和总部后台的反馈列表与详情返回，
- * 直接返回提交时和受理时固化的快照字段，避免前端再次回查用户、公司或工单表拼装展示信息。</p>
+ * 直接返回提交时和受理时固化的快照字段，避免前端再去关联用户、公司或工单表拼装展示信息。</p>
  *
  * @author Codex
  * @date 2026/05/28
@@ -23,7 +23,7 @@ public class SysFeedbackVO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** 反馈ID */
+    /** 反馈 ID */
     @ApiModelProperty(value = "反馈ID")
     private Long id;
 
@@ -31,7 +31,7 @@ public class SysFeedbackVO implements Serializable {
     @ApiModelProperty(value = "提交主体类型")
     private String submitterType;
 
-    /** 提交人ID */
+    /** 提交人 ID */
     @ApiModelProperty(value = "提交人ID")
     private Long submitterId;
 
@@ -39,7 +39,7 @@ public class SysFeedbackVO implements Serializable {
     @ApiModelProperty(value = "提交人姓名快照")
     private String submitterName;
 
-    /** 提交网点ID */
+    /** 提交网点 ID */
     @ApiModelProperty(value = "提交网点ID")
     private Long submitCompanyId;
 
@@ -55,11 +55,11 @@ public class SysFeedbackVO implements Serializable {
     @ApiModelProperty(value = "联系电话快照")
     private String contactPhone;
 
-    /** 关联工单ID */
+    /** 关联工单 ID */
     @ApiModelProperty(value = "关联工单ID")
     private Long relatedWorkOrderId;
 
-    /** 归属总部ID */
+    /** 归属总部 ID */
     @ApiModelProperty(value = "归属总部ID")
     private Long hqCompanyId;
 
@@ -71,7 +71,7 @@ public class SysFeedbackVO implements Serializable {
     @ApiModelProperty(value = "反馈状态")
     private String status;
 
-    /** 受理人ID */
+    /** 受理人 ID */
     @ApiModelProperty(value = "受理人ID")
     private Long acceptUserId;
 
@@ -83,6 +83,10 @@ public class SysFeedbackVO implements Serializable {
     @ApiModelProperty(value = "受理时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime acceptTime;
+
+    /** 受理回复 */
+    @ApiModelProperty(value = "受理回复")
+    private String acceptReply;
 
     /** 创建时间，同时作为提交时间 */
     @ApiModelProperty(value = "创建时间")

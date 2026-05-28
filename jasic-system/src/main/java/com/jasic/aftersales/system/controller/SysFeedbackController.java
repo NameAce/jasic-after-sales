@@ -28,7 +28,7 @@ import javax.annotation.Resource;
  *
  * <p>该控制器同时承载：
  * 网点用户提交反馈、查询自己的反馈列表与详情；
- * 总部后台查询管理列表、查看详情和受理反馈。</p>
+ * 总部后台查询管理列表、查看详情、首次受理和修改受理。</p>
  *
  * @author Codex
  * @date 2026/05/28
@@ -38,7 +38,7 @@ import javax.annotation.Resource;
 @RequestMapping("/system/feedback")
 public class SysFeedbackController {
 
-    /** 平台反馈单Service */
+    /** 平台反馈单 Service */
     @Resource
     private ISysFeedbackService sysFeedbackService;
 
@@ -46,7 +46,7 @@ public class SysFeedbackController {
      * 网点用户提交反馈。
      *
      * @param dto 提交参数
-     * @return 新建反馈ID
+     * @return 新建反馈 ID
      */
     @ApiOperation(value = "网点用户提交反馈")
     @SaCheckPermission("feedback:add")
@@ -72,7 +72,7 @@ public class SysFeedbackController {
     /**
      * 查询当前网点用户自己的反馈详情。
      *
-     * @param id 反馈ID
+     * @param id 反馈 ID
      * @return 反馈详情
      */
     @ApiOperation(value = "查询当前网点用户自己的反馈详情")
@@ -98,7 +98,7 @@ public class SysFeedbackController {
     /**
      * 查询总部后台反馈详情。
      *
-     * @param id 反馈ID
+     * @param id 反馈 ID
      * @return 反馈详情
      */
     @ApiOperation(value = "查询总部后台反馈详情")
@@ -109,7 +109,7 @@ public class SysFeedbackController {
     }
 
     /**
-     * 总部后台受理反馈。
+     * 总部后台首次受理反馈。
      *
      * @param dto 受理参数
      * @return 操作结果
@@ -120,6 +120,21 @@ public class SysFeedbackController {
     @PostMapping("/manage/accept")
     public Result<Void> accept(@Validated @RequestBody SysFeedbackAcceptDTO dto) {
         sysFeedbackService.accept(dto);
+        return Result.ok();
+    }
+
+    /**
+     * 总部后台修改已受理反馈的受理结果。
+     *
+     * @param dto 修改参数
+     * @return 操作结果
+     */
+    @ApiOperation(value = "总部后台修改受理")
+    @SaCheckPermission("feedback:updateAccept")
+    @OperLog(title = "反馈管理", operType = OperTypeEnum.UPDATE)
+    @PostMapping("/manage/update-accept")
+    public Result<Void> updateAccept(@Validated @RequestBody SysFeedbackAcceptDTO dto) {
+        sysFeedbackService.updateAccept(dto);
         return Result.ok();
     }
 }
