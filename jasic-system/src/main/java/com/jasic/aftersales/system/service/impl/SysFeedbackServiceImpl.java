@@ -132,6 +132,8 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
         SysFeedbackMyQuery actualQuery = query == null ? new SysFeedbackMyQuery() : query;
         Page<SysFeedback> page = new Page<>(actualQuery.getPageNum(), actualQuery.getPageSize());
         LambdaQueryWrapper<SysFeedback> wrapper = new LambdaQueryWrapper<>();
+        // “我的反馈”历史记录主要按提交时间检索，这里统一补充时间区间过滤，避免 C 端和网点端出现筛选口径不一致。
+        applyMyFeedbackCreateTimeRangeFilter(wrapper, actualQuery);
         wrapper.eq(SysFeedback::getSubmitterType, FeedbackSubmitterTypeEnum.CUSTOMER.getCode())
                 .eq(SysFeedback::getSubmitterId, customerId)
                 .orderByDesc(SysFeedback::getCreateTime);
@@ -200,6 +202,8 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
         SysFeedbackMyQuery actualQuery = query == null ? new SysFeedbackMyQuery() : query;
         Page<SysFeedback> page = new Page<>(actualQuery.getPageNum(), actualQuery.getPageSize());
         LambdaQueryWrapper<SysFeedback> wrapper = new LambdaQueryWrapper<>();
+        // 网点用户只允许查询自己提交的反馈，再叠加提交时间区间，满足“我的反馈”按时间回查的需求。
+        applyMyFeedbackCreateTimeRangeFilter(wrapper, actualQuery);
         wrapper.eq(SysFeedback::getSubmitterType, FeedbackSubmitterTypeEnum.SERVICE_COMPANY_USER.getCode())
                 .eq(SysFeedback::getSubmitterId, currentUser.getId())
                 .orderByDesc(SysFeedback::getCreateTime);
@@ -437,6 +441,30 @@ public class SysFeedbackServiceImpl implements ISysFeedbackService {
 
     /**
      * 解析区间时间。
+     */
+    /**
+     * 为“我的反馈”列表追加提交时间区间过滤。
+     *
+     * @param wrapper 分页查询条件
+     * @param query 查询参数
+     */
+    private void applyMyFeedbackCreateTimeRangeFilter(LambdaQueryWrapper<SysFeedback> wrapper, SysFeedbackMyQuery query) {
+        if (wrapper == null || query == null) {
+            return;
+        }
+        LocalDateTime beginCreateTime = parseRangeDateTime(query.getBeginCreateTime(), false, "提交开始时间格式不正确");
+        LocalDateTime endCreateTime = parseRangeDateTime(query.getEndCreateTime(), true, "提交结束时间格式不正确");
+        wrapper.ge(beginCreateTime != null, SysFeedback::getCreateTime, beginCreateTime)
+                .le(endCreateTime != null, SysFeedback::getCreateTime, endCreateTime);
+    }
+
+    /**
+     * 解析时间区间参数。
+     *
+     * @param text 前端传入的时间文本
+     * @param endOfDay 仅传日期时是否补齐到当天结束时间
+     * @param errorMessage 格式错误时抛出的提示
+     * @return 解析后的时间，未传则返回 null
      */
     private LocalDateTime parseRangeDateTime(String text, boolean endOfDay, String errorMessage) {
         String normalized = normalizeNullableText(text);

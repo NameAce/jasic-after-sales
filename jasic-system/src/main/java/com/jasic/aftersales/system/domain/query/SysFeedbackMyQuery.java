@@ -2,6 +2,7 @@ package com.jasic.aftersales.system.domain.query;
 
 import com.jasic.aftersales.common.core.domain.PageQuery;
 import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -20,4 +21,12 @@ import lombok.EqualsAndHashCode;
 public class SysFeedbackMyQuery extends PageQuery {
 
     private static final long serialVersionUID = 1L;
+
+    /** 提交开始时间 */
+    @ApiModelProperty(value = "提交开始时间，支持 yyyy-MM-dd 或 yyyy-MM-dd HH:mm:ss")
+    private String beginCreateTime;
+
+    /** 提交结束时间 */
+    @ApiModelProperty(value = "提交结束时间，支持 yyyy-MM-dd 或 yyyy-MM-dd HH:mm:ss")
+    private String endCreateTime;
 }
