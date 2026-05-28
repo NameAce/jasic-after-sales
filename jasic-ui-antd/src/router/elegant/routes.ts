@@ -449,6 +449,16 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       },
       {
+        name: 'system_feedback',
+        path: '/system/feedback',
+        component: 'view.system_feedback',
+        meta: {
+          title: 'system_feedback',
+          i18nKey: 'route.system_feedback',
+          keepAlive: true
+        }
+      },
+      {
         name: 'system_menu',
         path: '/system/menu',
         component: 'view.system_menu',

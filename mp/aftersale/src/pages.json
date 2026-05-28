@@ -113,6 +113,13 @@
 			}
 		},
 		{
+			"path": "pages/feedback/apply",
+			"style": {
+				"navigationBarTitleText": "投诉与建议申请",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/profile/edit",
 			"style": {
 				"navigationBarTitleText": "更换信息",
