@@ -8,10 +8,10 @@ import type { ElegantConstRoute, LastLevelRouteKey, RouteKey, RouteMap } from '@
 import { MENU_ICON_OVERRIDES, resolveMenuIconFromApi } from '@/constants/menu-icon';
 import { useSvgIcon } from '@/hooks/common/icon';
 import { getRouteMenuTitle } from '@/utils/route-menu-title';
+import { getMenuKeepAliveFromStorage, parseKeepAliveFromRemark } from '@/utils/menu-keep-alive-config';
 import { $t } from '@/locales';
 import { getRoutePath } from '@/router/elegant/transform';
 import { getCacheRouteNamesFromVueRoutes, resolveMenuRouteKeepAlive } from '@/router/helpers/keep-alive';
-import { parseKeepAliveFromRemark, getMenuKeepAliveFromStorage } from '@/utils/menu-keep-alive-config';
 
 type RouteMetaLike = Partial<NonNullable<ElegantConstRoute['meta']>> & Record<string, unknown>;
 type BackendMenuRoute = Api.Route.BackendMenuRoute;
@@ -114,9 +114,7 @@ function normalizeRouteMeta(route: ElegantConstRoute | BackendMenuRoute): NonNul
   meta.activeMenu = (rawMeta.activeMenu || routeRecord.activeMenu) as NonNullable<
     ElegantConstRoute['meta']
   >['activeMenu'];
-  meta.keepAlive = normalizeBooleanMetaField(
-    rawMeta.keepAlive ?? routeRecord.keepAlive ?? routeRecord.keep_alive
-  );
+  meta.keepAlive = normalizeBooleanMetaField(rawMeta.keepAlive ?? routeRecord.keepAlive ?? routeRecord.keep_alive);
 
   return meta;
 }
@@ -324,6 +322,123 @@ function resolveElegantComponentString(params: {
 }
 
 /**
+ * 过滤后端菜单子节点：剔除遗留路由与按钮类型（F）菜单。
+ */
+function filterBackendMenuChildren(route: ElegantConstRoute | BackendMenuRoute): BackendMenuRoute[] {
+  if (!Array.isArray(route.children)) return [];
+  return route.children
+    .filter(child => !isLegacyBackendRoute(child as BackendMenuRoute))
+    .filter(child => String((child as Record<string, unknown>).menuType || '').toUpperCase() !== 'F');
+}
+
+/**
+ * 解析单条后端菜单的路由名：优先 path 推导，子路径与父级相同时回退 component，最后回退菜单字段。
+ */
+function resolveNormalizedBackendRouteName(params: {
+  absolutePath: string;
+  parentAbsPath: string | null;
+  rawComponentStr: string;
+  route: ElegantConstRoute | BackendMenuRoute;
+  routeRecord: Record<string, unknown>;
+}): string {
+  let routeName = pathToElegantRouteName(params.absolutePath);
+  const parentAbs = params.parentAbsPath ? normalizeLeadingSlash(params.parentAbsPath) : '';
+  // path 仍与父级相同时，用 component 推导的 viewKey 作为路由名，避免与目录路由 `system` 冲突
+  if (parentAbs && params.absolutePath === parentAbs) {
+    const viewKeyFromComponent = backendFilePathToViewKey(params.rawComponentStr);
+    if (viewKeyFromComponent) {
+      routeName = viewKeyFromComponent;
+    }
+  }
+  if (!routeName) {
+    routeName =
+      String(
+        params.route.name ||
+          params.routeRecord.routeName ||
+          params.routeRecord.menuName ||
+          params.routeRecord.name ||
+          'menu'
+      )
+        .replace(/\s+/g, '-')
+        .replace(/[^a-zA-Z0-9_-]/g, '') || 'menu';
+  }
+  return routeName;
+}
+
+/**
+ * 将单条后端菜单记录归一化为 elegant 路由结构。
+ */
+function buildNormalizedAuthRoute(params: {
+  route: ElegantConstRoute | BackendMenuRoute;
+  siblingIndex: number;
+  siblingCount: number;
+  parentAbsPath: string | null;
+  isTreeRoot: boolean;
+}): ElegantConstRoute {
+  const routeRecord = params.route as Record<string, unknown>;
+  const normalizedMeta = normalizeRouteMeta(params.route);
+  const rawChildren = filterBackendMenuChildren(params.route);
+  const hasRawChildren = rawChildren.length > 0;
+  const pathSegment = resolveBackendMenuPathSegment(routeRecord, hasRawChildren);
+  const absolutePath = resolveBackendAbsolutePath(params.parentAbsPath, pathSegment);
+  const rawComponentStr = String(params.route.component ?? routeRecord.component ?? '').trim();
+  const routeName = resolveNormalizedBackendRouteName({
+    absolutePath,
+    parentAbsPath: params.parentAbsPath,
+    rawComponentStr,
+    route: params.route,
+    routeRecord
+  });
+
+  const normalizedChildren = normalizeAuthRoutesFromBackend(rawChildren, absolutePath);
+  const hasChildren = normalizedChildren.length > 0;
+
+  const elegantComponent = resolveElegantComponentString({
+    rawComponent: params.route.component ?? routeRecord.component,
+    hasChildren,
+    isTreeRoot: params.isTreeRoot,
+    routeName
+  }) as ElegantConstRoute['component'];
+
+  const isConstantRoute = Boolean(
+    normalizeBooleanMetaField((routeRecord.constant ?? normalizedMeta.constant) as unknown)
+  );
+  const menuType = String(routeRecord.menuType ?? params.route.menuType ?? '');
+  const menuId = routeRecord.id ?? params.route.id;
+  const remarkKeepAlive = parseKeepAliveFromRemark(String(routeRecord.remark ?? ''));
+  const storageKeepAlive = getMenuKeepAliveFromStorage(menuId as string | number);
+  const configuredKeepAlive = normalizedMeta.keepAlive ?? remarkKeepAlive ?? storageKeepAlive;
+  const routeKeepAlive = resolveMenuRouteKeepAlive({
+    routeName,
+    isConstant: isConstantRoute,
+    menuType,
+    hasChildren,
+    backendKeepAlive: configuredKeepAlive
+  });
+
+  const normalized: ElegantConstRoute = {
+    ...params.route,
+    name: routeName,
+    path: absolutePath,
+    component: elegantComponent,
+    meta: {
+      ...normalizedMeta,
+      order: resolveFallbackOrder(normalizedMeta.order, params.siblingIndex, params.siblingCount),
+      hideInMenu: normalizedMeta.hideInMenu ?? false,
+      // 是否缓存由菜单管理页配置（remark 标记 + 本地缓存），仅页面菜单 C 且开启时生效。
+      keepAlive: routeKeepAlive
+    },
+    children: undefined
+  };
+
+  if (hasChildren) {
+    normalized.children = normalizedChildren;
+  }
+
+  return normalized;
+}
+
+/**
  * Normalize backend auth routes so menu-related fields are always read from `route.meta`.
  *
  * Backend may return these fields either at route root or in `meta`.
@@ -340,83 +455,15 @@ export function normalizeAuthRoutesFromBackend(
   const siblingCount = sanitizedRoutes.length;
   const isTreeRoot = parentAbsPath === null;
 
-  return sanitizedRoutes.map((route, siblingIndex) => {
-    const routeRecord = route as Record<string, unknown>;
-    const normalizedMeta = normalizeRouteMeta(route);
-    const rawChildren = Array.isArray(route.children)
-      ? route.children
-          .filter(child => !isLegacyBackendRoute(child as BackendMenuRoute))
-          .filter(child => String((child as Record<string, unknown>).menuType || '').toUpperCase() !== 'F')
-      : [];
-    const hasRawChildren = rawChildren.length > 0;
-    const pathSegment = resolveBackendMenuPathSegment(routeRecord, hasRawChildren);
-    const absolutePath = resolveBackendAbsolutePath(parentAbsPath, pathSegment);
-    let routeName = pathToElegantRouteName(absolutePath);
-
-    const rawComponentStr = String(route.component ?? routeRecord.component ?? '').trim();
-    const parentAbs = parentAbsPath ? normalizeLeadingSlash(parentAbsPath) : '';
-    // path 仍与父级相同时，用 component 推导的 viewKey 作为路由名，避免与目录路由 `system` 冲突
-    if (parentAbs && absolutePath === parentAbs) {
-      const viewKeyFromComponent = backendFilePathToViewKey(rawComponentStr);
-      if (viewKeyFromComponent) {
-        routeName = viewKeyFromComponent;
-      }
-    }
-
-    if (!routeName) {
-      routeName =
-        String(route.name || routeRecord.routeName || routeRecord.menuName || routeRecord.name || 'menu')
-          .replace(/\s+/g, '-')
-          .replace(/[^a-zA-Z0-9_-]/g, '') || 'menu';
-    }
-
-    const normalizedChildren = normalizeAuthRoutesFromBackend(rawChildren as BackendMenuRoute[], absolutePath);
-    const hasChildren = normalizedChildren.length > 0;
-
-    const elegantComponent = resolveElegantComponentString({
-      rawComponent: route.component ?? routeRecord.component,
-      hasChildren,
-      isTreeRoot,
-      routeName
-    }) as ElegantConstRoute['component'];
-
-    const isConstantRoute = Boolean(
-      normalizeBooleanMetaField((routeRecord.constant ?? normalizedMeta.constant) as unknown)
-    );
-    const menuType = String(routeRecord.menuType ?? route.menuType ?? '');
-    const menuId = routeRecord.id ?? route.id;
-    const remarkKeepAlive = parseKeepAliveFromRemark(String(routeRecord.remark ?? ''));
-    const storageKeepAlive = getMenuKeepAliveFromStorage(menuId as string | number);
-    const configuredKeepAlive = normalizedMeta.keepAlive ?? remarkKeepAlive ?? storageKeepAlive;
-    const routeKeepAlive = resolveMenuRouteKeepAlive({
-      routeName,
-      isConstant: isConstantRoute,
-      menuType,
-      hasChildren,
-      backendKeepAlive: configuredKeepAlive
-    });
-
-    const normalized: ElegantConstRoute = {
-      ...route,
-      name: routeName,
-      path: absolutePath,
-      component: elegantComponent,
-      meta: {
-        ...normalizedMeta,
-        order: resolveFallbackOrder(normalizedMeta.order, siblingIndex, siblingCount),
-        hideInMenu: normalizedMeta.hideInMenu ?? false,
-        // 是否缓存由菜单管理页配置（remark 标记 + 本地缓存），仅页面菜单 C 且开启时生效。
-        keepAlive: routeKeepAlive
-      },
-      children: undefined
-    };
-
-    if (hasChildren) {
-      normalized.children = normalizedChildren;
-    }
-
-    return normalized;
-  });
+  return sanitizedRoutes.map((route, siblingIndex) =>
+    buildNormalizedAuthRoute({
+      route,
+      siblingIndex,
+      siblingCount,
+      parentAbsPath,
+      isTreeRoot
+    })
+  );
 }
 
 /**

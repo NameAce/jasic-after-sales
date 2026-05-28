@@ -4,7 +4,7 @@
  * @修改人 黄碧莲
  * @修改时间 2026-05-27
  */
-import type { RouteRecordRaw, RouteComponent } from 'vue-router';
+import type { RouteComponent, RouteRecordRaw } from 'vue-router';
 import type { LastLevelRouteKey } from '@elegant-router/types';
 
 /** 不参与 keep-alive 的常量路由 name（登录、异常页等） */

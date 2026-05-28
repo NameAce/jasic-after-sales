@@ -3,8 +3,8 @@
  * 系统管理 - 投诉与建议受理列表页：按受理状态分 Tab，支持筛选、分页和行内受理/修改动作。
  */
 import { computed, onMounted, reactive, ref } from 'vue';
-import dayjs, { type Dayjs } from 'dayjs';
 import type { FormInstance } from 'ant-design-vue';
+import type { Dayjs } from 'dayjs';
 import type { Key } from 'ant-design-vue/es/_util/type';
 import { acceptFeedback, listFeedbackManage, updateAcceptFeedback } from '@/service/api';
 import { notifyOnceSuccessFromFlatResult } from '@/service/request/shared';
@@ -38,8 +38,14 @@ const total = ref(0);
 const activeTab = ref<'UNACCEPTED' | 'ACCEPTED' | 'ALL'>('UNACCEPTED');
 
 const { tableWrapperRef, scrollConfig } = useTableScroll(1460);
-const { listFetchErrorMsg, listEmptyBackendMsg, clearListMsgs, consumeFlatError, refreshEmptySuccessMsg, setMsgFromCatch } =
-  useListRequestTableMsgs();
+const {
+  listFetchErrorMsg,
+  listEmptyBackendMsg,
+  clearListMsgs,
+  consumeFlatError,
+  refreshEmptySuccessMsg,
+  setMsgFromCatch
+} = useListRequestTableMsgs();
 const tableListLocale = createAntTableListLocale(listFetchErrorMsg, listEmptyBackendMsg, rows);
 
 const query = reactive({
@@ -61,7 +67,6 @@ const acceptFormRules = {
   acceptReply: [{ required: true, message: '请输入受理回复', trigger: 'blur' }]
 };
 const currentAction = ref<'accept' | 'update'>('accept');
-const acceptReplyLength = computed(() => acceptForm.acceptReply.length);
 
 const showFeedbackActionColumn = computed(() => hasAuth(['feedback:accept', 'feedback:updateAccept']));
 const columns = computed(() =>
@@ -104,7 +109,10 @@ async function loadRows() {
       total.value = 0;
       return;
     }
-    const page = ((flat as { data?: unknown })?.data || {}) as { records?: Array<Record<string, unknown>>; total?: number };
+    const page = ((flat as { data?: unknown })?.data || {}) as {
+      records?: Array<Record<string, unknown>>;
+      total?: number;
+    };
     const list = Array.isArray(page.records) ? page.records : [];
     rows.value = list.map(item => ({
       id: Number(item.id || 0),

@@ -78,7 +78,7 @@ export function getMenuKeepAliveFromStorage(menuId?: string | number | null): bo
   if (menuId === undefined || menuId === null || menuId === '') return undefined;
   const map = readStorageMap();
   const key = String(menuId);
-  if (!Object.prototype.hasOwnProperty.call(map, key)) return undefined;
+  if (!Object.hasOwn(map, key)) return undefined;
   return Boolean(map[key]);
 }
 
