@@ -1,16 +1,19 @@
 package com.jasic.aftersales.customer.domain.vo;
 
 import com.jasic.aftersales.common.enums.BrandTypeEnum;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
 
 /**
- * C端工单列表视图
+ * C 端工单列表视图。
+ *
+ * <p>该对象用于向客户侧列表页回传工单概览信息，同时保留展示状态、
+ * 报价金额、建单入口等后续页面会复用的业务字段。</p>
  *
  * @author Zoro
  * @date 2026/03/26
@@ -65,7 +68,7 @@ public class CustomerWorkOrderListVO implements Serializable {
     @ApiModelProperty(value = "主状态编码", allowableValues = "PENDING_ASSIGN,PENDING_TECH_ACCEPT,IN_PROGRESS,COMPLETED,CLOSED")
     private String mainStatus;
 
-    /** 展示状态名称 */
+    /** 列表展示状态名称 */
     @ApiModelProperty(value = "展示状态名称")
     private String displayStatus;
 
@@ -81,7 +84,7 @@ public class CustomerWorkOrderListVO implements Serializable {
     @ApiModelProperty(value = "当前受理网点名称")
     private String currentAcceptCompanyName;
 
-    /**currentAcceptCompanyPhone 字段，用于向前端展示经过服务层组装后的业务值。*/
+    /** 当前受理网点电话 */
     @ApiModelProperty(value = "当前受理网点电话")
     private String currentAcceptCompanyPhone;
 
@@ -89,15 +92,19 @@ public class CustomerWorkOrderListVO implements Serializable {
     @ApiModelProperty(value = "当前维修员姓名")
     private String assignedUserName;
 
+    /** 建单入口类型，统一表达全量工单是通过哪种建单语义创建。 */
+    @ApiModelProperty(value = "建单入口类型", allowableValues = "PROXY_SELF,UPSTREAM_FIRST,UPSTREAM_HQ,CUSTOMER_REPORT")
+    private String createEntryType;
+
     /** 是否发生过转单 */
     @ApiModelProperty(value = "是否发生过转单")
     private Integer hasTransfer;
 
-    /** 是否允许评价 */
+    /** 是否允许客户评价 */
     @ApiModelProperty(value = "是否允许评价")
     private Boolean canEvaluate;
 
-    /** 是否允许上传寄件凭证 */
+    /** 是否允许客户继续上传或覆盖寄件凭证 */
     @ApiModelProperty(value = "是否允许上传寄件凭证")
     private Boolean canUploadSendExpress;
 

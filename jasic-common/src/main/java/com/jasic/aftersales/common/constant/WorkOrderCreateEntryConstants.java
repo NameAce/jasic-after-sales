@@ -22,4 +22,7 @@ public class WorkOrderCreateEntryConstants {
 
     /** 一级报修佳士，由上游总部受理 */
     public static final String UPSTREAM_HQ = "UPSTREAM_HQ";
+
+    /** 客户在 C 端提交报修，由当前服务网点接单处理 */
+    public static final String CUSTOMER_REPORT = "CUSTOMER_REPORT";
 }

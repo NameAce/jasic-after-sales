@@ -7,6 +7,7 @@ import cn.dev33.satoken.context.model.SaRequest;
 import cn.dev33.satoken.context.model.SaResponse;
 import cn.dev33.satoken.context.model.SaStorage;
 import com.jasic.aftersales.common.constant.WorkOrderConfigConstants;
+import com.jasic.aftersales.common.constant.WorkOrderCreateEntryConstants;
 import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
 import com.jasic.aftersales.common.enums.BrandTypeEnum;
 import com.jasic.aftersales.common.enums.SysFileBizTypeEnum;
@@ -249,6 +250,7 @@ public class CustomerWorkOrderServiceImplTest {
         Assert.assertEquals("MODEL-A", insertedWorkOrder[0].getProductModel());
         Assert.assertEquals(Long.valueOf(21L), insertedWorkOrder[0].getHqCompanyId());
         Assert.assertEquals("JSWX2026042200001", insertedWorkOrder[0].getOrderNo());
+        Assert.assertEquals(WorkOrderCreateEntryConstants.CUSTOMER_REPORT, insertedWorkOrder[0].getCreateEntryType());
         Assert.assertEquals(1, insertedFlows.size());
         Assert.assertEquals("CREATE", insertedFlows.get(0).getActionType());
     }
@@ -305,6 +307,7 @@ public class CustomerWorkOrderServiceImplTest {
         });
 
         Assert.assertNotNull(insertedWorkOrder[0]);
+        Assert.assertEquals(WorkOrderCreateEntryConstants.CUSTOMER_REPORT, insertedWorkOrder[0].getCreateEntryType());
         Assert.assertEquals(1, insertedFlows.size());
         Assert.assertEquals(1, notifyFacade.acceptEvents.size());
         Assert.assertEquals(insertedWorkOrder[0].getId(), notifyFacade.acceptEvents.get(0).getWorkOrderId());
@@ -634,6 +637,7 @@ public class CustomerWorkOrderServiceImplTest {
         workOrder.setCurrentAcceptCompanyId(31L);
         workOrder.setMainStatus(WorkOrderStatusConstants.MainStatus.PENDING_ASSIGN);
         workOrder.setEvaluateStatus("NOT_OPEN");
+        workOrder.setCreateEntryType(WorkOrderCreateEntryConstants.CUSTOMER_REPORT);
 
         setField(service, "workOrderMapper", createWorkOrderMapperProxy(workOrder, new int[1]));
         setField(service, "sysCompanyMapper", createCompanyMapperProxy(
@@ -657,6 +661,7 @@ public class CustomerWorkOrderServiceImplTest {
         Assert.assertNotNull(result[0]);
         Assert.assertEquals("Service A", result[0].getCurrentAcceptCompanyName());
         Assert.assertEquals("0755-00000031", result[0].getCurrentAcceptCompanyPhone());
+        Assert.assertEquals(WorkOrderCreateEntryConstants.CUSTOMER_REPORT, result[0].getCreateEntryType());
     }
 
     /**验证ShowUploadSenderVoucherWhenCurrentVoucherAlreadyExists，保证相关业务规则在回归场景下保持稳定。*/

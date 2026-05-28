@@ -132,7 +132,7 @@ public class WorkOrderDetailVO extends WorkOrderListVO {
     private String createCompanyName;
 
     /** 建单入口类型 */
-    @ApiModelProperty(value = "建单入口类型", allowableValues = "PROXY_SELF,UPSTREAM_FIRST,UPSTREAM_HQ")
+    @ApiModelProperty(value = "建单入口类型", allowableValues = "PROXY_SELF,UPSTREAM_FIRST,UPSTREAM_HQ,CUSTOMER_REPORT")
     private String createEntryType;
 
     /** 归属总部ID */

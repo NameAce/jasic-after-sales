@@ -165,6 +165,10 @@ public class CustomerWorkOrderDetailVO implements Serializable {
     @ApiModelProperty(value = "当前维修员姓名")
     private String assignedUserName;
 
+    /**createEntryType 字段，用于向前端回传全量工单建单语义，供 C 端独立展示“建单入口”。*/
+    @ApiModelProperty(value = "建单入口类型", allowableValues = "PROXY_SELF,UPSTREAM_FIRST,UPSTREAM_HQ,CUSTOMER_REPORT")
+    private String createEntryType;
+
     /**hqCompanyId 字段，用于向前端展示经过服务层组装后的业务值。*/
     @ApiModelProperty(value = "归属总部ID")
     private Long hqCompanyId;

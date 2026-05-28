@@ -3,6 +3,7 @@ package com.jasic.aftersales.customer.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jasic.aftersales.common.constant.WorkOrderConfigConstants;
+import com.jasic.aftersales.common.constant.WorkOrderCreateEntryConstants;
 import com.jasic.aftersales.common.constant.WorkOrderReportSubjectConstants;
 import com.jasic.aftersales.common.constant.WorkOrderStatusConstants;
 import com.jasic.aftersales.common.constant.WorkOrderStatusFlow;
@@ -274,6 +275,8 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         workOrder.setCurrentAcceptSubjectType("SERVICE");
         workOrder.setCurrentAcceptCompanyId(serviceCompany.getId());
         workOrder.setCreateCompanyId(serviceCompany.getId());
+        // C 端客户自助提交属于统一建单语义中的“客户报修”，后续各端展示与统计都依赖该枚举闭环。
+        workOrder.setCreateEntryType(WorkOrderCreateEntryConstants.CUSTOMER_REPORT);
         workOrder.setHqCompanyId(hqCompanyId);
         workOrder.setFaultRepairConfigId(resolveCreateFaultRepairConfigId(barcodeArchive, hqCompanyId));
         workOrder.setHasTransfer(0);
@@ -522,6 +525,8 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         detail.setCurrentAcceptCompanyName(currentAcceptCompany == null ? null : currentAcceptCompany.getCompanyName());
         detail.setCurrentAcceptCompanyPhone(currentAcceptCompany == null ? null : currentAcceptCompany.getContactPhone());
         detail.setAssignedUserName(userNameMap.get(workOrder.getAssignedUserId()));
+        // 详情直接回传建单入口语义，供 C 端在“建单入口”字段位独立展示，不覆盖申请来源语义。
+        detail.setCreateEntryType(workOrder.getCreateEntryType());
         detail.setQuotes(listQuoteVos(workOrderId));
         detail.setRepairs(listRepairVos(workOrderId));
         detail.setEvaluation(getEvaluationVo(workOrderId));
@@ -1325,6 +1330,8 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         vo.setDisplayStatus(resolveCustomerDisplayStatus(workOrder.getMainStatus()));
         vo.setEvaluateStatus(workOrder.getEvaluateStatus());
         vo.setEvaluateStatusLabel(WorkOrderStatusConstants.resolveEvaluateStatusLabel(workOrder.getEvaluateStatus()));
+        // 列表同样保留建单入口语义，避免后续各端列表或筛选再次出现空值分叉。
+        vo.setCreateEntryType(workOrder.getCreateEntryType());
         SysCompany currentAcceptCompany = companyMap == null ? null : companyMap.get(workOrder.getCurrentAcceptCompanyId());
         vo.setCurrentAcceptCompanyName(currentAcceptCompany == null ? null : currentAcceptCompany.getCompanyName());
         vo.setCurrentAcceptCompanyPhone(currentAcceptCompany == null ? null : currentAcceptCompany.getContactPhone());
@@ -2384,6 +2391,4 @@ public class CustomerWorkOrderServiceImpl implements ICustomerWorkOrderService {
         return text.isEmpty() ? null : text;
     }
 }
-
-
 

@@ -1156,15 +1156,21 @@ public class WorkOrderServiceImplTest {
                 new Class<?>[]{String.class}, "PROXY_SELF");
         Object upstreamSubjectType = invokePrivateMethod(service, "resolveReportSubjectType",
                 new Class<?>[]{String.class}, "UPSTREAM_FIRST");
+        Object customerSubjectType = invokePrivateMethod(service, "resolveReportSubjectType",
+                new Class<?>[]{String.class}, "CUSTOMER_REPORT");
         Object proxyReportCompanyId = invokePrivateMethod(service, "resolveReportCompanyId",
                 new Class<?>[]{Long.class, String.class}, 2002L, "PROXY_SELF");
         Object upstreamReportCompanyId = invokePrivateMethod(service, "resolveReportCompanyId",
                 new Class<?>[]{Long.class, String.class}, 2002L, "UPSTREAM_HQ");
+        Object customerReportCompanyId = invokePrivateMethod(service, "resolveReportCompanyId",
+                new Class<?>[]{Long.class, String.class}, 2002L, "CUSTOMER_REPORT");
 
         Assert.assertEquals("CUSTOMER", proxySubjectType);
         Assert.assertEquals("COMPANY", upstreamSubjectType);
+        Assert.assertEquals("CUSTOMER", customerSubjectType);
         Assert.assertNull(proxyReportCompanyId);
         Assert.assertEquals(Long.valueOf(2002L), upstreamReportCompanyId);
+        Assert.assertNull(customerReportCompanyId);
     }
 
     /**验证RejectUpstreamCreateWhenLoginPhoneMissing，保证相关业务规则在回归场景下保持稳定。*/
@@ -3442,4 +3448,3 @@ public class WorkOrderServiceImplTest {
         }
     }
 }
-

@@ -41,6 +41,7 @@ public final class CompanyDataPolicyRegistry {
                 "c_user",
                 "customer_address",
                 "sys_file",
+                "sys_feedback",
                 "sys_notify_dispatch",
                 "sys_notify_event",
                 "sys_notify_message",
@@ -189,5 +190,4 @@ public final class CompanyDataPolicyRegistry {
         }
     }
 }
-
 

@@ -116,7 +116,7 @@ public class WorkOrderListVO implements Serializable {
     private Long createCompanyId;
 
     /**createEntryType 字段，用于向前端标识当前工单来源于哪种建单入口。*/
-    @ApiModelProperty(value = "建单入口类型", allowableValues = "PROXY_SELF,UPSTREAM_FIRST,UPSTREAM_HQ")
+    @ApiModelProperty(value = "建单入口类型", allowableValues = "PROXY_SELF,UPSTREAM_FIRST,UPSTREAM_HQ,CUSTOMER_REPORT")
     private String createEntryType;
 
     /**hqCompanyId 字段，用于向前端展示经过服务层组装后的业务值。*/
