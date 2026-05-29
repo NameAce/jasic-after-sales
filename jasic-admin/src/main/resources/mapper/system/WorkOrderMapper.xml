@@ -274,6 +274,19 @@
                             </otherwise>
                         </choose>
                     </when>
+                    <when test="query.viewScope == 'COMPANY_REPAIR'">
+                        <choose>
+                            <when test="query.accessContext.subjectType == 'HQ'">
+                                AND 1 = 0
+                            </when>
+                            <otherwise>
+                                <!-- 报修工单视图固定按“当前公司报修出去的工单”收口，不扩展到同体系关联公司。 -->
+                                AND w.report_subject_type = 'COMPANY'
+                                AND w.report_company_id = #{query.accessContext.currentCompanyId}
+                                AND w.create_entry_type IN ('UPSTREAM_FIRST', 'UPSTREAM_HQ')
+                            </otherwise>
+                        </choose>
+                    </when>
                     <otherwise>
                         AND w.current_accept_company_id = #{query.accessContext.currentCompanyId}
                         <if test="query.accessContext.subjectType == 'HQ' and query.accessContext.dataScope == 'REGION'">
@@ -322,6 +335,9 @@
             <if test="query.transferDirection != 'OUT' and query.accessContext.dataScope == 'SELF' and query.accessContext.currentUserId != null">
                 <choose>
                     <when test="query.viewScope == 'ALL'">
+                        AND <include refid="CurrentUserAllVisibilityCondition" />
+                    </when>
+                    <when test="query.viewScope == 'COMPANY_REPAIR'">
                         AND <include refid="CurrentUserAllVisibilityCondition" />
                     </when>
                     <when test="query.viewScope != 'HISTORY'">

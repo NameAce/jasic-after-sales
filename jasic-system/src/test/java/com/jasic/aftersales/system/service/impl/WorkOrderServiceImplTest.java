@@ -46,6 +46,7 @@ import com.jasic.aftersales.system.domain.vo.WorkOrderCreateBarcodeInfoVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderDetailVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderListVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderRepairFaultOptionVO;
+import com.jasic.aftersales.system.domain.vo.WorkOrderStatusCountVO;
 import com.jasic.aftersales.system.domain.vo.WorkOrderUserOptionVO;
 import com.jasic.aftersales.system.mapper.FirstSecondRelationMapper;
 import com.jasic.aftersales.system.mapper.HqFirstContractMapper;
@@ -298,6 +299,157 @@ public class WorkOrderServiceImplTest {
         Assert.assertEquals(Long.valueOf(1001L), snapshot.getCreateCompanyId());
         Assert.assertEquals(Long.valueOf(900L), snapshot.getHqCompanyId());
         Assert.assertEquals("STORE", snapshot.getServiceMode());
+    }
+
+    /**验证 COMPANY_REPAIR 视图仍沿用现有按钮权限回填逻辑。*/
+    @Test
+    public void shouldFillAvailableActionsInCompanyRepairListPage() throws Exception {
+        WorkOrderListVO record = new WorkOrderListVO();
+        record.setId(399L);
+        record.setMainStatus(WorkOrderStatusConstants.MainStatus.IN_PROGRESS);
+        record.setCurrentAcceptCompanyId(1001L);
+        record.setCreateCompanyId(2002L);
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createPagedWorkOrderMapperProxy(Collections.singletonList(record)));
+        setField(service, "workOrderQuoteMapper", createQuoteMapperProxy(Collections.emptyList()));
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            @Override
+            public WorkOrderScopedQuery buildScopedQuery(WorkOrderQuery query) {
+                WorkOrderScopedQuery scopedQuery = new WorkOrderScopedQuery();
+                scopedQuery.setPageNum(query.getPageNum());
+                scopedQuery.setPageSize(query.getPageSize());
+                scopedQuery.setViewScope(query.getViewScope());
+                scopedQuery.setAccessContext(resolveAccessContext());
+                return scopedQuery;
+            }
+
+            @Override
+            public WorkOrderAccessContext resolveAccessContext() {
+                WorkOrderAccessContext context = new WorkOrderAccessContext();
+                context.setCurrentUserId(101L);
+                context.setCurrentCompanyId(2002L);
+                context.setSubjectType("SERVICE");
+                context.setDataScope("ALL");
+                // 报修工单视图不允许因为一级网点 ALL 范围而扩展到下属网点，
+                // 这里故意放入关联公司用于回归保护。
+                context.setRelatedCompanyIds(Collections.singletonList(9999L));
+                context.setRelatedCompanyIds(Collections.singletonList(9999L));
+                return context;
+            }
+
+            @Override
+            public List<String> listAvailableActions(WorkOrder workOrder, WorkOrderAccessContext context) {
+                return Collections.singletonList("TRANSFER");
+            }
+        });
+
+        WorkOrderQuery query = new WorkOrderQuery();
+        query.setPageNum(1);
+        query.setPageSize(10);
+        query.setViewScope("COMPANY_REPAIR");
+
+        final PageResult<WorkOrderListVO>[] holder = new PageResult[1];
+        runWithLoginContext(101L, new ThrowingRunnable() {
+            @Override
+            public void run() {
+                com.jasic.aftersales.framework.security.SecurityContext.setCurrentCompanyId(2002L);
+                com.jasic.aftersales.framework.security.SecurityContext.setCurrentSubjectType("SERVICE");
+                holder[0] = service.listPage(query);
+            }
+        });
+
+        Assert.assertEquals(1, holder[0].getRecords().size());
+        Assert.assertEquals(Collections.singletonList("TRANSFER"), holder[0].getRecords().get(0).getAvailableActions());
+    }
+
+    /**验证总部主体查询 COMPANY_REPAIR 视图时按方案直接返回空列表。*/
+    @Test
+    public void shouldReturnEmptyListForHqCompanyRepairView() throws Exception {
+        WorkOrderListVO record = new WorkOrderListVO();
+        record.setId(499L);
+        record.setCurrentAcceptCompanyId(900L);
+
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createPagedWorkOrderMapperProxy(Collections.singletonList(record)));
+        setField(service, "workOrderQuoteMapper", createQuoteMapperProxy(Collections.emptyList()));
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            @Override
+            public WorkOrderScopedQuery buildScopedQuery(WorkOrderQuery query) {
+                WorkOrderScopedQuery scopedQuery = new WorkOrderScopedQuery();
+                scopedQuery.setPageNum(query.getPageNum());
+                scopedQuery.setPageSize(query.getPageSize());
+                scopedQuery.setViewScope(query.getViewScope());
+                scopedQuery.setAccessContext(resolveAccessContext());
+                return scopedQuery;
+            }
+
+            @Override
+            public WorkOrderAccessContext resolveAccessContext() {
+                WorkOrderAccessContext context = new WorkOrderAccessContext();
+                context.setCurrentUserId(101L);
+                context.setCurrentCompanyId(900L);
+                context.setSubjectType("HQ");
+                context.setDataScope("ALL");
+                context.setRelatedCompanyIds(Collections.emptyList());
+                return context;
+            }
+        });
+
+        WorkOrderQuery query = new WorkOrderQuery();
+        query.setPageNum(1);
+        query.setPageSize(10);
+        query.setViewScope("COMPANY_REPAIR");
+
+        final PageResult<WorkOrderListVO>[] holder = new PageResult[1];
+        runWithLoginContext(101L, new ThrowingRunnable() {
+            @Override
+            public void run() {
+                com.jasic.aftersales.framework.security.SecurityContext.setCurrentCompanyId(900L);
+                com.jasic.aftersales.framework.security.SecurityContext.setCurrentSubjectType("HQ");
+                holder[0] = service.listPage(query);
+            }
+        });
+
+        Assert.assertEquals(0L, holder[0].getTotal().longValue());
+        Assert.assertTrue(holder[0].getRecords().isEmpty());
+    }
+
+    /**验证 COMPANY_REPAIR 视图的状态统计返回明确业务提示。*/
+    @Test
+    public void shouldRejectStatusCountForCompanyRepairView() throws Exception {
+        WorkOrderServiceImpl service = new WorkOrderServiceImpl();
+        setField(service, "workOrderMapper", createStatusCountMapperProxy(Collections.emptyList()));
+        setField(service, "workOrderPermissionService", new AllowViewWorkOrderPermissionService() {
+            @Override
+            public WorkOrderScopedQuery buildScopedQuery(WorkOrderQuery query) {
+                WorkOrderScopedQuery scopedQuery = new WorkOrderScopedQuery();
+                scopedQuery.setViewScope(query.getViewScope());
+                scopedQuery.setAccessContext(resolveAccessContext());
+                return scopedQuery;
+            }
+
+            @Override
+            public WorkOrderAccessContext resolveAccessContext() {
+                WorkOrderAccessContext context = new WorkOrderAccessContext();
+                context.setCurrentUserId(101L);
+                context.setCurrentCompanyId(2002L);
+                context.setSubjectType("SERVICE");
+                context.setDataScope("ALL");
+                context.setRelatedCompanyIds(Collections.emptyList());
+                return context;
+            }
+        });
+
+        WorkOrderQuery query = new WorkOrderQuery();
+        query.setViewScope("COMPANY_REPAIR");
+
+        try {
+            service.countByStatus(query);
+            Assert.fail("预期 COMPANY_REPAIR 视图状态统计应返回不支持提示");
+        } catch (ServiceException ex) {
+            Assert.assertEquals("当前视图暂不支持状态统计", ex.getMessage());
+        }
     }
 
     /**验证RejectTransferTargetQueryWhenTransferNotAllowed，保证相关业务规则在回归场景下保持稳定。*/
@@ -2132,6 +2284,24 @@ public class WorkOrderServiceImplTest {
 @param workOrder workOrder 字段参数。
 @param detail detail 字段参数。
 @return 新增或保存后的业务标识或处理结果。*/
+    /**createStatusCountMapperProxy 业务动作，返回状态统计查询所需的桩数据。*/
+    private WorkOrderMapper createStatusCountMapperProxy(List<WorkOrderStatusCountVO> counts) {
+        InvocationHandler handler = new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                if ("selectStatusCount".equals(method.getName())) {
+                    return counts;
+                }
+                return defaultValue(method.getReturnType());
+            }
+        };
+        return (WorkOrderMapper) Proxy.newProxyInstance(
+                WorkOrderMapper.class.getClassLoader(),
+                new Class<?>[]{WorkOrderMapper.class},
+                handler
+        );
+    }
+
     private WorkOrderMapper createWorkOrderDetailMapperProxy(WorkOrder workOrder, WorkOrderDetailVO detail) {
         InvocationHandler handler = new InvocationHandler() {
             /**invoke 处理逻辑，服务于当前类的业务编排和数据转换。

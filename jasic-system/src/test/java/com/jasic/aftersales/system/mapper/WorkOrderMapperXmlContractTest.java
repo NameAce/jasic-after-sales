@@ -97,6 +97,20 @@ public class WorkOrderMapperXmlContractTest {
         Assert.assertEquals(2, countOccurrences(normalized, "<include refid=\"WorkOrderKeywordCondition\" />"));
     }
 
+    /**shouldDefineCompanyRepairViewScope 校验报修工单视图的 SQL 口径与 SELF 收口。*/
+    @Test
+    public void shouldDefineCompanyRepairViewScope() throws IOException {
+        String xml = new String(Files.readAllBytes(resolveMapperPath()), StandardCharsets.UTF_8);
+        String normalized = xml.replace("\r\n", "\n");
+
+        Assert.assertTrue(normalized.contains("<when test=\"query.viewScope == 'COMPANY_REPAIR'\">"));
+        Assert.assertTrue(normalized.contains("AND w.report_subject_type = 'COMPANY'"));
+        Assert.assertTrue(normalized.contains("AND w.report_company_id = #{query.accessContext.currentCompanyId}"));
+        Assert.assertTrue(normalized.contains("AND w.create_entry_type IN ('UPSTREAM_FIRST', 'UPSTREAM_HQ')"));
+        Assert.assertTrue(normalized.contains("<when test=\"query.accessContext.subjectType == 'HQ'\">\n                                AND 1 = 0"));
+        Assert.assertTrue(normalized.contains("<when test=\"query.viewScope == 'COMPANY_REPAIR'\">\n                        AND <include refid=\"CurrentUserAllVisibilityCondition\" />"));
+    }
+
     /**resolveMapperPath 数据访问操作，为服务层提供数据库查询或写入结果。
 @return 查询或解析得到的业务对象。*/
     private Path resolveMapperPath() {

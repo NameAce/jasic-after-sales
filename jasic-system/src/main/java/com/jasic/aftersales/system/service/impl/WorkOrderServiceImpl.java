@@ -177,6 +177,12 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     /**FAULT_DESC_SEPARATOR 常量，用于固定当前类内部复用的业务编码、默认值或配置边界。*/
     private static final String FAULT_DESC_SEPARATOR = "；";
 
+    /** 报修工单视图编码。 */
+    private static final String VIEW_SCOPE_COMPANY_REPAIR = "COMPANY_REPAIR";
+
+    /** 报修工单视图状态统计的统一业务提示。 */
+    private static final String COMPANY_REPAIR_STATUS_COUNT_UNSUPPORTED_MESSAGE = "当前视图暂不支持状态统计";
+
     /**workOrderMapper 依赖，用于协同完成当前业务流程中的数据访问、规则校验或状态处理。*/
     @Resource
     private WorkOrderMapper workOrderMapper;
@@ -292,6 +298,12 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     @Override
     public PageResult<WorkOrderListVO> listPage(WorkOrderQuery query) {
         WorkOrderScopedQuery scopedQuery = normalizeQuery(query);
+        // 报修工单视图只面向网点主体开放，总部主体命中该视图时直接返回空列表，
+        // 避免沿用 CURRENT/HISTORY/ALL 的任何总部可见口径。
+        if (VIEW_SCOPE_COMPANY_REPAIR.equals(scopedQuery.getViewScope())
+                && "HQ".equals(scopedQuery.getAccessContext().getSubjectType())) {
+            return PageResult.of(Collections.emptyList(), 0L, scopedQuery.getPageNum(), scopedQuery.getPageSize());
+        }
         Page<WorkOrderListVO> page = new Page<>(scopedQuery.getPageNum(), scopedQuery.getPageSize());
         IPage<WorkOrderListVO> result = workOrderMapper.selectWorkOrderPage(page, scopedQuery);
         List<WorkOrderListVO> records = result.getRecords();
@@ -322,7 +334,9 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
             return false;
         }
         String viewScope = scopedQuery.getViewScope();
-        return "CURRENT".equals(viewScope) || "HISTORY".equals(viewScope);
+        return "CURRENT".equals(viewScope)
+                || "HISTORY".equals(viewScope)
+                || VIEW_SCOPE_COMPANY_REPAIR.equals(viewScope);
     }
 
     /**
@@ -334,6 +348,11 @@ public class WorkOrderServiceImpl implements IWorkOrderService {
     @Override
     public List<WorkOrderStatusCountVO> countByStatus(WorkOrderQuery query) {
         WorkOrderScopedQuery scopedQuery = normalizeQuery(query);
+        // 当前方案只开放 COMPANY_REPAIR 列表口径，状态统计尚未规划，
+        // 这里返回明确业务提示，避免错误复用现有统计语义。
+        if (VIEW_SCOPE_COMPANY_REPAIR.equals(scopedQuery.getViewScope())) {
+            throw new ServiceException(COMPANY_REPAIR_STATUS_COUNT_UNSUPPORTED_MESSAGE);
+        }
         WorkOrderScopedQuery countQuery = copyQueryForCount(scopedQuery);
         List<WorkOrderStatusCountVO> counts = workOrderMapper.selectStatusCount(countQuery);
         Map<String, Long> countMap = new HashMap<>();
